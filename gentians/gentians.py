@@ -90,7 +90,8 @@ class Solver:
             genetic_time = time.time() - start_time
 
             for i in best_index_stub_for_the_next_round:
-                best_stub_for_next_round.append(cls[i]) 
+                if 0 <= i < len(cls):
+                    best_stub_for_next_round.append(cls[i]) 
 
             print(f"Evolutionary cycle {it} - Time {genetic_time}")
             if best_found:

@@ -1,5 +1,6 @@
 import re
 import itertools
+from importlib import resources
 
 from .utils import UNDERSCORE_SIZE
 from .utils import AggregateElement
@@ -16,8 +17,7 @@ from .arguments import Arguments
 class VariablePlacer:
     def __init__(self, args : Arguments) -> None:
         def get_content(filename : str) -> str:
-            with open(filename) as f:
-                return f.read()
+            return resources.files("gentians").joinpath(filename).read_text()
 
         self.args : Arguments = args
         # dict: hash of the asp program to place vars -> result, to avoid the

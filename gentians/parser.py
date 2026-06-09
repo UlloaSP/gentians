@@ -198,8 +198,8 @@ class Parser:
 
     def _get_pos_neg_examples(self, s : str) -> 'tuple[str,str] | tuple[str,str,str]':
         # TODO: improve this
-        regex3 = r"^#pos\(\{([^{}]*)\},\{([^{}]*)\},\{([^{}]*)\}\)\.$"
-        regex2 = r"^#pos\(\{([^{}]*)\},\{([^{}]*)\}\)\.$"
+        regex3 = r"^#(?:pos|neg)\(\{([^{}]*)\},\{([^{}]*)\},\{([^{}]*)\}\)\.$"
+        regex2 = r"^#(?:pos|neg)\(\{([^{}]*)\},\{([^{}]*)\}\)\.$"
         res = re.findall(regex3, s)
         if len(res) > 0:
             return res[0]
@@ -223,6 +223,8 @@ class Parser:
         
         for line in lines:
             lc = line.rstrip().lstrip()
+            if lc == "" or lc.startswith("%"):
+                continue
 
             if lc.startswith("#modeh"):
                 res = self._get_mode_declaration(lc.replace(" ",""), True)

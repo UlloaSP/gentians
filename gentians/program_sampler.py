@@ -115,6 +115,7 @@ class ProgramSampler:
         to_append : str = ""
 
         for i, el in enumerate(body):
+            to_append = ""
             operators_count += 1
             # comparison
             if el.mode_bias.comparison_operator == "lt":
@@ -164,6 +165,7 @@ class ProgramSampler:
                         s = "#" + el.mode_bias.aggregation_function + "{" + ph + ":" + ','.join(atoms_in_agg) + "}=" + UNDERSCORE_SIZE*'_'
                         current.append(s)
                     all_aggregates.append(current)
+                    to_append = "__AGG_PLACEHOLDER__"
 
                 operators_count -= 1
                 aggregates_indexes.append(i)

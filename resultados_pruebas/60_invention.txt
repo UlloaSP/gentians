@@ -1,0 +1,1065 @@
+Running GENTIANS version 1.0.1.
+Namespace(file='.\\pruebas.txt', verbosity=1, variables=4, depth=4, prob_increase=0.5, disjunctive_head=1, samples=250, unbalanced_agg=False, max_as=5000, clauses=5, iterations=2, pop_size=60, iterations_genetic=300, mutation_probability=0.2, example=None, comparison=None, arithm=None, aggregates=None, cr=False, invention=1, alb=0, profile=False, version=False)
+Invention mode
+Sampling loop: 0
+Sampling clauses
+Sampled 170 different clauses in 0.03635048866271973 seconds
+Sampled clauses:
+0)  :- adult(_____),minor(_____).
+1)  :- active(_____),adult(_____).
+2)  :- active(_____),minor(_____).
+3) eligible(_____) :- adult(_____).
+4)  :- blocked(_____),minor(_____).
+5)  :- active(_____),blocked(_____).
+6)  :- customer(_____),minor(_____).
+7) __inv_0__(_____) :- adult(_____).
+8) __inv_0__(_____) :- minor(_____).
+9) eligible(_____) :- active(_____).
+10)  :- __inv_0__(_____),minor(_____).
+11)  :- active(_____),customer(_____).
+12) __inv_0__(_____) :- active(_____).
+13) eligible(_____) :- blocked(_____).
+14)  :- __inv_0__(_____),adult(_____).
+15)  :- adult(_____),not minor(_____).
+16)  :- minor(_____),not minor(_____).
+17) __inv_0__(_____) :- blocked(_____).
+18) eligible(_____) :- customer(_____).
+19) __inv_0__(_____) :- customer(_____).
+20)  :- minor(_____),not blocked(_____).
+21)  :- blocked(_____),not minor(_____).
+22)  :- customer(_____),not minor(_____).
+23)  :- has_purchase(_____),minor(_____).
+24) __inv_0__(_____) :- not minor(_____).
+25)  :- adult(_____),has_purchase(_____).
+26)  :- active(_____),has_purchase(_____).
+27)  :- __inv_0__(_____),not minor(_____).
+28) eligible(_____) :- not blocked(_____).
+29) __inv_0__(_____,_____) :- minor(_____).
+30)  :- minor(_____),purchase(_____,_____).
+31) __inv_0__(_____,_____) :- adult(_____).
+32)  :- blocked(_____),has_purchase(_____).
+33) __inv_0__(_____) :- has_purchase(_____).
+34)  :- __inv_0__(_____),not blocked(_____).
+35) __inv_0__(_____,_____) :- active(_____).
+36)  :- __inv_0__(_____,_____),adult(_____).
+37)  :- __inv_0__(_____,_____),minor(_____).
+38)  :- __inv_0__(_____),has_purchase(_____).
+39) eligible(_____) :- purchase(_____,_____).
+40)  :- __inv_0__(_____,_____),active(_____).
+41) __inv_0__(_____) :- purchase(_____,_____).
+42) eligible(_____) :- __inv_0__(_____,_____).
+43) __inv_0__(_____,_____) :- customer(_____).
+44) __inv_0__(_____,_____) :- __inv_0__(_____).
+45)  :- has_purchase(_____),not blocked(_____).
+46) __inv_0__(_____,_____) :- not minor(_____).
+47)  :- __inv_0__(_____),__inv_0__(_____,_____).
+48)  :- __inv_0__(_____,_____),not minor(_____).
+49) eligible(_____) :- adult(_____),minor(_____).
+50) __inv_0__(_____,_____) :- not blocked(_____).
+51)  :- adult(_____),customer(_____),minor(_____).
+52) __inv_0__(_____,_____) :- has_purchase(_____).
+53) eligible(_____) :- active(_____),minor(_____).
+54)  :- __inv_0__(_____,_____),not blocked(_____).
+55)  :- has_purchase(_____),purchase(_____,_____).
+56)  :- __inv_0__(_____),minor(_____),minor(_____).
+57)  :- __inv_0__(_____,_____),has_purchase(_____).
+58)  :- active(_____),customer(_____),minor(_____).
+59) __inv_0__(_____,_____) :- purchase(_____,_____).
+60)  :- active(_____),adult(_____),not minor(_____).
+61) __inv_0__(_____,_____) :- __inv_0__(_____,_____).
+62)  :- active(_____),blocked(_____),not minor(_____).
+63)  :- has_purchase(_____),minor(_____),minor(_____).
+64) __inv_0__(_____) :- __inv_0__(_____),active(_____).
+65)  :- __inv_0__(_____),adult(_____),not minor(_____).
+66) __inv_0__(_____) :- blocked(_____),customer(_____).
+67) eligible(_____) :- adult(_____),has_purchase(_____).
+68) __inv_0__(_____) :- minor(_____),not blocked(_____).
+69) eligible(_____) :- customer(_____),not minor(_____).
+70) __inv_0__(_____) :- __inv_0__(_____),customer(_____).
+71) __inv_0__(_____,_____) :- active(_____),adult(_____).
+72) eligible(_____) :- active(_____),has_purchase(_____).
+73)  :- customer(_____),has_purchase(_____),minor(_____).
+74) eligible(_____) :- adult(_____),purchase(_____,_____).
+75)  :- adult(_____),blocked(_____),purchase(_____,_____).
+76)  :- active(_____),customer(_____),has_purchase(_____).
+77)  :- blocked(_____),customer(_____),has_purchase(_____).
+78) __inv_0__(_____) :- adult(_____),purchase(_____,_____).
+79)  :- adult(_____),not minor(_____),purchase(_____,_____).
+80) eligible(_____) :- __inv_0__(_____,_____),active(_____).
+81) __inv_0__(_____,_____) :- __inv_0__(_____),active(_____).
+82)  :- __inv_0__(_____),active(_____),purchase(_____,_____).
+83)  :- blocked(_____),customer(_____),purchase(_____,_____).
+84)  :- customer(_____),has_purchase(_____),not minor(_____).
+85) __inv_0__(_____) :- has_purchase(_____),not minor(_____).
+86)  :- minor(_____),not blocked(_____),purchase(_____,_____).
+87) __inv_0__(_____,_____) :- active(_____),not blocked(_____).
+88) __inv_0__(_____) :- __inv_0__(_____,_____),customer(_____).
+89) __inv_0__(_____,_____) :- adult(_____),has_purchase(_____).
+90)  :- adult(_____),has_purchase(_____),purchase(_____,_____).
+91)  :- __inv_0__(_____),__inv_0__(_____,_____),customer(_____).
+92)  :- __inv_0__(_____,_____),has_purchase(_____),minor(_____).
+93) __inv_0__(_____,_____) :- minor(_____),purchase(_____,_____).
+94) __inv_0__(_____,_____) :- customer(_____),not blocked(_____).
+95) __inv_0__(_____,_____) :- not blocked(_____),not minor(_____).
+96) eligible(_____) :- __inv_0__(_____,_____),has_purchase(_____).
+97) __inv_0__(_____,_____) :- __inv_0__(_____,_____),adult(_____).
+98)  :- active(_____),blocked(_____),customer(_____),minor(_____).
+99)  :- __inv_0__(_____),adult(_____),blocked(_____),minor(_____).
+100) __inv_0__(_____,_____) :- __inv_0__(_____,_____),minor(_____).
+101) __inv_0__(_____,_____) :- __inv_0__(_____),not blocked(_____).
+102)  :- __inv_0__(_____,_____),not blocked(_____),not minor(_____).
+103) __inv_0__(_____,_____) :- __inv_0__(_____),has_purchase(_____).
+104)  :- __inv_0__(_____),active(_____),adult(_____),customer(_____).
+105) __inv_0__(_____) :- __inv_0__(_____),active(_____),adult(_____).
+106) __inv_0__(_____) :- blocked(_____),customer(_____),minor(_____).
+107) eligible(_____) :- active(_____),blocked(_____),customer(_____).
+108) __inv_0__(_____) :- __inv_0__(_____),active(_____),minor(_____).
+109)  :- customer(_____),minor(_____),minor(_____),not blocked(_____).
+110) eligible(_____) :- customer(_____),minor(_____),not minor(_____).
+111) __inv_0__(_____,_____) :- __inv_0__(_____),purchase(_____,_____).
+112)  :- __inv_0__(_____),active(_____),adult(_____),not minor(_____).
+113) __inv_0__(_____,_____) :- has_purchase(_____),not blocked(_____).
+114)  :- active(_____),customer(_____),minor(_____),not blocked(_____).
+115)  :- __inv_0__(_____),__inv_0__(_____,_____),purchase(_____,_____).
+116) __inv_0__(_____) :- __inv_0__(_____),customer(_____),minor(_____).
+117)  :- __inv_0__(_____),customer(_____),minor(_____),not minor(_____).
+118)  :- active(_____),blocked(_____),minor(_____),purchase(_____,_____).
+119) __inv_0__(_____) :- customer(_____),minor(_____),not blocked(_____).
+120) __inv_0__(_____) :- __inv_0__(_____),blocked(_____),customer(_____).
+121) eligible(_____) :- __inv_0__(_____,_____),minor(_____),minor(_____).
+122)  :- __inv_0__(_____,_____),adult(_____),blocked(_____),minor(_____).
+123) __inv_0__(_____) :- adult(_____),minor(_____),purchase(_____,_____).
+124)  :- active(_____),customer(_____),minor(_____),purchase(_____,_____).
+125) eligible(_____) :- __inv_0__(_____),adult(_____),has_purchase(_____).
+126)  :- __inv_0__(_____),minor(_____),minor(_____),purchase(_____,_____).
+127) __inv_0__(_____) :- __inv_0__(_____),minor(_____),not blocked(_____).
+128)  :- __inv_0__(_____,_____),active(_____),adult(_____),blocked(_____).
+129) eligible(_____) :- __inv_0__(_____,_____),active(_____),adult(_____).
+130)  :- __inv_0__(_____),customer(_____),minor(_____),not blocked(_____).
+131) eligible(_____) :- adult(_____),customer(_____),purchase(_____,_____).
+132)  :- __inv_0__(_____),active(_____),minor(_____),purchase(_____,_____).
+133)  :- __inv_0__(_____,_____),active(_____),customer(_____),minor(_____).
+134)  :- __inv_0__(_____),active(_____),customer(_____),not blocked(_____).
+135) __inv_0__(_____,_____) :- purchase(_____,_____),purchase(_____,_____).
+136) eligible(_____) :- __inv_0__(_____),blocked(_____),has_purchase(_____).
+137)  :- __inv_0__(_____),customer(_____),minor(_____),purchase(_____,_____).
+138)  :- __inv_0__(_____),adult(_____),not minor(_____),purchase(_____,_____).
+139)  :- __inv_0__(_____),active(_____),customer(_____),purchase(_____,_____).
+140) __inv_0__(_____) :- __inv_0__(_____),active(_____),purchase(_____,_____).
+141) __inv_0__(_____) :- __inv_0__(_____),customer(_____),has_purchase(_____).
+142)  :- __inv_0__(_____),customer(_____),has_purchase(_____),not minor(_____).
+143) eligible(_____) :- customer(_____),has_purchase(_____),not blocked(_____).
+144) __inv_0__(_____,_____) :- blocked(_____),has_purchase(_____),minor(_____).
+145)  :- __inv_0__(_____),blocked(_____),customer(_____),purchase(_____,_____).
+146)  :- __inv_0__(_____,_____),adult(_____),minor(_____),purchase(_____,_____).
+147)  :- __inv_0__(_____),has_purchase(_____),minor(_____),purchase(_____,_____).
+148)  :- __inv_0__(_____,_____),customer(_____),has_purchase(_____),minor(_____).
+149) eligible(_____) :- __inv_0__(_____,_____),active(_____),has_purchase(_____).
+150)  :- __inv_0__(_____,_____),adult(_____),customer(_____),has_purchase(_____).
+151) eligible(_____) :- customer(_____),has_purchase(_____),purchase(_____,_____).
+152)  :- __inv_0__(_____),active(_____),has_purchase(_____),purchase(_____,_____).
+153) __inv_0__(_____,_____) :- customer(_____),not blocked(_____),not minor(_____).
+154)  :- __inv_0__(_____),minor(_____),purchase(_____,_____),purchase(_____,_____).
+155) __inv_0__(_____) :- active(_____),purchase(_____,_____),purchase(_____,_____).
+156)  :- __inv_0__(_____,_____),active(_____),customer(_____),purchase(_____,_____).
+157) __inv_0__(_____,_____) :- active(_____),not minor(_____),purchase(_____,_____).
+158)  :- __inv_0__(_____),__inv_0__(_____,_____),adult(_____),purchase(_____,_____).
+159)  :- __inv_0__(_____,_____),customer(_____),has_purchase(_____),not minor(_____).
+160) __inv_0__(_____,_____) :- __inv_0__(_____),__inv_0__(_____,_____),active(_____).
+161) __inv_0__(_____,_____) :- __inv_0__(_____,_____),minor(_____),not blocked(_____).
+162) __inv_0__(_____,_____) :- __inv_0__(_____,_____),adult(_____),has_purchase(_____).
+163)  :- __inv_0__(_____,_____),has_purchase(_____),minor(_____),purchase(_____,_____).
+164) __inv_0__(_____,_____) :- __inv_0__(_____),__inv_0__(_____,_____),customer(_____).
+165) __inv_0__(_____,_____) :- __inv_0__(_____,_____),has_purchase(_____),minor(_____).
+166) __inv_0__(_____,_____) :- __inv_0__(_____,_____),minor(_____),purchase(_____,_____).
+167)  :- __inv_0__(_____,_____),minor(_____),purchase(_____,_____),purchase(_____,_____).
+168)  :- __inv_0__(_____,_____),customer(_____),not blocked(_____),purchase(_____,_____).
+169)  :- __inv_0__(_____,_____),active(_____),purchase(_____,_____),purchase(_____,_____).
+(0/169) Placing variables for  :- adult(_____),minor(_____).
+Generated 1 clauses
+(1/169) Placing variables for  :- active(_____),adult(_____).
+Generated 1 clauses
+(2/169) Placing variables for  :- active(_____),minor(_____).
+Generated 1 clauses
+(3/169) Placing variables for eligible(_____) :- adult(_____).
+Generated 1 clauses
+(4/169) Placing variables for  :- blocked(_____),minor(_____).
+Generated 1 clauses
+(5/169) Placing variables for  :- active(_____),blocked(_____).
+Generated 1 clauses
+(6/169) Placing variables for  :- customer(_____),minor(_____).
+Generated 1 clauses
+(7/169) Placing variables for __inv_0__(_____) :- adult(_____).
+Generated 1 clauses
+(8/169) Placing variables for __inv_0__(_____) :- minor(_____).
+Generated 1 clauses
+(9/169) Placing variables for eligible(_____) :- active(_____).
+Generated 1 clauses
+(10/169) Placing variables for  :- __inv_0__(_____),minor(_____).
+Generated 1 clauses
+(11/169) Placing variables for  :- active(_____),customer(_____).
+Generated 1 clauses
+(12/169) Placing variables for __inv_0__(_____) :- active(_____).
+Generated 1 clauses
+(13/169) Placing variables for eligible(_____) :- blocked(_____).
+Generated 1 clauses
+(14/169) Placing variables for  :- __inv_0__(_____),adult(_____).
+Generated 1 clauses
+(15/169) Placing variables for  :- adult(_____),not minor(_____).
+Generated 1 clauses
+(16/169) Placing variables for  :- minor(_____),not minor(_____).
+Generated 1 clauses
+(17/169) Placing variables for __inv_0__(_____) :- blocked(_____).
+Generated 1 clauses
+(18/169) Placing variables for eligible(_____) :- customer(_____).
+Generated 1 clauses
+(19/169) Placing variables for __inv_0__(_____) :- customer(_____).
+Generated 1 clauses
+(20/169) Placing variables for  :- minor(_____),not blocked(_____).
+Generated 1 clauses
+(21/169) Placing variables for  :- blocked(_____),not minor(_____).
+Generated 1 clauses
+(22/169) Placing variables for  :- customer(_____),not minor(_____).
+Generated 1 clauses
+(23/169) Placing variables for  :- has_purchase(_____),minor(_____).
+Generated 1 clauses
+(24/169) Placing variables for __inv_0__(_____) :- not minor(_____).
+Generated 0 clauses
+(25/169) Placing variables for  :- adult(_____),has_purchase(_____).
+Generated 1 clauses
+(26/169) Placing variables for  :- active(_____),has_purchase(_____).
+Generated 1 clauses
+(27/169) Placing variables for  :- __inv_0__(_____),not minor(_____).
+Generated 1 clauses
+(28/169) Placing variables for eligible(_____) :- not blocked(_____).
+Generated 0 clauses
+(29/169) Placing variables for __inv_0__(_____,_____) :- minor(_____).
+Generated 1 clauses
+(30/169) Placing variables for  :- minor(_____),purchase(_____,_____).
+Generated 1 clauses
+(31/169) Placing variables for __inv_0__(_____,_____) :- adult(_____).
+Generated 1 clauses
+(32/169) Placing variables for  :- blocked(_____),has_purchase(_____).
+Generated 1 clauses
+(33/169) Placing variables for __inv_0__(_____) :- has_purchase(_____).
+Generated 1 clauses
+(34/169) Placing variables for  :- __inv_0__(_____),not blocked(_____).
+Generated 1 clauses
+(35/169) Placing variables for __inv_0__(_____,_____) :- active(_____).
+Generated 1 clauses
+(36/169) Placing variables for  :- __inv_0__(_____,_____),adult(_____).
+Generated 1 clauses
+(37/169) Placing variables for  :- __inv_0__(_____,_____),minor(_____).
+Generated 1 clauses
+(38/169) Placing variables for  :- __inv_0__(_____),has_purchase(_____).
+Generated 1 clauses
+(39/169) Placing variables for eligible(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(40/169) Placing variables for  :- __inv_0__(_____,_____),active(_____).
+Generated 1 clauses
+(41/169) Placing variables for __inv_0__(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(42/169) Placing variables for eligible(_____) :- __inv_0__(_____,_____).
+Generated 1 clauses
+(43/169) Placing variables for __inv_0__(_____,_____) :- customer(_____).
+Generated 1 clauses
+(44/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____).
+Generated 1 clauses
+(45/169) Placing variables for  :- has_purchase(_____),not blocked(_____).
+Generated 1 clauses
+(46/169) Placing variables for __inv_0__(_____,_____) :- not minor(_____).
+Generated 0 clauses
+(47/169) Placing variables for  :- __inv_0__(_____),__inv_0__(_____,_____).
+Generated 1 clauses
+(48/169) Placing variables for  :- __inv_0__(_____,_____),not minor(_____).
+Generated 1 clauses
+(49/169) Placing variables for eligible(_____) :- adult(_____),minor(_____).
+Generated 1 clauses
+(50/169) Placing variables for __inv_0__(_____,_____) :- not blocked(_____).
+Generated 0 clauses
+(51/169) Placing variables for  :- adult(_____),customer(_____),minor(_____).
+Generated 1 clauses
+(52/169) Placing variables for __inv_0__(_____,_____) :- has_purchase(_____).
+Generated 1 clauses
+(53/169) Placing variables for eligible(_____) :- active(_____),minor(_____).
+Generated 1 clauses
+(54/169) Placing variables for  :- __inv_0__(_____,_____),not blocked(_____).
+Generated 1 clauses
+(55/169) Placing variables for  :- has_purchase(_____),purchase(_____,_____).
+Generated 1 clauses
+(56/169) Placing variables for  :- __inv_0__(_____),minor(_____),minor(_____).
+Generated 0 clauses
+(57/169) Placing variables for  :- __inv_0__(_____,_____),has_purchase(_____).
+Generated 1 clauses
+(58/169) Placing variables for  :- active(_____),customer(_____),minor(_____).
+Generated 1 clauses
+(59/169) Placing variables for __inv_0__(_____,_____) :- purchase(_____,_____).
+Generated 3 clauses
+(60/169) Placing variables for  :- active(_____),adult(_____),not minor(_____).
+Generated 1 clauses
+(61/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____).
+Generated 1 clauses
+(62/169) Placing variables for  :- active(_____),blocked(_____),not minor(_____).
+Generated 1 clauses
+(63/169) Placing variables for  :- has_purchase(_____),minor(_____),minor(_____).
+Generated 0 clauses
+(64/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____),active(_____).
+Generated 0 clauses
+(65/169) Placing variables for  :- __inv_0__(_____),adult(_____),not minor(_____).
+Generated 1 clauses
+(66/169) Placing variables for __inv_0__(_____) :- blocked(_____),customer(_____).
+Generated 1 clauses
+(67/169) Placing variables for eligible(_____) :- adult(_____),has_purchase(_____).
+Generated 1 clauses
+(68/169) Placing variables for __inv_0__(_____) :- minor(_____),not blocked(_____).
+Generated 1 clauses
+(69/169) Placing variables for eligible(_____) :- customer(_____),not minor(_____).
+Generated 1 clauses
+(70/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____),customer(_____).
+Generated 0 clauses
+(71/169) Placing variables for __inv_0__(_____,_____) :- active(_____),adult(_____).
+Generated 3 clauses
+(72/169) Placing variables for eligible(_____) :- active(_____),has_purchase(_____).
+Generated 1 clauses
+(73/169) Placing variables for  :- customer(_____),has_purchase(_____),minor(_____).
+Generated 1 clauses
+(74/169) Placing variables for eligible(_____) :- adult(_____),purchase(_____,_____).
+Generated 4 clauses
+(75/169) Placing variables for  :- adult(_____),blocked(_____),purchase(_____,_____).
+Generated 4 clauses
+(76/169) Placing variables for  :- active(_____),customer(_____),has_purchase(_____).
+Generated 1 clauses
+(77/169) Placing variables for  :- blocked(_____),customer(_____),has_purchase(_____).
+Generated 1 clauses
+(78/169) Placing variables for __inv_0__(_____) :- adult(_____),purchase(_____,_____).
+Generated 4 clauses
+(79/169) Placing variables for  :- adult(_____),not minor(_____),purchase(_____,_____).
+Generated 4 clauses
+(80/169) Placing variables for eligible(_____) :- __inv_0__(_____,_____),active(_____).
+Generated 4 clauses
+(81/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____),active(_____).
+Generated 3 clauses
+(82/169) Placing variables for  :- __inv_0__(_____),active(_____),purchase(_____,_____).
+Generated 4 clauses
+(83/169) Placing variables for  :- blocked(_____),customer(_____),purchase(_____,_____).
+Generated 4 clauses
+(84/169) Placing variables for  :- customer(_____),has_purchase(_____),not minor(_____).
+Generated 1 clauses
+(85/169) Placing variables for __inv_0__(_____) :- has_purchase(_____),not minor(_____).
+Generated 1 clauses
+(86/169) Placing variables for  :- minor(_____),not blocked(_____),purchase(_____,_____).
+Generated 4 clauses
+(87/169) Placing variables for __inv_0__(_____,_____) :- active(_____),not blocked(_____).
+Generated 1 clauses
+(88/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____,_____),customer(_____).
+Generated 4 clauses
+(89/169) Placing variables for __inv_0__(_____,_____) :- adult(_____),has_purchase(_____).
+Generated 3 clauses
+(90/169) Placing variables for  :- adult(_____),has_purchase(_____),purchase(_____,_____).
+Generated 4 clauses
+(91/169) Placing variables for  :- __inv_0__(_____),__inv_0__(_____,_____),customer(_____).
+Generated 4 clauses
+(92/169) Placing variables for  :- __inv_0__(_____,_____),has_purchase(_____),minor(_____).
+Generated 4 clauses
+(93/169) Placing variables for __inv_0__(_____,_____) :- minor(_____),purchase(_____,_____).
+Generated 10 clauses
+(94/169) Placing variables for __inv_0__(_____,_____) :- customer(_____),not blocked(_____).
+Generated 1 clauses
+(95/169) Placing variables for __inv_0__(_____,_____) :- not blocked(_____),not minor(_____).
+Generated 0 clauses
+(96/169) Placing variables for eligible(_____) :- __inv_0__(_____,_____),has_purchase(_____).
+Generated 4 clauses
+(97/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____),adult(_____).
+Generated 7 clauses
+(98/169) Placing variables for  :- active(_____),blocked(_____),customer(_____),minor(_____).
+Generated 4 clauses
+(99/169) Placing variables for  :- __inv_0__(_____),adult(_____),blocked(_____),minor(_____).
+Generated 4 clauses
+(100/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____),minor(_____).
+Generated 7 clauses
+(101/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____),not blocked(_____).
+Generated 1 clauses
+(102/169) Placing variables for  :- __inv_0__(_____,_____),not blocked(_____),not minor(_____).
+Generated 3 clauses
+(103/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____),has_purchase(_____).
+Generated 3 clauses
+(104/169) Placing variables for  :- __inv_0__(_____),active(_____),adult(_____),customer(_____).
+Generated 4 clauses
+(105/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____),active(_____),adult(_____).
+Generated 2 clauses
+(106/169) Placing variables for __inv_0__(_____) :- blocked(_____),customer(_____),minor(_____).
+Generated 4 clauses
+(107/169) Placing variables for eligible(_____) :- active(_____),blocked(_____),customer(_____).
+Generated 4 clauses
+(108/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____),active(_____),minor(_____).
+Generated 2 clauses
+(109/169) Placing variables for  :- customer(_____),minor(_____),minor(_____),not blocked(_____).
+Generated 2 clauses
+(110/169) Placing variables for eligible(_____) :- customer(_____),minor(_____),not minor(_____).
+Generated 3 clauses
+(111/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____),purchase(_____,_____).
+Generated 10 clauses
+(112/169) Placing variables for  :- __inv_0__(_____),active(_____),adult(_____),not minor(_____).
+Generated 4 clauses
+(113/169) Placing variables for __inv_0__(_____,_____) :- has_purchase(_____),not blocked(_____).
+Generated 1 clauses
+(114/169) Placing variables for  :- active(_____),customer(_____),minor(_____),not blocked(_____).
+Generated 4 clauses
+(115/169) Placing variables for  :- __inv_0__(_____),__inv_0__(_____,_____),purchase(_____,_____).
+Generated 11 clauses
+(116/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____),customer(_____),minor(_____).
+Generated 2 clauses
+(117/169) Placing variables for  :- __inv_0__(_____),customer(_____),minor(_____),not minor(_____).
+Generated 4 clauses
+(118/169) Placing variables for  :- active(_____),blocked(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(119/169) Placing variables for __inv_0__(_____) :- customer(_____),minor(_____),not blocked(_____).
+Generated 3 clauses
+(120/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____),blocked(_____),customer(_____).
+Generated 2 clauses
+(121/169) Placing variables for eligible(_____) :- __inv_0__(_____,_____),minor(_____),minor(_____).
+Generated 6 clauses
+(122/169) Placing variables for  :- __inv_0__(_____,_____),adult(_____),blocked(_____),minor(_____).
+Generated 11 clauses
+(123/169) Placing variables for __inv_0__(_____) :- adult(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(124/169) Placing variables for  :- active(_____),customer(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(125/169) Placing variables for eligible(_____) :- __inv_0__(_____),adult(_____),has_purchase(_____).
+Generated 4 clauses
+(126/169) Placing variables for  :- __inv_0__(_____),minor(_____),minor(_____),purchase(_____,_____).
+Generated 6 clauses
+(127/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____),minor(_____),not blocked(_____).
+Generated 1 clauses
+(128/169) Placing variables for  :- __inv_0__(_____,_____),active(_____),adult(_____),blocked(_____).
+Generated 11 clauses
+(129/169) Placing variables for eligible(_____) :- __inv_0__(_____,_____),active(_____),adult(_____).
+Generated 11 clauses
+(130/169) Placing variables for  :- __inv_0__(_____),customer(_____),minor(_____),not blocked(_____).
+Generated 4 clauses
+(131/169) Placing variables for eligible(_____) :- adult(_____),customer(_____),purchase(_____,_____).
+Generated 11 clauses
+(132/169) Placing variables for  :- __inv_0__(_____),active(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(133/169) Placing variables for  :- __inv_0__(_____,_____),active(_____),customer(_____),minor(_____).
+Generated 11 clauses
+(134/169) Placing variables for  :- __inv_0__(_____),active(_____),customer(_____),not blocked(_____).
+Generated 4 clauses
+(135/169) Placing variables for __inv_0__(_____,_____) :- purchase(_____,_____),purchase(_____,_____).
+Generated 44 clauses
+(136/169) Placing variables for eligible(_____) :- __inv_0__(_____),blocked(_____),has_purchase(_____).
+Generated 4 clauses
+(137/169) Placing variables for  :- __inv_0__(_____),customer(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(138/169) Placing variables for  :- __inv_0__(_____),adult(_____),not minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(139/169) Placing variables for  :- __inv_0__(_____),active(_____),customer(_____),purchase(_____,_____).
+Generated 11 clauses
+(140/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____),active(_____),purchase(_____,_____).
+Generated 6 clauses
+(141/169) Placing variables for __inv_0__(_____) :- __inv_0__(_____),customer(_____),has_purchase(_____).
+Generated 2 clauses
+(142/169) Placing variables for  :- __inv_0__(_____),customer(_____),has_purchase(_____),not minor(_____).
+Generated 4 clauses
+(143/169) Placing variables for eligible(_____) :- customer(_____),has_purchase(_____),not blocked(_____).
+Generated 3 clauses
+(144/169) Placing variables for __inv_0__(_____,_____) :- blocked(_____),has_purchase(_____),minor(_____).
+Generated 10 clauses
+(145/169) Placing variables for  :- __inv_0__(_____),blocked(_____),customer(_____),purchase(_____,_____).
+Generated 11 clauses
+(146/169) Placing variables for  :- __inv_0__(_____,_____),adult(_____),minor(_____),purchase(_____,_____).
+Generated 56 clauses
+(147/169) Placing variables for  :- __inv_0__(_____),has_purchase(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(148/169) Placing variables for  :- __inv_0__(_____,_____),customer(_____),has_purchase(_____),minor(_____).
+Generated 11 clauses
+(149/169) Placing variables for eligible(_____) :- __inv_0__(_____,_____),active(_____),has_purchase(_____).
+Generated 11 clauses
+(150/169) Placing variables for  :- __inv_0__(_____,_____),adult(_____),customer(_____),has_purchase(_____).
+Generated 11 clauses
+(151/169) Placing variables for eligible(_____) :- customer(_____),has_purchase(_____),purchase(_____,_____).
+Generated 11 clauses
+(152/169) Placing variables for  :- __inv_0__(_____),active(_____),has_purchase(_____),purchase(_____,_____).
+Generated 11 clauses
+(153/169) Placing variables for __inv_0__(_____,_____) :- customer(_____),not blocked(_____),not minor(_____).
+Generated 1 clauses
+(154/169) Placing variables for  :- __inv_0__(_____),minor(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+(155/169) Placing variables for __inv_0__(_____) :- active(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+(156/169) Placing variables for  :- __inv_0__(_____,_____),active(_____),customer(_____),purchase(_____,_____).
+Generated 56 clauses
+(157/169) Placing variables for __inv_0__(_____,_____) :- active(_____),not minor(_____),purchase(_____,_____).
+Generated 34 clauses
+(158/169) Placing variables for  :- __inv_0__(_____),__inv_0__(_____,_____),adult(_____),purchase(_____,_____).
+Generated 56 clauses
+(159/169) Placing variables for  :- __inv_0__(_____,_____),customer(_____),has_purchase(_____),not minor(_____).
+Generated 11 clauses
+(160/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____),__inv_0__(_____,_____),active(_____).
+Generated 41 clauses
+(161/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____),minor(_____),not blocked(_____).
+Generated 26 clauses
+(162/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____),adult(_____),has_purchase(_____).
+Generated 41 clauses
+(163/169) Placing variables for  :- __inv_0__(_____,_____),has_purchase(_____),minor(_____),purchase(_____,_____).
+Generated 56 clauses
+(164/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____),__inv_0__(_____,_____),customer(_____).
+Generated 41 clauses
+(165/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____),has_purchase(_____),minor(_____).
+Generated 41 clauses
+(166/169) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____),minor(_____),purchase(_____,_____).
+Generated 219 clauses
+(167/169) Placing variables for  :- __inv_0__(_____,_____),minor(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 240 clauses
+(168/169) Placing variables for  :- __inv_0__(_____,_____),customer(_____),not blocked(_____),purchase(_____,_____).
+Generated 56 clauses
+(169/169) Placing variables for  :- __inv_0__(_____,_____),active(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 240 clauses
+Placed variables in 0.7429711818695068 seconds
+Total clauses stub: 161
+Total number of possible clauses: 1853
+Running for 300 iterations
+Iteration 0 - taken for 100: 1.9073486328125e-06 - best: Program: [' :- __inv_0__(V0,V2),adult(V1),minor(V1),purchase(V2,V0).', '__inv_0__(V0) :- adult(V0).', '__inv_0__(V0) :- blocked(V1),customer(V0),minor(V1).', '__inv_0__(V0,V1) :- __inv_0__(V1,V0),minor(V0).', 'eligible(V0) :- adult(V0).'] - score: 27.799075016572118
+Iteration 100 - taken for 100: 0.7361207008361816 - best: Program: [' :- __inv_0__(V0),customer(V0),minor(V1),not blocked(V1).', 'eligible(V0) :- customer(V0),not minor(V0).', ' :- __inv_0__(V0),active(V1),has_purchase(V0),purchase(V1,V1).', '__inv_0__(V0) :- adult(V1),purchase(V1,V0).', 'eligible(V0) :- adult(V0).'] - score: 41.19861252485818
+Iteration 200 - taken for 100: 0.7709715366363525 - best: Program: ['__inv_0__(V0,V1) :- active(V1),adult(V0).', 'eligible(V0) :- customer(V0),not minor(V0).', ' :- __inv_0__(V0),adult(V0),blocked(V0),minor(V0).', '__inv_0__(V0) :- adult(V1),purchase(V1,V0).', 'eligible(V0) :- adult(V0).'] - score: 41.19861252485818
+Iteration 300 - taken for 100: 0.7536392211914062 - best: Program: ['eligible(V0) :- adult(V0).', 'eligible(V0) :- customer(V0),not minor(V0).', '__inv_0__(V0) :- active(V2),purchase(V1,V1),purchase(V2,V0).', '__inv_0__(V0) :- has_purchase(V0),not minor(V0).', 'eligible(V0) :- adult(V0).'] - score: 47.89838127900121
+Iterations completed
+['eligible(V0) :- adult(V0).', 'eligible(V0) :- customer(V0),not minor(V0).', '__inv_0__(V0) :- active(V2),purchase(V1,V1),purchase(V2,V0).', '__inv_0__(V0) :- has_purchase(V0),not minor(V0).', 'eligible(V0) :- adult(V0).']
+['eligible(V0) :- adult(V0).', 'eligible(V0) :- customer(V0),not minor(V0).', '__inv_0__(V0) :- blocked(V0),customer(V0).', ' :- minor(V0),purchase(V0,V0).', 'eligible(V0) :- adult(V0).']
+['eligible(V0) :- adult(V0).', 'eligible(V0) :- customer(V0),not minor(V0).', '__inv_0__(V0) :- adult(V1),minor(V0),purchase(V1,V1).', '__inv_0__(V0,V0) :- __inv_0__(V0).', 'eligible(V0) :- adult(V0).']
+['eligible(V0) :- customer(V0),not minor(V0).', 'eligible(V0) :- adult(V0),has_purchase(V0).', '__inv_0__(V0,V0) :- active(V0),not minor(V1),purchase(V0,V1).', 'eligible(V0) :- customer(V0),has_purchase(V1),purchase(V0,V1).', 'eligible(V0) :- adult(V0).']
+['eligible(V0) :- customer(V0),not minor(V0).', 'eligible(V0) :- customer(V0),not minor(V0).', '__inv_0__(V0) :- has_purchase(V0),not minor(V0).', '__inv_0__(V0) :- has_purchase(V0),not minor(V0).', 'eligible(V0) :- adult(V0).']
+Evolutionary cycle 0 - Time 2.3449084758758545
+Current best with score: 47.89838127900121
+--------------------------
+
+--------------------------
+Sampling loop: 1
+Sampling clauses
+Sampled 168 different clauses in 0.03428030014038086 seconds
+Sampled clauses:
+0)  :- minor(_____),minor(_____).
+1)  :- adult(_____),minor(_____).
+2)  :- adult(_____),minor(_____).
+3)  :- active(_____),minor(_____).
+4)  :- active(_____),minor(_____).
+5) eligible(_____) :- minor(_____).
+6) eligible(_____) :- adult(_____).
+7)  :- blocked(_____),minor(_____).
+8)  :- customer(_____),minor(_____).
+9)  :- adult(_____),customer(_____).
+10)  :- active(_____),blocked(_____).
+11) eligible(_____) :- active(_____).
+12) __inv_0__(_____) :- minor(_____).
+13)  :- __inv_0__(_____),adult(_____).
+14)  :- __inv_0__(_____),minor(_____).
+15) __inv_0__(_____) :- active(_____).
+16)  :- minor(_____),not minor(_____).
+17)  :- active(_____),customer(_____).
+18) eligible(_____) :- customer(_____).
+19)  :- active(_____),not minor(_____).
+20)  :- blocked(_____),customer(_____).
+21) __inv_0__(_____) :- blocked(_____).
+22)  :- adult(_____),not blocked(_____).
+23)  :- __inv_0__(_____),blocked(_____).
+24) __inv_0__(_____) :- customer(_____).
+25) eligible(_____) :- __inv_0__(_____).
+26)  :- active(_____),not blocked(_____).
+27)  :- __inv_0__(_____),customer(_____).
+28)  :- adult(_____),has_purchase(_____).
+29)  :- has_purchase(_____),minor(_____).
+30)  :- customer(_____),not minor(_____).
+31)  :- __inv_0__(_____),not minor(_____).
+32)  :- active(_____),has_purchase(_____).
+33) eligible(_____) :- not blocked(_____).
+34)  :- minor(_____),purchase(_____,_____).
+35) __inv_0__(_____,_____) :- minor(_____).
+36) eligible(_____) :- has_purchase(_____).
+37) __inv_0__(_____,_____) :- adult(_____).
+38) __inv_0__(_____) :- has_purchase(_____).
+39)  :- __inv_0__(_____,_____),minor(_____).
+40)  :- customer(_____),has_purchase(_____).
+41)  :- active(_____),purchase(_____,_____).
+42)  :- __inv_0__(_____),not blocked(_____).
+43)  :- __inv_0__(_____,_____),adult(_____).
+44) __inv_0__(_____,_____) :- active(_____).
+45)  :- not blocked(_____),not minor(_____).
+46) __inv_0__(_____,_____) :- blocked(_____).
+47) eligible(_____) :- purchase(_____,_____).
+48)  :- blocked(_____),purchase(_____,_____).
+49)  :- __inv_0__(_____),has_purchase(_____).
+50)  :- has_purchase(_____),not minor(_____).
+51)  :- __inv_0__(_____,_____),active(_____).
+52)  :- __inv_0__(_____,_____),blocked(_____).
+53) __inv_0__(_____,_____) :- customer(_____).
+54) __inv_0__(_____) :- purchase(_____,_____).
+55) __inv_0__(_____,_____) :- __inv_0__(_____).
+56) __inv_0__(_____) :- __inv_0__(_____,_____).
+57)  :- __inv_0__(_____,_____),customer(_____).
+58)  :- __inv_0__(_____),purchase(_____,_____).
+59)  :- has_purchase(_____),not blocked(_____).
+60)  :- __inv_0__(_____),__inv_0__(_____,_____).
+61)  :- __inv_0__(_____,_____),not minor(_____).
+62)  :- adult(_____),blocked(_____),minor(_____).
+63) __inv_0__(_____,_____) :- not blocked(_____).
+64) eligible(_____) :- adult(_____),minor(_____).
+65)  :- blocked(_____),minor(_____),minor(_____).
+66)  :- has_purchase(_____),purchase(_____,_____).
+67) __inv_0__(_____) :- adult(_____),minor(_____).
+68) __inv_0__(_____,_____) :- has_purchase(_____).
+69) eligible(_____) :- active(_____),adult(_____).
+70)  :- __inv_0__(_____),minor(_____),minor(_____).
+71)  :- active(_____),customer(_____),minor(_____).
+72)  :- adult(_____),minor(_____),not minor(_____).
+73) __inv_0__(_____) :- active(_____),minor(_____).
+74)  :- __inv_0__(_____),active(_____),minor(_____).
+75)  :- purchase(_____,_____),purchase(_____,_____).
+76)  :- blocked(_____),customer(_____),minor(_____).
+77) __inv_0__(_____,_____) :- __inv_0__(_____,_____).
+78)  :- blocked(_____),minor(_____),not minor(_____).
+79) eligible(_____) :- active(_____),customer(_____).
+80) __inv_0__(_____) :- active(_____),customer(_____).
+81)  :- adult(_____),customer(_____),not minor(_____).
+82) eligible(_____) :- __inv_0__(_____),active(_____).
+83)  :- customer(_____),minor(_____),not minor(_____).
+84)  :- __inv_0__(_____),active(_____),customer(_____).
+85) __inv_0__(_____) :- blocked(_____),customer(_____).
+86)  :- active(_____),adult(_____),has_purchase(_____).
+87)  :- __inv_0__(_____),blocked(_____),customer(_____).
+88)  :- adult(_____),blocked(_____),has_purchase(_____).
+89) __inv_0__(_____) :- __inv_0__(_____),blocked(_____).
+90)  :- active(_____),adult(_____),purchase(_____,_____).
+91) eligible(_____) :- __inv_0__(_____),not minor(_____).
+92)  :- __inv_0__(_____,_____),adult(_____),minor(_____).
+93)  :- active(_____),minor(_____),purchase(_____,_____).
+94) eligible(_____) :- adult(_____),purchase(_____,_____).
+95)  :- __inv_0__(_____),has_purchase(_____),minor(_____).
+96) eligible(_____) :- not blocked(_____),not minor(_____).
+97) __inv_0__(_____,_____) :- adult(_____),customer(_____).
+98) __inv_0__(_____,_____) :- customer(_____),minor(_____).
+99)  :- customer(_____),minor(_____),purchase(_____,_____).
+100)  :- __inv_0__(_____),adult(_____),purchase(_____,_____).
+101)  :- adult(_____),not minor(_____),purchase(_____,_____).
+102) eligible(_____) :- __inv_0__(_____,_____),active(_____).
+103) __inv_0__(_____) :- __inv_0__(_____,_____),blocked(_____).
+104)  :- __inv_0__(_____),__inv_0__(_____,_____),active(_____).
+105) eligible(_____) :- __inv_0__(_____),purchase(_____,_____).
+106)  :- __inv_0__(_____,_____),minor(_____),not blocked(_____).
+107)  :- active(_____),blocked(_____),minor(_____),minor(_____).
+108) __inv_0__(_____) :- not minor(_____),purchase(_____,_____).
+109)  :- __inv_0__(_____,_____),has_purchase(_____),minor(_____).
+110)  :- adult(_____),blocked(_____),customer(_____),minor(_____).
+111)  :- __inv_0__(_____),active(_____),adult(_____),minor(_____).
+112) __inv_0__(_____,_____) :- adult(_____),purchase(_____,_____).
+113) __inv_0__(_____,_____) :- customer(_____),has_purchase(_____).
+114)  :- customer(_____),has_purchase(_____),purchase(_____,_____).
+115) eligible(_____) :- __inv_0__(_____),adult(_____),minor(_____).
+116) __inv_0__(_____,_____) :- __inv_0__(_____,_____),minor(_____).
+117) __inv_0__(_____) :- active(_____),adult(_____),customer(_____).
+118) __inv_0__(_____) :- active(_____),minor(_____),not minor(_____).
+119) eligible(_____) :- __inv_0__(_____),blocked(_____),minor(_____).
+120) __inv_0__(_____) :- blocked(_____),customer(_____),minor(_____).
+121) eligible(_____) :- adult(_____),has_purchase(_____),minor(_____).
+122) __inv_0__(_____) :- adult(_____),blocked(_____),not minor(_____).
+123)  :- active(_____),minor(_____),minor(_____),purchase(_____,_____).
+124)  :- adult(_____),customer(_____),has_purchase(_____),minor(_____).
+125)  :- __inv_0__(_____,_____),active(_____),minor(_____),minor(_____).
+126) eligible(_____) :- active(_____),adult(_____),purchase(_____,_____).
+127) eligible(_____) :- active(_____),minor(_____),purchase(_____,_____).
+128)  :- has_purchase(_____),purchase(_____,_____),purchase(_____,_____).
+129)  :- active(_____),blocked(_____),minor(_____),purchase(_____,_____).
+130)  :- __inv_0__(_____),adult(_____),minor(_____),purchase(_____,_____).
+131) eligible(_____) :- blocked(_____),minor(_____),purchase(_____,_____).
+132) __inv_0__(_____,_____) :- purchase(_____,_____),purchase(_____,_____).
+133) eligible(_____) :- __inv_0__(_____,_____),blocked(_____),minor(_____).
+134) __inv_0__(_____) :- __inv_0__(_____),customer(_____),not minor(_____).
+135) eligible(_____) :- adult(_____),customer(_____),purchase(_____,_____).
+136)  :- active(_____),adult(_____),has_purchase(_____),not blocked(_____).
+137) eligible(_____) :- __inv_0__(_____,_____),customer(_____),minor(_____).
+138) eligible(_____) :- minor(_____),not minor(_____),purchase(_____,_____).
+139)  :- __inv_0__(_____),blocked(_____),minor(_____),purchase(_____,_____).
+140) __inv_0__(_____) :- adult(_____),customer(_____),purchase(_____,_____).
+141) __inv_0__(_____) :- __inv_0__(_____),minor(_____),purchase(_____,_____).
+142)  :- __inv_0__(_____,_____),active(_____),blocked(_____),customer(_____).
+143)  :- __inv_0__(_____),__inv_0__(_____,_____),blocked(_____),minor(_____).
+144)  :- has_purchase(_____),minor(_____),not blocked(_____),not minor(_____).
+145) __inv_0__(_____) :- customer(_____),has_purchase(_____),not minor(_____).
+146) __inv_0__(_____) :- __inv_0__(_____),active(_____),purchase(_____,_____).
+147) __inv_0__(_____) :- __inv_0__(_____),customer(_____),has_purchase(_____).
+148) __inv_0__(_____) :- minor(_____),not blocked(_____),purchase(_____,_____).
+149) __inv_0__(_____,_____) :- __inv_0__(_____),minor(_____),not blocked(_____).
+150)  :- customer(_____),has_purchase(_____),minor(_____),purchase(_____,_____).
+151)  :- customer(_____),has_purchase(_____),not blocked(_____),not minor(_____).
+152) __inv_0__(_____,_____) :- active(_____),customer(_____),has_purchase(_____).
+153)  :- has_purchase(_____),minor(_____),not minor(_____),purchase(_____,_____).
+154) eligible(_____) :- __inv_0__(_____,_____),customer(_____),not blocked(_____).
+155)  :- has_purchase(_____),minor(_____),not blocked(_____),purchase(_____,_____).
+156)  :- __inv_0__(_____,_____),customer(_____),minor(_____),purchase(_____,_____).
+157) __inv_0__(_____,_____) :- adult(_____),has_purchase(_____),not blocked(_____).
+158)  :- __inv_0__(_____),__inv_0__(_____,_____),blocked(_____),has_purchase(_____).
+159) __inv_0__(_____,_____) :- __inv_0__(_____),__inv_0__(_____,_____),adult(_____).
+160)  :- __inv_0__(_____,_____),adult(_____),not minor(_____),purchase(_____,_____).
+161) __inv_0__(_____,_____) :- active(_____),not minor(_____),purchase(_____,_____).
+162) __inv_0__(_____,_____) :- __inv_0__(_____,_____),blocked(_____),not minor(_____).
+163)  :- __inv_0__(_____,_____),adult(_____),has_purchase(_____),purchase(_____,_____).
+164)  :- __inv_0__(_____,_____),active(_____),not blocked(_____),purchase(_____,_____).
+165)  :- __inv_0__(_____),not blocked(_____),purchase(_____,_____),purchase(_____,_____).
+166)  :- __inv_0__(_____,_____),adult(_____),purchase(_____,_____),purchase(_____,_____).
+167)  :- __inv_0__(_____,_____),has_purchase(_____),purchase(_____,_____),purchase(_____,_____).
+(0/167) Placing variables for  :- minor(_____),minor(_____).
+No possible placements.
+(1/167) Placing variables for  :- adult(_____),minor(_____).
+Generated 1 clauses
+(2/167) Placing variables for  :- adult(_____),minor(_____).
+Generated 1 clauses
+(3/167) Placing variables for  :- active(_____),minor(_____).
+Generated 1 clauses
+(4/167) Placing variables for  :- active(_____),minor(_____).
+Generated 1 clauses
+(5/167) Placing variables for eligible(_____) :- minor(_____).
+Generated 1 clauses
+(6/167) Placing variables for eligible(_____) :- adult(_____).
+Generated 1 clauses
+(7/167) Placing variables for  :- blocked(_____),minor(_____).
+Generated 1 clauses
+(8/167) Placing variables for  :- customer(_____),minor(_____).
+Generated 1 clauses
+(9/167) Placing variables for  :- adult(_____),customer(_____).
+Generated 1 clauses
+(10/167) Placing variables for  :- active(_____),blocked(_____).
+Generated 1 clauses
+(11/167) Placing variables for eligible(_____) :- active(_____).
+Generated 1 clauses
+(12/167) Placing variables for __inv_0__(_____) :- minor(_____).
+Generated 1 clauses
+(13/167) Placing variables for  :- __inv_0__(_____),adult(_____).
+Generated 1 clauses
+(14/167) Placing variables for  :- __inv_0__(_____),minor(_____).
+Generated 1 clauses
+(15/167) Placing variables for __inv_0__(_____) :- active(_____).
+Generated 1 clauses
+(16/167) Placing variables for  :- minor(_____),not minor(_____).
+Generated 1 clauses
+(17/167) Placing variables for  :- active(_____),customer(_____).
+Generated 1 clauses
+(18/167) Placing variables for eligible(_____) :- customer(_____).
+Generated 1 clauses
+(19/167) Placing variables for  :- active(_____),not minor(_____).
+Generated 1 clauses
+(20/167) Placing variables for  :- blocked(_____),customer(_____).
+Generated 1 clauses
+(21/167) Placing variables for __inv_0__(_____) :- blocked(_____).
+Generated 1 clauses
+(22/167) Placing variables for  :- adult(_____),not blocked(_____).
+Generated 1 clauses
+(23/167) Placing variables for  :- __inv_0__(_____),blocked(_____).
+Generated 1 clauses
+(24/167) Placing variables for __inv_0__(_____) :- customer(_____).
+Generated 1 clauses
+(25/167) Placing variables for eligible(_____) :- __inv_0__(_____).
+Generated 1 clauses
+(26/167) Placing variables for  :- active(_____),not blocked(_____).
+Generated 1 clauses
+(27/167) Placing variables for  :- __inv_0__(_____),customer(_____).
+Generated 1 clauses
+(28/167) Placing variables for  :- adult(_____),has_purchase(_____).
+Generated 1 clauses
+(29/167) Placing variables for  :- has_purchase(_____),minor(_____).
+Generated 1 clauses
+(30/167) Placing variables for  :- customer(_____),not minor(_____).
+Generated 1 clauses
+(31/167) Placing variables for  :- __inv_0__(_____),not minor(_____).
+Generated 1 clauses
+(32/167) Placing variables for  :- active(_____),has_purchase(_____).
+Generated 1 clauses
+(33/167) Placing variables for eligible(_____) :- not blocked(_____).
+Generated 0 clauses
+(34/167) Placing variables for  :- minor(_____),purchase(_____,_____).
+Generated 1 clauses
+(35/167) Placing variables for __inv_0__(_____,_____) :- minor(_____).
+Generated 1 clauses
+(36/167) Placing variables for eligible(_____) :- has_purchase(_____).
+Generated 1 clauses
+(37/167) Placing variables for __inv_0__(_____,_____) :- adult(_____).
+Generated 1 clauses
+(38/167) Placing variables for __inv_0__(_____) :- has_purchase(_____).
+Generated 1 clauses
+(39/167) Placing variables for  :- __inv_0__(_____,_____),minor(_____).
+Generated 1 clauses
+(40/167) Placing variables for  :- customer(_____),has_purchase(_____).
+Generated 1 clauses
+(41/167) Placing variables for  :- active(_____),purchase(_____,_____).
+Generated 1 clauses
+(42/167) Placing variables for  :- __inv_0__(_____),not blocked(_____).
+Generated 1 clauses
+(43/167) Placing variables for  :- __inv_0__(_____,_____),adult(_____).
+Generated 1 clauses
+(44/167) Placing variables for __inv_0__(_____,_____) :- active(_____).
+Generated 1 clauses
+(45/167) Placing variables for  :- not blocked(_____),not minor(_____).
+Generated 0 clauses
+(46/167) Placing variables for __inv_0__(_____,_____) :- blocked(_____).
+Generated 1 clauses
+(47/167) Placing variables for eligible(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(48/167) Placing variables for  :- blocked(_____),purchase(_____,_____).
+Generated 1 clauses
+(49/167) Placing variables for  :- __inv_0__(_____),has_purchase(_____).
+Generated 1 clauses
+(50/167) Placing variables for  :- has_purchase(_____),not minor(_____).
+Generated 1 clauses
+(51/167) Placing variables for  :- __inv_0__(_____,_____),active(_____).
+Generated 1 clauses
+(52/167) Placing variables for  :- __inv_0__(_____,_____),blocked(_____).
+Generated 1 clauses
+(53/167) Placing variables for __inv_0__(_____,_____) :- customer(_____).
+Generated 1 clauses
+(54/167) Placing variables for __inv_0__(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(55/167) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____).
+Generated 1 clauses
+(56/167) Placing variables for __inv_0__(_____) :- __inv_0__(_____,_____).
+Generated 1 clauses
+(57/167) Placing variables for  :- __inv_0__(_____,_____),customer(_____).
+Generated 1 clauses
+(58/167) Placing variables for  :- __inv_0__(_____),purchase(_____,_____).
+Generated 1 clauses
+(59/167) Placing variables for  :- has_purchase(_____),not blocked(_____).
+Generated 1 clauses
+(60/167) Placing variables for  :- __inv_0__(_____),__inv_0__(_____,_____).
+Generated 1 clauses
+(61/167) Placing variables for  :- __inv_0__(_____,_____),not minor(_____).
+Generated 1 clauses
+(62/167) Placing variables for  :- adult(_____),blocked(_____),minor(_____).
+Generated 1 clauses
+(63/167) Placing variables for __inv_0__(_____,_____) :- not blocked(_____).
+Generated 0 clauses
+(64/167) Placing variables for eligible(_____) :- adult(_____),minor(_____).
+Generated 1 clauses
+(65/167) Placing variables for  :- blocked(_____),minor(_____),minor(_____).
+No possible placements.
+(66/167) Placing variables for  :- has_purchase(_____),purchase(_____,_____).
+Generated 1 clauses
+(67/167) Placing variables for __inv_0__(_____) :- adult(_____),minor(_____).
+Generated 1 clauses
+(68/167) Placing variables for __inv_0__(_____,_____) :- has_purchase(_____).
+Generated 1 clauses
+(69/167) Placing variables for eligible(_____) :- active(_____),adult(_____).
+Generated 1 clauses
+(70/167) Placing variables for  :- __inv_0__(_____),minor(_____),minor(_____).
+Generated 0 clauses
+(71/167) Placing variables for  :- active(_____),customer(_____),minor(_____).
+Generated 1 clauses
+(72/167) Placing variables for  :- adult(_____),minor(_____),not minor(_____).
+Generated 1 clauses
+(73/167) Placing variables for __inv_0__(_____) :- active(_____),minor(_____).
+Generated 1 clauses
+(74/167) Placing variables for  :- __inv_0__(_____),active(_____),minor(_____).
+Generated 1 clauses
+(75/167) Placing variables for  :- purchase(_____,_____),purchase(_____,_____).
+Generated 2 clauses
+(76/167) Placing variables for  :- blocked(_____),customer(_____),minor(_____).
+Generated 1 clauses
+(77/167) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____).
+Generated 1 clauses
+(78/167) Placing variables for  :- blocked(_____),minor(_____),not minor(_____).
+Generated 1 clauses
+(79/167) Placing variables for eligible(_____) :- active(_____),customer(_____).
+Generated 1 clauses
+(80/167) Placing variables for __inv_0__(_____) :- active(_____),customer(_____).
+Generated 1 clauses
+(81/167) Placing variables for  :- adult(_____),customer(_____),not minor(_____).
+Generated 1 clauses
+(82/167) Placing variables for eligible(_____) :- __inv_0__(_____),active(_____).
+Generated 1 clauses
+(83/167) Placing variables for  :- customer(_____),minor(_____),not minor(_____).
+Generated 1 clauses
+(84/167) Placing variables for  :- __inv_0__(_____),active(_____),customer(_____).
+Generated 1 clauses
+(85/167) Placing variables for __inv_0__(_____) :- blocked(_____),customer(_____).
+Generated 1 clauses
+(86/167) Placing variables for  :- active(_____),adult(_____),has_purchase(_____).
+Generated 1 clauses
+(87/167) Placing variables for  :- __inv_0__(_____),blocked(_____),customer(_____).
+Generated 1 clauses
+(88/167) Placing variables for  :- adult(_____),blocked(_____),has_purchase(_____).
+Generated 1 clauses
+(89/167) Placing variables for __inv_0__(_____) :- __inv_0__(_____),blocked(_____).
+Generated 0 clauses
+(90/167) Placing variables for  :- active(_____),adult(_____),purchase(_____,_____).
+Generated 4 clauses
+(91/167) Placing variables for eligible(_____) :- __inv_0__(_____),not minor(_____).
+Generated 1 clauses
+(92/167) Placing variables for  :- __inv_0__(_____,_____),adult(_____),minor(_____).
+Generated 4 clauses
+(93/167) Placing variables for  :- active(_____),minor(_____),purchase(_____,_____).
+Generated 4 clauses
+(94/167) Placing variables for eligible(_____) :- adult(_____),purchase(_____,_____).
+Generated 4 clauses
+(95/167) Placing variables for  :- __inv_0__(_____),has_purchase(_____),minor(_____).
+Generated 1 clauses
+(96/167) Placing variables for eligible(_____) :- not blocked(_____),not minor(_____).
+Generated 0 clauses
+(97/167) Placing variables for __inv_0__(_____,_____) :- adult(_____),customer(_____).
+Generated 3 clauses
+(98/167) Placing variables for __inv_0__(_____,_____) :- customer(_____),minor(_____).
+Generated 3 clauses
+(99/167) Placing variables for  :- customer(_____),minor(_____),purchase(_____,_____).
+Generated 4 clauses
+(100/167) Placing variables for  :- __inv_0__(_____),adult(_____),purchase(_____,_____).
+Generated 4 clauses
+(101/167) Placing variables for  :- adult(_____),not minor(_____),purchase(_____,_____).
+Generated 4 clauses
+(102/167) Placing variables for eligible(_____) :- __inv_0__(_____,_____),active(_____).
+Generated 4 clauses
+(103/167) Placing variables for __inv_0__(_____) :- __inv_0__(_____,_____),blocked(_____).
+Generated 4 clauses
+(104/167) Placing variables for  :- __inv_0__(_____),__inv_0__(_____,_____),active(_____).
+Generated 4 clauses
+(105/167) Placing variables for eligible(_____) :- __inv_0__(_____),purchase(_____,_____).
+Generated 4 clauses
+(106/167) Placing variables for  :- __inv_0__(_____,_____),minor(_____),not blocked(_____).
+Generated 4 clauses
+(107/167) Placing variables for  :- active(_____),blocked(_____),minor(_____),minor(_____).
+Generated 2 clauses
+(108/167) Placing variables for __inv_0__(_____) :- not minor(_____),purchase(_____,_____).
+Generated 3 clauses
+(109/167) Placing variables for  :- __inv_0__(_____,_____),has_purchase(_____),minor(_____).
+Generated 4 clauses
+(110/167) Placing variables for  :- adult(_____),blocked(_____),customer(_____),minor(_____).
+Generated 4 clauses
+(111/167) Placing variables for  :- __inv_0__(_____),active(_____),adult(_____),minor(_____).
+Generated 4 clauses
+(112/167) Placing variables for __inv_0__(_____,_____) :- adult(_____),purchase(_____,_____).
+Generated 10 clauses
+(113/167) Placing variables for __inv_0__(_____,_____) :- customer(_____),has_purchase(_____).
+Generated 3 clauses
+(114/167) Placing variables for  :- customer(_____),has_purchase(_____),purchase(_____,_____).
+Generated 4 clauses
+(115/167) Placing variables for eligible(_____) :- __inv_0__(_____),adult(_____),minor(_____).
+Generated 4 clauses
+(116/167) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____),minor(_____).
+Generated 7 clauses
+(117/167) Placing variables for __inv_0__(_____) :- active(_____),adult(_____),customer(_____).
+Generated 4 clauses
+(118/167) Placing variables for __inv_0__(_____) :- active(_____),minor(_____),not minor(_____).
+Generated 3 clauses
+(119/167) Placing variables for eligible(_____) :- __inv_0__(_____),blocked(_____),minor(_____).
+Generated 4 clauses
+(120/167) Placing variables for __inv_0__(_____) :- blocked(_____),customer(_____),minor(_____).
+Generated 4 clauses
+(121/167) Placing variables for eligible(_____) :- adult(_____),has_purchase(_____),minor(_____).
+Generated 4 clauses
+(122/167) Placing variables for __inv_0__(_____) :- adult(_____),blocked(_____),not minor(_____).
+Generated 3 clauses
+(123/167) Placing variables for  :- active(_____),minor(_____),minor(_____),purchase(_____,_____).
+Generated 6 clauses
+(124/167) Placing variables for  :- adult(_____),customer(_____),has_purchase(_____),minor(_____).
+Generated 4 clauses
+(125/167) Placing variables for  :- __inv_0__(_____,_____),active(_____),minor(_____),minor(_____).
+Generated 6 clauses
+(126/167) Placing variables for eligible(_____) :- active(_____),adult(_____),purchase(_____,_____).
+Generated 11 clauses
+(127/167) Placing variables for eligible(_____) :- active(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(128/167) Placing variables for  :- has_purchase(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 8 clauses
+(129/167) Placing variables for  :- active(_____),blocked(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(130/167) Placing variables for  :- __inv_0__(_____),adult(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(131/167) Placing variables for eligible(_____) :- blocked(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(132/167) Placing variables for __inv_0__(_____,_____) :- purchase(_____,_____),purchase(_____,_____).
+Generated 44 clauses
+(133/167) Placing variables for eligible(_____) :- __inv_0__(_____,_____),blocked(_____),minor(_____).
+Generated 11 clauses
+(134/167) Placing variables for __inv_0__(_____) :- __inv_0__(_____),customer(_____),not minor(_____).
+Generated 1 clauses
+(135/167) Placing variables for eligible(_____) :- adult(_____),customer(_____),purchase(_____,_____).
+Generated 11 clauses
+(136/167) Placing variables for  :- active(_____),adult(_____),has_purchase(_____),not blocked(_____).
+Generated 4 clauses
+(137/167) Placing variables for eligible(_____) :- __inv_0__(_____,_____),customer(_____),minor(_____).
+Generated 11 clauses
+(138/167) Placing variables for eligible(_____) :- minor(_____),not minor(_____),purchase(_____,_____).
+Generated 10 clauses
+(139/167) Placing variables for  :- __inv_0__(_____),blocked(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(140/167) Placing variables for __inv_0__(_____) :- adult(_____),customer(_____),purchase(_____,_____).
+Generated 11 clauses
+(141/167) Placing variables for __inv_0__(_____) :- __inv_0__(_____),minor(_____),purchase(_____,_____).
+Generated 6 clauses
+(142/167) Placing variables for  :- __inv_0__(_____,_____),active(_____),blocked(_____),customer(_____).
+Generated 11 clauses
+(143/167) Placing variables for  :- __inv_0__(_____),__inv_0__(_____,_____),blocked(_____),minor(_____).
+Generated 11 clauses
+(144/167) Placing variables for  :- has_purchase(_____),minor(_____),not blocked(_____),not minor(_____).
+Generated 3 clauses
+(145/167) Placing variables for __inv_0__(_____) :- customer(_____),has_purchase(_____),not minor(_____).
+Generated 3 clauses
+(146/167) Placing variables for __inv_0__(_____) :- __inv_0__(_____),active(_____),purchase(_____,_____).
+Generated 6 clauses
+(147/167) Placing variables for __inv_0__(_____) :- __inv_0__(_____),customer(_____),has_purchase(_____).
+Generated 2 clauses
+(148/167) Placing variables for __inv_0__(_____) :- minor(_____),not blocked(_____),purchase(_____,_____).
+Generated 10 clauses
+(149/167) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____),minor(_____),not blocked(_____).
+Generated 7 clauses
+(150/167) Placing variables for  :- customer(_____),has_purchase(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(151/167) Placing variables for  :- customer(_____),has_purchase(_____),not blocked(_____),not minor(_____).
+Generated 3 clauses
+(152/167) Placing variables for __inv_0__(_____,_____) :- active(_____),customer(_____),has_purchase(_____).
+Generated 10 clauses
+(153/167) Placing variables for  :- has_purchase(_____),minor(_____),not minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(154/167) Placing variables for eligible(_____) :- __inv_0__(_____,_____),customer(_____),not blocked(_____).
+Generated 10 clauses
+(155/167) Placing variables for  :- has_purchase(_____),minor(_____),not blocked(_____),purchase(_____,_____).
+Generated 11 clauses
+(156/167) Placing variables for  :- __inv_0__(_____,_____),customer(_____),minor(_____),purchase(_____,_____).
+Generated 56 clauses
+(157/167) Placing variables for __inv_0__(_____,_____) :- adult(_____),has_purchase(_____),not blocked(_____).
+Generated 7 clauses
+(158/167) Placing variables for  :- __inv_0__(_____),__inv_0__(_____,_____),blocked(_____),has_purchase(_____).
+Generated 11 clauses
+(159/167) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____),__inv_0__(_____,_____),adult(_____).
+Generated 41 clauses
+(160/167) Placing variables for  :- __inv_0__(_____,_____),adult(_____),not minor(_____),purchase(_____,_____).
+Generated 56 clauses
+(161/167) Placing variables for __inv_0__(_____,_____) :- active(_____),not minor(_____),purchase(_____,_____).
+Generated 34 clauses
+(162/167) Placing variables for __inv_0__(_____,_____) :- __inv_0__(_____,_____),blocked(_____),not minor(_____).
+Generated 26 clauses
+(163/167) Placing variables for  :- __inv_0__(_____,_____),adult(_____),has_purchase(_____),purchase(_____,_____).
+Generated 56 clauses
+(164/167) Placing variables for  :- __inv_0__(_____,_____),active(_____),not blocked(_____),purchase(_____,_____).
+Generated 56 clauses
+(165/167) Placing variables for  :- __inv_0__(_____),not blocked(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+(166/167) Placing variables for  :- __inv_0__(_____,_____),adult(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 240 clauses
+(167/167) Placing variables for  :- __inv_0__(_____,_____),has_purchase(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 240 clauses
+Placed variables in 0.5229241847991943 seconds
+Total clauses stub: 160
+Total number of possible clauses: 1386
+Running for 300 iterations
+Iteration 0 - taken for 100: 1.9073486328125e-06 - best: Program: [' :- __inv_0__(V0,V0),has_purchase(V2),purchase(V2,V1),purchase(V1,V1).', ' :- active(V0),adult(V0),has_purchase(V0),not blocked(V0).', ' :- customer(V0),not minor(V0).', '__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V0),not blocked(V1).'] - score: 101.60719837318378
+Iteration 100 - taken for 100: 0.584909200668335 - best: Program: [' :- blocked(V0),minor(V0).', ' :- adult(V0),customer(V0),has_purchase(V1),minor(V1).', 'eligible(V0) :- __inv_0__(V0,V0),customer(V0),not blocked(V0).', '__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V0),not blocked(V1).'] - score: 151.91079755977566
+Iteration 200 - taken for 100: 0.6461567878723145 - best: Program: ['eligible(V0) :- __inv_0__(V1,V1),blocked(V1),minor(V0).', 'eligible(V0) :- purchase(V0,V0).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V1),not blocked(V1).', '__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V0),not blocked(V1).'] - score: 151.91079755977566
+Iteration 300 - taken for 100: 0.7239134311676025 - best: Program: ['__inv_0__(V0) :- __inv_0__(V1),active(V1),purchase(V0,V0).', 'eligible(V0) :- __inv_0__(V0),adult(V0),minor(V0).', 'eligible(V0) :- __inv_0__(V0,V0),customer(V0),not blocked(V0).', '__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V0),not blocked(V1).'] - score: 151.91079755977566
+Iterations completed
+[' :- blocked(V0),minor(V0).', 'eligible(V0) :- active(V0),minor(V1),purchase(V1,V0).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V1),not blocked(V1).', '__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V0),not blocked(V1).']
+[' :- __inv_0__(V0,V0),blocked(V0).', ' :- active(V0),customer(V0),minor(V0).', 'eligible(V0) :- __inv_0__(V0,V0),customer(V0),not blocked(V0).', '__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V0),not blocked(V1).']
+[' :- active(V0),minor(V1),purchase(V1,V0).', ' :- minor(V0),purchase(V0,V0).', 'eligible(V0) :- __inv_0__(V0,V0),customer(V0),not blocked(V0).', '__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V0),not blocked(V1).']
+[' :- __inv_0__(V0,V0),blocked(V0).', '__inv_0__(V0) :- __inv_0__(V1),active(V0),purchase(V1,V0).', 'eligible(V0) :- __inv_0__(V0,V0),active(V0).', '__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V0),not blocked(V1).']
+[' :- blocked(V0),minor(V0).', '__inv_0__(V0) :- __inv_0__(V0,V1),blocked(V1).', 'eligible(V0) :- __inv_0__(V0,V0),active(V0).', '__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).', 'eligible(V0) :- __inv_0__(V1,V0),customer(V0),not blocked(V1).']
+Evolutionary cycle 1 - Time 2.052432060241699
+Current best with score: 151.91079755977566
+--------------------------
+eligible(V0) :- __inv_0__(V0,V0),customer(V0),not blocked(V0).
+__inv_0__(V0,V1) :- adult(V1),has_purchase(V0),not blocked(V1).
+--------------------------
+Total time: 5.761472463607788

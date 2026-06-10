@@ -1,0 +1,128 @@
+Running GENTIANS version 1.0.1.
+Namespace(file='pruebas2.txt', verbosity=1, variables=2, depth=3, prob_increase=0.5, disjunctive_head=1, samples=150, unbalanced_agg=False, max_as=5000, clauses=3, iterations=1, pop_size=50, iterations_genetic=360, mutation_probability=0.2, example=None, comparison=None, arithm=None, aggregates=None, cr=False, invention=0, alb=0, profile=False, version=False)
+Sampling loop: 0
+Sampling clauses
+Sampled 37 different clauses in 0.009948015213012695 seconds
+Sampled clauses:
+0)  :- active(_____),adult(_____).
+1) eligible(_____) :- adult(_____).
+2)  :- adult(_____),blocked(_____).
+3) eligible(_____) :- active(_____).
+4)  :- active(_____),blocked(_____).
+5) eligible(_____) :- blocked(_____).
+6)  :- adult(_____),not active(_____).
+7)  :- active(_____),not adult(_____).
+8) eligible(_____) :- not adult(_____).
+9)  :- adult(_____),not blocked(_____).
+10)  :- blocked(_____),not adult(_____).
+11)  :- active(_____),not blocked(_____).
+12) eligible(_____) :- not active(_____).
+13)  :- blocked(_____),not active(_____).
+14) eligible(_____) :- not blocked(_____).
+15)  :- not active(_____),not adult(_____).
+16)  :- not adult(_____),not blocked(_____).
+17)  :- not active(_____),not blocked(_____).
+18)  :- active(_____),adult(_____),blocked(_____).
+19) eligible(_____) :- active(_____),adult(_____).
+20) eligible(_____) :- adult(_____),blocked(_____).
+21) eligible(_____) :- active(_____),blocked(_____).
+22)  :- active(_____),adult(_____),not blocked(_____).
+23)  :- active(_____),blocked(_____),not adult(_____).
+24)  :- adult(_____),blocked(_____),not active(_____).
+25) eligible(_____) :- active(_____),not adult(_____).
+26) eligible(_____) :- adult(_____),not active(_____).
+27) eligible(_____) :- blocked(_____),not adult(_____).
+28) eligible(_____) :- adult(_____),not blocked(_____).
+29) eligible(_____) :- blocked(_____),not active(_____).
+30)  :- blocked(_____),not active(_____),not adult(_____).
+31)  :- active(_____),not adult(_____),not blocked(_____).
+32)  :- adult(_____),not active(_____),not blocked(_____).
+33) eligible(_____) :- not active(_____),not adult(_____).
+34) eligible(_____) :- not adult(_____),not blocked(_____).
+35) eligible(_____) :- not active(_____),not blocked(_____).
+36)  :- not active(_____),not adult(_____),not blocked(_____).
+(0/36) Placing variables for  :- active(_____),adult(_____).
+Generated 1 clauses
+(1/36) Placing variables for eligible(_____) :- adult(_____).
+Generated 1 clauses
+(2/36) Placing variables for  :- adult(_____),blocked(_____).
+Generated 1 clauses
+(3/36) Placing variables for eligible(_____) :- active(_____).
+Generated 1 clauses
+(4/36) Placing variables for  :- active(_____),blocked(_____).
+Generated 1 clauses
+(5/36) Placing variables for eligible(_____) :- blocked(_____).
+Generated 1 clauses
+(6/36) Placing variables for  :- adult(_____),not active(_____).
+Generated 1 clauses
+(7/36) Placing variables for  :- active(_____),not adult(_____).
+Generated 1 clauses
+(8/36) Placing variables for eligible(_____) :- not adult(_____).
+Generated 0 clauses
+(9/36) Placing variables for  :- adult(_____),not blocked(_____).
+Generated 1 clauses
+(10/36) Placing variables for  :- blocked(_____),not adult(_____).
+Generated 1 clauses
+(11/36) Placing variables for  :- active(_____),not blocked(_____).
+Generated 1 clauses
+(12/36) Placing variables for eligible(_____) :- not active(_____).
+Generated 0 clauses
+(13/36) Placing variables for  :- blocked(_____),not active(_____).
+Generated 1 clauses
+(14/36) Placing variables for eligible(_____) :- not blocked(_____).
+Generated 0 clauses
+(15/36) Placing variables for  :- not active(_____),not adult(_____).
+Generated 0 clauses
+(16/36) Placing variables for  :- not adult(_____),not blocked(_____).
+Generated 0 clauses
+(17/36) Placing variables for  :- not active(_____),not blocked(_____).
+Generated 0 clauses
+(18/36) Placing variables for  :- active(_____),adult(_____),blocked(_____).
+Generated 1 clauses
+(19/36) Placing variables for eligible(_____) :- active(_____),adult(_____).
+Generated 1 clauses
+(20/36) Placing variables for eligible(_____) :- adult(_____),blocked(_____).
+Generated 1 clauses
+(21/36) Placing variables for eligible(_____) :- active(_____),blocked(_____).
+Generated 1 clauses
+(22/36) Placing variables for  :- active(_____),adult(_____),not blocked(_____).
+Generated 1 clauses
+(23/36) Placing variables for  :- active(_____),blocked(_____),not adult(_____).
+Generated 1 clauses
+(24/36) Placing variables for  :- adult(_____),blocked(_____),not active(_____).
+Generated 1 clauses
+(25/36) Placing variables for eligible(_____) :- active(_____),not adult(_____).
+Generated 1 clauses
+(26/36) Placing variables for eligible(_____) :- adult(_____),not active(_____).
+Generated 1 clauses
+(27/36) Placing variables for eligible(_____) :- blocked(_____),not adult(_____).
+Generated 1 clauses
+(28/36) Placing variables for eligible(_____) :- adult(_____),not blocked(_____).
+Generated 1 clauses
+(29/36) Placing variables for eligible(_____) :- blocked(_____),not active(_____).
+Generated 1 clauses
+(30/36) Placing variables for  :- blocked(_____),not active(_____),not adult(_____).
+Generated 1 clauses
+(31/36) Placing variables for  :- active(_____),not adult(_____),not blocked(_____).
+Generated 1 clauses
+(32/36) Placing variables for  :- adult(_____),not active(_____),not blocked(_____).
+Generated 1 clauses
+(33/36) Placing variables for eligible(_____) :- not active(_____),not adult(_____).
+Generated 0 clauses
+(34/36) Placing variables for eligible(_____) :- not adult(_____),not blocked(_____).
+Generated 0 clauses
+(35/36) Placing variables for eligible(_____) :- not active(_____),not blocked(_____).
+Generated 0 clauses
+(36/36) Placing variables for  :- not active(_____),not adult(_____),not blocked(_____).
+Generated 0 clauses
+Placed variables in 0.019826412200927734 seconds
+Total clauses stub: 27
+Total number of possible clauses: 27
+Best found with indexes 1
+[' :- active(V0),not adult(V0),not blocked(V0).', 'eligible(V0) :- active(V0),adult(V0).', 'eligible(V0) :- adult(V0),blocked(V0).']
+Evolutionary cycle 0 - Time 0.0018384456634521484
+--- Found best program ---
+--------------------------
+eligible(V0) :- active(V0),adult(V0).
+--------------------------
+Total time: 0.03351569175720215

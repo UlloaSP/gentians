@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GENTIANS Internal Report</title>
+  <style>
+    :root {
+      --bg: #f7f7f4;
+      --ink: #1d2328;
+      --muted: #59636e;
+      --line: #d7d9d4;
+      --ok: #1f7a4d;
+      --warn: #9a6700;
+      --bad: #b42318;
+      --card: #ffffff;
+      --code: #eef0ed;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 24px 64px; }
+    h1, h2, h3 { line-height: 1.12; margin: 0 0 12px; }
+    h1 { font-size: 34px; letter-spacing: 0; }
+    h2 { font-size: 24px; margin-top: 34px; border-top: 1px solid var(--line); padding-top: 24px; }
+    h3 { font-size: 18px; margin-top: 20px; }
+    p { margin: 8px 0 14px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+    code { background: var(--code); padding: 2px 5px; border-radius: 4px; }
+    pre { overflow-x: auto; background: #1f2428; color: #f4f4f2; padding: 14px; border-radius: 8px; }
+    .meta { color: var(--muted); font-size: 14px; margin-top: 6px; }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin: 18px 0; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+    .card strong { display: block; font-size: 22px; margin-bottom: 4px; }
+    .ok { color: var(--ok); font-weight: 700; }
+    .warn { color: var(--warn); font-weight: 700; }
+    .bad { color: var(--bad); font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); margin: 14px 0 22px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #eceee9; font-size: 13px; text-transform: uppercase; letter-spacing: .02em; }
+    tr:last-child td { border-bottom: 0; }
+    .tag { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700; border: 1px solid currentColor; }
+    .tag.ok { color: var(--ok); }
+    .tag.warn { color: var(--warn); }
+    .tag.bad { color: var(--bad); }
+    .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 16px 0; }
+    .step { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+    .step b { display: block; margin-bottom: 6px; }
+    .small { font-size: 13px; color: var(--muted); }
+    ul { margin-top: 8px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>GENTIANS Internal Report</h1>
+  <p class="meta">Repo: <code>C:\software\gentians</code> · Fecha: 2026-06-03 · Entorno: Windows, <code>uv</code>, CPython 3.13.11, clingo via project deps.</p>
+
+  <div class="grid">
+    <div class="card"><strong class="warn">Prototype</strong><span>Producto util como investigacion / PoC, no listo como tool fiable.</span></div>
+    <div class="card"><strong class="ok">27 / 27</strong><span>Tests descubiertos por pytest pasan. 4 skipped.</span></div>
+    <div class="card"><strong class="bad">33 / 33</strong><span>Benchmarks oficiales fallan antes de medir.</span></div>
+    <div class="card"><strong class="warn">Partial ASP</strong><span>Atoms, constraints, negation, aggregates balanceados funcionan; varios claims fallan.</span></div>
+  </div>
+
+  <h2>Executive Summary</h2>
+  <p>GENTIANS implementa un aprendiz de programas ASP por muestreo de reglas, colocacion de variables con clingo, y busqueda genetica sobre combinaciones de reglas. La idea es interesante: usa ASP para podar el espacio sintactico de reglas y otro ASP/clingo para evaluar cobertura de ejemplos.</p>
+  <p>La implementacion actual valida piezas internas, pero no valida suficientemente producto. El test suite normal pasa porque casi solo cubre utilidades. Los benchmarks oficiales estan rotos por una API antigua. Varios claims de README/CLI no estan soportados end-to-end: <code>#neg</code> en parser, <code>-ua</code>, <code>--comparison lt</code>, <code>--cr</code>, poblaciones pequenas, y context examples en cobertura.</p>
+
+  <h2>Commands Run</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Status</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td><code>uv run pytest -q</code></td><td><span class="tag ok">PASS</span></td><td><code>27 passed, 4 skipped</code></td></tr>
+      <tr><td><code>uv run pytest tests\benchmarking.py -q --benchmark-disable</code></td><td><span class="tag bad">FAIL</span></td><td><code>33 failed</code>. All fail with <code>TypeError: VariablePlacer.__init__() got an unexpected keyword argument 'unbalanced_aggregates'</code>.</td></tr>
+      <tr><td><code>uv run pytest tests\benchmarking.py -q</code></td><td><span class="tag bad">FAIL</span></td><td>Same 33 failures during benchmark calibration. No benchmark metric produced.</td></tr>
+      <tr><td><code>uv run gentians --help</code></td><td><span class="tag ok">PASS</span></td><td>CLI loads, options visible.</td></tr>
+      <tr><td><code>uv build</code></td><td><span class="tag ok">PASS</span></td><td>sdist and wheel build OK after uv migration.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>How GENTIANS Works Internally</h2>
+  <div class="flow">
+    <div class="step"><b>1. Input</b><span>Built-in example via <code>-e</code> or file via parser. Input contains background ASP, examples, and mode bias.</span></div>
+    <div class="step"><b>2. Language Bias</b><span><code>#modeh</code> and <code>#modeb</code> become <code>ModeDeclaration</code>. CLI adds aggregates, comparisons, arithmetic.</span></div>
+    <div class="step"><b>3. Sampling</b><span><code>ProgramSampler</code> randomly samples rule stubs with holes <code>_____</code>.</span></div>
+    <div class="step"><b>4. Variable Placement</b><span><code>VariablePlacer</code> builds an ASP encoding to assign variables to holes and enforce safety/equality constraints.</span></div>
+    <div class="step"><b>5. Rule Validation</b><span><code>utils.is_valid_rule</code> rejects unsafe rules, duplicate atoms, invalid comparison/arithmetic variable reuse.</span></div>
+    <div class="step"><b>6. Genetic Search</b><span><code>Strategy</code> initializes population, evaluates coverage, does tournament/crossover/mutation.</span></div>
+    <div class="step"><b>7. Coverage</b><span><code>ClingoInterface</code> wraps candidate rules with optional <code>r(i)</code> switches, computes covered positive/negative examples.</span></div>
+    <div class="step"><b>8. Output</b><span>Stops if full positive coverage and zero negative coverage found; otherwise prints current best.</span></div>
+  </div>
+
+  <h3>Core Modules</h3>
+  <table>
+    <thead><tr><th>Module</th><th>Role</th><th>Risk</th></tr></thead>
+    <tbody>
+      <tr><td><code>gentians/gentians.py</code></td><td>Main solver orchestration: sample, place variables, genetic solver loop.</td><td>CLI output can report empty current-best program when search fails.</td></tr>
+      <tr><td><code>gentians/parser.py</code></td><td>Parses examples/modes; auto language bias; predicate invention.</td><td><code>#neg</code> parsing broken because regex only matches <code>#pos</code>. Mode equality not implemented, so duplicate filtering via <code>not in</code> ineffective.</td></tr>
+      <tr><td><code>gentians/program_sampler.py</code></td><td>Samples stubs, converts special operators/aggregates to ASP syntax.</td><td><code>lt</code> replacement and unbalanced aggregates broken; <code>--cr</code> flag unused.</td></tr>
+      <tr><td><code>gentians/variable_placer.py</code></td><td>Uses ASP encodings in <code>logic_programs/*.lp</code> to place variables safely.</td><td>Now loads package resources correctly; combinatorial explosion still main bottleneck.</td></tr>
+      <tr><td><code>gentians/strategies.py</code></td><td>Genetic algorithm and scoring.</td><td>Tournament size hardcoded to 12; <code>pop_size &lt; 12</code> crashes. Search nondeterministic; no seed option.</td></tr>
+      <tr><td><code>gentians/clingo_interface.py</code></td><td>Coverage extraction by clingo.</td><td>Context examples appear not applied correctly; undefined atoms short-circuit coverage.</td></tr>
+      <tr><td><code>tests/test_utils.py</code></td><td>Unit/integration checks for utils and rule validity.</td><td>Several TODO tests are placeholders that assert <code>True</code>; no CLI tests.</td></tr>
+      <tr><td><code>tests/benchmarking.py</code></td><td>Intended variable-placement benchmark suite.</td><td>Completely stale API; not discovered by default pytest naming.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>ASP Support Matrix</h2>
+  <table>
+    <thead><tr><th>Feature</th><th>Status</th><th>Evidence</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Normal atoms in head/body</td><td><span class="tag ok">Supported</span></td><td>Placement standard atoms: 4 valid placements. CLI <code>coin</code> runs.</td><td>End-to-end learning still stochastic.</td></tr>
+      <tr><td>Constraints <code>:- ...</code></td><td><span class="tag ok">Supported</span></td><td>Tests validate constraints in <code>is_valid_rule</code>; placement benchmarks include constraints.</td><td>Coverage can evaluate constraints.</td></tr>
+      <tr><td>Negation as failure <code>not</code></td><td><span class="tag ok">Basic supported</span></td><td>Placement <code>target(V0):- node(V0),not blocked(V0).</code> passes.</td><td>Safety validation rejects unsafe negative vars.</td></tr>
+      <tr><td>Disjunctive heads</td><td><span class="tag warn">Partial</span></td><td>Sampler joins head atoms with <code>;</code> and CLI has <code>-dh</code>.</td><td>No direct test validating learned disjunctive program semantics.</td></tr>
+      <tr><td>Choice rules</td><td><span class="tag bad">Not implemented</span></td><td><code>--cr</code> exists in CLI, but only assigned to args; no implementation references beyond that.</td><td>Claim should be removed or implemented.</td></tr>
+      <tr><td>Positive examples <code>#pos</code></td><td><span class="tag ok">Supported</span></td><td>Parser <code>pos_only</code> passes.</td><td>Syntax with context parses too.</td></tr>
+      <tr><td>Negative examples <code>#neg</code></td><td><span class="tag bad">Broken</span></td><td>Parser <code>pos_neg</code> raises <code>IndexError('list index out of range')</code>.</td><td>Regex helper hardcodes <code>#pos</code> for both pos and neg.</td></tr>
+      <tr><td>Context-dependent examples</td><td><span class="tag bad">Broken/undefined</span></td><td>Parser context passes, but coverage smoke returns <code>{'Undefined': ...}</code>.</td><td>Context handling is nested under excluded example block and appears not reliable.</td></tr>
+      <tr><td>Aggregates balanced <code>#sum</code></td><td><span class="tag ok">Supported</span></td><td>Placement passes; CLI <code>subset_sum</code> found best program <code>s(V0) :- #sum{V1:el(V1)}=V0.</code>.</td><td>Most convincing aggregate path.</td></tr>
+      <tr><td>Aggregates balanced <code>#count</code></td><td><span class="tag warn">Placement supported</span></td><td>Placement generated <code>c(V0):- #count{V1:el(V1)}=V0.</code>.</td><td>No end-to-end CLI learning smoke was run for count.</td></tr>
+      <tr><td>Aggregates <code>#avg</code>, <code>#min</code>, <code>#max</code></td><td><span class="tag warn">Parser accepts</span></td><td><code>ModeDeclaration.add_aggregate</code> accepts avg/min/max.</td><td>No semantic validation; clingo syntax/learning path unproven.</td></tr>
+      <tr><td>Unbalanced aggregates <code>-ua</code></td><td><span class="tag bad">Broken</span></td><td>CLI <code>subset_sum ... -ua</code> fails with <code>IndexError</code> at <code>program_sampler.py:182</code>.</td><td>Core README example uses <code>-ua</code>; high-priority gap.</td></tr>
+      <tr><td>Comparison <code>gt/geq/neq/eq</code></td><td><span class="tag warn">Partial</span></td><td>Direct placement for <code>&gt;</code> passes; tests validate comparison safety.</td><td>Need operator-by-operator end-to-end tests.</td></tr>
+      <tr><td>Comparison <code>lt</code> via CLI</td><td><span class="tag bad">Broken</span></td><td>CLI <code>4queens --comparison lt</code> outputs unreplaced <code>__lt__(...)</code>.</td><td>Bug in conditional chain in sampler replacement.</td></tr>
+      <tr><td>Arithmetic <code>add</code></td><td><span class="tag ok">Placement supported</span></td><td>Placement <code>sum(V0):- V0+V0=V1,q(...)</code> passes.</td><td>End-to-end learning not proven.</td></tr>
+      <tr><td>Arithmetic <code>sub/mul/div/abs</code></td><td><span class="tag warn">Partial/unproven</span></td><td>CLI accepts flags; code maps ops.</td><td>No full semantic validation in tests; <code>abs</code> syntax likely questionable.</td></tr>
+      <tr><td>Automatic language bias <code>-alb</code></td><td><span class="tag warn">Implemented, not validated</span></td><td>Code exists in <code>Program.auto_generate_language_bias</code>.</td><td>Needs tests against files/examples, especially negated bias.</td></tr>
+      <tr><td>Predicate invention</td><td><span class="tag warn">Implemented, not validated</span></td><td>Code appends <code>__inv_i__</code> arity 1/2 modes.</td><td>No end-to-end proof it helps or preserves safety.</td></tr>
+      <tr><td>Optimization/minimize, weak constraints, externals, theory atoms</td><td><span class="tag bad">Not supported</span></td><td>No parser/sampler/model support found.</td><td>Out of product scope unless explicitly added.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Test Results</h2>
+  <h3>Default test suite</h3>
+  <p><span class="ok">PASS</span>: <code>27 passed, 4 skipped</code>. But coverage quality is weak.</p>
+  <ul>
+    <li>Good: utility conversions, symmetric answer sets, atom extraction, rule validity for safety/comparison/arithmetic/aggregate sanity.</li>
+    <li>Weak: tests named TODO assert <code>True</code> for aggregate/comparison/arithmetic helper coverage.</li>
+    <li>Missing: parser <code>#neg</code>, CLI learning, benchmarks, <code>-ua</code>, <code>--comparison lt</code>, context examples, population bounds, reproducible random seed.</li>
+  </ul>
+
+  <h3>Functional validation failures</h3>
+  <table>
+    <thead><tr><th>Behavior</th><th>Expected</th><th>Actual</th><th>Impact</th></tr></thead>
+    <tbody>
+      <tr><td>Parse file with <code>#neg({target(b)},{}).</code></td><td>1 positive, 1 negative example.</td><td><code>IndexError('list index out of range')</code>.</td><td>Custom tasks with negative examples are unusable via file parser.</td></tr>
+      <tr><td>Run <code>subset_sum</code> with <code>-ua</code></td><td>Sample unbalanced aggregate variants.</td><td><code>IndexError</code> in <code>cb[index] = agg</code>.</td><td>README advertised path broken.</td></tr>
+      <tr><td>Run <code>4queens --comparison lt</code></td><td>Rules use <code>&lt;</code>.</td><td>Rules contain <code>__lt__(V0,V0)</code>.</td><td>Invalid ASP emitted; comparison claim false for CLI lt.</td></tr>
+      <tr><td>Run with <code>-p 5</code></td><td>Either works or clear validation error.</td><td><code>ValueError: Sample larger than population or is negative</code>.</td><td>CLI accepts invalid config and crashes.</td></tr>
+      <tr><td>Context examples in coverage</td><td>Context facts influence coverage.</td><td>Coverage returns <code>Undefined</code> in minimal smoke.</td><td>Context-dependent examples not trustworthy.</td></tr>
+      <tr><td><code>coin</code> with short budget</td><td>Stable learning or clear non-convergence.</td><td>Return code 0 but no best found; prints empty current-best program.</td><td>Users may misread failure as valid output.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Benchmark Results</h2>
+  <h3>Official benchmarks</h3>
+  <p><span class="bad">Invalid</span>: current official benchmark file cannot measure performance. Every test calls an obsolete constructor:</p>
+  <pre>vp = VariablePlacer(unbalanced_aggregates=unbalanced)
+TypeError: VariablePlacer.__init__() got an unexpected keyword argument 'unbalanced_aggregates'</pre>
+  <p>Also, <code>tests/benchmarking.py</code> is not discovered by default <code>pytest</code> because filename does not match <code>test_*.py</code>. <code>tests/runner.sh</code> also points at <code>benchmarking.py</code> from wrong cwd unless run from <code>tests/</code>.</p>
+
+  <h3>Ad-hoc microbench after API-correct setup</h3>
+  <p>25 repeated calls per stub using one <code>VariablePlacer</code> instance. First run includes clingo/cache warm-up, so max &gt; p95.</p>
+  <table>
+    <thead><tr><th>Case</th><th>Solutions</th><th>Mean ms</th><th>P95 ms</th><th>Max ms</th><th>What it proves</th></tr></thead>
+    <tbody>
+      <tr><td>standard_4holes</td><td>4</td><td>0.314</td><td>0.162</td><td>4.394</td><td>Basic variable placement fast on tiny stubs.</td></tr>
+      <tr><td>comparison_gt_4holes</td><td>2</td><td>0.327</td><td>0.155</td><td>4.993</td><td>Comparison constraints work when operator is already in stub.</td></tr>
+      <tr><td>arithmetic_add_6holes</td><td>9</td><td>0.440</td><td>0.222</td><td>5.917</td><td>Arithmetic placement produces safe candidate variants.</td></tr>
+      <tr><td>aggregate_sum_3holes</td><td>1</td><td>0.358</td><td>0.175</td><td>5.476</td><td>Balanced aggregate placement works.</td></tr>
+      <tr><td>aggregate_cmp_5holes</td><td>4</td><td>0.451</td><td>0.204</td><td>6.719</td><td>Aggregate + comparison placement works for direct stubs.</td></tr>
+    </tbody>
+  </table>
+  <p>These microbenchmarks validate low-level placement only. They do not validate learning quality, convergence, search scalability, or comparison against ILASP/Popper/etc.</p>
+
+  <h2>Product Validation</h2>
+  <h3>Are we building the product correctly?</h3>
+  <p><span class="bad">Not yet.</span> Current engineering loop does not protect the core product claims.</p>
+  <ul>
+    <li>Tests pass but miss critical user-facing flows.</li>
+    <li>Benchmarks are stale and fail before timing.</li>
+    <li>CLI accepts invalid configs instead of validating arguments.</li>
+    <li>Search is nondeterministic and has no seed option, making regressions hard to reproduce.</li>
+    <li>Failure modes print empty programs or tracebacks instead of product-level diagnostics.</li>
+    <li>README claims are broader than validated behavior.</li>
+  </ul>
+
+  <h3>Are we building the correct product?</h3>
+  <p><span class="warn">Maybe, for research users.</span> The concept is coherent if product goal is: learn small ASP programs from examples with bias-driven search and support for selected aggregates/operators. It is not yet correct if product goal is a robust general ASP inductive learner.</p>
+  <table>
+    <thead><tr><th>Target user need</th><th>Fit today</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>Explore academic idea: genetic ILP over ASP hypothesis space.</td><td><span class="tag ok">Good fit</span></td><td>Architecture is understandable; pieces show feasibility.</td></tr>
+      <tr><td>Run README examples reliably.</td><td><span class="tag bad">Poor fit</span></td><td>README hamming example uses <code>-ua</code>, currently broken.</td></tr>
+      <tr><td>Use custom task files.</td><td><span class="tag bad">Poor fit</span></td><td><code>#neg</code> parser fails; examples need negative coverage.</td></tr>
+      <tr><td>Benchmark performance claims.</td><td><span class="tag bad">Poor fit</span></td><td>Official benchmarks fail and do not measure learning quality.</td></tr>
+      <tr><td>Trust learned outputs.</td><td><span class="tag warn">Partial</span></td><td>Known programs pass coverage, but GA may emit empty/current-best output without clear fail state.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Recommended Validation Plan</h2>
+  <ol>
+    <li>Fix benchmark harness to current <code>VariablePlacer(args)</code> API and rename file to <code>test_benchmarking.py</code> or configure pytest.</li>
+    <li>Add parser tests for <code>#pos</code>, <code>#neg</code>, context, whitespace, arity &gt; 9, and malformed input with good errors.</li>
+    <li>Add CLI smoke tests with deterministic seed: <code>coin</code>, <code>subset_sum</code>, <code>4queens</code>, file input with neg examples.</li>
+    <li>Add support matrix tests: one minimal task for each advertised feature: negation, disjunction, aggregate sum/count, comparison lt/neq, arithmetic add/sub, auto bias, invention.</li>
+    <li>Separate "candidate syntax generation" benchmarks from "end-to-end learning" benchmarks.</li>
+    <li>Define product acceptance: for each built-in example, expected learned program or expected coverage threshold within time/sample budget.</li>
+    <li>Add CLI argument validation: <code>pop_size &gt;= tournament_size</code>, aggregate syntax, unsupported flags such as <code>--cr</code>.</li>
+    <li>Document unsupported ASP features explicitly instead of implying broad ASP support.</li>
+  </ol>
+
+  <h2>Priority Fix List</h2>
+  <table>
+    <thead><tr><th>Priority</th><th>Fix</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>P0</td><td>Repair <code>#neg</code> parser.</td><td>Negative examples are core to ILP learning.</td></tr>
+      <tr><td>P0</td><td>Repair benchmark harness.</td><td>Cannot evaluate performance today.</td></tr>
+      <tr><td>P0</td><td>Repair <code>-ua</code>.</td><td>Advertised README path crashes.</td></tr>
+      <tr><td>P1</td><td>Fix <code>lt</code> replacement conditional chain.</td><td>Invalid ASP emitted for comparison flag.</td></tr>
+      <tr><td>P1</td><td>Add random seed / deterministic mode.</td><td>Needed for tests and reproducibility.</td></tr>
+      <tr><td>P1</td><td>Validate CLI args and report non-convergence clearly.</td><td>Prevents tracebacks and empty outputs.</td></tr>
+      <tr><td>P2</td><td>Define exact supported ASP subset in docs.</td><td>Keeps product promise honest.</td></tr>
+    </tbody>
+  </table>
+</main>
+</body>
+</html>

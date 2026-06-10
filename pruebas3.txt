@@ -1,0 +1,225 @@
+% -----------------------------------------------------------------------------
+% pruebas3.txt
+% Tarea facil pero grande para GENTIANS.
+%
+% Sin aritmetica, sin comparaciones, sin agregados, sin invencion.
+%
+% Objetivo esperado:
+%   eligible(X):- adult(X),active(X),not blocked(X).
+%
+% Incluye muchos hechos y ejemplos para tener mas cobertura,
+% pero el patron sigue siendo sencillo.
+% -----------------------------------------------------------------------------
+
+% -----------------------------------------------------------------------------
+% Clientes.
+% -----------------------------------------------------------------------------
+
+customer(alice).
+customer(bob).
+customer(carol).
+customer(dave).
+customer(erin).
+customer(frank).
+customer(grace).
+customer(heidi).
+customer(ivan).
+customer(judy).
+customer(kate).
+customer(louis).
+customer(mallory).
+customer(niaj).
+customer(olivia).
+customer(peggy).
+customer(quentin).
+customer(rupert).
+customer(sybil).
+customer(trent).
+customer(ursula).
+customer(victor).
+customer(wendy).
+customer(xavier).
+customer(yvonne).
+customer(zack).
+
+% -----------------------------------------------------------------------------
+% Adultos.
+% -----------------------------------------------------------------------------
+
+adult(alice).
+adult(carol).
+adult(dave).
+adult(erin).
+adult(frank).
+adult(grace).
+adult(ivan).
+adult(judy).
+adult(kate).
+adult(louis).
+adult(mallory).
+adult(olivia).
+adult(peggy).
+adult(quentin).
+adult(sybil).
+adult(trent).
+adult(victor).
+adult(wendy).
+adult(yvonne).
+adult(zack).
+
+% -----------------------------------------------------------------------------
+% Menores.
+% Ruido util: ayuda a rechazar, pero regla optima no necesita usar minor/1.
+% -----------------------------------------------------------------------------
+
+minor(bob).
+minor(heidi).
+minor(niaj).
+minor(rupert).
+minor(ursula).
+minor(xavier).
+
+% -----------------------------------------------------------------------------
+% Cuentas activas.
+% -----------------------------------------------------------------------------
+
+active(alice).
+active(bob).
+active(carol).
+active(dave).
+active(frank).
+active(grace).
+active(heidi).
+active(ivan).
+active(kate).
+active(mallory).
+active(niaj).
+active(olivia).
+active(quentin).
+active(rupert).
+active(sybil).
+active(victor).
+active(wendy).
+active(xavier).
+active(yvonne).
+
+% -----------------------------------------------------------------------------
+% Cuentas bloqueadas.
+% -----------------------------------------------------------------------------
+
+blocked(carol).
+blocked(erin).
+blocked(grace).
+blocked(mallory).
+blocked(quentin).
+blocked(sybil).
+blocked(yvonne).
+
+% -----------------------------------------------------------------------------
+% Otros predicados booleanos.
+% Son ruido controlado: pueden aparecer en reglas, pero no son necesarios.
+% -----------------------------------------------------------------------------
+
+verified(alice).
+verified(carol).
+verified(dave).
+verified(frank).
+verified(grace).
+verified(ivan).
+verified(kate).
+verified(olivia).
+verified(sybil).
+verified(victor).
+verified(wendy).
+verified(zack).
+
+vip(alice).
+vip(dave).
+vip(grace).
+vip(olivia).
+vip(victor).
+
+newsletter(alice).
+newsletter(bob).
+newsletter(dave).
+newsletter(erin).
+newsletter(heidi).
+newsletter(judy).
+newsletter(kate).
+newsletter(niaj).
+newsletter(peggy).
+newsletter(rupert).
+newsletter(trent).
+newsletter(wendy).
+newsletter(xavier).
+
+% -----------------------------------------------------------------------------
+% Positivos esperados.
+% Todos: adult + active + not blocked.
+% -----------------------------------------------------------------------------
+
+#pos({eligible(alice)},{}).
+#pos({eligible(dave)},{}).
+#pos({eligible(frank)},{}).
+#pos({eligible(ivan)},{}).
+#pos({eligible(kate)},{}).
+#pos({eligible(olivia)},{}).
+#pos({eligible(victor)},{}).
+#pos({eligible(wendy)},{}).
+#pos({eligible(zack)},{}).
+
+% -----------------------------------------------------------------------------
+% Negativos: menores aunque esten activos.
+% -----------------------------------------------------------------------------
+
+#neg({eligible(bob)},{}).
+#neg({eligible(heidi)},{}).
+#neg({eligible(niaj)},{}).
+#neg({eligible(rupert)},{}).
+#neg({eligible(xavier)},{}).
+
+% -----------------------------------------------------------------------------
+% Negativos: adultos bloqueados.
+% -----------------------------------------------------------------------------
+
+#neg({eligible(carol)},{}).
+#neg({eligible(erin)},{}).
+#neg({eligible(grace)},{}).
+#neg({eligible(mallory)},{}).
+#neg({eligible(quentin)},{}).
+#neg({eligible(sybil)},{}).
+#neg({eligible(yvonne)},{}).
+
+% -----------------------------------------------------------------------------
+% Negativos: adultos no activos.
+% -----------------------------------------------------------------------------
+
+#neg({eligible(judy)},{}).
+#neg({eligible(louis)},{}).
+#neg({eligible(peggy)},{}).
+#neg({eligible(trent)},{}).
+
+% -----------------------------------------------------------------------------
+% Bias de lenguaje.
+% Solo predicados booleanos unarios.
+% Sin operadores especiales.
+% -----------------------------------------------------------------------------
+
+#modeh(1,eligible,1).
+
+#modeb(1,customer,1,positive).
+#modeb(1,adult,1,positive).
+#modeb(1,minor,1,positive).
+#modeb(1,active,1,positive).
+#modeb(1,blocked,1,positive).
+#modeb(1,verified,1,positive).
+#modeb(1,vip,1,positive).
+#modeb(1,newsletter,1,positive).
+
+#modeb(1,minor,1,negative).
+#modeb(1,active,1,negative).
+#modeb(1,blocked,1,negative).
+#modeb(1,verified,1,negative).
+#modeb(1,vip,1,negative).
+#modeb(1,newsletter,1,negative).
+

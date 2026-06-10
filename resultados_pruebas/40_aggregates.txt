@@ -1,0 +1,1718 @@
+Running GENTIANS version 1.0.1.
+Namespace(file='.\\pruebas.txt', verbosity=1, variables=4, depth=4, prob_increase=0.5, disjunctive_head=1, samples=250, unbalanced_agg=True, max_as=5000, clauses=5, iterations=2, pop_size=60, iterations_genetic=300, mutation_probability=0.2, example=None, comparison=None, arithm=None, aggregates=['sum(purchase/2)', 'count(purchase/2)'], cr=False, invention=0, alb=0, profile=False, version=False)
+Sampling loop: 0
+Sampling clauses
+Sampled 281 different clauses in 0.036566972732543945 seconds
+Sampled clauses:
+0)  :- minor(_____),minor(_____).
+1) premium(_____) :- minor(_____).
+2) premium(_____) :- adult(_____).
+3)  :- blocked(_____),minor(_____).
+4) premium(_____) :- active(_____).
+5) eligible(_____) :- minor(_____).
+6)  :- adult(_____),blocked(_____).
+7)  :- minor(_____),premium(_____).
+8) eligible(_____) :- adult(_____).
+9)  :- adult(_____),premium(_____).
+10) premium(_____) :- premium(_____).
+11)  :- customer(_____),minor(_____).
+12) eligible(_____) :- active(_____).
+13) premium(_____) :- customer(_____).
+14) eligible(_____) :- blocked(_____).
+15)  :- active(_____),customer(_____).
+16) eligible(_____) :- premium(_____).
+17)  :- blocked(_____),premium(_____).
+18) eligible(_____) :- customer(_____).
+19)  :- customer(_____),premium(_____).
+20)  :- blocked(_____),customer(_____).
+21)  :- minor(_____),not blocked(_____).
+22)  :- minor(_____),not premium(_____).
+23) premium(_____) :- not premium(_____).
+24) premium(_____) :- not blocked(_____).
+25)  :- adult(_____),has_purchase(_____).
+26)  :- not blocked(_____),premium(_____).
+27) eligible(_____) :- not blocked(_____).
+28) premium(_____) :- has_purchase(_____).
+29) eligible(_____) :- not premium(_____).
+30)  :- active(_____),has_purchase(_____).
+31) eligible(_____) :- has_purchase(_____).
+32)  :- customer(_____),not blocked(_____).
+33)  :- minor(_____),purchase(_____,_____).
+34)  :- has_purchase(_____),premium(_____).
+35)  :- active(_____),purchase(_____,_____).
+36)  :- not blocked(_____),not minor(_____).
+37)  :- blocked(_____),purchase(_____,_____).
+38) eligible(_____) :- purchase(_____,_____).
+39)  :- premium(_____),purchase(_____,_____).
+40)  :- has_purchase(_____),not blocked(_____).
+41)  :- has_purchase(_____),not premium(_____).
+42) premium(_____) :- adult(_____),minor(_____).
+43) premium(_____) :- active(_____),minor(_____).
+44)  :- minor(_____),minor(_____),premium(_____).
+45) eligible(_____) :- minor(_____),minor(_____).
+46)  :- not blocked(_____),purchase(_____,_____).
+47)  :- not premium(_____),purchase(_____,_____).
+48) premium(_____) :- active(_____),premium(_____).
+49)  :- adult(_____),premium(_____),premium(_____).
+50) eligible(_____) :- adult(_____),blocked(_____).
+51) eligible(_____) :- active(_____),premium(_____).
+52) eligible(_____) :- active(_____),blocked(_____).
+53)  :- active(_____),minor(_____),not minor(_____).
+54) eligible(_____) :- adult(_____),customer(_____).
+55)  :- purchase(_____,_____),purchase(_____,_____).
+56)  :- adult(_____),minor(_____),not premium(_____).
+57) premium(_____) :- customer(_____),premium(_____).
+58)  :- adult(_____),has_purchase(_____),minor(_____).
+59) premium(_____) :- minor(_____),not blocked(_____).
+60)  :- active(_____),not minor(_____),premium(_____).
+61)  :- customer(_____),minor(_____),not minor(_____).
+62) eligible(_____) :- adult(_____),not blocked(_____).
+63) eligible(_____) :- minor(_____),not premium(_____).
+64) premium(_____) :- customer(_____),not minor(_____).
+65) eligible(_____) :- minor(_____),not blocked(_____).
+66)  :- blocked(_____),has_purchase(_____),minor(_____).
+67) eligible(_____) :- active(_____),not premium(_____).
+68) premium(_____) :- has_purchase(_____),premium(_____).
+69)  :- active(_____),customer(_____),not premium(_____).
+70)  :- active(_____),minor(_____),purchase(_____,_____).
+71)  :- adult(_____),customer(_____),has_purchase(_____).
+72)  :- active(_____),adult(_____),purchase(_____,_____).
+73) premium(_____) :- active(_____),purchase(_____,_____).
+74) eligible(_____) :- minor(_____),purchase(_____,_____).
+75) eligible(_____) :- customer(_____),has_purchase(_____).
+76) eligible(_____) :- active(_____),purchase(_____,_____).
+77)  :- customer(_____),has_purchase(_____),premium(_____).
+78)  :- has_purchase(_____),minor(_____),not blocked(_____).
+79)  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____).
+80) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____.
+81)  :- #sum{_____:purchase(_____,_____)}=_____,active(_____).
+82)  :- #count{_____:purchase(_____,_____)}=_____,minor(_____).
+83)  :- #sum{_____:purchase(_____,_____)}=_____,blocked(_____).
+84)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____).
+85) eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____.
+86)  :- has_purchase(_____),minor(_____),purchase(_____,_____).
+87)  :- active(_____),blocked(_____),minor(_____),minor(_____).
+88)  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____).
+89) premium(_____) :- #count{_____:purchase(_____,_____)}=_____.
+90) eligible(_____) :- not blocked(_____),purchase(_____,_____).
+91)  :- has_purchase(_____),not blocked(_____),not minor(_____).
+92)  :- #count{_____:purchase(_____,_____)}=_____,active(_____).
+93)  :- blocked(_____),not premium(_____),purchase(_____,_____).
+94)  :- #count{_____:purchase(_____,_____)}=_____,premium(_____).
+95) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____.
+96) eligible(_____) :- has_purchase(_____),purchase(_____,_____).
+97) premium(_____) :- active(_____),adult(_____),customer(_____).
+98)  :- #count{_____:purchase(_____,_____)}=_____,not minor(_____).
+99)  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+100)  :- #sum{_____:purchase(_____,_____)}=_____,not blocked(_____).
+101) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____.
+102) premium(_____) :- adult(_____),has_purchase(_____),minor(_____).
+103)  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+104)  :- active(_____),blocked(_____),not minor(_____),premium(_____).
+105)  :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+106)  :- #sum{_____,_____:purchase(_____,_____)}=_____,blocked(_____).
+107)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+108) eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____.
+109)  :- #count{_____:purchase(_____,_____)}=_____,not premium(_____).
+110) premium(_____) :- active(_____),adult(_____),has_purchase(_____).
+111)  :- #count{_____:purchase(_____,_____)}=_____,not blocked(_____).
+112)  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+113) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____.
+114) eligible(_____) :- active(_____),adult(_____),has_purchase(_____).
+115) eligible(_____) :- adult(_____),not blocked(_____),premium(_____).
+116)  :- active(_____),adult(_____),has_purchase(_____),premium(_____).
+117)  :- active(_____),customer(_____),minor(_____),not premium(_____).
+118)  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____).
+119)  :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+120)  :- #count{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+121) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____.
+122) eligible(_____) :- blocked(_____),has_purchase(_____),minor(_____).
+123) premium(_____) :- active(_____),adult(_____),purchase(_____,_____).
+124) premium(_____) :- active(_____),customer(_____),has_purchase(_____).
+125) premium(_____) :- active(_____),has_purchase(_____),not minor(_____).
+126)  :- #count{_____,_____:purchase(_____,_____)}=_____,not minor(_____).
+127) premium(_____) :- customer(_____),has_purchase(_____),premium(_____).
+128)  :- #sum{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+129)  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),minor(_____).
+130)  :- adult(_____),customer(_____),premium(_____),purchase(_____,_____).
+131)  :- active(_____),adult(_____),has_purchase(_____),not premium(_____).
+132) eligible(_____) :- minor(_____),not minor(_____),purchase(_____,_____).
+133)  :- #count{_____,_____:purchase(_____,_____)}=_____,not premium(_____).
+134)  :- #count{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+135) eligible(_____) :- active(_____),has_purchase(_____),not blocked(_____).
+136) eligible(_____) :- blocked(_____),customer(_____),purchase(_____,_____).
+137) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____).
+138)  :- customer(_____),has_purchase(_____),not minor(_____),premium(_____).
+139)  :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+140) premium(_____) :- adult(_____),not blocked(_____),purchase(_____,_____).
+141) eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____).
+142) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,minor(_____).
+143) eligible(_____) :- minor(_____),not blocked(_____),purchase(_____,_____).
+144)  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),premium(_____).
+145)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____).
+146)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),premium(_____).
+147) eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,premium(_____).
+148)  :- customer(_____),not minor(_____),premium(_____),purchase(_____,_____).
+149)  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____),premium(_____).
+150) eligible(_____) :- adult(_____),has_purchase(_____),purchase(_____,_____).
+151) eligible(_____) :- not blocked(_____),premium(_____),purchase(_____,_____).
+152)  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+153)  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+154)  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),minor(_____).
+155)  :- #count{_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+156)  :- blocked(_____),customer(_____),not premium(_____),purchase(_____,_____).
+157) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,customer(_____).
+158)  :- active(_____),customer(_____),has_purchase(_____),purchase(_____,_____).
+159) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,customer(_____).
+160)  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+161)  :- minor(_____),not minor(_____),purchase(_____,_____),purchase(_____,_____).
+162) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+163) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+164)  :- customer(_____),not blocked(_____),not minor(_____),purchase(_____,_____).
+165) eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+166)  :- active(_____),has_purchase(_____),not blocked(_____),purchase(_____,_____).
+167) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+168)  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),purchase(_____,_____).
+169) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,not premium(_____).
+170)  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),premium(_____).
+171) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,purchase(_____,_____).
+172)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____).
+173)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),premium(_____).
+174) eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+175)  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),premium(_____).
+176) eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,purchase(_____,_____).
+177)  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+178)  :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____),premium(_____).
+179)  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+180)  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+181) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+182)  :- customer(_____),not premium(_____),purchase(_____,_____),purchase(_____,_____).
+183) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+184)  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+185) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+186) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____).
+187)  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),purchase(_____,_____).
+188) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,not premium(_____).
+189) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,purchase(_____,_____).
+190)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____.
+191)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+192) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____).
+193) eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,purchase(_____,_____).
+194)  :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),premium(_____).
+195) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+196) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____).
+197) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____).
+198) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____),not premium(_____).
+199) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,minor(_____),not minor(_____).
+200) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+201) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),premium(_____).
+202)  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____),premium(_____).
+203)  :- #count{_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not blocked(_____).
+204)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____.
+205)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____.
+206) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____).
+207)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+208) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____).
+209) eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+210) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+211)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____),has_purchase(_____).
+212) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+213) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+214) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+215)  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),minor(_____).
+216)  :- #count{_____:purchase(_____,_____)}=_____,active(_____),customer(_____),not blocked(_____).
+217)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),customer(_____),has_purchase(_____).
+218)  :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____),not premium(_____).
+219) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____).
+220) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),not premium(_____).
+221) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____),not minor(_____).
+222) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+223) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),premium(_____).
+224)  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____),premium(_____).
+225)  :- #sum{_____:purchase(_____,_____)}=_____,not minor(_____),premium(_____),purchase(_____,_____).
+226)  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not blocked(_____).
+227)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____.
+228)  :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),has_purchase(_____),not minor(_____).
+229) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____).
+230)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,adult(_____).
+231) eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+232) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+233)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____),has_purchase(_____).
+234) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+235) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+236)  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),minor(_____).
+237)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,premium(_____).
+238)  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____),not blocked(_____).
+239)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),customer(_____),has_purchase(_____).
+240)  :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____),not premium(_____).
+241)  :- #sum{_____,_____:purchase(_____,_____)}=_____,not minor(_____),premium(_____),purchase(_____,_____).
+242)  :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),has_purchase(_____),not minor(_____).
+243)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+244)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,adult(_____).
+245)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+246)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,premium(_____).
+247)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+248)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+249)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+250)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+251)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+252) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____).
+253)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,minor(_____),premium(_____).
+254)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+255)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+256)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+257)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____).
+258) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+259) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____).
+260)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,minor(_____),premium(_____).
+261)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),premium(_____).
+262)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+263)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+264)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____).
+265)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+266)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+267)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+268)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____).
+269)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____).
+270) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+271)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),premium(_____).
+272)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+273)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____).
+274)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____).
+275)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+276)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+277)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+278)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____).
+279)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____).
+280)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+(0/280) Placing variables for  :- minor(_____),minor(_____).
+No possible placements.
+(1/280) Placing variables for premium(_____) :- minor(_____).
+Generated 1 clauses
+(2/280) Placing variables for premium(_____) :- adult(_____).
+Generated 1 clauses
+(3/280) Placing variables for  :- blocked(_____),minor(_____).
+Generated 1 clauses
+(4/280) Placing variables for premium(_____) :- active(_____).
+Generated 1 clauses
+(5/280) Placing variables for eligible(_____) :- minor(_____).
+Generated 1 clauses
+(6/280) Placing variables for  :- adult(_____),blocked(_____).
+Generated 1 clauses
+(7/280) Placing variables for  :- minor(_____),premium(_____).
+Generated 1 clauses
+(8/280) Placing variables for eligible(_____) :- adult(_____).
+Generated 1 clauses
+(9/280) Placing variables for  :- adult(_____),premium(_____).
+Generated 1 clauses
+(10/280) Placing variables for premium(_____) :- premium(_____).
+No possible placements.
+(11/280) Placing variables for  :- customer(_____),minor(_____).
+Generated 1 clauses
+(12/280) Placing variables for eligible(_____) :- active(_____).
+Generated 1 clauses
+(13/280) Placing variables for premium(_____) :- customer(_____).
+Generated 1 clauses
+(14/280) Placing variables for eligible(_____) :- blocked(_____).
+Generated 1 clauses
+(15/280) Placing variables for  :- active(_____),customer(_____).
+Generated 1 clauses
+(16/280) Placing variables for eligible(_____) :- premium(_____).
+Generated 1 clauses
+(17/280) Placing variables for  :- blocked(_____),premium(_____).
+Generated 1 clauses
+(18/280) Placing variables for eligible(_____) :- customer(_____).
+Generated 1 clauses
+(19/280) Placing variables for  :- customer(_____),premium(_____).
+Generated 1 clauses
+(20/280) Placing variables for  :- blocked(_____),customer(_____).
+Generated 1 clauses
+(21/280) Placing variables for  :- minor(_____),not blocked(_____).
+Generated 1 clauses
+(22/280) Placing variables for  :- minor(_____),not premium(_____).
+Generated 1 clauses
+(23/280) Placing variables for premium(_____) :- not premium(_____).
+Generated 0 clauses
+(24/280) Placing variables for premium(_____) :- not blocked(_____).
+Generated 0 clauses
+(25/280) Placing variables for  :- adult(_____),has_purchase(_____).
+Generated 1 clauses
+(26/280) Placing variables for  :- not blocked(_____),premium(_____).
+Generated 1 clauses
+(27/280) Placing variables for eligible(_____) :- not blocked(_____).
+Generated 0 clauses
+(28/280) Placing variables for premium(_____) :- has_purchase(_____).
+Generated 1 clauses
+(29/280) Placing variables for eligible(_____) :- not premium(_____).
+Generated 0 clauses
+(30/280) Placing variables for  :- active(_____),has_purchase(_____).
+Generated 1 clauses
+(31/280) Placing variables for eligible(_____) :- has_purchase(_____).
+Generated 1 clauses
+(32/280) Placing variables for  :- customer(_____),not blocked(_____).
+Generated 1 clauses
+(33/280) Placing variables for  :- minor(_____),purchase(_____,_____).
+Generated 1 clauses
+(34/280) Placing variables for  :- has_purchase(_____),premium(_____).
+Generated 1 clauses
+(35/280) Placing variables for  :- active(_____),purchase(_____,_____).
+Generated 1 clauses
+(36/280) Placing variables for  :- not blocked(_____),not minor(_____).
+Generated 0 clauses
+(37/280) Placing variables for  :- blocked(_____),purchase(_____,_____).
+Generated 1 clauses
+(38/280) Placing variables for eligible(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(39/280) Placing variables for  :- premium(_____),purchase(_____,_____).
+Generated 1 clauses
+(40/280) Placing variables for  :- has_purchase(_____),not blocked(_____).
+Generated 1 clauses
+(41/280) Placing variables for  :- has_purchase(_____),not premium(_____).
+Generated 1 clauses
+(42/280) Placing variables for premium(_____) :- adult(_____),minor(_____).
+Generated 1 clauses
+(43/280) Placing variables for premium(_____) :- active(_____),minor(_____).
+Generated 1 clauses
+(44/280) Placing variables for  :- minor(_____),minor(_____),premium(_____).
+No possible placements.
+(45/280) Placing variables for eligible(_____) :- minor(_____),minor(_____).
+No possible placements.
+(46/280) Placing variables for  :- not blocked(_____),purchase(_____,_____).
+Generated 1 clauses
+(47/280) Placing variables for  :- not premium(_____),purchase(_____,_____).
+Generated 1 clauses
+(48/280) Placing variables for premium(_____) :- active(_____),premium(_____).
+No possible placements.
+(49/280) Placing variables for  :- adult(_____),premium(_____),premium(_____).
+No possible placements.
+(50/280) Placing variables for eligible(_____) :- adult(_____),blocked(_____).
+Generated 1 clauses
+(51/280) Placing variables for eligible(_____) :- active(_____),premium(_____).
+Generated 1 clauses
+(52/280) Placing variables for eligible(_____) :- active(_____),blocked(_____).
+Generated 1 clauses
+(53/280) Placing variables for  :- active(_____),minor(_____),not minor(_____).
+Generated 1 clauses
+(54/280) Placing variables for eligible(_____) :- adult(_____),customer(_____).
+Generated 1 clauses
+(55/280) Placing variables for  :- purchase(_____,_____),purchase(_____,_____).
+Generated 2 clauses
+(56/280) Placing variables for  :- adult(_____),minor(_____),not premium(_____).
+Generated 1 clauses
+(57/280) Placing variables for premium(_____) :- customer(_____),premium(_____).
+No possible placements.
+(58/280) Placing variables for  :- adult(_____),has_purchase(_____),minor(_____).
+Generated 1 clauses
+(59/280) Placing variables for premium(_____) :- minor(_____),not blocked(_____).
+Generated 1 clauses
+(60/280) Placing variables for  :- active(_____),not minor(_____),premium(_____).
+Generated 1 clauses
+(61/280) Placing variables for  :- customer(_____),minor(_____),not minor(_____).
+Generated 1 clauses
+(62/280) Placing variables for eligible(_____) :- adult(_____),not blocked(_____).
+Generated 1 clauses
+(63/280) Placing variables for eligible(_____) :- minor(_____),not premium(_____).
+Generated 1 clauses
+(64/280) Placing variables for premium(_____) :- customer(_____),not minor(_____).
+Generated 1 clauses
+(65/280) Placing variables for eligible(_____) :- minor(_____),not blocked(_____).
+Generated 1 clauses
+(66/280) Placing variables for  :- blocked(_____),has_purchase(_____),minor(_____).
+Generated 1 clauses
+(67/280) Placing variables for eligible(_____) :- active(_____),not premium(_____).
+Generated 1 clauses
+(68/280) Placing variables for premium(_____) :- has_purchase(_____),premium(_____).
+Generated 0 clauses
+(69/280) Placing variables for  :- active(_____),customer(_____),not premium(_____).
+Generated 1 clauses
+(70/280) Placing variables for  :- active(_____),minor(_____),purchase(_____,_____).
+Generated 4 clauses
+(71/280) Placing variables for  :- adult(_____),customer(_____),has_purchase(_____).
+Generated 1 clauses
+(72/280) Placing variables for  :- active(_____),adult(_____),purchase(_____,_____).
+Generated 4 clauses
+(73/280) Placing variables for premium(_____) :- active(_____),purchase(_____,_____).
+Generated 4 clauses
+(74/280) Placing variables for eligible(_____) :- minor(_____),purchase(_____,_____).
+Generated 4 clauses
+(75/280) Placing variables for eligible(_____) :- customer(_____),has_purchase(_____).
+Generated 1 clauses
+(76/280) Placing variables for eligible(_____) :- active(_____),purchase(_____,_____).
+Generated 4 clauses
+(77/280) Placing variables for  :- customer(_____),has_purchase(_____),premium(_____).
+Generated 1 clauses
+(78/280) Placing variables for  :- has_purchase(_____),minor(_____),not blocked(_____).
+Generated 1 clauses
+(79/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 3 clauses
+(80/280) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____.
+Generated 1 clauses
+(81/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 3 clauses
+(82/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 3 clauses
+(83/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,blocked(_____).
+Generated 3 clauses
+(84/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 3 clauses
+(85/280) Placing variables for eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____.
+Generated 1 clauses
+(86/280) Placing variables for  :- has_purchase(_____),minor(_____),purchase(_____,_____).
+Generated 4 clauses
+(87/280) Placing variables for  :- active(_____),blocked(_____),minor(_____),minor(_____).
+Generated 2 clauses
+(88/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 3 clauses
+(89/280) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____.
+Generated 1 clauses
+(90/280) Placing variables for eligible(_____) :- not blocked(_____),purchase(_____,_____).
+Generated 3 clauses
+(91/280) Placing variables for  :- has_purchase(_____),not blocked(_____),not minor(_____).
+Generated 1 clauses
+(92/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 3 clauses
+(93/280) Placing variables for  :- blocked(_____),not premium(_____),purchase(_____,_____).
+Generated 4 clauses
+(94/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 3 clauses
+(95/280) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____.
+Generated 1 clauses
+(96/280) Placing variables for eligible(_____) :- has_purchase(_____),purchase(_____,_____).
+Generated 4 clauses
+(97/280) Placing variables for premium(_____) :- active(_____),adult(_____),customer(_____).
+Generated 4 clauses
+(98/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,not minor(_____).
+Generated 1 clauses
+(99/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 4 clauses
+(100/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 1 clauses
+(101/280) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____.
+Generated 4 clauses
+(102/280) Placing variables for premium(_____) :- adult(_____),has_purchase(_____),minor(_____).
+Generated 4 clauses
+(103/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 4 clauses
+(104/280) Placing variables for  :- active(_____),blocked(_____),not minor(_____),premium(_____).
+Generated 4 clauses
+(105/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 4 clauses
+(106/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,blocked(_____).
+Generated 4 clauses
+(107/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 4 clauses
+(108/280) Placing variables for eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____.
+Generated 4 clauses
+(109/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,not premium(_____).
+Generated 1 clauses
+(110/280) Placing variables for premium(_____) :- active(_____),adult(_____),has_purchase(_____).
+Generated 4 clauses
+(111/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 1 clauses
+(112/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 4 clauses
+(113/280) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____.
+Generated 4 clauses
+(114/280) Placing variables for eligible(_____) :- active(_____),adult(_____),has_purchase(_____).
+Generated 4 clauses
+(115/280) Placing variables for eligible(_____) :- adult(_____),not blocked(_____),premium(_____).
+Generated 3 clauses
+(116/280) Placing variables for  :- active(_____),adult(_____),has_purchase(_____),premium(_____).
+Generated 4 clauses
+(117/280) Placing variables for  :- active(_____),customer(_____),minor(_____),not premium(_____).
+Generated 4 clauses
+(118/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 4 clauses
+(119/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 3 clauses
+(120/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 4 clauses
+(121/280) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____.
+Generated 4 clauses
+(122/280) Placing variables for eligible(_____) :- blocked(_____),has_purchase(_____),minor(_____).
+Generated 4 clauses
+(123/280) Placing variables for premium(_____) :- active(_____),adult(_____),purchase(_____,_____).
+Generated 11 clauses
+(124/280) Placing variables for premium(_____) :- active(_____),customer(_____),has_purchase(_____).
+Generated 4 clauses
+(125/280) Placing variables for premium(_____) :- active(_____),has_purchase(_____),not minor(_____).
+Generated 3 clauses
+(126/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,not minor(_____).
+Generated 4 clauses
+(127/280) Placing variables for premium(_____) :- customer(_____),has_purchase(_____),premium(_____).
+Generated 2 clauses
+(128/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 4 clauses
+(129/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),minor(_____).
+Generated 8 clauses
+(130/280) Placing variables for  :- adult(_____),customer(_____),premium(_____),purchase(_____,_____).
+Generated 11 clauses
+(131/280) Placing variables for  :- active(_____),adult(_____),has_purchase(_____),not premium(_____).
+Generated 4 clauses
+(132/280) Placing variables for eligible(_____) :- minor(_____),not minor(_____),purchase(_____,_____).
+Generated 10 clauses
+(133/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,not premium(_____).
+Generated 4 clauses
+(134/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 4 clauses
+(135/280) Placing variables for eligible(_____) :- active(_____),has_purchase(_____),not blocked(_____).
+Generated 3 clauses
+(136/280) Placing variables for eligible(_____) :- blocked(_____),customer(_____),purchase(_____,_____).
+Generated 11 clauses
+(137/280) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 7 clauses
+(138/280) Placing variables for  :- customer(_____),has_purchase(_____),not minor(_____),premium(_____).
+Generated 4 clauses
+(139/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 4 clauses
+(140/280) Placing variables for premium(_____) :- adult(_____),not blocked(_____),purchase(_____,_____).
+Generated 10 clauses
+(141/280) Placing variables for eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 7 clauses
+(142/280) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 7 clauses
+(143/280) Placing variables for eligible(_____) :- minor(_____),not blocked(_____),purchase(_____,_____).
+Generated 10 clauses
+(144/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),premium(_____).
+Generated 11 clauses
+(145/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____).
+Generated 11 clauses
+(146/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),premium(_____).
+Generated 11 clauses
+(147/280) Placing variables for eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 7 clauses
+(148/280) Placing variables for  :- customer(_____),not minor(_____),premium(_____),purchase(_____,_____).
+Generated 11 clauses
+(149/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____),premium(_____).
+Generated 8 clauses
+(150/280) Placing variables for eligible(_____) :- adult(_____),has_purchase(_____),purchase(_____,_____).
+Generated 11 clauses
+(151/280) Placing variables for eligible(_____) :- not blocked(_____),premium(_____),purchase(_____,_____).
+Generated 10 clauses
+(152/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+Generated 11 clauses
+(153/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 11 clauses
+(154/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),minor(_____).
+No possible placements.
+(155/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+Generated 11 clauses
+(156/280) Placing variables for  :- blocked(_____),customer(_____),not premium(_____),purchase(_____,_____).
+Generated 11 clauses
+(157/280) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 7 clauses
+(158/280) Placing variables for  :- active(_____),customer(_____),has_purchase(_____),purchase(_____,_____).
+Generated 11 clauses
+(159/280) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 7 clauses
+(160/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+Generated 11 clauses
+(161/280) Placing variables for  :- minor(_____),not minor(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+(162/280) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 4 clauses
+(163/280) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 7 clauses
+(164/280) Placing variables for  :- customer(_____),not blocked(_____),not minor(_____),purchase(_____,_____).
+Generated 10 clauses
+(165/280) Placing variables for eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 4 clauses
+(166/280) Placing variables for  :- active(_____),has_purchase(_____),not blocked(_____),purchase(_____,_____).
+Generated 11 clauses
+(167/280) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 4 clauses
+(168/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),purchase(_____,_____).
+Generated 45 clauses
+(169/280) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,not premium(_____).
+Generated 1 clauses
+(170/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),premium(_____).
+Generated 4 clauses
+(171/280) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,purchase(_____,_____).
+Generated 37 clauses
+(172/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____).
+Generated 4 clauses
+(173/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),premium(_____).
+Generated 4 clauses
+(174/280) Placing variables for eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 4 clauses
+(175/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),premium(_____).
+No possible placements.
+(176/280) Placing variables for eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,purchase(_____,_____).
+Generated 37 clauses
+(177/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+Generated 4 clauses
+(178/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____),premium(_____).
+Generated 11 clauses
+(179/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 4 clauses
+(180/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+Generated 4 clauses
+(181/280) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 4 clauses
+(182/280) Placing variables for  :- customer(_____),not premium(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+(183/280) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 4 clauses
+(184/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+Generated 4 clauses
+(185/280) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 4 clauses
+(186/280) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____).
+Generated 37 clauses
+(187/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),purchase(_____,_____).
+Generated 40 clauses
+(188/280) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,not premium(_____).
+Generated 4 clauses
+(189/280) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,purchase(_____,_____).
+Generated 40 clauses
+(190/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____.
+Generated 79 clauses
+(191/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+Generated 45 clauses
+(192/280) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____).
+Generated 37 clauses
+(193/280) Placing variables for eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,purchase(_____,_____).
+Generated 40 clauses
+(194/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),premium(_____).
+Generated 4 clauses
+(195/280) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+Generated 37 clauses
+(196/280) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____).
+Generated 40 clauses
+(197/280) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____).
+Generated 19 clauses
+(198/280) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____),not premium(_____).
+Generated 19 clauses
+(199/280) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,minor(_____),not minor(_____).
+Generated 19 clauses
+(200/280) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+Generated 37 clauses
+(201/280) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),premium(_____).
+Generated 37 clauses
+(202/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____),premium(_____).
+Generated 37 clauses
+(203/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not blocked(_____).
+Generated 37 clauses
+(204/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____.
+Generated 124 clauses
+(205/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____.
+Generated 124 clauses
+(206/280) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____).
+Generated 19 clauses
+(207/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+Generated 40 clauses
+(208/280) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____).
+Generated 40 clauses
+(209/280) Placing variables for eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+Generated 37 clauses
+(210/280) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+Generated 219 clauses
+(211/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____),has_purchase(_____).
+Generated 45 clauses
+(212/280) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+Generated 40 clauses
+(213/280) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+Generated 37 clauses
+(214/280) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+Generated 37 clauses
+(215/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),minor(_____).
+Generated 45 clauses
+(216/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,active(_____),customer(_____),not blocked(_____).
+Generated 37 clauses
+(217/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),customer(_____),has_purchase(_____).
+Generated 45 clauses
+(218/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____),not premium(_____).
+Generated 37 clauses
+(219/280) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____).
+Generated 28 clauses
+(220/280) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),not premium(_____).
+Generated 28 clauses
+(221/280) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____),not minor(_____).
+Generated 28 clauses
+(222/280) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+Generated 40 clauses
+(223/280) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),premium(_____).
+Generated 40 clauses
+(224/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____),premium(_____).
+Generated 40 clauses
+(225/280) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,not minor(_____),premium(_____),purchase(_____,_____).
+Generated 219 clauses
+(226/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not blocked(_____).
+Generated 40 clauses
+(227/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____.
+Generated 112 clauses
+(228/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),has_purchase(_____),not minor(_____).
+Generated 37 clauses
+(229/280) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____),not blocked(_____).
+Generated 28 clauses
+(230/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 411 clauses
+(231/280) Placing variables for eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+Generated 40 clauses
+(232/280) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+Generated 124 clauses
+(233/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____),has_purchase(_____).
+Generated 40 clauses
+(234/280) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+Generated 40 clauses
+(235/280) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),has_purchase(_____).
+Generated 40 clauses
+(236/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),minor(_____).
+Generated 40 clauses
+(237/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 411 clauses
+(238/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____),not blocked(_____).
+Generated 40 clauses
+(239/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),customer(_____),has_purchase(_____).
+Generated 40 clauses
+(240/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____),not premium(_____).
+Generated 40 clauses
+(241/280) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,not minor(_____),premium(_____),purchase(_____,_____).
+Generated 124 clauses
+(242/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),has_purchase(_____),not minor(_____).
+Generated 40 clauses
+(243/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 220 clauses
+(244/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 220 clauses
+(245/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 411 clauses
+(246/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 220 clauses
+(247/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 220 clauses
+(248/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 112 clauses
+(249/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 220 clauses
+(250/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 220 clauses
+(251/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 112 clauses
+(252/280) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 1323 clauses
+(253/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,minor(_____),premium(_____).
+Generated 1803 clauses
+(254/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 1803 clauses
+(255/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+Generated 1323 clauses
+(256/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 112 clauses
+(257/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____).
+Generated 1323 clauses
+(258/280) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 676 clauses
+(259/280) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 676 clauses
+(260/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,minor(_____),premium(_____).
+Generated 772 clauses
+(261/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),premium(_____).
+Generated 772 clauses
+(262/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 772 clauses
+(263/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 772 clauses
+(264/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____).
+Generated 1323 clauses
+(265/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+Generated 6355 clauses
+(266/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+Generated 676 clauses
+(267/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+Generated 676 clauses
+(268/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____).
+Generated 676 clauses
+(269/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____).
+Generated 676 clauses
+(270/280) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 256 clauses
+(271/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),premium(_____).
+Generated 256 clauses
+(272/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 256 clauses
+(273/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____).
+Generated 676 clauses
+(274/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____).
+Generated 676 clauses
+(275/280) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+Generated 1996 clauses
+(276/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+Generated 1996 clauses
+(277/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+Generated 256 clauses
+(278/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____).
+Generated 256 clauses
+(279/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____).
+Generated 256 clauses
+(280/280) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+Generated 592 clauses
+Placed variables in 18.88348150253296 seconds
+Total clauses stub: 266
+Total number of possible clauses: 36361
+Running for 300 iterations
+Iteration 0 - taken for 100: 2.384185791015625e-06 - best: Program: [' :- #count{V0:purchase(V0,V0)}=V2,adult(V1),customer(V2),has_purchase(V1).', 'eligible(V0) :- customer(V0).', 'eligible(V0) :- has_purchase(V1),purchase(V1,V0).', 'premium(V0) :- active(V0).', 'premium(V0) :- adult(V0),has_purchase(V1),minor(V1).'] - score: 4.194528049465323
+Iteration 100 - taken for 100: 0.6737396717071533 - best: Program: [' :- active(V0),has_purchase(V1),not blocked(V0),purchase(V0,V1).', 'eligible(V0) :- adult(V0),customer(V0).', ' :- #sum{V0,V2:purchase(V2,V0)}=V1,not blocked(V1).', ' :- minor(V0),not blocked(V0).', 'eligible(V0) :- #count{V3,V1:purchase(V1,V3)}=V0,minor(V2),not minor(V2).'] - score: 27.799075016572118
+Iteration 200 - taken for 100: 0.7868306636810303 - best: Program: [' :- adult(V0),blocked(V0).', ' :- #count{V0:purchase(V1,V0)}=V2,customer(V1),minor(V2).', ' :- active(V0),customer(V0),not premium(V0).', 'premium(V0) :- #sum{V1:purchase(V1,V3)}=V0,active(V3),purchase(V2,V2).', 'eligible(V0) :- adult(V0),not blocked(V0).'] - score: 202.21439674636756
+Iteration 300 - taken for 100: 0.7911462783813477 - best: Program: [' :- #count{V0:purchase(V3,V0)}=V3,#sum{V1,V2:purchase(V2,V1)}=V3,has_purchase(V3).', ' :- #sum{V0,V1:purchase(V0,V1)}=V2,minor(V2),purchase(V2,V2).', ' :- #count{V0,V2:purchase(V2,V0)}=V1,#sum{V3,V2:purchase(V2,V3)}=V1,active(V1),not blocked(V1).', 'premium(V0) :- #sum{V1:purchase(V1,V3)}=V0,active(V3),purchase(V2,V2).', 'eligible(V0) :- adult(V0),not blocked(V0).'] - score: 202.21439674636756
+Iterations completed
+['premium(V0) :- #count{V2,V1:purchase(V1,V2)}=V0,active(V0),has_purchase(V0).', ' :- #count{V0:purchase(V0,V1)}=V2,#sum{V0:purchase(V0,V2)}=V2,customer(V1),minor(V2).', 'eligible(V0) :- #count{V1:purchase(V1,V1)}=V0.', ' :- #count{V0:purchase(V0,V2)}=V1,customer(V1),premium(V2).', 'eligible(V0) :- adult(V0),not blocked(V0).']
+['premium(V0) :- #count{V1:purchase(V0,V1)}=V0,customer(V0).', ' :- adult(V0),has_purchase(V0),minor(V0).', ' :- blocked(V0),not premium(V0),purchase(V1,V1).', ' :- #count{V0:purchase(V0,V2)}=V1,active(V1),customer(V2).', 'eligible(V0) :- adult(V0),not blocked(V0).']
+['premium(V0) :- #count{V1:purchase(V0,V1)}=V0,customer(V0).', ' :- #count{V0:purchase(V0,V1)}=V2,#sum{V0:purchase(V0,V2)}=V2,customer(V1),minor(V2).', 'premium(V0) :- #count{V3,V1:purchase(V1,V3)}=V2,active(V0),has_purchase(V2).', ' :- #sum{V0,V2:purchase(V2,V0)}=V1,premium(V1).', 'eligible(V0) :- adult(V0),not blocked(V0).']
+['premium(V0) :- #sum{V2:purchase(V2,V1)}=V1,purchase(V1,V0).', ' :- #count{V0:purchase(V1,V0)}=V2,customer(V1),minor(V2).', ' :- active(V0),customer(V0),not premium(V0).', ' :- #count{V0,V2:purchase(V0,V2)}=V3,adult(V1),minor(V3),premium(V1).', 'eligible(V0) :- adult(V0),not blocked(V0).']
+['premium(V0) :- #count{V1:purchase(V0,V1)}=V0,customer(V0).', ' :- #count{V0,V1:purchase(V0,V1)}=V3,#sum{V0:purchase(V3,V0)}=V2,adult(V2).', ' :- active(V0),customer(V0),not premium(V0).', ' :- #count{V0:purchase(V0,V2)}=V1,active(V1),customer(V2).', 'eligible(V0) :- adult(V0),not blocked(V0).']
+Evolutionary cycle 0 - Time 2.3627729415893555
+Current best with score: 202.21439674636756
+--------------------------
+eligible(V0) :- adult(V0),not blocked(V0).
+--------------------------
+Sampling loop: 1
+Sampling clauses
+Sampled 275 different clauses in 0.03848147392272949 seconds
+Sampled clauses:
+0)  :- adult(_____),minor(_____).
+1)  :- active(_____),minor(_____).
+2) premium(_____) :- minor(_____).
+3)  :- active(_____),adult(_____).
+4) premium(_____) :- adult(_____).
+5) eligible(_____) :- adult(_____).
+6)  :- minor(_____),premium(_____).
+7)  :- adult(_____),blocked(_____).
+8) premium(_____) :- active(_____).
+9)  :- adult(_____),premium(_____).
+10) eligible(_____) :- minor(_____).
+11) eligible(_____) :- active(_____).
+12)  :- active(_____),blocked(_____).
+13) premium(_____) :- premium(_____).
+14)  :- active(_____),premium(_____).
+15) premium(_____) :- blocked(_____).
+16)  :- adult(_____),customer(_____).
+17) eligible(_____) :- premium(_____).
+18) premium(_____) :- customer(_____).
+19)  :- blocked(_____),premium(_____).
+20)  :- premium(_____),premium(_____).
+21)  :- minor(_____),not minor(_____).
+22) eligible(_____) :- blocked(_____).
+23) eligible(_____) :- customer(_____).
+24)  :- blocked(_____),customer(_____).
+25)  :- not minor(_____),premium(_____).
+26)  :- has_purchase(_____),minor(_____).
+27) premium(_____) :- not premium(_____).
+28) premium(_____) :- not blocked(_____).
+29)  :- customer(_____),not minor(_____).
+30) premium(_____) :- has_purchase(_____).
+31)  :- not blocked(_____),premium(_____).
+32)  :- active(_____),has_purchase(_____).
+33) eligible(_____) :- not premium(_____).
+34) eligible(_____) :- not blocked(_____).
+35) eligible(_____) :- has_purchase(_____).
+36)  :- customer(_____),not blocked(_____).
+37)  :- adult(_____),purchase(_____,_____).
+38)  :- minor(_____),purchase(_____,_____).
+39) premium(_____) :- purchase(_____,_____).
+40)  :- premium(_____),purchase(_____,_____).
+41) eligible(_____) :- purchase(_____,_____).
+42)  :- has_purchase(_____),not minor(_____).
+43)  :- has_purchase(_____),not premium(_____).
+44)  :- has_purchase(_____),not blocked(_____).
+45)  :- not blocked(_____),purchase(_____,_____).
+46)  :- adult(_____),minor(_____),premium(_____).
+47) premium(_____) :- active(_____),minor(_____).
+48) premium(_____) :- minor(_____),premium(_____).
+49)  :- has_purchase(_____),purchase(_____,_____).
+50) premium(_____) :- adult(_____),blocked(_____).
+51)  :- adult(_____),minor(_____),not minor(_____).
+52) eligible(_____) :- adult(_____),premium(_____).
+53) premium(_____) :- active(_____),customer(_____).
+54)  :- adult(_____),blocked(_____),customer(_____).
+55)  :- active(_____),blocked(_____),premium(_____).
+56) eligible(_____) :- adult(_____),not minor(_____).
+57)  :- adult(_____),not minor(_____),premium(_____).
+58) eligible(_____) :- premium(_____),premium(_____).
+59) premium(_____) :- customer(_____),premium(_____).
+60) eligible(_____) :- blocked(_____),customer(_____).
+61) premium(_____) :- adult(_____),not blocked(_____).
+62) premium(_____) :- adult(_____),has_purchase(_____).
+63) eligible(_____) :- not minor(_____),premium(_____).
+64) premium(_____) :- active(_____),not premium(_____).
+65) premium(_____) :- customer(_____),not minor(_____).
+66) premium(_____) :- active(_____),has_purchase(_____).
+67)  :- adult(_____),has_purchase(_____),premium(_____).
+68)  :- adult(_____),customer(_____),not premium(_____).
+69) eligible(_____) :- active(_____),not premium(_____).
+70)  :- not blocked(_____),premium(_____),premium(_____).
+71)  :- active(_____),customer(_____),has_purchase(_____).
+72) premium(_____) :- active(_____),purchase(_____,_____).
+73) eligible(_____) :- has_purchase(_____),premium(_____).
+74)  :- customer(_____),not premium(_____),premium(_____).
+75)  :- active(_____),premium(_____),purchase(_____,_____).
+76) eligible(_____) :- not minor(_____),not premium(_____).
+77) premium(_____) :- premium(_____),purchase(_____,_____).
+78)  :- has_purchase(_____),minor(_____),not blocked(_____).
+79)  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____).
+80)  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____).
+81)  :- blocked(_____),not minor(_____),purchase(_____,_____).
+82) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____.
+83)  :- #sum{_____:purchase(_____,_____)}=_____,active(_____).
+84)  :- active(_____),adult(_____),blocked(_____),minor(_____).
+85) eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____.
+86)  :- active(_____),adult(_____),minor(_____),premium(_____).
+87)  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____).
+88) premium(_____) :- not premium(_____),purchase(_____,_____).
+89)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____).
+90) premium(_____) :- #count{_____:purchase(_____,_____)}=_____.
+91)  :- #count{_____:purchase(_____,_____)}=_____,active(_____).
+92)  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____).
+93) premium(_____) :- adult(_____),customer(_____),minor(_____).
+94)  :- #count{_____:purchase(_____,_____)}=_____,premium(_____).
+95) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____.
+96)  :- customer(_____),not premium(_____),purchase(_____,_____).
+97)  :- #count{_____:purchase(_____,_____)}=_____,blocked(_____).
+98)  :- #count{_____:purchase(_____,_____)}=_____,customer(_____).
+99) premium(_____) :- customer(_____),minor(_____),premium(_____).
+100)  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+101)  :- adult(_____),blocked(_____),customer(_____),premium(_____).
+102)  :- #sum{_____:purchase(_____,_____)}=_____,not premium(_____).
+103)  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+104) premium(_____) :- adult(_____),not minor(_____),premium(_____).
+105) eligible(_____) :- active(_____),adult(_____),not minor(_____).
+106)  :- #count{_____:purchase(_____,_____)}=_____,not minor(_____).
+107)  :- #sum{_____:purchase(_____,_____)}=_____,not blocked(_____).
+108)  :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+109) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____.
+110)  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+111)  :- active(_____),minor(_____),not premium(_____),premium(_____).
+112) eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____.
+113)  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+114) premium(_____) :- minor(_____),not blocked(_____),premium(_____).
+115)  :- #count{_____:purchase(_____,_____)}=_____,not blocked(_____).
+116)  :- customer(_____),minor(_____),not minor(_____),premium(_____).
+117)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+118)  :- #count{_____:purchase(_____,_____)}=_____,not blocked(_____).
+119) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____.
+120)  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____).
+121)  :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+122)  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+123)  :- active(_____),adult(_____),customer(_____),has_purchase(_____).
+124)  :- #count{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+125) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____.
+126)  :- adult(_____),minor(_____),premium(_____),purchase(_____,_____).
+127) eligible(_____) :- active(_____),not blocked(_____),premium(_____).
+128) premium(_____) :- active(_____),has_purchase(_____),premium(_____).
+129)  :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____).
+130) eligible(_____) :- blocked(_____),has_purchase(_____),minor(_____).
+131)  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+132) eligible(_____) :- active(_____),minor(_____),purchase(_____,_____).
+133)  :- #sum{_____,_____:purchase(_____,_____)}=_____,not premium(_____).
+134)  :- blocked(_____),minor(_____),premium(_____),purchase(_____,_____).
+135)  :- active(_____),adult(_____),customer(_____),purchase(_____,_____).
+136) premium(_____) :- customer(_____),has_purchase(_____),premium(_____).
+137) premium(_____) :- blocked(_____),customer(_____),has_purchase(_____).
+138)  :- #count{_____,_____:purchase(_____,_____)}=_____,not minor(_____).
+139)  :- #sum{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+140)  :- active(_____),customer(_____),has_purchase(_____),premium(_____).
+141)  :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+142)  :- customer(_____),minor(_____),premium(_____),purchase(_____,_____).
+143)  :- active(_____),adult(_____),not minor(_____),purchase(_____,_____).
+144) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,adult(_____).
+145)  :- #count{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+146)  :- #count{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+147) eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,minor(_____).
+148)  :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+149)  :- customer(_____),has_purchase(_____),not minor(_____),premium(_____).
+150) premium(_____) :- blocked(_____),has_purchase(_____),not premium(_____).
+151)  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),customer(_____).
+152) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____).
+153) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,premium(_____).
+154) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,customer(_____).
+155) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____).
+156)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),premium(_____).
+157) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,not minor(_____).
+158)  :- adult(_____),customer(_____),has_purchase(_____),purchase(_____,_____).
+159)  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+160) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,premium(_____).
+161)  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+162) eligible(_____) :- minor(_____),purchase(_____,_____),purchase(_____,_____).
+163) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,not minor(_____).
+164) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+165) eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+166)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),not premium(_____).
+167)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+168)  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),customer(_____).
+169) eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+170) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+171) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+172)  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+173) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+174) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+175) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+176)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),premium(_____).
+177) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,not minor(_____).
+178)  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+179)  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+180) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+181)  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+182)  :- blocked(_____),not premium(_____),purchase(_____,_____),purchase(_____,_____).
+183) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,not minor(_____).
+184)  :- blocked(_____),has_purchase(_____),purchase(_____,_____),purchase(_____,_____).
+185)  :- #sum{_____:purchase(_____,_____)}=_____,not minor(_____),purchase(_____,_____).
+186)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),not premium(_____).
+187)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+188) eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+189)  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+190) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+191)  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),minor(_____),premium(_____).
+192) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),adult(_____).
+193)  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+194)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+195)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+196) eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+197)  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____),customer(_____).
+198) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),minor(_____).
+199)  :- #sum{_____,_____:purchase(_____,_____)}=_____,not minor(_____),purchase(_____,_____).
+200)  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____),not minor(_____).
+201)  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),minor(_____).
+202)  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not premium(_____).
+203) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____),customer(_____).
+204) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),premium(_____).
+205) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+206) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+207)  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____),premium(_____).
+208) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____),not minor(_____).
+209)  :- #count{_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not premium(_____).
+210)  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),minor(_____),premium(_____).
+211) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),adult(_____).
+212)  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____),not minor(_____).
+213)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+214)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+215) eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+216)  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),premium(_____).
+217)  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____),customer(_____).
+218)  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),premium(_____),purchase(_____,_____).
+219) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),minor(_____).
+220)  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),minor(_____).
+221) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____),premium(_____).
+222)  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____),not minor(_____).
+223) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,minor(_____),purchase(_____,_____).
+224)  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),minor(_____).
+225)  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not premium(_____).
+226) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),customer(_____).
+227)  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____),premium(_____),purchase(_____,_____).
+228) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),premium(_____).
+229) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+230) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+231) premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,not minor(_____),purchase(_____,_____).
+232)  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____),premium(_____).
+233) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),not minor(_____).
+234)  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not premium(_____).
+235)  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),not premium(_____),purchase(_____,_____).
+236)  :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),has_purchase(_____),not minor(_____).
+237)  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),purchase(_____,_____).
+238)  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____),not minor(_____).
+239)  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____),purchase(_____,_____).
+240)  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),not blocked(_____).
+241)  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),premium(_____).
+242)  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),premium(_____),purchase(_____,_____).
+243)  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),minor(_____).
+244) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),premium(_____).
+245) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____),purchase(_____,_____).
+246)  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),premium(_____),purchase(_____,_____).
+247) premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,not minor(_____),purchase(_____,_____).
+248)  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),not premium(_____),purchase(_____,_____).
+249)  :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),has_purchase(_____),not minor(_____).
+250)  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),purchase(_____,_____).
+251)  :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____),purchase(_____,_____).
+252)  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____),purchase(_____,_____).
+253)  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),not blocked(_____).
+254)  :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____),purchase(_____,_____).
+255) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____).
+256)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+257)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+258) premium(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+259) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____).
+260)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+261)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+262) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+263)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+264)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+265)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+266) premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+267)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+268) eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+269) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+270)  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+271)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+272)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+273) eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+274)  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+(0/274) Placing variables for  :- adult(_____),minor(_____).
+Generated 1 clauses
+(1/274) Placing variables for  :- active(_____),minor(_____).
+Generated 1 clauses
+(2/274) Placing variables for premium(_____) :- minor(_____).
+Generated 1 clauses
+(3/274) Placing variables for  :- active(_____),adult(_____).
+Generated 1 clauses
+(4/274) Placing variables for premium(_____) :- adult(_____).
+Generated 1 clauses
+(5/274) Placing variables for eligible(_____) :- adult(_____).
+Generated 1 clauses
+(6/274) Placing variables for  :- minor(_____),premium(_____).
+Generated 1 clauses
+(7/274) Placing variables for  :- adult(_____),blocked(_____).
+Generated 1 clauses
+(8/274) Placing variables for premium(_____) :- active(_____).
+Generated 1 clauses
+(9/274) Placing variables for  :- adult(_____),premium(_____).
+Generated 1 clauses
+(10/274) Placing variables for eligible(_____) :- minor(_____).
+Generated 1 clauses
+(11/274) Placing variables for eligible(_____) :- active(_____).
+Generated 1 clauses
+(12/274) Placing variables for  :- active(_____),blocked(_____).
+Generated 1 clauses
+(13/274) Placing variables for premium(_____) :- premium(_____).
+No possible placements.
+(14/274) Placing variables for  :- active(_____),premium(_____).
+Generated 1 clauses
+(15/274) Placing variables for premium(_____) :- blocked(_____).
+Generated 1 clauses
+(16/274) Placing variables for  :- adult(_____),customer(_____).
+Generated 1 clauses
+(17/274) Placing variables for eligible(_____) :- premium(_____).
+Generated 1 clauses
+(18/274) Placing variables for premium(_____) :- customer(_____).
+Generated 1 clauses
+(19/274) Placing variables for  :- blocked(_____),premium(_____).
+Generated 1 clauses
+(20/274) Placing variables for  :- premium(_____),premium(_____).
+No possible placements.
+(21/274) Placing variables for  :- minor(_____),not minor(_____).
+Generated 1 clauses
+(22/274) Placing variables for eligible(_____) :- blocked(_____).
+Generated 1 clauses
+(23/274) Placing variables for eligible(_____) :- customer(_____).
+Generated 1 clauses
+(24/274) Placing variables for  :- blocked(_____),customer(_____).
+Generated 1 clauses
+(25/274) Placing variables for  :- not minor(_____),premium(_____).
+Generated 1 clauses
+(26/274) Placing variables for  :- has_purchase(_____),minor(_____).
+Generated 1 clauses
+(27/274) Placing variables for premium(_____) :- not premium(_____).
+Generated 0 clauses
+(28/274) Placing variables for premium(_____) :- not blocked(_____).
+Generated 0 clauses
+(29/274) Placing variables for  :- customer(_____),not minor(_____).
+Generated 1 clauses
+(30/274) Placing variables for premium(_____) :- has_purchase(_____).
+Generated 1 clauses
+(31/274) Placing variables for  :- not blocked(_____),premium(_____).
+Generated 1 clauses
+(32/274) Placing variables for  :- active(_____),has_purchase(_____).
+Generated 1 clauses
+(33/274) Placing variables for eligible(_____) :- not premium(_____).
+Generated 0 clauses
+(34/274) Placing variables for eligible(_____) :- not blocked(_____).
+Generated 0 clauses
+(35/274) Placing variables for eligible(_____) :- has_purchase(_____).
+Generated 1 clauses
+(36/274) Placing variables for  :- customer(_____),not blocked(_____).
+Generated 1 clauses
+(37/274) Placing variables for  :- adult(_____),purchase(_____,_____).
+Generated 1 clauses
+(38/274) Placing variables for  :- minor(_____),purchase(_____,_____).
+Generated 1 clauses
+(39/274) Placing variables for premium(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(40/274) Placing variables for  :- premium(_____),purchase(_____,_____).
+Generated 1 clauses
+(41/274) Placing variables for eligible(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(42/274) Placing variables for  :- has_purchase(_____),not minor(_____).
+Generated 1 clauses
+(43/274) Placing variables for  :- has_purchase(_____),not premium(_____).
+Generated 1 clauses
+(44/274) Placing variables for  :- has_purchase(_____),not blocked(_____).
+Generated 1 clauses
+(45/274) Placing variables for  :- not blocked(_____),purchase(_____,_____).
+Generated 1 clauses
+(46/274) Placing variables for  :- adult(_____),minor(_____),premium(_____).
+Generated 1 clauses
+(47/274) Placing variables for premium(_____) :- active(_____),minor(_____).
+Generated 1 clauses
+(48/274) Placing variables for premium(_____) :- minor(_____),premium(_____).
+No possible placements.
+(49/274) Placing variables for  :- has_purchase(_____),purchase(_____,_____).
+Generated 1 clauses
+(50/274) Placing variables for premium(_____) :- adult(_____),blocked(_____).
+Generated 1 clauses
+(51/274) Placing variables for  :- adult(_____),minor(_____),not minor(_____).
+Generated 1 clauses
+(52/274) Placing variables for eligible(_____) :- adult(_____),premium(_____).
+Generated 1 clauses
+(53/274) Placing variables for premium(_____) :- active(_____),customer(_____).
+Generated 1 clauses
+(54/274) Placing variables for  :- adult(_____),blocked(_____),customer(_____).
+Generated 1 clauses
+(55/274) Placing variables for  :- active(_____),blocked(_____),premium(_____).
+Generated 1 clauses
+(56/274) Placing variables for eligible(_____) :- adult(_____),not minor(_____).
+Generated 1 clauses
+(57/274) Placing variables for  :- adult(_____),not minor(_____),premium(_____).
+Generated 1 clauses
+(58/274) Placing variables for eligible(_____) :- premium(_____),premium(_____).
+No possible placements.
+(59/274) Placing variables for premium(_____) :- customer(_____),premium(_____).
+No possible placements.
+(60/274) Placing variables for eligible(_____) :- blocked(_____),customer(_____).
+Generated 1 clauses
+(61/274) Placing variables for premium(_____) :- adult(_____),not blocked(_____).
+Generated 1 clauses
+(62/274) Placing variables for premium(_____) :- adult(_____),has_purchase(_____).
+Generated 1 clauses
+(63/274) Placing variables for eligible(_____) :- not minor(_____),premium(_____).
+Generated 1 clauses
+(64/274) Placing variables for premium(_____) :- active(_____),not premium(_____).
+Generated 1 clauses
+(65/274) Placing variables for premium(_____) :- customer(_____),not minor(_____).
+Generated 1 clauses
+(66/274) Placing variables for premium(_____) :- active(_____),has_purchase(_____).
+Generated 1 clauses
+(67/274) Placing variables for  :- adult(_____),has_purchase(_____),premium(_____).
+Generated 1 clauses
+(68/274) Placing variables for  :- adult(_____),customer(_____),not premium(_____).
+Generated 1 clauses
+(69/274) Placing variables for eligible(_____) :- active(_____),not premium(_____).
+Generated 1 clauses
+(70/274) Placing variables for  :- not blocked(_____),premium(_____),premium(_____).
+No possible placements.
+(71/274) Placing variables for  :- active(_____),customer(_____),has_purchase(_____).
+Generated 1 clauses
+(72/274) Placing variables for premium(_____) :- active(_____),purchase(_____,_____).
+Generated 4 clauses
+(73/274) Placing variables for eligible(_____) :- has_purchase(_____),premium(_____).
+Generated 1 clauses
+(74/274) Placing variables for  :- customer(_____),not premium(_____),premium(_____).
+Generated 1 clauses
+(75/274) Placing variables for  :- active(_____),premium(_____),purchase(_____,_____).
+Generated 4 clauses
+(76/274) Placing variables for eligible(_____) :- not minor(_____),not premium(_____).
+Generated 0 clauses
+(77/274) Placing variables for premium(_____) :- premium(_____),purchase(_____,_____).
+Generated 2 clauses
+(78/274) Placing variables for  :- has_purchase(_____),minor(_____),not blocked(_____).
+Generated 1 clauses
+(79/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 3 clauses
+(80/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 3 clauses
+(81/274) Placing variables for  :- blocked(_____),not minor(_____),purchase(_____,_____).
+Generated 4 clauses
+(82/274) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____.
+Generated 1 clauses
+(83/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 3 clauses
+(84/274) Placing variables for  :- active(_____),adult(_____),blocked(_____),minor(_____).
+Generated 4 clauses
+(85/274) Placing variables for eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____.
+Generated 1 clauses
+(86/274) Placing variables for  :- active(_____),adult(_____),minor(_____),premium(_____).
+Generated 4 clauses
+(87/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 3 clauses
+(88/274) Placing variables for premium(_____) :- not premium(_____),purchase(_____,_____).
+Generated 3 clauses
+(89/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 3 clauses
+(90/274) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____.
+Generated 1 clauses
+(91/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 3 clauses
+(92/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 3 clauses
+(93/274) Placing variables for premium(_____) :- adult(_____),customer(_____),minor(_____).
+Generated 4 clauses
+(94/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 3 clauses
+(95/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____.
+Generated 1 clauses
+(96/274) Placing variables for  :- customer(_____),not premium(_____),purchase(_____,_____).
+Generated 4 clauses
+(97/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,blocked(_____).
+Generated 3 clauses
+(98/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 3 clauses
+(99/274) Placing variables for premium(_____) :- customer(_____),minor(_____),premium(_____).
+Generated 2 clauses
+(100/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 4 clauses
+(101/274) Placing variables for  :- adult(_____),blocked(_____),customer(_____),premium(_____).
+Generated 4 clauses
+(102/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,not premium(_____).
+Generated 1 clauses
+(103/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 4 clauses
+(104/274) Placing variables for premium(_____) :- adult(_____),not minor(_____),premium(_____).
+Generated 1 clauses
+(105/274) Placing variables for eligible(_____) :- active(_____),adult(_____),not minor(_____).
+Generated 3 clauses
+(106/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,not minor(_____).
+Generated 1 clauses
+(107/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 1 clauses
+(108/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 3 clauses
+(109/274) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____.
+Generated 4 clauses
+(110/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 4 clauses
+(111/274) Placing variables for  :- active(_____),minor(_____),not premium(_____),premium(_____).
+Generated 4 clauses
+(112/274) Placing variables for eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____.
+Generated 4 clauses
+(113/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 4 clauses
+(114/274) Placing variables for premium(_____) :- minor(_____),not blocked(_____),premium(_____).
+Generated 1 clauses
+(115/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 1 clauses
+(116/274) Placing variables for  :- customer(_____),minor(_____),not minor(_____),premium(_____).
+Generated 4 clauses
+(117/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 4 clauses
+(118/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 1 clauses
+(119/274) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____.
+Generated 4 clauses
+(120/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 4 clauses
+(121/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 3 clauses
+(122/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 4 clauses
+(123/274) Placing variables for  :- active(_____),adult(_____),customer(_____),has_purchase(_____).
+Generated 4 clauses
+(124/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 4 clauses
+(125/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____.
+Generated 4 clauses
+(126/274) Placing variables for  :- adult(_____),minor(_____),premium(_____),purchase(_____,_____).
+Generated 11 clauses
+(127/274) Placing variables for eligible(_____) :- active(_____),not blocked(_____),premium(_____).
+Generated 3 clauses
+(128/274) Placing variables for premium(_____) :- active(_____),has_purchase(_____),premium(_____).
+Generated 2 clauses
+(129/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____).
+Generated 4 clauses
+(130/274) Placing variables for eligible(_____) :- blocked(_____),has_purchase(_____),minor(_____).
+Generated 4 clauses
+(131/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 4 clauses
+(132/274) Placing variables for eligible(_____) :- active(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(133/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,not premium(_____).
+Generated 4 clauses
+(134/274) Placing variables for  :- blocked(_____),minor(_____),premium(_____),purchase(_____,_____).
+Generated 11 clauses
+(135/274) Placing variables for  :- active(_____),adult(_____),customer(_____),purchase(_____,_____).
+Generated 11 clauses
+(136/274) Placing variables for premium(_____) :- customer(_____),has_purchase(_____),premium(_____).
+Generated 2 clauses
+(137/274) Placing variables for premium(_____) :- blocked(_____),customer(_____),has_purchase(_____).
+Generated 4 clauses
+(138/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,not minor(_____).
+Generated 4 clauses
+(139/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 4 clauses
+(140/274) Placing variables for  :- active(_____),customer(_____),has_purchase(_____),premium(_____).
+Generated 4 clauses
+(141/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 4 clauses
+(142/274) Placing variables for  :- customer(_____),minor(_____),premium(_____),purchase(_____,_____).
+Generated 11 clauses
+(143/274) Placing variables for  :- active(_____),adult(_____),not minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(144/274) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 7 clauses
+(145/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 4 clauses
+(146/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,not blocked(_____).
+Generated 4 clauses
+(147/274) Placing variables for eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 7 clauses
+(148/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 4 clauses
+(149/274) Placing variables for  :- customer(_____),has_purchase(_____),not minor(_____),premium(_____).
+Generated 4 clauses
+(150/274) Placing variables for premium(_____) :- blocked(_____),has_purchase(_____),not premium(_____).
+Generated 3 clauses
+(151/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),customer(_____).
+Generated 11 clauses
+(152/274) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 7 clauses
+(153/274) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 4 clauses
+(154/274) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 7 clauses
+(155/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 7 clauses
+(156/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),premium(_____).
+Generated 11 clauses
+(157/274) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,not minor(_____).
+Generated 1 clauses
+(158/274) Placing variables for  :- adult(_____),customer(_____),has_purchase(_____),purchase(_____,_____).
+Generated 11 clauses
+(159/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 11 clauses
+(160/274) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,premium(_____).
+Generated 4 clauses
+(161/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+Generated 11 clauses
+(162/274) Placing variables for eligible(_____) :- minor(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+(163/274) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,not minor(_____).
+Generated 1 clauses
+(164/274) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 4 clauses
+(165/274) Placing variables for eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____).
+Generated 4 clauses
+(166/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),not premium(_____).
+Generated 7 clauses
+(167/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+Generated 7 clauses
+(168/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),customer(_____).
+Generated 4 clauses
+(169/274) Placing variables for eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 7 clauses
+(170/274) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 4 clauses
+(171/274) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+No possible placements.
+(172/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+Generated 45 clauses
+(173/274) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____).
+Generated 4 clauses
+(174/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____).
+Generated 4 clauses
+(175/274) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 7 clauses
+(176/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),premium(_____).
+Generated 4 clauses
+(177/274) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,not minor(_____).
+Generated 4 clauses
+(178/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 4 clauses
+(179/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+Generated 45 clauses
+(180/274) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,premium(_____).
+No possible placements.
+(181/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),premium(_____).
+Generated 4 clauses
+(182/274) Placing variables for  :- blocked(_____),not premium(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+(183/274) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,not minor(_____).
+Generated 4 clauses
+(184/274) Placing variables for  :- blocked(_____),has_purchase(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+(185/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,not minor(_____),purchase(_____,_____).
+Generated 37 clauses
+(186/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),not premium(_____).
+Generated 4 clauses
+(187/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____).
+Generated 4 clauses
+(188/274) Placing variables for eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 4 clauses
+(189/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+Generated 40 clauses
+(190/274) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 4 clauses
+(191/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),minor(_____),premium(_____).
+Generated 45 clauses
+(192/274) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),adult(_____).
+Generated 37 clauses
+(193/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),purchase(_____,_____).
+Generated 40 clauses
+(194/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+Generated 45 clauses
+(195/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+Generated 45 clauses
+(196/274) Placing variables for eligible(_____) :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 37 clauses
+(197/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____),customer(_____).
+Generated 45 clauses
+(198/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),minor(_____).
+Generated 37 clauses
+(199/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,not minor(_____),purchase(_____,_____).
+Generated 40 clauses
+(200/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____),not minor(_____).
+Generated 37 clauses
+(201/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),minor(_____).
+Generated 45 clauses
+(202/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not premium(_____).
+Generated 37 clauses
+(203/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____),customer(_____).
+Generated 37 clauses
+(204/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),premium(_____).
+Generated 37 clauses
+(205/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+Generated 37 clauses
+(206/274) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+Generated 37 clauses
+(207/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____),premium(_____).
+Generated 37 clauses
+(208/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,adult(_____),not minor(_____).
+Generated 19 clauses
+(209/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not premium(_____).
+Generated 37 clauses
+(210/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),minor(_____),premium(_____).
+Generated 40 clauses
+(211/274) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),adult(_____).
+Generated 40 clauses
+(212/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____),not minor(_____).
+Generated 19 clauses
+(213/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+Generated 40 clauses
+(214/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),minor(_____),premium(_____).
+Generated 40 clauses
+(215/274) Placing variables for eligible(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 40 clauses
+(216/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),premium(_____).
+Generated 45 clauses
+(217/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),blocked(_____),customer(_____).
+Generated 40 clauses
+(218/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),premium(_____),purchase(_____,_____).
+Generated 263 clauses
+(219/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),minor(_____).
+Generated 40 clauses
+(220/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),minor(_____).
+Generated 45 clauses
+(221/274) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____),premium(_____).
+Generated 20 clauses
+(222/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____),not minor(_____).
+Generated 40 clauses
+(223/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,minor(_____),purchase(_____,_____).
+Generated 219 clauses
+(224/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),minor(_____).
+Generated 40 clauses
+(225/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not premium(_____).
+Generated 40 clauses
+(226/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),customer(_____).
+Generated 40 clauses
+(227/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,premium(_____),premium(_____),purchase(_____,_____).
+Generated 188 clauses
+(228/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),premium(_____).
+Generated 40 clauses
+(229/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),customer(_____).
+Generated 40 clauses
+(230/274) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+Generated 40 clauses
+(231/274) Placing variables for premium(_____) :- #sum{_____:purchase(_____,_____)}=_____,not minor(_____),purchase(_____,_____).
+Generated 137 clauses
+(232/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____),premium(_____).
+Generated 40 clauses
+(233/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),not minor(_____).
+Generated 28 clauses
+(234/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,active(_____),minor(_____),not premium(_____).
+Generated 40 clauses
+(235/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,minor(_____),not premium(_____),purchase(_____,_____).
+Generated 219 clauses
+(236/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,blocked(_____),has_purchase(_____),not minor(_____).
+Generated 37 clauses
+(237/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),purchase(_____,_____).
+Generated 263 clauses
+(238/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),not blocked(_____),not minor(_____).
+Generated 28 clauses
+(239/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____),purchase(_____,_____).
+Generated 219 clauses
+(240/274) Placing variables for  :- #sum{_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),not blocked(_____).
+Generated 37 clauses
+(241/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),premium(_____).
+Generated 40 clauses
+(242/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),premium(_____),purchase(_____,_____).
+Generated 124 clauses
+(243/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),minor(_____).
+Generated 40 clauses
+(244/274) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),premium(_____).
+Generated 24 clauses
+(245/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,minor(_____),purchase(_____,_____).
+Generated 124 clauses
+(246/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,premium(_____),premium(_____),purchase(_____,_____).
+Generated 72 clauses
+(247/274) Placing variables for premium(_____) :- #sum{_____,_____:purchase(_____,_____)}=_____,not minor(_____),purchase(_____,_____).
+Generated 112 clauses
+(248/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,minor(_____),not premium(_____),purchase(_____,_____).
+Generated 124 clauses
+(249/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,blocked(_____),has_purchase(_____),not minor(_____).
+Generated 40 clauses
+(250/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,adult(_____),has_purchase(_____),purchase(_____,_____).
+Generated 124 clauses
+(251/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____),purchase(_____,_____).
+Generated 219 clauses
+(252/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,active(_____),not blocked(_____),purchase(_____,_____).
+Generated 124 clauses
+(253/274) Placing variables for  :- #sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),has_purchase(_____),not blocked(_____).
+Generated 40 clauses
+(254/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),not minor(_____),purchase(_____,_____).
+Generated 124 clauses
+(255/274) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 1323 clauses
+(256/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 1803 clauses
+(257/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+Generated 1803 clauses
+(258/274) Placing variables for premium(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 676 clauses
+(259/274) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____).
+Generated 676 clauses
+(260/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 772 clauses
+(261/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 772 clauses
+(262/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 1323 clauses
+(263/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+Generated 6355 clauses
+(264/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+Generated 772 clauses
+(265/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+Generated 772 clauses
+(266/274) Placing variables for premium(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____).
+Generated 256 clauses
+(267/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,customer(_____),minor(_____).
+Generated 256 clauses
+(268/274) Placing variables for eligible(_____) :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 676 clauses
+(269/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 676 clauses
+(270/274) Placing variables for  :- #count{_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+Generated 1996 clauses
+(271/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+Generated 1996 clauses
+(272/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____),minor(_____).
+Generated 256 clauses
+(273/274) Placing variables for eligible(_____) :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,has_purchase(_____).
+Generated 256 clauses
+(274/274) Placing variables for  :- #count{_____,_____:purchase(_____,_____)}=_____,#sum{_____,_____:purchase(_____,_____)}=_____,active(_____),purchase(_____,_____).
+Generated 592 clauses
+Placed variables in 13.914628505706787 seconds
+Total clauses stub: 262
+Total number of possible clauses: 29317
+Running for 300 iterations
+Iteration 0 - taken for 100: 2.86102294921875e-06 - best: Program: [' :- #count{V0:purchase(V0,V2)}=V1,adult(V1),premium(V2).', ' :- #sum{V0:purchase(V0,V0)}=V1,not blocked(V1).', 'eligible(V0) :- #count{V3,V2:purchase(V3,V2)}=V1,blocked(V1),premium(V0).', 'eligible(V0) :- active(V0),not blocked(V0),premium(V0).', 'premium(V0) :- adult(V0),has_purchase(V0).'] - score: 101.60719837318378
+Iteration 100 - taken for 100: 0.7474374771118164 - best: Program: ['premium(V0) :- adult(V0),not blocked(V0).', 'premium(V0) :- blocked(V1),has_purchase(V0),not premium(V1).', 'premium(V0) :- adult(V0).', 'eligible(V0) :- active(V0),not blocked(V0),premium(V0).', 'premium(V0) :- adult(V0),has_purchase(V0).'] - score: 187.8419398359127
+Iteration 200 - taken for 100: 0.6787724494934082 - best: Program: ['premium(V0) :- adult(V0),not blocked(V0).', ' :- #count{V0,V3:purchase(V3,V0)}=V2,has_purchase(V1),not minor(V2),purchase(V1,V2).', 'premium(V0) :- adult(V0).', 'eligible(V0) :- active(V0),not blocked(V0),premium(V0).', 'premium(V0) :- adult(V0).'] - score: 177.0625971530716
+Iteration 300 - taken for 100: 0.6311666965484619 - best: Program: ['premium(V0) :- adult(V0).', ' :- #sum{V0:purchase(V2,V0)}=V1,adult(V1),customer(V2).', 'premium(V0) :- adult(V0).', 'eligible(V0) :- active(V0),not blocked(V0),premium(V0).', 'premium(V0) :- adult(V0),has_purchase(V0).'] - score: 177.0625971530716
+Iterations completed
+['premium(V0) :- adult(V0),not blocked(V0).', ' :- #sum{V0,V2:purchase(V2,V0)}=V1,adult(V3),blocked(V3),customer(V1).', 'premium(V0) :- adult(V0).', 'eligible(V0) :- active(V0),not blocked(V0),premium(V0).', 'premium(V0) :- adult(V0),has_purchase(V0).']
+['premium(V0) :- adult(V0),not blocked(V0).', ' :- #count{V0,V1:purchase(V1,V0)}=V2,customer(V2).', 'premium(V0) :- adult(V0).', 'eligible(V0) :- active(V0),not blocked(V0),premium(V0).', 'premium(V0) :- adult(V0),has_purchase(V0).']
+['premium(V0) :- adult(V0),not blocked(V0).', ' :- #sum{V0:purchase(V0,V1)}=V2,customer(V1),has_purchase(V1),not blocked(V2).', 'premium(V0) :- adult(V0).', 'eligible(V0) :- active(V0),not blocked(V0),premium(V0).', 'premium(V0) :- adult(V0),has_purchase(V0).']
+['premium(V0) :- adult(V0),not blocked(V0).', ' :- #count{V0,V1:purchase(V1,V0)}=V2,customer(V2),minor(V2).', 'premium(V0) :- adult(V0).', 'eligible(V0) :- active(V0),not blocked(V0),premium(V0).', 'premium(V0) :- adult(V0),has_purchase(V0).']
+['premium(V0) :- adult(V0),not blocked(V0).', 'premium(V0) :- #sum{V2:purchase(V2,V1)}=V0,customer(V1).', 'premium(V0) :- adult(V0).', 'eligible(V0) :- active(V0),not blocked(V0),premium(V0).', 'premium(V0) :- adult(V0).']
+Evolutionary cycle 1 - Time 2.165768623352051
+Current best with score: 177.0625971530716
+--------------------------
+eligible(V0) :- active(V0),not blocked(V0),premium(V0).
+premium(V0) :- adult(V0).
+--------------------------
+Total time: 37.56350898742676

@@ -1,0 +1,149 @@
+% -----------------------------------------------------------------------------
+% pruebas.txt
+% Tarea pequena para probar GENTIANS.
+%
+% Objetivo esperado:
+%   Aprender reglas para eligible/1.
+%
+% Intuicion del dominio:
+%   Un cliente puede ser eligible si es adulto, activo, no esta bloqueado
+%   y tiene compras suficientes.
+%
+% El archivo incluye:
+%   - conocimiento base: hechos y reglas auxiliares;
+%   - ejemplos positivos;
+%   - ejemplos negativos;
+%   - ejemplos con conjunto "excluded";
+%   - bias de lenguaje para cabezas y cuerpos;
+%   - literales positivos y negativos en body;
+%   - predicados numericos para usar con --comparison, --arithm y --aggregates.
+% -----------------------------------------------------------------------------
+
+% -----------------------------------------------------------------------------
+% Dominio: clientes.
+% -----------------------------------------------------------------------------
+
+customer(alice).
+customer(bob).
+customer(carol).
+customer(dave).
+customer(erin).
+customer(frank).
+
+% -----------------------------------------------------------------------------
+% Datos numericos.
+% age/2 permite comparaciones como >= 18.
+% purchase/2 permite agregados como sum(purchase/2) o count(purchase/2).
+% -----------------------------------------------------------------------------
+
+age(alice,30).
+age(bob,16).
+age(carol,22).
+age(dave,41).
+age(erin,19).
+age(frank,35).
+
+purchase(alice,120).
+purchase(alice,30).
+purchase(bob,200).
+purchase(carol,15).
+purchase(dave,90).
+purchase(dave,50).
+purchase(erin,110).
+purchase(frank,5).
+
+% -----------------------------------------------------------------------------
+% Estado de cuenta.
+% active/1 y blocked/1 permiten aprender condiciones positivas y negativas.
+% -----------------------------------------------------------------------------
+
+active(alice).
+active(bob).
+active(carol).
+active(dave).
+active(erin).
+active(frank).
+
+blocked(erin).
+
+% -----------------------------------------------------------------------------
+% Reglas auxiliares dadas como conocimiento base.
+% GENTIANS puede usarlas en reglas aprendidas.
+% -----------------------------------------------------------------------------
+
+adult(X):- age(X,A), A >= 18.
+minor(X):- age(X,A), A < 18.
+has_purchase(X):- purchase(X,_).
+
+% -----------------------------------------------------------------------------
+% Ejemplos positivos.
+% Alice y Dave cumplen idea esperada: adultos, activos, no bloqueados,
+% con compras relevantes.
+% Segundo argumento "{}" dice que no exigimos exclusion adicional.
+% -----------------------------------------------------------------------------
+
+#pos({eligible(alice)},{}).
+#pos({eligible(dave)},{}).
+
+% -----------------------------------------------------------------------------
+% Ejemplo positivo con excluded.
+% Queremos eligible(alice), pero no queremos blocked(alice).
+% Esto ejercita sintaxis #pos({incluido},{excluido}).
+% -----------------------------------------------------------------------------
+
+#pos({eligible(alice)},{blocked(alice)}).
+
+% -----------------------------------------------------------------------------
+% Ejemplos negativos.
+% Bob es menor. Carol compra poco. Erin esta bloqueada. Frank compra poco.
+% -----------------------------------------------------------------------------
+
+#neg({eligible(bob)},{}).
+#neg({eligible(carol)},{}).
+#neg({eligible(erin)},{}).
+#neg({eligible(frank)},{}).
+
+% -----------------------------------------------------------------------------
+% Ejemplo negativo con excluded.
+% No queremos cubrir eligible(erin) si la regla evita blocked(erin).
+% -----------------------------------------------------------------------------
+
+#neg({eligible(erin)},{blocked(erin)}).
+
+% -----------------------------------------------------------------------------
+% Bias de lenguaje: cabezas candidatas.
+% eligible/1 es objetivo principal.
+% premium/1 sirve para probar cabezas alternativas y busqueda mas rica.
+% -----------------------------------------------------------------------------
+
+#modeh(1,eligible,1).
+#modeh(1,premium,1).
+
+% -----------------------------------------------------------------------------
+% Bias de lenguaje: cuerpo con literales positivos.
+% Recall > 1 permite repetir predicado en reglas mas complejas.
+% -----------------------------------------------------------------------------
+
+#modeb(1,customer,1,positive).
+#modeb(1,adult,1,positive).
+#modeb(1,minor,1,positive).
+#modeb(1,active,1,positive).
+#modeb(2,purchase,2,positive).
+#modeb(1,has_purchase,1,positive).
+
+% -----------------------------------------------------------------------------
+% Bias de lenguaje: cuerpo con literales negativos.
+% Permite reglas como:
+%   eligible(X):- adult(X), active(X), not blocked(X).
+% -----------------------------------------------------------------------------
+
+#modeb(1,blocked,1,negative).
+#modeb(1,minor,1,negative).
+
+% -----------------------------------------------------------------------------
+% Bias adicional para probar dependencias entre predicados aprendidos.
+% -----------------------------------------------------------------------------
+
+#modeb(1,premium,1,positive).
+#modeb(1,premium,1,negative).
+

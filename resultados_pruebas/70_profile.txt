@@ -1,0 +1,542 @@
+Running GENTIANS version 1.0.1.
+Namespace(file='.\\pruebas.txt', verbosity=0, variables=3, depth=3, prob_increase=0.5, disjunctive_head=1, samples=150, unbalanced_agg=False, max_as=5000, clauses=4, iterations=1, pop_size=40, iterations_genetic=150, mutation_probability=0.2, example=None, comparison=None, arithm=None, aggregates=None, cr=False, invention=0, alb=0, profile=True, version=False)
+Sampling loop: 0
+Sampling clauses
+Sampled 106 different clauses in 0.07630062103271484 seconds
+Placed variables in 0.11529827117919922 seconds
+Total clauses stub: 91
+Total number of possible clauses: 153
+Running for 150 iterations
+Iteration 0 - taken for 100: 2.86102294921875e-06 - best: Program: [' :- adult(V0),has_purchase(V1),purchase(V0,V1).', ' :- has_purchase(V0),purchase(V0,V0).', 'eligible(V0) :- adult(V0),premium(V0).', 'premium(V0) :- has_purchase(V0),not blocked(V0).'] - score: 101.60719837318378
+Iteration 100 - taken for 100: 0.6755678653717041 - best: Program: ['eligible(V0) :- adult(V0),premium(V0).', 'eligible(V0) :- adult(V0),premium(V0).', 'eligible(V0) :- adult(V0),premium(V0).', 'premium(V0) :- has_purchase(V0),not blocked(V0).'] - score: 177.0625971530716
+Iterations completed
+['premium(V0) :- has_purchase(V0),not blocked(V0).', 'eligible(V0) :- adult(V0),premium(V0).', ' :- has_purchase(V0),minor(V0),not premium(V0).', 'premium(V0) :- has_purchase(V0),not blocked(V0).']
+[' :- blocked(V0),not minor(V0).', 'eligible(V0) :- adult(V0),premium(V0).', 'eligible(V0) :- adult(V0),premium(V0).', 'premium(V0) :- has_purchase(V0),not blocked(V0).']
+['premium(V0) :- has_purchase(V0),not blocked(V0).', 'eligible(V0) :- adult(V0),premium(V0).', ' :- blocked(V0),minor(V0).', 'premium(V0) :- has_purchase(V0),not blocked(V0).']
+['eligible(V0) :- adult(V0),premium(V0).', 'eligible(V0) :- adult(V0),premium(V0).', ' :- customer(V0),minor(V1),purchase(V0,V1).', 'premium(V0) :- has_purchase(V0),not blocked(V0).']
+['eligible(V0) :- adult(V0),premium(V0).', 'eligible(V0) :- adult(V0),premium(V0).', 'premium(V0) :- minor(V0).', 'premium(V0) :- has_purchase(V0),not blocked(V0).']
+Evolutionary cycle 0 - Time 1.065713882446289
+Current best with score: 202.21439674636756
+--------------------------
+eligible(V0) :- adult(V0),premium(V0).
+premium(V0) :- has_purchase(V0),not blocked(V0).
+--------------------------
+Total time: 1.2706515789031982
+         1252680 function calls (1217936 primitive calls) in 1.280 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    1.279    1.279 C:\software\gentians\gentians\gentians.py:22(solve)
+        1    0.004    0.004    1.066    1.066 C:\software\gentians\gentians\strategies.py:65(genetic_solver)
+      520    0.026    0.000    1.039    0.002 C:\software\gentians\gentians\strategies.py:102(evaluate_score)
+      520    0.054    0.000    0.974    0.002 C:\software\gentians\gentians\clingo_interface.py:88(extract_coverage_and_set_clauses)
+      151    0.002    0.000    0.670    0.004 C:\software\gentians\gentians\strategies.py:247(crossover)
+      694    0.006    0.000    0.334    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:525(ground)
+      694    0.321    0.000    0.326    0.000 {built-in method _clingo.clingo_control_ground}
+      302    0.002    0.000    0.312    0.001 C:\software\gentians\gentians\strategies.py:268(mutate)
+     5555    0.006    0.000    0.269    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:429(__str__)
+    11685    0.024    0.000    0.231    0.000 {method 'join' of 'str' objects}
+      694    0.001    0.000    0.177    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:289(add)
+    32311    0.015    0.000    0.177    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\symbol.py:93(__str__)
+      694    0.002    0.000    0.176    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:325(_add2)
+      694    0.172    0.000    0.172    0.000 {built-in method _clingo.clingo_control_add}
+    33464    0.071    0.000    0.168    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\_internal.py:33(_str)
+    11013    0.017    0.000    0.123    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\_internal.py:41(_c_call)
+        1    0.001    0.001    0.115    0.115 C:\software\gentians\gentians\variable_placer.py:277(place_variables_list_of_clauses)
+        1    0.003    0.003    0.076    0.076 C:\software\gentians\gentians\program_sampler.py:241(sample_clauses_stub)
+      694    0.004    0.000    0.073    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:211(__init__)
+        1    0.000    0.000    0.063    0.063 C:\software\gentians\gentians\strategies.py:306(initialize_population)
+27706/854    0.029    0.000    0.063    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\copy.py:119(deepcopy)
+      694    0.063    0.000    0.063    0.000 {built-in method _clingo.clingo_control_new}
+      161    0.001    0.000    0.062    0.000 C:\software\gentians\gentians\utils.py:219(is_valid_rule)
+ 1776/854    0.005    0.000    0.059    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\copy.py:248(_reconstruct)
+     6007    0.004    0.000    0.057    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:524(__iter__)
+      106    0.002    0.000    0.052    0.000 C:\software\gentians\gentians\variable_placer.py:150(_place_variables_clause)
+      351    0.001    0.000    0.052    0.000 C:\software\gentians\gentians\utils.py:196(get_atoms)
+ 1776/854    0.007    0.000    0.052    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\copy.py:218(_deepcopy_dict)
+      351    0.001    0.000    0.051    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:1315(parse_string)
+      351    0.013    0.000    0.050    0.000 {built-in method _clingo.clingo_ast_parse_string}
+     6007    0.009    0.000    0.046    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:591(model)
+      300    0.001    0.000    0.045    0.000 C:\software\gentians\gentians\program_sampler.py:204(__sample_literals_list)
+      374    0.001    0.000    0.044    0.000 C:\software\gentians\gentians\program_sampler.py:190(__sample_level_distr_recall)
+     5555    0.011    0.000    0.042    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:374(symbols)
+      702    0.001    0.000    0.037    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:1240(_pyclingo_ast_callback)
+      702    0.003    0.000    0.035    0.000 C:\software\gentians\gentians\utils.py:44(process)
+     6007    0.020    0.000    0.034    0.000 {built-in method _clingo.clingo_solve_handle_model}
+      161    0.001    0.000    0.032    0.000 C:\software\gentians\gentians\utils.py:204(is_unsound)
+      452    0.003    0.000    0.032    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:959(solve)
+    32311    0.029    0.000    0.029    0.000 {built-in method _clingo.clingo_symbol_to_string_size}
+    32311    0.029    0.000    0.029    0.000 {built-in method _clingo.clingo_symbol_to_string}
+      452    0.026    0.000    0.026    0.000 {built-in method _clingo.clingo_control_solve}
+    37866    0.018    0.000    0.026    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:256(__iter__)
+    94026    0.026    0.000    0.026    0.000 {method 'new' of '_cffi_backend.FFI' objects}
+       13    0.000    0.000    0.026    0.002 C:\software\gentians\gentians\clingo_interface.py:34(init_clingo_ctl)
+      694    0.000    0.000    0.024    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:251(__del__)
+      694    0.023    0.000    0.023    0.000 {built-in method _clingo.clingo_control_free}
+1340/1066    0.001    0.000    0.020    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\copy.py:192(_deepcopy_list)
+      106    0.000    0.000    0.017    0.000 C:\software\gentians\gentians\utils.py:287(get_same_atoms)
+129799/124199    0.015    0.000    0.017    0.000 {built-in method builtins.len}
+      106    0.001    0.000    0.017    0.000 C:\software\gentians\gentians\utils.py:260(get_duplicated_positions)
+     6459    0.009    0.000    0.014    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:130(_pyclingo_solve_event_callback)
+       91    0.000    0.000    0.013    0.000 C:\software\gentians\gentians\strategies.py:17(__init__)
+     1404    0.004    0.000    0.013    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:1192(child_keys)
+    97701    0.011    0.000    0.011    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\_internal.py:69(_handle_error)
+    21874    0.007    0.000    0.010    0.000 C:\software\gentians\gentians\clingo_interface.py:12(get_cost)
+    70171    0.010    0.000    0.010    0.000 {method 'startswith' of 'str' objects}
+     5555    0.009    0.000    0.009    0.000 {built-in method _clingo.clingo_model_symbols_size}
+      302    0.001    0.000    0.009    0.000 C:\software\gentians\gentians\strategies.py:187(tournament)
+        1    0.000    0.000    0.008    0.008 C:\software\gentians\gentians\variable_placer.py:18(__init__)
+        7    0.000    0.000    0.008    0.001 C:\software\gentians\gentians\variable_placer.py:19(get_content)
+    36519    0.008    0.000    0.008    0.000 {method 'string' of '_cffi_backend.FFI' objects}
+    57135    0.008    0.000    0.008    0.000 {method 'get' of 'dict' objects}
+     5555    0.008    0.000    0.008    0.000 {built-in method _clingo.clingo_model_symbols}
+    28541    0.007    0.000    0.007    0.000 {method 'split' of 'str' objects}
+     1153    0.001    0.000    0.007    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:1121(__str__)
+    36519    0.007    0.000    0.007    0.000 {method 'decode' of 'bytes' objects}
+        7    0.000    0.000    0.007    0.001 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_common.py:33(wrapper)
+        7    0.000    0.000    0.007    0.001 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_common.py:51(files)
+        7    0.000    0.000    0.007    0.001 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_common.py:108(from_package)
+      342    0.002    0.000    0.007    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\random.py:363(sample)
+     18/9    0.000    0.000    0.007    0.001 <frozen importlib._bootstrap>:1349(_find_and_load)
+     11/2    0.000    0.000    0.007    0.003 <frozen importlib._bootstrap>:1304(_find_and_load_unlocked)
+     6007    0.004    0.000    0.007    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:601(resume)
+     11/2    0.000    0.000    0.006    0.003 <frozen importlib._bootstrap>:911(_load_unlocked)
+    31190    0.006    0.000    0.006    0.000 {built-in method builtins.sorted}
+      9/2    0.000    0.000    0.006    0.003 <frozen importlib._bootstrap_external>:1017(exec_module)
+    38083    0.006    0.000    0.006    0.000 {method 'append' of 'list' objects}
+        7    0.000    0.000    0.006    0.001 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:28(get_resource_reader)
+        7    0.000    0.000    0.006    0.001 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:149(_native)
+        7    0.000    0.000    0.006    0.001 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:144(_reader)
+     16/8    0.000    0.000    0.006    0.001 <frozen importlib._bootstrap_external>:671(_check_name_wrapper)
+        7    0.000    0.000    0.006    0.001 <frozen importlib._bootstrap_external>:1220(get_resource_reader)
+      702    0.002    0.000    0.006    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:1002(__getattr__)
+     22/4    0.000    0.000    0.006    0.001 <frozen importlib._bootstrap>:480(_call_with_frames_removed)
+      9/2    0.000    0.000    0.006    0.003 {built-in method builtins.exec}
+     1404    0.001    0.000    0.006    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:1183(ast_type)
+        1    0.000    0.000    0.006    0.006 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\readers.py:1(<module>)
+     7496    0.003    0.000    0.005    0.000 C:\software\gentians\gentians\program_sampler.py:45(__eq__)
+        1    0.000    0.000    0.005    0.005 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\readers.py:1(<module>)
+      942    0.002    0.000    0.005    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\core.py:89(_pyclingo_logger_callback)
+    16479    0.003    0.000    0.005    0.000 {built-in method builtins.isinstance}
+     4579    0.003    0.000    0.004    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\random.py:245(_randbelow_with_getrandbits)
+     1153    0.001    0.000    0.004    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:745(__iter__)
+     1040    0.003    0.000    0.004    0.000 C:\software\gentians\gentians\clingo_interface.py:48(_generate_clauses_for_coverage_interpretations)
+    15947    0.004    0.000    0.004    0.000 C:\software\gentians\gentians\clingo_interface.py:201(<genexpr>)
+    38344    0.004    0.000    0.004    0.000 {built-in method builtins.id}
+     4892    0.003    0.000    0.004    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\copy.py:232(_keep_alive)
+     3552    0.001    0.000    0.004    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\copy.py:253(<genexpr>)
+        9    0.000    0.000    0.003    0.000 <frozen importlib._bootstrap_external>:1090(get_code)
+    32311    0.003    0.000    0.003    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\symbol.py:90(__init__)
+        1    0.000    0.000    0.003    0.003 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:1(<module>)
+     3048    0.002    0.000    0.003    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\_internal.py:65(_to_str)
+      793    0.001    0.000    0.003    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\random.py:336(randint)
+     1517    0.001    0.000    0.002    0.000 {built-in method builtins.any}
+     5555    0.002    0.000    0.002    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:244(__len__)
+      441    0.000    0.000    0.002    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\__init__.py:330(_compile)
+      793    0.001    0.000    0.002    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\random.py:295(randrange)
+        9    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap_external>:1211(get_data)
+     6459    0.002    0.000    0.002    0.000 {method 'cast' of '_cffi_backend.FFI' objects}
+     6007    0.002    0.000    0.002    0.000 {built-in method _clingo.clingo_solve_handle_resume}
+     2352    0.001    0.000    0.002    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\enum.py:695(__call__)
+    22814    0.002    0.000    0.002    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\copy.py:173(_deepcopy_atomic)
+     5555    0.002    0.000    0.002    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:111(on_model)
+        1    0.000    0.000    0.002    0.002 C:\software\gentians\gentians\parser.py:210(read_from_file)
+       11    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap>:1240(_find_spec)
+       49    0.000    0.000    0.002    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\__init__.py:270(findall)
+        7    0.000    0.000    0.002    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:743(compile)
+        9    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap_external>:1548(find_spec)
+        9    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap_external>:1519(_get_spec)
+        9    0.002    0.000    0.002    0.000 {built-in method _io.open_code}
+      348    0.000    0.000    0.001    0.000 C:\software\gentians\gentians\strategies.py:180(get_fittest)
+      374    0.001    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\random.py:458(choices)
+       12    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap_external>:1621(find_spec)
+     8103    0.001    0.000    0.001    0.000 {method 'from_handle' of '_cffi_backend.FFI' objects}
+      161    0.001    0.000    0.001    0.000 C:\software\gentians\gentians\variable_placer.py:36(__reconstruct_clause)
+     1036    0.000    0.000    0.001    0.000 <frozen abc>:117(__instancecheck__)
+      372    0.001    0.000    0.001    0.000 {built-in method builtins.max}
+     1153    0.001    0.000    0.001    0.000 {built-in method _clingo.clingo_ast_to_string_size}
+     1153    0.001    0.000    0.001    0.000 {built-in method _clingo.clingo_ast_to_string}
+        7    0.000    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:970(parse)
+     3486    0.001    0.000    0.001    0.000 {method 'encode' of 'str' objects}
+     1855    0.001    0.000    0.001    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:983(__init__)
+      179    0.001    0.000    0.001    0.000 {built-in method builtins.min}
+     23/7    0.000    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:451(_parse_sub)
+     1855    0.001    0.000    0.001    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:999(__del__)
+      150    0.001    0.000    0.001    0.000 C:\software\gentians\gentians\program_sampler.py:106(__replace_operators)
+       38    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap_external>:145(_path_stat)
+     28/7    0.000    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:511(_parse)
+     5534    0.001    0.000    0.001    0.000 {built-in method math.exp}
+       38    0.001    0.000    0.001    0.000 {built-in method nt.stat}
+      351    0.000    0.000    0.001    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:719(__len__)
+        8    0.000    0.000    0.001    0.000 C:\software\gentians\gentians\parser.py:199(_get_pos_neg_examples)
+     1776    0.001    0.000    0.001    0.000 {method '__reduce_ex__' of 'object' objects}
+     1776    0.001    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\copyreg.py:98(__newobj__)
+     5615    0.001    0.000    0.001    0.000 C:\software\gentians\gentians\clingo_interface.py:8(__init__)
+      301    0.000    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\__init__.py:183(sub)
+     1036    0.001    0.000    0.001    0.000 {built-in method _abc._abc_instancecheck}
+     4579    0.001    0.000    0.001    0.000 {method 'bit_length' of 'int' objects}
+      106    0.001    0.000    0.001    0.000 C:\software\gentians\gentians\variable_placer.py:50(__generate_asp_program_for_combinations)
+     5555    0.001    0.000    0.001    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:284(__init__)
+     7449    0.001    0.000    0.001    0.000 {method 'getrandbits' of '_random.Random' objects}
+        1    0.000    0.000    0.001    0.001 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\_path\__init__.py:1(<module>)
+        9    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap_external>:779(_compile_bytecode)
+     2352    0.001    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\enum.py:1156(__new__)
+        7    0.000    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:539(read_text)
+        9    0.001    0.000    0.001    0.000 {built-in method marshal.loads}
+        7    0.000    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_abc.py:628(read_text)
+     1404    0.001    0.000    0.001    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\enum.py:199(__get__)
+     5555    0.001    0.000    0.001    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:241(__init__)
+     1776    0.001    0.000    0.001    0.000 {method 'update' of 'dict' objects}
+      654    0.001    0.000    0.001    0.000 {method 'sort' of 'list' objects}
+    40/37    0.000    0.000    0.001    0.000 {built-in method builtins.__build_class__}
+     2824    0.001    0.000    0.001    0.000 {method 'items' of 'dict' objects}
+     3639    0.001    0.000    0.001    0.000 {built-in method builtins.getattr}
+      452    0.000    0.000    0.001    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:535(__exit__)
+     1957    0.001    0.000    0.001    0.000 {method 'replace' of 'str' objects}
+     3703    0.001    0.000    0.001    0.000 C:\software\gentians\gentians\utils.py:242(<genexpr>)
+     2206    0.001    0.000    0.001    0.000 {built-in method _clingo.clingo_ast_release}
+      419    0.000    0.000    0.001    0.000 C:\software\gentians\gentians\utils.py:93(wrapper_warn_undefined_callback)
+        8    0.000    0.000    0.000    0.000 {built-in method _io.open}
+     1818    0.000    0.000    0.000    0.000 {built-in method __new__ of type object at 0x00007FFFB1DAE8A0}
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:576(_code)
+     2901    0.000    0.000    0.000    0.000 {method 'random' of '_random.Random' objects}
+       12    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\parser.py:192(_get_mode_declaration)
+       21    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:175(from_as_to_list)
+      342    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\strategies.py:75(__init__)
+     1497    0.000    0.000    0.000    0.000 {method 'new_handle' of '_cffi_backend.FFI' objects}
+       62    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:101(_path_join)
+      440    0.000    0.000    0.000    0.000 {built-in method builtins.sum}
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:529(open)
+      267    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:167(__getitem__)
+     1404    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_ast_get_type}
+        9    0.000    0.000    0.000    0.000 {method 'read' of '_io.BufferedReader' objects}
+       15    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:155(_path_is_mode_type)
+      374    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\program_sampler.py:22(get_stub_representation)
+      106    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:358(get_arithmetic_or_comparison_position)
+     4122    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\strategies.py:184(<lambda>)
+     2379    0.000    0.000    0.000    0.000 {built-in method _operator.index}
+     1053    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_ast_acquire}
+      161    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:165(from_list_to_as)
+       13    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:164(_path_isfile)
+     4059    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\strategies.py:434(<lambda>)
+       12    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:171(__setitem__)
+     37/7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:37(_compile)
+     2645    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:248(<genexpr>)
+     1369    0.000    0.000    0.000    0.000 {method 'count' of 'str' objects}
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:806(module_from_spec)
+     1818    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}
+      452    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_solve_handle_close}
+      802    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_ast_attribute_get_ast_at}
+      301    0.000    0.000    0.000    0.000 {method 'sub' of 're.Pattern' objects}
+     1497    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\_internal.py:149(__init__)
+       18    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:509(cache_from_source)
+        8    0.000    0.000    0.000    0.000 {method 'read' of '_io.TextIOWrapper' objects}
+      702    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_ast_has_attribute}
+      532    0.000    0.000    0.000    0.000 {built-in method time.time}
+      702    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_ast_attribute_type}
+       91    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\__init__.py:287(compile)
+      212    0.000    0.000    0.000    0.000 {built-in method builtins.hash}
+     1776    0.000    0.000    0.000    0.000 {built-in method builtins.issubclass}
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:733(_init_module_attrs)
+      202    0.000    0.000    0.000    0.000 {method 'findall' of 're.Pattern' objects}
+      351    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:702(__init__)
+     1146    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\_internal.py:118(clear)
+        9    0.000    0.000    0.000    0.000 <frozen abc>:105(__new__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:1(<module>)
+      351    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\ast.py:716(__del__)
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:416(__enter__)
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1230(path_stats)
+       18    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1497(_path_importer_cache)
+     1404    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\enum.py:1337(value)
+      381    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:67(sink)
+       18    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:632(cached)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1484(_path_hooks)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\readers.py:23(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:1(<module>)
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:639(_get_cached)
+     1045    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\_internal.py:115(__init__)
+       16    0.000    0.000    0.000    0.000 {method '__exit__' of '_io._IOBase' objects}
+      351    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_ast_attribute_size_ast_array}
+      351    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_ast_attribute_get_ast}
+      567    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:106(<genexpr>)
+      439    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\strategies.py:175(<lambda>)
+      302    0.000    0.000    0.000    0.000 {built-in method math.log}
+      520    0.000    0.000    0.000    0.000 {method 'keys' of 'dict' objects}
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:304(acquire)
+      520    0.000    0.000    0.000    0.000 {built-in method builtins.iter}
+      188    0.000    0.000    0.000    0.000 {method 'insert' of 'list' objects}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1672(_fill_cache)
+        4    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\typing.py:2066(__new__)
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:289(drive)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:40(CompatibilityFiles)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:329(parent)
+      374    0.000    0.000    0.000    0.000 {built-in method _bisect.bisect_right}
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:514(_compile_info)
+      520    0.000    0.000    0.000    0.000 {built-in method builtins.next}
+       21    0.000    0.000    0.000    0.000 {built-in method builtins.print}
+        2    0.000    0.000    0.000    0.000 {built-in method nt.listdir}
+      520    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:90(__init__)
+      533    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\clingo_interface.py:28(__init__)
+      452    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:105(__init__)
+      157    0.000    0.000    0.000    0.000 {method 'remove' of 'list' objects}
+    43/41    0.000    0.000    0.000    0.000 <frozen abc>:121(__subclasscheck__)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:166(__fspath__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\struct.py:1(<module>)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:227(__str__)
+      452    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:125(on_statistics)
+        2    0.000    0.000    0.000    0.000 <frozen zipimport>:68(__init__)
+      452    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:520(__init__)
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1616(_get_spec)
+    43/41    0.000    0.000    0.000    0.000 {built-in method _abc._abc_subclasscheck}
+      351    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:40(__init__)
+      302    0.000    0.000    0.000    0.000 {built-in method math.ceil}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1713(path_hook_for_FileFinder)
+    51/21    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:177(getwidth)
+      374    0.000    0.000    0.000    0.000 {built-in method math.isfinite}
+      452    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\control.py:121(on_finish)
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:162(__enter__)
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:257(_parse_path)
+      452    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\clingo\solving.py:532(__enter__)
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:830(spec_from_file_location)
+      144    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:260(get)
+      300    0.000    0.000    0.000    0.000 {method 'issubset' of 'set' objects}
+       18    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:137(_path_split)
+      374    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\program_sampler.py:13(__init__)
+       21    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:498(__init__)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\functools.py:930(wrapper)
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_abc.py:130(with_segments)
+       12    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:241(_optimize_charset)
+        7    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_error_message}
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:124(setdefault)
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:426(_get_module_lock)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:997(exec_module)
+       31    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:371(_escape)
+        2    0.000    0.000    0.000    0.000 {built-in method _imp.exec_builtin}
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:245(_from_parsed_parts)
+      179    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:239(__next)
+      352    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+      122    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:175(append)
+        6    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\enum.py:1607(__and__)
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:190(_path_abspath)
+       21    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:117(__init__)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:169(_path_isdir)
+       44    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\encodings\cp1252.py:18(encode)
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:97(closegroup)
+      106    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:352(contains_arithmetic)
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:420(__exit__)
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:177(_path_isabs)
+        4    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\typing.py:2211(__init_subclass__)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_common.py:80(_)
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:372(release)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:140(joinpath)
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:277(_raw_path)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:1353(__init__)
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:694(_classify_pyc)
+      242    0.000    0.000    0.000    0.000 {method 'endswith' of 'str' objects}
+       92    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\gentians.py:71(<genexpr>)
+      142    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:76(wrapper_exit_callback)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\__init__.py:71(import_module)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:252(_from_parsed_string)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:989(create_module)
+      161    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\utils.py:64(__init__)
+        8    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\encodings\cp1252.py:22(decode)
+        9    0.000    0.000    0.000    0.000 {built-in method _abc._abc_init}
+      168    0.000    0.000    0.000    0.000 {method 'add' of 'set' objects}
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:982(find_spec)
+      150    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\program_sampler.py:40(__init__)
+        2    0.000    0.000    0.000    0.000 {built-in method _imp.create_builtin}
+       27    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:89(_unpack_uint32)
+       54    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:139(<genexpr>)
+       77    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:163(__len__)
+     10/7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:439(_get_literal_prefix)
+        7    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1375(_gcd_import)
+       43    0.000    0.000    0.000    0.000 <frozen _collections_abc>:345(__subclasshook__)
+        8    0.000    0.000    0.000    0.000 {built-in method _codecs.charmap_decode}
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:727(_validate_timestamp_pyc)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1595(__init__)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:230(__init__)
+       95    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:255(match)
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:74(__new__)
+       54    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:292(tell)
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:85(opengroup)
+       44    0.000    0.000    0.000    0.000 {built-in method _codecs.charmap_encode}
+       73    0.000    0.000    0.000    0.000 {method 'rpartition' of 'str' objects}
+        3    0.000    0.000    0.000    0.000 <frozen zipimport>:104(find_spec)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\_path\glob.py:1(<module>)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:463(_lock_unlock_module)
+        7    0.000    0.000    0.000    0.000 <frozen ntpath>:99(join)
+       24    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:645(parent)
+       12    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:214(_compile_charset)
+        4    0.000    0.000    0.000    0.000 {method '__init_subclass__' of 'object' objects}
+       18    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\enum.py:1589(_get_value)
+       34    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\variable_placer.py:267(<genexpr>)
+       34    0.000    0.000    0.000    0.000 {method 'extend' of 'list' objects}
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:870(__init__)
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:445(cb)
+       10    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:401(_simple)
+      148    0.000    0.000    0.000    0.000 {method 'lstrip' of 'str' objects}
+       21    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:505(__new__)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+       40    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1226(__exit__)
+       42    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:82(groups)
+       63    0.000    0.000    0.000    0.000 {built-in method sys.intern}
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\functools.py:844(dispatch)
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:232(__init__)
+       11    0.000    0.000    0.000    0.000 {built-in method _imp.is_builtin}
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1128(find_spec)
+        3    0.000    0.000    0.000    0.000 <frozen zipimport>:312(_get_module_info)
+       12    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\parser.py:52(__init__)
+        1    0.000    0.000    0.000    0.000 {method 'close' of '_io.TextIOWrapper' objects}
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:82(remove)
+       40    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1222(__enter__)
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:237(_format_parsed_parts)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:163(wrap_spec)
+       11    0.000    0.000    0.000    0.000 {built-in method nt._path_splitroot}
+       65    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:491(_verbose_message)
+        2    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\strategies.py:95(__str__)
+       28    0.000    0.000    0.000    0.000 {built-in method nt._path_splitroot_ex}
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:79(__init__)
+       55    0.000    0.000    0.000    0.000 {built-in method nt.fspath}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:662(spec_from_loader)
+       91    0.000    0.000    0.000    0.000 {built-in method builtins.ord}
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:620(set)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:448(_uniq)
+        5    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:410(_generate_overlap_table)
+        4    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\typing.py:1268(_generic_init_subclass)
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:48(_new_module)
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:573(isstring)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:859(Thread)
+        1    0.000    0.000    0.000    0.000 {method 'splitlines' of 'str' objects}
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:173(__exit__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:1318(ZipFile)
+       36    0.000    0.000    0.000    0.000 {method 'find' of 'bytearray' objects}
+       43    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:112(__init__)
+       63    0.000    0.000    0.000    0.000 {built-in method _imp.release_lock}
+       18    0.000    0.000    0.000    0.000 {method 'pop' of 'dict' objects}
+       25    0.000    0.000    0.000    0.000 {method '__exit__' of '_thread.RLock' objects}
+       63    0.000    0.000    0.000    0.000 {built-in method _imp.acquire_lock}
+       13    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\parser.py:34(__init__)
+       36    0.000    0.000    0.000    0.000 {method 'rfind' of 'str' objects}
+        7    0.000    0.000    0.000    0.000 {built-in method _sre.compile}
+        3    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\copyreg.py:107(_slotnames)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\_path\__init__.py:101(CompleteDirs)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:954(fix_flags)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\weakref.py:414(__getitem__)
+       27    0.000    0.000    0.000    0.000 {built-in method from_bytes}
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\_path\__init__.py:204(Path)
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:67(_relax_case)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:12(__init__)
+        3    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1390(_handle_fromlist)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:592(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:192(_Extra)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:390(ZipInfo)
+       18    0.000    0.000    0.000    0.000 {method 'pop' of 'list' objects}
+       11    0.000    0.000    0.000    0.000 C:\software\gentians\.venv\Lib\site-packages\_virtualenv.py:50(find_spec)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\readers.py:64(MultiplexedPath)
+        4    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\typing.py:2085(__init__)
+       24    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+        7    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1285(_sanity_check)
+        1    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\strategies.py:74(Individual)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:881(ZipExtFile)
+       17    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:31(_combine_flags)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:428(notify_all)
+        5    0.000    0.000    0.000    0.000 {built-in method _struct.calcsize}
+       12    0.000    0.000    0.000    0.000 {built-in method _weakref._remove_dead_weakref}
+        7    0.000    0.000    0.000    0.000 {built-in method _clingo.clingo_error_code}
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:16(__getattr__)
+        6    0.000    0.000    0.000    0.000 {built-in method builtins.setattr}
+        9    0.000    0.000    0.000    0.000 {built-in method _imp.find_frozen}
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:599(__init__)
+       40    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\strategies.py:369(<lambda>)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:675(Barrier)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\readers.py:137(NamespaceReader)
+        7    0.000    0.000    0.000    0.000 {built-in method fromkeys}
+        6    0.000    0.000    0.000    0.000 <frozen zipimport>:299(_get_module_path)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:281(__init__)
+        8    0.000    0.000    0.000    0.000 {method 'count' of 'list' objects}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:501(_requires_builtin_wrapper)
+       11    0.000    0.000    0.000    0.000 {built-in method _thread.allocate_lock}
+        9    0.000    0.000    0.000    0.000 {built-in method _imp._fix_co_filename}
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\_weakrefset.py:85(add)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_parser.py:76(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:269(Condition)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\_path\glob.py:7(Translator)
+        8    0.000    0.000    0.000    0.000 <frozen codecs>:263(__init__)
+       16    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1601(<genexpr>)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\_weakrefset.py:37(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:1226(_ZipWriteFile)
+       14    0.000    0.000    0.000    0.000 {built-in method _io.text_encoding}
+        7    0.000    0.000    0.000    0.000 {method 'get' of 'mappingproxy' objects}
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:298(root)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:398(notify)
+       11    0.000    0.000    0.000    0.000 {method 'lower' of 'str' objects}
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:412(__init__)
+        4    0.000    0.000    0.000    0.000 {method 'setter' of 'property' objects}
+       15    0.000    0.000    0.000    0.000 <frozen zipimport>:263(_get_files)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:20(TraversableResourcesLoader)
+       14    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\pathlib\_local.py:307(_tail)
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:158(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:141(_RLock)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:46(SpecPath)
+        7    0.000    0.000    0.000    0.000 {method 'partition' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\strategies.py:46(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:81(ChildPath)
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:653(has_location)
+        8    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\typing.py:2216(<genexpr>)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:303(__enter__)
+        3    0.000    0.000    0.000    0.000 <frozen zipimport>:303(_is_dir)
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1181(__init__)
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1206(get_filename)
+       12    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:431(_get_iscased)
+        8    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\strategies.py:453(<lambda>)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\readers.py:22(FileReader)
+        2    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\re\_compiler.py:470(_get_charset_prefix)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\_path\__init__.py:83(InitializedState)
+        1    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\program_sampler.py:53(__init__)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\contextlib.py:450(__exit__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:7(SpecLoaderAdapter)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:122(RLock)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:306(__exit__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:318(_is_owned)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\readers.py:38(ZipReader)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\readers.py:34(files)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:112(OrphanPath)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:1369(_DeleteDummyThreadOnDel)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:1025(_set_native_id)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:581(Event)
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1014(create_module)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\contextlib.py:444(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:2126(PyZipFile)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:25(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:1398(_DummyThread)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:1268(_make_invoke_excepthook)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:449(Semaphore)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:536(BoundedSemaphore)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\weakref.py:427(__setitem__)
+        1    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\parser.py:189(__init__)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_adapters.py:141(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:694(LZMACompressor)
+        7    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\contextlib.py:447(__enter__)
+        1    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\parser.py:113(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:818(_SharedFile)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:1321(Timer)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\_path\__init__.py:176(FastLookup)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:717(LZMADecompressor)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\importlib\resources\_itertools.py:1(<module>)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:861(_Tellable)
+        1    0.000    0.000    0.000    0.000 {method '__enter__' of '_thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method _thread._make_thread_handle}
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:43(LargeZipFile)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:838(BrokenBarrierError)
+        1    0.000    0.000    0.000    0.000 {method 'acquire' of '_thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 C:\software\gentians\gentians\gentians.py:18(__init__)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\zipfile\__init__.py:39(BadZipFile)
+        1    0.000    0.000    0.000    0.000 C:\Users\ulloa\AppData\Roaming\uv\python\cpython-3.13.11-windows-x86_64-none\Lib\threading.py:1351(_MainThread)
+        1    0.000    0.000    0.000    0.000 {method '__exit__' of '_thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method _thread.get_native_id}
+        1    0.000    0.000    0.000    0.000 {built-in method _thread._get_main_thread_ident}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1014(is_package)
+
+
+

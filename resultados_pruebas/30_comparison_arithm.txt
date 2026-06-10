@@ -1,0 +1,1187 @@
+Running GENTIANS version 1.0.1.
+Namespace(file='.\\pruebas.txt', verbosity=1, variables=4, depth=4, prob_increase=0.5, disjunctive_head=1, samples=250, unbalanced_agg=False, max_as=5000, clauses=5, iterations=2, pop_size=60, iterations_genetic=300, mutation_probability=0.2, example=None, comparison=['geq', 'gt', 'lt', 'neq'], arithm=['add', 'sub'], aggregates=None, cr=False, invention=0, alb=0, profile=False, version=False)
+Sampling loop: 0
+Sampling clauses
+Sampled 192 different clauses in 0.03669118881225586 seconds
+Sampled clauses:
+0)  :- _____>=_____,_____>_____.
+1)  :- _____!=_____,_____>_____.
+2)  :- _____>=_____,minor(_____).
+3) premium(_____) :- _____>_____.
+4)  :- adult(_____),minor(_____).
+5)  :- _____>=_____,adult(_____).
+6) premium(_____) :- adult(_____).
+7) premium(_____) :- _____!=_____.
+8)  :- _____>_____,premium(_____).
+9) premium(_____) :- minor(_____).
+10)  :- active(_____),minor(_____).
+11) premium(_____) :- _____>=_____.
+12) eligible(_____) :- _____>_____.
+13) eligible(_____) :- _____!=_____.
+14) eligible(_____) :- minor(_____).
+15) premium(_____) :- active(_____).
+16) eligible(_____) :- _____>=_____.
+17) eligible(_____) :- adult(_____).
+18)  :- _____>=_____,blocked(_____).
+19)  :- blocked(_____),minor(_____).
+20) eligible(_____) :- active(_____).
+21)  :- active(_____),blocked(_____).
+22)  :- active(_____),premium(_____).
+23) premium(_____) :- premium(_____).
+24)  :- customer(_____),minor(_____).
+25)  :- adult(_____),not minor(_____).
+26) eligible(_____) :- premium(_____).
+27)  :- _____+_____=_____,_____>_____.
+28) eligible(_____) :- blocked(_____).
+29) premium(_____) :- customer(_____).
+30)  :- minor(_____),not minor(_____).
+31) eligible(_____) :- customer(_____).
+32) premium(_____) :- not minor(_____).
+33)  :- _____!=_____,_____+_____=_____.
+34)  :- _____-_____=_____,adult(_____).
+35)  :- _____+_____=_____,_____>=_____.
+36)  :- _____>_____,not premium(_____).
+37)  :- customer(_____),premium(_____).
+38)  :- minor(_____),not blocked(_____).
+39) premium(_____) :- _____-_____=_____.
+40)  :- _____>_____,has_purchase(_____).
+41) premium(_____) :- _____+_____=_____.
+42)  :- minor(_____),not premium(_____).
+43)  :- _____>_____,__lt__(_____,_____).
+44) premium(_____) :- not premium(_____).
+45)  :- __lt__(_____,_____),minor(_____).
+46) eligible(_____) :- _____+_____=_____.
+47) eligible(_____) :- _____-_____=_____.
+48) premium(_____) :- not blocked(_____).
+49)  :- active(_____),not premium(_____).
+50)  :- __lt__(_____,_____),adult(_____).
+51)  :- adult(_____),has_purchase(_____).
+52)  :- _____!=_____,__lt__(_____,_____).
+53)  :- _____+_____=_____,premium(_____).
+54)  :- customer(_____),not minor(_____).
+55)  :- not blocked(_____),premium(_____).
+56) premium(_____) :- __lt__(_____,_____).
+57) eligible(_____) :- not premium(_____).
+58)  :- __lt__(_____,_____),active(_____).
+59)  :- _____+_____=_____,customer(_____).
+60) premium(_____) :- has_purchase(_____).
+61) eligible(_____) :- not blocked(_____).
+62) eligible(_____) :- __lt__(_____,_____).
+63) eligible(_____) :- has_purchase(_____).
+64)  :- customer(_____),not premium(_____).
+65)  :- __lt__(_____,_____),premium(_____).
+66)  :- _____+_____=_____,not minor(_____).
+67)  :- customer(_____),has_purchase(_____).
+68)  :- _____+_____=_____,_____-_____=_____.
+69) premium(_____) :- purchase(_____,_____).
+70)  :- _____+_____=_____,not premium(_____).
+71)  :- _____-_____=_____,not premium(_____).
+72)  :- premium(_____),purchase(_____,_____).
+73) eligible(_____) :- purchase(_____,_____).
+74)  :- _____-_____=_____,not blocked(_____).
+75)  :- _____+_____=_____,has_purchase(_____).
+76) premium(_____) :- _____>=_____,_____>_____.
+77) premium(_____) :- _____>_____,minor(_____).
+78)  :- __lt__(_____,_____),not premium(_____).
+79) premium(_____) :- _____>=_____,adult(_____).
+80)  :- _____-_____=_____,purchase(_____,_____).
+81) premium(_____) :- _____>_____,active(_____).
+82)  :- _____+_____=_____,purchase(_____,_____).
+83)  :- _____!=_____,_____>=_____,active(_____).
+84) eligible(_____) :- adult(_____),minor(_____).
+85) premium(_____) :- active(_____),minor(_____).
+86) eligible(_____) :- _____>=_____,active(_____).
+87)  :- active(_____),adult(_____),premium(_____).
+88)  :- has_purchase(_____),purchase(_____,_____).
+89) eligible(_____) :- active(_____),adult(_____).
+90)  :- _____!=_____,active(_____),premium(_____).
+91) premium(_____) :- minor(_____),premium(_____).
+92) eligible(_____) :- adult(_____),premium(_____).
+93) eligible(_____) :- minor(_____),premium(_____).
+94) eligible(_____) :- _____>_____,customer(_____).
+95) premium(_____) :- _____!=_____,customer(_____).
+96) eligible(_____) :- _____>=_____,customer(_____).
+97)  :- _____-_____=_____,_____>=_____,adult(_____).
+98) eligible(_____) :- premium(_____),premium(_____).
+99) eligible(_____) :- _____+_____=_____,_____>_____.
+100) eligible(_____) :- _____+_____=_____,adult(_____).
+101)  :- _____!=_____,_____-_____=_____,premium(_____).
+102)  :- _____-_____=_____,adult(_____),premium(_____).
+103) eligible(_____) :- _____!=_____,not premium(_____).
+104)  :- _____-_____=_____,adult(_____),customer(_____).
+105)  :- active(_____),adult(_____),has_purchase(_____).
+106)  :- _____+_____=_____,_____>=_____,customer(_____).
+107)  :- _____!=_____,has_purchase(_____),premium(_____).
+108)  :- _____-_____=_____,adult(_____),not minor(_____).
+109) premium(_____) :- _____>_____,purchase(_____,_____).
+110) eligible(_____) :- _____+_____=_____,customer(_____).
+111)  :- _____-_____=_____,_____>_____,__lt__(_____,_____).
+112)  :- _____!=_____,premium(_____),purchase(_____,_____).
+113) eligible(_____) :- _____!=_____,purchase(_____,_____).
+114) eligible(_____) :- _____-_____=_____,not minor(_____).
+115) premium(_____) :- premium(_____),purchase(_____,_____).
+116)  :- _____+_____=_____,active(_____),not blocked(_____).
+117) eligible(_____) :- _____-_____=_____,not premium(_____).
+118) eligible(_____) :- premium(_____),purchase(_____,_____).
+119)  :- __lt__(_____,_____),adult(_____),not premium(_____).
+120)  :- _____-_____=_____,customer(_____),not blocked(_____).
+121)  :- __lt__(_____,_____),active(_____),not blocked(_____).
+122)  :- _____>=_____,__lt__(_____,_____),has_purchase(_____).
+123)  :- _____+_____=_____,__lt__(_____,_____),blocked(_____).
+124)  :- adult(_____),minor(_____),minor(_____),premium(_____).
+125)  :- __lt__(_____,_____),active(_____),has_purchase(_____).
+126)  :- _____!=_____,_____>_____,customer(_____),minor(_____).
+127) eligible(_____) :- __lt__(_____,_____),not blocked(_____).
+128)  :- _____!=_____,not premium(_____),purchase(_____,_____).
+129) eligible(_____) :- _____+_____=_____,purchase(_____,_____).
+130) premium(_____) :- not blocked(_____),purchase(_____,_____).
+131) premium(_____) :- _____>=_____,minor(_____),premium(_____).
+132) eligible(_____) :- adult(_____),minor(_____),premium(_____).
+133)  :- has_purchase(_____),premium(_____),purchase(_____,_____).
+134)  :- _____!=_____,_____-_____=_____,adult(_____),minor(_____).
+135)  :- _____!=_____,_____>=_____,customer(_____),premium(_____).
+136)  :- _____+_____=_____,__lt__(_____,_____),has_purchase(_____).
+137)  :- _____!=_____,_____>=_____,not minor(_____),premium(_____).
+138)  :- __lt__(_____,_____),customer(_____),purchase(_____,_____).
+139)  :- _____!=_____,_____-_____=_____,_____>_____,customer(_____).
+140) premium(_____) :- _____-_____=_____,active(_____),minor(_____).
+141)  :- _____>=_____,adult(_____),blocked(_____),not premium(_____).
+142) eligible(_____) :- _____>_____,adult(_____),has_purchase(_____).
+143)  :- _____+_____=_____,_____>=_____,customer(_____),minor(_____).
+144) premium(_____) :- _____-_____=_____,minor(_____),premium(_____).
+145)  :- _____!=_____,_____>_____,adult(_____),purchase(_____,_____).
+146) eligible(_____) :- _____>_____,active(_____),not premium(_____).
+147)  :- _____!=_____,__lt__(_____,_____),active(_____),minor(_____).
+148) premium(_____) :- customer(_____),minor(_____),not minor(_____).
+149) eligible(_____) :- _____-_____=_____,active(_____),adult(_____).
+150)  :- _____!=_____,__lt__(_____,_____),minor(_____),premium(_____).
+151) premium(_____) :- _____>_____,customer(_____),not premium(_____).
+152)  :- __lt__(_____,_____),not blocked(_____),purchase(_____,_____).
+153) eligible(_____) :- _____>=_____,__lt__(_____,_____),minor(_____).
+154)  :- active(_____),blocked(_____),not minor(_____),premium(_____).
+155)  :- _____!=_____,_____>=_____,customer(_____),has_purchase(_____).
+156) eligible(_____) :- _____>=_____,_____>_____,purchase(_____,_____).
+157) eligible(_____) :- _____+_____=_____,_____>=_____,customer(_____).
+158) premium(_____) :- _____>=_____,__lt__(_____,_____),premium(_____).
+159)  :- _____-_____=_____,_____>=_____,_____>_____,not premium(_____).
+160)  :- _____!=_____,_____+_____=_____,_____>_____,has_purchase(_____).
+161) eligible(_____) :- customer(_____),minor(_____),not premium(_____).
+162) eligible(_____) :- _____>=_____,__lt__(_____,_____),customer(_____).
+163)  :- _____+_____=_____,_____>=_____,__lt__(_____,_____),minor(_____).
+164)  :- _____>_____,__lt__(_____,_____),not minor(_____),premium(_____).
+165) premium(_____) :- __lt__(_____,_____),minor(_____),not minor(_____).
+166)  :- _____-_____=_____,active(_____),adult(_____),not premium(_____).
+167) eligible(_____) :- has_purchase(_____),minor(_____),not minor(_____).
+168)  :- _____-_____=_____,_____>=_____,active(_____),has_purchase(_____).
+169) eligible(_____) :- _____!=_____,_____-_____=_____,not blocked(_____).
+170)  :- active(_____),customer(_____),has_purchase(_____),premium(_____).
+171) premium(_____) :- customer(_____),has_purchase(_____),premium(_____).
+172) eligible(_____) :- _____-_____=_____,has_purchase(_____),minor(_____).
+173)  :- _____!=_____,__lt__(_____,_____),not premium(_____),premium(_____).
+174)  :- _____+_____=_____,_____>_____,premium(_____),purchase(_____,_____).
+175)  :- adult(_____),minor(_____),not blocked(_____),purchase(_____,_____).
+176)  :- __lt__(_____,_____),minor(_____),not premium(_____),premium(_____).
+177) premium(_____) :- __lt__(_____,_____),adult(_____),has_purchase(_____).
+178) eligible(_____) :- _____-_____=_____,__lt__(_____,_____),premium(_____).
+179)  :- _____-_____=_____,active(_____),not minor(_____),not premium(_____).
+180)  :- adult(_____),has_purchase(_____),minor(_____),purchase(_____,_____).
+181) eligible(_____) :- _____-_____=_____,customer(_____),not blocked(_____).
+182)  :- _____+_____=_____,_____-_____=_____,has_purchase(_____),minor(_____).
+183) eligible(_____) :- __lt__(_____,_____),not blocked(_____),premium(_____).
+184)  :- active(_____),customer(_____),has_purchase(_____),not premium(_____).
+185) premium(_____) :- _____+_____=_____,_____-_____=_____,has_purchase(_____).
+186)  :- _____+_____=_____,adult(_____),not minor(_____),purchase(_____,_____).
+187) eligible(_____) :- _____+_____=_____,_____-_____=_____,has_purchase(_____).
+188) premium(_____) :- _____-_____=_____,__lt__(_____,_____),not blocked(_____).
+189)  :- _____-_____=_____,__lt__(_____,_____),adult(_____),purchase(_____,_____).
+190) premium(_____) :- _____-_____=_____,__lt__(_____,_____),purchase(_____,_____).
+191)  :- _____-_____=_____,premium(_____),purchase(_____,_____),purchase(_____,_____).
+(0/191) Placing variables for  :- _____>=_____,_____>_____.
+No possible placements.
+(1/191) Placing variables for  :- _____!=_____,_____>_____.
+No possible placements.
+(2/191) Placing variables for  :- _____>=_____,minor(_____).
+No possible placements.
+(3/191) Placing variables for premium(_____) :- _____>_____.
+No possible placements.
+(4/191) Placing variables for  :- adult(_____),minor(_____).
+Generated 1 clauses
+(5/191) Placing variables for  :- _____>=_____,adult(_____).
+No possible placements.
+(6/191) Placing variables for premium(_____) :- adult(_____).
+Generated 1 clauses
+(7/191) Placing variables for premium(_____) :- _____!=_____.
+No possible placements.
+(8/191) Placing variables for  :- _____>_____,premium(_____).
+No possible placements.
+(9/191) Placing variables for premium(_____) :- minor(_____).
+Generated 1 clauses
+(10/191) Placing variables for  :- active(_____),minor(_____).
+Generated 1 clauses
+(11/191) Placing variables for premium(_____) :- _____>=_____.
+No possible placements.
+(12/191) Placing variables for eligible(_____) :- _____>_____.
+No possible placements.
+(13/191) Placing variables for eligible(_____) :- _____!=_____.
+No possible placements.
+(14/191) Placing variables for eligible(_____) :- minor(_____).
+Generated 1 clauses
+(15/191) Placing variables for premium(_____) :- active(_____).
+Generated 1 clauses
+(16/191) Placing variables for eligible(_____) :- _____>=_____.
+No possible placements.
+(17/191) Placing variables for eligible(_____) :- adult(_____).
+Generated 1 clauses
+(18/191) Placing variables for  :- _____>=_____,blocked(_____).
+No possible placements.
+(19/191) Placing variables for  :- blocked(_____),minor(_____).
+Generated 1 clauses
+(20/191) Placing variables for eligible(_____) :- active(_____).
+Generated 1 clauses
+(21/191) Placing variables for  :- active(_____),blocked(_____).
+Generated 1 clauses
+(22/191) Placing variables for  :- active(_____),premium(_____).
+Generated 1 clauses
+(23/191) Placing variables for premium(_____) :- premium(_____).
+No possible placements.
+(24/191) Placing variables for  :- customer(_____),minor(_____).
+Generated 1 clauses
+(25/191) Placing variables for  :- adult(_____),not minor(_____).
+Generated 1 clauses
+(26/191) Placing variables for eligible(_____) :- premium(_____).
+Generated 1 clauses
+(27/191) Placing variables for  :- _____+_____=_____,_____>_____.
+No possible placements.
+(28/191) Placing variables for eligible(_____) :- blocked(_____).
+Generated 1 clauses
+(29/191) Placing variables for premium(_____) :- customer(_____).
+Generated 1 clauses
+(30/191) Placing variables for  :- minor(_____),not minor(_____).
+Generated 1 clauses
+(31/191) Placing variables for eligible(_____) :- customer(_____).
+Generated 1 clauses
+(32/191) Placing variables for premium(_____) :- not minor(_____).
+Generated 0 clauses
+(33/191) Placing variables for  :- _____!=_____,_____+_____=_____.
+No possible placements.
+(34/191) Placing variables for  :- _____-_____=_____,adult(_____).
+No possible placements.
+(35/191) Placing variables for  :- _____+_____=_____,_____>=_____.
+No possible placements.
+(36/191) Placing variables for  :- _____>_____,not premium(_____).
+No possible placements.
+(37/191) Placing variables for  :- customer(_____),premium(_____).
+Generated 1 clauses
+(38/191) Placing variables for  :- minor(_____),not blocked(_____).
+Generated 1 clauses
+(39/191) Placing variables for premium(_____) :- _____-_____=_____.
+No possible placements.
+(40/191) Placing variables for  :- _____>_____,has_purchase(_____).
+No possible placements.
+(41/191) Placing variables for premium(_____) :- _____+_____=_____.
+No possible placements.
+(42/191) Placing variables for  :- minor(_____),not premium(_____).
+Generated 1 clauses
+(43/191) Placing variables for  :- _____>_____,__lt__(_____,_____).
+Generated 2 clauses
+(44/191) Placing variables for premium(_____) :- not premium(_____).
+Generated 0 clauses
+(45/191) Placing variables for  :- __lt__(_____,_____),minor(_____).
+Generated 1 clauses
+(46/191) Placing variables for eligible(_____) :- _____+_____=_____.
+No possible placements.
+(47/191) Placing variables for eligible(_____) :- _____-_____=_____.
+No possible placements.
+(48/191) Placing variables for premium(_____) :- not blocked(_____).
+Generated 0 clauses
+(49/191) Placing variables for  :- active(_____),not premium(_____).
+Generated 1 clauses
+(50/191) Placing variables for  :- __lt__(_____,_____),adult(_____).
+Generated 1 clauses
+(51/191) Placing variables for  :- adult(_____),has_purchase(_____).
+Generated 1 clauses
+(52/191) Placing variables for  :- _____!=_____,__lt__(_____,_____).
+Generated 2 clauses
+(53/191) Placing variables for  :- _____+_____=_____,premium(_____).
+No possible placements.
+(54/191) Placing variables for  :- customer(_____),not minor(_____).
+Generated 1 clauses
+(55/191) Placing variables for  :- not blocked(_____),premium(_____).
+Generated 1 clauses
+(56/191) Placing variables for premium(_____) :- __lt__(_____,_____).
+Generated 1 clauses
+(57/191) Placing variables for eligible(_____) :- not premium(_____).
+Generated 0 clauses
+(58/191) Placing variables for  :- __lt__(_____,_____),active(_____).
+Generated 1 clauses
+(59/191) Placing variables for  :- _____+_____=_____,customer(_____).
+No possible placements.
+(60/191) Placing variables for premium(_____) :- has_purchase(_____).
+Generated 1 clauses
+(61/191) Placing variables for eligible(_____) :- not blocked(_____).
+Generated 0 clauses
+(62/191) Placing variables for eligible(_____) :- __lt__(_____,_____).
+Generated 1 clauses
+(63/191) Placing variables for eligible(_____) :- has_purchase(_____).
+Generated 1 clauses
+(64/191) Placing variables for  :- customer(_____),not premium(_____).
+Generated 1 clauses
+(65/191) Placing variables for  :- __lt__(_____,_____),premium(_____).
+Generated 1 clauses
+(66/191) Placing variables for  :- _____+_____=_____,not minor(_____).
+No possible placements.
+(67/191) Placing variables for  :- customer(_____),has_purchase(_____).
+Generated 1 clauses
+(68/191) Placing variables for  :- _____+_____=_____,_____-_____=_____.
+No possible placements.
+(69/191) Placing variables for premium(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(70/191) Placing variables for  :- _____+_____=_____,not premium(_____).
+No possible placements.
+(71/191) Placing variables for  :- _____-_____=_____,not premium(_____).
+No possible placements.
+(72/191) Placing variables for  :- premium(_____),purchase(_____,_____).
+Generated 1 clauses
+(73/191) Placing variables for eligible(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(74/191) Placing variables for  :- _____-_____=_____,not blocked(_____).
+No possible placements.
+(75/191) Placing variables for  :- _____+_____=_____,has_purchase(_____).
+No possible placements.
+(76/191) Placing variables for premium(_____) :- _____>=_____,_____>_____.
+No possible placements.
+(77/191) Placing variables for premium(_____) :- _____>_____,minor(_____).
+No possible placements.
+(78/191) Placing variables for  :- __lt__(_____,_____),not premium(_____).
+Generated 1 clauses
+(79/191) Placing variables for premium(_____) :- _____>=_____,adult(_____).
+No possible placements.
+(80/191) Placing variables for  :- _____-_____=_____,purchase(_____,_____).
+Generated 2 clauses
+(81/191) Placing variables for premium(_____) :- _____>_____,active(_____).
+No possible placements.
+(82/191) Placing variables for  :- _____+_____=_____,purchase(_____,_____).
+Generated 2 clauses
+(83/191) Placing variables for  :- _____!=_____,_____>=_____,active(_____).
+No possible placements.
+(84/191) Placing variables for eligible(_____) :- adult(_____),minor(_____).
+Generated 1 clauses
+(85/191) Placing variables for premium(_____) :- active(_____),minor(_____).
+Generated 1 clauses
+(86/191) Placing variables for eligible(_____) :- _____>=_____,active(_____).
+No possible placements.
+(87/191) Placing variables for  :- active(_____),adult(_____),premium(_____).
+Generated 1 clauses
+(88/191) Placing variables for  :- has_purchase(_____),purchase(_____,_____).
+Generated 1 clauses
+(89/191) Placing variables for eligible(_____) :- active(_____),adult(_____).
+Generated 1 clauses
+(90/191) Placing variables for  :- _____!=_____,active(_____),premium(_____).
+Generated 2 clauses
+(91/191) Placing variables for premium(_____) :- minor(_____),premium(_____).
+No possible placements.
+(92/191) Placing variables for eligible(_____) :- adult(_____),premium(_____).
+Generated 1 clauses
+(93/191) Placing variables for eligible(_____) :- minor(_____),premium(_____).
+Generated 1 clauses
+(94/191) Placing variables for eligible(_____) :- _____>_____,customer(_____).
+No possible placements.
+(95/191) Placing variables for premium(_____) :- _____!=_____,customer(_____).
+No possible placements.
+(96/191) Placing variables for eligible(_____) :- _____>=_____,customer(_____).
+No possible placements.
+(97/191) Placing variables for  :- _____-_____=_____,_____>=_____,adult(_____).
+Generated 2 clauses
+(98/191) Placing variables for eligible(_____) :- premium(_____),premium(_____).
+No possible placements.
+(99/191) Placing variables for eligible(_____) :- _____+_____=_____,_____>_____.
+Generated 0 clauses
+(100/191) Placing variables for eligible(_____) :- _____+_____=_____,adult(_____).
+Generated 1 clauses
+(101/191) Placing variables for  :- _____!=_____,_____-_____=_____,premium(_____).
+Generated 2 clauses
+(102/191) Placing variables for  :- _____-_____=_____,adult(_____),premium(_____).
+Generated 2 clauses
+(103/191) Placing variables for eligible(_____) :- _____!=_____,not premium(_____).
+No possible placements.
+(104/191) Placing variables for  :- _____-_____=_____,adult(_____),customer(_____).
+Generated 2 clauses
+(105/191) Placing variables for  :- active(_____),adult(_____),has_purchase(_____).
+Generated 1 clauses
+(106/191) Placing variables for  :- _____+_____=_____,_____>=_____,customer(_____).
+Generated 2 clauses
+(107/191) Placing variables for  :- _____!=_____,has_purchase(_____),premium(_____).
+Generated 2 clauses
+(108/191) Placing variables for  :- _____-_____=_____,adult(_____),not minor(_____).
+Generated 1 clauses
+(109/191) Placing variables for premium(_____) :- _____>_____,purchase(_____,_____).
+Generated 4 clauses
+(110/191) Placing variables for eligible(_____) :- _____+_____=_____,customer(_____).
+Generated 1 clauses
+(111/191) Placing variables for  :- _____-_____=_____,_____>_____,__lt__(_____,_____).
+Generated 30 clauses
+(112/191) Placing variables for  :- _____!=_____,premium(_____),purchase(_____,_____).
+Generated 6 clauses
+(113/191) Placing variables for eligible(_____) :- _____!=_____,purchase(_____,_____).
+Generated 4 clauses
+(114/191) Placing variables for eligible(_____) :- _____-_____=_____,not minor(_____).
+Generated 0 clauses
+(115/191) Placing variables for premium(_____) :- premium(_____),purchase(_____,_____).
+Generated 2 clauses
+(116/191) Placing variables for  :- _____+_____=_____,active(_____),not blocked(_____).
+Generated 1 clauses
+(117/191) Placing variables for eligible(_____) :- _____-_____=_____,not premium(_____).
+Generated 0 clauses
+(118/191) Placing variables for eligible(_____) :- premium(_____),purchase(_____,_____).
+Generated 4 clauses
+(119/191) Placing variables for  :- __lt__(_____,_____),adult(_____),not premium(_____).
+Generated 4 clauses
+(120/191) Placing variables for  :- _____-_____=_____,customer(_____),not blocked(_____).
+Generated 1 clauses
+(121/191) Placing variables for  :- __lt__(_____,_____),active(_____),not blocked(_____).
+Generated 4 clauses
+(122/191) Placing variables for  :- _____>=_____,__lt__(_____,_____),has_purchase(_____).
+Generated 6 clauses
+(123/191) Placing variables for  :- _____+_____=_____,__lt__(_____,_____),blocked(_____).
+Generated 18 clauses
+(124/191) Placing variables for  :- adult(_____),minor(_____),minor(_____),premium(_____).
+Generated 2 clauses
+(125/191) Placing variables for  :- __lt__(_____,_____),active(_____),has_purchase(_____).
+Generated 4 clauses
+(126/191) Placing variables for  :- _____!=_____,_____>_____,customer(_____),minor(_____).
+Generated 4 clauses
+(127/191) Placing variables for eligible(_____) :- __lt__(_____,_____),not blocked(_____).
+Generated 3 clauses
+(128/191) Placing variables for  :- _____!=_____,not premium(_____),purchase(_____,_____).
+Generated 4 clauses
+(129/191) Placing variables for eligible(_____) :- _____+_____=_____,purchase(_____,_____).
+Generated 9 clauses
+(130/191) Placing variables for premium(_____) :- not blocked(_____),purchase(_____,_____).
+Generated 3 clauses
+(131/191) Placing variables for premium(_____) :- _____>=_____,minor(_____),premium(_____).
+Generated 2 clauses
+(132/191) Placing variables for eligible(_____) :- adult(_____),minor(_____),premium(_____).
+Generated 4 clauses
+(133/191) Placing variables for  :- has_purchase(_____),premium(_____),purchase(_____,_____).
+Generated 4 clauses
+(134/191) Placing variables for  :- _____!=_____,_____-_____=_____,adult(_____),minor(_____).
+Generated 30 clauses
+(135/191) Placing variables for  :- _____!=_____,_____>=_____,customer(_____),premium(_____).
+Generated 4 clauses
+(136/191) Placing variables for  :- _____+_____=_____,__lt__(_____,_____),has_purchase(_____).
+Generated 18 clauses
+(137/191) Placing variables for  :- _____!=_____,_____>=_____,not minor(_____),premium(_____).
+Generated 0 clauses
+(138/191) Placing variables for  :- __lt__(_____,_____),customer(_____),purchase(_____,_____).
+Generated 11 clauses
+(139/191) Placing variables for  :- _____!=_____,_____-_____=_____,_____>_____,customer(_____).
+Generated 4 clauses
+(140/191) Placing variables for premium(_____) :- _____-_____=_____,active(_____),minor(_____).
+Generated 9 clauses
+(141/191) Placing variables for  :- _____>=_____,adult(_____),blocked(_____),not premium(_____).
+Generated 4 clauses
+(142/191) Placing variables for eligible(_____) :- _____>_____,adult(_____),has_purchase(_____).
+Generated 4 clauses
+(143/191) Placing variables for  :- _____+_____=_____,_____>=_____,customer(_____),minor(_____).
+Generated 30 clauses
+(144/191) Placing variables for premium(_____) :- _____-_____=_____,minor(_____),premium(_____).
+Generated 7 clauses
+(145/191) Placing variables for  :- _____!=_____,_____>_____,adult(_____),purchase(_____,_____).
+Generated 60 clauses
+(146/191) Placing variables for eligible(_____) :- _____>_____,active(_____),not premium(_____).
+Generated 0 clauses
+(147/191) Placing variables for  :- _____!=_____,__lt__(_____,_____),active(_____),minor(_____).
+Generated 38 clauses
+(148/191) Placing variables for premium(_____) :- customer(_____),minor(_____),not minor(_____).
+Generated 3 clauses
+(149/191) Placing variables for eligible(_____) :- _____-_____=_____,active(_____),adult(_____).
+Generated 9 clauses
+(150/191) Placing variables for  :- _____!=_____,__lt__(_____,_____),minor(_____),premium(_____).
+Generated 38 clauses
+(151/191) Placing variables for premium(_____) :- _____>_____,customer(_____),not premium(_____).
+Generated 0 clauses
+(152/191) Placing variables for  :- __lt__(_____,_____),not blocked(_____),purchase(_____,_____).
+Generated 11 clauses
+(153/191) Placing variables for eligible(_____) :- _____>=_____,__lt__(_____,_____),minor(_____).
+Generated 24 clauses
+(154/191) Placing variables for  :- active(_____),blocked(_____),not minor(_____),premium(_____).
+Generated 4 clauses
+(155/191) Placing variables for  :- _____!=_____,_____>=_____,customer(_____),has_purchase(_____).
+Generated 4 clauses
+(156/191) Placing variables for eligible(_____) :- _____>=_____,_____>_____,purchase(_____,_____).
+Generated 8 clauses
+(157/191) Placing variables for eligible(_____) :- _____+_____=_____,_____>=_____,customer(_____).
+Generated 4 clauses
+(158/191) Placing variables for premium(_____) :- _____>=_____,__lt__(_____,_____),premium(_____).
+Generated 14 clauses
+(159/191) Placing variables for  :- _____-_____=_____,_____>=_____,_____>_____,not premium(_____).
+Generated 4 clauses
+(160/191) Placing variables for  :- _____!=_____,_____+_____=_____,_____>_____,has_purchase(_____).
+Generated 4 clauses
+(161/191) Placing variables for eligible(_____) :- customer(_____),minor(_____),not premium(_____).
+Generated 3 clauses
+(162/191) Placing variables for eligible(_____) :- _____>=_____,__lt__(_____,_____),customer(_____).
+Generated 24 clauses
+(163/191) Placing variables for  :- _____+_____=_____,_____>=_____,__lt__(_____,_____),minor(_____).
+Generated 290 clauses
+(164/191) Placing variables for  :- _____>_____,__lt__(_____,_____),not minor(_____),premium(_____).
+Generated 24 clauses
+(165/191) Placing variables for premium(_____) :- __lt__(_____,_____),minor(_____),not minor(_____).
+Generated 10 clauses
+(166/191) Placing variables for  :- _____-_____=_____,active(_____),adult(_____),not premium(_____).
+Generated 9 clauses
+(167/191) Placing variables for eligible(_____) :- has_purchase(_____),minor(_____),not minor(_____).
+Generated 3 clauses
+(168/191) Placing variables for  :- _____-_____=_____,_____>=_____,active(_____),has_purchase(_____).
+Generated 30 clauses
+(169/191) Placing variables for eligible(_____) :- _____!=_____,_____-_____=_____,not blocked(_____).
+Generated 0 clauses
+(170/191) Placing variables for  :- active(_____),customer(_____),has_purchase(_____),premium(_____).
+Generated 4 clauses
+(171/191) Placing variables for premium(_____) :- customer(_____),has_purchase(_____),premium(_____).
+Generated 2 clauses
+(172/191) Placing variables for eligible(_____) :- _____-_____=_____,has_purchase(_____),minor(_____).
+Generated 9 clauses
+(173/191) Placing variables for  :- _____!=_____,__lt__(_____,_____),not premium(_____),premium(_____).
+Generated 24 clauses
+(174/191) Placing variables for  :- _____+_____=_____,_____>_____,premium(_____),purchase(_____,_____).
+Generated 290 clauses
+(175/191) Placing variables for  :- adult(_____),minor(_____),not blocked(_____),purchase(_____,_____).
+Generated 11 clauses
+(176/191) Placing variables for  :- __lt__(_____,_____),minor(_____),not premium(_____),premium(_____).
+Generated 11 clauses
+(177/191) Placing variables for premium(_____) :- __lt__(_____,_____),adult(_____),has_purchase(_____).
+Generated 11 clauses
+(178/191) Placing variables for eligible(_____) :- _____-_____=_____,__lt__(_____,_____),premium(_____).
+Generated 79 clauses
+(179/191) Placing variables for  :- _____-_____=_____,active(_____),not minor(_____),not premium(_____).
+Generated 3 clauses
+(180/191) Placing variables for  :- adult(_____),has_purchase(_____),minor(_____),purchase(_____,_____).
+Generated 11 clauses
+(181/191) Placing variables for eligible(_____) :- _____-_____=_____,customer(_____),not blocked(_____).
+Generated 3 clauses
+(182/191) Placing variables for  :- _____+_____=_____,_____-_____=_____,has_purchase(_____),minor(_____).
+Generated 4 clauses
+(183/191) Placing variables for eligible(_____) :- __lt__(_____,_____),not blocked(_____),premium(_____).
+Generated 10 clauses
+(184/191) Placing variables for  :- active(_____),customer(_____),has_purchase(_____),not premium(_____).
+Generated 4 clauses
+(185/191) Placing variables for premium(_____) :- _____+_____=_____,_____-_____=_____,has_purchase(_____).
+Generated 3 clauses
+(186/191) Placing variables for  :- _____+_____=_____,adult(_____),not minor(_____),purchase(_____,_____).
+Generated 79 clauses
+(187/191) Placing variables for eligible(_____) :- _____+_____=_____,_____-_____=_____,has_purchase(_____).
+Generated 3 clauses
+(188/191) Placing variables for premium(_____) :- _____-_____=_____,__lt__(_____,_____),not blocked(_____).
+Generated 39 clauses
+(189/191) Placing variables for  :- _____-_____=_____,__lt__(_____,_____),adult(_____),purchase(_____,_____).
+Generated 850 clauses
+(190/191) Placing variables for premium(_____) :- _____-_____=_____,__lt__(_____,_____),purchase(_____,_____).
+Generated 629 clauses
+(191/191) Placing variables for  :- _____-_____=_____,premium(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 824 clauses
+Placed variables in 2.0095837116241455 seconds
+Total clauses stub: 137
+Total number of possible clauses: 3837
+Running for 300 iterations
+Iteration 0 - taken for 100: 2.1457672119140625e-06 - best: Program: [' :- V0-V0=V1,adult(V1),premium(V0).', ' :- minor(V0),not minor(V0).', 'eligible(V0) :- V0-V0=V1,has_purchase(V1),minor(V0).', 'eligible(V0) :- V0>V1,adult(V1),has_purchase(V0).', 'premium(V0) :- purchase(V0,V0).'] - score: 0.5047017812757476
+Iteration 100 - taken for 100: 0.565312385559082 - best: Program: ['premium(V0) :- adult(V0).', 'eligible(V0) :- active(V0),adult(V0).', 'eligible(V0) :- minor(V0),premium(V0).', ' :- customer(V0),minor(V0).', 'eligible(V0) :- premium(V0).'] - score: 34.49884377071515
+Iteration 200 - taken for 100: 0.6281235218048096 - best: Program: [' :- adult(V0),minor(V1),minor(V0),premium(V1).', ' :- blocked(V0),minor(V0).', ' :- customer(V0),not premium(V0).', 'eligible(V0) :- V1>V0,adult(V0),has_purchase(V1).', 'premium(V0) :- V0>=V1,minor(V0),premium(V1).'] - score: 202.21439674636756
+Iteration 300 - taken for 100: 0.6095335483551025 - best: Program: ['premium(V0) :- V1>V0,purchase(V0,V1).', ' :- adult(V0),minor(V0).', ' :- active(V0),adult(V0),has_purchase(V0).', 'eligible(V0) :- V1>V0,adult(V0),has_purchase(V1).', ' :- has_purchase(V0),purchase(V0,V0).'] - score: 202.21439674636756
+Iterations completed
+[' :- adult(V0),minor(V0).', ' :- adult(V0),not minor(V0).', ' :- active(V0),adult(V0),premium(V0).', 'eligible(V0) :- V1>V0,adult(V0),has_purchase(V1).', 'premium(V0) :- V1>=V0,minor(V0),premium(V1).']
+['premium(V0) :- V1>V0,purchase(V0,V1).', ' :- adult(V0),minor(V0).', ' :- active(V0),adult(V0),has_purchase(V0).', 'eligible(V0) :- V1>V0,adult(V0),has_purchase(V1).', ' :- has_purchase(V0),purchase(V0,V0).']
+[' :- customer(V0),has_purchase(V0).', ' :- V0!=V1,not premium(V0),purchase(V0,V1).', 'premium(V0) :- customer(V1),has_purchase(V0),premium(V1).', 'eligible(V0) :- V1>V0,adult(V0),has_purchase(V1).', ' :- V0>=V1,adult(V1),blocked(V0),not premium(V1).']
+[' :- V0>=V1,adult(V1),blocked(V0),not premium(V1).', 'premium(V0) :- purchase(V0,V0).', 'eligible(V0) :- premium(V0).', 'eligible(V0) :- V1>V0,adult(V0),has_purchase(V1).', 'premium(V0) :- V0>=V1,minor(V0),premium(V1).']
+['premium(V0) :- V1>V0,purchase(V0,V1).', 'eligible(V0) :- adult(V0),minor(V0),premium(V0).', ' :- active(V0),adult(V0),has_purchase(V0).', 'eligible(V0) :- V1>V0,adult(V0),has_purchase(V1).', 'premium(V0) :- active(V0),minor(V0).']
+Evolutionary cycle 0 - Time 1.8832683563232422
+Current best with score: 202.21439674636756
+--------------------------
+eligible(V0) :- V1>V0,adult(V0),has_purchase(V1).
+--------------------------
+Sampling loop: 1
+Sampling clauses
+Sampled 187 different clauses in 0.031215667724609375 seconds
+Sampled clauses:
+0)  :- _____!=_____,_____>_____.
+1)  :- _____!=_____,_____>_____.
+2) premium(_____) :- _____>_____.
+3)  :- _____!=_____,minor(_____).
+4)  :- adult(_____),minor(_____).
+5)  :- _____>_____,active(_____).
+6)  :- active(_____),minor(_____).
+7) eligible(_____) :- _____>_____.
+8) premium(_____) :- minor(_____).
+9) premium(_____) :- _____>=_____.
+10)  :- _____!=_____,active(_____).
+11) premium(_____) :- _____!=_____.
+12) premium(_____) :- active(_____).
+13) eligible(_____) :- _____!=_____.
+14) eligible(_____) :- adult(_____).
+15)  :- _____!=_____,premium(_____).
+16)  :- _____>=_____,premium(_____).
+17) eligible(_____) :- _____>=_____.
+18) eligible(_____) :- minor(_____).
+19)  :- adult(_____),premium(_____).
+20)  :- _____!=_____,blocked(_____).
+21) premium(_____) :- premium(_____).
+22)  :- _____>=_____,customer(_____).
+23)  :- active(_____),premium(_____).
+24) premium(_____) :- blocked(_____).
+25) eligible(_____) :- active(_____).
+26)  :- customer(_____),minor(_____).
+27) premium(_____) :- premium(_____).
+28) eligible(_____) :- premium(_____).
+29)  :- _____-_____=_____,_____>_____.
+30) eligible(_____) :- blocked(_____).
+31) premium(_____) :- customer(_____).
+32)  :- _____!=_____,not minor(_____).
+33) eligible(_____) :- customer(_____).
+34)  :- _____-_____=_____,_____>=_____.
+35)  :- _____!=_____,_____+_____=_____.
+36)  :- _____-_____=_____,adult(_____).
+37)  :- _____+_____=_____,_____>=_____.
+38) premium(_____) :- _____-_____=_____.
+39)  :- _____>=_____,not blocked(_____).
+40) premium(_____) :- _____+_____=_____.
+41)  :- _____>_____,__lt__(_____,_____).
+42)  :- _____!=_____,__lt__(_____,_____).
+43)  :- adult(_____),has_purchase(_____).
+44)  :- _____!=_____,has_purchase(_____).
+45)  :- _____>=_____,__lt__(_____,_____).
+46)  :- customer(_____),not minor(_____).
+47) eligible(_____) :- _____+_____=_____.
+48)  :- _____+_____=_____,premium(_____).
+49) eligible(_____) :- _____-_____=_____.
+50)  :- _____-_____=_____,premium(_____).
+51) premium(_____) :- has_purchase(_____).
+52) premium(_____) :- __lt__(_____,_____).
+53)  :- _____>_____,purchase(_____,_____).
+54) eligible(_____) :- not premium(_____).
+55)  :- __lt__(_____,_____),active(_____).
+56) eligible(_____) :- not blocked(_____).
+57) eligible(_____) :- __lt__(_____,_____).
+58) eligible(_____) :- has_purchase(_____).
+59)  :- customer(_____),has_purchase(_____).
+60) premium(_____) :- purchase(_____,_____).
+61)  :- not blocked(_____),not minor(_____).
+62)  :- active(_____),purchase(_____,_____).
+63) eligible(_____) :- purchase(_____,_____).
+64)  :- premium(_____),purchase(_____,_____).
+65)  :- __lt__(_____,_____),not blocked(_____).
+66)  :- __lt__(_____,_____),not premium(_____).
+67)  :- has_purchase(_____),not blocked(_____).
+68)  :- _____-_____=_____,purchase(_____,_____).
+69) premium(_____) :- _____>_____,active(_____).
+70) eligible(_____) :- _____!=_____,_____>_____.
+71) eligible(_____) :- _____!=_____,_____>=_____.
+72) premium(_____) :- _____!=_____,active(_____).
+73)  :- not premium(_____),purchase(_____,_____).
+74)  :- _____>=_____,blocked(_____),minor(_____).
+75) premium(_____) :- _____!=_____,not minor(_____).
+76)  :- _____!=_____,_____+_____=_____,_____>=_____.
+77) eligible(_____) :- adult(_____),customer(_____).
+78) eligible(_____) :- customer(_____),minor(_____).
+79)  :- _____-_____=_____,_____>=_____,adult(_____).
+80)  :- _____>=_____,active(_____),not minor(_____).
+81) premium(_____) :- active(_____),customer(_____).
+82)  :- customer(_____),minor(_____),premium(_____).
+83) premium(_____) :- _____-_____=_____,minor(_____).
+84)  :- _____+_____=_____,active(_____),minor(_____).
+85) eligible(_____) :- customer(_____),premium(_____).
+86) eligible(_____) :- _____+_____=_____,adult(_____).
+87) premium(_____) :- _____+_____=_____,premium(_____).
+88)  :- __lt__(_____,_____),active(_____),adult(_____).
+89) premium(_____) :- _____>=_____,has_purchase(_____).
+90) eligible(_____) :- _____>_____,has_purchase(_____).
+91) premium(_____) :- _____+_____=_____,customer(_____).
+92)  :- has_purchase(_____),minor(_____),premium(_____).
+93) premium(_____) :- __lt__(_____,_____),active(_____).
+94) eligible(_____) :- _____>=_____,has_purchase(_____).
+95)  :- _____>=_____,blocked(_____),has_purchase(_____).
+96)  :- _____!=_____,active(_____),purchase(_____,_____).
+97)  :- _____-_____=_____,active(_____),not minor(_____).
+98) premium(_____) :- customer(_____),not premium(_____).
+99)  :- _____>_____,blocked(_____),purchase(_____,_____).
+100) premium(_____) :- __lt__(_____,_____),premium(_____).
+101)  :- _____+_____=_____,_____-_____=_____,minor(_____).
+102)  :- _____-_____=_____,_____>_____,not premium(_____).
+103) premium(_____) :- active(_____),purchase(_____,_____).
+104)  :- minor(_____),premium(_____),purchase(_____,_____).
+105)  :- _____+_____=_____,_____>=_____,__lt__(_____,_____).
+106)  :- _____-_____=_____,active(_____),not premium(_____).
+107)  :- _____-_____=_____,_____>=_____,has_purchase(_____).
+108) eligible(_____) :- active(_____),purchase(_____,_____).
+109) premium(_____) :- _____>=_____,_____>_____,adult(_____).
+110)  :- has_purchase(_____),minor(_____),not premium(_____).
+111)  :- has_purchase(_____),minor(_____),not blocked(_____).
+112) premium(_____) :- _____>_____,minor(_____),minor(_____).
+113) eligible(_____) :- _____-_____=_____,__lt__(_____,_____).
+114)  :- _____-_____=_____,customer(_____),not premium(_____).
+115)  :- _____>=_____,_____>_____,blocked(_____),minor(_____).
+116) premium(_____) :- _____!=_____,_____>=_____,minor(_____).
+117)  :- _____>=_____,__lt__(_____,_____),has_purchase(_____).
+118) eligible(_____) :- _____>=_____,adult(_____),minor(_____).
+119) eligible(_____) :- __lt__(_____,_____),not blocked(_____).
+120)  :- adult(_____),not premium(_____),purchase(_____,_____).
+121) eligible(_____) :- has_purchase(_____),not premium(_____).
+122)  :- adult(_____),minor(_____),minor(_____),premium(_____).
+123) eligible(_____) :- _____>_____,blocked(_____),minor(_____).
+124) premium(_____) :- not premium(_____),purchase(_____,_____).
+125) eligible(_____) :- _____+_____=_____,purchase(_____,_____).
+126)  :- _____>_____,minor(_____),premium(_____),premium(_____).
+127) eligible(_____) :- _____>_____,adult(_____),premium(_____).
+128)  :- adult(_____),customer(_____),minor(_____),minor(_____).
+129) premium(_____) :- _____>=_____,adult(_____),premium(_____).
+130) premium(_____) :- has_purchase(_____),purchase(_____,_____).
+131)  :- _____>_____,active(_____),minor(_____),not minor(_____).
+132) premium(_____) :- _____>=_____,active(_____),blocked(_____).
+133)  :- _____!=_____,adult(_____),premium(_____),premium(_____).
+134) eligible(_____) :- has_purchase(_____),purchase(_____,_____).
+135) premium(_____) :- _____-_____=_____,_____>=_____,_____>_____.
+136)  :- _____-_____=_____,__lt__(_____,_____),not premium(_____).
+137)  :- _____!=_____,_____-_____=_____,minor(_____),minor(_____).
+138) premium(_____) :- _____>_____,adult(_____),not blocked(_____).
+139) premium(_____) :- _____>=_____,customer(_____),premium(_____).
+140)  :- premium(_____),purchase(_____,_____),purchase(_____,_____).
+141)  :- _____-_____=_____,_____>=_____,_____>_____,customer(_____).
+142)  :- active(_____),blocked(_____),premium(_____),premium(_____).
+143)  :- active(_____),minor(_____),not minor(_____),premium(_____).
+144)  :- _____+_____=_____,_____>_____,adult(_____),customer(_____).
+145)  :- _____>_____,active(_____),not premium(_____),premium(_____).
+146)  :- _____-_____=_____,__lt__(_____,_____),purchase(_____,_____).
+147) premium(_____) :- _____+_____=_____,_____>=_____,blocked(_____).
+148) premium(_____) :- _____+_____=_____,_____>_____,customer(_____).
+149)  :- _____+_____=_____,_____-_____=_____,_____>=_____,minor(_____).
+150) eligible(_____) :- _____>_____,minor(_____),purchase(_____,_____).
+151)  :- active(_____),has_purchase(_____),minor(_____),premium(_____).
+152)  :- _____-_____=_____,active(_____),minor(_____),not blocked(_____).
+153)  :- active(_____),customer(_____),not blocked(_____),premium(_____).
+154)  :- _____!=_____,customer(_____),minor(_____),purchase(_____,_____).
+155)  :- _____>_____,__lt__(_____,_____),active(_____),not blocked(_____).
+156)  :- _____-_____=_____,blocked(_____),has_purchase(_____),minor(_____).
+157) premium(_____) :- __lt__(_____,_____),adult(_____),not blocked(_____).
+158) eligible(_____) :- _____!=_____,not blocked(_____),not premium(_____).
+159)  :- _____>=_____,__lt__(_____,_____),has_purchase(_____),minor(_____).
+160)  :- _____+_____=_____,__lt__(_____,_____),active(_____),premium(_____).
+161) premium(_____) :- _____-_____=_____,minor(_____),purchase(_____,_____).
+162) premium(_____) :- blocked(_____),customer(_____),purchase(_____,_____).
+163)  :- _____-_____=_____,adult(_____),not minor(_____),not premium(_____).
+164)  :- _____>=_____,__lt__(_____,_____),not blocked(_____),premium(_____).
+165) eligible(_____) :- _____+_____=_____,__lt__(_____,_____),active(_____).
+166) eligible(_____) :- _____+_____=_____,customer(_____),not premium(_____).
+167)  :- _____+_____=_____,adult(_____),has_purchase(_____),not minor(_____).
+168) premium(_____) :- _____>=_____,not premium(_____),purchase(_____,_____).
+169)  :- __lt__(_____,_____),active(_____),minor(_____),purchase(_____,_____).
+170)  :- adult(_____),blocked(_____),not premium(_____),purchase(_____,_____).
+171)  :- _____-_____=_____,_____>_____,has_purchase(_____),not blocked(_____).
+172) eligible(_____) :- _____-_____=_____,__lt__(_____,_____),customer(_____).
+173) premium(_____) :- _____-_____=_____,premium(_____),purchase(_____,_____).
+174)  :- active(_____),adult(_____),has_purchase(_____),purchase(_____,_____).
+175)  :- _____-_____=_____,has_purchase(_____),minor(_____),not blocked(_____).
+176)  :- _____>=_____,has_purchase(_____),premium(_____),purchase(_____,_____).
+177)  :- _____-_____=_____,__lt__(_____,_____),adult(_____),not premium(_____).
+178)  :- _____-_____=_____,blocked(_____),customer(_____),purchase(_____,_____).
+179) premium(_____) :- _____-_____=_____,__lt__(_____,_____),not premium(_____).
+180)  :- adult(_____),not minor(_____),not premium(_____),purchase(_____,_____).
+181)  :- _____+_____=_____,_____-_____=_____,premium(_____),purchase(_____,_____).
+182) premium(_____) :- _____+_____=_____,__lt__(_____,_____),purchase(_____,_____).
+183)  :- active(_____),not minor(_____),purchase(_____,_____),purchase(_____,_____).
+184)  :- _____+_____=_____,__lt__(_____,_____),premium(_____),purchase(_____,_____).
+185)  :- _____-_____=_____,premium(_____),purchase(_____,_____),purchase(_____,_____).
+186) eligible(_____) :- has_purchase(_____),purchase(_____,_____),purchase(_____,_____).
+(0/186) Placing variables for  :- _____!=_____,_____>_____.
+No possible placements.
+(1/186) Placing variables for  :- _____!=_____,_____>_____.
+No possible placements.
+(2/186) Placing variables for premium(_____) :- _____>_____.
+No possible placements.
+(3/186) Placing variables for  :- _____!=_____,minor(_____).
+No possible placements.
+(4/186) Placing variables for  :- adult(_____),minor(_____).
+Generated 1 clauses
+(5/186) Placing variables for  :- _____>_____,active(_____).
+No possible placements.
+(6/186) Placing variables for  :- active(_____),minor(_____).
+Generated 1 clauses
+(7/186) Placing variables for eligible(_____) :- _____>_____.
+No possible placements.
+(8/186) Placing variables for premium(_____) :- minor(_____).
+Generated 1 clauses
+(9/186) Placing variables for premium(_____) :- _____>=_____.
+No possible placements.
+(10/186) Placing variables for  :- _____!=_____,active(_____).
+No possible placements.
+(11/186) Placing variables for premium(_____) :- _____!=_____.
+No possible placements.
+(12/186) Placing variables for premium(_____) :- active(_____).
+Generated 1 clauses
+(13/186) Placing variables for eligible(_____) :- _____!=_____.
+No possible placements.
+(14/186) Placing variables for eligible(_____) :- adult(_____).
+Generated 1 clauses
+(15/186) Placing variables for  :- _____!=_____,premium(_____).
+No possible placements.
+(16/186) Placing variables for  :- _____>=_____,premium(_____).
+No possible placements.
+(17/186) Placing variables for eligible(_____) :- _____>=_____.
+No possible placements.
+(18/186) Placing variables for eligible(_____) :- minor(_____).
+Generated 1 clauses
+(19/186) Placing variables for  :- adult(_____),premium(_____).
+Generated 1 clauses
+(20/186) Placing variables for  :- _____!=_____,blocked(_____).
+No possible placements.
+(21/186) Placing variables for premium(_____) :- premium(_____).
+No possible placements.
+(22/186) Placing variables for  :- _____>=_____,customer(_____).
+No possible placements.
+(23/186) Placing variables for  :- active(_____),premium(_____).
+Generated 1 clauses
+(24/186) Placing variables for premium(_____) :- blocked(_____).
+Generated 1 clauses
+(25/186) Placing variables for eligible(_____) :- active(_____).
+Generated 1 clauses
+(26/186) Placing variables for  :- customer(_____),minor(_____).
+Generated 1 clauses
+(27/186) Placing variables for premium(_____) :- premium(_____).
+No possible placements.
+(28/186) Placing variables for eligible(_____) :- premium(_____).
+Generated 1 clauses
+(29/186) Placing variables for  :- _____-_____=_____,_____>_____.
+No possible placements.
+(30/186) Placing variables for eligible(_____) :- blocked(_____).
+Generated 1 clauses
+(31/186) Placing variables for premium(_____) :- customer(_____).
+Generated 1 clauses
+(32/186) Placing variables for  :- _____!=_____,not minor(_____).
+No possible placements.
+(33/186) Placing variables for eligible(_____) :- customer(_____).
+Generated 1 clauses
+(34/186) Placing variables for  :- _____-_____=_____,_____>=_____.
+No possible placements.
+(35/186) Placing variables for  :- _____!=_____,_____+_____=_____.
+No possible placements.
+(36/186) Placing variables for  :- _____-_____=_____,adult(_____).
+No possible placements.
+(37/186) Placing variables for  :- _____+_____=_____,_____>=_____.
+No possible placements.
+(38/186) Placing variables for premium(_____) :- _____-_____=_____.
+No possible placements.
+(39/186) Placing variables for  :- _____>=_____,not blocked(_____).
+No possible placements.
+(40/186) Placing variables for premium(_____) :- _____+_____=_____.
+No possible placements.
+(41/186) Placing variables for  :- _____>_____,__lt__(_____,_____).
+Generated 2 clauses
+(42/186) Placing variables for  :- _____!=_____,__lt__(_____,_____).
+Generated 2 clauses
+(43/186) Placing variables for  :- adult(_____),has_purchase(_____).
+Generated 1 clauses
+(44/186) Placing variables for  :- _____!=_____,has_purchase(_____).
+No possible placements.
+(45/186) Placing variables for  :- _____>=_____,__lt__(_____,_____).
+Generated 2 clauses
+(46/186) Placing variables for  :- customer(_____),not minor(_____).
+Generated 1 clauses
+(47/186) Placing variables for eligible(_____) :- _____+_____=_____.
+No possible placements.
+(48/186) Placing variables for  :- _____+_____=_____,premium(_____).
+No possible placements.
+(49/186) Placing variables for eligible(_____) :- _____-_____=_____.
+No possible placements.
+(50/186) Placing variables for  :- _____-_____=_____,premium(_____).
+No possible placements.
+(51/186) Placing variables for premium(_____) :- has_purchase(_____).
+Generated 1 clauses
+(52/186) Placing variables for premium(_____) :- __lt__(_____,_____).
+Generated 1 clauses
+(53/186) Placing variables for  :- _____>_____,purchase(_____,_____).
+Generated 2 clauses
+(54/186) Placing variables for eligible(_____) :- not premium(_____).
+Generated 0 clauses
+(55/186) Placing variables for  :- __lt__(_____,_____),active(_____).
+Generated 1 clauses
+(56/186) Placing variables for eligible(_____) :- not blocked(_____).
+Generated 0 clauses
+(57/186) Placing variables for eligible(_____) :- __lt__(_____,_____).
+Generated 1 clauses
+(58/186) Placing variables for eligible(_____) :- has_purchase(_____).
+Generated 1 clauses
+(59/186) Placing variables for  :- customer(_____),has_purchase(_____).
+Generated 1 clauses
+(60/186) Placing variables for premium(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(61/186) Placing variables for  :- not blocked(_____),not minor(_____).
+Generated 0 clauses
+(62/186) Placing variables for  :- active(_____),purchase(_____,_____).
+Generated 1 clauses
+(63/186) Placing variables for eligible(_____) :- purchase(_____,_____).
+Generated 1 clauses
+(64/186) Placing variables for  :- premium(_____),purchase(_____,_____).
+Generated 1 clauses
+(65/186) Placing variables for  :- __lt__(_____,_____),not blocked(_____).
+Generated 1 clauses
+(66/186) Placing variables for  :- __lt__(_____,_____),not premium(_____).
+Generated 1 clauses
+(67/186) Placing variables for  :- has_purchase(_____),not blocked(_____).
+Generated 1 clauses
+(68/186) Placing variables for  :- _____-_____=_____,purchase(_____,_____).
+Generated 2 clauses
+(69/186) Placing variables for premium(_____) :- _____>_____,active(_____).
+No possible placements.
+(70/186) Placing variables for eligible(_____) :- _____!=_____,_____>_____.
+No possible placements.
+(71/186) Placing variables for eligible(_____) :- _____!=_____,_____>=_____.
+No possible placements.
+(72/186) Placing variables for premium(_____) :- _____!=_____,active(_____).
+No possible placements.
+(73/186) Placing variables for  :- not premium(_____),purchase(_____,_____).
+Generated 1 clauses
+(74/186) Placing variables for  :- _____>=_____,blocked(_____),minor(_____).
+Generated 2 clauses
+(75/186) Placing variables for premium(_____) :- _____!=_____,not minor(_____).
+No possible placements.
+(76/186) Placing variables for  :- _____!=_____,_____+_____=_____,_____>=_____.
+No possible placements.
+(77/186) Placing variables for eligible(_____) :- adult(_____),customer(_____).
+Generated 1 clauses
+(78/186) Placing variables for eligible(_____) :- customer(_____),minor(_____).
+Generated 1 clauses
+(79/186) Placing variables for  :- _____-_____=_____,_____>=_____,adult(_____).
+Generated 2 clauses
+(80/186) Placing variables for  :- _____>=_____,active(_____),not minor(_____).
+Generated 0 clauses
+(81/186) Placing variables for premium(_____) :- active(_____),customer(_____).
+Generated 1 clauses
+(82/186) Placing variables for  :- customer(_____),minor(_____),premium(_____).
+Generated 1 clauses
+(83/186) Placing variables for premium(_____) :- _____-_____=_____,minor(_____).
+Generated 1 clauses
+(84/186) Placing variables for  :- _____+_____=_____,active(_____),minor(_____).
+Generated 2 clauses
+(85/186) Placing variables for eligible(_____) :- customer(_____),premium(_____).
+Generated 1 clauses
+(86/186) Placing variables for eligible(_____) :- _____+_____=_____,adult(_____).
+Generated 1 clauses
+(87/186) Placing variables for premium(_____) :- _____+_____=_____,premium(_____).
+Generated 1 clauses
+(88/186) Placing variables for  :- __lt__(_____,_____),active(_____),adult(_____).
+Generated 4 clauses
+(89/186) Placing variables for premium(_____) :- _____>=_____,has_purchase(_____).
+No possible placements.
+(90/186) Placing variables for eligible(_____) :- _____>_____,has_purchase(_____).
+No possible placements.
+(91/186) Placing variables for premium(_____) :- _____+_____=_____,customer(_____).
+Generated 1 clauses
+(92/186) Placing variables for  :- has_purchase(_____),minor(_____),premium(_____).
+Generated 1 clauses
+(93/186) Placing variables for premium(_____) :- __lt__(_____,_____),active(_____).
+Generated 4 clauses
+(94/186) Placing variables for eligible(_____) :- _____>=_____,has_purchase(_____).
+No possible placements.
+(95/186) Placing variables for  :- _____>=_____,blocked(_____),has_purchase(_____).
+Generated 2 clauses
+(96/186) Placing variables for  :- _____!=_____,active(_____),purchase(_____,_____).
+Generated 6 clauses
+(97/186) Placing variables for  :- _____-_____=_____,active(_____),not minor(_____).
+Generated 1 clauses
+(98/186) Placing variables for premium(_____) :- customer(_____),not premium(_____).
+Generated 1 clauses
+(99/186) Placing variables for  :- _____>_____,blocked(_____),purchase(_____,_____).
+Generated 6 clauses
+(100/186) Placing variables for premium(_____) :- __lt__(_____,_____),premium(_____).
+Generated 2 clauses
+(101/186) Placing variables for  :- _____+_____=_____,_____-_____=_____,minor(_____).
+No possible placements.
+(102/186) Placing variables for  :- _____-_____=_____,_____>_____,not premium(_____).
+Generated 0 clauses
+(103/186) Placing variables for premium(_____) :- active(_____),purchase(_____,_____).
+Generated 4 clauses
+(104/186) Placing variables for  :- minor(_____),premium(_____),purchase(_____,_____).
+Generated 4 clauses
+(105/186) Placing variables for  :- _____+_____=_____,_____>=_____,__lt__(_____,_____).
+Generated 30 clauses
+(106/186) Placing variables for  :- _____-_____=_____,active(_____),not premium(_____).
+Generated 1 clauses
+(107/186) Placing variables for  :- _____-_____=_____,_____>=_____,has_purchase(_____).
+Generated 2 clauses
+(108/186) Placing variables for eligible(_____) :- active(_____),purchase(_____,_____).
+Generated 4 clauses
+(109/186) Placing variables for premium(_____) :- _____>=_____,_____>_____,adult(_____).
+No possible placements.
+(110/186) Placing variables for  :- has_purchase(_____),minor(_____),not premium(_____).
+Generated 1 clauses
+(111/186) Placing variables for  :- has_purchase(_____),minor(_____),not blocked(_____).
+Generated 1 clauses
+(112/186) Placing variables for premium(_____) :- _____>_____,minor(_____),minor(_____).
+Generated 4 clauses
+(113/186) Placing variables for eligible(_____) :- _____-_____=_____,__lt__(_____,_____).
+Generated 9 clauses
+(114/186) Placing variables for  :- _____-_____=_____,customer(_____),not premium(_____).
+Generated 1 clauses
+(115/186) Placing variables for  :- _____>=_____,_____>_____,blocked(_____),minor(_____).
+Generated 4 clauses
+(116/186) Placing variables for premium(_____) :- _____!=_____,_____>=_____,minor(_____).
+No possible placements.
+(117/186) Placing variables for  :- _____>=_____,__lt__(_____,_____),has_purchase(_____).
+Generated 6 clauses
+(118/186) Placing variables for eligible(_____) :- _____>=_____,adult(_____),minor(_____).
+Generated 4 clauses
+(119/186) Placing variables for eligible(_____) :- __lt__(_____,_____),not blocked(_____).
+Generated 3 clauses
+(120/186) Placing variables for  :- adult(_____),not premium(_____),purchase(_____,_____).
+Generated 4 clauses
+(121/186) Placing variables for eligible(_____) :- has_purchase(_____),not premium(_____).
+Generated 1 clauses
+(122/186) Placing variables for  :- adult(_____),minor(_____),minor(_____),premium(_____).
+Generated 2 clauses
+(123/186) Placing variables for eligible(_____) :- _____>_____,blocked(_____),minor(_____).
+Generated 4 clauses
+(124/186) Placing variables for premium(_____) :- not premium(_____),purchase(_____,_____).
+Generated 3 clauses
+(125/186) Placing variables for eligible(_____) :- _____+_____=_____,purchase(_____,_____).
+Generated 9 clauses
+(126/186) Placing variables for  :- _____>_____,minor(_____),premium(_____),premium(_____).
+Generated 4 clauses
+(127/186) Placing variables for eligible(_____) :- _____>_____,adult(_____),premium(_____).
+Generated 4 clauses
+(128/186) Placing variables for  :- adult(_____),customer(_____),minor(_____),minor(_____).
+Generated 2 clauses
+(129/186) Placing variables for premium(_____) :- _____>=_____,adult(_____),premium(_____).
+Generated 2 clauses
+(130/186) Placing variables for premium(_____) :- has_purchase(_____),purchase(_____,_____).
+Generated 4 clauses
+(131/186) Placing variables for  :- _____>_____,active(_____),minor(_____),not minor(_____).
+Generated 4 clauses
+(132/186) Placing variables for premium(_____) :- _____>=_____,active(_____),blocked(_____).
+Generated 4 clauses
+(133/186) Placing variables for  :- _____!=_____,adult(_____),premium(_____),premium(_____).
+Generated 4 clauses
+(134/186) Placing variables for eligible(_____) :- has_purchase(_____),purchase(_____,_____).
+Generated 4 clauses
+(135/186) Placing variables for premium(_____) :- _____-_____=_____,_____>=_____,_____>_____.
+Generated 2 clauses
+(136/186) Placing variables for  :- _____-_____=_____,__lt__(_____,_____),not premium(_____).
+Generated 9 clauses
+(137/186) Placing variables for  :- _____!=_____,_____-_____=_____,minor(_____),minor(_____).
+Generated 28 clauses
+(138/186) Placing variables for premium(_____) :- _____>_____,adult(_____),not blocked(_____).
+Generated 0 clauses
+(139/186) Placing variables for premium(_____) :- _____>=_____,customer(_____),premium(_____).
+Generated 2 clauses
+(140/186) Placing variables for  :- premium(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 8 clauses
+(141/186) Placing variables for  :- _____-_____=_____,_____>=_____,_____>_____,customer(_____).
+Generated 6 clauses
+(142/186) Placing variables for  :- active(_____),blocked(_____),premium(_____),premium(_____).
+Generated 2 clauses
+(143/186) Placing variables for  :- active(_____),minor(_____),not minor(_____),premium(_____).
+Generated 4 clauses
+(144/186) Placing variables for  :- _____+_____=_____,_____>_____,adult(_____),customer(_____).
+Generated 30 clauses
+(145/186) Placing variables for  :- _____>_____,active(_____),not premium(_____),premium(_____).
+Generated 4 clauses
+(146/186) Placing variables for  :- _____-_____=_____,__lt__(_____,_____),purchase(_____,_____).
+Generated 110 clauses
+(147/186) Placing variables for premium(_____) :- _____+_____=_____,_____>=_____,blocked(_____).
+Generated 4 clauses
+(148/186) Placing variables for premium(_____) :- _____+_____=_____,_____>_____,customer(_____).
+Generated 4 clauses
+(149/186) Placing variables for  :- _____+_____=_____,_____-_____=_____,_____>=_____,minor(_____).
+Generated 48 clauses
+(150/186) Placing variables for eligible(_____) :- _____>_____,minor(_____),purchase(_____,_____).
+Generated 24 clauses
+(151/186) Placing variables for  :- active(_____),has_purchase(_____),minor(_____),premium(_____).
+Generated 4 clauses
+(152/186) Placing variables for  :- _____-_____=_____,active(_____),minor(_____),not blocked(_____).
+Generated 9 clauses
+(153/186) Placing variables for  :- active(_____),customer(_____),not blocked(_____),premium(_____).
+Generated 4 clauses
+(154/186) Placing variables for  :- _____!=_____,customer(_____),minor(_____),purchase(_____,_____).
+Generated 38 clauses
+(155/186) Placing variables for  :- _____>_____,__lt__(_____,_____),active(_____),not blocked(_____).
+Generated 24 clauses
+(156/186) Placing variables for  :- _____-_____=_____,blocked(_____),has_purchase(_____),minor(_____).
+Generated 18 clauses
+(157/186) Placing variables for premium(_____) :- __lt__(_____,_____),adult(_____),not blocked(_____).
+Generated 10 clauses
+(158/186) Placing variables for eligible(_____) :- _____!=_____,not blocked(_____),not premium(_____).
+Generated 0 clauses
+(159/186) Placing variables for  :- _____>=_____,__lt__(_____,_____),has_purchase(_____),minor(_____).
+Generated 38 clauses
+(160/186) Placing variables for  :- _____+_____=_____,__lt__(_____,_____),active(_____),premium(_____).
+Generated 110 clauses
+(161/186) Placing variables for premium(_____) :- _____-_____=_____,minor(_____),purchase(_____,_____).
+Generated 79 clauses
+(162/186) Placing variables for premium(_____) :- blocked(_____),customer(_____),purchase(_____,_____).
+Generated 11 clauses
+(163/186) Placing variables for  :- _____-_____=_____,adult(_____),not minor(_____),not premium(_____).
+Generated 3 clauses
+(164/186) Placing variables for  :- _____>=_____,__lt__(_____,_____),not blocked(_____),premium(_____).
+Generated 24 clauses
+(165/186) Placing variables for eligible(_____) :- _____+_____=_____,__lt__(_____,_____),active(_____).
+Generated 79 clauses
+(166/186) Placing variables for eligible(_____) :- _____+_____=_____,customer(_____),not premium(_____).
+Generated 3 clauses
+(167/186) Placing variables for  :- _____+_____=_____,adult(_____),has_purchase(_____),not minor(_____).
+Generated 9 clauses
+(168/186) Placing variables for premium(_____) :- _____>=_____,not premium(_____),purchase(_____,_____).
+Generated 8 clauses
+(169/186) Placing variables for  :- __lt__(_____,_____),active(_____),minor(_____),purchase(_____,_____).
+Generated 56 clauses
+(170/186) Placing variables for  :- adult(_____),blocked(_____),not premium(_____),purchase(_____,_____).
+Generated 11 clauses
+(171/186) Placing variables for  :- _____-_____=_____,_____>_____,has_purchase(_____),not blocked(_____).
+Generated 4 clauses
+(172/186) Placing variables for eligible(_____) :- _____-_____=_____,__lt__(_____,_____),customer(_____).
+Generated 79 clauses
+(173/186) Placing variables for premium(_____) :- _____-_____=_____,premium(_____),purchase(_____,_____).
+Generated 57 clauses
+(174/186) Placing variables for  :- active(_____),adult(_____),has_purchase(_____),purchase(_____,_____).
+Generated 11 clauses
+(175/186) Placing variables for  :- _____-_____=_____,has_purchase(_____),minor(_____),not blocked(_____).
+Generated 9 clauses
+(176/186) Placing variables for  :- _____>=_____,has_purchase(_____),premium(_____),purchase(_____,_____).
+Generated 38 clauses
+(177/186) Placing variables for  :- _____-_____=_____,__lt__(_____,_____),adult(_____),not premium(_____).
+Generated 79 clauses
+(178/186) Placing variables for  :- _____-_____=_____,blocked(_____),customer(_____),purchase(_____,_____).
+Generated 110 clauses
+(179/186) Placing variables for premium(_____) :- _____-_____=_____,__lt__(_____,_____),not premium(_____).
+Generated 39 clauses
+(180/186) Placing variables for  :- adult(_____),not minor(_____),not premium(_____),purchase(_____,_____).
+Generated 10 clauses
+(181/186) Placing variables for  :- _____+_____=_____,_____-_____=_____,premium(_____),purchase(_____,_____).
+Generated 276 clauses
+(182/186) Placing variables for premium(_____) :- _____+_____=_____,__lt__(_____,_____),purchase(_____,_____).
+Generated 629 clauses
+(183/186) Placing variables for  :- active(_____),not minor(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+(184/186) Placing variables for  :- _____+_____=_____,__lt__(_____,_____),premium(_____),purchase(_____,_____).
+Generated 850 clauses
+(185/186) Placing variables for  :- _____-_____=_____,premium(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 824 clauses
+(186/186) Placing variables for eligible(_____) :- has_purchase(_____),purchase(_____,_____),purchase(_____,_____).
+Generated 48 clauses
+Placed variables in 1.529839038848877 seconds
+Total clauses stub: 137
+Total number of possible clauses: 4150
+Running for 300 iterations
+Iteration 0 - taken for 100: 2.1457672119140625e-06 - best: Program: [' :- V0-V0=V1,premium(V2),purchase(V0,V1),purchase(V2,V1).', ' :- active(V0),not minor(V1),purchase(V1,V2),purchase(V2,V0).', ' :- adult(V0),customer(V1),minor(V0),minor(V1).', 'eligible(V0) :- V1>V0,adult(V0),premium(V1).', 'premium(V0) :- has_purchase(V1),purchase(V1,V0).'] - score: 1.0
+Iteration 100 - taken for 100: 0.5780184268951416 - best: Program: [' :- V0>V1,minor(V0),premium(V1),premium(V0).', ' :- active(V0),not minor(V1),purchase(V1,V2),purchase(V2,V0).', ' :- adult(V0),blocked(V0),not premium(V1),purchase(V0,V1).', 'eligible(V0) :- V1>V0,adult(V0),premium(V1).', 'premium(V0) :- blocked(V0).'] - score: 745.9894967604321
+Iteration 200 - taken for 100: 0.5631923675537109 - best: Program: ['premium(V0) :- blocked(V0).', 'eligible(V0) :- active(V1),purchase(V1,V0).', ' :- active(V0),minor(V0).', 'eligible(V0) :- V1>V0,adult(V0),premium(V1).', 'premium(V0) :- blocked(V0).'] - score: 1118.484245140648
+Iteration 300 - taken for 100: 0.6548984050750732 - best: Program: ['premium(V0) :- blocked(V0).', ' :- adult(V0),not minor(V0),not premium(V1),purchase(V0,V1).', 'premium(V0) :- V1-V1=V0,V1>=V0,V0>V1.', 'eligible(V0) :- V1>V0,adult(V0),premium(V1).', 'premium(V0) :- blocked(V0).'] - score: 1118.484245140648
+Iterations completed
+['premium(V0) :- blocked(V0).', 'premium(V0) :- active(V0),purchase(V0,V0).', ' :- V0+V0=V2,V2-V2=V1,premium(V1),purchase(V2,V0).', 'eligible(V0) :- V1>V0,adult(V0),premium(V1).', 'premium(V0) :- blocked(V0).']
+['premium(V0) :- blocked(V0).', 'eligible(V0) :- active(V1),purchase(V1,V0).', ' :- adult(V0),has_purchase(V0).', 'eligible(V0) :- V1>V0,adult(V0),premium(V1).', 'premium(V0) :- blocked(V0).']
+['premium(V0) :- blocked(V0).', 'premium(V0) :- active(V0),purchase(V0,V0).', ' :- premium(V0),purchase(V1,V1),purchase(V0,V1).', 'eligible(V0) :- V1>V0,adult(V0),premium(V1).', 'premium(V0) :- blocked(V0).']
+['premium(V0) :- blocked(V0).', ' :- has_purchase(V0),minor(V0),not blocked(V0).', ' :- premium(V0),purchase(V1,V1),purchase(V0,V1).', 'eligible(V0) :- V1>V0,adult(V0),premium(V1).', 'premium(V0) :- blocked(V0).']
+['premium(V0) :- blocked(V0).', 'premium(V0) :- V2-V1=V0,premium(V2),purchase(V1,V2).', 'premium(V0) :- V1-V1=V0,V1>=V0,V0>V1.', 'eligible(V0) :- V1>V0,adult(V0),premium(V1).', 'premium(V0) :- blocked(V0).']
+Evolutionary cycle 1 - Time 1.8740944862365723
+Current best with score: 1118.484245140648
+--------------------------
+eligible(V0) :- V1>V0,adult(V0),premium(V1).
+premium(V0) :- blocked(V0).
+--------------------------
+Total time: 7.3967485427856445

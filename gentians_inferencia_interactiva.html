@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GENTIANS | Inferencia de reglas</title>
+  <style>
+    :root {
+      --paper: #f6f4ee;
+      --ink: #171713;
+      --muted: #69665e;
+      --line: #d9d2c3;
+      --soft: #ebe6da;
+      --accent: #0e7c66;
+      --accent-2: #ba3b31;
+      --accent-3: #2f5597;
+      --code: #202018;
+      --code-ink: #e9e4d8;
+      --ok: #18794e;
+      --bad: #aa2e25;
+      --warn: #9a6a00;
+      --shadow: 0 18px 55px rgba(29, 25, 15, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(23,23,19,.035) 1px, transparent 1px) 0 0 / 42px 42px,
+        linear-gradient(0deg, rgba(23,23,19,.03) 1px, transparent 1px) 0 0 / 42px 42px,
+        var(--paper);
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    header {
+      min-height: 72vh;
+      display: grid;
+      align-items: end;
+      padding: 44px clamp(20px, 5vw, 72px) 36px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kicker {
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      max-width: 980px;
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(48px, 8vw, 112px);
+      line-height: .91;
+      letter-spacing: 0;
+      font-weight: 500;
+    }
+
+    .lede {
+      max-width: 760px;
+      margin: 26px 0 0;
+      color: var(--muted);
+      font-size: clamp(18px, 2.1vw, 25px);
+      line-height: 1.38;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px clamp(20px, 5vw, 72px);
+      background: rgba(246, 244, 238, .88);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    nav a, button, select {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      background: #fffaf0;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font: inherit;
+    }
+
+    nav a {
+      text-decoration: none;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); border-color: var(--accent); }
+    button.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+    main section {
+      padding: 56px clamp(20px, 5vw, 72px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(180px, 320px) minmax(0, 1fr);
+      gap: clamp(24px, 6vw, 90px);
+      align-items: start;
+      margin-bottom: 28px;
+    }
+
+    h2 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(32px, 4.2vw, 58px);
+      line-height: 1;
+      font-weight: 500;
+    }
+
+    .plain {
+      max-width: 860px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .flow button {
+      border: 0;
+      border-radius: 0;
+      min-height: 118px;
+      background: #fffaf0;
+      text-align: left;
+      padding: 16px;
+      display: grid;
+      align-content: space-between;
+    }
+
+    .flow button.active { background: var(--ink); color: var(--paper); }
+    .step-num { font-size: 12px; color: var(--accent); font-weight: 900; }
+    .flow button.active .step-num { color: #8de0c8; }
+
+    .detail {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: #fffaf0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel.flat {
+      box-shadow: none;
+      background: transparent;
+    }
+
+    .panel h3 {
+      margin: 0 0 12px;
+      font-size: 20px;
+      line-height: 1.15;
+    }
+
+    .panel p, li {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 16px;
+    }
+
+    .panel ul { padding-left: 20px; margin: 8px 0 0; }
+
+    pre {
+      margin: 0;
+      overflow: auto;
+      padding: 16px;
+      background: var(--code);
+      color: var(--code-ink);
+      border-radius: 8px;
+      line-height: 1.45;
+      font-size: 14px;
+      tab-size: 2;
+    }
+
+    code {
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: .95em;
+    }
+
+    .lab {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .controls {
+      position: sticky;
+      top: 74px;
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 6px;
+    }
+
+    .seg {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr 48px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+    .output {
+      display: grid;
+      gap: 18px;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: 140px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .stage:last-child { border-bottom: 0; }
+
+    .stage strong {
+      display: block;
+      font-size: 13px;
+      color: var(--accent);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: #fffaf0;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .chip.ok { border-color: rgba(24,121,78,.35); color: var(--ok); }
+    .chip.bad { border-color: rgba(170,46,37,.35); color: var(--bad); }
+    .chip.warn { border-color: rgba(154,106,0,.35); color: var(--warn); }
+
+    .qa {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+
+    .qa article {
+      background: #fffaf0;
+      padding: 22px;
+      min-height: 180px;
+    }
+
+    .qa h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+
+    .qa p { color: var(--muted); line-height: 1.52; margin: 0; }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(3, 44px);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .cell {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fffaf0;
+      font-weight: 900;
+    }
+
+    .meter {
+      height: 12px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent-3));
+      transition: width .25s ease;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 980px) {
+      .flow { grid-template-columns: repeat(3, 1fr); }
+      .detail, .lab, .section-head { grid-template-columns: 1fr; }
+      .controls { position: static; }
+    }
+
+    @media (max-width: 620px) {
+      header { min-height: 64vh; }
+      .flow { grid-template-columns: 1fr; }
+      .qa { grid-template-columns: 1fr; }
+      .stage { grid-template-columns: 1fr; }
+      nav { overflow-x: auto; flex-wrap: nowrap; }
+      nav a { white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="kicker">GENTIANS sin parte genetica</div>
+      <h1>Como infiere reglas ASP desde ejemplos.</h1>
+      <p class="lede">No le pasas reglas completas. Le pasas conocimiento base, ejemplos positivos/negativos y un sesgo de lenguaje. De ahi construye stubs, rellena variables, prueba cobertura con clingo y puntua programas candidatos.</p>
+    </div>
+  </header>
+
+  <nav>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#laboratorio">Laboratorio</a>
+    <a href="#respuestas">Respuestas</a>
+    <a href="#formato">Formato input</a>
+  </nav>
+
+  <main>
+    <section id="pipeline">
+      <div class="section-head">
+        <h2>Pipeline real</h2>
+        <p class="plain">Click en cada paso. Esto sigue el flujo de codigo: <code>Parser</code>, <code>ProgramSampler</code>, <code>VariablePlacer</code>, <code>Strategy</code>, <code>ClingoInterface</code>.</p>
+      </div>
+
+      <div class="flow" id="flowButtons"></div>
+      <div class="detail">
+        <div class="panel" id="stepText"></div>
+        <pre id="stepCode"></pre>
+      </div>
+    </section>
+
+    <section id="laboratorio">
+      <div class="section-head">
+        <h2>Laboratorio</h2>
+        <p class="plain">Simulacion pequena. Cambia problema, bias y parametros. Veras que se genera antes de que la busqueda genetica combine reglas.</p>
+      </div>
+
+      <div class="lab">
+        <div class="controls panel">
+          <div>
+            <label for="problem">Problema</label>
+            <select id="problem">
+              <option value="even">Par / impar</option>
+              <option value="adjacent">Adyacente a rojo</option>
+              <option value="magic">Cuadrado magico sin diagonal</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Bias</label>
+            <div class="seg">
+              <button id="manualBias" class="active" type="button">Manual</button>
+              <button id="autoBias" type="button">Auto -alb</button>
+            </div>
+          </div>
+
+          <div>
+            <label for="depth">Max literals por regla</label>
+            <div class="slider-row">
+              <input id="depth" type="range" min="1" max="5" value="3">
+              <strong id="depthVal">3</strong>
+            </div>
+          </div>
+
+          <div>
+            <label for="vars">Max variables</label>
+            <div class="slider-row">
+              <input id="vars" type="range" min="1" max="5" value="3">
+              <strong id="varsVal">3</strong>
+            </div>
+          </div>
+
+          <button id="reroll" type="button">Generar otro stub</button>
+          <p class="note">Esto no ejecuta GENTIANS. Replica su mecanica con ejemplos chicos para hacer visible: bias -> stub -> variables -> cobertura.</p>
+        </div>
+
+        <div class="output panel">
+          <div class="stage">
+            <strong>1 input</strong>
+            <pre id="inputBlock"></pre>
+          </div>
+          <div class="stage">
+            <strong>2 bias efectivo</strong>
+            <div>
+              <div class="chips" id="biasChips"></div>
+              <p class="note" id="biasNote"></p>
+            </div>
+          </div>
+          <div class="stage">
+            <strong>3 stub</strong>
+            <pre id="stubBlock"></pre>
+          </div>
+          <div class="stage">
+            <strong>4 variables</strong>
+            <pre id="varsBlock"></pre>
+          </div>
+          <div class="stage">
+            <strong>5 cobertura</strong>
+            <div>
+              <div class="chips" id="coverageChips"></div>
+              <div class="meter" aria-label="fitness aproximado"><span id="fitnessBar"></span></div>
+              <p class="note" id="coverageNote"></p>
+              <div id="matrixWrap"></div>
+            </div>
+          </div>
+          <div class="stage">
+            <strong>6 candidato</strong>
+            <pre id="candidateBlock"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="respuestas">
+      <div class="section-head">
+        <h2>Respuestas directas</h2>
+        <p class="plain">Lo importante: ejemplos solos no bastan salvo que uses bias automatico. Aun con bias automatico, conviene dar bias manual para controlar busqueda y evitar reglas absurdas o espacio enorme.</p>
+      </div>
+
+      <div class="qa">
+        <article>
+          <h3>Le doy descripcion + positivos + negativos e infiere?</h3>
+          <p>Necesita conocimiento base ejecutable ASP. La descripcion humana no se usa. Pos/neg dicen que atomos deben aparecer o no en algun answer set. Para inventar reglas necesita tambien bias manual o <code>-alb</code>.</p>
+        </article>
+        <article>
+          <h3>Que son stubs?</h3>
+          <p>Plantillas de regla con huecos <code>_____</code>. Ejemplo: <code>odd(_____):- even(_____),prev(_____,_____).</code>. Salen del bias, no de texto libre.</p>
+        </article>
+        <article>
+          <h3>Yo digo que stubs puede usar?</h3>
+          <p>No directamente en input normal. Dices predicados permitidos con <code>#modeh</code> y <code>#modeb</code>, operadores CLI y limites. El sampler arma stubs combinando eso.</p>
+        </article>
+        <article>
+          <h3>Como se rellenan?</h3>
+          <p><code>VariablePlacer</code> crea otro programa ASP: posiciones, variables posibles, restricciones de seguridad, no variables solas, cabeza segura, simetrias. Clingo enumera asignaciones validas.</p>
+        </article>
+        <article>
+          <h3>Como sabe que reglas usar?</h3>
+          <p>No "sabe"; busca. Cada programa candidato se ejecuta con background + reglas. Se mide cuantos positivos cubre y cuantos negativos cubre. Mejor cobertura gana.</p>
+        </article>
+        <article>
+          <h3>Que tiene preferencia?</h3>
+          <p>Fitness: cubrir mas positivos, cubrir menos negativos. Si busca subset dentro de un individuo, coste menor: <code>negativos - positivos</code>. Empates favorecen subset mas corto.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="formato">
+      <div class="section-head">
+        <h2>Formato input</h2>
+        <p class="plain">Archivo minimo: background ASP, ejemplos, bias. Agregados, comparacion y aritmetica van por CLI, no dentro del fichero.</p>
+      </div>
+      <div class="detail">
+        <pre># Background
+even(0).
+prev(1,0).
+prev(2,1).
+prev(3,2).
+
+# Examples
+#pos({odd(1), odd(3), even(2)}, {}).
+#neg({even(3)}, {}).
+#neg({odd(2)}, {}).
+
+# Bias
+#modeh(1, odd, 1).
+#modeh(1, even, 1).
+#modeb(1, even, 1, positive).
+#modeb(1, odd, 1, positive).
+#modeb(2, prev, 2, positive).</pre>
+        <pre>gentians -f tarea.lp \
+  -d 3 \
+  --variables 3 \
+  -s 1000 \
+  -c 6
+
+# Bias automatico:
+gentians -f tarea.lp -alb=1
+
+# Negacion permitida en body automatico:
+gentians -f tarea.lp -alb=-1
+
+# Agregados:
+gentians -e magic_square_no_diag \
+  --aggregates "sum(x/3)" \
+  --comparison neq</pre>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const steps = [
+      {
+        title: "Input",
+        text: "Lee background, positivos, negativos y bias. La descripcion humana del problema no entra al solver.",
+        bullets: ["background = programa ASP base", "positivos = debe existir answer set que incluya esos atomos y excluya los prohibidos", "negativos = no debe existir answer set que los cubra"],
+        code: "Parser.read_from_file()\n#pos({included}, {excluded}).\n#neg({included}, {excluded}).\n#modeh(recall, atom, arity).\n#modeb(recall, atom, arity, positive|negative)."
+      },
+      {
+        title: "Bias",
+        text: "El bias limita el vocabulario de reglas. Sin eso, el espacio explota. Con -alb, GENTIANS extrae firmas desde background y ejemplos.",
+        bullets: ["#modeh dice que puede aparecer en cabeza", "#modeb dice que puede aparecer en cuerpo", "recall limita cuantas veces puede repetirse"],
+        code: "#modeh(1,target,1).\n#modeb(1,edge,2,positive).\n#modeb(1,colour,2,positive).\n#modeb(1,red,1,positive)."
+      },
+      {
+        title: "Stubs",
+        text: "ProgramSampler muestrea esqueletos de reglas. Sustituye operadores especiales por sintaxis ASP y deja huecos para variables.",
+        bullets: ["Head y body se muestrean por recall", "depth limita numero total de literales", "prob_increase decide si sigue anadiendo literales"],
+        code: "target(_____):- edge(_____,_____),colour(_____,_____),red(_____).\n\n# Con agregados:\nsum_row(_____,_____):- #sum{_____:x(_____,_____,_____)}=_____,size(_____)."
+      },
+      {
+        title: "Variables",
+        text: "VariablePlacer no elige a mano. Genera un ASP auxiliar: cada hueco recibe una variable. Clingo enumera colocaciones validas.",
+        bullets: ["variables de cabeza aparecen en cuerpo", "ninguna variable aparece solo una vez", "quita simetrias fijando V0 en primera posicion", "poda reglas unsafe o duplicadas"],
+        code: "odd(V0):- even(V1),prev(V0,V1).\nodd(V0):- even(V0),prev(V1,V0).\nodd(V0):- even(V1),prev(V1,V0).\n# solo sobreviven las validas"
+      },
+      {
+        title: "Cobertura",
+        text: "Cada candidato se ejecuta con clingo. GENTIANS anade marcadores r(i) para probar subsets de reglas dentro del individuo.",
+        bullets: ["extended_p(I) si cubre positivo I", "extended_n(I) si cubre negativo I", "si hay atomos undefined se descarta pronto"],
+        code: "rule :- body, r(0).\n{r(0)}.\nextended_p(I):- pos_exs(I), cpi(I), not cpe(I).\nextended_n(I):- neg_exs(I), cni(I), not cne(I)."
+      },
+      {
+        title: "Preferencia",
+        text: "La parte genetica solo explora combinaciones. La calidad viene de cobertura: todos positivos y cero negativos = solucion.",
+        bullets: ["score = media de exp((pos_ratio - neg_ratio) * 10)", "si no hay solucion, se queda con menor coste", "coste = negativos cubiertos - positivos cubiertos", "subset mas corto gana empate"],
+        code: "if covered_pos == total_pos and covered_neg == 0:\n    best_found = True\n\ncost = len(neg_covered) - len(pos_covered)"
+      }
+    ];
+
+    const problems = {
+      even: {
+        name: "Par / impar",
+        input: "even(0).\nprev(1,0). prev(2,1). prev(3,2).\n\n#pos({odd(1), odd(3), even(2)}, {}).\n#neg({even(3)}, {}).\n#neg({odd(2)}, {}).",
+        manualHead: ["odd/1", "even/1"],
+        manualBody: ["even/1", "odd/1", "prev/2"],
+        auto: ["even/1", "prev/2", "odd/1"],
+        stubs: [
+          "odd(_____):- even(_____),prev(_____,_____).",
+          "even(_____):- odd(_____),prev(_____,_____).",
+          "odd(_____):- prev(_____,_____).",
+          "even(_____):- prev(_____,_____),odd(_____)."
+        ],
+        placements: [
+          "odd(V0):- even(V1),prev(V0,V1).",
+          "odd(V0):- even(V0),prev(V1,V0).",
+          "odd(V0):- even(V1),prev(V1,V0)."
+        ],
+        best: "odd(V0):- even(V1),prev(V0,V1).\neven(V0):- odd(V1),prev(V0,V1).",
+        coverage: {pos: 1, neg: 0, totalPos: 1, totalNeg: 3, note: "Primer candidato cubre positivo global y no cubre negativos si la variable cae como sucesor correcto."}
+      },
+      adjacent: {
+        name: "Adyacente a rojo",
+        input: "edge(a,b). edge(b,a). edge(c,d). edge(c,e).\ncolour(a,red). colour(b,green). colour(c,red). colour(d,red).\nred(red). green(green).\n\n#pos({target(b), target(c)}, {}).\n#neg({target(a)}, {}). #neg({target(d)}, {}).",
+        manualHead: ["target/1"],
+        manualBody: ["edge/2", "colour/2", "red/1", "green/1", "target/1"],
+        auto: ["edge/2", "colour/2", "red/1", "green/1", "target/1"],
+        stubs: [
+          "target(_____):- edge(_____,_____),colour(_____,_____),red(_____).",
+          "target(_____):- colour(_____,_____),red(_____).",
+          "target(_____):- edge(_____,_____),green(_____)."
+        ],
+        placements: [
+          "target(V0):- edge(V0,V1),colour(V1,V2),red(V2).",
+          "target(V0):- edge(V1,V0),colour(V1,V2),red(V2).",
+          "target(V0):- edge(V0,V1),colour(V0,V2),red(V2)."
+        ],
+        best: "target(V0):- edge(V1,V0),colour(V1,V2),red(V2).",
+        coverage: {pos: 2, neg: 0, totalPos: 2, totalNeg: 2, note: "La regla buena dice: X es target si algun nodo rojo apunta a X."}
+      },
+      magic: {
+        name: "Cuadrado magico sin diagonal",
+        input: "#const n=3. size(1..n). val(1..n*n).\n1 { x(R,C,N) : val(N) } 1 :- size(R), size(C).\n1 { x(R,C,N) : size(R), size(C) } 1 :- val(N).\n\n#pos({x(1,1,4), x(1,2,2), ...}, {}).\n#neg({x(1,1,1), x(1,2,2), ...}, {}).",
+        manualHead: ["sum_row/2", "sum_col/2"],
+        manualBody: ["sum_row/2", "sum_col/2", "size/1", "x/3", "sum(x/3)", "neq"],
+        auto: ["size/1", "val/1", "x/3", "sum_row/2", "sum_col/2"],
+        stubs: [
+          "sum_row(_____,_____):- #sum{_____:x(_____,_____,_____)}=_____,size(_____).",
+          "sum_col(_____,_____):- #sum{_____:x(_____,_____,_____)}=_____,size(_____).",
+          ":- sum_row(_____,_____),sum_row(_____,_____),_____!=_____,_____!=_____.",
+          ":- sum_col(_____,_____),sum_col(_____,_____),_____!=_____,_____!=_____."
+        ],
+        placements: [
+          "sum_row(V0,V1):- #sum{V2:x(V0,V3,V2)}=V1,size(V0).",
+          "sum_col(V0,V1):- #sum{V2:x(V3,V0,V2)}=V1,size(V0).",
+          ":- sum_row(V0,V1),sum_row(V2,V3),V0!=V2,V1!=V3."
+        ],
+        best: "sum_row(V0,V1):- #sum{V2:x(V0,V3,V2)}=V1,size(V0).\nsum_col(V0,V1):- #sum{V2:x(V3,V0,V2)}=V1,size(V0).\n:- sum_row(V0,V1),sum_row(V2,V3),V0!=V2,V1!=V3.\n:- sum_col(V0,V1),sum_col(V2,V3),V0!=V2,V1!=V3.",
+        coverage: {pos: 72, neg: 0, totalPos: 72, totalNeg: 200, note: "Aprende predicados auxiliares de suma y constraints que eliminan grids con filas/columnas de suma distinta."},
+        matrix: [4,2,9,8,6,1,3,7,5]
+      }
+    };
+
+    let selectedStep = 0;
+    let manual = true;
+    let stubOffset = 0;
+
+    function renderSteps() {
+      const wrap = document.getElementById("flowButtons");
+      wrap.innerHTML = "";
+      steps.forEach((s, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = i === selectedStep ? "active" : "";
+        b.innerHTML = `<span class="step-num">${String(i + 1).padStart(2, "0")}</span><span>${s.title}</span>`;
+        b.addEventListener("click", () => { selectedStep = i; renderSteps(); });
+        wrap.appendChild(b);
+      });
+
+      const s = steps[selectedStep];
+      document.getElementById("stepText").innerHTML = `<h3>${s.title}</h3><p>${s.text}</p><ul>${s.bullets.map(x => `<li>${x}</li>`).join("")}</ul>`;
+      document.getElementById("stepCode").textContent = s.code;
+    }
+
+    function chip(text, kind = "") {
+      return `<span class="chip ${kind}">${text}</span>`;
+    }
+
+    function renderLab() {
+      const key = document.getElementById("problem").value;
+      const p = problems[key];
+      const depth = Number(document.getElementById("depth").value);
+      const vars = Number(document.getElementById("vars").value);
+      const stubIndex = (stubOffset + depth + vars) % p.stubs.length;
+      const stub = p.stubs[stubIndex];
+      const placements = p.placements.slice(0, Math.max(1, Math.min(vars, p.placements.length)));
+      const richness = Math.min(1, (depth + vars) / 8);
+      const posRatio = p.coverage.pos / Math.max(1, p.coverage.totalPos);
+      const negRatio = p.coverage.neg / Math.max(1, p.coverage.totalNeg);
+      const fitness = Math.round(Math.exp((posRatio - negRatio) * 4) * 7 * richness);
+
+      document.getElementById("depthVal").textContent = depth;
+      document.getElementById("varsVal").textContent = vars;
+      document.getElementById("inputBlock").textContent = p.input;
+
+      const head = manual ? p.manualHead : p.auto;
+      const body = manual ? p.manualBody : p.auto;
+      document.getElementById("biasChips").innerHTML =
+        head.map(x => chip(`#modeh ${x}`, "ok")).join("") +
+        body.map(x => chip(`#modeb ${x}`, x.includes("sum") || x === "neq" ? "warn" : "")).join("");
+      document.getElementById("biasNote").textContent = manual
+        ? "Manual: tu defines vocabulario y recalls. Busqueda mas pequena, mas control."
+        : "Auto -alb: extrae firmas de background/ejemplos. Rapido para probar, menos preciso.";
+
+      document.getElementById("stubBlock").textContent = stub;
+      document.getElementById("varsBlock").textContent = placements.join("\n");
+
+      document.getElementById("coverageChips").innerHTML =
+        chip(`pos cubiertos: ${p.coverage.pos}/${p.coverage.totalPos}`, "ok") +
+        chip(`neg cubiertos: ${p.coverage.neg}/${p.coverage.totalNeg}`, p.coverage.neg ? "bad" : "ok") +
+        chip(`fitness aprox: ${fitness}`, fitness > 30 ? "ok" : "warn");
+      document.getElementById("fitnessBar").style.width = `${Math.min(100, fitness * 2)}%`;
+      document.getElementById("coverageNote").textContent = p.coverage.note;
+      document.getElementById("candidateBlock").textContent = p.best;
+
+      const matrixWrap = document.getElementById("matrixWrap");
+      if (p.matrix) {
+        matrixWrap.innerHTML = `<div class="matrix">${p.matrix.map(n => `<span class="cell">${n}</span>`).join("")}</div>`;
+      } else {
+        matrixWrap.innerHTML = "";
+      }
+    }
+
+    document.getElementById("problem").addEventListener("change", renderLab);
+    document.getElementById("depth").addEventListener("input", renderLab);
+    document.getElementById("vars").addEventListener("input", renderLab);
+    document.getElementById("reroll").addEventListener("click", () => { stubOffset += 1; renderLab(); });
+    document.getElementById("manualBias").addEventListener("click", () => {
+      manual = true;
+      document.getElementById("manualBias").classList.add("active");
+      document.getElementById("autoBias").classList.remove("active");
+      renderLab();
+    });
+    document.getElementById("autoBias").addEventListener("click", () => {
+      manual = false;
+      document.getElementById("autoBias").classList.add("active");
+      document.getElementById("manualBias").classList.remove("active");
+      renderLab();
+    });
+
+    renderSteps();
+    renderLab();
+  </script>
+</body>
+</html>

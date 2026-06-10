@@ -1,0 +1,174 @@
+Running GENTIANS version 1.0.1.
+Namespace(file='.\\pruebas.txt', verbosity=1, variables=3, depth=3, prob_increase=0.5, disjunctive_head=1, samples=200, unbalanced_agg=False, max_as=5000, clauses=4, iterations=2, pop_size=50, iterations_genetic=250, mutation_probability=0.2, example=None, comparison=None, arithm=None, aggregates=None, cr=False, invention=0, alb=1, profile=False, version=False)
+Generating automatic language bias
+Sampling loop: 0
+Sampling clauses
+Sampled 166 different clauses in 0.025811433792114258 seconds
+Sampled clauses:
+0) A :- A.
+1) active(_____) :- A.
+2)  :- A,adult(_____).
+3)  :- A,minor(_____).
+4)  :- A,active(_____).
+5) A :- eligible(_____).
+6) A :- age(_____,_____).
+7) age(_____,_____) :- A.
+8)  :- A,customer(_____).
+9)  :- A,age(_____,_____).
+10) A :- A,has_purchase(_____).
+11)  :- adult(_____),minor(_____).
+12)  :- active(_____),adult(_____).
+13) adult(_____) :- blocked(_____).
+14)  :- active(_____),minor(_____).
+15) blocked(_____) :- adult(_____).
+16) eligible(_____) :- adult(_____).
+17)  :- blocked(_____),minor(_____).
+18) eligible(_____) :- minor(_____).
+19) customer(_____) :- adult(_____).
+20) blocked(_____) :- active(_____).
+21)  :- eligible(_____),minor(_____).
+22) active(_____) :- A,active(_____).
+23) age(_____,_____) :- adult(_____).
+24) active(_____) :- eligible(_____).
+25) minor(_____) :- A,blocked(_____).
+26) age(_____,_____) :- minor(_____).
+27)  :- A,active(_____),adult(_____).
+28)  :- adult(_____),age(_____,_____).
+29) customer(_____) :- blocked(_____).
+30) active(_____) :- age(_____,_____).
+31)  :- age(_____,_____),minor(_____).
+32)  :- A,adult(_____),blocked(_____).
+33)  :- active(_____),eligible(_____).
+34)  :- A,customer(_____),minor(_____).
+35)  :- active(_____),age(_____,_____).
+36)  :- A,active(_____),blocked(_____).
+37) eligible(_____) :- customer(_____).
+38) minor(_____) :- A,age(_____,_____).
+39)  :- A,adult(_____),eligible(_____).
+40) customer(_____) :- customer(_____).
+41)  :- A,adult(_____),age(_____,_____).
+42) has_purchase(_____) :- adult(_____).
+43)  :- age(_____,_____),blocked(_____).
+44) adult(_____) :- has_purchase(_____).
+45) minor(_____) :- has_purchase(_____).
+46)  :- customer(_____),eligible(_____).
+47)  :- A,active(_____),eligible(_____).
+48) eligible(_____) :- A,blocked(_____).
+49)  :- age(_____,_____),eligible(_____).
+50) has_purchase(_____) :- active(_____).
+51)  :- age(_____,_____),customer(_____).
+52) age(_____,_____) :- age(_____,_____).
+53)  :- adult(_____),has_purchase(_____).
+54)  :- active(_____),has_purchase(_____).
+55) has_purchase(_____) :- blocked(_____).
+56) minor(_____) :- purchase(_____,_____).
+57) customer(_____) :- A,age(_____,_____).
+58)  :- A,customer(_____),eligible(_____).
+59) purchase(_____,_____) :- active(_____).
+60)  :- minor(_____),purchase(_____,_____).
+61)  :- A,age(_____,_____),eligible(_____).
+62)  :- adult(_____),purchase(_____,_____).
+63) has_purchase(_____) :- eligible(_____).
+64)  :- eligible(_____),has_purchase(_____).
+65) blocked(_____) :- purchase(_____,_____).
+66)  :- active(_____),purchase(_____,_____).
+67)  :- customer(_____),has_purchase(_____).
+68) purchase(_____,_____) :- blocked(_____).
+69) customer(_____) :- purchase(_____,_____).
+70) A :- customer(_____),has_purchase(_____).
+71)  :- A,minor(_____),purchase(_____,_____).
+72) customer(_____) :- A,has_purchase(_____).
+73)  :- A,adult(_____),purchase(_____,_____).
+74)  :- blocked(_____),purchase(_____,_____).
+75) A :- blocked(_____),purchase(_____,_____).
+76)  :- eligible(_____),purchase(_____,_____).
+77)  :- customer(_____),purchase(_____,_____).
+78) adult(_____) :- adult(_____),minor(_____).
+79)  :- A,customer(_____),has_purchase(_____).
+80) age(_____,_____) :- purchase(_____,_____).
+81)  :- A,active(_____),purchase(_____,_____).
+82) minor(_____) :- adult(_____),minor(_____).
+83)  :- age(_____,_____),purchase(_____,_____).
+84) eligible(_____) :- A,purchase(_____,_____).
+85)  :- A,age(_____,_____),has_purchase(_____).
+86)  :- active(_____),adult(_____),minor(_____).
+87) has_purchase(_____) :- A,has_purchase(_____).
+88) minor(_____) :- eligible(_____),minor(_____).
+89) adult(_____) :- adult(_____),customer(_____).
+90) blocked(_____) :- active(_____),minor(_____).
+91) has_purchase(_____) :- purchase(_____,_____).
+92) customer(_____) :- active(_____),adult(_____).
+93)  :- active(_____),blocked(_____),minor(_____).
+94) active(_____) :- adult(_____),eligible(_____).
+95)  :- has_purchase(_____),purchase(_____,_____).
+96)  :- adult(_____),customer(_____),minor(_____).
+97)  :- active(_____),adult(_____),blocked(_____).
+98)  :- adult(_____),eligible(_____),minor(_____).
+99) has_purchase(_____) :- A,purchase(_____,_____).
+100) blocked(_____) :- active(_____),blocked(_____).
+101) blocked(_____) :- eligible(_____),minor(_____).
+102) adult(_____) :- blocked(_____),customer(_____).
+103) purchase(_____,_____) :- purchase(_____,_____).
+104)  :- active(_____),adult(_____),customer(_____).
+105)  :- active(_____),eligible(_____),minor(_____).
+106) eligible(_____) :- adult(_____),blocked(_____).
+107) customer(_____) :- blocked(_____),minor(_____).
+108)  :- active(_____),customer(_____),minor(_____).
+109)  :- blocked(_____),eligible(_____),minor(_____).
+110)  :- active(_____),age(_____,_____),minor(_____).
+111)  :- adult(_____),blocked(_____),eligible(_____).
+112)  :- adult(_____),blocked(_____),customer(_____).
+113) eligible(_____) :- active(_____),eligible(_____).
+114) blocked(_____) :- blocked(_____),eligible(_____).
+115)  :- adult(_____),has_purchase(_____),minor(_____).
+116)  :- adult(_____),age(_____,_____),customer(_____).
+117) customer(_____) :- active(_____),age(_____,_____).
+118)  :- adult(_____),age(_____,_____),eligible(_____).
+119)  :- age(_____,_____),eligible(_____),minor(_____).
+120) active(_____) :- active(_____),has_purchase(_____).
+121) adult(_____) :- adult(_____),purchase(_____,_____).
+122) minor(_____) :- minor(_____),purchase(_____,_____).
+123) adult(_____) :- blocked(_____),has_purchase(_____).
+124) age(_____,_____) :- blocked(_____),customer(_____).
+125) age(_____,_____) :- active(_____),age(_____,_____).
+126) age(_____,_____) :- age(_____,_____),blocked(_____).
+127) purchase(_____,_____) :- active(_____),adult(_____).
+128) eligible(_____) :- adult(_____),has_purchase(_____).
+129)  :- adult(_____),eligible(_____),has_purchase(_____).
+130)  :- active(_____),minor(_____),purchase(_____,_____).
+131)  :- customer(_____),has_purchase(_____),minor(_____).
+132)  :- active(_____),adult(_____),purchase(_____,_____).
+133) age(_____,_____) :- active(_____),has_purchase(_____).
+134)  :- adult(_____),blocked(_____),purchase(_____,_____).
+135)  :- adult(_____),age(_____,_____),has_purchase(_____).
+136) customer(_____) :- adult(_____),purchase(_____,_____).
+137) customer(_____) :- minor(_____),purchase(_____,_____).
+138) has_purchase(_____) :- blocked(_____),customer(_____).
+139) minor(_____) :- eligible(_____),purchase(_____,_____).
+140) customer(_____) :- blocked(_____),has_purchase(_____).
+141)  :- active(_____),customer(_____),has_purchase(_____).
+142) purchase(_____,_____) :- active(_____),blocked(_____).
+143) purchase(_____,_____) :- adult(_____),age(_____,_____).
+144)  :- adult(_____),customer(_____),purchase(_____,_____).
+145) blocked(_____) :- age(_____,_____),has_purchase(_____).
+146)  :- customer(_____),minor(_____),purchase(_____,_____).
+147) purchase(_____,_____) :- age(_____,_____),minor(_____).
+148) age(_____,_____) :- minor(_____),purchase(_____,_____).
+149) customer(_____) :- active(_____),purchase(_____,_____).
+150)  :- age(_____,_____),blocked(_____),has_purchase(_____).
+151)  :- active(_____),eligible(_____),purchase(_____,_____).
+152) active(_____) :- age(_____,_____),purchase(_____,_____).
+153) customer(_____) :- eligible(_____),purchase(_____,_____).
+154)  :- age(_____,_____),eligible(_____),has_purchase(_____).
+155) eligible(_____) :- eligible(_____),purchase(_____,_____).
+156) has_purchase(_____) :- active(_____),has_purchase(_____).
+157) has_purchase(_____) :- blocked(_____),has_purchase(_____).
+158)  :- age(_____,_____),blocked(_____),purchase(_____,_____).
+159) age(_____,_____) :- eligible(_____),purchase(_____,_____).
+160)  :- age(_____,_____),customer(_____),purchase(_____,_____).
+161) has_purchase(_____) :- eligible(_____),has_purchase(_____).
+162)  :- adult(_____),has_purchase(_____),purchase(_____,_____).
+163)  :- active(_____),has_purchase(_____),purchase(_____,_____).
+164) blocked(_____) :- has_purchase(_____),purchase(_____,_____).
+165) has_purchase(_____) :- customer(_____),purchase(_____,_____).
+(0/165) Placing variables for A :- A.

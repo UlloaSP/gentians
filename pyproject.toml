@@ -26,6 +26,7 @@ Homepage = "https://github.com/damianoazzolini/gentians"
 
 [project.scripts]
 gentians = "gentians:main"
+gentians-profile = "gentians.profile_experiments:main"
 
 [dependency-groups]
 dev = [

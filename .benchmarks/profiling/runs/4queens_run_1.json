@@ -1,0 +1,18 @@
+[
+  {
+    "dataset": "4queens",
+    "run": 1,
+    "events": [
+      {
+        "name": "run.timeout",
+        "seconds": 100.01297009998234,
+        "dataset": "4queens",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      }
+    ],
+    "fitness": [],
+    "counters": {}
+  }
+]

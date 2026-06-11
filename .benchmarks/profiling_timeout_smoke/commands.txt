@@ -1,0 +1,1 @@
+python -c "import gentians; gentians.main()" -e coin --samples 5 --iterations-genetic 2 --iterations 1 --pop-size 4 --seed 12346 --profile-output .benchmarks\profiling_timeout_smoke\runs\coin_run_1.json --profile-dataset coin --profile-run 1

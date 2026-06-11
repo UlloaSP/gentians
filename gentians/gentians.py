@@ -1,7 +1,9 @@
 
 import os.path
+import random
 import sys
 import time
+from pathlib import Path
 
 # from argparse import Namespace
 
@@ -11,6 +13,7 @@ from .program_sampler import ProgramSampler, Clause
 from .strategies import Strategy, PlacedClause
 from .utils import print_error_and_exit
 from .parser import Parser, Program
+from .profiling import ExperimentProfiler, write_json
 from .variable_placer import VariablePlacer
 
 
@@ -18,6 +21,13 @@ class Solver:
     def __init__(self, program : Program, arguments : Arguments) -> None:
         self.program : Program = program
         self.arguments : Arguments = arguments
+        self.profiler = getattr(arguments, "profiler", None)
+
+    def _span(self, name: str, **metadata):
+        if self.profiler is None:
+            from contextlib import nullcontext
+            return nullcontext()
+        return self.profiler.span(name, **metadata)
 
     def solve(self) -> None:
         '''
@@ -33,77 +43,83 @@ class Solver:
 
         start_total_time = time.time()
 
-        for it in range(self.arguments.iterations):
-            # Step 0: sample a list of clauses
-            print(f"Sampling loop: {it}")
-            start_time = time.time()
-            print("Sampling clauses")
-            cls = sampler.sample_clauses_stub(self.arguments.clauses_to_sample)
-            sample_time = time.time() - start_time
+        with self._span("solver.total"):
+            for it in range(self.arguments.iterations):
+                if self.profiler is not None:
+                    self.profiler.outer_iteration = it
+                # Step 0: sample a list of clauses
+                print(f"Sampling loop: {it}")
+                start_time = time.time()
+                print("Sampling clauses")
+                with self._span("sampling.stub_generation", requested=self.arguments.clauses_to_sample):
+                    cls = sampler.sample_clauses_stub(self.arguments.clauses_to_sample)
+                sample_time = time.time() - start_time
 
-            # add the best from the previous rounds
-            cls.extend(best_stub_for_next_round)
-            # clean up the best stub
-            best_stub_for_next_round = []
-            # Step 1: remove duplicates
-            instantiated_clauses = [c.instantiated for c in cls]
-            sampled_clauses = [item for sublist in instantiated_clauses for item in sublist]
-            print(f"Sampled {len(sampled_clauses)} different clauses in {sample_time} seconds")
+                # add the best from the previous rounds
+                cls.extend(best_stub_for_next_round)
+                # clean up the best stub
+                best_stub_for_next_round = []
+                # Step 1: remove duplicates
+                instantiated_clauses = [c.instantiated for c in cls]
+                sampled_clauses = [item for sublist in instantiated_clauses for item in sublist]
+                print(f"Sampled {len(sampled_clauses)} different clauses in {sample_time} seconds")
 
-            if self.arguments.verbosity >= 1:
-                print("Sampled clauses:")
-                sampled_clauses.sort(key=lambda x : len(x))
-                for index, current_cl in enumerate(sampled_clauses):
-                    print(f"{index}) {current_cl}")
+                if self.arguments.verbosity >= 1:
+                    print("Sampled clauses:")
+                    sampled_clauses.sort(key=lambda x : len(x))
+                    for index, current_cl in enumerate(sampled_clauses):
+                        print(f"{index}) {current_cl}")
 
-            # Step 2: place the variables
-            # This is THE bottleneck: generation of all the 
-            # possible locations, which are #n_vars^#n_pos in the 
-            # worst case
-            start_time = time.time()
-            placed_list : 'list[list[str]]' = placer.place_variables_list_of_clauses(sampled_clauses)
-            placing_time = time.time() - start_time
-            print(f"Placed variables in {placing_time} seconds")
+                # Step 2: place the variables
+                # This is THE bottleneck: generation of all the
+                # possible locations, which are #n_vars^#n_pos in the
+                # worst case
+                start_time = time.time()
+                with self._span("variable_placement.total", sampled_clauses=len(sampled_clauses)):
+                    placed_list : 'list[list[str]]' = placer.place_variables_list_of_clauses(sampled_clauses)
+                placing_time = time.time() - start_time
+                print(f"Placed variables in {placing_time} seconds")
 
-            placed_list_improved : 'list[PlacedClause]' = list(map(PlacedClause, placed_list))
+                placed_list_improved : 'list[PlacedClause]' = list(map(PlacedClause, placed_list))
 
-            print(f"Total clauses stub: {len(placed_list)}")
-            print(f"Total number of possible clauses: {sum(len(pl) for pl in placed_list)}")
+                print(f"Total clauses stub: {len(placed_list)}")
+                print(f"Total number of possible clauses: {sum(len(pl) for pl in placed_list)}")
 
-            if len(placed_list) == 0:
-                print_error_and_exit("No clauses found")
+                if len(placed_list) == 0:
+                    print_error_and_exit("No clauses found")
 
-            if self.arguments.verbosity >= 2:
-                for el in placed_list:
-                    print(f"{len(el)}: {el}")
+                if self.arguments.verbosity >= 2:
+                    for el in placed_list:
+                        print(f"{len(el)}: {el}")
 
-            # Step 3: genetic algorithm
-            start_time = time.time()
-            current_strategy = Strategy(
-                placed_list_improved,
-                self.program,
-                self.arguments
-            )
+                # Step 3: genetic algorithm
+                start_time = time.time()
+                with self._span("genetic.total"):
+                    current_strategy = Strategy(
+                        placed_list_improved,
+                        self.program,
+                        self.arguments
+                    )
 
-            prg, score, best_found, best_index_stub_for_the_next_round = current_strategy.genetic_solver()
-            
-            genetic_time = time.time() - start_time
+                    prg, score, best_found, best_index_stub_for_the_next_round = current_strategy.genetic_solver()
+                
+                genetic_time = time.time() - start_time
 
-            for i in best_index_stub_for_the_next_round:
-                if 0 <= i < len(cls):
-                    best_stub_for_next_round.append(cls[i]) 
+                for i in best_index_stub_for_the_next_round:
+                    if 0 <= i < len(cls):
+                        best_stub_for_next_round.append(cls[i]) 
 
-            print(f"Evolutionary cycle {it} - Time {genetic_time}")
-            if best_found:
-                print("--- Found best program ---")
-            else:
-                print(f"Current best with score: {score}")
-            print("--------------------------")
-            print(*prg, sep="\n")
-            print("--------------------------")
+                print(f"Evolutionary cycle {it} - Time {genetic_time}")
+                if best_found:
+                    print("--- Found best program ---")
+                else:
+                    print(f"Current best with score: {score}")
+                print("--------------------------")
+                print(*prg, sep="\n")
+                print("--------------------------")
 
-            if best_found:
-                break
+                if best_found:
+                    break
 
         print(f"Total time: {time.time() - start_total_time}")
 
@@ -125,6 +141,17 @@ def main():
 
     if args.version:
         sys.exit()
+
+    if args.seed is not None:
+        random.seed(args.seed)
+
+    run_profiler = None
+    if args.profile_output:
+        run_profiler = ExperimentProfiler(
+            dataset=args.profile_dataset or args.example or args.filename or "unknown",
+            run=args.profile_run
+        )
+        args.profiler = run_profiler
 
     if not args.example:
         if args.filename:
@@ -148,6 +175,11 @@ def main():
     s = Solver(program, args)
 
     s.solve()
+
+    if args.profile_output and run_profiler is not None:
+        output_path = Path(args.profile_output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        write_json(output_path, [run_profiler])
 
     if args.profile:
         pr.disable()

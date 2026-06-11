@@ -1,0 +1,2 @@
+dataset,run,iteration,phase,seconds,metadata
+4queens,1,0,run.timeout,100.012970100,{}

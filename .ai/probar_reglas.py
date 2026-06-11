@@ -11,10 +11,10 @@ import clingo
 # eligible(X):- adult(X),active(X),not blocked(X),purchase(X,A),A >= 50.
 # """
 REGLAS = r"""
-eligible(V0) :- adult(V1),newsletter(V1),not blocked(V0),verified(V0).
+eligible(V0) :- adult(V0),not blocked(V0).
 """
 
-ARCHIVO_TAREA = Path("pruebas3.txt")
+ARCHIVO_TAREA = Path("pruebas2.txt")
 
 
 def limpiar_reglas(texto: str) -> list[str]:

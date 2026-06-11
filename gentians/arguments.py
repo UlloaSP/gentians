@@ -29,6 +29,10 @@ class Arguments:
         self.predicate_invention : int = args.invention
         self.automatic_language_bias : int = args.alb
         self.profile : bool = args.profile
+        self.profile_output : str = args.profile_output
+        self.profile_dataset : str = args.profile_dataset
+        self.profile_run : int = args.profile_run
+        self.seed : int = args.seed
         self.version : bool = args.version
         print(args)
 
@@ -221,6 +225,30 @@ def parse_arguments() -> 'Arguments':
         help="Enables profiling", 
         default=False,
         action="store_true"
+    )
+    command_parser.add_argument(
+        "--profile-output",
+        help="Writes detailed GENTIANS timing profile JSON to this path.",
+        type=str,
+        default=None
+    )
+    command_parser.add_argument(
+        "--profile-dataset",
+        help="Dataset label stored in --profile-output.",
+        type=str,
+        default=None
+    )
+    command_parser.add_argument(
+        "--profile-run",
+        help="Run number stored in --profile-output.",
+        type=int,
+        default=0
+    )
+    command_parser.add_argument(
+        "--seed",
+        help="Random seed for reproducible runs.",
+        type=int,
+        default=None
     )
     command_parser.add_argument(
         "--version",

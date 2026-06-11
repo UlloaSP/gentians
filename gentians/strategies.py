@@ -3,6 +3,7 @@ import re
 import sys
 import math
 import time
+from contextlib import nullcontext
 
 from .clingo_interface import ClingoInterface
 from .arguments import Arguments
@@ -58,9 +59,15 @@ class Strategy:
         # self.positive_examples : 'list[list[str]]' = positive_examples
         # self.negative_examples : 'list[list[str]]' = negative_examples
         self.args : Arguments = args
+        self.profiler = getattr(args, "profiler", None)
         # maximum number of AS to generate: this helps when the program has a generator
         # and there are too many options
         self.max_as_to_generate_foreach_program : int = 10000
+
+    def _span(self, name: str, **metadata):
+        if self.profiler is None:
+            return nullcontext()
+        return self.profiler.span(name, **metadata)
 
     def genetic_solver(self,
             do_tournament : bool = True, # choose tournament to pick the elements
@@ -112,12 +119,17 @@ class Strategy:
             there are few positive examples).
             The score of an individual is the average of the scores.
             '''
-            asp_solver = ClingoInterface(
-                self.program.background, [f'{self.max_as_to_generate_foreach_program}', '--project'])
+            with self._span("genetic.evaluation.total", clauses=len(program)):
+                asp_solver = ClingoInterface(
+                    self.program.background,
+                    [f'{self.max_as_to_generate_foreach_program}', '--project'],
+                    profiler=self.profiler,
+                    phase="genetic.evaluation"
+                )
 
-            cov = asp_solver.extract_coverage_and_set_clauses(
-                program, self.program.positive_examples, self.program.negative_examples, False
-            )
+                cov = asp_solver.extract_coverage_and_set_clauses(
+                    program, self.program.positive_examples, self.program.negative_examples, False
+                )
 
             # print(cov)
             
@@ -192,10 +204,11 @@ class Strategy:
             '''
             Tournament to select the individuals to combine and mutate
             '''
+            tournament_size = min(tournament_size, len(population))
             random_subset = random.sample([x for x in population], tournament_size)
             stop = False
             best_element = get_fittest(random_subset)
-            while len(random_subset) > 0 and not stop:
+            while len(random_subset) > 1 and not stop:
                 if random.random() > prob_selecting_fittest:
                     random_subset.remove(best_element)
                     best_element = get_fittest(random_subset)
@@ -356,11 +369,12 @@ class Strategy:
         population : 'list[Individual]' = []
         best_found = False
 
-        population, best_found = initialize_population(
-            self.args.clauses_per_individual,
-            self.placed_list,
-            self.args.population_size
-        )
+        with self._span("genetic.initialize_population", population_size=self.args.population_size):
+            population, best_found = initialize_population(
+                self.args.clauses_per_individual,
+                self.placed_list,
+                self.args.population_size
+            )
 
         if best_found:
             return population[0].program, population[0].score, True, [-1]
@@ -372,17 +386,24 @@ class Strategy:
         print(f"Running for {self.args.iterations_genetic} iterations")
         start_time = time.time()
         for it in range(self.args.iterations_genetic + 1):
+            if self.profiler is not None and len(population) > 0:
+                self.profiler.record_fitness(
+                    it,
+                    population[0].score,
+                    sum(ind.score for ind in population) / len(population)
+                )
             # print(f"it: {it}")
             if it % 100 == 0:
                 print(f"Iteration {it} - taken for 100: {time.time() - start_time} - best: {population[0]}")
                 start_time = time.time()
             # 2.1: selection of the two fittest elements
             # print('pre tournament')
-            if do_tournament:
-                best_a = tournament(population, tournament_size)
-                best_b = tournament(population, tournament_size)
-            else:
-                best_a, best_b = pick_two_fittest(population)
+            with self._span("genetic.selection"):
+                if do_tournament:
+                    best_a = tournament(population, tournament_size)
+                    best_b = tournament(population, tournament_size)
+                else:
+                    best_a, best_b = pick_two_fittest(population)
             
 
             # either do crossover or mutation seems to be not effective
@@ -390,7 +411,8 @@ class Strategy:
             
             # 2.2: crossover
             # print('pre cross')
-            new_program_1, new_program_2 = crossover(best_a, best_b)
+            with self._span("genetic.crossover"):
+                new_program_1, new_program_2 = crossover(best_a, best_b)
             # If the best found, stop the iteration
             # _, is_best, l_best_indexes = evaluate_score([], [], new_program_1.program)
             for prg in [new_program_1, new_program_2]:
@@ -400,42 +422,44 @@ class Strategy:
             # 2.3: mutation
             # https://arxiv.org/pdf/2305.01582.pdf
             # print('pre mutate')
-            new_mutated_1 = mutate(new_program_1)
-            new_mutated_2 = mutate(new_program_2)
+            with self._span("genetic.mutation"):
+                new_mutated_1 = mutate(new_program_1)
+                new_mutated_2 = mutate(new_program_2)
             
             l_mutated = [new_mutated_1, new_mutated_2]
             
             # 3: replace elements in the population
             # print('pre replace')
-            for el in l_mutated:
-                # if best, return
-                if el.is_best:
-                    return [el.program[i] for i in el.l_best_indexes], el.score, True, [-1]
+            with self._span("genetic.replacement"):
+                for el in l_mutated:
+                    # if best, return
+                    if el.is_best:
+                        return [el.program[i] for i in el.l_best_indexes], el.score, True, [-1]
 
-                found = False
-                # if not best, check whether it is already in the population
-                for pop in population:
-                    if sorted(pop.program) == sorted(el.program):
-                        found = True
-                        break
-                
-                # if not in the population, insert
-                if not found:
-                    i = 0
-                    for i, element in enumerate(population):
-                        # equal to have some variability?
-                        if el.score >= element.score:
+                    found = False
+                    # if not best, check whether it is already in the population
+                    for pop in population:
+                        if sorted(pop.program) == sorted(el.program):
+                            found = True
                             break
-                    population.insert(i, el)
+                    
+                    # if not in the population, insert
+                    if not found:
+                        i = 0
+                        for i, element in enumerate(population):
+                            # equal to have some variability?
+                            if el.score >= element.score:
+                                break
+                        population.insert(i, el)
 
-                    # drop the element
-                    if random.random() < prob_replacing_oldest:
-                        # drop the oldest element
-                        oldest = min(population, key=lambda x : x.generated_timestamp)
-                        population.remove(oldest)
-                    else:
-                        # drop the element with the lowest fitness
-                        population = population[:-1]
+                        # drop the element
+                        if random.random() < prob_replacing_oldest:
+                            # drop the oldest element
+                            oldest = min(population, key=lambda x : x.generated_timestamp)
+                            population.remove(oldest)
+                        else:
+                            # drop the element with the lowest fitness
+                            population = population[:-1]
 
         print("Iterations completed")
         
@@ -443,7 +467,7 @@ class Strategy:
         # the top k programs. Then, count the occurrences of each and return the top
         # k stubs that occur the most
         all_indexes_list : 'list[int]' = [] 
-        for i in range(1, k_best_for_the_next_round + 1):
+        for i in range(1, min(k_best_for_the_next_round + 1, len(population))):
             print(population[i].program)
             all_indexes_list.extend(population[i].stub_indexes)
         

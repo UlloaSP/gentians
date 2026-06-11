@@ -20,6 +20,7 @@ class VariablePlacer:
             return resources.files("gentians").joinpath(filename).read_text()
 
         self.args : Arguments = args
+        self.profiler = getattr(args, "profiler", None)
         # dict: hash of the asp program to place vars -> result, to avoid the
         # same computation
         self.already_encountered_asp_programs : 'dict[int,list[list[list[int]]]]' = {}
@@ -221,17 +222,31 @@ class VariablePlacer:
 
         same_atoms, arity_same = get_same_atoms(sampled_stub)
         
-        asp_p = self.__generate_asp_program_for_combinations(
-            n_positions,
-            n_variables,
-            n_vars_in_head,
-            False,
-            aggregates,
-            pos_arithm=pos_arithm,
-            pos_comparison=pos_comparison,
-            same_atoms=same_atoms,
-            arity_same_atoms=arity_same           
-        )
+        if self.profiler is None:
+            asp_p = self.__generate_asp_program_for_combinations(
+                n_positions,
+                n_variables,
+                n_vars_in_head,
+                False,
+                aggregates,
+                pos_arithm=pos_arithm,
+                pos_comparison=pos_comparison,
+                same_atoms=same_atoms,
+                arity_same_atoms=arity_same           
+            )
+        else:
+            with self.profiler.span("variable_placement.asp_program_generation"):
+                asp_p = self.__generate_asp_program_for_combinations(
+                    n_positions,
+                    n_variables,
+                    n_vars_in_head,
+                    False,
+                    aggregates,
+                    pos_arithm=pos_arithm,
+                    pos_comparison=pos_comparison,
+                    same_atoms=same_atoms,
+                    arity_same_atoms=arity_same           
+                )
 
         # generates the clause to fill
         for el in range(0, sampled_stub.count('_'*UNDERSCORE_SIZE)):
@@ -243,22 +258,35 @@ class VariablePlacer:
             # is different, I need to reconstruct again the clause
             r = self.already_encountered_asp_programs[hash(asp_p)]
         else:
-            asp_interface = ClingoInterface([asp_p], ["0"])
+            asp_interface = ClingoInterface([asp_p], ["0"], profiler=self.profiler, phase="variable_placement")
             ctl = asp_interface.init_clingo_ctl()      
 
             # answer_sets : 'list[str]' = []
             answer_sets_in_list : 'list[list[list[int]]]' = []
             if self.args.verbosity > 1:
                 print("Generating variables placements")
-            with ctl.solve(yield_=True) as handle:  # type: ignore
-                for m in handle:  # type: ignore
-                    # print(str(m))
-                    a = str(m).split(' ')
-                    a.sort()
-                    a = ' '.join(a)
-                    # answer_sets.append(a)
-                    answer_sets_in_list.append(from_as_to_list(str(a)))
-                    # res.append(self.__reconstruct_clause(str(m), sampled_stub))
+            solve_context = self.profiler.span("variable_placement.clingo_solve") if self.profiler is not None else None
+            if solve_context is None:
+                with ctl.solve(yield_=True) as handle:  # type: ignore
+                    for m in handle:  # type: ignore
+                        # print(str(m))
+                        a = str(m).split(' ')
+                        a.sort()
+                        a = ' '.join(a)
+                        # answer_sets.append(a)
+                        answer_sets_in_list.append(from_as_to_list(str(a)))
+                        # res.append(self.__reconstruct_clause(str(m), sampled_stub))
+            else:
+                with solve_context:
+                    with ctl.solve(yield_=True) as handle:  # type: ignore
+                        for m in handle:  # type: ignore
+                            # print(str(m))
+                            a = str(m).split(' ')
+                            a.sort()
+                            a = ' '.join(a)
+                            # answer_sets.append(a)
+                            answer_sets_in_list.append(from_as_to_list(str(a)))
+                            # res.append(self.__reconstruct_clause(str(m), sampled_stub))
             if self.args.verbosity > 1:
                 print("Removing symmetries")
 
@@ -268,8 +296,13 @@ class VariablePlacer:
             self.already_encountered_asp_programs[hash(asp_p)] = r
         
         # reconstruct the clause
-        for rt in r:
-            res.append(self.__reconstruct_clause(from_list_to_as(rt), sampled_stub))
+        if self.profiler is None:
+            for rt in r:
+                res.append(self.__reconstruct_clause(from_list_to_as(rt), sampled_stub))
+        else:
+            with self.profiler.span("variable_placement.reconstruct", placements=len(r)):
+                for rt in r:
+                    res.append(self.__reconstruct_clause(from_list_to_as(rt), sampled_stub))
 
         return res
     
@@ -284,21 +317,38 @@ class VariablePlacer:
             if self.args.verbosity >= 1:
                 print(f"({index}/{len(sampled_clauses) - 1}) Placing variables for {clause}")
 
-            r = self._place_variables_clause(clause)
+            if self.profiler is None:
+                r = self._place_variables_clause(clause)
+            else:
+                with self.profiler.span("variable_placement.clause", clause_index=index):
+                    r = self._place_variables_clause(clause)
 
             if len(r) > 0:
                 r.sort()
                 valid_rules : 'list[str]' = []
                 pruned_count = 0
-                for rl in r:
-                    if is_valid_rule(rl):
-                        valid_rules.append(rl)
-                        if self.args.verbosity > 1:
-                            print(f"Valid: {rl}")
-                    else:
-                        pruned_count += 1
-                        if self.args.verbosity > 1:
-                            print(f"Pruned: {rl}")
+                validation_context = self.profiler.span("variable_placement.validate_rules", rules=len(r)) if self.profiler is not None else None
+                if validation_context is None:
+                    for rl in r:
+                        if is_valid_rule(rl):
+                            valid_rules.append(rl)
+                            if self.args.verbosity > 1:
+                                print(f"Valid: {rl}")
+                        else:
+                            pruned_count += 1
+                            if self.args.verbosity > 1:
+                                print(f"Pruned: {rl}")
+                else:
+                    with validation_context:
+                        for rl in r:
+                            if is_valid_rule(rl):
+                                valid_rules.append(rl)
+                                if self.args.verbosity > 1:
+                                    print(f"Valid: {rl}")
+                            else:
+                                pruned_count += 1
+                                if self.args.verbosity > 1:
+                                    print(f"Pruned: {rl}")
                 if self.args.verbosity > 1:
                     print(f"Valid / Total = {len(r) - pruned_count} / {len(r)} = {(len(r) - pruned_count) / len(r)}")
                 if len(valid_rules) > 0:

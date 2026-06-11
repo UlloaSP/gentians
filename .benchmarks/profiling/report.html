@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>GENTIANS profiling report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { font-family: Arial, sans-serif; margin: 28px; color: #1f2933; }
+h1, h2 { margin: 0 0 12px; }
+.toolbar { display: flex; gap: 12px; align-items: center; margin: 18px 0 24px; }
+select { padding: 7px 10px; border: 1px solid #b8c2cc; border-radius: 4px; }
+section { margin: 24px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { border: 1px solid #d8dee8; padding: 6px 8px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+th { background: #f4f6f8; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; }
+.chart-box { border: 1px solid #d8dee8; padding: 12px; min-height: 300px; }
+p { max-width: 980px; line-height: 1.45; }
+</style>
+</head>
+<body>
+<h1>GENTIANS profiling report</h1>
+<p>Runs ejecutados desde CLI `gentians`. Tiempos en segundos. Selector filtra dataset, tablas y graficas.</p>
+<div class="toolbar">
+  <label for="dataset">Dataset</label>
+  <select id="dataset"></select>
+</div>
+<section class="charts">
+  <div class="chart-box"><h2>Fitness max/promedio</h2><canvas id="fitnessChart"></canvas></div>
+  <div class="chart-box"><h2>Tiempo por grupo</h2><canvas id="groupChart"></canvas></div>
+</section>
+<section>
+<h2>Grupos</h2>
+<div id="groups"></div>
+</section>
+<section>
+<h2>Runs</h2>
+<div id="runs"></div>
+</section>
+<section>
+<h2>Fases</h2>
+<div id="phases"></div>
+</section>
+<script>
+const DATASETS = ["4queens"];
+const EVENTS = [{"dataset": "4queens", "run": 1, "iteration": 0, "phase": "run.timeout", "seconds": 100.01297009998234, "metadata": {}}];
+const FITNESS = [];
+const PREFIXES = ["sampling", "variable_placement", "genetic", "genetic.evaluation"];
+let fitnessChart = null;
+let groupChart = null;
+
+function fmt(x) { return Number(x || 0).toFixed(6); }
+function mean(values) { return values.length ? values.reduce((a,b) => a + b, 0) / values.length : 0; }
+function stdev(values) {
+  if (values.length < 2) return 0;
+  const m = mean(values);
+  return Math.sqrt(values.reduce((a,b) => a + Math.pow(b - m, 2), 0) / (values.length - 1));
+}
+function table(headers, rows) {
+  return `<table><thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+function filtered(dataset) {
+  return {
+    events: EVENTS.filter(e => dataset === "__all__" || e.dataset === dataset),
+    fitness: FITNESS.filter(p => dataset === "__all__" || p.dataset === dataset)
+  };
+}
+function render(dataset) {
+  const current = filtered(dataset);
+  const groups = PREFIXES.map(prefix => [prefix, current.events.filter(e => e.phase.startsWith(prefix)).reduce((a,e) => a + e.seconds, 0)]);
+  document.getElementById("groups").innerHTML = table(["grupo", "total_s"], groups.map(r => [r[0], fmt(r[1])]));
+
+  const runMap = new Map();
+  current.events.forEach(e => {
+    const key = `${e.dataset}#${e.run}`;
+    if (!runMap.has(key)) runMap.set(key, {dataset: e.dataset, run: e.run});
+    runMap.get(key)[e.phase] = (runMap.get(key)[e.phase] || 0) + e.seconds;
+  });
+  const runRows = Array.from(runMap.values()).sort((a,b) => a.dataset.localeCompare(b.dataset) || a.run - b.run).map(r => [
+    r.dataset, r.run, fmt(r["solver.total"]), fmt(r["variable_placement.total"]), fmt(r["genetic.total"]), fmt(r["genetic.evaluation.total"])
+  ]);
+  document.getElementById("runs").innerHTML = table(["dataset", "run", "total", "placement", "genetic", "eval_clingo"], runRows);
+
+  const phaseMap = new Map();
+  current.events.forEach(e => {
+    if (!phaseMap.has(e.phase)) phaseMap.set(e.phase, []);
+    phaseMap.get(e.phase).push(e.seconds);
+  });
+  const phaseRows = Array.from(phaseMap.entries()).sort((a,b) => a[0].localeCompare(b[0])).map(([phase, values]) => [
+    phase, values.length, fmt(values.reduce((a,b) => a + b, 0)), fmt(mean(values)), fmt(stdev(values)), fmt(Math.min(...values)), fmt(Math.max(...values))
+  ]);
+  document.getElementById("phases").innerHTML = table(["phase", "count", "total", "mean", "stdev", "min", "max"], phaseRows);
+
+  const fitMap = new Map();
+  current.fitness.forEach(p => {
+    const key = p.genetic_iteration;
+    if (!fitMap.has(key)) fitMap.set(key, []);
+    fitMap.get(key).push(p);
+  });
+  const xs = Array.from(fitMap.keys()).sort((a,b) => a - b);
+  const maxSeries = xs.map(x => mean(fitMap.get(x).map(p => p.max_fitness)));
+  const avgSeries = xs.map(x => mean(fitMap.get(x).map(p => p.avg_fitness)));
+  if (fitnessChart) fitnessChart.destroy();
+  fitnessChart = new Chart(document.getElementById("fitnessChart"), {
+    type: "line",
+    data: { labels: xs, datasets: [
+      { label: "max fitness", data: maxSeries, borderColor: "#0f766e", backgroundColor: "transparent", tension: 0.12 },
+      { label: "avg fitness", data: avgSeries, borderColor: "#b45309", backgroundColor: "transparent", tension: 0.12 }
+    ] },
+    options: { responsive: true, plugins: { legend: { position: "bottom" } }, scales: { x: { title: { display: true, text: "iteracion" } }, y: { title: { display: true, text: "fitness" } } } }
+  });
+
+  if (groupChart) groupChart.destroy();
+  groupChart = new Chart(document.getElementById("groupChart"), {
+    type: "bar",
+    data: { labels: groups.map(g => g[0]), datasets: [{ label: "segundos", data: groups.map(g => g[1]), backgroundColor: "#3b6ea8" }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { title: { display: true, text: "segundos" } } } }
+  });
+}
+const select = document.getElementById("dataset");
+select.innerHTML = `<option value="__all__">Todos</option>` + DATASETS.map(d => `<option value="${d}">${d}</option>`).join("");
+select.addEventListener("change", () => render(select.value));
+render("__all__");
+</script>
+</body>
+</html>

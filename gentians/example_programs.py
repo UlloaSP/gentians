@@ -314,6 +314,7 @@ def euclid_example() -> Program:
     
     #show result/1.
     #show pairprime/2.
+    
 
     # learn
     eucl(A,B,M) :- num(A), num(B), A < B, eucl(B,A,M).

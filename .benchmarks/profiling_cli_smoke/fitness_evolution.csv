@@ -1,0 +1,4 @@
+dataset,run,outer_iteration,genetic_iteration,max_fitness,avg_fitness
+coin,1,0,0,1.0,1.0
+coin,1,0,1,1.0,-499.25
+coin,1,0,2,1.0,-999.5

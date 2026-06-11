@@ -1,0 +1,141 @@
+dataset,run,iteration,phase,seconds,metadata
+coin,1,0,sampling.stub_generation,0.000508900,"{""requested"": 5}"
+coin,1,0,variable_placement.asp_program_generation,0.000008000,{}
+coin,1,0,variable_placement.clingo_control_init,0.000210200,{}
+coin,1,0,variable_placement.clingo_add,0.000576800,"{""clauses"": 1}"
+coin,1,0,variable_placement.clingo_ground,0.001481600,{}
+coin,1,0,variable_placement.clingo_solve,0.000256800,{}
+coin,1,0,variable_placement.reconstruct,0.000009000,"{""placements"": 1}"
+coin,1,0,variable_placement.clause,0.003063500,"{""clause_index"": 0}"
+coin,1,0,variable_placement.validate_rules,0.000233100,"{""rules"": 1}"
+coin,1,0,variable_placement.asp_program_generation,0.000008000,{}
+coin,1,0,variable_placement.clingo_control_init,0.000075400,{}
+coin,1,0,variable_placement.clingo_add,0.000297000,"{""clauses"": 1}"
+coin,1,0,variable_placement.clingo_ground,0.001055300,{}
+coin,1,0,variable_placement.clingo_solve,0.000115000,{}
+coin,1,0,variable_placement.reconstruct,0.000009300,"{""placements"": 1}"
+coin,1,0,variable_placement.clause,0.001771600,"{""clause_index"": 1}"
+coin,1,0,variable_placement.validate_rules,0.000273900,"{""rules"": 1}"
+coin,1,0,variable_placement.asp_program_generation,0.000006800,{}
+coin,1,0,variable_placement.clingo_control_init,0.000076200,{}
+coin,1,0,variable_placement.clingo_add,0.000351300,"{""clauses"": 1}"
+coin,1,0,variable_placement.clingo_ground,0.001160100,{}
+coin,1,0,variable_placement.clingo_solve,0.000123100,{}
+coin,1,0,variable_placement.reconstruct,0.000008800,"{""placements"": 1}"
+coin,1,0,variable_placement.clause,0.001915300,"{""clause_index"": 2}"
+coin,1,0,variable_placement.validate_rules,0.000317600,"{""rules"": 1}"
+coin,1,0,variable_placement.asp_program_generation,0.000009000,{}
+coin,1,0,variable_placement.clingo_control_init,0.000084400,{}
+coin,1,0,variable_placement.clingo_add,0.000335600,"{""clauses"": 1}"
+coin,1,0,variable_placement.clingo_ground,0.001073200,{}
+coin,1,0,variable_placement.clingo_solve,0.000066400,{}
+coin,1,0,variable_placement.reconstruct,0.000000400,"{""placements"": 0}"
+coin,1,0,variable_placement.clause,0.001745500,"{""clause_index"": 3}"
+coin,1,0,variable_placement.asp_program_generation,0.000005300,{}
+coin,1,0,variable_placement.reconstruct,0.000006000,"{""placements"": 1}"
+coin,1,0,variable_placement.clause,0.000121300,"{""clause_index"": 4}"
+coin,1,0,variable_placement.validate_rules,0.000245000,"{""rules"": 1}"
+coin,1,0,variable_placement.total,0.009747800,"{""sampled_clauses"": 5}"
+coin,1,0,genetic.evaluation.coverage_program_build,0.000014200,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000085000,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000151100,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000368900,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000184500,{}
+coin,1,0,genetic.evaluation.total,0.000861400,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.coverage_program_build,0.000008600,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000085000,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000149200,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000349900,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000162200,{}
+coin,1,0,genetic.evaluation.total,0.000812100,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.coverage_program_build,0.000007800,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000081900,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000145700,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000478600,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000173800,{}
+coin,1,0,genetic.evaluation.total,0.000959300,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.coverage_program_build,0.000008000,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000086800,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000160100,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000382900,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000152500,{}
+coin,1,0,genetic.evaluation.total,0.000844500,"{""clauses"": 3}"
+coin,1,0,genetic.initialize_population,0.003614800,"{""population_size"": 4}"
+coin,1,0,genetic.selection,0.000020200,{}
+coin,1,0,genetic.evaluation.coverage_program_build,0.000010100,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000088600,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000147800,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000345100,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000165200,{}
+coin,1,0,genetic.evaluation.total,0.000808000,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.coverage_program_build,0.000007200,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000082700,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000216100,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000368600,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000162900,{}
+coin,1,0,genetic.evaluation.total,0.000895900,"{""clauses"": 3}"
+coin,1,0,genetic.crossover,0.001746800,{}
+coin,1,0,genetic.evaluation.coverage_program_build,0.000007800,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000125300,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000180300,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000348500,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000146500,{}
+coin,1,0,genetic.evaluation.total,0.000860400,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.coverage_program_build,0.000007300,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000083800,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000147100,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000328000,{}
+coin,1,0,genetic.evaluation.total,0.000609000,"{""clauses"": 3}"
+coin,1,0,genetic.mutation,0.001510900,{}
+coin,1,0,genetic.replacement,0.000011400,{}
+coin,1,0,genetic.selection,0.000010600,{}
+coin,1,0,genetic.evaluation.coverage_program_build,0.000007200,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000080500,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000141400,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000316500,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000156300,{}
+coin,1,0,genetic.evaluation.total,0.000752100,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.coverage_program_build,0.000006900,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000084600,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000143600,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000325200,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000143400,{}
+coin,1,0,genetic.evaluation.total,0.000751000,"{""clauses"": 3}"
+coin,1,0,genetic.crossover,0.001547600,{}
+coin,1,0,genetic.evaluation.coverage_program_build,0.000006200,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000079100,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000148900,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000318000,{}
+coin,1,0,genetic.evaluation.total,0.000593400,"{""clauses"": 3}"
+coin,1,0,genetic.mutation,0.000607400,{}
+coin,1,0,genetic.replacement,0.000008500,{}
+coin,1,0,genetic.selection,0.000010000,{}
+coin,1,0,genetic.evaluation.coverage_program_build,0.000007400,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000088100,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000154800,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000347100,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000170900,{}
+coin,1,0,genetic.evaluation.total,0.000820100,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.coverage_program_build,0.000007500,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000088700,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000158900,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000378300,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000183100,{}
+coin,1,0,genetic.evaluation.total,0.000874300,"{""clauses"": 3}"
+coin,1,0,genetic.crossover,0.001740600,{}
+coin,1,0,genetic.evaluation.coverage_program_build,0.000008400,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000091100,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000156700,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000348100,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000165200,{}
+coin,1,0,genetic.evaluation.total,0.000822100,"{""clauses"": 3}"
+coin,1,0,genetic.mutation,0.000845200,{}
+coin,1,0,genetic.replacement,0.000006900,{}
+coin,1,0,genetic.evaluation.coverage_program_build,0.000008100,"{""clauses"": 3}"
+coin,1,0,genetic.evaluation.clingo_control_init,0.000096500,{}
+coin,1,0,genetic.evaluation.clingo_add,0.000164600,{}
+coin,1,0,genetic.evaluation.clingo_ground,0.000367500,{}
+coin,1,0,genetic.evaluation.clingo_solve,0.000165500,{}
+coin,1,0,genetic.evaluation.total,0.000856300,"{""clauses"": 3}"
+coin,1,0,genetic.total,0.012699500,{}
+coin,1,0,solver.total,0.023274400,{}

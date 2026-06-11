@@ -1,0 +1,2 @@
+gentians -e 4queens -d 5 --arithm add sub --comparison lt --variables 3 --seed 12346 --profile-output .benchmarks\profiling\runs\4queens_run_1.json --profile-dataset 4queens --profile-run 1
+gentians -e 4queens -d 5 --arithm add sub --comparison lt --variables 3 --seed 12347 --profile-output .benchmarks\profiling\runs\4queens_run_2.json --profile-dataset 4queens --profile-run 2

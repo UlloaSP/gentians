@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>GENTIANS profiling report</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 32px; color: #1f2933; }
+h1, h2 { margin: 0 0 12px; }
+section { margin: 28px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { border: 1px solid #d8dee8; padding: 6px 8px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+th { background: #f4f6f8; }
+figure { margin: 18px 0 28px; }
+figcaption { font-weight: 700; margin-bottom: 6px; }
+svg { width: 100%; max-width: 900px; height: auto; background: #fff; border: 1px solid #d8dee8; }
+svg line { stroke: #64748b; stroke-width: 1; }
+.line { fill: none; stroke-width: 2.2; }
+.max { stroke: #0f766e; }
+.avg { stroke: #b45309; }
+.legend { font-size: 13px; }
+.max-text { fill: #0f766e; }
+.avg-text { fill: #b45309; }
+p { max-width: 980px; line-height: 1.45; }
+</style>
+</head>
+<body>
+<h1>GENTIANS profiling report</h1>
+<p>Reporte reproducible. Tiempos en segundos. Agrupa fases macro y separa ASP/clingo dentro de placement y evaluación genética.</p>
+<section>
+<h2>Grupos</h2>
+<table><thead><tr><th>grupo</th><th>total_s</th></tr></thead><tbody><tr><td>sampling</td><td>0.000703</td></tr><tr><td>variable_placement</td><td>0.034614</td></tr><tr><td>genetic</td><td>0.060364</td></tr><tr><td>genetic.evaluation</td><td>0.029554</td></tr><tr><td>clingo</td><td>0.000000</td></tr></tbody></table>
+</section>
+<section>
+<h2>Runs</h2>
+<table><thead><tr><th>dataset</th><th>run</th><th>total</th><th>placement</th><th>genetic</th><th>eval_clingo</th></tr></thead><tbody><tr><td>coin</td><td>1</td><td>0.029695</td><td>0.012557</td><td>0.016013</td><td>0.015301</td></tr></tbody></table>
+</section>
+<section>
+<h2>Fases</h2>
+<table><thead><tr><th>phase</th><th>count</th><th>total</th><th>mean</th><th>stdev</th><th>min</th><th>max</th><th>median</th></tr></thead><tbody><tr><td>genetic.crossover</td><td>3</td><td>0.006227</td><td>0.002076</td><td>0.000097</td><td>0.001980</td><td>0.002175</td><td>0.002072</td></tr><tr><td>genetic.evaluation.clingo_add</td><td>15</td><td>0.002964</td><td>0.000198</td><td>0.000037</td><td>0.000175</td><td>0.000320</td><td>0.000186</td></tr><tr><td>genetic.evaluation.clingo_control_init</td><td>15</td><td>0.001701</td><td>0.000113</td><td>0.000029</td><td>0.000100</td><td>0.000217</td><td>0.000106</td></tr><tr><td>genetic.evaluation.clingo_ground</td><td>15</td><td>0.006458</td><td>0.000431</td><td>0.000033</td><td>0.000398</td><td>0.000507</td><td>0.000426</td></tr><tr><td>genetic.evaluation.clingo_solve</td><td>13</td><td>0.002959</td><td>0.000228</td><td>0.000096</td><td>0.000180</td><td>0.000543</td><td>0.000202</td></tr><tr><td>genetic.evaluation.coverage_program_build</td><td>15</td><td>0.000171</td><td>0.000011</td><td>0.000006</td><td>0.000008</td><td>0.000033</td><td>0.000009</td></tr><tr><td>genetic.evaluation.total</td><td>15</td><td>0.015301</td><td>0.001020</td><td>0.000204</td><td>0.000749</td><td>0.001653</td><td>0.001001</td></tr><tr><td>genetic.initialize_population</td><td>1</td><td>0.004228</td><td>0.004228</td><td>0.000000</td><td>0.004228</td><td>0.004228</td><td>0.004228</td></tr><tr><td>genetic.mutation</td><td>3</td><td>0.004262</td><td>0.001421</td><td>0.000562</td><td>0.000775</td><td>0.001802</td><td>0.001684</td></tr><tr><td>genetic.replacement</td><td>3</td><td>0.000033</td><td>0.000011</td><td>0.000003</td><td>0.000009</td><td>0.000014</td><td>0.000010</td></tr><tr><td>genetic.selection</td><td>3</td><td>0.000048</td><td>0.000016</td><td>0.000006</td><td>0.000012</td><td>0.000023</td><td>0.000013</td></tr><tr><td>genetic.total</td><td>1</td><td>0.016013</td><td>0.016013</td><td>0.000000</td><td>0.016013</td><td>0.016013</td><td>0.016013</td></tr><tr><td>sampling.stub_generation</td><td>1</td><td>0.000703</td><td>0.000703</td><td>0.000000</td><td>0.000703</td><td>0.000703</td><td>0.000703</td></tr><tr><td>solver.total</td><td>1</td><td>0.029695</td><td>0.029695</td><td>0.000000</td><td>0.029695</td><td>0.029695</td><td>0.029695</td></tr><tr><td>variable_placement.asp_program_generation</td><td>5</td><td>0.000055</td><td>0.000011</td><td>0.000002</td><td>0.000008</td><td>0.000014</td><td>0.000011</td></tr><tr><td>variable_placement.clause</td><td>5</td><td>0.011032</td><td>0.002206</td><td>0.001210</td><td>0.000167</td><td>0.003345</td><td>0.002549</td></tr><tr><td>variable_placement.clingo_add</td><td>4</td><td>0.002101</td><td>0.000525</td><td>0.000151</td><td>0.000403</td><td>0.000744</td><td>0.000477</td></tr><tr><td>variable_placement.clingo_control_init</td><td>4</td><td>0.000600</td><td>0.000150</td><td>0.000098</td><td>0.000097</td><td>0.000296</td><td>0.000103</td></tr><tr><td>variable_placement.clingo_ground</td><td>4</td><td>0.006044</td><td>0.001511</td><td>0.000124</td><td>0.001358</td><td>0.001649</td><td>0.001518</td></tr><tr><td>variable_placement.clingo_solve</td><td>4</td><td>0.000725</td><td>0.000181</td><td>0.000102</td><td>0.000090</td><td>0.000324</td><td>0.000156</td></tr><tr><td>variable_placement.reconstruct</td><td>5</td><td>0.000042</td><td>0.000008</td><td>0.000005</td><td>0.000001</td><td>0.000012</td><td>0.000010</td></tr><tr><td>variable_placement.total</td><td>1</td><td>0.012557</td><td>0.012557</td><td>0.000000</td><td>0.012557</td><td>0.012557</td><td>0.012557</td></tr><tr><td>variable_placement.validate_rules</td><td>4</td><td>0.001458</td><td>0.000365</td><td>0.000048</td><td>0.000309</td><td>0.000427</td><td>0.000361</td></tr></tbody></table>
+</section>
+<section>
+<h2>Evolución fitness</h2>
+
+    <figure>
+      <figcaption>coin: fitness max vs avg</figcaption>
+      <svg viewBox="0 0 760 280" role="img" aria-label="coin: fitness max vs avg">
+        <line x1="54" y1="242" x2="742" y2="242" />
+        <line x1="54" y1="20" x2="54" y2="242" />
+        <polyline points="54.00,20.00 398.00,20.00 742.00,20.00" class="line max" />
+        <polyline points="54.00,20.00 398.00,131.00 742.00,242.00" class="line avg" />
+        <text x="54" y="272">iteration</text>
+        <text x="8" y="16">fitness</text>
+        <text x="570" y="24" class="legend max-text">max</text>
+        <text x="570" y="44" class="legend avg-text">avg</text>
+      </svg>
+    </figure>
+    
+</section>
+</body>
+</html>

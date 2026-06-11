@@ -1,0 +1,1265 @@
+[
+  {
+    "dataset": "coin",
+    "run": 1,
+    "events": [
+      {
+        "name": "sampling.stub_generation",
+        "seconds": 0.0004534000181593001,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "requested": 5
+        }
+      },
+      {
+        "name": "variable_placement.asp_program_generation",
+        "seconds": 8.800008799880743e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_control_init",
+        "seconds": 0.00029499997617676854,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_add",
+        "seconds": 0.00041119998786598444,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 1
+        }
+      },
+      {
+        "name": "variable_placement.clingo_ground",
+        "seconds": 0.0012871000217273831,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_solve",
+        "seconds": 0.00025669997557997704,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.reconstruct",
+        "seconds": 9.400013368576765e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "placements": 1
+        }
+      },
+      {
+        "name": "variable_placement.clause",
+        "seconds": 0.0027078999555669725,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clause_index": 0
+        }
+      },
+      {
+        "name": "variable_placement.validate_rules",
+        "seconds": 0.00022270000772550702,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "rules": 1
+        }
+      },
+      {
+        "name": "variable_placement.asp_program_generation",
+        "seconds": 8.600007276982069e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_control_init",
+        "seconds": 8.179998258128762e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_add",
+        "seconds": 0.00031999999191612005,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 1
+        }
+      },
+      {
+        "name": "variable_placement.clingo_ground",
+        "seconds": 0.0012526999926194549,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_solve",
+        "seconds": 0.00014140002895146608,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.reconstruct",
+        "seconds": 1.0600022505968809e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "placements": 1
+        }
+      },
+      {
+        "name": "variable_placement.clause",
+        "seconds": 0.002064500004053116,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clause_index": 1
+        }
+      },
+      {
+        "name": "variable_placement.validate_rules",
+        "seconds": 0.0003313000197522342,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "rules": 1
+        }
+      },
+      {
+        "name": "variable_placement.asp_program_generation",
+        "seconds": 6.89999433234334e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.reconstruct",
+        "seconds": 6.399990525096655e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "placements": 1
+        }
+      },
+      {
+        "name": "variable_placement.clause",
+        "seconds": 0.00011020002420991659,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clause_index": 2
+        }
+      },
+      {
+        "name": "variable_placement.validate_rules",
+        "seconds": 0.0002581999870017171,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "rules": 1
+        }
+      },
+      {
+        "name": "variable_placement.asp_program_generation",
+        "seconds": 8.90000956133008e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_control_init",
+        "seconds": 8.66000191308558e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_add",
+        "seconds": 0.00035230000503361225,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 1
+        }
+      },
+      {
+        "name": "variable_placement.clingo_ground",
+        "seconds": 0.0011638000141829252,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_solve",
+        "seconds": 7.179996464401484e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.reconstruct",
+        "seconds": 7.00005330145359e-07,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "placements": 0
+        }
+      },
+      {
+        "name": "variable_placement.clause",
+        "seconds": 0.0018916000262834132,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clause_index": 3
+        }
+      },
+      {
+        "name": "variable_placement.asp_program_generation",
+        "seconds": 6.299989763647318e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_control_init",
+        "seconds": 0.00010170001769438386,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_add",
+        "seconds": 0.0003195999888703227,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 1
+        }
+      },
+      {
+        "name": "variable_placement.clingo_ground",
+        "seconds": 0.0010733000235632062,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.clingo_solve",
+        "seconds": 8.029997115954757e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "variable_placement.reconstruct",
+        "seconds": 7.599999662488699e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "placements": 1
+        }
+      },
+      {
+        "name": "variable_placement.clause",
+        "seconds": 0.0017934999777935445,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clause_index": 4
+        }
+      },
+      {
+        "name": "variable_placement.validate_rules",
+        "seconds": 0.00027929997304454446,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "rules": 1
+        }
+      },
+      {
+        "name": "variable_placement.total",
+        "seconds": 0.009710800019092858,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "sampled_clauses": 5
+        }
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 1.3199984095990658e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 9.030004730448127e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00016090000281110406,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.00038159999530762434,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00019019999308511615,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0008962999563664198,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 9.599956683814526e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 8.68999632075429e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.0001514999894425273,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.0003467999631538987,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00023870001314207911,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0008944000001065433,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 1.1299969628453255e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 9.119999594986439e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00015650002751499414,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.0003377999528311193,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00014939997345209122,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.000798200024291873,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 7.800001185387373e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 8.900003740563989e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.0001542000100016594,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.00034329999471083283,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00015310000162571669,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0008017000509425998,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.initialize_population",
+        "seconds": 0.0035312999971210957,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "population_size": 4
+        }
+      },
+      {
+        "name": "genetic.selection",
+        "seconds": 2.2099993657320738e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 7.499998901039362e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 8.849997539073229e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00016759999562054873,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.00036230002297088504,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00016900000628083944,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0008503999561071396,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 7.800001185387373e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 9.160005720332265e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00021879997802898288,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.0003793999785557389,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00017499999376013875,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0009376000380143523,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.crossover",
+        "seconds": 0.0018342999974265695,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 8.400005754083395e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 9.600003249943256e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00015269999857991934,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.0003464999608695507,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00015870004426687956,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0008182000019587576,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 8.500006515532732e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 9.579997276887298e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00016350002260878682,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.00034470000537112355,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.0002232000115327537,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0009181000059470534,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.mutation",
+        "seconds": 0.0017908999579958618,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.replacement",
+        "seconds": 7.90000194683671e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.selection",
+        "seconds": 9.999959729611874e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 7.599999662488699e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 8.890003664419055e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00015269999857991934,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.00033540005097165704,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00020569999469444156,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0008433000184595585,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 7.299997378140688e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 0.00010030000703409314,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00015380000695586205,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.0003380000125616789,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.000215300009585917,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0008689999813213944,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.crossover",
+        "seconds": 0.001764099986758083,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 7.499998901039362e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 8.38999985717237e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00014950003242120147,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.00032599997939541936,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00020549999317154288,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0008217999711632729,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 6.799993570894003e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 8.58000130392611e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00015259999781847,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.00034359999699518085,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0006340999971143901,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.mutation",
+        "seconds": 0.0014933000202290714,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.replacement",
+        "seconds": 7.899943739175797e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.selection",
+        "seconds": 1.0600022505968809e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 7.599999662488699e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 8.399999933317304e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00014760001795366406,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.00032130000181496143,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.00021929998183622956,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.000832799996715039,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 7.700000423938036e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 8.829997386783361e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00015390000771731138,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.00033270003041252494,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.0002237000153400004,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.0008586000185459852,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.crossover",
+        "seconds": 0.0017356000025756657,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.mutation",
+        "seconds": 2.1999585442245007e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.replacement",
+        "seconds": 2.200016751885414e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.coverage_program_build",
+        "seconds": 6.89999433234334e-06,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.evaluation.clingo_control_init",
+        "seconds": 8.769996929913759e-05,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_add",
+        "seconds": 0.00015729997539892793,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_ground",
+        "seconds": 0.0003462000167928636,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.clingo_solve",
+        "seconds": 0.0002280999906361103,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "genetic.evaluation.total",
+        "seconds": 0.000880099949426949,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {
+          "clauses": 3
+        }
+      },
+      {
+        "name": "genetic.total",
+        "seconds": 0.013256600010208786,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      },
+      {
+        "name": "solver.total",
+        "seconds": 0.023778799979481846,
+        "dataset": "coin",
+        "run": 1,
+        "iteration": 0,
+        "metadata": {}
+      }
+    ],
+    "fitness": [
+      {
+        "dataset": "coin",
+        "run": 1,
+        "outer_iteration": 0,
+        "genetic_iteration": 0,
+        "max_fitness": 1.0,
+        "avg_fitness": 1.0
+      },
+      {
+        "dataset": "coin",
+        "run": 1,
+        "outer_iteration": 0,
+        "genetic_iteration": 1,
+        "max_fitness": 1.0,
+        "avg_fitness": 1.0
+      },
+      {
+        "dataset": "coin",
+        "run": 1,
+        "outer_iteration": 0,
+        "genetic_iteration": 2,
+        "max_fitness": 1.0,
+        "avg_fitness": -499.25
+      }
+    ],
+    "counters": {}
+  }
+]

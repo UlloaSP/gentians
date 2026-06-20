@@ -3,6 +3,6 @@ gentians module.
 """
 
 from .arguments import Arguments
-from .gentians import Solver, main
+from .gentians import main, solve
 
-__all__ = ["Arguments", "Solver", "main"]
+__all__ = ["Arguments", "main", "solve"]

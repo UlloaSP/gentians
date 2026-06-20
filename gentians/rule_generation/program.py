@@ -1,32 +1,10 @@
 import re
 
-from .utils import print_error_and_exit, RuleCallback
 from clingo import ast
 
-
-def extract_name_arity(atom: str) -> "tuple[str,int]":
-    """
-    Extracts name and arity from an atom.
-    """
-    pattern = r"\{?(\w+)(?:\((.*?)\))?\}?"
-    match = re.match(pattern, atom)
-    if match:
-        function_name = match.group(1)  # Extract function name
-        args = match.group(2)  # Extract arguments (if any)
-        if args:
-            # Split arguments while keeping nested parentheses intact
-            arguments = re.findall(r"\w+\(.*?\)|\w+", args)
-        else:
-            arguments = []
-
-        if function_name.startswith(
-            "not"
-        ):  # to support literal, space after not is removed
-            function_name = function_name[3:]
-        return (function_name, len(arguments))
-
-    print_error_and_exit(f"Error in extract_name_arity: {atom}")
-    return (atom, -1)
+from ..asp.callbacks import RuleCallback
+from ..console import print_error_and_exit
+from .parser_atoms import extract_name_arity
 
 
 class Example:
@@ -211,78 +189,3 @@ class Program:
 
     def __repr__(self) -> str:
         return self.__str__()
-
-
-class Parser:
-    """
-    Class for parsing the input file.
-    """
-
-    def __init__(self, filename: str) -> None:
-        self.filename: str = filename
-
-    def _get_mode_declaration(
-        self, s: str, for_head: bool = False
-    ) -> "tuple[str,str,str] | tuple[str,str,str,str]":
-        if for_head:
-            regex = r"#modeh\((\d+|\*),(.*),(\d+)\)."
-        else:
-            regex = r"#modeb\((\d+|\*),(.*),(\d+),(positive|negative)\)."
-        return re.findall(regex, s)[0]
-
-    def _get_pos_neg_examples(self, s: str) -> "tuple[str,str] | tuple[str,str,str]":
-        # TODO: improve this
-        regex3 = r"^#(?:pos|neg)\(\{([^{}]*)\},\{([^{}]*)\},\{([^{}]*)\}\)\.$"
-        regex2 = r"^#(?:pos|neg)\(\{([^{}]*)\},\{([^{}]*)\}\)\.$"
-        res = re.findall(regex3, s)
-        if len(res) > 0:
-            return res[0]
-        else:
-            res = re.findall(regex2, s)
-            return res[0]
-
-    def read_from_file(self):
-        """
-        Read the inductive task from file.
-        """
-        bg: "list[str]" = []
-        pe: "list[Example]" = []
-        ne: "list[Example]" = []
-        lbh: "list[ModeDeclaration]" = []
-        lbb: "list[ModeDeclaration]" = []
-
-        fp = open(self.filename, "r")
-        lines = fp.read().splitlines()
-        fp.close()
-
-        for line in lines:
-            lc = line.rstrip().lstrip()
-
-            if lc.startswith("#modeh"):
-                res = self._get_mode_declaration(lc.replace(" ", ""), True)
-                if len(res) > 0:
-                    md = ModeDeclaration(res, True)
-                    if md not in lbh:
-                        lbh.append(md)
-            elif lc.startswith("#modeb"):
-                res = self._get_mode_declaration(lc.replace(" ", ""), False)
-                if len(res) > 0:
-                    md = ModeDeclaration(res, False)
-                    if md not in lbb:
-                        lbb.append(md)
-            elif lc.startswith("#pos"):
-                lc = lc.replace(" ", "")
-                res = self._get_pos_neg_examples(lc)
-                ex = Example(res, True)
-                if ex not in pe:
-                    pe.append(ex)
-            elif lc.startswith("#neg"):
-                lc = lc.replace(" ", "")
-                res = self._get_pos_neg_examples(lc)
-                ex = Example(res, False)
-                if ex not in ne:
-                    ne.append(Example(res, False))
-            else:
-                bg.append(lc)
-
-        return Program(bg, pe, ne, lbh, lbb)

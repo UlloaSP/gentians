@@ -34,5 +34,5 @@ dev = [
     "pytest",
 ]
 
-[tool.setuptools]
-packages = ["gentians"]
+[tool.setuptools.packages.find]
+include = ["gentians*"]

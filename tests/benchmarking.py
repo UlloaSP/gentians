@@ -1,4 +1,4 @@
-from gentians.variable_placer import VariablePlacer
+from gentians.rule_generation.variable_placement import VariablePlacer
 
 # sampled_stub = ":- a(_____,_____),a(_____,_____)."
 # sampled_stub = "d(V0,V0):- #sum{V1,V2:d(V2,V1)}=V0."

@@ -128,17 +128,7 @@ def main(arguments: Arguments) -> None:
     """
     SDK entry point.
     """
-    print("Running GENTIANS version 0.1.0")
     args = arguments
-
-    if args.profile:
-        import cProfile
-        import pstats
-        import io
-        from pstats import SortKey
-
-        pr = cProfile.Profile()
-        pr.enable()
 
     if args.filename:
         p = Parser(args.filename)
@@ -158,12 +148,3 @@ def main(arguments: Arguments) -> None:
     s = Solver(program, args)
 
     s.solve()
-
-    if args.profile:
-        pr.disable()
-        s = io.StringIO()
-        sortby = SortKey.CUMULATIVE  # sort by total time
-        # sortby = SortKey.CALLS # sort by number of calls
-        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
-        print(s.getvalue())

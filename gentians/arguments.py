@@ -70,6 +70,3 @@ class Arguments:
 
     # Automatic language-bias recall. 0 disables it; negative recall allows negation.
     automatic_language_bias: int = 0
-
-    # Run under cProfile and print cumulative stats.
-    profile: bool = False

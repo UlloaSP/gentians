@@ -1,0 +1,68 @@
+% Example: even_odd
+% Source function: even_odd_example
+%
+% # Goal
+% even(V0):- odd(V1),prev(V0,V1).
+% odd(V0):- even(V1),prev(V0,V1).
+
+% Background knowledge
+even(0).
+prev(1,0).
+prev(2,1).
+prev(3,2).
+prev(4,3).
+
+% Positive examples
+#pos({odd(1), odd(3), even(2)}, {}).
+
+% Negative examples
+#neg({even(3)}, {}).
+#neg({even(1)}, {}).
+#neg({odd(2)}, {}).
+
+% Head language bias
+#modeh(1,even,1).
+#modeh(1,odd,1).
+
+% Body language bias
+#modeb(1,odd,1,positive).
+#modeb(2,prev,2,positive).
+
+% Original Python source
+% def even_odd_example() -> Program:
+%     '''
+%     # Goal
+%     even(V0):- odd(V1),prev(V0,V1).
+%     odd(V0):- even(V1),prev(V0,V1).
+%     '''
+%     # even odd example from
+%     # https://github.com/stassa/louise/blob/master/data/examples/even_odd.pl
+%
+%     background : 'list[str]' = [
+%         'even(0).',
+%         "prev(1,0).",
+%         "prev(2,1).",
+%         "prev(3,2).",
+%         "prev(4,3)."
+%     ]
+%     
+%     positive_examples : 'list[Example]' = [
+%         Example(("odd(1), odd(3), even(2)", ""), True)
+%     ]
+%
+%     negative_examples : 'list[Example]' = [
+%         Example(("even(3)", ""), False),
+%         Example(("even(1)", ""), False),
+%         Example(("odd(2)", ""), False)
+%     ]
+%
+%     language_bias_head : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'even', "1"), True),
+%         ModeDeclaration(("1", 'odd', "1"), True)
+%     ]
+%     language_bias_body : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'odd', "1", "positive"), False),
+%         ModeDeclaration(("2", 'prev', "2", "positive"), False)
+%     ]
+%
+%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

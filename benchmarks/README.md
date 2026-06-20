@@ -1,3 +1,3 @@
-This folder contains a file .sh with all the commands tu replicate the experiments.
+This folder contains `run_examples.py` with SDK calls to replicate the experiments.
 
 The ilasp folder contains the ilasp versions of the datasets.

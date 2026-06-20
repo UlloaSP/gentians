@@ -1,0 +1,59 @@
+% Example: subset_sum
+% Source function: subset_sum
+%
+% % Subset sum problem.
+% {el(1)}.
+% {el(2)}.
+% {el(3)}.
+% {el(4)}.
+% {el(5)}.
+% s(S):- S = #sum{X : el(X)}.
+% :- s(S), S != 6.
+
+% Background knowledge
+{el(1)}.
+{el(2)}.
+{el(3)}.
+{el(4)}.
+{el(5)}.
+
+% Positive examples
+#pos({s(6)}, {}).
+
+% Negative examples
+
+% Head language bias
+#modeh(1,s,1).
+
+% Body language bias
+#modeb(1,el,1,positive).
+
+% Original Python source
+% def subset_sum() -> Program:
+%     '''
+%     % Subset sum problem.
+%     {el(1)}.
+%     {el(2)}.
+%     {el(3)}.
+%     {el(4)}.
+%     {el(5)}.
+%     s(S):- S = #sum{X : el(X)}.
+%     :- s(S), S != 6.
+%     '''
+%     background : 'list[str]' = ["{el(1)}.", "{el(2)}.", "{el(3)}.", "{el(4)}.", "{el(5)}."]
+%
+%     positive_examples : 'list[Example]' = [
+%         Example(("s(6)", ""), True)
+%     ]
+%     
+%     negative_examples : 'list[Example]' = []
+%     
+%     language_bias_head : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 's', "1"), True)
+%     ]
+%     
+%     language_bias_body : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'el', "1"), False)
+%     ]
+%
+%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

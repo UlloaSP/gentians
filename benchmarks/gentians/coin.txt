@@ -1,0 +1,76 @@
+% Example: coin
+% Source function: coin_example
+%
+% # coin example
+% # from https://doc.ilasp.com/specification/cdpis.html
+% % Given:
+% coin(c1). 
+% coin(c2). 
+% coin(c3).    
+% % Learns:
+% heads(V0):- coin(V0),not tails(V0).
+% tails(V0):- coin(V0),not heads(V0).
+
+% Background knowledge
+coin(c1).
+coin(c2).
+coin(c3).
+
+% Positive examples
+#pos({heads(c1), tails(c2), heads(c3)}, {tails(c1), heads(c2), tails(c3)}).
+#pos({heads(c1), heads(c2), tails(c3)}, {tails(c1), tails(c2), heads(c3)}).
+
+% Negative examples
+
+% Head language bias
+#modeh(1,heads,1).
+#modeh(1,tails,1).
+
+% Body language bias
+#modeb(1,coin,1,positive).
+#modeb(1,heads,1,negative).
+#modeb(1,tails,1,negative).
+
+% Original Python source
+% def coin_example() -> Program:
+%     '''
+%     # coin example
+%     # from https://doc.ilasp.com/specification/cdpis.html
+%     % Given:
+%     coin(c1). 
+%     coin(c2). 
+%     coin(c3).    
+%     % Learns:
+%     heads(V0):- coin(V0),not tails(V0).
+%     tails(V0):- coin(V0),not heads(V0).
+%     '''
+%     
+%     background : 'list[str]' = [
+%         'coin(c1).', 
+%         'coin(c2).', 
+%         'coin(c3).'
+%     ]
+%     
+%     # example structure: [Included,Excluded]
+%     # For positive examples, there should be at least
+%     # one answer set with all the Included and none of
+%     # the excluded
+%     positive_examples : 'list[Example]' = [
+%         Example(("heads(c1), tails(c2), heads(c3)", "tails(c1), heads(c2), tails(c3)"), True),
+%         Example(("heads(c1), heads(c2), tails(c3)", "tails(c1), tails(c2), heads(c3)"), True)
+%     ]
+%
+%     negative_examples : 'list[Example]' = []
+%
+%     language_bias_head : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'heads', "1"), True),
+%         ModeDeclaration(("1", 'tails', "1"), True)
+%     ]
+%
+%     language_bias_body : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'coin', "1", "positive"), False),
+%         ModeDeclaration(("1", 'heads', "1", "negative"), False),
+%         ModeDeclaration(("1", 'tails', "1", "negative"), False)
+%     ]
+%
+%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

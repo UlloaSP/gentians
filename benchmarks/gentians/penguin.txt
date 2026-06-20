@@ -1,0 +1,86 @@
+% Example: penguin
+% Source function: penguin_example
+%
+% % this requires constants so it cannot be currently solved.
+% % Program.
+% bird(a).
+% bird(b).
+% can(a, fly).
+% can(b, swim).
+% ability(fly).
+% ability(swim).
+% 
+% % penguin(X):- bird(X).
+% % This is the solution
+% % penguin(X):- bird(X), not can(X, fly).
+% % penguin(X):- bird(X), not can(X, swim).
+% % penguin(X):- bird(X), not can(X, fly), not can(X, swim).
+
+% Background knowledge
+bird(a).
+bird(b).
+can(a, fly).
+can(b, swim).
+ability(fly).
+ability(swim).
+
+% Positive examples
+#pos({penguin(b)}, {}).
+
+% Negative examples
+#neg({penguin(a)}, {}).
+
+% Head language bias
+#modeh(1,penguin,1).
+
+% Body language bias
+#modeb(1,bird,1,positive).
+#modeb(2,can,2,negative).
+#modeb(1,ability,1,positive).
+
+% Original Python source
+% def penguin_example() -> Program:
+%     '''
+%     % this requires constants so it cannot be currently solved.
+%     % Program.
+%     bird(a).
+%     bird(b).
+%     can(a, fly).
+%     can(b, swim).
+%     ability(fly).
+%     ability(swim).
+%
+%     % penguin(X):- bird(X).
+%     % This is the solution
+%     % penguin(X):- bird(X), not can(X, fly).
+%     % penguin(X):- bird(X), not can(X, swim).
+%     % penguin(X):- bird(X), not can(X, fly), not can(X, swim).
+%     '''
+%     background : 'list[str]' = [
+%         "bird(a).",
+%         "bird(b).",
+%         "can(a, fly).",
+%         "can(b, swim).",
+%         "ability(fly).",
+%         "ability(swim)."
+%     ]
+%
+%     positive_examples : 'list[Example]' = [
+%         Example(("penguin(b)", ""), True)
+%     ]
+%
+%     negative_examples : 'list[Example]' = [
+%         Example(("penguin(a)", ""), False)
+%     ]
+%
+%     language_bias_head : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'penguin', "1"), True)
+%     ]
+%
+%     language_bias_body : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'bird', "1", "positive"), False),
+%         ModeDeclaration(("2", 'can', "2", "negative"), False),
+%         ModeDeclaration(("1", 'ability', "1", "positive"), False)
+%     ]
+%
+%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

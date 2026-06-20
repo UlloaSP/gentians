@@ -4,28 +4,37 @@ GENTIANS is a tool to learn answer set programs from examples.
 It also supports aggregates, comparison, and arithmetic operators.
 
 ## Installation
-You can install GENTIANS with:
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
+Install the project and its dependencies with:
 ```
-python -m pip install .
+uv sync
 ```
-in the root folder (here).
-If you want to add modification to the code, remember to add the option `-e` before `.` in the above command.
+
+Run Python code inside the managed environment with:
+```
+uv run python your_script.py
+```
 
 ## Usage
 
-You can get a list of the available options with:
-```
-gentians --help
-```
+Provide a file with background knowledge, positive and negative examples, and the language bias definition.
+Benchmark tasks live in `benchmarks/gentians/` as plain text files.
 
-Generally, you need to provide a file with a background knowledge, positive and negative examples, and the language bias definition.
-However, there are several built in examples in the tool (see the file `example_programs.py`) that can be called with the `-e` option.
+For example if you want to run the hamming task, you can use
+```python
+from gentians import Arguments, main
 
-For example if you want to run the hamming example, you can use
+main(Arguments(
+    filename="benchmarks/gentians/hamming_0.txt", # Task file to parse.
+    max_depth=3,                                 # Max literals in each rule.
+    aggregates=["sum(d/2)", "count(d/2)"],       # Aggregates allowed in generated rules.
+    comparison_operators=["neq"],                # Comparison operators allowed in bodies.
+    verbosity=2,                                 # 0 quiet, 1 sampled clauses, 2 placements.
+    max_variables=4,                             # Max variables allowed in one rule.
+    unbalanced_aggregates=True,                  # Allow unbalanced aggregate variables.
+))
 ```
-gentians -e hamming_0 -d 3 --aggregates "sum(d/2)" "count(d/2)" --comparison neq --verbose=2 --variables=4 -ua
-```
-where `-e` specifies the example, `-d` set the maximum length of a clause (number of literals), `--aggregates` is followed by the allowed aggregates, in this case `#sum` over `d/2` and `#count` over `d/2`, `--comparison` is followed by the allowed comparison operators, in this case `!=` (`neq`), `--verbose` is followed by the verbosity level, `--variables` is followed by the maximum number of variables in a rule, and `-ua` specifies that unbalanced aggregates are allowed.
+where `filename` specifies the task file, `max_depth` sets the maximum length of a clause (number of literals), `aggregates` lists the allowed aggregates, in this case `#sum` over `d/2` and `#count` over `d/2`, `comparison_operators` lists allowed comparison operators, in this case `!=` (`neq`), `verbosity` sets the verbosity level, `max_variables` sets the maximum number of variables in a rule, and `unbalanced_aggregates` allows unbalanced aggregates.
 
 If instead you prefer to define your own program and domain, keep reading.
 
@@ -68,57 +77,57 @@ Some examples are:
 ```
 
 ## Aggregates in Language Bias
-You can define aggregates in the language bias via the `--aggregates` option on the CLI (not directly in the source file, by now).
+You can define aggregates in the language bias via `Arguments(aggregates=...)` (not directly in the source file, by now).
 
 For one aggregation atom you can use:
-`--aggregates "aggregation_function(aggregation_atom)"`
+`"aggregation_function(aggregation_atom)"`
 where `aggregation_function` is the aggregation function (`sum` or `count`, for example) and `aggregation_atom` is a term of the form `name/arity`, representing the atom aggregating on.
 If you want to aggregate over multiple atoms, you can use multiple aggregation atoms separated by commas.
 You can pass multiple aggregates.
 
 Examples:
-```bash
+```python
 # defines a `#sum` aggregate over `x/3`
---aggregates "sum(x/3)"
+Arguments(aggregates=["sum(x/3)"])
 # defines a `#sum` aggregate over `x/3` and `size/1`
---aggregates "sum(x/3,size/1)"
+Arguments(aggregates=["sum(x/3,size/1)"])
 # defines a `#sum` aggregate over `p/2` and a `#count` aggregate also over `p/2`
---aggregates "sum(p/2)" "count(p/2)"
+Arguments(aggregates=["sum(p/2)", "count(p/2)"])
 # defines a `#sum` aggregate over `p/2` and a #count aggregate over `q/2`
---aggregates "sum(p/2)" "count(q/2)"
+Arguments(aggregates=["sum(p/2)", "count(q/2)"])
 ```
 
 Pay attention with aggregates since you may encounter an infinite grounding, so the program will never terminate.
 
 ## Comparison and Arithmetic Operators in Language Bias
-You can define comparison operators and arithmetic operators in the language bias via the `--comparison` and `--arithm` option, respectively, on the CLI (not directly in the source file, by now).
+You can define comparison operators and arithmetic operators in the language bias via `Arguments(comparison_operators=...)` and `Arguments(arithmetic_operators=...)`, respectively (not directly in the source file, by now).
 
 The following comparison operators are considered: `lt` (<), `leq` (=<), `gt` (>), `geq` (>=), `eq` (=), and `neq` (!=).
 The following arithmetic operators are considered: `add` (+), `sub` (-), `mul` (*), `div` (/), and `abs` (absolute value).
 You can pass multiple comparison and arithmetic.
 
 Examples:
-```
---comparison neq
---comparison neq geq
---arithm add
---arithm add mul sub
+```python
+Arguments(comparison_operators=["neq"])
+Arguments(comparison_operators=["neq", "geq"])
+Arguments(arithmetic_operators=["add"])
+Arguments(arithmetic_operators=["add", "mul", "sub"])
 ```
 
 ## Automatic Language Bias
 You can leave the solver discovering the language bias automatically.
 This scans positive and negative examples and background knowledge and extracts the signature for each atom in the examples and each head and body literal in background knowledge.
 Then, it adds each signature as mode bias for the head and for the body.
-You can activate this with the flag `-alb=n` where `n` is a number: if it is positive, indicates the recall for each literal (i.e., all literals will have the same recall); if it is negative, its absolute value indicates the recall for each literal and also states that these can be negated literals.
-Note that `-alb` ignores the language bias defined in the program file (i.e., `#modeb` and `#modeh`).
-If you also use `--aggregates`, `--comparison`, or `--arithm` options, these will be kept.
+You can activate this with `Arguments(automatic_language_bias=n)` where `n` is a number: if it is positive, indicates the recall for each literal (i.e., all literals will have the same recall); if it is negative, its absolute value indicates the recall for each literal and also states that these can be negated literals.
+Note that `automatic_language_bias` ignores the language bias defined in the program file (i.e., `#modeb` and `#modeh`).
+If you also use `aggregates`, `comparison_operators`, or `arithmetic_operators`, these will be kept.
 
 Example: suppose we have in the program
 ```
 a:- b.
 #pos({f(1)},{f(1,a)}).
 ```
-The flag -alb=1 translates into:
+`automatic_language_bias=1` translates into:
 ```
 #modeh(1, a, 0).
 #modeh(1, f, 1).
@@ -129,29 +138,28 @@ The flag -alb=1 translates into:
 #modeb(1, f, 2, positive).
 #modeb(1, b, 0, positive).
 ```
-If `-alb=-1` is used, the `#modeb` above will have `negative` instead of `positive` as fourth argument.
+If `automatic_language_bias=-1` is used, the `#modeb` above will have `negative` instead of `positive` as fourth argument.
 
 Currently, pay attention when using this together with aggregates, since you may encounter an infinite loop while grounding the program.
 
 ## Predicate Invention
-You can enable predicate invention with the option `--invention=N` where `N` is the number of predicates to invent.
+You can enable predicate invention with `Arguments(predicate_invention=N)` where `N` is the number of predicates to invent.
 For each `i` in `{1, ..., N}` it generates a predicate `__inv_i__` with arity 1 and 2 to consider in the head and body of clauses.
 
 Example:
-```
---invention=1
+```python
+Arguments(predicate_invention=1)
 ```
 
 ## Main Available Options
 
-You can check all the available options with the flag `--help`.
 Here we list only the main ones:
-- `--variables`: maximum number of variables to consider in a rule. Default 3.
-- `-d`: maximum number of literals in a rule (number of atoms in the head + number of literals in the body). Default 3
-- `-dh`: set the maximum number of atoms in disjunctive head. Default 0.
-- `-s`: number of clauses to sample. Default 1000
-- `-ua`: enable unbalanced aggregates. Default false (i.e., not enabled).
-- `-e`: run a predefined example
-- `--comparison`: enable comparison operators. It should be followed by one or more among `lt`,`leq`,`gt`,`geq`,`eq`,`neq`. To allow the use of the same operator more than once (i.e., to increase it recall) write it many times. For example, `--comparison lt lt` enables the use of the operator `<` at most twice in the body. Default none (i.e., no comparison operators)
-- `--arithm`: enable arithmetic operators. It should be followed by one or more among `add`,`sub`,`mul`,`div`,`abs`. To allow the use of the same operator more than once (i.e., to increase it recall) write it many times. For example, `--arithm add add` enables the use of the addition at most twice in the body. Default none (i.e., no arithmetic operators)
-- `--aggregates`: enable the use of aggregates. It should be followed by an atom of the form `sum(a/1)`, where sum is the aggregate and a/1 is the atom to consider in the aggregation. Multiple atoms can be separated by a comma, such as `sum(a/1,b/1)`. 
+- `max_variables`: maximum number of variables to consider in a rule. Default 3.
+- `max_depth`: maximum number of literals in a rule (number of atoms in the head + number of literals in the body). Default 3.
+- `disjunctive_head_length`: maximum number of atoms in disjunctive head. Default 1.
+- `clauses_to_sample`: number of clauses to sample. Default 1000.
+- `unbalanced_aggregates`: enable unbalanced aggregates. Default false.
+- `filename`: task file to parse.
+- `comparison_operators`: enable comparison operators. Values: `lt`,`leq`,`gt`,`geq`,`eq`,`neq`. Repeat an operator to increase recall. Example: `["lt", "lt"]`.
+- `arithmetic_operators`: enable arithmetic operators. Values: `add`,`sub`,`mul`,`div`,`abs`. Repeat an operator to increase recall. Example: `["add", "add"]`.
+- `aggregates`: enable aggregates. Use atoms like `sum(a/1)`. Multiple atoms can be separated by a comma, such as `sum(a/1,b/1)`.

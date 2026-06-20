@@ -1,0 +1,97 @@
+% Example: euclid
+% Source function: euclid_example
+%
+% Models Euclid's algorithm.
+% #const a=4.
+% #const b=2.
+% num(0..A) :- A = #max{a;b}.
+% zero(0).
+% one(1).
+% pairprime(A,B) :- num(A), num(B), one(One), A > One, B > One, eucl(A,B,1).
+% result(M) :- eucl(a,b,M).
+% 
+% #show result/1.
+% #show pairprime/2.
+% 
+% # learn
+% eucl(A,B,M) :- num(A), num(B), A < B, eucl(B,A,M).
+% eucl(A,Z,A) :- zero(Z), num(A).
+% eucl(A,B,M) :- num(A),num(B), zero(Z), A > B, B > Z, D = A \ B, eucl(B,D,M).
+
+% Background knowledge
+#const a=4.
+#const b=2.
+num(0..A) :- A = #max{a;b}.
+zero(0).
+pairprime(A,B) :- num(A), num(B), A > 1, B > 1, eucl(A,B,1).
+result(M) :- eucl(a,b,M).
+
+% Positive examples
+#pos({pairprime(4,3), pairprime(3,2), pairprime(2,3), pairprime(3,4)}, {}).
+
+% Negative examples
+#neg({pairprime(4,2)}, {}).
+#neg({pairprime(2,4)}, {}).
+#neg({pairprime(1,2)}, {}).
+#neg({pairprime(2,1)}, {}).
+
+% Head language bias
+#modeh(1,eucl,3).
+
+% Body language bias
+#modeb(1,euc,3,positive).
+#modeb(1,zero,1,positive).
+#modeb(2,num,1,positive).
+
+% Original Python source
+% def euclid_example() -> Program:
+%     '''
+%     Models Euclid's algorithm.
+%     #const a=4.
+%     #const b=2.
+%     num(0..A) :- A = #max{a;b}.
+%     zero(0).
+%     one(1).
+%     pairprime(A,B) :- num(A), num(B), one(One), A > One, B > One, eucl(A,B,1).
+%     result(M) :- eucl(a,b,M).
+%     
+%     #show result/1.
+%     #show pairprime/2.
+%
+%     # learn
+%     eucl(A,B,M) :- num(A), num(B), A < B, eucl(B,A,M).
+%     eucl(A,Z,A) :- zero(Z), num(A).
+%     eucl(A,B,M) :- num(A),num(B), zero(Z), A > B, B > Z, D = A \ B, eucl(B,D,M).
+%     '''
+%     # background knowledge
+%     background : 'list[str]' = [
+%         "#const a=4.",
+%         "#const b=2.",
+%         "num(0..A) :- A = #max{a;b}.",
+%         "zero(0).",
+%         "pairprime(A,B) :- num(A), num(B), A > 1, B > 1, eucl(A,B,1).",
+%         "result(M) :- eucl(a,b,M)."
+%     ]
+%
+%     # positive examples
+%     positive_examples : 'list[Example]' = [
+%         Example(("pairprime(4,3), pairprime(3,2), pairprime(2,3), pairprime(3,4)", ""), True)
+%     ]
+%     negative_examples : 'list[Example]' = [
+%         Example(("pairprime(4,2)", ""), False),
+%         Example(("pairprime(2,4)", ""), False),
+%         Example(("pairprime(1,2)", ""), False),
+%         Example(("pairprime(2,1)", ""), False)
+%     ]
+%
+%     # mode bias for the head
+%     language_bias_head : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", "eucl", "3"), True)
+%     ]
+%     language_bias_body : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", "euc", "3", "positive"), False),
+%         ModeDeclaration(("1", "zero", "1", "positive"), False),
+%         ModeDeclaration(("2", "num", "1", "positive"), False)
+%     ]
+%
+%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

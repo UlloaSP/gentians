@@ -1,0 +1,80 @@
+% Example: grandparent
+% Source function: grandparent_example
+%
+% % solution
+% target(A,B):-target_1(A,C),target_1(C,B).
+% target_1(A,B):-mother(A,B).
+% target_1(A,B):-father(A,B).
+
+% Background knowledge
+mother(i,a).
+mother(c,f).
+mother(c,g).
+mother(f,h).
+father(a,b).
+father(a,c).
+father(b,d).
+father(b,e).
+
+% Positive examples
+#pos({target(i,b), target(i,c), target(a,d), target(a,e), target(a,f), target(a,g), target(c,h)}, {}).
+
+% Negative examples
+#neg({target(a,b)}, {}).
+#neg({target(b,c)}, {}).
+#neg({target(c,d)}, {}).
+#neg({target(d,e)}, {}).
+#neg({target(e,f)}, {}).
+#neg({target(f,g)}, {}).
+#neg({target(g,h)}, {}).
+#neg({target(h,i)}, {}).
+
+% Head language bias
+#modeh(1,target,2).
+#modeh(1,target_1,2).
+
+% Body language bias
+#modeb(1,father,2,positive).
+#modeb(1,mother,2,positive).
+#modeb(2,target_1,2,positive).
+
+% Original Python source
+% def grandparent_example() -> Program:
+%     # from metagol
+%     '''
+%     % solution
+%     target(A,B):-target_1(A,C),target_1(C,B).
+%     target_1(A,B):-mother(A,B).
+%     target_1(A,B):-father(A,B).
+%     '''
+%     
+%     background : 'list[str]' = ["mother(i,a).", "mother(c,f).", "mother(c,g).", "mother(f,h).", "father(a,b).", "father(a,c).", "father(b,d).", "father(b,e)."]
+%     
+%     positive_examples : 'list[Example]' = [
+%         Example(("target(i,b), target(i,c), target(a,d), target(a,e), target(a,f), target(a,g), target(c,h)", ""), True)
+%     ]
+%     
+%     negative_examples : 'list[Example]' = [
+%         Example(("target(a,b)", ""), False), 
+%         Example(("target(b,c)", ""), False), 
+%         Example(("target(c,d)", ""), False), 
+%         Example(("target(d,e)", ""), False), 
+%         Example(("target(e,f)", ""), False), 
+%         Example(("target(f,g)", ""), False), 
+%         Example(("target(g,h)", ""), False), 
+%         Example(("target(h,i)", ""), False),
+%     ]
+%     
+%     language_bias_head : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'target', "2"), True),
+%         ModeDeclaration(("1", 'target_1', "2"), True)
+%     ]
+%     
+%     
+%     language_bias_body : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'father', "2", "positive"), False),
+%         ModeDeclaration(("1", 'mother', "2", "positive"), False),
+%         ModeDeclaration(("2", 'target_1', "2", "positive"), False)
+%     ]
+%     
+%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

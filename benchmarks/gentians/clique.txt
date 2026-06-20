@@ -1,0 +1,107 @@
+% Example: clique
+% Source function: clique
+%
+% Clique ok size 3.
+% Given:
+% 3 {in(X) : v(X)} 3.
+% v(X) :- e(X,Y).
+% v(Y) :- e(X,Y).
+% Learn:
+% :- in(X), in(Y), X!=Y, not e(X,Y), not e(Y,X).
+% Only 2 solutions:
+% in(1) in(2) in(5)
+% in(1) in(9) in(5)
+
+% Background knowledge
+v(1..9).
+e(1,2).
+e(1,5).
+e(1,9).
+e(3,1).
+e(3,4).
+e(3,8).
+e(5,4).
+e(6,3).
+e(6,7).
+e(2,5).
+e(4,7).
+e(7,1).
+e(8,2).
+e(9,5).
+e(9,6).
+3 {in(X) : v(X)} 3.
+v(X) :- e(X,Y).
+v(Y) :- e(X,Y).
+ne(X,Y):- not e(X,Y), v(X), v(Y).
+
+% Positive examples
+#pos({in(1), in(2), in(5)}, {}).
+#pos({in(1), in(9), in(5)}, {}).
+
+% Negative examples
+#neg({in(3)}, {}).
+#neg({in(4)}, {}).
+
+% Head language bias
+
+% Body language bias
+#modeb(2,v,1,positive).
+#modeb(2,ne,2,positive).
+#modeb(2,in,1,positive).
+
+% Original Python source
+% def clique() -> Program:
+%     '''
+%     Clique ok size 3.
+%     Given:
+%     3 {in(X) : v(X)} 3.
+%     v(X) :- e(X,Y).
+%     v(Y) :- e(X,Y).
+%     Learn:
+%     :- in(X), in(Y), X!=Y, not e(X,Y), not e(Y,X).
+%     Only 2 solutions:
+%     in(1) in(2) in(5)
+%     in(1) in(9) in(5)
+%     '''
+%     background : 'list[str]' = [
+%         "v(1..9).",
+%         "e(1,2).",
+%         "e(1,5).",
+%         "e(1,9).",
+%         "e(3,1).",
+%         "e(3,4).",
+%         "e(3,8).",
+%         "e(5,4).",
+%         "e(6,3).",
+%         "e(6,7).",
+%         "e(2,5).",
+%         "e(4,7).",
+%         "e(7,1).",
+%         "e(8,2).",
+%         "e(9,5).",
+%         "e(9,6).",
+%         "3 {in(X) : v(X)} 3.",
+%         "v(X) :- e(X,Y).",
+%         "v(Y) :- e(X,Y).",
+%         "ne(X,Y):- not e(X,Y), v(X), v(Y)."
+%     ]
+%
+%     positive_examples : 'list[Example]' = [
+%         Example(("in(1), in(2), in(5)", ""), True),
+%         Example(("in(1), in(9), in(5)", ""), True)
+%     ]
+%
+%     negative_examples : 'list[Example]' = [
+%         Example(("in(3)", ""), False),
+%         Example(("in(4)", ""), False)
+%     ]
+%
+%     language_bias_head : 'list[ModeDeclaration]' = []
+%
+%     language_bias_body : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("2", "v", "1", "positive"), False),
+%         ModeDeclaration(("2", "ne", "2", "positive"), False),
+%         ModeDeclaration(("2", "in", "1", "positive"), False)
+%     ]
+%
+%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

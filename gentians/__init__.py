@@ -1,11 +1,8 @@
-'''
+"""
 gentians module.
-'''
+"""
 
-from . import gentians
+from .arguments import Arguments
+from .gentians import Solver, main
 
-def main():
-    '''
-    Entry point.
-    '''
-    gentians.main()
+__all__ = ["Arguments", "Solver", "main"]

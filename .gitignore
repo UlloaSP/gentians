@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
+.benchmarks/
+
 a.py
 lp_test.lp
 asp_prog_to_minimize_number_of_clauses.lp

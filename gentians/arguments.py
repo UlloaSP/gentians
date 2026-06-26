@@ -26,11 +26,8 @@ class Arguments:
     # Maximum number of atoms allowed in a disjunctive head.
     disjunctive_head_length: int = 1
 
-    # Number of clause stubs sampled at each sampling step.
+    # Number of candidate clauses generated at each hypothesis-space step.
     clauses_to_sample: int = 1000
-
-    # Token used as an unbound variable placeholder in sampled stubs.
-    wildcard: str = "__VAR__"
 
     # Allow aggregate literals whose variables are not fully balanced.
     unbalanced_aggregates: bool = False
@@ -84,11 +81,11 @@ class Arguments:
     mutation: dict[str, object] = field(
         default_factory=lambda: {
             # Mutation implementation.
-            "name": "random_stub",
+            "name": "random_group",
             # Probability of mutating an offspring.
             "probability": 0.2,
-            # Whether mutation may replace the clause stub itself.
-            "change_stub": True,
+            # Whether mutation may replace the generated clause group itself.
+            "change_group": True,
         }
     )
 
@@ -109,18 +106,14 @@ class Arguments:
             "name": "oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
             "prob_replacing_oldest": 0.5,
-            # Number of elite individuals copied into the next outer cycle.
-            "k_best_for_next_round": 5,
         }
     )
 
-    # Variable placement solver config.
-    variable_placement: dict[str, object] = field(
+    # Hypothesis-space solver config.
+    hypothesis_space: dict[str, object] = field(
         default_factory=lambda: {
-            # Clingo CLI arguments used to enumerate variable placements.
-            "clingo_arguments": ["0"],
-            # Use one variable when a stub has at most this many wildcard slots.
-            "single_variable_until_positions": 2,
+            # Extra Clingo CLI arguments used to enumerate generated clauses.
+            "clingo_arguments": [],
         }
     )
 

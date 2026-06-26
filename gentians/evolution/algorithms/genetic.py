@@ -1,5 +1,3 @@
-from collections import Counter
-
 from ...arguments import Arguments
 from ..individual import Individual
 from ..types import (
@@ -27,7 +25,6 @@ class Strategy:
         crossover: CrossoverFn,
         mutation: MutationFn,
         replacement: ReplacementFn,
-        k_best_for_next_round: int,
     ) -> None:
         self.placed_list: list[PlacedClause] = placed_list
         self.program: Program = program
@@ -38,10 +35,9 @@ class Strategy:
         self.crossover = crossover
         self.mutation = mutation
         self.replacement = replacement
-        self.k_best_for_next_round = k_best_for_next_round
 
     @profile_phase("genetic")
-    def genetic_solver(self) -> tuple[list[str], float, bool, list[int]]:
+    def genetic_solver(self) -> tuple[list[str], float, bool]:
         """
         Genetic algorithm to find the best program
         """
@@ -58,7 +54,7 @@ class Strategy:
 
         if best_found:
             record_ga_generation(0, [population[0].score], population[0].score)
-            return population[0].program, population[0].score, True, [-1]
+            return population[0].program, population[0].score, True
 
         # step 1: sort in terms of decreasing fitness
         population.sort(key=lambda x: x.score, reverse=True)
@@ -86,7 +82,6 @@ class Strategy:
                         [prg.program[i] for i in prg.l_best_indexes],
                         prg.score,
                         True,
-                        [-1],
                     )
 
             # 2.3: mutation
@@ -114,27 +109,14 @@ class Strategy:
                         [el.program[i] for i in el.l_best_indexes],
                         el.score,
                         True,
-                        [-1],
                     )
 
                 population = self.replacement(population, el)
             population.sort(key=lambda x: x.score, reverse=True)
 
-        # keep the elements for the next round: extract all the stubs from
-        # the top k programs. Then, count the occurrences of each and return the top
-        # k stubs that occur the most
-        all_indexes_list: list[int] = []
-        k_best = min(self.k_best_for_next_round, max(0, len(population) - 1))
-        for i in range(1, k_best + 1):
-            all_indexes_list.extend(population[i].stub_indexes)
-
-        # create a dict to count the occurrences, sort it, and return the top
-        # k elements that occur the most
-        a = sorted(Counter(all_indexes_list).items(), key=lambda x: x[1], reverse=True)
-
         with phase("fitness.final"):
             res = self.evaluate_score(
-                population[0].stub_indexes,
+                population[0].group_indexes,
                 population[0].prog_indexes,
                 population[0].program,
             )
@@ -143,5 +125,4 @@ class Strategy:
             [population[0].program[i] for i in res[2]],
             res[0],
             False,
-            [i[0] for i in a[:k_best]],
         )

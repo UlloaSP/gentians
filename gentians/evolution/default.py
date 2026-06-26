@@ -17,7 +17,7 @@ def create_default_genetic_strategy(
     program: Program,
     arguments: Arguments,
 ) -> Strategy:
-    replacement, k_best_for_next_round = create_replacement(arguments.replacement)
+    replacement = create_replacement(arguments.replacement)
     return Strategy(
         placed_list,
         program,
@@ -28,5 +28,4 @@ def create_default_genetic_strategy(
         create_crossover(arguments.crossover),
         create_mutation(arguments.mutation),
         replacement,
-        k_best_for_next_round,
     )

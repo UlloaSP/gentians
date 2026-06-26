@@ -21,7 +21,7 @@ def coverage_exp_max(
     cache: dict[tuple[str, ...], CachedFitnessResult] = {}
 
     def evaluate_score(
-        stub_indexes: list[int], prog_indexes: list[int], candidate_program: list[str]
+        group_indexes: list[int], prog_indexes: list[int], candidate_program: list[str]
     ) -> tuple[float, bool, list[int]]:
         return cached_fitness(
             cache,

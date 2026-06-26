@@ -6,7 +6,7 @@ from .crossovers.one_point import one_point_crossover
 from .fitness.coverage_exp_max import coverage_exp_max
 from .fitness.coverage_exp_mean import coverage_exp_mean
 from .individual import Individual
-from .mutations.random_stub import mutate_by_random_stub
+from .mutations.random_group import mutate_by_random_group
 from .populations.random_initialization import initialize_population
 from .replacements.oldest_or_worst import replace_oldest_or_worst
 from .selections.fittest import pick_two_fittest
@@ -86,9 +86,9 @@ def create_crossover(config: dict[str, object]) -> CrossoverFn:
 
 def create_mutation(config: dict[str, object]) -> MutationFn:
     name = _str(config, "name")
-    if name == "random_stub":
+    if name == "random_group":
         probability = _float(config, "probability")
-        change_stub = _bool(config, "change_stub")
+        change_group = _bool(config, "change_group")
 
         def mutate(
             element: Individual,
@@ -96,12 +96,12 @@ def create_mutation(config: dict[str, object]) -> MutationFn:
             evaluate_score: FitnessFn,
             known_signatures: set[tuple[str, ...]],
         ) -> Individual:
-            return mutate_by_random_stub(
+            return mutate_by_random_group(
                 element,
                 placed_list,
                 probability,
                 evaluate_score,
-                change_stub,
+                change_group,
                 known_signatures,
             )
 
@@ -127,18 +127,17 @@ def create_population(config: dict[str, object]) -> PopulationInitializerFn:
     raise ValueError(f"Unknown population operator: {name}")
 
 
-def create_replacement(config: dict[str, object]) -> tuple[ReplacementFn, int]:
+def create_replacement(config: dict[str, object]) -> ReplacementFn:
     name = _str(config, "name")
     if name == "oldest_or_worst":
         prob_replacing_oldest = _float(config, "prob_replacing_oldest")
-        k_best_for_next_round = _int(config, "k_best_for_next_round")
 
         def replace(population: list[Individual], element: Individual) -> list[Individual]:
             return replace_oldest_or_worst(
                 population, element, prob_replacing_oldest
             )
 
-        return replace, k_best_for_next_round
+        return replace
     raise ValueError(f"Unknown replacement operator: {name}")
 
 
@@ -207,7 +206,7 @@ def _clone_parents_without_crossover(
 def _clone_individual(individual: Individual) -> Individual:
     return Individual(
         list(individual.program),
-        list(individual.stub_indexes),
+        list(individual.group_indexes),
         list(individual.prog_indexes),
         individual.score,
         individual.is_best,

@@ -8,12 +8,12 @@ from ...timing import phase, profile_phase, record_metric
 def _child_from_parent(
     parent: Individual,
     program: list[str],
-    stub_indexes: list[int],
+    group_indexes: list[int],
     prog_indexes: list[int],
 ) -> Individual:
     return Individual(
         program,
-        stub_indexes,
+        group_indexes,
         prog_indexes,
         parent.score,
         parent.is_best,
@@ -25,23 +25,23 @@ def _evaluate_child(
     parent_a: Individual,
     parent_b: Individual,
     program: list[str],
-    stub_indexes: list[int],
+    group_indexes: list[int],
     prog_indexes: list[int],
     evaluate_score: FitnessFn,
     known_signatures: set[tuple[str, ...]],
 ) -> Individual:
     if program == parent_a.program:
-        return _child_from_parent(parent_a, program, stub_indexes, prog_indexes)
+        return _child_from_parent(parent_a, program, group_indexes, prog_indexes)
     if program == parent_b.program:
-        return _child_from_parent(parent_b, program, stub_indexes, prog_indexes)
+        return _child_from_parent(parent_b, program, group_indexes, prog_indexes)
     signature = tuple(sorted(program))
     if signature in known_signatures:
-        return Individual(program, stub_indexes, prog_indexes, float("-inf"), False, [])
+        return Individual(program, group_indexes, prog_indexes, float("-inf"), False, [])
     with phase("crossover.fitness"):
         current_score, is_best, l_indexes = evaluate_score(
-            stub_indexes, prog_indexes, program
+            group_indexes, prog_indexes, program
         )
-    return Individual(program, stub_indexes, prog_indexes, current_score, is_best, l_indexes)
+    return Individual(program, group_indexes, prog_indexes, current_score, is_best, l_indexes)
 
 
 @profile_phase("crossover")
@@ -61,9 +61,9 @@ def one_point_crossover(
             best_a.program[:crossover_position]
             + best_b.program[crossover_position:]
         )
-        new_stub_indexes = (
-            best_a.stub_indexes[:crossover_position]
-            + best_b.stub_indexes[crossover_position:]
+        new_group_indexes = (
+            best_a.group_indexes[:crossover_position]
+            + best_b.group_indexes[crossover_position:]
         )
         new_program_indexes = (
             best_a.prog_indexes[:crossover_position]
@@ -73,7 +73,7 @@ def one_point_crossover(
         best_a,
         best_b,
         new_program,
-        new_stub_indexes,
+        new_group_indexes,
         new_program_indexes,
         evaluate_score,
         known_signatures,
@@ -84,9 +84,9 @@ def one_point_crossover(
             best_b.program[:crossover_position]
             + best_a.program[crossover_position:]
         )
-        new_stub_indexes = (
-            best_b.stub_indexes[:crossover_position]
-            + best_a.stub_indexes[crossover_position:]
+        new_group_indexes = (
+            best_b.group_indexes[:crossover_position]
+            + best_a.group_indexes[crossover_position:]
         )
         new_program_indexes = (
             best_b.prog_indexes[:crossover_position]
@@ -96,7 +96,7 @@ def one_point_crossover(
         best_a,
         best_b,
         new_program,
-        new_stub_indexes,
+        new_group_indexes,
         new_program_indexes,
         evaluate_score,
         known_signatures,

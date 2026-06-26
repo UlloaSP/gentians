@@ -143,16 +143,15 @@ DEFAULT_ARGUMENTS: dict[str, object] = {
         "prob_selecting_fittest": 0.9,
     },
     "crossover": {"name": "one_point", "probability": 1.0},
-    "mutation": {"name": "random_stub", "probability": 0.05, "change_stub": True},
+    "mutation": {"name": "random_group", "probability": 0.05, "change_group": True},
     "population": {"name": "random", "size": 36},
     "replacement": {
         "name": "oldest_or_worst",
         "prob_replacing_oldest": 0.5,
-        "k_best_for_next_round": 5,
+        
     },
-    "variable_placement": {
-        "clingo_arguments": ["0"],
-        "single_variable_until_positions": 2,
+    "hypothesis_space": {
+        "clingo_arguments": [],
     },
     "sampling": {
         "negation_probability": 0.5,
@@ -168,9 +167,9 @@ TOTAL_RE = re.compile(r"Total time:\s+([-+0-9.eE]+)")
 
 
 PHASE_FUNCTIONS = {
-    "sampling.stub_generation": {"sample_clauses_stub"},
-    "variable_placement.total": {"place_variables_list_of_clauses"},
-    "variable_placement.clause_generation": {"_place_variables_clause"},
+    "hypothesis_space.generation": {"generate"},
+    "hypothesis_space.total": {"generate"},
+    "hypothesis_space.clause_generation": {"generate"},
     "genetic.total": {"genetic_solver"},
     "genetic.selection": {"tournament", "pick_two_fittest", "get_fittest"},
     "genetic.crossover_inclusive": {"crossover"},
@@ -182,9 +181,9 @@ PHASE_FUNCTIONS = {
 
 STANDARD_TIMING_METRICS = [
     "sampling",
-    "variable_placement",
-    "variable_placement.grounding",
-    "variable_placement.solving",
+    "hypothesis_space",
+    "hypothesis_space.grounding",
+    "hypothesis_space.solving",
     "selection",
     "crossover.operator",
     "crossover.fitness",
@@ -226,7 +225,7 @@ def main() -> None:
     parser.add_argument("--mutation-json")
     parser.add_argument("--population-json")
     parser.add_argument("--replacement-json")
-    parser.add_argument("--variable-placement-json")
+    parser.add_argument("--hypothesis-space-json")
     parser.add_argument("--sampling-json")
     parser.add_argument("--population", type=int)
     parser.add_argument("--seed-base", type=int, default=1)
@@ -444,7 +443,7 @@ def override_arguments(args: argparse.Namespace) -> dict[str, object]:
         "mutation",
         "population",
         "replacement",
-        "variable_placement",
+        "hypothesis_space",
         "sampling",
     ]:
         raw = getattr(args, f"{name}_json")
@@ -695,7 +694,7 @@ def compute_accounting_invariants(
     top_level = [
         "sampling",
         "sampling.instantiation",
-        "variable_placement",
+        "hypothesis_space",
         "genetic",
     ]
     attributed = sum(values.get(metric, 0.0) for metric in top_level)
@@ -732,7 +731,7 @@ def compute_accounting_invariants(
         },
     ]
     for phase in [
-        "variable_placement",
+        "hypothesis_space",
         "fitness.initialization",
         "crossover",
         "mutation",
@@ -993,15 +992,15 @@ def write_dashboard_data(
                         to_float(row.get("placed_candidate_rules"))
                         for row in candidate_metrics
                         if row.get("dataset") == dataset
-                        and row.get("metric") == "place_candidate_rules"
+                        and row.get("metric") == "build_reified_hypothesis_space"
                     )
                 ),
-                "stubs": int(
+                "clauses": int(
                     sum(
-                        to_float(row.get("placed_stub_groups"))
+                        to_float(row.get("placed_clause_groups"))
                         for row in candidate_metrics
                         if row.get("dataset") == dataset
-                        and row.get("metric") == "place_candidate_rules"
+                        and row.get("metric") == "build_reified_hypothesis_space"
                     )
                 ),
                 "variables": int(
@@ -1009,7 +1008,7 @@ def write_dashboard_data(
                         to_float(row.get("variables_slots"))
                         for row in candidate_metrics
                         if row.get("dataset") == dataset
-                        and row.get("metric") == "place_variables_clause"
+                        and row.get("metric") == "build_reified_hypothesis_space"
                     )
                 ),
                 "predicates": 0,
@@ -1018,17 +1017,17 @@ def write_dashboard_data(
                     to_float(row.get("body_literals"))
                     for row in candidate_metrics
                     if row.get("dataset") == dataset
-                    and row.get("metric") == "place_variables_clause"
+                    and row.get("metric") == "build_reified_hypothesis_space"
                 ),
                 "varsPerRule": mean(
                     to_float(row.get("variables_slots"))
                     for row in candidate_metrics
                     if row.get("dataset") == dataset
-                    and row.get("metric") == "place_variables_clause"
+                    and row.get("metric") == "build_reified_hypothesis_space"
                 ),
-                "negation": to_float(candidate.get("negation_stub_rate")),
-                "aggregates": to_float(candidate.get("aggregate_stub_rate")),
-                "arithmetic": to_float(candidate.get("arithmetic_stub_rate")),
+                "negation": to_float(candidate.get("negation_clause_rate")),
+                "aggregates": to_float(candidate.get("aggregate_clause_rate")),
+                "arithmetic": to_float(candidate.get("arithmetic_clause_rate")),
                 "recursion": 0,
                 "contextAtoms": 0,
                 "total": total,
@@ -1069,7 +1068,7 @@ def write_dashboard_data(
                 "dominant": dominant_phase(phases),
                 "phases": phases,
                 "fitnessRuns": dashboard_fitness_runs(dataset_ga),
-                "stubRows": dashboard_stub_rows(dataset, candidate_metrics),
+                "clauseRows": dashboard_clause_rows(dataset, candidate_metrics),
                 "operatorSummary": [
                     row for row in operator_rows if row.get("dataset") == dataset
                 ],
@@ -1099,7 +1098,7 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
 
     phases = {
         "sampling": phase("sampling", "sampling"),
-        "variablePlacement": phase("variablePlacement", "variable_placement"),
+        "hypothesisSpace": phase("hypothesisSpace", "hypothesis_space"),
         "initialization": phase("initialization", "fitness.initialization"),
         "selection": phase("selection", "selection"),
         "crossover": phase("crossover", "crossover"),
@@ -1157,16 +1156,16 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
     return runs
 
 
-def dashboard_stub_rows(
+def dashboard_clause_rows(
     dataset: str, candidate_metrics: list[dict[str, object]]
 ) -> list[dict[str, object]]:
     rows = []
     for row in candidate_metrics:
-        if row.get("dataset") != dataset or row.get("metric") != "place_variables_clause":
+        if row.get("dataset") != dataset or row.get("metric") != "build_reified_hypothesis_space":
             continue
         rows.append(
             {
-                "stub": str(row.get("stub_index")),
+                "clause": str(row.get("clause_index")),
                 "literals": int(to_float(row.get("body_literals"))),
                 "variables": int(to_float(row.get("variables_slots"))),
                 "aggregates": int(to_float(row.get("has_aggregate"))),
@@ -1286,13 +1285,13 @@ def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     for dataset in datasets:
         selected = [row for row in rows if row.get("dataset") == dataset]
         placements = [
-            row for row in selected if row.get("metric") == "place_variables_clause"
+            row for row in selected if row.get("metric") == "build_reified_hypothesis_space"
         ]
         summary.append(
             {
                 "dataset": dataset,
                 "placement_rows": len(placements),
-                "mean_seconds_per_stub": mean(
+                "mean_seconds_per_clause": mean(
                     to_float(row.get("seconds")) for row in placements
                 ),
                 "mean_valid_placements": mean(
@@ -1301,10 +1300,10 @@ def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "mean_generated_placements": mean(
                     to_float(row.get("generated_placements")) for row in placements
                 ),
-                "aggregate_stub_rate": mean_bool(placements, "has_aggregate"),
-                "arithmetic_stub_rate": mean_bool(placements, "has_arithmetic"),
-                "comparison_stub_rate": mean_bool(placements, "has_comparison"),
-                "negation_stub_rate": mean_bool(placements, "has_negation"),
+                "aggregate_clause_rate": mean_bool(placements, "has_aggregate"),
+                "arithmetic_clause_rate": mean_bool(placements, "has_arithmetic"),
+                "comparison_clause_rate": mean_bool(placements, "has_comparison"),
+                "negation_clause_rate": mean_bool(placements, "has_negation"),
             }
         )
     return summary

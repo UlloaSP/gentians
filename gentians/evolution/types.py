@@ -7,7 +7,7 @@ from ..rule_generation.placed_clause import PlacedClause
 
 class FitnessFn(Protocol):
     def __call__(
-        self, stub_indexes: list[int], prog_indexes: list[int], program: list[str]
+        self, group_indexes: list[int], prog_indexes: list[int], program: list[str]
     ) -> tuple[float, bool, list[int]]: ...
 
 

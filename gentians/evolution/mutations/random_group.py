@@ -10,7 +10,7 @@ from ...timing import phase, profile_phase, record_metric
 def _clone_individual(element: Individual) -> Individual:
     return Individual(
         list(element.program),
-        list(element.stub_indexes),
+        list(element.group_indexes),
         list(element.prog_indexes),
         element.score,
         element.is_best,
@@ -19,12 +19,12 @@ def _clone_individual(element: Individual) -> Individual:
 
 
 @profile_phase("mutation")
-def mutate_by_random_stub(
+def mutate_by_random_group(
     element: Individual,
     placed_list: "list[PlacedClause]",
     probability: float,
     evaluate_score: FitnessFn,
-    change_stub: bool,
+    change_group: bool,
     known_signatures: set[tuple[str, ...]],
 ):
     """
@@ -43,8 +43,8 @@ def mutate_by_random_stub(
                 something_changed = True
                 changed_positions += 1
                 # versione 1: cambio solamente il posizionamento delle variabili
-                if not change_stub:
-                    possibilities = placed_list[element.stub_indexes[i]]
+                if not change_group:
+                    possibilities = placed_list[element.group_indexes[i]]
                     rand_el = random.randint(
                         0, len(possibilities.placed_clauses) - 1
                     )
@@ -52,15 +52,15 @@ def mutate_by_random_stub(
                     mutated_element.prog_indexes[i] = rand_el
                 else:
                     # versione 2: cambio la regola
-                    new_stub = random.randint(0, len(placed_list) - 1)
+                    new_group = random.randint(0, len(placed_list) - 1)
                     new_prog_pos = random.randint(
-                        0, len(placed_list[new_stub].placed_clauses) - 1
+                        0, len(placed_list[new_group].placed_clauses) - 1
                     )
                     mutated_element.program[i] = placed_list[
-                        new_stub
+                        new_group
                     ].placed_clauses[new_prog_pos]
                     mutated_element.prog_indexes[i] = new_prog_pos
-                    mutated_element.stub_indexes[i] = new_stub
+                    mutated_element.group_indexes[i] = new_group
 
     # TODO: add annealing to accept or reject the mutated program?
     # compute the new score if something has changed
@@ -75,7 +75,7 @@ def mutate_by_random_stub(
             with phase("mutation.fitness"):
                 mutated_element.score, mutated_element.is_best, mutated_element.l_best_indexes = (
                     evaluate_score(
-                        mutated_element.stub_indexes,
+                        mutated_element.group_indexes,
                         mutated_element.prog_indexes,
                         mutated_element.program,
                     )
@@ -85,7 +85,7 @@ def mutate_by_random_stub(
         "operator",
         {
             "operator": "mutation",
-            "strategy": "random_stub",
+            "strategy": "random_group",
             "changed": something_changed,
             "changed_positions": changed_positions,
             "probability": probability,

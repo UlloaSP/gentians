@@ -5,18 +5,18 @@ class Individual:
     def __init__(
         self,
         program: "list[str]",
-        stub_indexes: "list[int]",
+        group_indexes: "list[int]",
         prog_indexes: "list[int]",
         score: float,
         is_best: bool,  # does this cover everything positive and no negative?
         l_best_indexes: "list[int]",  # best indexes, if it is the best
     ) -> None:
         self.program = program
-        # stub_indexes is a list of int representing the index of the stub
+        # group_indexes is a list of int representing the index of the group
         # clauses selected
-        self.stub_indexes = stub_indexes
+        self.group_indexes = group_indexes
         # prog_indexes is a list of int representing the index of the program
-        # selected for the stub_indexes clauses - maybe not needed
+        # selected for the group_indexes clauses - maybe not needed
         self.prog_indexes = prog_indexes
         self.score = score
         self.is_best = is_best

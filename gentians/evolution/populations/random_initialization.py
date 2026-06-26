@@ -26,7 +26,7 @@ def initialize_population(
         attempts += 1
         # pick a program
         # TODO: non necessariamente il sampling deve essere senza ripetizioni
-        stub_indexes: list[int] = sorted(
+        group_indexes: list[int] = sorted(
             random.sample(
                 range(len(placed_list)),
                 number_clauses
@@ -38,7 +38,7 @@ def initialize_population(
         # for every index, select one of the possible variable placement
         program: list[str] = []
         prog_indexes: list[int] = []
-        for i in stub_indexes:
+        for i in group_indexes:
             # el = random.randint(0, len(placed_list[i]) - 1)
             el = random.randint(0, len(placed_list[i].placed_clauses) - 1)
             prog_indexes.append(el)
@@ -54,7 +54,7 @@ def initialize_population(
         # cp, cn, current_score, best_found, l_index = evaluate_score(program)
         # print("evaluate score in init")
         current_score, best_found, l_index = evaluate_score(
-            stub_indexes, prog_indexes, program
+            group_indexes, prog_indexes, program
         )
 
         if best_found:
@@ -62,7 +62,7 @@ def initialize_population(
             return [
                 Individual(
                     [program[i] for i in l_index],
-                    stub_indexes,
+                    group_indexes,
                     prog_indexes,
                     current_score,
                     False,
@@ -71,7 +71,7 @@ def initialize_population(
             ], best_found
 
         sampled_individuals.append(
-            Individual(program, stub_indexes, prog_indexes, current_score, False, [])
+            Individual(program, group_indexes, prog_indexes, current_score, False, [])
         )
 
     return sampled_individuals, best_found

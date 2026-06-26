@@ -7,8 +7,6 @@ from gentians.asp.answer_sets import (
 from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
 from gentians.asp.rule_analysis import (
     get_atoms,
-    get_duplicated_positions,
-    get_same_atoms,
     is_valid_rule,
 )
 
@@ -62,33 +60,6 @@ class TestUnit:
     )
     def test_get_atoms(self, rule, expected_list):
         assert get_atoms(rule) == expected_list
-
-    @pytest.mark.skip("Skipped since the result may be in different order.")
-    def test_get_duplicated_positions(self):
-        clause = ":- a(__VAR__),q(__VAR__,__VAR__),q(__VAR__,__VAR__),a(__VAR__),q(__VAR__,__VAR__)."
-        expected = [[["0"], ["5"]], [["1", "2"], ["3", "4"], ["6", "7"]]]
-        res = get_duplicated_positions(clause, "__VAR__")
-        obt = sorted(list(map(sorted, res)))
-
-        assert obt == expected
-
-    @pytest.mark.skip("Skipped since the result may be in different order.")
-    def test_get_same_atoms(self):
-        clause = ":- a(__VAR__),q(__VAR__,__VAR__),q(__VAR__,__VAR__),a(__VAR__),q(__VAR__,__VAR__)."
-        expected = (
-            [
-                "same1(1,0).",
-                "same1(1,1).",
-                "same2(0,2,3).",
-                "same2(0,4,5).",
-                "same2(0,6,7).",
-            ],
-            2,
-        )
-        res = get_same_atoms(clause, "__VAR__")
-        # obt_list = sorted(obt[0])
-        # res = (obt_list, obt[1])
-        assert res == expected
 
     @pytest.mark.skip("Deprecated")
     @pytest.mark.parametrize(

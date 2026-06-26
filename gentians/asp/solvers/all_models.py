@@ -6,7 +6,7 @@ from ...timing import add, current_phase, record_metric
 
 def solve_all_models(
     lines: "list[str]",
-    clingo_arguments: "list[str]" = [],
+    clingo_arguments: "list[str]",
 ) -> "list[set[str]]":
     ctl = build_control(lines, clingo_arguments)
     models: "list[set[str]]" = []

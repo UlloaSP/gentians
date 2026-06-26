@@ -4,7 +4,7 @@ from .program import Example, ModeDeclaration, Program
 
 
 def _get_mode_declaration(
-    s: str, for_head: bool = False
+    s: str, for_head: bool
 ) -> "tuple[str,str,str] | tuple[str,str,str,str]":
     if for_head:
         regex = r"#modeh\((\d+|\*),(.*),(\d+)\)."

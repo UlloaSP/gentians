@@ -8,7 +8,7 @@ from ..timing import add, current_phase, record_metric
 
 
 class ClingoInterface:
-    def __init__(self, lines: "list[str]", clingo_arguments: "list[str]" = []) -> None:
+    def __init__(self, lines: "list[str]", clingo_arguments: "list[str]") -> None:
         self.lines = lines
         self.clingo_arguments = clingo_arguments
 
@@ -41,11 +41,6 @@ class ClingoInterface:
 
         return ctl
 
-    def _generate_clauses_for_coverage_interpretations(
-        self, interpretations: "list[Example]", positive: bool
-    ) -> str:
-        return generate_clauses_for_coverage_interpretations(interpretations, positive)
-
     def extract_coverage_and_set_clauses(
         self,
         program: "list[str]",
@@ -71,52 +66,13 @@ class ClingoInterface:
         # print('FISSATO')
         # program = ["red(X) ; green(X) ; blue(X) :- node(X).", ":- e(X,Y), red(X), red(Y).", ":- e(X,Y), green(X), green(Y).", ":- e(X,Y), blue(X), blue(Y)."]
 
-        generated_program = ""
-        # add the background knowledge
-        for clause in self.lines:
-            generated_program += f"{clause}\n"
-
-        # add the sampled program
-        # cl_index = 0
-
-        for cl_index, clause in enumerate(program):
-            if not fixed:
-                r = f"r({cl_index})"
-                nc = clause[:-1] + f", {r}.\n"
-                generated_program += nc
-                generated_program += "{" + r + "}.\n"
-                cl_index += 1
-            else:
-                generated_program += clause
-        generated_program += "\n"
-
-        if len(interpretation_pos) > 0:
-            generated_program += f"pos_exs(0..{len(interpretation_pos)}).\n"
-            generated_program += self._generate_clauses_for_coverage_interpretations(
-                interpretation_pos, True
-            )
-
-        if len(interpretation_neg) > 0:
-            generated_program += f"neg_exs(0..{len(interpretation_neg)}).\n"
-            generated_program += self._generate_clauses_for_coverage_interpretations(
-                interpretation_neg, False
-            )
-
-        generated_program += """
-        extended_p(I):- pos_exs(I), cpi(I), not cpe(I).
-        extended_n(I):- neg_exs(I), cni(I), not cne(I).
-        
-        total_extended_p(N):- N = #count{X : extended_p(X)}.
-        total_extended_n(N):- N = #count{X : extended_n(X)}.
-        
-        #show extended_p/1.
-        #show extended_n/1.
-        
-        #show total_extended_p/1.
-        #show total_extended_n/1.
-        """
-        if not fixed:
-            generated_program += "\n#show r/1."
+        generated_program = _build_coverage_program(
+            self.lines,
+            program,
+            interpretation_pos,
+            interpretation_neg,
+            fixed,
+        )
 
         wrp = WrapperStopIfWarn()
         ctl = clingo.Control(
@@ -165,34 +121,11 @@ class ClingoInterface:
         with ctl.solve(yield_=True) as handle:  # type: ignore
             for m in handle:  # type: ignore
                 models += 1
-                # answer_sets.append(str(m))
-                answer_set = str(m)
-                l_cp: "list[int]" = []
-                l_cn: "list[int]" = []
-                l_rules: "list[int]" = []
-                for atom in answer_set.split(" "):
-                    # extracts the atoms
-                    # if atom.startswith('covered_pos'):
-                    #     cp = int(atom.split('covered_pos(')[1][:-1])
-                    # elif atom.startswith('covered_neg'):
-                    #     cn = int(atom.split('covered_neg(')[1][:-1])
-                    if atom.startswith("r"):
-                        l_rules.append(int(atom.split("r(")[1][:-1]))
-                    elif atom.startswith("extended_p"):
-                        l_cp.append(int(atom.split("extended_p(")[1][:-1]))
-                    elif atom.startswith("extended_n"):
-                        l_cn.append(int(atom.split("extended_n(")[1][:-1]))
-
+                l_rules, l_cp, l_cn = _parse_coverage_answer_set(str(m))
                 if fixed:
                     # needed since for fixed there are no r/1 atoms
                     l_rules = [i for i in range(len(program))]
-                dict_key = "".join(str(index) for index in l_rules)
-                if dict_key in comb_rules:
-                    # this solution also considers duplicates
-                    comb_rules[dict_key].l_pos.extend(l_cp)
-                    comb_rules[dict_key].l_neg.extend(l_cn)
-                else:
-                    comb_rules[dict_key] = Coverage(l_cp, l_cn)
+                _merge_coverage_result(comb_rules, l_rules, l_cp, l_cn)
         seconds = time.perf_counter() - start
         phase = current_phase()
         add(f"{phase}.solving", seconds)
@@ -219,6 +152,83 @@ class ClingoInterface:
         )
 
         return comb_rules
+
+
+def _build_coverage_program(
+    background: "list[str]",
+    program: "list[str]",
+    interpretation_pos: "list[Example]",
+    interpretation_neg: "list[Example]",
+    fixed: bool,
+) -> str:
+    parts: list[str] = []
+    parts.extend(background)
+    parts.extend(_candidate_program_clauses(program, fixed))
+    if len(interpretation_pos) > 0:
+        parts.append(f"pos_exs(0..{len(interpretation_pos)}).")
+        parts.append(generate_clauses_for_coverage_interpretations(interpretation_pos, True))
+    if len(interpretation_neg) > 0:
+        parts.append(f"neg_exs(0..{len(interpretation_neg)}).")
+        parts.append(generate_clauses_for_coverage_interpretations(interpretation_neg, False))
+    parts.append(
+        """
+        extended_p(I):- pos_exs(I), cpi(I), not cpe(I).
+        extended_n(I):- neg_exs(I), cni(I), not cne(I).
+
+        total_extended_p(N):- N = #count{X : extended_p(X)}.
+        total_extended_n(N):- N = #count{X : extended_n(X)}.
+
+        #show extended_p/1.
+        #show extended_n/1.
+
+        #show total_extended_p/1.
+        #show total_extended_n/1.
+        """
+    )
+    if not fixed:
+        parts.append("#show r/1.")
+    return "\n".join(parts)
+
+
+def _candidate_program_clauses(program: "list[str]", fixed: bool) -> "list[str]":
+    clauses: list[str] = []
+    for cl_index, clause in enumerate(program):
+        if fixed:
+            clauses.append(clause)
+        else:
+            r = f"r({cl_index})"
+            clauses.append(clause[:-1] + f", {r}.")
+            clauses.append("{" + r + "}.")
+    return clauses
+
+
+def _parse_coverage_answer_set(answer_set: str) -> "tuple[list[int],list[int],list[int]]":
+    l_rules: list[int] = []
+    l_cp: list[int] = []
+    l_cn: list[int] = []
+    for atom in answer_set.split(" "):
+        if atom.startswith("r"):
+            l_rules.append(int(atom.split("r(")[1][:-1]))
+        elif atom.startswith("extended_p"):
+            l_cp.append(int(atom.split("extended_p(")[1][:-1]))
+        elif atom.startswith("extended_n"):
+            l_cn.append(int(atom.split("extended_n(")[1][:-1]))
+    return l_rules, l_cp, l_cn
+
+
+def _merge_coverage_result(
+    comb_rules: "dict[str,Coverage]",
+    l_rules: "list[int]",
+    l_cp: "list[int]",
+    l_cn: "list[int]",
+) -> None:
+    dict_key = "".join(str(index) for index in l_rules)
+    if dict_key in comb_rules:
+        # this solution also considers duplicates
+        comb_rules[dict_key].l_pos.extend(l_cp)
+        comb_rules[dict_key].l_neg.extend(l_cn)
+    else:
+        comb_rules[dict_key] = Coverage(l_cp, l_cn)
 
 
 def _clingo_stat(stats, *path: str) -> float:

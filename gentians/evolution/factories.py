@@ -25,10 +25,10 @@ from ..timing import profile_phase, record_metric
 
 
 def create_fitness(program: Program, config: dict[str, object]) -> FitnessFn:
-    name = _str(config, "name", "coverage_exp_mean")
-    max_as = _int(config, "max_as", 10000)
-    clingo_arguments = _str_list(config, "clingo_arguments", ["--project"])
-    empty_score = _float(config, "empty_score", -2000.0)
+    name = _str(config, "name")
+    max_as = _int(config, "max_as")
+    clingo_arguments = _str_list(config, "clingo_arguments")
+    empty_score = _float(config, "empty_score")
     if name == "coverage_exp_mean":
         return coverage_exp_mean(program, max_as, clingo_arguments, empty_score)
     if name == "coverage_exp_max":
@@ -37,10 +37,10 @@ def create_fitness(program: Program, config: dict[str, object]) -> FitnessFn:
 
 
 def create_selection(config: dict[str, object]) -> SelectionFn:
-    name = _str(config, "name", "tournament")
+    name = _str(config, "name")
     if name == "tournament":
-        tournament_size = _int(config, "tournament_size", 12)
-        prob_selecting_fittest = _float(config, "prob_selecting_fittest", 0.9)
+        tournament_size = _int(config, "tournament_size")
+        prob_selecting_fittest = _float(config, "prob_selecting_fittest")
 
         def select(population: list[Individual]) -> tuple[Individual, Individual]:
             return (
@@ -54,7 +54,7 @@ def create_selection(config: dict[str, object]) -> SelectionFn:
 
         return select
     if name == "fittest":
-        pick_uniform = _bool(config, "pick_uniform", True)
+        pick_uniform = _bool(config, "pick_uniform")
 
         def select(population: list[Individual]) -> tuple[Individual, Individual]:
             return pick_two_fittest(population, pick_uniform)
@@ -64,9 +64,9 @@ def create_selection(config: dict[str, object]) -> SelectionFn:
 
 
 def create_crossover(config: dict[str, object]) -> CrossoverFn:
-    name = _str(config, "name", "one_point")
+    name = _str(config, "name")
     if name == "one_point":
-        probability = _float(config, "probability", 1.0)
+        probability = _float(config, "probability")
 
         def crossover(
             best_a: Individual,
@@ -84,10 +84,10 @@ def create_crossover(config: dict[str, object]) -> CrossoverFn:
 
 
 def create_mutation(config: dict[str, object]) -> MutationFn:
-    name = _str(config, "name", "random_stub")
+    name = _str(config, "name")
     if name == "random_stub":
-        probability = _float(config, "probability", 0.2)
-        change_stub = _bool(config, "change_stub", True)
+        probability = _float(config, "probability")
+        change_stub = _bool(config, "change_stub")
 
         def mutate(
             element: Individual,
@@ -103,9 +103,9 @@ def create_mutation(config: dict[str, object]) -> MutationFn:
 
 
 def create_population(config: dict[str, object]) -> PopulationInitializerFn:
-    name = _str(config, "name", "random")
+    name = _str(config, "name")
     if name == "random":
-        size = _int(config, "size", 50)
+        size = _int(config, "size")
 
         def initialize(
             number_clauses: int,
@@ -121,10 +121,10 @@ def create_population(config: dict[str, object]) -> PopulationInitializerFn:
 
 
 def create_replacement(config: dict[str, object]) -> tuple[ReplacementFn, int]:
-    name = _str(config, "name", "oldest_or_worst")
+    name = _str(config, "name")
     if name == "oldest_or_worst":
-        prob_replacing_oldest = _float(config, "prob_replacing_oldest", 0.5)
-        k_best_for_next_round = _int(config, "k_best_for_next_round", 5)
+        prob_replacing_oldest = _float(config, "prob_replacing_oldest")
+        k_best_for_next_round = _int(config, "k_best_for_next_round")
 
         def replace(population: list[Individual], element: Individual) -> list[Individual]:
             return replace_oldest_or_worst(
@@ -135,20 +135,26 @@ def create_replacement(config: dict[str, object]) -> tuple[ReplacementFn, int]:
     raise ValueError(f"Unknown replacement operator: {name}")
 
 
-def _str(config: dict[str, object], key: str, default: str) -> str:
-    return str(config.get(key, default))
+def _value(config: dict[str, object], key: str) -> object:
+    if key not in config:
+        raise ValueError(f"Missing operator config key: {key}")
+    return config[key]
 
 
-def _int(config: dict[str, object], key: str, default: int) -> int:
-    return int(config.get(key, default))
+def _str(config: dict[str, object], key: str) -> str:
+    return str(_value(config, key))
 
 
-def _float(config: dict[str, object], key: str, default: float) -> float:
-    return float(config.get(key, default))
+def _int(config: dict[str, object], key: str) -> int:
+    return int(_value(config, key))
 
 
-def _bool(config: dict[str, object], key: str, default: bool) -> bool:
-    value = config.get(key, default)
+def _float(config: dict[str, object], key: str) -> float:
+    return float(_value(config, key))
+
+
+def _bool(config: dict[str, object], key: str) -> bool:
+    value = _value(config, key)
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
@@ -156,13 +162,13 @@ def _bool(config: dict[str, object], key: str, default: bool) -> bool:
     return bool(value)
 
 
-def _str_list(config: dict[str, object], key: str, default: list[str]) -> list[str]:
-    value = config.get(key, default)
+def _str_list(config: dict[str, object], key: str) -> list[str]:
+    value = _value(config, key)
     if isinstance(value, list):
         return [str(item) for item in value]
     if isinstance(value, str):
         return [value]
-    return list(default)
+    raise ValueError(f"Operator config key must be a list[str] or str: {key}")
 
 
 @profile_phase("crossover")

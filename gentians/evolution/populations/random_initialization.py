@@ -9,21 +9,20 @@ from ...timing import profile_phase
 @profile_phase("fitness.initialization")
 def initialize_population(
     number_clauses: int,
-    # placed_list : 'list[list[str]]',
-    placed_list: "list[PlacedClause]",
+    placed_list: list[PlacedClause],
     population_size: int,
     evaluate_score: FitnessFn,
-) -> "tuple[list[Individual],bool]":
+) -> tuple[list[Individual],bool]:
     """
     Initialize the population of individuals
     """
-    sampled_individuals: "list[Individual]" = []
+    sampled_individuals: list[Individual] = []
     best_found = False
 
     while len(sampled_individuals) < population_size:
         # pick a program
         # TODO: non necessariamente il sampling deve essere senza ripetizioni
-        stub_indexes: "list[int]" = sorted(
+        stub_indexes: list[int] = sorted(
             random.sample(
                 range(len(placed_list)),
                 number_clauses
@@ -33,8 +32,8 @@ def initialize_population(
         )
 
         # for every index, select one of the possible variable placement
-        program: "list[str]" = []
-        prog_indexes: "list[int]" = []
+        program: list[str] = []
+        prog_indexes: list[int] = []
         for i in stub_indexes:
             # el = random.randint(0, len(placed_list[i]) - 1)
             el = random.randint(0, len(placed_list[i].placed_clauses) - 1)
@@ -58,11 +57,13 @@ def initialize_population(
                     stub_indexes,
                     prog_indexes,
                     current_score,
+                    False,
+                    [],
                 )
             ], best_found
 
         sampled_individuals.append(
-            Individual(program, stub_indexes, prog_indexes, current_score)
+            Individual(program, stub_indexes, prog_indexes, current_score, False, [])
         )
 
     return sampled_individuals, best_found

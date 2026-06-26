@@ -8,8 +8,8 @@ class Individual:
         stub_indexes: "list[int]",
         prog_indexes: "list[int]",
         score: float,
-        is_best: bool = False,  # does this cover everything positive and no negative?
-        l_best_indexes: "list[int]" = [],  # best indexes, if it is the best
+        is_best: bool,  # does this cover everything positive and no negative?
+        l_best_indexes: "list[int]",  # best indexes, if it is the best
     ) -> None:
         self.program = program
         # stub_indexes is a list of int representing the index of the stub

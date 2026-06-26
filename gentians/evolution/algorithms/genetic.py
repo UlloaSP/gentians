@@ -1,3 +1,5 @@
+from collections import Counter
+
 from ...arguments import Arguments
 from ..individual import Individual
 from ..types import (
@@ -16,7 +18,7 @@ from ...timing import phase, profile_phase, record_ga_generation
 class Strategy:
     def __init__(
         self,
-        placed_list: "list[PlacedClause]",
+        placed_list: list[PlacedClause],
         program: Program,
         args: Arguments,
         evaluate_score: FitnessFn,
@@ -27,7 +29,7 @@ class Strategy:
         replacement: ReplacementFn,
         k_best_for_next_round: int,
     ) -> None:
-        self.placed_list: "list[PlacedClause]" = placed_list
+        self.placed_list: list[PlacedClause] = placed_list
         self.program: Program = program
         self.args: Arguments = args
         self.evaluate_score = evaluate_score
@@ -39,13 +41,13 @@ class Strategy:
         self.k_best_for_next_round = k_best_for_next_round
 
     @profile_phase("genetic")
-    def genetic_solver(self) -> "tuple[list[str], float, bool, list[int]]":
+    def genetic_solver(self) -> tuple[list[str], float, bool, list[int]]:
         """
         Genetic algorithm to find the best program
         """
 
         # step 0: initialize the population
-        population: "list[Individual]" = []
+        population: list[Individual] = []
         best_found = False
 
         population, best_found = self.population_initializer(
@@ -117,15 +119,14 @@ class Strategy:
         # keep the elements for the next round: extract all the stubs from
         # the top k programs. Then, count the occurrences of each and return the top
         # k stubs that occur the most
-        all_indexes_list: "list[int]" = []
+        all_indexes_list: list[int] = []
         k_best = min(self.k_best_for_next_round, max(0, len(population) - 1))
         for i in range(1, k_best + 1):
             all_indexes_list.extend(population[i].stub_indexes)
 
         # create a dict to count the occurrences, sort it, and return the top
         # k elements that occur the most
-        s = {x: all_indexes_list.count(x) for x in set(all_indexes_list)}
-        a = sorted(s.items(), key=lambda x: x[1], reverse=True)
+        a = sorted(Counter(all_indexes_list).items(), key=lambda x: x[1], reverse=True)
 
         with phase("fitness.final"):
             res = self.evaluate_score(

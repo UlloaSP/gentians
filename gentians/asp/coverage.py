@@ -2,7 +2,7 @@ from ..rule_generation.program import Example
 
 
 class Coverage:
-    def __init__(self, l_pos: "list[int]" = [], l_neg: "list[int]" = []):
+    def __init__(self, l_pos: "list[int]", l_neg: "list[int]"):
         self.l_pos = l_pos
         self.l_neg = l_neg
 
@@ -35,30 +35,26 @@ def generate_clauses_for_coverage_interpretations(
     TODO: alternative ({a,b},{c,d}) <=> a,b,not c, not d instead
     of two different rules.
     """
-    generated_str: str = ""
+    parts: list[str] = []
     suffix: str = "cp" if positive else "cn"
     cl_index = 0
-    # print(interpretations)
     for example in interpretations:
         # inclusion
         if len(example.included) > 0:
-            r = f"{suffix}i({cl_index}):- {example.included}.\n"
-            generated_str += r
+            parts.append(f"{suffix}i({cl_index}):- {example.included}.")
 
             # if len(example.excluded) > 1:
             # exclusion
         if len(example.excluded) > 0:
             # for atom in atoms[1].split(' '):
-            r = f"{suffix}e({cl_index}):- {example.excluded}.\n"
-            generated_str += r
+            parts.append(f"{suffix}e({cl_index}):- {example.excluded}.")
 
             # if len(example.) > 2:
             # context dependent examples
             if len(example.context) > 0:
                 # for atom in atoms[2].split(' '):
-                generated_str += example.context + ".\n"
+                parts.append(example.context + ".")
 
         cl_index += 1
-    generated_str += "\n"
 
-    return generated_str
+    return "\n".join(parts) + "\n\n"

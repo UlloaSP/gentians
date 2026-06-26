@@ -6,7 +6,7 @@ from ...timing import profile_phase, record_metric
 
 @profile_phase("selection")
 def pick_two_fittest(
-    population: list[Individual], pick_uniform: bool = True
+    population: list[Individual], pick_uniform: bool
 ) -> tuple[Individual, Individual]:
     """
     Pick the two fittest elements.

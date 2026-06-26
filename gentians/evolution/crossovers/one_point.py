@@ -69,6 +69,10 @@ def one_point_crossover(
     )
 
     parent_best = max(best_a.score, best_b.score)
+    parent_a_signature = sorted(best_a.program)
+    parent_b_signature = sorted(best_b.program)
+    child_1_signature = sorted(i0.program)
+    child_2_signature = sorted(i1.program)
     record_metric(
         "operator",
         {
@@ -84,10 +88,10 @@ def one_point_crossover(
             "children_improved": int(i0.score > parent_best)
             + int(i1.score > parent_best),
             "children_best": int(i0.is_best) + int(i1.is_best),
-            "children_duplicate_parent": int(sorted(i0.program) == sorted(best_a.program))
-            + int(sorted(i0.program) == sorted(best_b.program))
-            + int(sorted(i1.program) == sorted(best_a.program))
-            + int(sorted(i1.program) == sorted(best_b.program)),
+            "children_duplicate_parent": int(child_1_signature == parent_a_signature)
+            + int(child_1_signature == parent_b_signature)
+            + int(child_2_signature == parent_a_signature)
+            + int(child_2_signature == parent_b_signature),
         },
     )
 

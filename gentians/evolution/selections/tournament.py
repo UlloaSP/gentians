@@ -14,8 +14,8 @@ def get_fittest(selected_individuals: "list[Individual]") -> Individual:
 @profile_phase("selection")
 def tournament_selection(
     population: list[Individual],
-    tournament_size: int = 12,
-    prob_selecting_fittest: float = 0.9,
+    tournament_size: int,
+    prob_selecting_fittest: float,
 ):
     """
     Tournament to select the individuals to combine and mutate

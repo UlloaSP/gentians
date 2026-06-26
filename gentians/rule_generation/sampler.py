@@ -28,9 +28,7 @@ class ProgramSampler:
         # s1(V0):- V2+V1=V0,s0(V1),s1(V2).
         # s0(V0):- #sum{V2,V1:el(V1,V2)}=V0.
         # s1(V0):-  #sum{V2,V1:el(V1,V2)}=V0,#sum{V2,V1:el(V2,V1)}=V0.
-        self.enable_recursion = _sampling_bool(
-            self.args, "enable_recursion", False
-        )
+        self.enable_recursion = _sampling_bool(self.args, "enable_recursion")
 
         # store the already placed clauses to avoid recomputation
         # removed since all the clauses are different
@@ -71,85 +69,22 @@ class ProgramSampler:
         aggregates_indexes: list[int] = []
         all_aggregates: "list[list[str]]" = []
         placeholder = self.args.wildcard
-        operators_count = 0
         to_append: str = ""
 
         for i, el in enumerate(body):
-            operators_count += 1
-            # comparison
-            if el.mode_bias.comparison_operator == "lt":
-                to_append = placeholder + "<" + placeholder
-            if el.mode_bias.comparison_operator == "leq":
-                to_append = placeholder + "<=" + placeholder
-            elif el.mode_bias.comparison_operator == "gt":
-                to_append = placeholder + ">" + placeholder
-            elif el.mode_bias.comparison_operator == "geq":
-                to_append = placeholder + ">=" + placeholder
-            elif el.mode_bias.comparison_operator == "eq":
-                to_append = placeholder + "==" + placeholder
-            elif el.mode_bias.comparison_operator == "neq":
-                to_append = placeholder + "!=" + placeholder
-            # arithmetic
-            elif el.mode_bias.arithmetic_operator == "add":
-                to_append = placeholder + "+" + placeholder + "=" + placeholder
-            elif el.mode_bias.arithmetic_operator == "sub":
-                to_append = placeholder + "-" + placeholder + "=" + placeholder
-            elif el.mode_bias.arithmetic_operator == "mul":
-                to_append = placeholder + "*" + placeholder + "=" + placeholder
-            elif el.mode_bias.arithmetic_operator == "div":
-                to_append = placeholder + "/" + placeholder + "=" + placeholder
-            elif el.mode_bias.arithmetic_operator == "abs":
-                to_append = "|" + placeholder + "-" + placeholder + "|=" + placeholder
-            # aggregates
-            elif el.mode_bias.aggregation_function != "":
-                total_number_of_variables: int = sum(
-                    [int(x[1]) for x in el.mode_bias.aggregation_atoms]
-                )
-                if not self.args.unbalanced_aggregates:
-                    # atoms_in_agg = ":"
-                    atoms_in_agg: "list[str]" = []
-                    ph = ",".join([placeholder] * total_number_of_variables)
-                    for name, arity in el.mode_bias.aggregation_atoms:
-                        ph_atom = ",".join([placeholder] * int(arity))
-                        atoms_in_agg.append(f"{name}({ph_atom})")
-                    to_append = (
-                        "#"
-                        + el.mode_bias.aggregation_function
-                        + "{"
-                        + ph
-                        + ":"
-                        + ",".join(atoms_in_agg)
-                        + "}="
-                        + placeholder
-                    )
+            to_append = self.__render_comparison(el, placeholder)
+            if to_append == "":
+                to_append = self.__render_arithmetic(el, placeholder)
+            if to_append == "" and el.mode_bias.aggregation_function != "":
+                aggregate = self.__render_aggregate(el, placeholder)
+                if isinstance(aggregate, list):
+                    all_aggregates.append(aggregate)
                 else:
-                    # if self.unbalanced_aggregates
-                    # sum/2 -> #sum{ _ : a(_,_)} e #sum{ _, _ : a(_,_)}
-                    current: "list[str]" = []
-                    for current_arity in range(1, total_number_of_variables + 1):
-                        ph = ",".join([placeholder] * int(current_arity))
-                        atoms_in_agg: "list[str]" = []
-                        for name, arity in el.mode_bias.aggregation_atoms:
-                            ph_atom = ",".join([placeholder] * int(arity))
-                            atoms_in_agg.append(f"{name}({ph_atom})")
-                        s = (
-                            "#"
-                            + el.mode_bias.aggregation_function
-                            + "{"
-                            + ph
-                            + ":"
-                            + ",".join(atoms_in_agg)
-                            + "}="
-                            + placeholder
-                        )
-                        current.append(s)
-                    all_aggregates.append(current)
+                    to_append = aggregate
 
-                operators_count -= 1
                 aggregates_indexes.append(i)
-            else:
+            elif to_append == "":
                 to_append = el.get_stub_representation(self.args.wildcard)
-                operators_count -= 1
 
             # append the literal to the body
             if to_append != "":
@@ -164,6 +99,68 @@ class ProgramSampler:
 
         return nb
 
+    def __render_comparison(self, literal: Literal, placeholder: str) -> str:
+        operators = {
+            "lt": "<",
+            "leq": "<=",
+            "gt": ">",
+            "geq": ">=",
+            "eq": "==",
+            "neq": "!=",
+        }
+        operator = operators.get(literal.mode_bias.comparison_operator)
+        return f"{placeholder}{operator}{placeholder}" if operator else ""
+
+    def __render_arithmetic(self, literal: Literal, placeholder: str) -> str:
+        operators = {
+            "add": "+",
+            "sub": "-",
+            "mul": "*",
+            "div": "/",
+        }
+        if literal.mode_bias.arithmetic_operator == "abs":
+            return f"|{placeholder}-{placeholder}|={placeholder}"
+        operator = operators.get(literal.mode_bias.arithmetic_operator)
+        return (
+            f"{placeholder}{operator}{placeholder}={placeholder}"
+            if operator
+            else ""
+        )
+
+    def __render_aggregate(
+        self, literal: Literal, placeholder: str
+    ) -> "str | list[str]":
+        total_number_of_variables = sum(
+            int(x[1]) for x in literal.mode_bias.aggregation_atoms
+        )
+        if not self.args.unbalanced_aggregates:
+            return self.__render_aggregate_with_arity(
+                literal, placeholder, total_number_of_variables
+            )
+        return [
+            self.__render_aggregate_with_arity(literal, placeholder, current_arity)
+            for current_arity in range(1, total_number_of_variables + 1)
+        ]
+
+    def __render_aggregate_with_arity(
+        self, literal: Literal, placeholder: str, tuple_arity: int
+    ) -> str:
+        ph = ",".join([placeholder] * tuple_arity)
+        atoms_in_agg: "list[str]" = []
+        for name, arity in literal.mode_bias.aggregation_atoms:
+            ph_atom = ",".join([placeholder] * int(arity))
+            atoms_in_agg.append(f"{name}({ph_atom})")
+        return (
+            "#"
+            + literal.mode_bias.aggregation_function
+            + "{"
+            + ph
+            + ":"
+            + ",".join(atoms_in_agg)
+            + "}="
+            + placeholder
+        )
+
     def __sample_level_distr_recall(
         self, available_atoms: "list[ModeDeclaration]", recalls: "list[int]"
     ) -> "Literal|None":
@@ -177,9 +174,7 @@ class ProgramSampler:
         sampled_literal_pos = random.choices(range(len(available_atoms)), weights, k=1)[
             0
         ]
-        negation_probability = _sampling_float(
-            self.args, "negation_probability", 0.5
-        )
+        negation_probability = _sampling_float(self.args, "negation_probability")
         negated = random.random() < negation_probability and (
             not available_atoms[sampled_literal_pos].positive
         )
@@ -193,7 +188,7 @@ class ProgramSampler:
         )
 
     def __sample_literals_list(
-        self, literals_list: "list[ModeDeclaration]", head: bool = False
+        self, literals_list: "list[ModeDeclaration]", head: bool
     ) -> "list[Literal]":
         """
         Samples a list of literals to be used in either in the head
@@ -227,12 +222,11 @@ class ProgramSampler:
                 max_depth_head -= 1
         return sampled_list
 
-    def sample_clauses_stub(self, how_many: int = 0) -> "list[Clause]":
+    def sample_clauses_stub(self, how_many: int) -> "list[Clause]":
         """
         Samples how_many clauses.
         """
         original_depth: int = self.args.max_depth
-        # clauses : 'list[str]' = []
         clauses: "list[Clause]" = []
 
         for _ in range(0, how_many):
@@ -248,8 +242,7 @@ class ProgramSampler:
             # decrease the depth since we already sampled atoms for the head
             self.args.max_depth -= len(head)
 
-            # print(self.body_literals)
-            body = self.__sample_literals_list(self.language_bias_body)
+            body = self.__sample_literals_list(self.language_bias_body, False)
 
             # replace __lt__, __gt__, __eq__, __neq__, __add__, __sub__, __mul__
             body_list = self.__replace_operators(body)
@@ -258,9 +251,11 @@ class ProgramSampler:
                 print_error_and_exit("self.enable_recursion not yet implemented.")
 
             current_clause: "Clause" = Clause(head, body, [])
+            head_set = set(head)
             for b in body_list:
-                subs_h = set(head).issubset(set(b)) and len(set(head)) > 0
-                subs_b = set(b).issubset(set(head)) and len(set(b)) > 0
+                body_set = set(b)
+                subs_h = head_set.issubset(body_set) and len(head_set) > 0
+                subs_b = body_set.issubset(head_set) and len(body_set) > 0
                 is_valid = not (subs_h or subs_b)
                 if is_valid:
                     head_as_str: str = ";".join(
@@ -284,12 +279,18 @@ class ProgramSampler:
         return clauses
 
 
-def _sampling_float(args: Arguments, key: str, default: float) -> float:
-    return float(args.sampling.get(key, default))
+def _sampling_value(args: Arguments, key: str) -> object:
+    if key not in args.sampling:
+        raise ValueError(f"Missing sampling config key: {key}")
+    return args.sampling[key]
 
 
-def _sampling_bool(args: Arguments, key: str, default: bool) -> bool:
-    value = args.sampling.get(key, default)
+def _sampling_float(args: Arguments, key: str) -> float:
+    return float(_sampling_value(args, key))
+
+
+def _sampling_bool(args: Arguments, key: str) -> bool:
+    value = _sampling_value(args, key)
     if isinstance(value, bool):
         return value
     if isinstance(value, str):

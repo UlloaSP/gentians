@@ -8,7 +8,7 @@ from ..timing import add, current_phase, record_metric
 
 def build_control(
     lines: "list[str]",
-    clingo_arguments: "list[str]" = [],
+    clingo_arguments: "list[str]",
 ) -> "clingo.Control":
     ctl = clingo.Control(clingo_arguments, logger=wrapper_exit_callback)
     for clause in lines:

@@ -55,6 +55,43 @@ function toEChart(data = [], layout = {}) {
     }
   }
 
+  if (data[0]?.type === 'heatmap') {
+    const trace = data[0]
+    const values = trace.z || []
+    const finiteValues = values.map((item) => Number(item[2] || 0)).filter(Number.isFinite)
+    const min = finiteValues.length ? Math.min(...finiteValues) : 0
+    const max = finiteValues.length ? Math.max(...finiteValues) : 0
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        ...tooltip,
+        trigger: 'item',
+        formatter: (params) => {
+          const extra = params.data?.[3] || ''
+          return `${trace.x[params.data[0]]} x ${trace.y[params.data[1]]}<br/>${trace.name || 'value'}: ${params.data[2]}${extra ? `<br/>${extra}` : ''}`
+        },
+      },
+      grid: {
+        left: layout.margin?.l || 90,
+        right: layout.margin?.r || 36,
+        top: layout.margin?.t || 26,
+        bottom: layout.margin?.b || 70,
+      },
+      xAxis: { type: 'category', data: trace.x, name: layout.xaxis?.title, axisLine, axisLabel, splitLine },
+      yAxis: { type: 'category', data: trace.y, name: layout.yaxis?.title, axisLine, axisLabel, splitLine },
+      visualMap: {
+        min,
+        max,
+        calculable: true,
+        orient: 'horizontal',
+        left: 'center',
+        bottom: 4,
+        inRange: { color: ['#f4f4f5', colors.self, colors.grounding, colors.solving] },
+      },
+      series: [{ type: 'heatmap', name: trace.name, data: values, label: { show: true, formatter: (p) => p.data[2] } }],
+    }
+  }
+
   const first = data[0] || {}
   const horizontal = first.orientation === 'h'
   const isScatter = ['scatter', 'scattergl'].includes(first.type)

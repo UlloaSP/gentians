@@ -22,15 +22,17 @@ import { SearchSpaceFunnel } from './charts/SearchSpaceFunnel'
 import { SolverStatsChart } from './charts/SolverStatsChart'
 import { StructuralComplexityChart } from './charts/StructuralComplexityChart'
 import { StubCandidatesChart } from './charts/StubCandidatesChart'
+import { SweepFitnessCurvesChart } from './charts/SweepFitnessCurvesChart'
+import { SweepHeatmapChart } from './charts/SweepHeatmapChart'
 import { TimingDepthChart } from './charts/TimingDepthChart'
 import { TimelineChart } from './charts/TimelineChart'
 import { TotalTimeChart } from './charts/TotalTimeChart'
 import { TypeSplitChart } from './charts/TypeSplitChart'
-import { clingoSeconds, dataUrl, fmt, fmtInt, pythonSeconds, runCount, topPhase, totalSeconds } from './metrics'
+import { clingoSeconds, dataUrl, fmt, fmtInt, pythonSeconds, runCount, sweepUrl, topPhase, totalSeconds } from './metrics'
 import './styles.css'
 
 function useHashPage() {
-  const read = () => (window.location.hash === '#example' ? 'example' : 'comparison')
+  const read = () => (window.location.hash === '#example' ? 'example' : window.location.hash === '#sweep' ? 'sweep' : 'comparison')
   const [page, setPage] = useState(read)
   useEffect(() => {
     const onHash = () => setPage(read())
@@ -38,7 +40,7 @@ function useHashPage() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
   const go = (next) => {
-    window.location.hash = next === 'example' ? 'example' : 'comparison'
+    window.location.hash = next === 'example' ? 'example' : next === 'sweep' ? 'sweep' : 'comparison'
     setPage(next)
   }
   return [page, go]
@@ -47,6 +49,7 @@ function useHashPage() {
 function App() {
   const [page, go] = useHashPage()
   const [benchmarks, setBenchmarks] = useState([])
+  const [sweep, setSweep] = useState(null)
   const [selected, setSelected] = useState('')
   const [error, setError] = useState('')
 
@@ -64,6 +67,16 @@ function App() {
       .catch((err) => setError(String(err.message || err)))
   }, [])
 
+  useEffect(() => {
+    fetch(sweepUrl(), { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) return null
+        return response.json()
+      })
+      .then((payload) => setSweep(payload))
+      .catch(() => setSweep(null))
+  }, [])
+
   const current = benchmarks.find((benchmark) => benchmark.name === selected) || benchmarks[0]
   if (error) return <PageLayout page={page} go={go} error={`No se pudo cargar ${dataUrl()}: ${error}`} />
   if (!benchmarks.length) return <main className={chartTw.page}><div className={chartTw.shell}>Cargando profiling...</div></main>
@@ -72,8 +85,50 @@ function App() {
     <PageLayout page={page} go={go}>
       {page === 'comparison'
         ? <Comparison benchmarks={benchmarks} select={(name) => { setSelected(name); go('example') }} />
-        : <Detail benchmarks={benchmarks} benchmark={current} setSelected={setSelected} />}
+        : page === 'sweep'
+          ? <Sweep sweep={sweep} />
+          : <Detail benchmarks={benchmarks} benchmark={current} setSelected={setSelected} />}
     </PageLayout>
+  )
+}
+
+function Sweep({ sweep }) {
+  const datasets = [...new Set((sweep?.cells || []).map((row) => row.dataset))]
+  const modes = [...new Set((sweep?.cells || []).map((row) => row.fitness_aggregation))]
+  const [dataset, setDataset] = useState('')
+  const [mode, setMode] = useState('')
+  const currentDataset = dataset || datasets[0] || ''
+  const currentMode = mode || modes[0] || 'mean'
+
+  if (!sweep) {
+    return (
+      <p className={chartTw.note}>
+        Sin sweep_dashboard_data.json. Genera datos con: python benchmarks/sweep.py --datasets coin --runs 10
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className={chartTw.controlsBar}>
+        <label className={chartTw.controlLabel}>
+          dataset
+          <select className={`${chartTw.select} ml-2`} value={currentDataset} onChange={(event) => setDataset(event.target.value)}>
+            {datasets.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        <label className={chartTw.controlLabel}>
+          fitness
+          <select className={`${chartTw.select} ml-2`} value={currentMode} onChange={(event) => setMode(event.target.value)}>
+            {modes.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+      </div>
+      <SectionGrid>
+        <SweepHeatmapChart sweep={sweep} dataset={currentDataset} mode={currentMode} />
+        <SweepFitnessCurvesChart sweep={sweep} dataset={currentDataset} mode={currentMode} />
+      </SectionGrid>
+    </div>
   )
 }
 

@@ -26,6 +26,7 @@ export const colors = {
 }
 
 export const dataUrl = () => new URLSearchParams(window.location.search).get('data') || 'baseline_profile/dashboard_data.json'
+export const sweepUrl = () => new URLSearchParams(window.location.search).get('sweep') || 'sweeps/latest/sweep_dashboard_data.json'
 export const num = (value) => Number(value || 0)
 export const sum = (values) => values.reduce((a, b) => a + num(b), 0)
 export const fmt = (value, digits = 2) => num(value).toLocaleString('es-ES', { maximumFractionDigits: digits, minimumFractionDigits: digits })

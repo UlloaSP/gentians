@@ -20,8 +20,6 @@ def find_symmetric_answer_sets(current_as: str) -> "list[str]":
 
     l_vars = [i for i in range(1, n_vars + 1)]  # from 1 since v0 is fixed at pos 0
     l_vars_name = ["v" + str(a) for a in l_vars]
-    # print(l_vars)
-    # print(l_vars_name)
 
     # this is n! # COMPLEX
     perm = itertools.permutations(l_vars)
@@ -30,17 +28,13 @@ def find_symmetric_answer_sets(current_as: str) -> "list[str]":
 
     perms: "list[str]" = []
     for p in perm:
-        # print(p)
         lc = current_as
         l1 = ["v_" + str(a) for a in p]
         for f, r in zip(l_vars_name, l1):
             lc = lc.replace(f, r)
         lc = lc.replace("_", "")
         perms.append(lc)
-    # print(perms)
 
-    # print(f"--- Permutation {current_as} {l_vars} ---")
-    # print(perms)
     return perms
 
 

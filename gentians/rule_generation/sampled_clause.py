@@ -1,5 +1,4 @@
 from .program import ModeDeclaration
-from ..constants import UNDERSCORE_SIZE
 
 
 class Literal:
@@ -10,7 +9,7 @@ class Literal:
         self.negated: bool = negated
         self.index_in_mode_bias_list: int = index_in_mode_bias_list
 
-    def get_stub_representation(self) -> str:
+    def get_stub_representation(self, wildcard: str) -> str:
         """
         Returns the string representation of the mode declaration.
         """
@@ -18,7 +17,7 @@ class Literal:
         if self.mode_bias.arity > 0:
             s += "("
             for i in range(0, self.mode_bias.arity):
-                s += ("_" * UNDERSCORE_SIZE) + ","
+                s += wildcard + ","
             s = s[:-1] + ")"
         return s if (not self.negated) else f"not {s}"
 

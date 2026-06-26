@@ -30,7 +30,7 @@ export function SweepHeatmapChart({ sweep, dataset, mode, metric = 'fitness_mean
 }
 
 function buildOption(sweep, dataset, mode, metric) {
-  const cells = (sweep?.cells || []).filter((row) => row.dataset === dataset && row.fitness_aggregation === mode)
+  const cells = (sweep?.cells || []).filter((row) => row.dataset === dataset && row.fitness_operator === mode)
   const xs = [...new Set(cells.map((row) => String(row.outer_iterations)))].sort((a, b) => num(a) - num(b))
   const ys = [...new Set(cells.map((row) => String(row.genetic_iterations)))].sort((a, b) => num(a) - num(b))
   const rawData = cells.map((row) => [

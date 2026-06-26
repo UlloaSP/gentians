@@ -71,13 +71,17 @@ def is_valid_rule(clause: str) -> bool:
     return True
 
 
-def get_duplicated_positions(clause: str) -> "list[list[list[str]]]":
+def get_duplicated_positions(
+    clause: str, wildcard: str
+) -> "list[list[list[str]]]":
     """
     Returns the positions with the same atoms:
-    :- a(_____),q(_____,_____),q(_____,_____),a(_____),q(_____,_____) gets
+    :- a(__VAR__),q(__VAR__,__VAR__),q(__VAR__,__VAR__),a(__VAR__),q(__VAR__,__VAR__) gets
     [[['0'], ['5']], [['1', '2'], ['3', '4'], ['6', '7']]]
     """
-    atoms_list = get_atoms(clause.replace("_" * 5, "_"))  # replace otherwise error
+    atoms_list = get_atoms(
+        clause.replace(wildcard, "_")
+    )  # replace otherwise error
     uniques = list(set(atoms_list))
     dup_pos: "list[list[list[str]]]" = []
     for el in uniques:
@@ -98,7 +102,7 @@ def get_duplicated_positions(clause: str) -> "list[list[list[str]]]":
     return dup_pos
 
 
-def get_same_atoms(sampled_stub: str) -> "tuple[list[str],int]":
+def get_same_atoms(sampled_stub: str, wildcard: str) -> "tuple[list[str],int]":
     """
     Returns the samei/n atoms for ASP to prune solutions with repeated atoms
     % same2(Id,PosV0,posV1)
@@ -107,11 +111,10 @@ def get_same_atoms(sampled_stub: str) -> "tuple[list[str],int]":
     same2(0,0,1).
     same2(0,2,3).
     """
-    dp = get_duplicated_positions(sampled_stub)
+    dp = get_duplicated_positions(sampled_stub, wildcard)
     to_add: "list[str]" = []
     max_p = 0
     for index, position_list_list in enumerate(dp):
-        # print(len(position_list_list))
         if len(position_list_list) > 1:
             for dup_pos in position_list_list:
                 s = f"same{len(dup_pos)}({index},{','.join(dup_pos)})."

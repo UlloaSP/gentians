@@ -12,19 +12,11 @@ class RuleCallback:
         self.body = []
 
     def process(self, stm):
-        # if "body" in stm.child_keys:
-        # print(stm.child_keys)
-        # print(stm)
-        # print(stm.keys())
-
         if "body" in stm.child_keys:
             bl = [str(lit).replace(" ", "") for lit in stm.body]
             self.body = bl
         if "head" in stm.child_keys:
-            # print(stm.head)
             self.head = str(stm.head).replace(" ", "").split(";")
-            # print(h)
-            # print(str(lit) for lit in stm.head)
 
 
 class CheckSanityRulesCallback:
@@ -37,9 +29,6 @@ class CheckSanityRulesCallback:
 
     def sink(self, x, y):
         # global for the error: info: global variable in tuple of aggregate element
-        # print(f"x: {x}")
-        # print(f"y: {y}")
-        # print(("unsafe" in y) or ("global" in y))
         # or because there can be more errors
         self.unsound_rule = self.unsound_rule or (("unsafe" in y) or ("global" in y))
 

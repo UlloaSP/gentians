@@ -1,11 +1,12 @@
 from .algorithms.genetic import Strategy
-from .crossovers.one_point import one_point_crossover
-from .fitness.evaluator import FitnessEvaluator
-from .mutations.random_stub import mutate_by_random_stub
-from .populations.random_initialization import initialize_population
-from .replacements.oldest_or_worst import replace_oldest_or_worst
-from .selections.fittest import pick_two_fittest
-from .selections.tournament import tournament_selection
+from .factories import (
+    create_crossover,
+    create_fitness,
+    create_mutation,
+    create_population,
+    create_replacement,
+    create_selection,
+)
 from ..arguments import Arguments
 from ..rule_generation.placed_clause import PlacedClause
 from ..rule_generation.program import Program
@@ -16,16 +17,16 @@ def create_default_genetic_strategy(
     program: Program,
     arguments: Arguments,
 ) -> Strategy:
-    fitness_evaluator = FitnessEvaluator(program, 10000)
+    replacement, k_best_for_next_round = create_replacement(arguments.replacement)
     return Strategy(
         placed_list,
         program,
         arguments,
-        fitness_evaluator.evaluate_score,
-        initialize_population,
-        tournament_selection,
-        pick_two_fittest,
-        one_point_crossover,
-        mutate_by_random_stub,
-        replace_oldest_or_worst,
+        create_fitness(program, arguments.fitness),
+        create_population(arguments.population),
+        create_selection(arguments.selection),
+        create_crossover(arguments.crossover),
+        create_mutation(arguments.mutation),
+        replacement,
+        k_best_for_next_round,
     )

@@ -4,7 +4,6 @@ import itertools  # to generate unbalanced aggregates
 
 from ..arguments import Arguments
 from ..console import print_error_and_exit
-from ..constants import UNDERSCORE_SIZE
 from .program import ModeDeclaration
 from .sampled_clause import Clause, Literal
 
@@ -29,7 +28,9 @@ class ProgramSampler:
         # s1(V0):- V2+V1=V0,s0(V1),s1(V2).
         # s0(V0):- #sum{V2,V1:el(V1,V2)}=V0.
         # s1(V0):-  #sum{V2,V1:el(V1,V2)}=V0,#sum{V2,V1:el(V2,V1)}=V0.
-        self.enable_recursion = False
+        self.enable_recursion = _sampling_bool(
+            self.args, "enable_recursion", False
+        )
 
         # store the already placed clauses to avoid recomputation
         # removed since all the clauses are different
@@ -69,7 +70,7 @@ class ProgramSampler:
         body_literals: "list[str]" = []
         aggregates_indexes: list[int] = []
         all_aggregates: "list[list[str]]" = []
-        placeholder = UNDERSCORE_SIZE * "_"
+        placeholder = self.args.wildcard
         operators_count = 0
         to_append: str = ""
 
@@ -107,9 +108,9 @@ class ProgramSampler:
                 if not self.args.unbalanced_aggregates:
                     # atoms_in_agg = ":"
                     atoms_in_agg: "list[str]" = []
-                    ph = ",".join([UNDERSCORE_SIZE * "_"] * total_number_of_variables)
+                    ph = ",".join([placeholder] * total_number_of_variables)
                     for name, arity in el.mode_bias.aggregation_atoms:
-                        ph_atom = ",".join([UNDERSCORE_SIZE * "_"] * int(arity))
+                        ph_atom = ",".join([placeholder] * int(arity))
                         atoms_in_agg.append(f"{name}({ph_atom})")
                     to_append = (
                         "#"
@@ -119,17 +120,17 @@ class ProgramSampler:
                         + ":"
                         + ",".join(atoms_in_agg)
                         + "}="
-                        + UNDERSCORE_SIZE * "_"
+                        + placeholder
                     )
                 else:
                     # if self.unbalanced_aggregates
                     # sum/2 -> #sum{ _ : a(_,_)} e #sum{ _, _ : a(_,_)}
                     current: "list[str]" = []
                     for current_arity in range(1, total_number_of_variables + 1):
-                        ph = ",".join([UNDERSCORE_SIZE * "_"] * int(current_arity))
+                        ph = ",".join([placeholder] * int(current_arity))
                         atoms_in_agg: "list[str]" = []
                         for name, arity in el.mode_bias.aggregation_atoms:
-                            ph_atom = ",".join([UNDERSCORE_SIZE * "_"] * int(arity))
+                            ph_atom = ",".join([placeholder] * int(arity))
                             atoms_in_agg.append(f"{name}({ph_atom})")
                         s = (
                             "#"
@@ -139,7 +140,7 @@ class ProgramSampler:
                             + ":"
                             + ",".join(atoms_in_agg)
                             + "}="
-                            + UNDERSCORE_SIZE * "_"
+                            + placeholder
                         )
                         current.append(s)
                     all_aggregates.append(current)
@@ -147,7 +148,7 @@ class ProgramSampler:
                 operators_count -= 1
                 aggregates_indexes.append(i)
             else:
-                to_append = el.get_stub_representation()
+                to_append = el.get_stub_representation(self.args.wildcard)
                 operators_count -= 1
 
             # append the literal to the body
@@ -176,7 +177,10 @@ class ProgramSampler:
         sampled_literal_pos = random.choices(range(len(available_atoms)), weights, k=1)[
             0
         ]
-        negated = random.random() < 0.5 and (
+        negation_probability = _sampling_float(
+            self.args, "negation_probability", 0.5
+        )
+        negated = random.random() < negation_probability and (
             not available_atoms[sampled_literal_pos].positive
         )
 
@@ -260,7 +264,12 @@ class ProgramSampler:
                 is_valid = not (subs_h or subs_b)
                 if is_valid:
                     head_as_str: str = ";".join(
-                        sorted([x.get_stub_representation() for x in head])
+                        sorted(
+                            [
+                                x.get_stub_representation(self.args.wildcard)
+                                for x in head
+                            ]
+                        )
                     )
                     body_as_str: str = ",".join(sorted(b))
                     cl = f"{head_as_str} :- {body_as_str}."
@@ -273,3 +282,16 @@ class ProgramSampler:
             self.args.max_depth = original_depth
 
         return clauses
+
+
+def _sampling_float(args: Arguments, key: str, default: float) -> float:
+    return float(args.sampling.get(key, default))
+
+
+def _sampling_bool(args: Arguments, key: str, default: bool) -> bool:
+    value = args.sampling.get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in {"1", "true", "yes", "on"}
+    return bool(value)

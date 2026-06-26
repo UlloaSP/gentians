@@ -29,12 +29,11 @@ main(Arguments(
     max_depth=3,                                 # Max literals in each rule.
     aggregates=["sum(d/2)", "count(d/2)"],       # Aggregates allowed in generated rules.
     comparison_operators=["neq"],                # Comparison operators allowed in bodies.
-    verbosity=2,                                 # 0 quiet, 1 sampled clauses, 2 placements.
     max_variables=4,                             # Max variables allowed in one rule.
     unbalanced_aggregates=True,                  # Allow unbalanced aggregate variables.
 ))
 ```
-where `filename` specifies the task file, `max_depth` sets the maximum length of a clause (number of literals), `aggregates` lists the allowed aggregates, in this case `#sum` over `d/2` and `#count` over `d/2`, `comparison_operators` lists allowed comparison operators, in this case `!=` (`neq`), `verbosity` sets the verbosity level, `max_variables` sets the maximum number of variables in a rule, and `unbalanced_aggregates` allows unbalanced aggregates.
+where `filename` specifies the task file, `max_depth` sets the maximum length of a clause (number of literals), `aggregates` lists the allowed aggregates, in this case `#sum` over `d/2` and `#count` over `d/2`, `comparison_operators` lists allowed comparison operators, in this case `!=` (`neq`), `max_variables` sets the maximum number of variables in a rule, and `unbalanced_aggregates` allows unbalanced aggregates.
 
 If instead you prefer to define your own program and domain, keep reading.
 

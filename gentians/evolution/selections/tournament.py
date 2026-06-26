@@ -20,10 +20,11 @@ def tournament_selection(
     """
     Tournament to select the individuals to combine and mutate
     """
+    tournament_size = min(tournament_size, len(population))
     random_subset = random.sample([x for x in population], tournament_size)
     stop = False
     best_element = get_fittest(random_subset)
-    while len(random_subset) > 0 and not stop:
+    while len(random_subset) > 1 and not stop:
         if random.random() > prob_selecting_fittest:
             random_subset.remove(best_element)
             best_element = get_fittest(random_subset)

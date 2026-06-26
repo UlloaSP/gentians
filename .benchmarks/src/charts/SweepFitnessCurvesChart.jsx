@@ -5,7 +5,7 @@ import { ChartSection } from '../components/Layout'
 import { colors } from '../metrics'
 
 export function SweepFitnessCurvesChart({ sweep, dataset, mode }) {
-  const rows = (sweep?.curves || []).filter((row) => row.dataset === dataset && row.fitness_aggregation === mode)
+  const rows = (sweep?.curves || []).filter((row) => row.dataset === dataset && row.fitness_operator === mode)
   const chart = useMemo(() => {
     const keys = [...new Set(rows.map((row) => `${row.outer_iterations} x ${row.genetic_iterations}`))]
     const palette = [colors.self, colors.grounding, colors.solving, colors.other, colors.accent, colors.total]

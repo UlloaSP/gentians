@@ -11,14 +11,13 @@ from ...timing import phase, profile_phase, record_metric
 def mutate_by_random_stub(
     element: Individual,
     placed_list: "list[PlacedClause]",
-    mutation_probability: float,
+    probability: float,
     evaluate_score: FitnessFn,
     change_stub: bool = True,
 ):
     """
     Mutation of an element
     """
-    change_stub = True
     new_element = element
     something_changed = False
     original_score = element.score
@@ -26,7 +25,7 @@ def mutate_by_random_stub(
 
     with phase("mutation.operator"):
         for i, _ in enumerate(element.program):
-            if random.random() < mutation_probability:
+            if random.random() < probability:
                 something_changed = True
                 changed_positions += 1
                 # versione 1: cambio solamente il posizionamento delle variabili
@@ -71,7 +70,7 @@ def mutate_by_random_stub(
             "strategy": "random_stub",
             "changed": something_changed,
             "changed_positions": changed_positions,
-            "mutation_probability": mutation_probability,
+            "probability": probability,
             "original_score": original_score,
             "new_score": new_element.score,
             "improved": new_element.score > original_score,

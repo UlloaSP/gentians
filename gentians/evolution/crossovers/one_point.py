@@ -10,13 +10,13 @@ def one_point_crossover(
     best_a: Individual,
     best_b: Individual,
     evaluate_score: FitnessFn,
+    probability: float,
 ) -> "tuple[Individual,Individual]":
     """
     Crossover: pick a random index and generate a element
     """
     with phase("crossover.operator"):
         crossover_position = random.randint(0, len(best_a.program) - 1)
-        # print(f"Crossover: {crossover_position}")
         new_program = list(
             best_a.program[:crossover_position]
             + best_b.program[crossover_position:]
@@ -74,6 +74,8 @@ def one_point_crossover(
         {
             "operator": "crossover",
             "strategy": "one_point",
+            "applied": True,
+            "probability": probability,
             "parent_a_score": best_a.score,
             "parent_b_score": best_b.score,
             "child_1_score": i0.score,

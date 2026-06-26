@@ -29,14 +29,14 @@ class AggregateElement:
         )
 
 
-def get_aggregates(clause: str) -> "list[AggregateElement]":
+def get_aggregates(clause: str, wildcard: str) -> "list[AggregateElement]":
     """
     Extracts the variables in the aggregates in the clause
     """
     # t_1, ..., t_k : \phi()
     # t1, ..., tk are terms
     # \phi is a literal
-    # #sum{ _____,_____ : a  ( _____,_____ )} = _____, #sum{ _____,_____ : a  ( _____,_____ )} = _____
+    # #sum{ __VAR__,__VAR__ : a  ( __VAR__,__VAR__ )} = __VAR__, #sum{ __VAR__,__VAR__ : a  ( __VAR__,__VAR__ )} = __VAR__
     # i need to return, a list of list. Each sublist contains the
     # variables in the terms
     open_brackets = [i for i, ch in enumerate(clause) if ch == "{"]
@@ -49,20 +49,15 @@ def get_aggregates(clause: str) -> "list[AggregateElement]":
     for s, e in zip(open_brackets, closed_brackets):
         var_terms = []
         var_atom = []
-        current_index = clause[prev_pos:s].count("_____") + prev_count
+        current_index = clause[prev_pos:s].count(wildcard) + prev_count
         aggr = clause[s + 1 : e]
         aggr = aggr.split(":")
-        n_terms = aggr[0].count("_____")
-        n_var_in_atom = aggr[1].count("_____")
+        n_terms = aggr[0].count(wildcard)
+        n_var_in_atom = aggr[1].count(wildcard)
         var_terms = list(range(current_index, n_terms + current_index))
         var_atom = list(
             range(current_index + n_terms, n_var_in_atom + current_index + n_terms)
         )
-
-        # print(aggr)
-        # print(f"current index: {current_index}")
-        # print(f"var terms: {var_terms}")
-        # print(f"var atom: {var_atom}")
 
         prev_pos = e
         prev_count = current_index + n_terms + n_var_in_atom
@@ -81,13 +76,13 @@ def contains_comparison(stub: str) -> bool:
 
 
 def get_arithmetic_or_comparison_position(
-    stub: str,
+    stub: str, wildcard: str
 ) -> tuple[list[list[int]], list[list[int]]]:
     """
     Extracts the positions of the variables involved in arithmetic or
     comparison operators.
     """
-    els = stub.replace(" ", "").split("_____")
+    els = stub.replace(" ", "").split(wildcard)
     pos_arithmetic: "list[list[int]]" = []
     pos_comparison: "list[list[int]]" = []
     for index, el in enumerate(els):

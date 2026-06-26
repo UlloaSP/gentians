@@ -14,9 +14,6 @@ class Arguments:
     # Path to a task file with background, examples, and language bias.
     filename: str | None = None
 
-    # Logging level: 0 quiet, 1 sampled clauses, 2 variable placements.
-    verbosity: int = 0
-
     # Maximum number of variables allowed in one generated rule.
     max_variables: int = 3
 
@@ -32,11 +29,11 @@ class Arguments:
     # Number of clause stubs sampled at each sampling step.
     clauses_to_sample: int = 1000
 
+    # Token used as an unbound variable placeholder in sampled stubs.
+    wildcard: str = "__VAR__"
+
     # Allow aggregate literals whose variables are not fully balanced.
     unbalanced_aggregates: bool = False
-
-    # Maximum answer sets generated while checking candidates.
-    max_as: int = 5000
 
     # Maximum number of clauses in one candidate program.
     clauses_per_individual: int = 6
@@ -44,14 +41,98 @@ class Arguments:
     # Maximum number of outer sample/evolution cycles.
     iterations: int = 100
 
-    # Number of individuals in genetic population.
-    population_size: int = 50
-
     # Genetic algorithm iterations per outer cycle.
     iterations_genetic: int = 2000
 
-    # Probability of mutating one individual during evolution.
-    mutation_probability: float = 0.2
+    # Fitness operator config.
+    fitness: dict[str, object] = field(
+        default_factory=lambda: {
+            # Fitness function implementation.
+            "name": "coverage_exp_mean",
+            # Maximum answer sets requested from Clingo per coverage check.
+            "max_as": 10000,
+            # Clingo CLI arguments used by the fitness evaluator.
+            "clingo_arguments": ["--project"],
+            # Score assigned when no coverage signal can be computed.
+            "empty_score": -2000,
+        }
+    )
+
+    # Parent selection operator config.
+    selection: dict[str, object] = field(
+        default_factory=lambda: {
+            # Parent selection implementation.
+            "name": "tournament",
+            # Number of candidates sampled for each tournament.
+            "tournament_size": 12,
+            # Probability of picking the fittest candidate in the tournament.
+            "prob_selecting_fittest": 0.9,
+        }
+    )
+
+    # Crossover operator config.
+    crossover: dict[str, object] = field(
+        default_factory=lambda: {
+            # Crossover implementation.
+            "name": "one_point",
+            # Probability of applying crossover to selected parents.
+            "probability": 0.7,
+        }
+    )
+
+    # Mutation operator config.
+    mutation: dict[str, object] = field(
+        default_factory=lambda: {
+            # Mutation implementation.
+            "name": "random_stub",
+            # Probability of mutating an offspring.
+            "probability": 0.2,
+            # Whether mutation may replace the clause stub itself.
+            "change_stub": True,
+        }
+    )
+
+    # Population initialization operator config.
+    population: dict[str, object] = field(
+        default_factory=lambda: {
+            # Population initialization implementation.
+            "name": "random",
+            # Number of individuals kept in the population.
+            "size": 50,
+        }
+    )
+
+    # Population replacement operator config.
+    replacement: dict[str, object] = field(
+        default_factory=lambda: {
+            # Replacement implementation.
+            "name": "oldest_or_worst",
+            # Probability of replacing the oldest individual instead of the worst.
+            "prob_replacing_oldest": 0.5,
+            # Number of elite individuals copied into the next outer cycle.
+            "k_best_for_next_round": 5,
+        }
+    )
+
+    # Variable placement solver config.
+    variable_placement: dict[str, object] = field(
+        default_factory=lambda: {
+            # Clingo CLI arguments used to enumerate variable placements.
+            "clingo_arguments": ["0"],
+            # Use one variable when a stub has at most this many wildcard slots.
+            "single_variable_until_positions": 2,
+        }
+    )
+
+    # Clause sampling config.
+    sampling: dict[str, object] = field(
+        default_factory=lambda: {
+            # Probability of negating a sampled body literal when allowed.
+            "negation_probability": 0.5,
+            # Whether sampled rules may recursively use the target predicate.
+            "enable_recursion": False,
+        }
+    )
 
     # Enable choice-rule generation.
     cr: bool = False

@@ -1,4 +1,5 @@
 import argparse
+import copy
 import csv
 import json
 import os
@@ -43,6 +44,9 @@ class RunResult:
     total_seconds: float | None = None
     success: bool = False
     first_success_generation_observed: int | None = None
+    fitness_operator: str = "coverage_exp_mean"
+    outer_iterations: int = 0
+    genetic_iterations: int = 0
 
 
 @dataclass
@@ -77,7 +81,9 @@ class TimingMetric:
 class GAMetric:
     dataset: str
     run: int
+    outer_iteration: int
     generation: int
+    global_generation: int
     max_fitness: float
     avg_fitness: float
     best_so_far: float
@@ -125,8 +131,33 @@ DEFAULT_ARGUMENTS: dict[str, object] = {
     "clauses_per_individual": 6,
     "iterations_genetic": 1000,
     "iterations": 5,
-    "population_size": 36,
-    "mutation_probability": 0.05,
+    "fitness": {
+        "name": "coverage_exp_mean",
+        "max_as": 10000,
+        "clingo_arguments": ["--project"],
+        "empty_score": -2000,
+    },
+    "selection": {
+        "name": "tournament",
+        "tournament_size": 12,
+        "prob_selecting_fittest": 0.9,
+    },
+    "crossover": {"name": "one_point", "probability": 1.0},
+    "mutation": {"name": "random_stub", "probability": 0.05, "change_stub": True},
+    "population": {"name": "random", "size": 36},
+    "replacement": {
+        "name": "oldest_or_worst",
+        "prob_replacing_oldest": 0.5,
+        "k_best_for_next_round": 5,
+    },
+    "variable_placement": {
+        "clingo_arguments": ["0"],
+        "single_variable_until_positions": 2,
+    },
+    "sampling": {
+        "negation_probability": 0.5,
+        "enable_recursion": False,
+    },
 }
 
 
@@ -189,6 +220,14 @@ def main() -> None:
     parser.add_argument("--samples", type=int)
     parser.add_argument("--genetic-iterations", type=int)
     parser.add_argument("--outer-iterations", type=int)
+    parser.add_argument("--fitness-json")
+    parser.add_argument("--selection-json")
+    parser.add_argument("--crossover-json")
+    parser.add_argument("--mutation-json")
+    parser.add_argument("--population-json")
+    parser.add_argument("--replacement-json")
+    parser.add_argument("--variable-placement-json")
+    parser.add_argument("--sampling-json")
     parser.add_argument("--population", type=int)
     parser.add_argument("--seed-base", type=int, default=1)
     parser.add_argument("--no-plots", action="store_true", help=argparse.SUPPRESS)
@@ -312,6 +351,10 @@ def main() -> None:
             elapsed = time.perf_counter() - started
             status = "timeout" if timed_out else "ok" if returncode == 0 else "failed"
             parsed = parse_log(log_path, dataset, run)
+            run_arguments = json.loads(arguments_json)
+            fitness_config = run_arguments.get("fitness", {})
+            if not isinstance(fitness_config, dict):
+                fitness_config = {}
             run_result = RunResult(
                 dataset=dataset,
                 run=run,
@@ -329,6 +372,9 @@ def main() -> None:
                 first_success_generation_observed=parsed[
                     "first_success_generation_observed"
                 ],
+                fitness_operator=str(fitness_config.get("name", "coverage_exp_mean")),
+                outer_iterations=int(run_arguments.get("iterations", 0)),
+                genetic_iterations=int(run_arguments.get("iterations_genetic", 0)),
             )
             results.append(run_result)
             fitness.extend(parsed["fitness"])
@@ -377,17 +423,47 @@ def _default_python() -> str:
 
 
 def override_arguments(args: argparse.Namespace) -> dict[str, object]:
-    arguments = dict(DEFAULT_ARGUMENTS)
+    arguments = copy.deepcopy(DEFAULT_ARGUMENTS)
     replacements = {
         "clauses_to_sample": args.samples,
         "iterations_genetic": args.genetic_iterations,
         "iterations": args.outer_iterations,
-        "population_size": args.population,
     }
     for name, value in replacements.items():
         if value is not None:
             arguments[name] = value
+    if args.population is not None:
+        population_config = arguments.get("population", {})
+        if not isinstance(population_config, dict):
+            population_config = {}
+        arguments["population"] = population_config | {"size": args.population}
+    for name in [
+        "fitness",
+        "selection",
+        "crossover",
+        "mutation",
+        "population",
+        "replacement",
+        "variable_placement",
+        "sampling",
+    ]:
+        raw = getattr(args, f"{name}_json")
+        if raw is not None:
+            base = arguments.get(name, {})
+            if not isinstance(base, dict):
+                base = {}
+            arguments[name] = base | parse_json_config(raw, name)
     return arguments
+
+
+def parse_json_config(raw: str, name: str) -> dict[str, object]:
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Invalid --{name}-json: {exc}") from exc
+    if not isinstance(value, dict):
+        raise SystemExit(f"--{name}-json must be a JSON object")
+    return value
 
 
 def build_command(
@@ -567,7 +643,9 @@ def read_ga_metrics(path: Path, dataset: str, run: int) -> list[GAMetric]:
         GAMetric(
             dataset,
             run,
+            int(row.get("outer_iteration", 0)),
             int(row["generation"]),
+            int(row.get("global_generation", row["generation"])),
             float(row["max_fitness"]),
             float(row["avg_fitness"]),
             float(row["best_so_far"]),
@@ -710,7 +788,9 @@ def read_existing_outputs(
         GAMetric(
             row["dataset"],
             int(row["run"]),
+            int(to_float(row.get("outer_iteration"))),
             int(row["generation"]),
+            int(to_float(row.get("global_generation") or row.get("generation"))),
             float(row["max_fitness"]),
             float(row["avg_fitness"]),
             float(row["best_so_far"]),
@@ -745,6 +825,9 @@ def read_existing_outputs(
             int(to_float(row.get("first_success_generation_observed")))
             if row.get("first_success_generation_observed") not in (None, "")
             else None,
+            row.get("fitness_operator", "coverage_exp_mean"),
+            int(to_float(row.get("outer_iterations"))),
+            int(to_float(row.get("genetic_iterations"))),
         )
         for row in read_csv_dicts(out_dir / "runs.csv")
     ]
@@ -965,6 +1048,15 @@ def write_dashboard_data(
                 "finalQuality": to_float(quality.get("best_found_rate")),
                 "exactSolved": to_float(quality.get("best_found_rate")),
                 "internalFitness": to_float(quality.get("best_score")),
+                "fitnessOperator": dataset_results[0].fitness_operator
+                if dataset_results
+                else "mean",
+                "outerIterations": dataset_results[0].outer_iterations
+                if dataset_results
+                else 0,
+                "geneticIterations": dataset_results[0].genetic_iterations
+                if dataset_results
+                else 0,
                 "solveCalls": solve_calls,
                 "groundCalls": ground_calls,
                 "atoms": atoms,
@@ -1039,13 +1131,25 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
     for run in sorted({metric.run for metric in metrics}):
         points = sorted(
             [metric for metric in metrics if metric.run == run],
-            key=lambda metric: metric.generation,
+            key=lambda metric: metric.global_generation,
         )
+        global_best = []
+        best_value = float("-inf")
+        for point in points:
+            best_value = max(best_value, point.best_so_far)
+            global_best.append([point.global_generation, best_value])
         runs.append(
             {
                 "maxArr": [[point.generation, point.max_fitness] for point in points],
                 "avgArr": [[point.generation, point.avg_fitness] for point in points],
                 "bestArr": [[point.generation, point.best_so_far] for point in points],
+                "globalMaxArr": [
+                    [point.global_generation, point.max_fitness] for point in points
+                ],
+                "globalAvgArr": [
+                    [point.global_generation, point.avg_fitness] for point in points
+                ],
+                "globalBestArr": global_best,
                 "diversity": [[point.generation, 0.0] for point in points],
                 "invalid": [[point.generation, 0.0] for point in points],
             }
@@ -1268,14 +1372,15 @@ def ga_fitness_means(points: list[GAMetric]) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for dataset in sorted({p.dataset for p in points}):
         dataset_points = [p for p in points if p.dataset == dataset]
-        for generation in sorted({p.generation for p in dataset_points}):
+        for generation in sorted({p.global_generation for p in dataset_points}):
             generation_points = [
-                p for p in dataset_points if p.generation == generation
+                p for p in dataset_points if p.global_generation == generation
             ]
             rows.append(
                 {
                     "dataset": dataset,
                     "generation": generation,
+                    "global_generation": generation,
                     "max_mean": mean(p.max_fitness for p in generation_points),
                     "max_std": stddev(p.max_fitness for p in generation_points),
                     "avg_mean": mean(p.avg_fitness for p in generation_points),

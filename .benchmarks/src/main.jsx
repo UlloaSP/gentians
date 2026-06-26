@@ -94,11 +94,11 @@ function App() {
 
 function Sweep({ sweep }) {
   const datasets = [...new Set((sweep?.cells || []).map((row) => row.dataset))]
-  const modes = [...new Set((sweep?.cells || []).map((row) => row.fitness_aggregation))]
+  const modes = [...new Set((sweep?.cells || []).map((row) => row.fitness_operator))]
   const [dataset, setDataset] = useState('')
   const [mode, setMode] = useState('')
   const currentDataset = dataset || datasets[0] || ''
-  const currentMode = mode || modes[0] || 'mean'
+  const currentMode = mode || modes[0] || 'coverage_exp_mean'
 
   if (!sweep) {
     return (

@@ -1,209 +1,209 @@
 from gentians.rule_generation.variable_placement import VariablePlacer
 
-# sampled_stub = ":- a(_____,_____),a(_____,_____)."
-# sampled_stub = "d(V0,V0):- #sum{V1,V2:d(V2,V1)}=V0."
-# sampled_stub = " :- x(_____,_____,_____), x(_____,_____,_____), less_than(_____,_____, _____,_____), _____ >= _____."
-# sampled_stub = ":- #sum{_____:x(_____),size(_____)}=_____,_____!=_____,size(_____),sum_col(_____,_____)."
-# sampled_stub = "sum_partition(_____,_____):- #sum{_____:p(_____,_____)}=_____,partition(_____)."
-# sampled_stub = ":- #sum{_____:p(_____,_____)}=_____, #sum{_____:p(_____,_____)}=_____."
-# sampled_stub = ":- #sum{_____:p(_____,_____)}=_____."
-# sampled_stub = ":- _____+_____=_____,_____-_____=_____,_____<_____,_____==_____,q(_____,_____)."
-# sampled_stub = ":- _____+_____=_____,_____>_____,q(_____,_____)." # qui attenzione che se ho > o < invece di == allora è unsafe
-# sampled_stub = ":- _____+_____=_____,q(_____,_____)."
-# sampled_stub = ":- q(_____,_____,_____),q(_____,_____,_____)."
-# sampled_stub = ":- #sum{_____,_____:el(_____,_____)}=_____,#sum{_____,_____:el(_____,_____)}=_____,_____+_____=_____,s1(_____)."
-# sampled_stub = ":- _____==_____,q(_____,_____)."
-# sampled_stub = ":- _____-_____=_____,_____<_____."
-# sampled_stub = ":- _____>_____,q(_____,_____)."
-# sampled_stub = ":- q(_____,_____),q(_____,_____),a(_____),a(_____)."
-# sampled_stub = "sp(_____,_____):- #sum{_____,_____:p(_____,_____)}=_____, partition(_____)."
-# sampled_stub = ":- _____-_____=_____,_____<=_____,hd(_____),pos(_____),sd(_____),v1(_____,_____)."
-# sampled_stub = ":- #sum{_____,_____:d(_____,_____)}=_____,_____-_____=_____,_____>=_____."
-# sampled_stub = "s0(_____):- #sum{_____,_____:el(_____,_____)}=_____,#sum{_____,_____:el(_____,_____)}=_____."
-# sampled_stub = "s1(_____):- #sum{_____,_____:el(_____,_____)}=_____,#sum{_____,_____:el(_____,_____)}=_____,s1(_____)."
-# sampled_stub = "odd(_____):- even(_____), prev(_____,_____)."
 
-# sampled_stub = "a(_____):- _____ + _____ = _____, b(_____), c(_____)."
-# sampled_stub = ":- #sum{ _____,_____ : el  ( _____,_____ )} = _____,#sum{ _____,_____ : el  ( _____,_____ )} = _____,s0(_____),s1(_____)."
-
-# sampled_stub = "s(_____,_____):- g(_____), h(_____,_____), i(_____)."
-# sampled_stub = "ok(_____):- #sum{ _____,_____ : el  ( _____,_____ )} = _____,#sum{ _____,_____ : el  ( _____,_____ )} = _____,_____ + _____ = _____."
-# sampled_stub = ":- s(_____), s(_____), s(_____), _____ + _____ = _____."
-# sampled_stub = "s(_____):- #sum{ _____ : el  ( _____ )} = _____, _____ != _____."
-# sampled_stub = ":- #sum{ _____ : el  ( _____ )} = _____,_____ != _____,s(_____)."
-# sampled_stub = "g(_____):- #sum{ _____, _____ : a  ( _____, _____ )} = _____."
-# sampled_stub = "g(_____):- #sum{ _____ : a  ( _____ )} = _____, #sum{ _____ : a  ( _____ )} = _____."
-# sampled_stub = "g(_____):- #sum{ _____ : a  ( _____ )} = _____."
-# sampled_stub = "count_row(_____,_____):- _____ = #count{_____ : x(_____,_____,_____), cell(_____)}, cell(_____)."
-# sampled_stub = ":- in(_____), in(_____), v(_____), v(_____), _____!=_____, not e(_____,_____), not e(_____,_____)."
-
-
-def benchmark_place_variables(sampled_stub : str, unbalanced : bool = True):
+def benchmark_place_variables(sampled_stub: str, unbalanced: bool = True):
     vp = VariablePlacer(unbalanced_aggregates=unbalanced)
     res = vp._place_variables_clause(sampled_stub)
     return len(res) > 0
 
+
 def test_benchmark_0(benchmark):
-    stub = ":- a(_____,_____),a(_____,_____)."
+    stub = ":- a(__VAR__,__VAR__),a(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_1(benchmark):
-    stub = " :- x(_____,_____,_____), x(_____,_____,_____), less_than(_____,_____, _____,_____), _____ >= _____."
+    stub = " :- x(__VAR__,__VAR__,__VAR__), x(__VAR__,__VAR__,__VAR__), less_than(__VAR__,__VAR__, __VAR__,__VAR__), __VAR__ >= __VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_2(benchmark):
-    stub = ":- #sum{_____:x(_____),size(_____)}=_____,_____!=_____,size(_____),sum_col(_____,_____)."
+    stub = ":- #sum{__VAR__:x(__VAR__),size(__VAR__)}=__VAR__,__VAR__!=__VAR__,size(__VAR__),sum_col(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_3(benchmark):
-    stub = "sum_partition(_____,_____):- #sum{_____:p(_____,_____)}=_____,partition(_____)."
+    stub = "sum_partition(__VAR__,__VAR__):- #sum{__VAR__:p(__VAR__,__VAR__)}=__VAR__,partition(__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_4(benchmark):
-    stub = ":- #sum{_____:p(_____,_____)}=_____, #sum{_____:p(_____,_____)}=_____."
+    stub = ":- #sum{__VAR__:p(__VAR__,__VAR__)}=__VAR__, #sum{__VAR__:p(__VAR__,__VAR__)}=__VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_5(benchmark):
-    stub = ":- #sum{_____:p(_____,_____)}=_____."
+    stub = ":- #sum{__VAR__:p(__VAR__,__VAR__)}=__VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_6(benchmark):
-    stub = ":- _____+_____=_____,_____-_____=_____,_____<_____,_____==_____,q(_____,_____)."
+    stub = ":- __VAR__+__VAR__=__VAR__,__VAR__-__VAR__=__VAR__,__VAR__<__VAR__,__VAR__==__VAR__,q(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_7(benchmark):
-    stub = ":- _____+_____=_____,_____>_____,q(_____,_____)."
+    stub = ":- __VAR__+__VAR__=__VAR__,__VAR__>__VAR__,q(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_8(benchmark):
-    stub = ":- _____+_____=_____,q(_____,_____)."
+    stub = ":- __VAR__+__VAR__=__VAR__,q(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_9(benchmark):
-    stub = ":- q(_____,_____,_____),q(_____,_____,_____)."
+    stub = ":- q(__VAR__,__VAR__,__VAR__),q(__VAR__,__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_10(benchmark):
-    stub = ":- #sum{_____,_____:el(_____,_____)}=_____,#sum{_____,_____:el(_____,_____)}=_____,_____+_____=_____,s1(_____)."
+    stub = ":- #sum{__VAR__,__VAR__:el(__VAR__,__VAR__)}=__VAR__,#sum{__VAR__,__VAR__:el(__VAR__,__VAR__)}=__VAR__,__VAR__+__VAR__=__VAR__,s1(__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_11(benchmark):
-    stub = ":- _____==_____,q(_____,_____)."
+    stub = ":- __VAR__==__VAR__,q(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_12(benchmark):
-    stub = ":- _____-_____=_____,_____<_____."
+    stub = ":- __VAR__-__VAR__=__VAR__,__VAR__<__VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_13(benchmark):
-    stub = ":- _____>_____,q(_____,_____)."
+    stub = ":- __VAR__>__VAR__,q(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_14(benchmark):
-    stub = ":- q(_____,_____),q(_____,_____),a(_____),a(_____)."
+    stub = ":- q(__VAR__,__VAR__),q(__VAR__,__VAR__),a(__VAR__),a(__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_15(benchmark):
-    stub = "sp(_____,_____):- #sum{_____,_____:p(_____,_____)}=_____, partition(_____)."
+    stub = "sp(__VAR__,__VAR__):- #sum{__VAR__,__VAR__:p(__VAR__,__VAR__)}=__VAR__, partition(__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_16(benchmark):
-    stub = ":- _____-_____=_____,_____<=_____,hd(_____),pos(_____),sd(_____),v1(_____,_____)."
+    stub = ":- __VAR__-__VAR__=__VAR__,__VAR__<=__VAR__,hd(__VAR__),pos(__VAR__),sd(__VAR__),v1(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_17(benchmark):
-    stub = ":- #sum{_____,_____:d(_____,_____)}=_____,_____-_____=_____,_____>=_____."
+    stub = ":- #sum{__VAR__,__VAR__:d(__VAR__,__VAR__)}=__VAR__,__VAR__-__VAR__=__VAR__,__VAR__>=__VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_18(benchmark):
-    stub = "s0(_____):- #sum{_____,_____:el(_____,_____)}=_____,#sum{_____,_____:el(_____,_____)}=_____."
+    stub = "s0(__VAR__):- #sum{__VAR__,__VAR__:el(__VAR__,__VAR__)}=__VAR__,#sum{__VAR__,__VAR__:el(__VAR__,__VAR__)}=__VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_19(benchmark):
-    stub = "s1(_____):- #sum{_____,_____:el(_____,_____)}=_____,#sum{_____,_____:el(_____,_____)}=_____,s1(_____)."
+    stub = "s1(__VAR__):- #sum{__VAR__,__VAR__:el(__VAR__,__VAR__)}=__VAR__,#sum{__VAR__,__VAR__:el(__VAR__,__VAR__)}=__VAR__,s1(__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_20(benchmark):
-    stub = "odd(_____):- even(_____), prev(_____,_____)."
+    stub = "odd(__VAR__):- even(__VAR__), prev(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_21(benchmark):
-    stub = "a(_____):- _____ + _____ = _____, b(_____), c(_____)."
+    stub = "a(__VAR__):- __VAR__ + __VAR__ = __VAR__, b(__VAR__), c(__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_22(benchmark):
-    stub = ":- #sum{ _____,_____ : el  ( _____,_____ )} = _____,#sum{ _____,_____ : el  ( _____,_____ )} = _____,s0(_____),s1(_____)."
+    stub = ":- #sum{ __VAR__,__VAR__ : el  ( __VAR__,__VAR__ )} = __VAR__,#sum{ __VAR__,__VAR__ : el  ( __VAR__,__VAR__ )} = __VAR__,s0(__VAR__),s1(__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_23(benchmark):
-    stub = "s(_____,_____):- g(_____), h(_____,_____), i(_____)."
+    stub = "s(__VAR__,__VAR__):- g(__VAR__), h(__VAR__,__VAR__), i(__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_24(benchmark):
-    stub = "ok(_____):- #sum{ _____,_____ : el  ( _____,_____ )} = _____,#sum{ _____,_____ : el  ( _____,_____ )} = _____,_____ + _____ = _____."
+    stub = "ok(__VAR__):- #sum{ __VAR__,__VAR__ : el  ( __VAR__,__VAR__ )} = __VAR__,#sum{ __VAR__,__VAR__ : el  ( __VAR__,__VAR__ )} = __VAR__,__VAR__ + __VAR__ = __VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_25(benchmark):
-    stub = ":- s(_____), s(_____), s(_____), _____ + _____ = _____."
+    stub = ":- s(__VAR__), s(__VAR__), s(__VAR__), __VAR__ + __VAR__ = __VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_26(benchmark):
-    stub = "s(_____):- #sum{ _____ : el  ( _____ )} = _____, _____ != _____."
+    stub = (
+        "s(__VAR__):- #sum{ __VAR__ : el  ( __VAR__ )} = __VAR__, __VAR__ != __VAR__."
+    )
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_27(benchmark):
-    stub = ":- #sum{ _____ : el  ( _____ )} = _____,_____ != _____,s(_____)."
+    stub = (
+        ":- #sum{ __VAR__ : el  ( __VAR__ )} = __VAR__,__VAR__ != __VAR__,s(__VAR__)."
+    )
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_28(benchmark):
-    stub = "g(_____):- #sum{ _____, _____ : a  ( _____, _____ )} = _____."
+    stub = "g(__VAR__):- #sum{ __VAR__, __VAR__ : a  ( __VAR__, __VAR__ )} = __VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_29(benchmark):
-    stub = "g(_____):- #sum{ _____ : a  ( _____ )} = _____, #sum{ _____ : a  ( _____ )} = _____."
+    stub = "g(__VAR__):- #sum{ __VAR__ : a  ( __VAR__ )} = __VAR__, #sum{ __VAR__ : a  ( __VAR__ )} = __VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert not result 
+    assert not result
+
 
 def test_benchmark_30(benchmark):
-    stub = "g(_____):- #sum{ _____ : a  ( _____ )} = _____."
+    stub = "g(__VAR__):- #sum{ __VAR__ : a  ( __VAR__ )} = __VAR__."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_31(benchmark):
-    stub = "count_row(_____,_____):- _____ = #count{_____ : x(_____,_____,_____), cell(_____)}, cell(_____)."
+    stub = "count_row(__VAR__,__VAR__):- __VAR__ = #count{__VAR__ : x(__VAR__,__VAR__,__VAR__), cell(__VAR__)}, cell(__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result
+
 
 def test_benchmark_32(benchmark):
-    stub = ":- in(_____), in(_____), v(_____), v(_____), _____!=_____, not e(_____,_____), not e(_____,_____)."
+    stub = ":- in(__VAR__), in(__VAR__), v(__VAR__), v(__VAR__), __VAR__!=__VAR__, not e(__VAR__,__VAR__), not e(__VAR__,__VAR__)."
     result = benchmark(benchmark_place_variables, stub)
-    assert result 
+    assert result

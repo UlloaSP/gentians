@@ -12,19 +12,18 @@ class FitnessFn(Protocol):
 
 
 PopulationInitializerFn = Callable[
-    [int, list[PlacedClause], int, FitnessFn],
+    [int, list[PlacedClause], FitnessFn],
     tuple[list[Individual], bool],
 ]
-SelectionFn = Callable[[list[Individual], int], Individual]
-PickTwoFn = Callable[[list[Individual]], tuple[Individual, Individual]]
+SelectionFn = Callable[[list[Individual]], tuple[Individual, Individual]]
 CrossoverFn = Callable[
     [Individual, Individual, FitnessFn], tuple[Individual, Individual]
 ]
 MutationFn = Callable[
-    [Individual, list[PlacedClause], float, FitnessFn],
+    [Individual, list[PlacedClause], FitnessFn],
     Individual,
 ]
 ReplacementFn = Callable[
-    [list[Individual], Individual, float],
+    [list[Individual], Individual],
     list[Individual],
 ]

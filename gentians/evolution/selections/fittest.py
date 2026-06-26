@@ -1,8 +1,10 @@
 import random
 
 from ..individual import Individual
+from ...timing import profile_phase, record_metric
 
 
+@profile_phase("selection")
 def pick_two_fittest(
     population: list[Individual], pick_uniform: bool = True
 ) -> tuple[Individual, Individual]:
@@ -37,5 +39,16 @@ def pick_two_fittest(
         # print(f"Combining: {idx_a}, {idx_b}")
         best_a = population[idx_a]
         best_b = population[idx_b]
+
+    record_metric(
+        "operator",
+        {
+            "operator": "selection",
+            "strategy": "pick_two_fittest",
+            "population_size": len(population),
+            "selected_a_score": best_a.score,
+            "selected_b_score": best_b.score,
+        },
+    )
 
     return best_a, best_b

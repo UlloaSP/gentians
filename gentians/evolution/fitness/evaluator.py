@@ -2,6 +2,7 @@ import math
 
 from ...asp.clingo import ClingoInterface
 from ...rule_generation.program import Program
+from ...timing import current_phase, record_metric
 
 
 class FitnessEvaluator:
@@ -103,6 +104,29 @@ class FitnessEvaluator:
             [int(v) for v in list(l_best_indexes[0])]
             if len(l_best_indexes) > 0
             else []
+        )
+
+        best_key = l_best_indexes[0] if l_best_indexes else ""
+        best_coverage = cov.get(best_key)
+        record_metric(
+            "quality",
+            {
+                "metric": "evaluate_score",
+                "phase_context": current_phase(),
+                "program_size": len(program),
+                "subsets_evaluated": len(cov),
+                "score": score,
+                "best_found": best_found,
+                "best_subset_size": len(l_index),
+                "covered_positive": len(set(best_coverage.l_pos))
+                if best_coverage is not None
+                else 0,
+                "covered_negative": len(set(best_coverage.l_neg))
+                if best_coverage is not None
+                else 0,
+                "total_positive": len(self.program.positive_examples),
+                "total_negative": len(self.program.negative_examples),
+            },
         )
 
         return score, best_found, l_index

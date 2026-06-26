@@ -1,6 +1,7 @@
 import random
 
 from ..individual import Individual
+from ...timing import profile_phase, record_metric
 
 
 def get_fittest(selected_individuals: "list[Individual]") -> Individual:
@@ -10,6 +11,7 @@ def get_fittest(selected_individuals: "list[Individual]") -> Individual:
     return max(selected_individuals, key=lambda x: x.score)
 
 
+@profile_phase("selection")
 def tournament_selection(
     population: list[Individual],
     tournament_size: int = 12,
@@ -27,5 +29,16 @@ def tournament_selection(
             best_element = get_fittest(random_subset)
         else:
             stop = True
+
+    record_metric(
+        "operator",
+        {
+            "operator": "selection",
+            "strategy": "tournament",
+            "population_size": len(population),
+            "tournament_size": tournament_size,
+            "selected_score": best_element.score,
+        },
+    )
 
     return best_element

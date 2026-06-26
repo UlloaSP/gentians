@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from ..arguments import Arguments
+from ..timing import profile_phase, record_metric
 from .placed_clause import PlacedClause
 from .program import Program
 from .reader import read_program
@@ -29,6 +30,7 @@ def create_program_sampler(program: Program, arguments: Arguments) -> ProgramSam
     )
 
 
+@profile_phase("sampling")
 def sample_rule_stubs(
     sampler: ProgramSampler,
     arguments: Arguments,
@@ -38,16 +40,37 @@ def sample_rule_stubs(
 
     # add the best from the previous rounds
     cls.extend(best_stub_for_next_round)
+    record_metric(
+        "candidate",
+        {
+            "metric": "sample_rule_stubs",
+            "sampled_stubs": len(cls),
+            "carried_stubs": len(best_stub_for_next_round),
+            "requested_stubs": arguments.clauses_to_sample,
+        },
+    )
 
     return cls
 
 
+@profile_phase("sampling.instantiation")
 def instantiate_sampled_clauses(sampled_stubs: "list[Clause]") -> "list[str]":
     # Step 1: remove duplicates
     instantiated_clauses = [c.instantiated for c in sampled_stubs]
-    return [item for sublist in instantiated_clauses for item in sublist]
+    flattened = [item for sublist in instantiated_clauses for item in sublist]
+    record_metric(
+        "candidate",
+        {
+            "metric": "instantiate_sampled_clauses",
+            "sampled_stubs": len(sampled_stubs),
+            "instantiated_clauses": len(flattened),
+            "unique_instantiated_clauses": len(set(flattened)),
+        },
+    )
+    return flattened
 
 
+@profile_phase("variable_placement")
 def place_candidate_rules(
     placer: VariablePlacer,
     sampled_clauses: "list[str]",
@@ -61,6 +84,15 @@ def place_candidate_rules(
     )
 
     placed_list_improved: "list[PlacedClause]" = list(map(PlacedClause, placed_list))
+    record_metric(
+        "candidate",
+        {
+            "metric": "place_candidate_rules",
+            "input_sampled_clauses": len(sampled_clauses),
+            "placed_stub_groups": len(placed_list),
+            "placed_candidate_rules": sum(len(group) for group in placed_list),
+        },
+    )
 
     return placed_list, placed_list_improved
 

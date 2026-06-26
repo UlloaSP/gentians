@@ -1,7 +1,12 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
-.benchmarks/
+.benchmarks/baseline_profile/
+.benchmarks/node_modules/
+.benchmarks/dist/
+.benchmarks/.vite-dev*.log
+node_modules/
+.vite-dev*.log
 
 a.py
 lp_test.lp

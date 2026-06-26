@@ -3,7 +3,7 @@ import time
 import clingo
 
 from .callbacks import wrapper_exit_callback
-from ..timing import add, current_phase
+from ..timing import add, current_phase, record_metric
 
 
 def build_control(
@@ -15,5 +15,18 @@ def build_control(
         ctl.add("base", [], clause)
     start = time.perf_counter()
     ctl.ground([("base", [])])
-    add(f"{current_phase()}.grounding", time.perf_counter() - start)
+    seconds = time.perf_counter() - start
+    phase = current_phase()
+    add(f"{phase}.grounding", seconds)
+    record_metric(
+        "clingo",
+        {
+            "operation": "grounding",
+            "phase_context": phase,
+            "seconds": seconds,
+            "input_clauses": len(lines),
+            "program_chars": sum(len(line) for line in lines),
+            "clingo_arguments": " ".join(clingo_arguments),
+        },
+    )
     return ctl

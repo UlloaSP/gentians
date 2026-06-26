@@ -14,7 +14,7 @@ from ..arguments import Arguments
 from ..asp.clingo import ClingoInterface
 from ..constants import UNDERSCORE_SIZE
 from ..asp.rule_analysis import get_same_atoms, is_valid_rule
-from ..timing import add
+from ..timing import add, current_phase, record_metric
 from ..asp.variable_placement_encoding import (
     VariablePlacementRules,
     generate_asp_program_for_combinations,
@@ -152,8 +152,10 @@ class VariablePlacer:
             if self.args.verbosity > 1:
                 print("Generating variables placements")
             start_solving = time.perf_counter()
+            models = 0
             with ctl.solve(yield_=True) as handle:  # type: ignore
                 for m in handle:  # type: ignore
+                    models += 1
                     # print(str(m))
                     a = str(m).split(" ")
                     a.sort()
@@ -161,7 +163,20 @@ class VariablePlacer:
                     # answer_sets.append(a)
                     answer_sets_in_list.append(from_as_to_list(str(a)))
                     # res.append(self.__reconstruct_clause(str(m), sampled_stub))
-            add("variable_placement.solving", time.perf_counter() - start_solving)
+            seconds = time.perf_counter() - start_solving
+            add("variable_placement.solving", seconds)
+            record_metric(
+                "clingo",
+                {
+                    "operation": "solving",
+                    "phase_context": current_phase(),
+                    "seconds": seconds,
+                    "models": models,
+                    "program_size": 1,
+                    "coverage_subsets": 0,
+                    "clingo_arguments": "0",
+                },
+            )
             if self.args.verbosity > 1:
                 print("Removing symmetries")
 
@@ -185,6 +200,7 @@ class VariablePlacer:
         placed_list: "list[list[str]]" = []
 
         for index, clause in enumerate(sampled_clauses):
+            start_clause = time.perf_counter()
             if self.args.verbosity >= 1:
                 print(
                     f"({index}/{len(sampled_clauses) - 1}) Placing variables for {clause}"
@@ -192,10 +208,10 @@ class VariablePlacer:
 
             r = self._place_variables_clause(clause)
 
+            valid_rules: "list[str]" = []
+            pruned_count = 0
             if len(r) > 0:
                 r.sort()
-                valid_rules: "list[str]" = []
-                pruned_count = 0
                 for rl in r:
                     if is_valid_rule(rl):
                         valid_rules.append(rl)
@@ -216,5 +232,24 @@ class VariablePlacer:
             else:
                 if self.args.verbosity >= 1:
                     print("No possible placements.")
+
+            record_metric(
+                "candidate",
+                {
+                    "metric": "place_variables_clause",
+                    "stub_index": index,
+                    "stub": clause,
+                    "seconds": time.perf_counter() - start_clause,
+                    "variables_slots": clause.count("_" * UNDERSCORE_SIZE),
+                    "body_literals": max(len(clause.split(":-")[-1].split(",")), 0),
+                    "has_aggregate": "#" in clause,
+                    "has_arithmetic": contains_arithmetic(clause),
+                    "has_comparison": contains_comparison(clause),
+                    "has_negation": "not " in clause,
+                    "generated_placements": len(r),
+                    "valid_placements": len(valid_rules),
+                    "pruned_placements": pruned_count,
+                },
+            )
 
         return placed_list

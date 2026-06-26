@@ -3,9 +3,10 @@ import random
 from ..individual import Individual
 from ..types import FitnessFn
 from ...rule_generation.placed_clause import PlacedClause
-from ...timing import phase
+from ...timing import profile_phase
 
 
+@profile_phase("fitness.initialization")
 def initialize_population(
     number_clauses: int,
     # placed_list : 'list[list[str]]',
@@ -45,10 +46,9 @@ def initialize_population(
         # cp is the current program
         # cp, cn, current_score, best_found, l_index = evaluate_score(program)
         # print("evaluate score in init")
-        with phase("fitness.initialization"):
-            current_score, best_found, l_index = evaluate_score(
-                stub_indexes, prog_indexes, program
-            )
+        current_score, best_found, l_index = evaluate_score(
+            stub_indexes, prog_indexes, program
+        )
 
         if best_found:
             # TODO: restituire anche la combinazione di elementi

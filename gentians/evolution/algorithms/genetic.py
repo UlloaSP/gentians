@@ -13,7 +13,7 @@ from ..types import (
 )
 from ...rule_generation.placed_clause import PlacedClause
 from ...rule_generation.program import Program
-from ...timing import phase, record_ga_generation
+from ...timing import phase, profile_phase, record_ga_generation
 
 
 class Strategy:
@@ -51,6 +51,7 @@ class Strategy:
         self.mutation = mutation
         self.replacement = replacement
 
+    @profile_phase("genetic")
     def genetic_solver(
         self,
         do_tournament: bool = True,  # choose tournament to pick the elements
@@ -98,22 +99,19 @@ class Strategy:
             # 2.1: selection of the two fittest elements
             # print('pre tournament')
             if do_tournament:
-                with phase("selection"):
-                    best_a = self.selection(population, tournament_size)
-                    best_b = self.selection(population, tournament_size)
+                best_a = self.selection(population, tournament_size)
+                best_b = self.selection(population, tournament_size)
             else:
-                with phase("selection"):
-                    best_a, best_b = self.pick_two(population)
+                best_a, best_b = self.pick_two(population)
 
             # either do crossover or mutation seems to be not effective
             # prob_crossover = 0.05
 
             # 2.2: crossover
             # print('pre cross')
-            with phase("crossover"):
-                new_program_1, new_program_2 = self.crossover(
-                    best_a, best_b, self.evaluate_score
-                )
+            new_program_1, new_program_2 = self.crossover(
+                best_a, best_b, self.evaluate_score
+            )
             # If the best found, stop the iteration
             # _, is_best, l_best_indexes = evaluate_score([], [], new_program_1.program)
             for prg in [new_program_1, new_program_2]:
@@ -128,19 +126,18 @@ class Strategy:
             # 2.3: mutation
             # https://arxiv.org/pdf/2305.01582.pdf
             # print('pre mutate')
-            with phase("mutation"):
-                new_mutated_1 = self.mutation(
-                    new_program_1,
-                    self.placed_list,
-                    self.args.mutation_probability,
-                    self.evaluate_score,
-                )
-                new_mutated_2 = self.mutation(
-                    new_program_2,
-                    self.placed_list,
-                    self.args.mutation_probability,
-                    self.evaluate_score,
-                )
+            new_mutated_1 = self.mutation(
+                new_program_1,
+                self.placed_list,
+                self.args.mutation_probability,
+                self.evaluate_score,
+            )
+            new_mutated_2 = self.mutation(
+                new_program_2,
+                self.placed_list,
+                self.args.mutation_probability,
+                self.evaluate_score,
+            )
 
             l_mutated = [new_mutated_1, new_mutated_2]
 

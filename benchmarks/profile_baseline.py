@@ -3,6 +3,7 @@ import csv
 import json
 import os
 import queue
+import random
 import re
 import subprocess
 import sys
@@ -30,10 +31,13 @@ class DatasetConfig:
 class RunResult:
     dataset: str
     run: int
+    seed: int
+    experiment_id: str
     status: str
     returncode: int | None
     elapsed_seconds: float
     command: list[str]
+    arguments_json: str
     log_path: str
     cprofile_path: str
     total_seconds: float | None = None
@@ -151,8 +155,12 @@ STANDARD_TIMING_METRICS = [
     "variable_placement.grounding",
     "variable_placement.solving",
     "selection",
+    "crossover.operator",
+    "crossover.fitness",
     "mutation.grounding",
     "mutation.solving",
+    "mutation.operator",
+    "mutation.fitness",
     "crossover.grounding",
     "crossover.solving",
     "fitness.initialization.grounding",
@@ -161,39 +169,9 @@ STANDARD_TIMING_METRICS = [
     "fitness.final.solving",
     "mutation",
     "crossover",
+    "genetic",
     "fitness.initialization",
     "fitness.final",
-]
-
-
-TIMING_PLOT_ORDER = [
-    "sampling",
-    "variable_placement",
-    "variable_placement.grounding",
-    "variable_placement.solving",
-    "selection",
-    "mutation.grounding",
-    "mutation.solving",
-    "crossover.grounding",
-    "crossover.solving",
-    "fitness.initialization.grounding",
-    "fitness.initialization.solving",
-    "mutation",
-    "crossover",
-    "fitness.initialization",
-    "clingo.grounding.total_all",
-    "clingo.solving.total_all",
-    "total_execution",
-]
-
-
-TOP_LEVEL_TIMING_PHASES = [
-    "sampling",
-    "variable_placement",
-    "fitness.initialization",
-    "selection",
-    "crossover",
-    "mutation",
 ]
 
 
@@ -212,13 +190,14 @@ def main() -> None:
     parser.add_argument("--genetic-iterations", type=int)
     parser.add_argument("--outer-iterations", type=int)
     parser.add_argument("--population", type=int)
-    parser.add_argument("--no-plots", action="store_true")
-    parser.add_argument("--plots-only", action="store_true")
+    parser.add_argument("--seed-base", type=int, default=1)
+    parser.add_argument("--no-plots", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--plots-only", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument(
         "--live-plot-seconds",
         type=float,
         default=2.0,
-        help="Seconds between live GA fitness plot refreshes while a run is active.",
+        help=argparse.SUPPRESS,
     )
     args = parser.parse_args()
 
@@ -227,8 +206,31 @@ def main() -> None:
     (out_dir / "runs").mkdir(exist_ok=True)
 
     if args.plots_only:
-        results, fitness, phases, timings, ga_metrics = read_existing_outputs(out_dir)
-        write_plots(out_dir, fitness, phases, timings, ga_metrics, results)
+        (
+            results,
+            fitness,
+            phases,
+            timings,
+            ga_metrics,
+            timing_events,
+            operator_metrics,
+            candidate_metrics,
+            quality_metrics,
+            clingo_metrics,
+            invariants,
+        ) = read_existing_outputs(out_dir)
+        _ = (fitness, phases, timing_events, invariants)
+        write_dashboard_data(
+            out_dir,
+            results,
+            timings,
+            ga_metrics,
+            timing_events,
+            operator_metrics,
+            candidate_metrics,
+            quality_metrics,
+            clingo_metrics,
+        )
         return
 
     results: list[RunResult] = []
@@ -236,6 +238,12 @@ def main() -> None:
     phases: list[PhaseTime] = []
     timings: list[TimingMetric] = []
     ga_metrics: list[GAMetric] = []
+    timing_events: list[dict[str, object]] = []
+    operator_metrics: list[dict[str, object]] = []
+    candidate_metrics: list[dict[str, object]] = []
+    quality_metrics: list[dict[str, object]] = []
+    clingo_metrics: list[dict[str, object]] = []
+    invariants: list[dict[str, object]] = []
 
     dataset_names = list(args.datasets)
     total = len(dataset_names) * args.runs
@@ -251,11 +259,29 @@ def main() -> None:
             completed += 1
             cprofile_path = out_dir / "runs" / f"{dataset}_run_{run}.prof"
             timings_path = out_dir / "runs" / f"{dataset}_run_{run}_timings.json"
+            timing_events_path = (
+                out_dir / "runs" / f"{dataset}_run_{run}_timing_events.jsonl"
+            )
             ga_metrics_path = out_dir / "runs" / f"{dataset}_run_{run}_ga_metrics.json"
+            operator_metrics_path = (
+                out_dir / "runs" / f"{dataset}_run_{run}_operator_metrics.jsonl"
+            )
+            candidate_metrics_path = (
+                out_dir / "runs" / f"{dataset}_run_{run}_candidate_metrics.jsonl"
+            )
+            quality_metrics_path = (
+                out_dir / "runs" / f"{dataset}_run_{run}_quality_metrics.jsonl"
+            )
+            clingo_metrics_path = (
+                out_dir / "runs" / f"{dataset}_run_{run}_clingo_metrics.jsonl"
+            )
             log_path = out_dir / "runs" / f"{dataset}_run_{run}.log"
             cmd, arguments_json = build_command(args.python, config, override_arguments(args))
+            seed = args.seed_base + completed - 1
+            experiment_id = f"{dataset}_seed_{seed}"
             with commands_path.open("a", encoding="utf-8") as f:
                 f.write(f"GENTIANS_ARGUMENTS_JSON={arguments_json} ")
+                f.write(f"GENTIANS_RANDOM_SEED={seed} ")
                 f.write(subprocess.list2cmdline(cmd) + "\n")
 
             print(
@@ -270,13 +296,18 @@ def main() -> None:
                 log_path,
                 args.timeout_seconds,
                 timings_path,
+                timing_events_path,
                 ga_metrics_path,
+                operator_metrics_path,
+                candidate_metrics_path,
+                quality_metrics_path,
+                clingo_metrics_path,
                 out_dir,
                 dataset,
                 run,
+                seed,
                 ga_metrics,
-                live_plots=not args.no_plots,
-                live_plot_seconds=args.live_plot_seconds,
+                timings,
             )
             elapsed = time.perf_counter() - started
             status = "timeout" if timed_out else "ok" if returncode == 0 else "failed"
@@ -284,10 +315,13 @@ def main() -> None:
             run_result = RunResult(
                 dataset=dataset,
                 run=run,
+                seed=seed,
+                experiment_id=experiment_id,
                 status=status,
                 returncode=returncode,
                 elapsed_seconds=elapsed,
                 command=cmd,
+                arguments_json=arguments_json,
                 log_path=str(log_path),
                 cprofile_path=str(cprofile_path),
                 total_seconds=parsed["total_seconds"],
@@ -299,7 +333,24 @@ def main() -> None:
             results.append(run_result)
             fitness.extend(parsed["fitness"])
             ga_metrics.extend(read_ga_metrics(ga_metrics_path, dataset, run))
-            timings.extend(read_timings(timings_path, dataset, run))
+            run_timings = read_timings(timings_path, dataset, run)
+            timings.extend(run_timings)
+            timing_events.extend(
+                read_jsonl_rows(timing_events_path, dataset, run, seed, experiment_id)
+            )
+            operator_metrics.extend(
+                read_jsonl_rows(operator_metrics_path, dataset, run, seed, experiment_id)
+            )
+            candidate_metrics.extend(
+                read_jsonl_rows(candidate_metrics_path, dataset, run, seed, experiment_id)
+            )
+            quality_metrics.extend(
+                read_jsonl_rows(quality_metrics_path, dataset, run, seed, experiment_id)
+            )
+            clingo_metrics.extend(
+                read_jsonl_rows(clingo_metrics_path, dataset, run, seed, experiment_id)
+            )
+            invariants.extend(compute_accounting_invariants(dataset, run, run_timings))
             write_outputs(
                 out_dir,
                 results,
@@ -307,7 +358,12 @@ def main() -> None:
                 phases,
                 timings,
                 ga_metrics,
-                include_plots=not args.no_plots,
+                timing_events,
+                operator_metrics,
+                candidate_metrics,
+                quality_metrics,
+                clingo_metrics,
+                invariants,
             )
             print(
                 f"[{completed}/{total}] {dataset} run {run} {status} {elapsed:.2f}s",
@@ -350,6 +406,9 @@ def build_command(
 
 def run_profile_worker() -> None:
     payload = os.environ["GENTIANS_ARGUMENTS_JSON"]
+    seed = os.environ.get("GENTIANS_RANDOM_SEED")
+    if seed is not None:
+        random.seed(int(seed))
     gentians_main(Arguments(**json.loads(payload)))
 
 
@@ -359,20 +418,32 @@ def run_streamed(
     log_path: Path,
     timeout_seconds: int,
     timings_path: Path,
+    timing_events_path: Path,
     ga_metrics_path: Path,
+    operator_metrics_path: Path,
+    candidate_metrics_path: Path,
+    quality_metrics_path: Path,
+    clingo_metrics_path: Path,
     out_dir: Path,
     dataset: str,
     run: int,
+    seed: int,
     completed_ga_metrics: list[GAMetric],
-    live_plots: bool,
-    live_plot_seconds: float,
+    completed_timings: list[TimingMetric],
 ) -> tuple[int | None, bool]:
+    _ = (out_dir, dataset, run, completed_ga_metrics, completed_timings)
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
     env["GENTIANS_PROFILE_WORKER"] = "1"
     env["GENTIANS_ARGUMENTS_JSON"] = arguments_json
+    env["GENTIANS_RANDOM_SEED"] = str(seed)
     env["GENTIANS_TIMINGS_PATH"] = str(timings_path.resolve())
+    env["GENTIANS_TIMING_EVENTS_PATH"] = str(timing_events_path.resolve())
     env["GENTIANS_GA_METRICS_PATH"] = str(ga_metrics_path.resolve())
+    env["GENTIANS_OPERATOR_METRICS_PATH"] = str(operator_metrics_path.resolve())
+    env["GENTIANS_CANDIDATE_METRICS_PATH"] = str(candidate_metrics_path.resolve())
+    env["GENTIANS_QUALITY_METRICS_PATH"] = str(quality_metrics_path.resolve())
+    env["GENTIANS_CLINGO_METRICS_PATH"] = str(clingo_metrics_path.resolve())
     with log_path.open("w", encoding="utf-8") as log:
         process = subprocess.Popen(
             cmd,
@@ -396,7 +467,6 @@ def run_streamed(
         thread = threading.Thread(target=reader, daemon=True)
         thread.start()
         deadline = time.monotonic() + timeout_seconds
-        next_live_plot = time.monotonic() + max(live_plot_seconds, 0.1)
         done = False
         while True:
             try:
@@ -409,63 +479,12 @@ def run_streamed(
                     log.flush()
             except queue.Empty:
                 pass
-            now = time.monotonic()
-            if live_plots and now >= next_live_plot:
-                refresh_live_ga_plot(
-                    out_dir,
-                    dataset,
-                    completed_ga_metrics,
-                    ga_metrics_path,
-                    run,
-                )
-                next_live_plot = now + max(live_plot_seconds, 0.1)
             if process.poll() is not None and done:
-                if live_plots:
-                    refresh_live_ga_plot(
-                        out_dir,
-                        dataset,
-                        completed_ga_metrics,
-                        ga_metrics_path,
-                        run,
-                    )
                 return process.wait(), False
             if time.monotonic() > deadline:
                 kill_tree(process)
                 thread.join(timeout=2)
-                if live_plots:
-                    refresh_live_ga_plot(
-                        out_dir,
-                        dataset,
-                        completed_ga_metrics,
-                        ga_metrics_path,
-                        run,
-                    )
                 return process.wait(), True
-
-
-def refresh_live_ga_plot(
-    out_dir: Path,
-    dataset: str,
-    completed_ga_metrics: list[GAMetric],
-    current_ga_metrics_path: Path,
-    current_run: int,
-) -> None:
-    current = read_ga_metrics(current_ga_metrics_path, dataset, current_run)
-    if not current:
-        return
-    try:
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-    except Exception:
-        return
-    dataset_dir = out_dir / "images" / "by_example" / dataset
-    dataset_dir.mkdir(parents=True, exist_ok=True)
-    points = [
-        point for point in completed_ga_metrics if point.dataset == dataset
-    ] + current
-    write_dataset_ga_fitness_plot(plt, dataset_dir, dataset, points)
 
 
 def kill_tree(process: subprocess.Popen[str]) -> None:
@@ -566,6 +585,102 @@ def read_json_rows(path: Path) -> list[dict[str, object]]:
         return []
 
 
+def read_jsonl_rows(
+    path: Path, dataset: str, run: int, seed: int, experiment_id: str
+) -> list[dict[str, object]]:
+    if not path.exists():
+        return []
+    rows: list[dict[str, object]] = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        row = {
+            "dataset": dataset,
+            "run": run,
+            "seed": seed,
+            "experiment_id": experiment_id,
+            **row,
+        }
+        rows.append(row)
+    return rows
+
+
+def compute_accounting_invariants(
+    dataset: str, run: int, timings: list[TimingMetric]
+) -> list[dict[str, object]]:
+    values = {t.metric: t.seconds for t in timings}
+    total = values.get("total_execution", 0.0)
+    top_level = [
+        "sampling",
+        "sampling.instantiation",
+        "variable_placement",
+        "genetic",
+    ]
+    attributed = sum(values.get(metric, 0.0) for metric in top_level)
+    clingo_grounding = sum(
+        value for metric, value in values.items() if metric.endswith(".grounding")
+    )
+    clingo_solving = sum(
+        value for metric, value in values.items() if metric.endswith(".solving")
+    )
+    rows = [
+        {
+            "dataset": dataset,
+            "run": run,
+            "invariant": "total_vs_top_level",
+            "left_seconds": total,
+            "right_seconds": attributed,
+            "delta_seconds": total - attributed,
+            "delta_percent": (total - attributed) / total * 100 if total else 0.0,
+            "status": "ok" if not total or abs(total - attributed) / total < 0.15 else "check",
+        },
+        {
+            "dataset": dataset,
+            "run": run,
+            "invariant": "clingo_grounding_vs_solving",
+            "left_seconds": clingo_grounding,
+            "right_seconds": clingo_solving,
+            "delta_seconds": clingo_solving - clingo_grounding,
+            "delta_percent": (clingo_solving - clingo_grounding)
+            / (clingo_grounding + clingo_solving)
+            * 100
+            if clingo_grounding + clingo_solving
+            else 0.0,
+            "status": "info",
+        },
+    ]
+    for phase in [
+        "variable_placement",
+        "fitness.initialization",
+        "crossover",
+        "mutation",
+        "fitness.final",
+    ]:
+        phase_total = values.get(phase, 0.0)
+        clingo_total = sum_nested_metric(values, phase, "grounding") + sum_nested_metric(
+            values, phase, "solving"
+        )
+        rows.append(
+            {
+                "dataset": dataset,
+                "run": run,
+                "invariant": f"{phase}_contains_clingo",
+                "left_seconds": phase_total,
+                "right_seconds": clingo_total,
+                "delta_seconds": phase_total - clingo_total,
+                "delta_percent": (phase_total - clingo_total) / phase_total * 100
+                if phase_total
+                else 0.0,
+                "status": "ok" if clingo_total <= phase_total + 0.001 else "check",
+            }
+        )
+    return rows
+
+
 def read_existing_outputs(
     out_dir: Path,
 ) -> tuple[
@@ -574,6 +689,12 @@ def read_existing_outputs(
     list[PhaseTime],
     list[TimingMetric],
     list[GAMetric],
+    list[dict[str, object]],
+    list[dict[str, object]],
+    list[dict[str, object]],
+    list[dict[str, object]],
+    list[dict[str, object]],
+    list[dict[str, object]],
 ]:
     timings = [
         TimingMetric(
@@ -606,16 +727,40 @@ def read_existing_outputs(
         )
         for row in read_csv_dicts(out_dir / "fitness_observed.csv")
     ]
-    datasets = sorted(
-        {row["dataset"] for row in read_csv_dicts(out_dir / "runs.csv")}
-        | {t.dataset for t in timings}
-        | {g.dataset for g in ga_metrics}
-    )
     results = [
-        RunResult(dataset, 0, "plots-only", 0, 0.0, [], "", "", None, False, None)
-        for dataset in datasets
+        RunResult(
+            row.get("dataset", ""),
+            int(to_float(row.get("run"))),
+            int(to_float(row.get("seed"))),
+            row.get("experiment_id", ""),
+            row.get("status", ""),
+            int(to_float(row.get("returncode"))) if row.get("returncode") not in (None, "") else None,
+            to_float(row.get("elapsed_seconds")),
+            [],
+            row.get("arguments_json", ""),
+            row.get("log_path", ""),
+            row.get("cprofile_path", ""),
+            to_float(row.get("total_seconds")) if row.get("total_seconds") not in (None, "") else None,
+            bool(to_float(row.get("success"))),
+            int(to_float(row.get("first_success_generation_observed")))
+            if row.get("first_success_generation_observed") not in (None, "")
+            else None,
+        )
+        for row in read_csv_dicts(out_dir / "runs.csv")
     ]
-    return results, fitness, [], timings, ga_metrics
+    return (
+        results,
+        fitness,
+        [],
+        timings,
+        ga_metrics,
+        read_csv_object_rows(out_dir / "timing_events.csv"),
+        read_csv_object_rows(out_dir / "operator_metrics.csv"),
+        read_csv_object_rows(out_dir / "candidate_metrics.csv"),
+        read_csv_object_rows(out_dir / "quality_metrics.csv"),
+        read_csv_object_rows(out_dir / "clingo_metrics.csv"),
+        read_csv_object_rows(out_dir / "accounting_invariants.csv"),
+    )
 
 
 def read_csv_dicts(path: Path) -> list[dict[str, str]]:
@@ -625,6 +770,10 @@ def read_csv_dicts(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+def read_csv_object_rows(path: Path) -> list[dict[str, object]]:
+    return [dict(row) for row in read_csv_dicts(path)]
+
+
 def write_outputs(
     out_dir: Path,
     results: list[RunResult],
@@ -632,7 +781,12 @@ def write_outputs(
     phases: list[PhaseTime],
     timings: list[TimingMetric],
     ga_metrics: list[GAMetric],
-    include_plots: bool,
+    timing_events: list[dict[str, object]],
+    operator_metrics: list[dict[str, object]],
+    candidate_metrics: list[dict[str, object]],
+    quality_metrics: list[dict[str, object]],
+    clingo_metrics: list[dict[str, object]],
+    invariants: list[dict[str, object]],
 ) -> None:
     (out_dir / "raw_results.json").write_text(
         json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8"
@@ -643,8 +797,471 @@ def write_outputs(
     write_csv(out_dir / "timings_mean.csv", timing_means(timings))
     write_csv(out_dir / "ga_fitness.csv", [asdict(p) for p in ga_metrics])
     write_csv(out_dir / "ga_fitness_mean.csv", ga_fitness_means(ga_metrics))
-    if include_plots:
-        write_plots(out_dir, fitness, phases, timings, ga_metrics, results)
+    write_csv(out_dir / "timing_events.csv", normalize_rows(timing_events))
+    write_csv(out_dir / "operator_metrics.csv", normalize_rows(operator_metrics))
+    write_csv(out_dir / "operator_summary.csv", operator_summary(operator_metrics))
+    write_csv(out_dir / "candidate_metrics.csv", normalize_rows(candidate_metrics))
+    write_csv(out_dir / "candidate_summary.csv", candidate_summary(candidate_metrics))
+    write_csv(out_dir / "quality_metrics.csv", normalize_rows(quality_metrics))
+    write_csv(out_dir / "quality_summary.csv", quality_summary(quality_metrics))
+    write_csv(out_dir / "clingo_metrics.csv", normalize_rows(clingo_metrics))
+    write_csv(out_dir / "clingo_summary.csv", clingo_summary(clingo_metrics))
+    write_csv(out_dir / "accounting_invariants.csv", normalize_rows(invariants))
+    write_dashboard_data(
+        out_dir,
+        results,
+        timings,
+        ga_metrics,
+        timing_events,
+        operator_metrics,
+        candidate_metrics,
+        quality_metrics,
+        clingo_metrics,
+    )
+
+
+def write_dashboard_data(
+    out_dir: Path,
+    results: list[RunResult],
+    timings: list[TimingMetric],
+    ga_metrics: list[GAMetric],
+    timing_events: list[dict[str, object]],
+    operator_metrics: list[dict[str, object]],
+    candidate_metrics: list[dict[str, object]],
+    quality_metrics: list[dict[str, object]],
+    clingo_metrics: list[dict[str, object]],
+) -> None:
+    datasets = sorted({result.dataset for result in results})
+    candidate_rows = candidate_summary(candidate_metrics)
+    quality_rows = quality_summary(quality_metrics)
+    clingo_rows = clingo_summary(clingo_metrics)
+    operator_rows = operator_summary(operator_metrics)
+    benchmarks = []
+    for dataset in datasets:
+        dataset_results = [result for result in results if result.dataset == dataset]
+        dataset_timings = [timing for timing in timings if timing.dataset == dataset]
+        dataset_ga = [metric for metric in ga_metrics if metric.dataset == dataset]
+        dataset_quality = [row for row in quality_metrics if row.get("dataset") == dataset]
+        dataset_clingo_summary = [row for row in clingo_rows if row.get("dataset") == dataset]
+        first_timing_run = min(
+            [int(to_float(row.get("run"))) for row in timing_events if row.get("dataset") == dataset],
+            default=0,
+        )
+        dataset_timing_events = [
+            row
+            for row in timing_events
+            if row.get("dataset") == dataset and int(to_float(row.get("run"))) == first_timing_run
+        ]
+        candidate = first_row(candidate_rows, dataset)
+        quality = first_row(quality_rows, dataset)
+        phases = dashboard_phases(dataset_timings)
+        total = mean(
+            timing.seconds
+            for timing in dataset_timings
+            if timing.metric == "total_execution"
+        )
+        solve_calls = sum(
+            to_float(row.get("calls"))
+            for row in clingo_rows
+            if row.get("dataset") == dataset and row.get("operation") == "solving"
+        )
+        ground_calls = sum(
+            to_float(row.get("calls"))
+            for row in clingo_rows
+            if row.get("dataset") == dataset and row.get("operation") == "grounding"
+        )
+        atoms = sum(
+            to_float(row.get("stats_atoms"))
+            for row in clingo_metrics
+            if row.get("dataset") == dataset
+        )
+        ground_rules = sum(
+            to_float(row.get("stats_rules"))
+            for row in clingo_metrics
+            if row.get("dataset") == dataset
+        )
+        choices = sum(
+            to_float(row.get("stats_choices"))
+            for row in clingo_metrics
+            if row.get("dataset") == dataset
+        )
+        conflicts = sum(
+            to_float(row.get("stats_conflicts"))
+            for row in clingo_metrics
+            if row.get("dataset") == dataset
+        )
+        models = sum(
+            to_float(row.get("models"))
+            for row in clingo_metrics
+            if row.get("dataset") == dataset
+        )
+        benchmarks.append(
+            {
+                "name": dataset,
+                "family": "real",
+                "source": "benchmarks",
+                "complexity": max(
+                    1.0,
+                    to_float(candidate.get("mean_generated_placements")) / 10
+                    + to_float(candidate.get("mean_valid_placements")) / 20,
+                ),
+                "candidates": int(
+                    sum(
+                        to_float(row.get("placed_candidate_rules"))
+                        for row in candidate_metrics
+                        if row.get("dataset") == dataset
+                        and row.get("metric") == "place_candidate_rules"
+                    )
+                ),
+                "stubs": int(
+                    sum(
+                        to_float(row.get("placed_stub_groups"))
+                        for row in candidate_metrics
+                        if row.get("dataset") == dataset
+                        and row.get("metric") == "place_candidate_rules"
+                    )
+                ),
+                "variables": int(
+                    mean(
+                        to_float(row.get("variables_slots"))
+                        for row in candidate_metrics
+                        if row.get("dataset") == dataset
+                        and row.get("metric") == "place_variables_clause"
+                    )
+                ),
+                "predicates": 0,
+                "avgArity": 0,
+                "bodyLiterals": mean(
+                    to_float(row.get("body_literals"))
+                    for row in candidate_metrics
+                    if row.get("dataset") == dataset
+                    and row.get("metric") == "place_variables_clause"
+                ),
+                "varsPerRule": mean(
+                    to_float(row.get("variables_slots"))
+                    for row in candidate_metrics
+                    if row.get("dataset") == dataset
+                    and row.get("metric") == "place_variables_clause"
+                ),
+                "negation": to_float(candidate.get("negation_stub_rate")),
+                "aggregates": to_float(candidate.get("aggregate_stub_rate")),
+                "arithmetic": to_float(candidate.get("arithmetic_stub_rate")),
+                "recursion": 0,
+                "contextAtoms": 0,
+                "total": total,
+                "runCount": len(dataset_results),
+                "successRate": mean_bool(
+                    [asdict(result) for result in dataset_results], "success"
+                ),
+                "timeouts": sum(1 for result in dataset_results if result.status == "timeout"),
+                "firstSolution": min(
+                    [
+                        result.first_success_generation_observed
+                        for result in dataset_results
+                        if result.first_success_generation_observed is not None
+                    ],
+                    default=0,
+                ),
+                "finalQuality": to_float(quality.get("best_found_rate")),
+                "exactSolved": to_float(quality.get("best_found_rate")),
+                "internalFitness": to_float(quality.get("best_score")),
+                "solveCalls": solve_calls,
+                "groundCalls": ground_calls,
+                "atoms": atoms,
+                "groundRules": ground_rules,
+                "choices": choices,
+                "conflicts": conflicts,
+                "propagations": 0,
+                "models": models,
+                "memoryMB": 0,
+                "dominant": dominant_phase(phases),
+                "phases": phases,
+                "fitnessRuns": dashboard_fitness_runs(dataset_ga),
+                "stubRows": dashboard_stub_rows(dataset, candidate_metrics),
+                "operatorSummary": [
+                    row for row in operator_rows if row.get("dataset") == dataset
+                ],
+                "qualityRows": dashboard_quality_rows(dataset_quality),
+                "timingEvents": dashboard_timing_events(dataset_timing_events),
+                "clingoSummary": dataset_clingo_summary,
+            }
+        )
+    (out_dir / "dashboard_data.json").write_text(
+        json.dumps({"benchmarks": benchmarks}, indent=2), encoding="utf-8"
+    )
+
+
+def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]:
+    values = {timing.metric: timing.seconds for timing in timings}
+
+    def phase(name: str, source: str) -> dict[str, float]:
+        total = values.get(source, 0.0)
+        grounding = sum_nested_metric(values, source, "grounding")
+        solving = sum_nested_metric(values, source, "solving")
+        return {
+            "self": max(total - grounding - solving, 0.0),
+            "grounding": grounding,
+            "solving": solving,
+            "other": 0.0,
+        }
+
+    phases = {
+        "sampling": phase("sampling", "sampling"),
+        "variablePlacement": phase("variablePlacement", "variable_placement"),
+        "initialization": phase("initialization", "fitness.initialization"),
+        "selection": phase("selection", "selection"),
+        "crossover": phase("crossover", "crossover"),
+        "mutation": phase("mutation", "mutation"),
+        "fitnessFinal": phase("fitnessFinal", "fitness.final"),
+        "other": {"self": 0.0, "grounding": 0.0, "solving": 0.0, "other": 0.0},
+    }
+    total = values.get("total_execution", 0.0)
+    measured = sum(
+        sum(type_values.values()) for type_values in phases.values()
+    )
+    phases["other"]["other"] = max(total - measured, 0.0)
+    return phases
+
+
+def dominant_phase(phases: dict[str, dict[str, float]]) -> str:
+    grounding = sum(row.get("grounding", 0.0) for row in phases.values())
+    solving = sum(row.get("solving", 0.0) for row in phases.values())
+    self_time = sum(row.get("self", 0.0) for row in phases.values())
+    if grounding >= solving and grounding >= self_time:
+        return "grounding"
+    if solving >= self_time:
+        return "solving"
+    return "overhead"
+
+
+def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
+    runs = []
+    for run in sorted({metric.run for metric in metrics}):
+        points = sorted(
+            [metric for metric in metrics if metric.run == run],
+            key=lambda metric: metric.generation,
+        )
+        runs.append(
+            {
+                "maxArr": [[point.generation, point.max_fitness] for point in points],
+                "avgArr": [[point.generation, point.avg_fitness] for point in points],
+                "bestArr": [[point.generation, point.best_so_far] for point in points],
+                "diversity": [[point.generation, 0.0] for point in points],
+                "invalid": [[point.generation, 0.0] for point in points],
+            }
+        )
+    return runs
+
+
+def dashboard_stub_rows(
+    dataset: str, candidate_metrics: list[dict[str, object]]
+) -> list[dict[str, object]]:
+    rows = []
+    for row in candidate_metrics:
+        if row.get("dataset") != dataset or row.get("metric") != "place_variables_clause":
+            continue
+        rows.append(
+            {
+                "stub": str(row.get("stub_index")),
+                "literals": int(to_float(row.get("body_literals"))),
+                "variables": int(to_float(row.get("variables_slots"))),
+                "aggregates": int(to_float(row.get("has_aggregate"))),
+                "candidates": int(to_float(row.get("generated_placements"))),
+                "valid": int(to_float(row.get("valid_placements"))),
+                "unique": int(to_float(row.get("valid_placements"))),
+                "maxScore": 0.0,
+                "evalSeconds": to_float(row.get("seconds")),
+            }
+        )
+    return rows
+
+
+def dashboard_quality_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [
+        {
+            "run": int(to_float(row.get("run"))),
+            "phase": str(row.get("phase_context") or row.get("phase") or ""),
+            "wallTime": to_float(row.get("wall_time")),
+            "score": to_float(row.get("score")),
+            "coveredPositive": to_float(row.get("covered_positive")),
+            "coveredNegative": to_float(row.get("covered_negative")),
+            "programSize": to_float(row.get("program_size")),
+            "bestFound": bool(to_float(row.get("best_found"))),
+        }
+        for row in rows
+    ]
+
+
+def dashboard_timing_events(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    if not rows:
+        return []
+    origin = min(to_float(row.get("started_perf")) for row in rows)
+    rows = sorted(rows, key=lambda row: to_float(row.get("started_perf")))
+    return [
+        {
+            "phase": str(row.get("phase") or ""),
+            "seconds": to_float(row.get("seconds")),
+            "start": to_float(row.get("started_perf")) - origin,
+            "depth": int(to_float(row.get("depth"))),
+        }
+        for row in rows[:400]
+        if to_float(row.get("seconds")) > 0
+    ]
+
+
+def first_row(rows: list[dict[str, object]], dataset: str) -> dict[str, object]:
+    return next((row for row in rows if row.get("dataset") == dataset), {})
+
+
+def normalize_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    normalized: list[dict[str, object]] = []
+    for row in rows:
+        normalized.append(
+            {
+                key: json.dumps(value, sort_keys=True)
+                if isinstance(value, (dict, list))
+                else value
+                for key, value in row.items()
+            }
+        )
+    return normalized
+
+
+def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    summary: list[dict[str, object]] = []
+    keys = sorted(
+        {
+            (str(row.get("dataset", "")), str(row.get("operator", "")), str(row.get("strategy", "")))
+            for row in rows
+            if row.get("operator")
+        }
+    )
+    for dataset, operator, strategy in keys:
+        selected = [
+            row
+            for row in rows
+            if row.get("dataset") == dataset
+            and row.get("operator") == operator
+            and row.get("strategy") == strategy
+        ]
+        children = sum(to_float(row.get("children")) for row in selected)
+        children_improved = sum(
+            to_float(row.get("children_improved")) for row in selected
+        )
+        children_duplicates = sum(
+            to_float(row.get("children_duplicate_parent")) for row in selected
+        )
+        summary.append(
+            {
+                "dataset": dataset,
+                "operator": operator,
+                "strategy": strategy,
+                "events": len(selected),
+                "improvement_rate": children_improved / children
+                if children
+                else mean_bool(selected, "improved"),
+                "acceptance_rate": mean_bool(selected, "accepted"),
+                "duplicate_rate": children_duplicates / children
+                if children
+                else mean_bool(selected, "duplicate"),
+                "changed_rate": mean_bool(selected, "changed"),
+                "mean_score_delta": mean(
+                    to_float(row.get("new_score")) - to_float(row.get("original_score"))
+                    for row in selected
+                    if row.get("new_score") not in (None, "")
+                    and row.get("original_score") not in (None, "")
+                ),
+            }
+        )
+    return summary
+
+
+def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    summary: list[dict[str, object]] = []
+    datasets = sorted({str(row.get("dataset", "")) for row in rows})
+    for dataset in datasets:
+        selected = [row for row in rows if row.get("dataset") == dataset]
+        placements = [
+            row for row in selected if row.get("metric") == "place_variables_clause"
+        ]
+        summary.append(
+            {
+                "dataset": dataset,
+                "placement_rows": len(placements),
+                "mean_seconds_per_stub": mean(
+                    to_float(row.get("seconds")) for row in placements
+                ),
+                "mean_valid_placements": mean(
+                    to_float(row.get("valid_placements")) for row in placements
+                ),
+                "mean_generated_placements": mean(
+                    to_float(row.get("generated_placements")) for row in placements
+                ),
+                "aggregate_stub_rate": mean_bool(placements, "has_aggregate"),
+                "arithmetic_stub_rate": mean_bool(placements, "has_arithmetic"),
+                "comparison_stub_rate": mean_bool(placements, "has_comparison"),
+                "negation_stub_rate": mean_bool(placements, "has_negation"),
+            }
+        )
+    return summary
+
+
+def quality_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    summary: list[dict[str, object]] = []
+    for dataset in sorted({str(row.get("dataset", "")) for row in rows}):
+        selected = [row for row in rows if row.get("dataset") == dataset]
+        summary.append(
+            {
+                "dataset": dataset,
+                "evaluations": len(selected),
+                "mean_score": mean(to_float(row.get("score")) for row in selected),
+                "best_score": max(
+                    [to_float(row.get("score")) for row in selected], default=0.0
+                ),
+                "best_found_rate": mean_bool(selected, "best_found"),
+                "mean_program_size": mean(
+                    to_float(row.get("program_size")) for row in selected
+                ),
+                "mean_covered_positive": mean(
+                    to_float(row.get("covered_positive")) for row in selected
+                ),
+                "mean_covered_negative": mean(
+                    to_float(row.get("covered_negative")) for row in selected
+                ),
+            }
+        )
+    return summary
+
+
+def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    summary: list[dict[str, object]] = []
+    keys = sorted(
+        {
+            (str(row.get("dataset", "")), str(row.get("operation", "")), str(row.get("phase_context", "")))
+            for row in rows
+            if row.get("operation")
+        }
+    )
+    for dataset, operation, phase_context in keys:
+        selected = [
+            row
+            for row in rows
+            if row.get("dataset") == dataset
+            and row.get("operation") == operation
+            and row.get("phase_context") == phase_context
+        ]
+        summary.append(
+            {
+                "dataset": dataset,
+                "operation": operation,
+                "phase_context": phase_context,
+                "calls": len(selected),
+                "total_seconds": sum(to_float(row.get("seconds")) for row in selected),
+                "mean_seconds": mean(to_float(row.get("seconds")) for row in selected),
+                "total_models": sum(to_float(row.get("models")) for row in selected),
+            }
+        )
+    return summary
 
 
 def ga_fitness_means(points: list[GAMetric]) -> list[dict[str, object]]:
@@ -762,430 +1379,57 @@ def timing_means(timings: list[TimingMetric]) -> list[dict[str, object]]:
     return rows
 
 
+def sum_nested_metric(values: dict[str, float], phase: str, suffix: str) -> float:
+    return sum(
+        value
+        for metric, value in values.items()
+        if metric == f"{phase}.{suffix}"
+        or (metric.startswith(f"{phase}.") and metric.endswith(f".{suffix}"))
+    )
+
+
 def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
     if not rows:
         path.write_text("", encoding="utf-8")
         return
-    fieldnames = list(rows[0].keys())
+    fieldnames = sorted({key for row in rows for key in row.keys()})
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
 
 
-def write_plots(
-    out_dir: Path,
-    fitness: list[FitnessPoint],
-    phases: list[PhaseTime],
-    timings: list[TimingMetric],
-    ga_metrics: list[GAMetric],
-    results: list[RunResult],
-) -> None:
-    try:
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-    except Exception as exc:
-        (out_dir / "PLOTS_SKIPPED.txt").write_text(
-            f"matplotlib unavailable: {exc}\n", encoding="utf-8"
-        )
-        return
-    skipped = out_dir / "PLOTS_SKIPPED.txt"
-    if skipped.exists():
-        skipped.unlink()
-    images = out_dir / "images"
-    by_example = images / "by_example"
-    global_dir = images / "global"
-    by_example.mkdir(parents=True, exist_ok=True)
-    global_dir.mkdir(parents=True, exist_ok=True)
-    for dataset in sorted({r.dataset for r in results}):
-        dataset_dir = by_example / dataset
-        dataset_dir.mkdir(exist_ok=True)
-        write_dataset_ga_fitness_plot(
-            plt, dataset_dir, dataset, [p for p in ga_metrics if p.dataset == dataset]
-        )
-        write_dataset_timing_plot(
-            plt, dataset_dir, dataset, [t for t in timings if t.dataset == dataset]
-        )
-        write_dataset_timing_breakdown_plot(
-            plt, dataset_dir, dataset, [t for t in timings if t.dataset == dataset]
-        )
-        write_dataset_timing_aggregates_plot(
-            plt, dataset_dir, dataset, [t for t in timings if t.dataset == dataset]
-        )
-
-
-def write_dataset_fitness_plot(
-    plt, out_dir: Path, dataset: str, points: list[FitnessPoint]
-) -> None:
-    if not points:
-        return
-    by_run: dict[int, list[FitnessPoint]] = {}
-    for point in points:
-        by_run.setdefault(point.run, []).append(point)
-    fig, ax = plt.subplots(figsize=(9, 5), layout="constrained")
-    for run, run_points in sorted(by_run.items()):
-        ordered = sorted(run_points, key=lambda p: p.generation)
-        ax.plot(
-            [p.generation for p in ordered],
-            [p.best_so_far for p in ordered],
-            label=f"run {run}",
-            alpha=0.75,
-        )
-    ax.set_title(f"{dataset}: best_so_far observado en stdout")
-    ax.set_xlabel("generacion reportada por baseline")
-    ax.set_ylabel("fitness")
-    ax.legend(ncol=2, fontsize="small")
-    fig.savefig(out_dir / f"{dataset}_best_so_far_observado.png", dpi=160)
-    plt.close(fig)
-
-
-def write_dataset_ga_fitness_plot(
-    plt, out_dir: Path, dataset: str, points: list[GAMetric]
-) -> None:
-    if not points:
-        return
-    rows = ga_fitness_means(points)
-    generations = [int(row["generation"]) for row in rows if row["dataset"] == dataset]
-    max_mean = [float(row["max_mean"]) for row in rows if row["dataset"] == dataset]
-    max_std = [float(row["max_std"]) for row in rows if row["dataset"] == dataset]
-    avg_mean = [float(row["avg_mean"]) for row in rows if row["dataset"] == dataset]
-    avg_std = [float(row["avg_std"]) for row in rows if row["dataset"] == dataset]
-    best_mean = [
-        float(row["best_so_far_mean"]) for row in rows if row["dataset"] == dataset
-    ]
-    best_std = [
-        float(row["best_so_far_std"]) for row in rows if row["dataset"] == dataset
-    ]
-
-    fig, ax = plt.subplots(figsize=(10, 5), layout="constrained")
-    by_run: dict[int, list[GAMetric]] = {}
-    for point in points:
-        by_run.setdefault(point.run, []).append(point)
-    for run_points in by_run.values():
-        ordered = sorted(run_points, key=lambda p: p.generation)
-        ax.plot(
-            [p.generation for p in ordered],
-            [p.max_fitness for p in ordered],
-            color="#4e79a7",
-            alpha=0.14,
-            linewidth=0.8,
-        )
-        ax.plot(
-            [p.generation for p in ordered],
-            [p.avg_fitness for p in ordered],
-            color="#f28e2b",
-            alpha=0.14,
-            linewidth=0.8,
-        )
-    ax.plot(
-        generations,
-        max_mean,
-        color="#4e79a7",
-        linewidth=2,
-        label="max fitness mean +/- std",
-    )
-    ax.fill_between(
-        generations,
-        [m - s for m, s in zip(max_mean, max_std)],
-        [m + s for m, s in zip(max_mean, max_std)],
-        color="#4e79a7",
-        alpha=0.18,
-    )
-    ax.plot(
-        generations,
-        avg_mean,
-        color="#f28e2b",
-        linewidth=2,
-        label="avg fitness mean +/- std",
-    )
-    ax.fill_between(
-        generations,
-        [m - s for m, s in zip(avg_mean, avg_std)],
-        [m + s for m, s in zip(avg_mean, avg_std)],
-        color="#f28e2b",
-        alpha=0.18,
-    )
-    ax.plot(
-        generations,
-        best_mean,
-        color="#59a14f",
-        linestyle="--",
-        linewidth=2,
-        label="best-so-far mean +/- std",
-    )
-    ax.fill_between(
-        generations,
-        [m - s for m, s in zip(best_mean, best_std)],
-        [m + s for m, s in zip(best_mean, best_std)],
-        color="#59a14f",
-        alpha=0.12,
-    )
-    ax.set_title(f"{dataset}: evolucion fitness GA")
-    ax.set_xlabel("iteracion")
-    ax.set_ylabel("fitness")
-    ax.legend()
-    fig.savefig(out_dir / f"{dataset}_ga_fitness.png", dpi=160)
-    plt.close(fig)
-
-
-def write_dataset_phase_plot(
-    plt, out_dir: Path, dataset: str, phases: list[PhaseTime]
-) -> None:
-    if not phases:
-        return
-    labels = sorted({p.phase for p in phases})
-    inclusive = [
-        mean(p.inclusive_ms for p in phases if p.phase == label) for label in labels
-    ]
-    exclusive = [
-        mean(p.exclusive_ms for p in phases if p.phase == label) for label in labels
-    ]
-    fig, ax = plt.subplots(figsize=(9, 5), layout="constrained")
-    y = list(range(len(labels)))
-    ax.barh([v - 0.18 for v in y], inclusive, height=0.35, label="inclusive/cum ms")
-    ax.barh([v + 0.18 for v in y], exclusive, height=0.35, label="exclusive/tottime ms")
-    ax.set_yticks(y)
-    ax.set_yticklabels(labels)
-    ax.invert_yaxis()
-    ax.set_xlabel("ms por run (media)")
-    ax.set_title(f"{dataset}: tiempos cProfile por funcion")
-    ax.legend()
-    fig.savefig(out_dir / f"{dataset}_tiempos_cprofile_ms.png", dpi=160)
-    plt.close(fig)
-
-
-def write_global_phase_plot(plt, out_dir: Path, phases: list[PhaseTime]) -> None:
-    if not phases:
-        return
-    labels = sorted({p.phase for p in phases})
-    inclusive = [
-        mean(p.inclusive_ms for p in phases if p.phase == label) for label in labels
-    ]
-    fig, ax = plt.subplots(figsize=(9, 5), layout="constrained")
-    ax.barh(labels, inclusive)
-    ax.invert_yaxis()
-    ax.set_xlabel("ms por run (media inclusive)")
-    ax.set_title("Global: tiempos cProfile por funcion")
-    fig.savefig(out_dir / "tiempos_cprofile_ms.png", dpi=160)
-    plt.close(fig)
-
-
-def write_dataset_timing_plot(
-    plt, out_dir: Path, dataset: str, timings: list[TimingMetric]
-) -> None:
-    if not timings:
-        return
-    means = {
-        row["metric"]: row["mean_seconds"]
-        for row in timing_means(timings)
-        if row["dataset"] == dataset
-    }
-    labels = TIMING_PLOT_ORDER
-    values = [float(means[metric]) for metric in labels]
-    colors = [timing_color(metric) for metric in labels]
-    display_labels = [timing_label(metric) for metric in labels]
-    fig, ax = plt.subplots(
-        figsize=(11, max(5, len(labels) * 0.35)), layout="constrained"
-    )
-    ax.barh(display_labels, values, color=colors)
-    ax.invert_yaxis()
-    ax.set_xlabel("segundos por run (media)")
-    ax.set_title(f"{dataset}: debug raw inclusive timers (no sumar barras)")
-    handles = [
-        plt.Line2D([0], [0], color="#4e79a7", lw=6, label="python/self"),
-        plt.Line2D([0], [0], color="#8e63b0", lw=6, label="grounding"),
-        plt.Line2D([0], [0], color="#9c5f53", lw=6, label="solving"),
-        plt.Line2D([0], [0], color="#8f8f8f", lw=6, label="inclusive/aggregate"),
-        plt.Line2D([0], [0], color="#4c4c4c", lw=6, label="total ejecucion"),
-    ]
-    ax.legend(handles=handles, loc="lower right")
-    fig.savefig(out_dir / f"{dataset}_timings_mean.png", dpi=160)
-    plt.close(fig)
-
-
-def write_dataset_timing_breakdown_plot(
-    plt, out_dir: Path, dataset: str, timings: list[TimingMetric]
-) -> None:
-    if not timings:
-        return
-    means = {
-        row["metric"]: float(row["mean_seconds"])
-        for row in timing_means(timings)
-        if row["dataset"] == dataset
-    }
-    rows = []
-    for phase_name in TOP_LEVEL_TIMING_PHASES:
-        total = means.get(phase_name, 0.0)
-        grounding = means.get(f"{phase_name}.grounding", 0.0)
-        solving = means.get(f"{phase_name}.solving", 0.0)
-        self_time = max(total - grounding - solving, 0.0)
-        rows.append((phase_name, self_time, grounding, solving))
-    covered = sum(
-        self_time + grounding + solving for _, self_time, grounding, solving in rows
-    )
-    total_execution = means.get("total_execution", 0.0)
-    unattributed = max(total_execution - covered, 0.0)
-    if unattributed:
-        rows.append(("other/unattributed", unattributed, 0.0, 0.0))
-
-    labels = [timing_label(row[0]) for row in rows]
-    y = list(range(len(labels)))
-    self_values = [row[1] for row in rows]
-    grounding_values = [row[2] for row in rows]
-    solving_values = [row[3] for row in rows]
-
-    fig, ax = plt.subplots(
-        figsize=(11, max(5, len(labels) * 0.45)), layout="constrained"
-    )
-    totals = [
-        self_time + grounding + solving for _, self_time, grounding, solving in rows
-    ]
-    self_bars = ax.barh(y, self_values, color="#4e79a7", label="python/self")
-    left = self_values
-    grounding_bars = ax.barh(
-        y, grounding_values, left=left, color="#9467bd", label="grounding"
-    )
-    left = [a + b for a, b in zip(left, grounding_values)]
-    solving_bars = ax.barh(
-        y, solving_values, left=left, color="#8c564b", label="solving"
-    )
-    add_percent_labels(ax, self_bars, self_values, [0.0] * len(y), totals)
-    add_percent_labels(ax, grounding_bars, grounding_values, self_values, totals)
-    add_percent_labels(
-        ax,
-        solving_bars,
-        solving_values,
-        [a + b for a, b in zip(self_values, grounding_values)],
-        totals,
-    )
-    add_total_share_labels(ax, totals, total_execution)
-    if total_execution:
-        ax.axvline(
-            total_execution, color="#2f2f2f", linewidth=1.5, label="total_execution"
-        )
-        ax.set_xlim(0, total_execution * 1.22)
-    ax.set_yticks(y)
-    ax.set_yticklabels(labels)
-    ax.invert_yaxis()
-    ax.set_xlabel("segundos por run (media)")
-    ax.set_title(
-        f"{dataset}: desglose sin doble conteo (% interno; etiqueta final = % total)"
-    )
-    ax.legend(loc="lower right")
-    fig.savefig(out_dir / f"{dataset}_timings_breakdown.png", dpi=160)
-    plt.close(fig)
-
-
-def add_percent_labels(
-    ax, bars, widths: list[float], lefts: list[float], totals: list[float]
-) -> None:
-    for bar, width, left, total in zip(bars, widths, lefts, totals):
-        if width <= 0 or total <= 0:
-            continue
-        percent = width / total * 100
-        # if percent < 15:
-        #    continue
-        ax.text(
-            left + width / 2,
-            bar.get_y() + bar.get_height() / 2,
-            f"{percent:.0f}%",
-            ha="center",
-            va="center",
-            color="white",
-            fontsize=8,
-        )
-
-
-def add_total_share_labels(ax, totals: list[float], total_execution: float) -> None:
-    if total_execution <= 0:
-        return
-    pad = total_execution * 0.01
-    for index, total in enumerate(totals):
-        if total <= 0:
-            continue
-        percent = total / total_execution * 100
-        # if percent < 2:
-        #   continue
-        ax.text(
-            total + pad,
-            index,
-            f"{total:.2f}s · {percent:.0f}% total",
-            va="center",
-            fontsize=8,
-            color="#333333",
-        )
-
-
-def write_dataset_timing_aggregates_plot(
-    plt, out_dir: Path, dataset: str, timings: list[TimingMetric]
-) -> None:
-    if not timings:
-        return
-    means = {
-        row["metric"]: float(row["mean_seconds"])
-        for row in timing_means(timings)
-        if row["dataset"] == dataset
-    }
-    grounding = means.get("clingo.grounding.total_all", 0.0)
-    solving = means.get("clingo.solving.total_all", 0.0)
-    total_execution = means.get("total_execution", 0.0)
-    values = {
-        "grounding": grounding,
-        "solving": solving,
-        "python/self + other": max(total_execution - grounding - solving, 0.0),
-    }
-    labels = list(values)
-    colors = [
-        "#9467bd",
-        "#8c564b",
-        "#4e79a7",
-    ]
-    fig, ax = plt.subplots(figsize=(10, 3.2), layout="constrained")
-    left = 0.0
-    for label, color in zip(labels, colors):
-        value = values[label]
-        ax.barh(["total_execution"], [value], left=[left], color=color, label=label)
-        if total_execution and value / total_execution >= 0.08:
-            ax.text(
-                left + value / 2,
-                0,
-                f"{value / total_execution * 100:.0f}%",
-                ha="center",
-                va="center",
-                color="white",
-                fontsize=9,
-            )
-        left += value
-    ax.set_xlabel("segundos por run (media)")
-    ax.set_title(f"{dataset}: particion de total_execution")
-    if total_execution:
-        ax.set_xlim(0, total_execution * 1.05)
-    ax.legend(loc="lower right")
-    fig.savefig(out_dir / f"{dataset}_timing_aggregates.png", dpi=160)
-    plt.close(fig)
-
-
-def timing_color(metric: str) -> str:
-    if metric == "total_execution":
-        return "#4c4c4c"
-    if metric.endswith(".grounding") or ".grounding." in metric:
-        return "#9467bd"
-    if metric.endswith(".solving") or ".solving." in metric:
-        return "#8c564b"
-    if metric in {"mutation", "crossover", "fitness.initialization", "fitness.final"}:
-        return "#8f8f8f"
-    return "#4e79a7"
-
-
-def timing_label(metric: str) -> str:
-    return metric.replace("fitness.initialization", "poblacion inicializacion")
-
-
 def mean(values: Iterable[float]) -> float:
     values = list(values)
     return sum(values) / len(values) if values else 0.0
+
+
+def to_float(value: object) -> float:
+    if value in (None, ""):
+        return 0.0
+    if isinstance(value, bool):
+        return 1.0 if value else 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        if value.lower() == "true":
+            return 1.0
+        if value.lower() == "false":
+            return 0.0
+        try:
+            return float(value)
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
+def mean_bool(rows: list[dict[str, object]], key: str) -> float:
+    values = [
+        to_float(row.get(key))
+        for row in rows
+        if key in row and row.get(key) not in (None, "")
+    ]
+    return mean(values)
 
 
 def stddev(values: Iterable[float]) -> float:

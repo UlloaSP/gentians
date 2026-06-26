@@ -4,7 +4,7 @@ import time
 from .callbacks import wrapper_exit_callback, WrapperStopIfWarn
 from .coverage import Coverage, generate_clauses_for_coverage_interpretations
 from ..rule_generation.program import Example
-from ..timing import add, current_phase
+from ..timing import add, current_phase, record_metric
 
 
 class ClingoInterface:
@@ -23,7 +23,19 @@ class ClingoInterface:
                 ctl.add("base", [], clause)
             start = time.perf_counter()
             ctl.ground([("base", [])])
-            add(f"{current_phase()}.grounding", time.perf_counter() - start)
+            seconds = time.perf_counter() - start
+            phase = current_phase()
+            add(f"{phase}.grounding", seconds)
+            record_metric(
+                "clingo",
+                {
+                    "operation": "grounding",
+                    "phase_context": phase,
+                    "seconds": seconds,
+                    "input_clauses": len(self.lines),
+                    "clingo_arguments": " ".join(self.clingo_arguments),
+                },
+            )
         except RuntimeError:
             print("Syntax error, parsing failed.")
 
@@ -113,7 +125,24 @@ class ClingoInterface:
         ctl.add("base", [], generated_program)
         start = time.perf_counter()
         ctl.ground([("base", [])])
-        add(f"{current_phase()}.grounding", time.perf_counter() - start)
+        seconds = time.perf_counter() - start
+        phase = current_phase()
+        add(f"{phase}.grounding", seconds)
+        record_metric(
+            "clingo",
+            {
+                "operation": "grounding",
+                "phase_context": phase,
+                "seconds": seconds,
+                "input_clauses": len(self.lines) + len(program),
+                "program_chars": len(generated_program),
+                "positive_examples": len(interpretation_pos),
+                "negative_examples": len(interpretation_neg),
+                "clingo_arguments": " ".join(self.clingo_arguments),
+                "stats_atoms": _clingo_stat(ctl.statistics, "problem", "lp", "atoms"),
+                "stats_rules": _clingo_stat(ctl.statistics, "problem", "lp", "rules"),
+            },
+        )
 
         if wrp.atom_undefined:
             # the program misses some atoms, so there is no need to
@@ -132,8 +161,10 @@ class ClingoInterface:
         comb_rules: "dict[str,Coverage]" = {}
 
         start = time.perf_counter()
+        models = 0
         with ctl.solve(yield_=True) as handle:  # type: ignore
             for m in handle:  # type: ignore
+                models += 1
                 # answer_sets.append(str(m))
                 answer_set = str(m)
                 l_cp: "list[int]" = []
@@ -162,6 +193,38 @@ class ClingoInterface:
                     comb_rules[dict_key].l_neg.extend(l_cn)
                 else:
                     comb_rules[dict_key] = Coverage(l_cp, l_cn)
-        add(f"{current_phase()}.solving", time.perf_counter() - start)
+        seconds = time.perf_counter() - start
+        phase = current_phase()
+        add(f"{phase}.solving", seconds)
+        record_metric(
+            "clingo",
+            {
+                "operation": "solving",
+                "phase_context": phase,
+                "seconds": seconds,
+                "models": models,
+                "coverage_subsets": len(comb_rules),
+                "program_size": len(program),
+                "clingo_arguments": " ".join(self.clingo_arguments),
+                "stats_models_enumerated": _clingo_stat(
+                    ctl.statistics, "summary", "models", "enumerated"
+                ),
+                "stats_choices": _clingo_stat(
+                    ctl.statistics, "solving", "solvers", "choices"
+                ),
+                "stats_conflicts": _clingo_stat(
+                    ctl.statistics, "solving", "solvers", "conflicts"
+                ),
+            },
+        )
 
         return comb_rules
+
+
+def _clingo_stat(stats, *path: str) -> float:
+    current = stats
+    for key in path:
+        if not isinstance(current, dict) or key not in current:
+            return 0.0
+        current = current[key]
+    return float(current) if isinstance(current, (int, float)) else 0.0

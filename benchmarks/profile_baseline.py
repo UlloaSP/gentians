@@ -45,7 +45,6 @@ class RunResult:
     success: bool = False
     first_success_generation_observed: int | None = None
     fitness_operator: str = "coverage_exp_mean"
-    outer_iterations: int = 0
     genetic_iterations: int = 0
 
 
@@ -129,8 +128,7 @@ DEFAULT_ARGUMENTS: dict[str, object] = {
     "max_depth": 3,
     "max_variables": 3,
     "clauses_per_individual": 6,
-    "iterations_genetic": 1000,
-    "iterations": 5,
+    "iterations_genetic": 5000,
     "fitness": {
         "name": "coverage_exp_mean",
         "max_as": 10000,
@@ -218,7 +216,6 @@ def main() -> None:
     parser.add_argument("--python", default=_default_python())
     parser.add_argument("--samples", type=int)
     parser.add_argument("--genetic-iterations", type=int)
-    parser.add_argument("--outer-iterations", type=int)
     parser.add_argument("--fitness-json")
     parser.add_argument("--selection-json")
     parser.add_argument("--crossover-json")
@@ -372,7 +369,6 @@ def main() -> None:
                     "first_success_generation_observed"
                 ],
                 fitness_operator=str(fitness_config.get("name", "coverage_exp_mean")),
-                outer_iterations=int(run_arguments.get("iterations", 0)),
                 genetic_iterations=int(run_arguments.get("iterations_genetic", 0)),
             )
             results.append(run_result)
@@ -426,7 +422,6 @@ def override_arguments(args: argparse.Namespace) -> dict[str, object]:
     replacements = {
         "clauses_to_sample": args.samples,
         "iterations_genetic": args.genetic_iterations,
-        "iterations": args.outer_iterations,
     }
     for name, value in replacements.items():
         if value is not None:
@@ -587,7 +582,7 @@ def parse_log(path: Path, dataset: str, run: int) -> dict[str, object]:
             best_so_far = max(best_so_far, score)
             last_generation = generation
             points.append(FitnessPoint(dataset, run, generation, score, best_so_far))
-        if "--- Found best program ---" in line:
+        if "Found best program" in line:
             success = True
         total_match = TOTAL_RE.search(line)
         if total_match:
@@ -825,7 +820,6 @@ def read_existing_outputs(
             if row.get("first_success_generation_observed") not in (None, "")
             else None,
             row.get("fitness_operator", "coverage_exp_mean"),
-            int(to_float(row.get("outer_iterations"))),
             int(to_float(row.get("genetic_iterations"))),
         )
         for row in read_csv_dicts(out_dir / "runs.csv")
@@ -1050,9 +1044,6 @@ def write_dashboard_data(
                 "fitnessOperator": dataset_results[0].fitness_operator
                 if dataset_results
                 else "mean",
-                "outerIterations": dataset_results[0].outer_iterations
-                if dataset_results
-                else 0,
                 "geneticIterations": dataset_results[0].genetic_iterations
                 if dataset_results
                 else 0,

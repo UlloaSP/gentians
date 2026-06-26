@@ -17,14 +17,13 @@ def write_cell(out_dir, cell):
 
 
 def test_write_sweep_outputs_discovers_existing_cell_dirs(tmp_path):
-    coin = Cell("coin", "coverage_exp_mean", 1, 1)
-    sudoku = Cell("sudoku", "coverage_exp_mean", 1, 1)
+    coin = Cell("coin", "coverage_exp_mean", 1)
+    sudoku = Cell("sudoku", "coverage_exp_mean", 1)
     write_cell(tmp_path, coin)
     write_cell(tmp_path, sudoku)
     manifest = {
         "datasets": ["coin"],
         "fitnessOperators": ["coverage_exp_mean"],
-        "outerIterations": [1],
         "geneticIterations": [1],
         "runs": 1,
         "timeoutSeconds": 100,
@@ -32,7 +31,6 @@ def test_write_sweep_outputs_discovers_existing_cell_dirs(tmp_path):
             {
                 "dataset": coin.dataset,
                 "fitness_operator": coin.fitness_operator,
-                "outer_iterations": coin.outer_iterations,
                 "genetic_iterations": coin.genetic_iterations,
                 "key": coin.key,
             }

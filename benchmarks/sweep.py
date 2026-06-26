@@ -13,22 +13,18 @@ from statistics import mean, stdev
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_BASELINE = REPO_ROOT / "benchmarks" / "profile_baseline.py"
-DEFAULT_GRID = [1, 10, 100, 1000, 2000]
+DEFAULT_GRID = [1000, 2000, 3000, 4000, 5000]
 
 
 @dataclass(frozen=True)
 class Cell:
     dataset: str
     fitness_operator: str
-    outer_iterations: int
     genetic_iterations: int
 
     @property
     def key(self) -> str:
-        return (
-            f"{self.dataset}__{self.fitness_operator}"
-            f"__outer-{self.outer_iterations}__genetic-{self.genetic_iterations}"
-        )
+        return f"{self.dataset}__{self.fitness_operator}__genetic-{self.genetic_iterations}"
 
 
 def main() -> None:
@@ -36,8 +32,9 @@ def main() -> None:
         description="Run GENTIANS parameter sweeps and aggregate dashboard data."
     )
     parser.add_argument("--datasets", nargs="+", default=["coin"])
-    parser.add_argument("--outer-iterations", nargs="+", type=int, default=DEFAULT_GRID)
-    parser.add_argument("--genetic-iterations", nargs="+", type=int, default=DEFAULT_GRID)
+    parser.add_argument(
+        "--genetic-iterations", nargs="+", type=int, default=DEFAULT_GRID
+    )
     parser.add_argument(
         "--fitness-operators",
         nargs="+",
@@ -49,7 +46,9 @@ def main() -> None:
     parser.add_argument("--population", type=int)
     parser.add_argument("--samples", type=int)
     parser.add_argument("--python", default=_default_python())
-    parser.add_argument("--out-dir", type=Path, default=Path(".benchmarks") / "sweeps" / "latest")
+    parser.add_argument(
+        "--out-dir", type=Path, default=Path(".benchmarks") / "sweeps" / "latest"
+    )
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--plots-only", action="store_true")
@@ -58,22 +57,22 @@ def main() -> None:
     out_dir = args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     cells = [
-        Cell(dataset, mode, outer, genetic)
+        Cell(dataset, mode, genetic)
         for dataset in args.datasets
         for mode in args.fitness_operators
-        for outer in args.outer_iterations
         for genetic in args.genetic_iterations
     ]
     manifest = {
         "datasets": args.datasets,
         "fitnessOperators": args.fitness_operators,
-        "outerIterations": args.outer_iterations,
         "geneticIterations": args.genetic_iterations,
         "runs": args.runs,
         "timeoutSeconds": args.timeout_seconds,
         "cells": [asdict(cell) | {"key": cell.key} for cell in cells],
     }
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (out_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
 
     if not args.plots_only:
         for index, cell in enumerate(cells, start=1):
@@ -82,7 +81,9 @@ def main() -> None:
     write_sweep_outputs(out_dir, manifest)
 
 
-def run_cell(args: argparse.Namespace, out_dir: Path, cell: Cell, index: int, total: int) -> None:
+def run_cell(
+    args: argparse.Namespace, out_dir: Path, cell: Cell, index: int, total: int
+) -> None:
     cell_dir = out_dir / "cells" / cell.key
     cell_dir.mkdir(parents=True, exist_ok=True)
     if cell_complete(cell_dir, args.runs) and not args.force:
@@ -101,8 +102,6 @@ def run_cell(args: argparse.Namespace, out_dir: Path, cell: Cell, index: int, to
         str(cell_dir),
         "--timeout-seconds",
         str(args.timeout_seconds),
-        "--outer-iterations",
-        str(cell.outer_iterations),
         "--genetic-iterations",
         str(cell.genetic_iterations),
         "--fitness-json",
@@ -163,7 +162,6 @@ def discover_cells(out_dir: Path, manifest: dict[str, object]) -> list[Cell]:
         cell = Cell(
             str(raw_cell["dataset"]),
             str(raw_cell["fitness_operator"]),
-            int(raw_cell["outer_iterations"]),
             int(raw_cell["genetic_iterations"]),
         )
         cells_by_key[cell.key] = cell
@@ -182,7 +180,6 @@ def discover_cells(out_dir: Path, manifest: dict[str, object]) -> list[Cell]:
         key=lambda cell: (
             cell.dataset,
             cell.fitness_operator,
-            cell.outer_iterations,
             cell.genetic_iterations,
         ),
     )
@@ -190,16 +187,20 @@ def discover_cells(out_dir: Path, manifest: dict[str, object]) -> list[Cell]:
 
 def parse_cell_key(key: str) -> Cell | None:
     parts = key.split("__")
-    if len(parts) != 4:
-        return None
-    dataset, fitness_operator, outer, genetic = parts
-    if not outer.startswith("outer-") or not genetic.startswith("genetic-"):
+    if len(parts) == 4:
+        dataset, fitness_operator, outer, genetic = parts
+        if not outer.startswith("outer-") or not genetic.startswith("genetic-"):
+            return None
+    elif len(parts) == 3:
+        dataset, fitness_operator, genetic = parts
+        if not genetic.startswith("genetic-"):
+            return None
+    else:
         return None
     try:
         return Cell(
             dataset,
             fitness_operator,
-            int(outer.removeprefix("outer-")),
             int(genetic.removeprefix("genetic-")),
         )
     except ValueError:
@@ -214,11 +215,19 @@ def summarize_cell(
         by_run.setdefault(int_float(row.get("run")), []).append(row)
     finals = []
     for rows in by_run.values():
-        rows.sort(key=lambda row: int_float(row.get("global_generation") or row.get("generation")))
+        rows.sort(
+            key=lambda row: int_float(
+                row.get("global_generation") or row.get("generation")
+            )
+        )
         if rows:
             finals.append(max(float_value(row.get("best_so_far")) for row in rows))
     statuses = [row.get("status", "") for row in runs]
-    elapsed = [float_value(row.get("elapsed_seconds")) for row in runs if row.get("elapsed_seconds")]
+    elapsed = [
+        float_value(row.get("elapsed_seconds"))
+        for row in runs
+        if row.get("elapsed_seconds")
+    ]
     success_values = [
         float_value(row.get("success"))
         for row in runs
@@ -238,19 +247,25 @@ def summarize_cell(
     }
 
 
-def summarize_curves(cell: Cell, ga_rows: list[dict[str, str]]) -> list[dict[str, object]]:
+def summarize_curves(
+    cell: Cell, ga_rows: list[dict[str, str]]
+) -> list[dict[str, object]]:
     by_run: dict[int, list[tuple[int, float]]] = {}
     for row in ga_rows:
         run = int_float(row.get("run"))
         generation = int_float(row.get("global_generation") or row.get("generation"))
-        by_run.setdefault(run, []).append((generation, float_value(row.get("best_so_far"))))
+        by_run.setdefault(run, []).append(
+            (generation, float_value(row.get("best_so_far")))
+        )
     for rows in by_run.values():
         rows.sort()
         best = float("-inf")
         for index, (generation, value) in enumerate(rows):
             best = max(best, value)
             rows[index] = (generation, best)
-    generations = sorted({generation for rows in by_run.values() for generation, _ in rows})
+    generations = sorted(
+        {generation for rows in by_run.values() for generation, _ in rows}
+    )
     curve = []
     positions = {run: 0 for run in by_run}
     last_values: dict[int, float] = {}
@@ -280,7 +295,6 @@ def base_cell_row(cell: Cell) -> dict[str, object]:
     return {
         "dataset": cell.dataset,
         "fitness_operator": cell.fitness_operator,
-        "outer_iterations": cell.outer_iterations,
         "genetic_iterations": cell.genetic_iterations,
         "cell_key": cell.key,
     }
@@ -292,7 +306,7 @@ def cell_complete(cell_dir: Path, expected_runs: int) -> bool:
 
 
 def stable_cell_offset(cell: Cell) -> int:
-    raw = f"{cell.dataset}|{cell.fitness_operator}|{cell.outer_iterations}|{cell.genetic_iterations}"
+    raw = f"{cell.dataset}|{cell.fitness_operator}|{cell.genetic_iterations}"
     return sum((index + 1) * ord(char) for index, char in enumerate(raw)) * 1000
 
 
@@ -325,7 +339,7 @@ def float_value(value: object) -> float:
         return 1.0 if value else 0.0
     try:
         return float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         if isinstance(value, str) and value.lower() == "true":
             return 1.0
         return 0.0

@@ -1,12 +1,14 @@
+#defined max_depth/1.
 #defined max_head/1.
 #defined max_body/1.
 #defined max_vars/1.
 #defined mode/5.
+#defined mode_arg_type/3.
+#defined constraints_allowed/0.
 #defined normal_mode/1.
 #defined comparison_mode/2.
 #defined arithmetic_mode/2.
 #defined aggregate_mode/3.
-#defined aggregate_atom/3.
 #defined positive_mode/1.
 #defined negative_mode/1.
 #defined recall/2.
@@ -26,7 +28,19 @@ selected_slot(Section,Slot):- selected(Section,Slot,_).
 :- selected(Section,Slot0,Mode0), selected(Section,Slot1,Mode1), Slot0 < Slot1, Mode0 > Mode1.
 
 :- not selected_slot(body,_).
+:- not selected_slot(head,_), not constraints_allowed.
 :- not selected_slot(head,_), #count{Slot : selected_slot(body,Slot)} < 2.
+head_count(Count):- Count = #count{Slot : selected_slot(head,Slot)}.
+body_count(Count):- Count = #count{Slot : selected_slot(body,Slot)}.
+:- max_depth(Max), head_count(Head), body_count(Body), Head + Body > Max.
+
+special_mode(Mode):- comparison_mode(Mode,_).
+special_mode(Mode):- arithmetic_mode(Mode,_).
+special_mode(Mode):- aggregate_mode(Mode,_,_).
+special_selected_count(Mode,Count):-
+    special_mode(Mode),
+    Count = #count{Section,Slot : selected(Section,Slot,Mode)}.
+:- special_selected_count(Mode,Count), recall(Mode,Recall), Count > Recall.
 
 arg(Section,Slot,Arg):-
     selected(Section,Slot,Mode),
@@ -34,6 +48,18 @@ arg(Section,Slot,Arg):-
     Arg = 0..Arity-1.
 
 1 { var_at(Section,Slot,Arg,Var) : var(Var) } 1:- arg(Section,Slot,Arg).
+
+arg_type(Section,Slot,Arg,Type):-
+    selected(Section,Slot,Mode),
+    mode_arg_type(Mode,Arg,Type).
+
+:- var_at(Section0,Slot0,Arg0,Var),
+    var_at(Section1,Slot1,Arg1,Var),
+    arg_type(Section0,Slot0,Arg0,Type0),
+    arg_type(Section1,Slot1,Arg1,Type1),
+    Type0 != any,
+    Type1 != any,
+    Type0 != Type1.
 
 used_var(Var):- var_at(_,_,_,Var).
 
@@ -91,6 +117,17 @@ safe_var(Var):-
     arithmetic_result_safe(Slot),
     var_at(body,Slot,2,Var).
 
+var_used_outside_body_slot(Slot,Var):- body_slot(Slot), var_at(head,_,_,Var).
+var_used_outside_body_slot(Slot,Var):-
+    body_slot(Slot),
+    var_at(body,OtherSlot,_,Var),
+    OtherSlot != Slot.
+
+:- selected(body,Slot,Mode),
+    arithmetic_mode(Mode,_),
+    var_at(body,Slot,2,Var),
+    not var_used_outside_body_slot(Slot,Var).
+
 aggregate_tuple_var(Slot,Var):-
     selected(body,Slot,Mode),
     aggregate_mode(Mode,TupleArity,_),
@@ -118,6 +155,9 @@ aggregate_internal_arg(Slot,Arg):-
     Arg = 0..Arity-2.
 
 safe_var(Var):- aggregate_result_var(_,Var).
+
+:- aggregate_result_var(Slot,Var),
+    not var_used_outside_body_slot(Slot,Var).
 
 :- head_var(Var), not safe_var(Var).
 :- negated_var(Var), not safe_var(Var).

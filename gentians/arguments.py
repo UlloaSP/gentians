@@ -38,8 +38,8 @@ class Arguments:
     # Maximum number of outer sample/evolution cycles.
     iterations: int = 100
 
-    # Genetic algorithm iterations per outer cycle.
-    iterations_genetic: int = 2000
+    # Genetic algorithm iterations.
+    iterations_genetic: int = 5000
 
     # Fitness operator config.
     fitness: dict[str, object] = field(

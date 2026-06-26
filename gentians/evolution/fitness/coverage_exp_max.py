@@ -50,7 +50,6 @@ def _evaluate_score(
         candidate_program,
         max_as_to_generate_foreach_program,
         clingo_arguments,
-        stop_on_best=True,
     )
 
     scored = score_coverage_subsets(program, cov)

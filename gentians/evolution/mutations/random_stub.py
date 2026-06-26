@@ -7,6 +7,17 @@ from ...rule_generation.placed_clause import PlacedClause
 from ...timing import phase, profile_phase, record_metric
 
 
+def _clone_individual(element: Individual) -> Individual:
+    return Individual(
+        list(element.program),
+        list(element.stub_indexes),
+        list(element.prog_indexes),
+        element.score,
+        element.is_best,
+        list(element.l_best_indexes),
+    )
+
+
 @profile_phase("mutation")
 def mutate_by_random_stub(
     element: Individual,
@@ -26,6 +37,8 @@ def mutate_by_random_stub(
     with phase("mutation.operator"):
         for i, _ in enumerate(element.program):
             if random.random() < probability:
+                if not something_changed:
+                    mutated_element = _clone_individual(element)
                 something_changed = True
                 changed_positions += 1
                 # versione 1: cambio solamente il posizionamento delle variabili
@@ -52,6 +65,7 @@ def mutate_by_random_stub(
     # compute the new score if something has changed
     if something_changed:
         mutated_element.generated_timestamp = time.time()
+        mutated_element.refresh_signature()
         with phase("mutation.fitness"):
             mutated_element.score, mutated_element.is_best, mutated_element.l_best_indexes = (
                 evaluate_score(

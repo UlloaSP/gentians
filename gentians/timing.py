@@ -15,6 +15,8 @@ _ga_rows: list[dict[str, float]] = []
 _event_counter = 0
 _outer_iteration = 0
 _global_generation_offset = 0
+_timings_dirty = False
+_ga_dirty = False
 _F = TypeVar("_F", bound=Callable)
 
 
@@ -48,9 +50,10 @@ def _append_jsonl(path: str | None, row: dict[str, Any]) -> None:
 def add(name: str, seconds: float) -> None:
     if not _enabled:
         return
+    global _timings_dirty
     _totals[name] = _totals.get(name, 0.0) + seconds
     _counts[name] = _counts.get(name, 0) + 1
-    _flush_timings()
+    _timings_dirty = True
 
 
 @contextmanager
@@ -141,6 +144,7 @@ def record_ga_generation(
     path = os.environ.get("GENTIANS_GA_METRICS_PATH")
     if not path or not scores:
         return
+    global _ga_dirty
     _ga_rows.append(
         {
             "outer_iteration": _outer_iteration,
@@ -151,22 +155,26 @@ def record_ga_generation(
             "best_so_far": best_so_far,
         }
     )
-    _write_json_atomic(path, _ga_rows)
+    _ga_dirty = True
 
 
 def export() -> None:
     _flush_timings()
     ga_path = os.environ.get("GENTIANS_GA_METRICS_PATH")
-    if ga_path:
+    global _ga_dirty
+    if ga_path and _ga_dirty:
         _write_json_atomic(ga_path, _ga_rows)
+        _ga_dirty = False
 
 
 def _flush_timings() -> None:
+    global _timings_dirty
     path = os.environ.get("GENTIANS_TIMINGS_PATH")
-    if not path:
+    if not path or not _timings_dirty:
         return
     rows = [
         {"metric": name, "seconds": seconds, "calls": _counts.get(name, 0)}
         for name, seconds in sorted(_totals.items())
     ]
     _write_json_atomic(path, rows)
+    _timings_dirty = False

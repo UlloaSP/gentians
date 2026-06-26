@@ -2,6 +2,8 @@ import re
 
 from ..asp.rule_analysis import get_atoms
 
+VAR_PATTERN = re.compile(r"V\d+")
+
 
 class PlacedClause:
     """
@@ -13,11 +15,8 @@ class PlacedClause:
         self.n_vars_clauses: "list[int]" = []
         self.n_atoms = 0
 
-        regex = r"V\d+"
-        r = re.compile(regex)
-
         for cl in self.placed_clauses:
-            v = len(set(r.findall(cl)))
+            v = len(set(VAR_PATTERN.findall(cl)))
             self.n_vars_clauses.append(v)
 
         self.n_atoms += len(get_atoms(placed_clauses[0]))

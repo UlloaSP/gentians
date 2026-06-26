@@ -228,6 +228,7 @@ class ProgramSampler:
         """
         original_depth: int = self.args.max_depth
         clauses: "list[Clause]" = []
+        seen_clause_signatures: set[tuple[str, ...]] = set()
 
         for _ in range(0, how_many):
             body: "list[Literal]" = []
@@ -270,9 +271,11 @@ class ProgramSampler:
                     cl = f"{head_as_str} :- {body_as_str}."
                     current_clause.instantiated.append(cl)
 
-            if current_clause not in clauses:
+            signature = tuple(sorted(current_clause.instantiated))
+            if signature not in seen_clause_signatures:
                 # avoid duplicates
                 clauses.append(copy.deepcopy(current_clause))
+                seen_clause_signatures.add(signature)
 
             self.args.max_depth = original_depth
 

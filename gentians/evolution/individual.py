@@ -22,6 +22,10 @@ class Individual:
         self.is_best = is_best
         self.l_best_indexes = l_best_indexes
         self.generated_timestamp = time.time()
+        self.signature = tuple(sorted(self.program))
+
+    def refresh_signature(self) -> None:
+        self.signature = tuple(sorted(self.program))
 
     def __str__(self) -> str:
         return f"Program: {self.program} - score: {self.score}"

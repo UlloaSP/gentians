@@ -18,8 +18,12 @@ def initialize_population(
     """
     sampled_individuals: list[Individual] = []
     best_found = False
+    seen_signatures: set[tuple[str, ...]] = set()
+    attempts = 0
+    max_unique_attempts = population_size * 20
 
     while len(sampled_individuals) < population_size:
+        attempts += 1
         # pick a program
         # TODO: non necessariamente il sampling deve essere senza ripetizioni
         stub_indexes: list[int] = sorted(
@@ -42,6 +46,10 @@ def initialize_population(
             program.append(placed_list[i].placed_clauses[el])
 
         program = sorted(program)
+        signature = tuple(program)
+        if signature in seen_signatures and attempts < max_unique_attempts:
+            continue
+        seen_signatures.add(signature)
         # cp is the current program
         # cp, cn, current_score, best_found, l_index = evaluate_score(program)
         # print("evaluate score in init")

@@ -67,3 +67,12 @@ def from_as_to_list(current_as: str) -> "list[list[int]]":
 
     # Convert the dictionary values to a list of lists and sort by prefix
     return [sorted(groups[str(i)]) for i in range(len(groups))]
+
+
+def from_symbols_to_list(symbols) -> "list[list[int]]":
+    groups = defaultdict(list)
+    for symbol in symbols:
+        if not symbol.name.startswith("v") or len(symbol.arguments) != 1:
+            continue
+        groups[symbol.name[1:]].append(symbol.arguments[0].number)
+    return [sorted(groups[str(i)]) for i in range(len(groups))]

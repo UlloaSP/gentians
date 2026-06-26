@@ -10,7 +10,7 @@ from ..asp.aggregate_analysis import (
     get_aggregates,
     get_arithmetic_or_comparison_position,
 )
-from ..asp.answer_sets import from_as_to_list, from_list_to_as
+from ..asp.answer_sets import from_list_to_as, from_symbols_to_list
 from ..arguments import Arguments
 from ..asp.clingo import ClingoInterface
 from ..asp.rule_analysis import get_same_atoms, is_valid_rule
@@ -37,9 +37,8 @@ class VariablePlacementAnalysis:
 class VariablePlacer:
     def __init__(self, args: Arguments) -> None:
         self.args: Arguments = args
-        # dict: hash of the asp program to place vars -> result, to avoid the
-        # same computation
-        self.already_encountered_asp_programs: "dict[int,list[list[list[int]]]]" = {}
+        self.already_encountered_asp_programs: "dict[str,list[list[list[int]]]]" = {}
+        self.valid_rule_cache: dict[str, bool] = {}
         self.rules = VariablePlacementRules()
 
     def __reconstruct_clause(self, model: str, rule_stub: str) -> str:
@@ -64,14 +63,14 @@ class VariablePlacer:
             sampled_stub, analysis.placeholder
         )
 
-        if hash(asp_p) in self.already_encountered_asp_programs:
+        if asp_p in self.already_encountered_asp_programs:
             # already placed variables in an equivalent program,
             # retrieve it: I cannot store the clauses since the stub
             # is different, I need to reconstruct again the clause
-            placements = self.already_encountered_asp_programs[hash(asp_p)]
+            placements = self.already_encountered_asp_programs[asp_p]
         else:
             placements = self._solve_variable_placements(asp_p)
-            self.already_encountered_asp_programs[hash(asp_p)] = placements
+            self.already_encountered_asp_programs[asp_p] = placements
 
         return self._reconstruct_clauses(placements, sampled_stub_with_positions)
 
@@ -157,10 +156,8 @@ class VariablePlacer:
         with ctl.solve(yield_=True) as handle:  # type: ignore
             for m in handle:  # type: ignore
                 models += 1
-                a = str(m).split(" ")
-                a.sort()
-                a = " ".join(a)
-                answer_sets_in_list.append(from_as_to_list(str(a)))
+                symbols = sorted(m.symbols(shown=True), key=str)
+                answer_sets_in_list.append(from_symbols_to_list(symbols))
         seconds = time.perf_counter() - start_solving
         add("variable_placement.solving", seconds)
         record_metric(
@@ -187,6 +184,11 @@ class VariablePlacer:
             for placement in placements
         ]
 
+    def _is_valid_rule(self, rule: str) -> bool:
+        if rule not in self.valid_rule_cache:
+            self.valid_rule_cache[rule] = is_valid_rule(rule)
+        return self.valid_rule_cache[rule]
+
     def place_variables_list_of_clauses(
         self, sampled_clauses: "list[str]"
     ) -> "list[list[str]]":
@@ -205,7 +207,7 @@ class VariablePlacer:
             if len(r) > 0:
                 r.sort()
                 for rl in r:
-                    if is_valid_rule(rl):
+                    if self._is_valid_rule(rl):
                         valid_rules.append(rl)
                     else:
                         pruned_count += 1

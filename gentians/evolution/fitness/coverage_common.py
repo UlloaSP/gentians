@@ -1,9 +1,14 @@
 from dataclasses import dataclass
+from collections.abc import Callable
+import math
 
 from ...asp.clingo import ClingoInterface
 from ...asp.coverage import Coverage
 from ...rule_generation.program import Program
 from ...timing import current_phase, record_metric
+
+CoverageKey = tuple[int, ...]
+FitnessResult = tuple[float, bool, list[int]]
 
 
 @dataclass(frozen=True)
@@ -19,7 +24,7 @@ def extract_program_coverage(
     candidate_program: list[str],
     max_as_to_generate_foreach_program: int,
     clingo_arguments: list[str],
-) -> dict[str, Coverage]:
+) -> dict[CoverageKey, Coverage]:
     asp_solver = ClingoInterface(
         program.background,
         [f"{max_as_to_generate_foreach_program}", *clingo_arguments],
@@ -60,36 +65,88 @@ def covers_all_positive_no_negative(program: Program, rates: CoverageRates) -> b
     )
 
 
-def shortest_subset_indexes(subset_keys: list[str]) -> list[int]:
-    subset_keys.sort(key=lambda s: len(s))
-    return [int(v) for v in list(subset_keys[0])] if subset_keys else []
+def shortest_subset_indexes(subset_keys: list[CoverageKey]) -> list[int]:
+    subset_keys.sort(key=len)
+    return list(subset_keys[0]) if subset_keys else []
 
 
-def best_subset_by_lowest_cost(cov: dict[str, Coverage]) -> list[str]:
+def best_subset_by_lowest_cost(cov: dict[CoverageKey, Coverage]) -> list[CoverageKey]:
+    if not cov:
+        return []
     current_min_el = next(iter(cov.keys()))
+    current_min_cost = cov[current_min_el].get_cost()
     for key, value in cov.items():
-        current = cov[current_min_el]
-        if value.get_cost() < current.get_cost() or (
-            value.get_cost() == current.get_cost()
+        value_cost = value.get_cost()
+        if value_cost < current_min_cost or (
+            value_cost == current_min_cost
             and len(key) < len(current_min_el)
         ):
             current_min_el = key
-    return [current_min_el] if current_min_el != "Undefined" else []
+            current_min_cost = value_cost
+    return [current_min_el]
+
+
+@dataclass(frozen=True)
+class ScoredCoverage:
+    cov: dict[CoverageKey, Coverage]
+    scored_subsets: list[tuple[CoverageKey, float]]
+    scores: list[float]
+    best_found: bool
+    l_best_indexes: list[CoverageKey]
+    rates_by_key: dict[CoverageKey, CoverageRates]
+
+
+def score_coverage_subsets(program: Program, cov: dict[CoverageKey, Coverage]) -> ScoredCoverage:
+    best_found = False
+    l_best_indexes: list[CoverageKey] = []
+    scored_subsets: list[tuple[CoverageKey, float]] = []
+    rates_by_key: dict[CoverageKey, CoverageRates] = {}
+
+    for key, element_coverage in cov.items():
+        rates = coverage_rates(program, element_coverage)
+        rates_by_key[key] = rates
+        scored_subsets.append(
+            (key, math.exp((rates.positive_rate - rates.negative_rate) * 10))
+        )
+        if covers_all_positive_no_negative(program, rates):
+            l_best_indexes.append(key)
+            best_found = True
+
+    return ScoredCoverage(
+        cov,
+        scored_subsets,
+        [score for _, score in scored_subsets],
+        best_found,
+        l_best_indexes,
+        rates_by_key,
+    )
+
+
+def cached_fitness(
+    cache: dict[tuple[str, ...], FitnessResult],
+    candidate_program: list[str],
+    compute: "Callable[[], FitnessResult]",
+) -> FitnessResult:
+    key = tuple(candidate_program)
+    if key not in cache:
+        cache[key] = compute()
+    return cache[key]
 
 
 def record_fitness_metric(
     fitness_operator: str,
     program: Program,
     candidate_program: list[str],
-    cov: dict[str, Coverage],
+    cov: dict[CoverageKey, Coverage],
     scores: list[float],
     score: float,
     empty_score: float,
     best_found: bool,
     l_index: list[int],
-    best_key: str,
+    best_key: CoverageKey | None,
+    rates_by_key: dict[CoverageKey, CoverageRates],
 ) -> None:
-    best_coverage = cov.get(best_key)
+    best_rates = rates_by_key.get(best_key) if best_key is not None else None
     record_metric(
         "quality",
         {
@@ -103,12 +160,8 @@ def record_fitness_metric(
             "fitness_operator": fitness_operator,
             "best_found": best_found,
             "best_subset_size": len(l_index),
-            "covered_positive": len(set(best_coverage.l_pos))
-            if best_coverage is not None
-            else 0,
-            "covered_negative": len(set(best_coverage.l_neg))
-            if best_coverage is not None
-            else 0,
+            "covered_positive": best_rates.covered_positive if best_rates else 0,
+            "covered_negative": best_rates.covered_negative if best_rates else 0,
             "total_positive": len(program.positive_examples),
             "total_negative": len(program.negative_examples),
         },

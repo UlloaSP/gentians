@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache
 
 from clingo import ast
 from clingo import Control
@@ -6,15 +7,21 @@ from clingo import Control
 from .callbacks import CheckSanityRulesCallback, RuleCallback
 
 
-def get_atoms(clause: str) -> "list[str]":
+@lru_cache(maxsize=None)
+def _get_atoms_cached(clause: str) -> tuple[str, ...]:
     """
     Get the atoms from a clause.
     """
     r = RuleCallback()
     ast.parse_string(clause, r.process)
-    return r.head + r.body
+    return tuple(r.head + r.body)
 
 
+def get_atoms(clause: str) -> "list[str]":
+    return list(_get_atoms_cached(clause))
+
+
+@lru_cache(maxsize=None)
 def is_unsound(clause: str) -> bool:
     """
     Returns true if the rule is unsafe.
@@ -30,6 +37,7 @@ def is_unsound(clause: str) -> bool:
     return l.unsound_rule
 
 
+@lru_cache(maxsize=None)
 def is_valid_rule(clause: str) -> bool:
     """
     Checks whether a rule is valid:
@@ -54,13 +62,13 @@ def is_valid_rule(clause: str) -> bool:
 
     for atom in atoms_list:
         if any(op in atom for op in comparison_operators):
-            matches = re.findall(r"V\d", atom)
+            matches = re.findall(r"V\d+", atom)
             v0, v1 = matches
             if v0 == v1:
                 return False
 
         elif any(op in atom for op in arithmetic_operators):
-            matches = re.findall(r"V\d", atom)
+            matches = re.findall(r"V\d+", atom)
             v0, v1, v2 = matches
             # this is ok since the structure of arithmetic operators is
             # fixed to be _ op _ = _
@@ -71,9 +79,10 @@ def is_valid_rule(clause: str) -> bool:
     return True
 
 
-def get_duplicated_positions(
+@lru_cache(maxsize=None)
+def _get_duplicated_positions_cached(
     clause: str, wildcard: str
-) -> "list[list[list[str]]]":
+) -> tuple[tuple[tuple[str, ...], ...], ...]:
     """
     Returns the positions with the same atoms:
     :- a(__VAR__),q(__VAR__,__VAR__),q(__VAR__,__VAR__),a(__VAR__),q(__VAR__,__VAR__) gets
@@ -99,10 +108,20 @@ def get_duplicated_positions(
             current_variable_position += n_vars
         if len(ld) > 0:
             dup_pos.append(ld)
-    return dup_pos
+    return tuple(tuple(tuple(pos) for pos in group) for group in dup_pos)
 
 
-def get_same_atoms(sampled_stub: str, wildcard: str) -> "tuple[list[str],int]":
+def get_duplicated_positions(
+    clause: str, wildcard: str
+) -> "list[list[list[str]]]":
+    return [
+        [list(position) for position in group]
+        for group in _get_duplicated_positions_cached(clause, wildcard)
+    ]
+
+
+@lru_cache(maxsize=None)
+def _get_same_atoms_cached(sampled_stub: str, wildcard: str) -> tuple[tuple[str, ...], int]:
     """
     Returns the samei/n atoms for ASP to prune solutions with repeated atoms
     % same2(Id,PosV0,posV1)
@@ -121,4 +140,9 @@ def get_same_atoms(sampled_stub: str, wildcard: str) -> "tuple[list[str],int]":
                 to_add.append(s)
                 if len(dup_pos) > max_p:
                     max_p = len(dup_pos)
-    return to_add, max_p
+    return tuple(to_add), max_p
+
+
+def get_same_atoms(sampled_stub: str, wildcard: str) -> "tuple[list[str],int]":
+    same_atoms, max_p = _get_same_atoms_cached(sampled_stub, wildcard)
+    return list(same_atoms), max_p

@@ -15,10 +15,7 @@ class Literal:
         """
         s = self.mode_bias.name
         if self.mode_bias.arity > 0:
-            s += "("
-            for i in range(0, self.mode_bias.arity):
-                s += wildcard + ","
-            s = s[:-1] + ")"
+            s += f"({','.join([wildcard] * self.mode_bias.arity)})"
         return s if (not self.negated) else f"not {s}"
 
     def __str__(self) -> str:

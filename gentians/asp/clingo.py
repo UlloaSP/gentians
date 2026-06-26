@@ -6,11 +6,16 @@ from .coverage import Coverage, generate_clauses_for_coverage_interpretations
 from ..rule_generation.program import Example
 from ..timing import add, current_phase, record_metric
 
+CoverageKey = tuple[int, ...]
+
 
 class ClingoInterface:
     def __init__(self, lines: "list[str]", clingo_arguments: "list[str]") -> None:
         self.lines = lines
         self.clingo_arguments = clingo_arguments
+        self._coverage_static_program_cache: dict[
+            tuple[tuple[str, ...], tuple[str, ...], bool], str
+        ] = {}
 
     # TODO: cambiare questione coverage
     def init_clingo_ctl(self) -> "clingo.Control":
@@ -47,7 +52,7 @@ class ClingoInterface:
         interpretation_pos: "list[Example]",  # positive examples
         interpretation_neg: "list[Example]",  # negative examples
         fixed: bool,
-    ) -> "dict[str,Coverage]":
+    ) -> "dict[CoverageKey,Coverage]":
         """
         Extracts the coverage for every subset of clauses.
         """
@@ -66,12 +71,12 @@ class ClingoInterface:
         # print('FISSATO')
         # program = ["red(X) ; green(X) ; blue(X) :- node(X).", ":- e(X,Y), red(X), red(Y).", ":- e(X,Y), green(X), green(Y).", ":- e(X,Y), blue(X), blue(Y)."]
 
-        generated_program = _build_coverage_program(
-            self.lines,
-            program,
-            interpretation_pos,
-            interpretation_neg,
-            fixed,
+        generated_program = (
+            self._coverage_static_program(
+                interpretation_pos, interpretation_neg, fixed
+            )
+            + "\n"
+            + "\n".join(_candidate_program_clauses(program, fixed))
         )
 
         wrp = WrapperStopIfWarn()
@@ -105,7 +110,7 @@ class ClingoInterface:
             # check for the coverage: ATTENTION: if the language bias is
             # not ok, this is a problem
             # print("Warning: undefined coverage")
-            return {"Undefined": Coverage([], [])}
+            return {}
 
         # res = str(ctl.solve())
         # answer_sets : 'list[str] '= []
@@ -114,14 +119,14 @@ class ClingoInterface:
         # value: tuple(covered_pos, covered_neg)
         # needed since I need to check that NO answer sets cover
         # negative examples.
-        comb_rules: "dict[str,Coverage]" = {}
+        comb_rules: "dict[CoverageKey,Coverage]" = {}
 
         start = time.perf_counter()
         models = 0
         with ctl.solve(yield_=True) as handle:  # type: ignore
             for m in handle:  # type: ignore
                 models += 1
-                l_rules, l_cp, l_cn = _parse_coverage_answer_set(str(m))
+                l_rules, l_cp, l_cn = _parse_coverage_symbols(m.symbols(shown=True))
                 if fixed:
                     # needed since for fixed there are no r/1 atoms
                     l_rules = [i for i in range(len(program))]
@@ -153,17 +158,32 @@ class ClingoInterface:
 
         return comb_rules
 
+    def _coverage_static_program(
+        self,
+        interpretation_pos: "list[Example]",
+        interpretation_neg: "list[Example]",
+        fixed: bool,
+    ) -> str:
+        key = (
+            tuple(str(example) for example in interpretation_pos),
+            tuple(str(example) for example in interpretation_neg),
+            fixed,
+        )
+        if key not in self._coverage_static_program_cache:
+            self._coverage_static_program_cache[key] = _build_coverage_static_program(
+                self.lines, interpretation_pos, interpretation_neg, fixed
+            )
+        return self._coverage_static_program_cache[key]
 
-def _build_coverage_program(
+
+def _build_coverage_static_program(
     background: "list[str]",
-    program: "list[str]",
     interpretation_pos: "list[Example]",
     interpretation_neg: "list[Example]",
     fixed: bool,
 ) -> str:
     parts: list[str] = []
     parts.extend(background)
-    parts.extend(_candidate_program_clauses(program, fixed))
     if len(interpretation_pos) > 0:
         parts.append(f"pos_exs(0..{len(interpretation_pos)}).")
         parts.append(generate_clauses_for_coverage_interpretations(interpretation_pos, True))
@@ -202,27 +222,30 @@ def _candidate_program_clauses(program: "list[str]", fixed: bool) -> "list[str]"
     return clauses
 
 
-def _parse_coverage_answer_set(answer_set: str) -> "tuple[list[int],list[int],list[int]]":
+def _parse_coverage_symbols(symbols) -> "tuple[list[int],list[int],list[int]]":
     l_rules: list[int] = []
     l_cp: list[int] = []
     l_cn: list[int] = []
-    for atom in answer_set.split(" "):
-        if atom.startswith("r"):
-            l_rules.append(int(atom.split("r(")[1][:-1]))
-        elif atom.startswith("extended_p"):
-            l_cp.append(int(atom.split("extended_p(")[1][:-1]))
-        elif atom.startswith("extended_n"):
-            l_cn.append(int(atom.split("extended_n(")[1][:-1]))
+    for symbol in symbols:
+        if len(symbol.arguments) != 1:
+            continue
+        value = symbol.arguments[0].number
+        if symbol.name == "r":
+            l_rules.append(value)
+        elif symbol.name == "extended_p":
+            l_cp.append(value)
+        elif symbol.name == "extended_n":
+            l_cn.append(value)
     return l_rules, l_cp, l_cn
 
 
 def _merge_coverage_result(
-    comb_rules: "dict[str,Coverage]",
+    comb_rules: "dict[CoverageKey,Coverage]",
     l_rules: "list[int]",
     l_cp: "list[int]",
     l_cn: "list[int]",
 ) -> None:
-    dict_key = "".join(str(index) for index in l_rules)
+    dict_key = tuple(sorted(l_rules))
     if dict_key in comb_rules:
         # this solution also considers duplicates
         comb_rules[dict_key].l_pos.extend(l_cp)

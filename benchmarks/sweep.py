@@ -252,16 +252,16 @@ def summarize_curves(cell: Cell, ga_rows: list[dict[str, str]]) -> list[dict[str
             rows[index] = (generation, best)
     generations = sorted({generation for rows in by_run.values() for generation, _ in rows})
     curve = []
+    positions = {run: 0 for run in by_run}
+    last_values: dict[int, float] = {}
     for generation in generations:
-        values = []
-        for rows in by_run.values():
-            last = None
-            for row_generation, value in rows:
-                if row_generation > generation:
-                    break
-                last = value
-            if last is not None:
-                values.append(last)
+        for run, rows in by_run.items():
+            position = positions[run]
+            while position < len(rows) and rows[position][0] <= generation:
+                last_values[run] = rows[position][1]
+                position += 1
+            positions[run] = position
+        values = list(last_values.values())
         if not values:
             continue
         curve.append(

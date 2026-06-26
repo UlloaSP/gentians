@@ -13,7 +13,7 @@ def solve_all_models(
     start = time.perf_counter()
     with ctl.solve(yield_=True) as handle:  # type: ignore
         for model in handle:  # type: ignore
-            models.append(set(str(model).split()))
+            models.append({str(symbol) for symbol in model.symbols(shown=True)})
     seconds = time.perf_counter() - start
     phase = current_phase()
     add(f"{phase}.solving", seconds)

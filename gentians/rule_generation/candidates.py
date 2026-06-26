@@ -58,16 +58,17 @@ def instantiate_sampled_clauses(sampled_stubs: "list[Clause]") -> "list[str]":
     # Step 1: remove duplicates
     instantiated_clauses = [c.instantiated for c in sampled_stubs]
     flattened = [item for sublist in instantiated_clauses for item in sublist]
+    unique_flattened = list(dict.fromkeys(flattened))
     record_metric(
         "candidate",
         {
             "metric": "instantiate_sampled_clauses",
             "sampled_stubs": len(sampled_stubs),
             "instantiated_clauses": len(flattened),
-            "unique_instantiated_clauses": len(set(flattened)),
+            "unique_instantiated_clauses": len(unique_flattened),
         },
     )
-    return flattened
+    return unique_flattened
 
 
 @profile_phase("variable_placement")

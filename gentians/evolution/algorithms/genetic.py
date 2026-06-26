@@ -136,7 +136,7 @@ class Strategy:
             )
 
         return (
-            [population[0].program[i] for i in population[0].l_best_indexes],
+            [population[0].program[i] for i in res[2]],
             res[0],
             False,
             [i[0] for i in a[:k_best]],

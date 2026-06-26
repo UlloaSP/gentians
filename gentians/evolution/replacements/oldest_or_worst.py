@@ -10,10 +10,9 @@ def replace_oldest_or_worst(
     prob_replacing_oldest: float,
 ) -> list[Individual]:
     found = False
-    element_signature = tuple(sorted(element.program))
     # if not best, check whether it is already in the population
     for pop in population:
-        if tuple(sorted(pop.program)) == element_signature:
+        if pop.signature == element.signature:
             found = True
             break
 

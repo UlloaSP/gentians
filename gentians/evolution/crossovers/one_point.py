@@ -28,11 +28,15 @@ def _evaluate_child(
     stub_indexes: list[int],
     prog_indexes: list[int],
     evaluate_score: FitnessFn,
+    known_signatures: set[tuple[str, ...]],
 ) -> Individual:
     if program == parent_a.program:
         return _child_from_parent(parent_a, program, stub_indexes, prog_indexes)
     if program == parent_b.program:
         return _child_from_parent(parent_b, program, stub_indexes, prog_indexes)
+    signature = tuple(sorted(program))
+    if signature in known_signatures:
+        return Individual(program, stub_indexes, prog_indexes, float("-inf"), False, [])
     with phase("crossover.fitness"):
         current_score, is_best, l_indexes = evaluate_score(
             stub_indexes, prog_indexes, program
@@ -46,6 +50,7 @@ def one_point_crossover(
     best_b: Individual,
     evaluate_score: FitnessFn,
     probability: float,
+    known_signatures: set[tuple[str, ...]],
 ) -> "tuple[Individual,Individual]":
     """
     Crossover: pick a random index and generate a element
@@ -71,6 +76,7 @@ def one_point_crossover(
         new_stub_indexes,
         new_program_indexes,
         evaluate_score,
+        known_signatures,
     )
 
     with phase("crossover.operator"):
@@ -93,6 +99,7 @@ def one_point_crossover(
         new_stub_indexes,
         new_program_indexes,
         evaluate_score,
+        known_signatures,
     )
 
     parent_best = max(best_a.score, best_b.score)
@@ -115,6 +122,8 @@ def one_point_crossover(
             + int(i0.signature == best_b.signature)
             + int(i1.signature == best_a.signature)
             + int(i1.signature == best_b.signature),
+            "children_duplicate_population": int(i0.score == float("-inf"))
+            + int(i1.score == float("-inf")),
         },
     )
 

@@ -25,6 +25,7 @@ def mutate_by_random_stub(
     probability: float,
     evaluate_score: FitnessFn,
     change_stub: bool,
+    known_signatures: set[tuple[str, ...]],
 ):
     """
     Mutation of an element
@@ -66,13 +67,18 @@ def mutate_by_random_stub(
     if something_changed:
         mutated_element.generated_timestamp = time.time()
         mutated_element.refresh_signature()
-        with phase("mutation.fitness"):
-            mutated_element.score, mutated_element.is_best, mutated_element.l_best_indexes = (
-                evaluate_score(
-                    mutated_element.stub_indexes,
-                    mutated_element.prog_indexes,
-                    mutated_element.program,
-                )
+        if mutated_element.signature in known_signatures:
+            mutated_element.score = float("-inf")
+            mutated_element.is_best = False
+            mutated_element.l_best_indexes = []
+        else:
+            with phase("mutation.fitness"):
+                mutated_element.score, mutated_element.is_best, mutated_element.l_best_indexes = (
+                    evaluate_score(
+                        mutated_element.stub_indexes,
+                        mutated_element.prog_indexes,
+                        mutated_element.program,
+                    )
             )
 
     record_metric(
@@ -87,6 +93,9 @@ def mutate_by_random_stub(
             "new_score": mutated_element.score,
             "improved": mutated_element.score > original_score,
             "is_best": mutated_element.is_best,
+            "duplicate_population": (
+                something_changed and mutated_element.signature in known_signatures
+            ),
         },
     )
 

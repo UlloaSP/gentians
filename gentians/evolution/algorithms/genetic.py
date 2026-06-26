@@ -74,8 +74,9 @@ class Strategy:
             # either do crossover or mutation seems to be not effective
 
             # 2.2: crossover
+            known_signatures = {element.signature for element in population}
             new_program_1, new_program_2 = self.crossover(
-                best_a, best_b, self.evaluate_score
+                best_a, best_b, self.evaluate_score, known_signatures
             )
             # If the best found, stop the iteration
             # _, is_best, l_best_indexes = evaluate_score([], [], new_program_1.program)
@@ -94,11 +95,13 @@ class Strategy:
                 new_program_1,
                 self.placed_list,
                 self.evaluate_score,
+                known_signatures,
             )
             new_mutated_2 = self.mutation(
                 new_program_2,
                 self.placed_list,
                 self.evaluate_score,
+                known_signatures,
             )
 
             l_mutated = [new_mutated_1, new_mutated_2]
@@ -115,6 +118,7 @@ class Strategy:
                     )
 
                 population = self.replacement(population, el)
+            population.sort(key=lambda x: x.score, reverse=True)
 
         # keep the elements for the next round: extract all the stubs from
         # the top k programs. Then, count the occurrences of each and return the top

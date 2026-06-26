@@ -72,10 +72,11 @@ def create_crossover(config: dict[str, object]) -> CrossoverFn:
             best_a: Individual,
             best_b: Individual,
             evaluate_score: FitnessFn,
+            known_signatures: set[tuple[str, ...]],
         ) -> tuple[Individual, Individual]:
             if random.random() < probability:
                 return one_point_crossover(
-                    best_a, best_b, evaluate_score, probability
+                    best_a, best_b, evaluate_score, probability, known_signatures
                 )
             return _clone_parents_without_crossover(best_a, best_b, probability)
 
@@ -93,9 +94,15 @@ def create_mutation(config: dict[str, object]) -> MutationFn:
             element: Individual,
             placed_list: list[PlacedClause],
             evaluate_score: FitnessFn,
+            known_signatures: set[tuple[str, ...]],
         ) -> Individual:
             return mutate_by_random_stub(
-                element, placed_list, probability, evaluate_score, change_stub
+                element,
+                placed_list,
+                probability,
+                evaluate_score,
+                change_stub,
+                known_signatures,
             )
 
         return mutate

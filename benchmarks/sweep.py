@@ -125,13 +125,7 @@ def run_cell(args: argparse.Namespace, out_dir: Path, cell: Cell, index: int, to
 def write_sweep_outputs(out_dir: Path, manifest: dict[str, object]) -> None:
     cell_rows: list[dict[str, object]] = []
     curve_rows: list[dict[str, object]] = []
-    for raw_cell in manifest["cells"]:  # type: ignore[index]
-        cell = Cell(
-            str(raw_cell["dataset"]),
-            str(raw_cell["fitness_operator"]),
-            int(raw_cell["outer_iterations"]),
-            int(raw_cell["genetic_iterations"]),
-        )
+    for cell in discover_cells(out_dir, manifest):
         cell_dir = out_dir / "cells" / cell.key
         runs = read_csv_dicts(cell_dir / "runs.csv")
         ga_rows = read_csv_dicts(cell_dir / "ga_fitness.csv")
@@ -143,8 +137,14 @@ def write_sweep_outputs(out_dir: Path, manifest: dict[str, object]) -> None:
 
     write_csv(out_dir / "cells.csv", cell_rows)
     write_csv(out_dir / "fitness_curves.csv", curve_rows)
+    datasets = sorted({str(row.get("dataset")) for row in cell_rows})
+    fitness_operators = sorted({str(row.get("fitness_operator")) for row in cell_rows})
     payload = {
-        "meta": manifest,
+        "meta": manifest
+        | {
+            "availableDatasets": datasets,
+            "availableFitnessOperators": fitness_operators,
+        },
         "cells": cell_rows,
         "curves": curve_rows,
         "heatmaps": {
@@ -155,6 +155,55 @@ def write_sweep_outputs(out_dir: Path, manifest: dict[str, object]) -> None:
     (out_dir / "sweep_dashboard_data.json").write_text(
         json.dumps(payload, indent=2), encoding="utf-8"
     )
+
+
+def discover_cells(out_dir: Path, manifest: dict[str, object]) -> list[Cell]:
+    cells_by_key: dict[str, Cell] = {}
+    for raw_cell in manifest.get("cells", []):  # type: ignore[union-attr]
+        cell = Cell(
+            str(raw_cell["dataset"]),
+            str(raw_cell["fitness_operator"]),
+            int(raw_cell["outer_iterations"]),
+            int(raw_cell["genetic_iterations"]),
+        )
+        cells_by_key[cell.key] = cell
+
+    cells_dir = out_dir / "cells"
+    if cells_dir.exists():
+        for cell_dir in cells_dir.iterdir():
+            if not cell_dir.is_dir():
+                continue
+            cell = parse_cell_key(cell_dir.name)
+            if cell is not None:
+                cells_by_key[cell.key] = cell
+
+    return sorted(
+        cells_by_key.values(),
+        key=lambda cell: (
+            cell.dataset,
+            cell.fitness_operator,
+            cell.outer_iterations,
+            cell.genetic_iterations,
+        ),
+    )
+
+
+def parse_cell_key(key: str) -> Cell | None:
+    parts = key.split("__")
+    if len(parts) != 4:
+        return None
+    dataset, fitness_operator, outer, genetic = parts
+    if not outer.startswith("outer-") or not genetic.startswith("genetic-"):
+        return None
+    try:
+        return Cell(
+            dataset,
+            fitness_operator,
+            int(outer.removeprefix("outer-")),
+            int(genetic.removeprefix("genetic-")),
+        )
+    except ValueError:
+        return None
 
 
 def summarize_cell(

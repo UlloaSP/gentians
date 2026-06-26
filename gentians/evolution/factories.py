@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import math
 import random
 
 from .crossovers.one_point import one_point_crossover
-from .fitness.evaluator import FitnessEvaluator
+from .fitness.coverage_exp_max import coverage_exp_max
+from .fitness.coverage_exp_mean import coverage_exp_mean
 from .individual import Individual
 from .mutations.random_stub import mutate_by_random_stub
 from .populations.random_initialization import initialize_population
@@ -30,29 +30,9 @@ def create_fitness(program: Program, config: dict[str, object]) -> FitnessFn:
     clingo_arguments = _str_list(config, "clingo_arguments", ["--project"])
     empty_score = _float(config, "empty_score", -2000.0)
     if name == "coverage_exp_mean":
-        evaluator = FitnessEvaluator(
-            program,
-            max_as,
-            clingo_arguments,
-            empty_score,
-            name,
-            _coverage_exp_score,
-            _mean,
-            select_best_by_score=False,
-        )
-        return evaluator.evaluate_score
+        return coverage_exp_mean(program, max_as, clingo_arguments, empty_score)
     if name == "coverage_exp_max":
-        evaluator = FitnessEvaluator(
-            program,
-            max_as,
-            clingo_arguments,
-            empty_score,
-            name,
-            _coverage_exp_score,
-            max,
-            select_best_by_score=True,
-        )
-        return evaluator.evaluate_score
+        return coverage_exp_max(program, max_as, clingo_arguments, empty_score)
     raise ValueError(f"Unknown fitness operator: {name}")
 
 
@@ -183,14 +163,6 @@ def _str_list(config: dict[str, object], key: str, default: list[str]) -> list[s
     if isinstance(value, str):
         return [value]
     return list(default)
-
-
-def _mean(values: list[float]) -> float:
-    return sum(values) / len(values)
-
-
-def _coverage_exp_score(positive_rate: float, negative_rate: float) -> float:
-    return math.exp((positive_rate - negative_rate) * 10)
 
 
 @profile_phase("crossover")

@@ -93,12 +93,16 @@ function App() {
 }
 
 function Sweep({ sweep }) {
-  const datasets = [...new Set((sweep?.cells || []).map((row) => row.dataset))]
-  const modes = [...new Set((sweep?.cells || []).map((row) => row.fitness_operator))]
+  const cells = sweep?.cells || []
+  const datasets = [...new Set(cells.map((row) => row.dataset))].sort()
   const [dataset, setDataset] = useState('')
   const [mode, setMode] = useState('')
   const currentDataset = dataset || datasets[0] || ''
-  const currentMode = mode || modes[0] || 'coverage_exp_mean'
+  const modes = [...new Set(cells
+    .filter((row) => row.dataset === currentDataset)
+    .map((row) => row.fitness_operator))]
+    .sort()
+  const currentMode = modes.includes(mode) ? mode : modes[0] || ''
 
   if (!sweep) {
     return (
@@ -113,7 +117,7 @@ function Sweep({ sweep }) {
       <div className={chartTw.controlsBar}>
         <label className={chartTw.controlLabel}>
           dataset
-          <select className={`${chartTw.select} ml-2`} value={currentDataset} onChange={(event) => setDataset(event.target.value)}>
+          <select className={`${chartTw.select} ml-2`} value={currentDataset} onChange={(event) => { setDataset(event.target.value); setMode('') }}>
             {datasets.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
         </label>

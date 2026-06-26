@@ -36,7 +36,6 @@ def pick_two_fittest(
         best_b = population[1]
     else:
         idx_a, idx_b = random.sample(range(0, j), 2)
-        # print(f"Combining: {idx_a}, {idx_b}")
         best_a = population[idx_a]
         best_b = population[idx_b]
 

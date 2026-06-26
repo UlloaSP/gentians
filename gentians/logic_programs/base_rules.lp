@@ -13,9 +13,3 @@ at_least_twice(V):- var_pos(V,P0), var_pos(V,P1), P0 != P1.
 % fix variable 0 in position 0 to remove some symmetries
 :- not var_pos(0,0).
 
-% there should be at least one atom in the rule
-atom_pos(Pos):-
-    pos(Pos),
-    not comparison_term_position(_,Pos),
-    not all_arithm_term_position(_,Pos).
-:- not atom_pos(_).

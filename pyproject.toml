@@ -36,3 +36,6 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["gentians*"]
+
+[tool.setuptools.package-data]
+gentians = ["logic_programs/*.lp"]

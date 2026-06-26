@@ -123,21 +123,19 @@ def get_duplicated_positions(
 @lru_cache(maxsize=None)
 def _get_same_atoms_cached(sampled_stub: str, wildcard: str) -> tuple[tuple[str, ...], int]:
     """
-    Returns the samei/n atoms for ASP to prune solutions with repeated atoms
-    % same2(Id,PosV0,posV1)
-    % indica che l'atomo di id ha 2 variabili le cui posizioni sono
-    % (0,1) e (2,3)
-    same2(0,0,1).
-    same2(0,2,3).
+    Returns same_pos/4 facts for ASP to prune solutions with repeated atoms.
+    same_pos(AtomId,Occurrence,Argument,Position).
     """
     dp = get_duplicated_positions(sampled_stub, wildcard)
     to_add: "list[str]" = []
     max_p = 0
     for index, position_list_list in enumerate(dp):
         if len(position_list_list) > 1:
-            for dup_pos in position_list_list:
-                s = f"same{len(dup_pos)}({index},{','.join(dup_pos)})."
-                to_add.append(s)
+            for occurrence, dup_pos in enumerate(position_list_list):
+                for argument, position in enumerate(dup_pos):
+                    to_add.append(
+                        f"same_pos({index},{occurrence},{argument},{position})."
+                    )
                 if len(dup_pos) > max_p:
                     max_p = len(dup_pos)
     return tuple(to_add), max_p

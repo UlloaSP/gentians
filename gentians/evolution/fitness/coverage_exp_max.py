@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 from .coverage_common import (
+    CachedFitnessResult,
     cached_fitness,
     extract_program_coverage,
     FitnessResult,
@@ -17,7 +18,7 @@ def coverage_exp_max(
     clingo_arguments: list[str],
     empty_score: float,
 ) -> Callable[[list[int], list[int], list[str]], tuple[float, bool, list[int]]]:
-    cache: dict[tuple[str, ...], FitnessResult] = {}
+    cache: dict[tuple[str, ...], CachedFitnessResult] = {}
 
     def evaluate_score(
         stub_indexes: list[int], prog_indexes: list[int], candidate_program: list[str]
@@ -49,6 +50,7 @@ def _evaluate_score(
         candidate_program,
         max_as_to_generate_foreach_program,
         clingo_arguments,
+        stop_on_best=True,
     )
 
     scored = score_coverage_subsets(program, cov)

@@ -1,5 +1,6 @@
 import clingo
 import time
+from pathlib import Path
 
 from .callbacks import wrapper_exit_callback, WrapperStopIfWarn
 from .coverage import Coverage, generate_clauses_for_coverage_interpretations
@@ -7,6 +8,11 @@ from ..rule_generation.program import Example
 from ..timing import add, current_phase, record_metric
 
 CoverageKey = tuple[int, ...]
+LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
+COVERAGE_RULES = (LOGIC_PROGRAMS / "coverage_rules.lp").read_text()
+COVERAGE_SHOW_SELECTED_RULES = (
+    LOGIC_PROGRAMS / "coverage_show_selected_rules.lp"
+).read_text()
 
 
 class ClingoInterface:
@@ -52,6 +58,7 @@ class ClingoInterface:
         interpretation_pos: "list[Example]",  # positive examples
         interpretation_neg: "list[Example]",  # negative examples
         fixed: bool,
+        stop_on_best: bool = False,
     ) -> "dict[CoverageKey,Coverage]":
         """
         Extracts the coverage for every subset of clauses.
@@ -123,6 +130,7 @@ class ClingoInterface:
 
         start = time.perf_counter()
         models = 0
+        all_pos_mask = (1 << len(interpretation_pos)) - 1
         with ctl.solve(yield_=True) as handle:  # type: ignore
             for m in handle:  # type: ignore
                 models += 1
@@ -130,7 +138,14 @@ class ClingoInterface:
                 if fixed:
                     # needed since for fixed there are no r/1 atoms
                     l_rules = [i for i in range(len(program))]
-                _merge_coverage_result(comb_rules, l_rules, l_cp, l_cn)
+                coverage = _merge_coverage_result(comb_rules, l_rules, l_cp, l_cn)
+                if (
+                    stop_on_best
+                    and coverage.pos_mask == all_pos_mask
+                    and coverage.neg_mask == 0
+                ):
+                    handle.cancel()
+                    break
         seconds = time.perf_counter() - start
         phase = current_phase()
         add(f"{phase}.solving", seconds)
@@ -185,28 +200,14 @@ def _build_coverage_static_program(
     parts: list[str] = []
     parts.extend(background)
     if len(interpretation_pos) > 0:
-        parts.append(f"pos_exs(0..{len(interpretation_pos)}).")
+        parts.append(f"pos_exs(0..{len(interpretation_pos) - 1}).")
         parts.append(generate_clauses_for_coverage_interpretations(interpretation_pos, True))
     if len(interpretation_neg) > 0:
-        parts.append(f"neg_exs(0..{len(interpretation_neg)}).")
+        parts.append(f"neg_exs(0..{len(interpretation_neg) - 1}).")
         parts.append(generate_clauses_for_coverage_interpretations(interpretation_neg, False))
-    parts.append(
-        """
-        extended_p(I):- pos_exs(I), cpi(I), not cpe(I).
-        extended_n(I):- neg_exs(I), cni(I), not cne(I).
-
-        total_extended_p(N):- N = #count{X : extended_p(X)}.
-        total_extended_n(N):- N = #count{X : extended_n(X)}.
-
-        #show extended_p/1.
-        #show extended_n/1.
-
-        #show total_extended_p/1.
-        #show total_extended_n/1.
-        """
-    )
+    parts.append(COVERAGE_RULES)
     if not fixed:
-        parts.append("#show r/1.")
+        parts.append(COVERAGE_SHOW_SELECTED_RULES)
     return "\n".join(parts)
 
 
@@ -244,14 +245,14 @@ def _merge_coverage_result(
     l_rules: "list[int]",
     l_cp: "list[int]",
     l_cn: "list[int]",
-) -> None:
+) -> Coverage:
     dict_key = tuple(sorted(l_rules))
     if dict_key in comb_rules:
         # this solution also considers duplicates
-        comb_rules[dict_key].l_pos.extend(l_cp)
-        comb_rules[dict_key].l_neg.extend(l_cn)
+        comb_rules[dict_key].extend(l_cp, l_cn)
     else:
         comb_rules[dict_key] = Coverage(l_cp, l_cn)
+    return comb_rules[dict_key]
 
 
 def _clingo_stat(stats, *path: str) -> float:

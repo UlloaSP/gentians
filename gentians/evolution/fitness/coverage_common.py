@@ -9,6 +9,7 @@ from ...timing import current_phase, record_metric
 
 CoverageKey = tuple[int, ...]
 FitnessResult = tuple[float, bool, list[int]]
+CachedFitnessResult = tuple[float, bool, tuple[str, ...]]
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,7 @@ def extract_program_coverage(
     candidate_program: list[str],
     max_as_to_generate_foreach_program: int,
     clingo_arguments: list[str],
+    stop_on_best: bool = False,
 ) -> dict[CoverageKey, Coverage]:
     asp_solver = ClingoInterface(
         program.background,
@@ -34,12 +36,13 @@ def extract_program_coverage(
         program.positive_examples,
         program.negative_examples,
         False,
+        stop_on_best=stop_on_best,
     )
 
 
 def coverage_rates(program: Program, coverage: Coverage) -> CoverageRates:
-    covered_positive = len(set(coverage.l_pos))
-    covered_negative = len(set(coverage.l_neg))
+    covered_positive = coverage.pos_mask.bit_count()
+    covered_negative = coverage.neg_mask.bit_count()
     positive_rate = (
         covered_positive / len(program.positive_examples)
         if program.positive_examples
@@ -123,14 +126,28 @@ def score_coverage_subsets(program: Program, cov: dict[CoverageKey, Coverage]) -
 
 
 def cached_fitness(
-    cache: dict[tuple[str, ...], FitnessResult],
+    cache: dict[tuple[str, ...], CachedFitnessResult],
     candidate_program: list[str],
     compute: "Callable[[], FitnessResult]",
 ) -> FitnessResult:
-    key = tuple(candidate_program)
+    key = tuple(sorted(candidate_program))
     if key not in cache:
-        cache[key] = compute()
-    return cache[key]
+        score, best_found, indexes = compute()
+        cache[key] = (
+            score,
+            best_found,
+            tuple(candidate_program[index] for index in indexes),
+        )
+    score, best_found, selected_rules = cache[key]
+    positions_by_rule: dict[str, list[int]] = {}
+    for index, rule in enumerate(candidate_program):
+        positions_by_rule.setdefault(rule, []).append(index)
+    indexes = []
+    for rule in selected_rules:
+        positions = positions_by_rule.get(rule)
+        if positions:
+            indexes.append(positions.pop(0))
+    return score, best_found, indexes
 
 
 def record_fitness_metric(

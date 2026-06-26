@@ -5,6 +5,8 @@ class Coverage:
     def __init__(self, l_pos: "list[int]", l_neg: "list[int]"):
         self.l_pos = l_pos
         self.l_neg = l_neg
+        self.pos_mask = _mask(l_pos)
+        self.neg_mask = _mask(l_neg)
 
     def get_cost(self) -> int:
         # if the best solution is not found, I compare the different programs
@@ -12,7 +14,13 @@ class Coverage:
         # a positive example is -1 while the one of covering a negative is 1.
         # That is, the lowest is the score, the better is the program.
         # Thus, the cost of a solution is len(self.l_neg) - len(self.l_pos)
-        return len(self.l_neg) - len(self.l_pos)
+        return self.neg_mask.bit_count() - self.pos_mask.bit_count()
+
+    def extend(self, l_pos: "list[int]", l_neg: "list[int]") -> None:
+        self.l_pos.extend(l_pos)
+        self.l_neg.extend(l_neg)
+        self.pos_mask |= _mask(l_pos)
+        self.neg_mask |= _mask(l_neg)
 
     def __str__(self) -> str:
         return (
@@ -25,6 +33,13 @@ class Coverage:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+def _mask(values: "list[int]") -> int:
+    mask = 0
+    for value in values:
+        mask |= 1 << value
+    return mask
 
 
 def generate_clauses_for_coverage_interpretations(

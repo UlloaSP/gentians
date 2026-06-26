@@ -12,9 +12,6 @@ class VariablePlacementRules:
 
         self.base_rules = get_content("logic_programs/base_rules.lp")
         self.equal_rules = get_content("logic_programs/equal_rules.lp")
-        self.rules_for_aggregates_arithm_comparison = get_content(
-            "logic_programs/rules_for_aggregates_arithm_comparison.lp"
-        )
         self.rules_for_aggregates = get_content(
             "logic_programs/rules_for_aggregates.lp"
         )
@@ -24,6 +21,32 @@ class VariablePlacementRules:
         )
         self.rules_only_standard_atoms = get_content(
             "logic_programs/rules_only_standard_atoms.lp"
+        )
+        self.safety_special_body = get_content("logic_programs/safety_special_body.lp")
+        self.safety_ignore_aggregates = get_content(
+            "logic_programs/safety_ignore_aggregates.lp"
+        )
+        self.safety_ignore_arithmetic = get_content(
+            "logic_programs/safety_ignore_arithmetic.lp"
+        )
+        self.safety_ignore_comparison = get_content(
+            "logic_programs/safety_ignore_comparison.lp"
+        )
+        self.safety_special_head_body = get_content(
+            "logic_programs/safety_special_head_body.lp"
+        )
+        self.aggregate_global_tuple_constraint = get_content(
+            "logic_programs/aggregate_global_tuple_constraint.lp"
+        )
+        self.atom_position_all = get_content("logic_programs/atom_position_all.lp")
+        self.atom_position_special = get_content(
+            "logic_programs/atom_position_special.lp"
+        )
+        self.atom_position_ignore_arithmetic = get_content(
+            "logic_programs/atom_position_ignore_arithmetic.lp"
+        )
+        self.atom_position_ignore_comparison = get_content(
+            "logic_programs/atom_position_ignore_comparison.lp"
         )
 
 
@@ -57,10 +80,27 @@ def generate_asp_program_for_combinations(
         f"last_index_var_in_head({n_vars_in_head - 1}).",
     ]
 
-    parts.extend([rules.base_rules, rules.equal_rules])
+    parts.append(rules.base_rules)
+    if pos_arithm or pos_comparison:
+        if pos_arithm:
+            parts.append(rules.atom_position_ignore_arithmetic)
+        if pos_comparison:
+            parts.append(rules.atom_position_ignore_comparison)
+        parts.append(rules.atom_position_special)
+    else:
+        parts.append(rules.atom_position_all)
+    if same_atoms:
+        parts.append(rules.equal_rules)
 
     if len(aggregates) > 0 or len(pos_comparison) > 0 or len(pos_arithm) > 0:
-        parts.append(rules.rules_for_aggregates_arithm_comparison)
+        parts.append(rules.safety_special_body)
+        if aggregates:
+            parts.append(rules.safety_ignore_aggregates)
+        if pos_arithm:
+            parts.append(rules.safety_ignore_arithmetic)
+        if pos_comparison:
+            parts.append(rules.safety_ignore_comparison)
+        parts.append(rules.safety_special_head_body)
     else:
         parts.append(rules.rules_only_standard_atoms)
 
@@ -96,13 +136,7 @@ def generate_asp_program_for_combinations(
             parts.append(f"aggregate_result_position({index},{last_i + 1}).")
 
         if not args.unbalanced_aggregates:
-            parts.append("\n% no global variables in tuple of aggregate elements")
-            parts.append(
-                "not_agg_pos(P):- pos(P), not aggregate_term_position(_,P), not aggregate_atom_position(_,P)."
-            )
-            parts.append(
-                ":- not_agg_pos(P), var_pos(V,P), aggregate_term_position(_,PosTermAgg), var_pos(V,PosTermAgg)."
-            )
+            parts.append(rules.aggregate_global_tuple_constraint)
 
     if len(pos_arithm) > 0:
         # the variables involved in arithmetic operators must be already defined

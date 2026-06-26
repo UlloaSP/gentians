@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 from .coverage_common import (
+    CachedFitnessResult,
     best_subset_by_lowest_cost,
     cached_fitness,
     extract_program_coverage,
@@ -18,7 +19,7 @@ def coverage_exp_mean(
     clingo_arguments: list[str],
     empty_score: float,
 ) -> Callable[[list[int], list[int], list[str]], tuple[float, bool, list[int]]]:
-    cache: dict[tuple[str, ...], FitnessResult] = {}
+    cache: dict[tuple[str, ...], CachedFitnessResult] = {}
 
     def evaluate_score(
         stub_indexes: list[int], prog_indexes: list[int], candidate_program: list[str]

@@ -80,7 +80,6 @@ class TimingMetric:
 class GAMetric:
     dataset: str
     run: int
-    outer_iteration: int
     generation: int
     global_generation: int
     max_fitness: float
@@ -98,7 +97,6 @@ DATASETS = {
     "4queens": cfg(
         "4queens",
         max_depth=5,
-        prob_increase=0.8,
         arithmetic_operators=["add", "sub"],
         comparison_operators=["lt"],
     ),
@@ -123,7 +121,6 @@ DEFAULT_DATASETS = ["coin", "knapsack", "adj2red"]
 
 DEFAULT_ARGUMENTS: dict[str, object] = {
     "clauses_to_sample": 2000,
-    "prob_increase": 0.5,
     "disjunctive_head_length": 1,
     "max_depth": 3,
     "max_variables": 3,
@@ -141,7 +138,7 @@ DEFAULT_ARGUMENTS: dict[str, object] = {
         "prob_selecting_fittest": 0.9,
     },
     "crossover": {"name": "one_point", "probability": 1.0},
-    "mutation": {"name": "random_group", "probability": 0.05, "change_group": True},
+    "mutation": {"name": "random_group", "probability": 0.05},
     "population": {"name": "random", "size": 36},
     "replacement": {
         "name": "oldest_or_worst",
@@ -150,9 +147,6 @@ DEFAULT_ARGUMENTS: dict[str, object] = {
     },
     "hypothesis_space": {
         "clingo_arguments": [],
-    },
-    "sampling": {
-        "negation_probability": 0.5,
         "enable_recursion": False,
     },
 }
@@ -178,7 +172,6 @@ PHASE_FUNCTIONS = {
 
 
 STANDARD_TIMING_METRICS = [
-    "sampling",
     "hypothesis_space",
     "hypothesis_space.grounding",
     "hypothesis_space.solving",
@@ -223,7 +216,6 @@ def main() -> None:
     parser.add_argument("--population-json")
     parser.add_argument("--replacement-json")
     parser.add_argument("--hypothesis-space-json")
-    parser.add_argument("--sampling-json")
     parser.add_argument("--population", type=int)
     parser.add_argument("--seed-base", type=int, default=1)
     parser.add_argument("--no-plots", action="store_true", help=argparse.SUPPRESS)
@@ -439,7 +431,6 @@ def override_arguments(args: argparse.Namespace) -> dict[str, object]:
         "population",
         "replacement",
         "hypothesis_space",
-        "sampling",
     ]:
         raw = getattr(args, f"{name}_json")
         if raw is not None:
@@ -637,7 +628,6 @@ def read_ga_metrics(path: Path, dataset: str, run: int) -> list[GAMetric]:
         GAMetric(
             dataset,
             run,
-            int(row.get("outer_iteration", 0)),
             int(row["generation"]),
             int(row.get("global_generation", row["generation"])),
             float(row["max_fitness"]),
@@ -687,8 +677,6 @@ def compute_accounting_invariants(
     values = {t.metric: t.seconds for t in timings}
     total = values.get("total_execution", 0.0)
     top_level = [
-        "sampling",
-        "sampling.instantiation",
         "hypothesis_space",
         "genetic",
     ]
@@ -782,7 +770,6 @@ def read_existing_outputs(
         GAMetric(
             row["dataset"],
             int(row["run"]),
-            int(to_float(row.get("outer_iteration"))),
             int(row["generation"]),
             int(to_float(row.get("global_generation") or row.get("generation"))),
             float(row["max_fitness"]),
@@ -978,12 +965,11 @@ def write_dashboard_data(
                 "source": "benchmarks",
                 "complexity": max(
                     1.0,
-                    to_float(candidate.get("mean_generated_placements")) / 10
-                    + to_float(candidate.get("mean_valid_placements")) / 20,
+                    to_float(candidate.get("mean_candidate_rules")) / 10,
                 ),
                 "candidates": int(
                     sum(
-                        to_float(row.get("placed_candidate_rules"))
+                        to_float(row.get("candidate_rules"))
                         for row in candidate_metrics
                         if row.get("dataset") == dataset
                         and row.get("metric") == "build_reified_hypothesis_space"
@@ -991,37 +977,20 @@ def write_dashboard_data(
                 ),
                 "clauses": int(
                     sum(
-                        to_float(row.get("placed_clause_groups"))
+                        to_float(row.get("generated_clauses"))
                         for row in candidate_metrics
                         if row.get("dataset") == dataset
                         and row.get("metric") == "build_reified_hypothesis_space"
                     )
                 ),
-                "variables": int(
-                    mean(
-                        to_float(row.get("variables_slots"))
-                        for row in candidate_metrics
-                        if row.get("dataset") == dataset
-                        and row.get("metric") == "build_reified_hypothesis_space"
-                    )
-                ),
+                "variables": 0,
                 "predicates": 0,
                 "avgArity": 0,
-                "bodyLiterals": mean(
-                    to_float(row.get("body_literals"))
-                    for row in candidate_metrics
-                    if row.get("dataset") == dataset
-                    and row.get("metric") == "build_reified_hypothesis_space"
-                ),
-                "varsPerRule": mean(
-                    to_float(row.get("variables_slots"))
-                    for row in candidate_metrics
-                    if row.get("dataset") == dataset
-                    and row.get("metric") == "build_reified_hypothesis_space"
-                ),
-                "negation": to_float(candidate.get("negation_clause_rate")),
-                "aggregates": to_float(candidate.get("aggregate_clause_rate")),
-                "arithmetic": to_float(candidate.get("arithmetic_clause_rate")),
+                "bodyLiterals": 0,
+                "varsPerRule": 0,
+                "negation": 0,
+                "aggregates": 0,
+                "arithmetic": 0,
                 "recursion": 0,
                 "contextAtoms": 0,
                 "total": total,
@@ -1088,7 +1057,6 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
         }
 
     phases = {
-        "sampling": phase("sampling", "sampling"),
         "hypothesisSpace": phase("hypothesisSpace", "hypothesis_space"),
         "initialization": phase("initialization", "fitness.initialization"),
         "selection": phase("selection", "selection"),
@@ -1156,13 +1124,13 @@ def dashboard_clause_rows(
             continue
         rows.append(
             {
-                "clause": str(row.get("clause_index")),
-                "literals": int(to_float(row.get("body_literals"))),
-                "variables": int(to_float(row.get("variables_slots"))),
-                "aggregates": int(to_float(row.get("has_aggregate"))),
-                "candidates": int(to_float(row.get("generated_placements"))),
-                "valid": int(to_float(row.get("valid_placements"))),
-                "unique": int(to_float(row.get("valid_placements"))),
+                "clause": "hypothesis_space",
+                "literals": 0,
+                "variables": 0,
+                "aggregates": 0,
+                "candidates": int(to_float(row.get("candidate_rules"))),
+                "valid": int(to_float(row.get("candidate_rules"))),
+                "unique": int(to_float(row.get("generated_clauses"))),
                 "maxScore": 0.0,
                 "evalSeconds": to_float(row.get("seconds")),
             }
@@ -1285,16 +1253,12 @@ def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "mean_seconds_per_clause": mean(
                     to_float(row.get("seconds")) for row in placements
                 ),
-                "mean_valid_placements": mean(
-                    to_float(row.get("valid_placements")) for row in placements
+                "mean_generated_clauses": mean(
+                    to_float(row.get("generated_clauses")) for row in placements
                 ),
-                "mean_generated_placements": mean(
-                    to_float(row.get("generated_placements")) for row in placements
+                "mean_candidate_rules": mean(
+                    to_float(row.get("candidate_rules")) for row in placements
                 ),
-                "aggregate_clause_rate": mean_bool(placements, "has_aggregate"),
-                "arithmetic_clause_rate": mean_bool(placements, "has_arithmetic"),
-                "comparison_clause_rate": mean_bool(placements, "has_comparison"),
-                "negation_clause_rate": mean_bool(placements, "has_negation"),
             }
         )
     return summary

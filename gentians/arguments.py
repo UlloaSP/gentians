@@ -20,9 +20,6 @@ class Arguments:
     # Maximum rule length: head atoms + body literals.
     max_depth: int = 3
 
-    # Sampling probability of adding one more literal to current clause.
-    prob_increase: float = 0.5
-
     # Maximum number of atoms allowed in a disjunctive head.
     disjunctive_head_length: int = 1
 
@@ -34,9 +31,6 @@ class Arguments:
 
     # Maximum number of clauses in one candidate program.
     clauses_per_individual: int = 6
-
-    # Maximum number of outer sample/evolution cycles.
-    iterations: int = 100
 
     # Genetic algorithm iterations.
     iterations_genetic: int = 5000
@@ -84,8 +78,6 @@ class Arguments:
             "name": "random_group",
             # Probability of mutating an offspring.
             "probability": 0.2,
-            # Whether mutation may replace the generated clause group itself.
-            "change_group": True,
         }
     )
 
@@ -114,14 +106,6 @@ class Arguments:
         default_factory=lambda: {
             # Extra Clingo CLI arguments used to enumerate generated clauses.
             "clingo_arguments": [],
-        }
-    )
-
-    # Clause sampling config.
-    sampling: dict[str, object] = field(
-        default_factory=lambda: {
-            # Probability of negating a sampled body literal when allowed.
-            "negation_probability": 0.5,
             # Whether sampled rules may recursively use the target predicate.
             "enable_recursion": False,
         }

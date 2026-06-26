@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 from ..arguments import Arguments
 from ..timing import record_metric
-from .placed_clause import PlacedClause
 from .program import Program
 from .reader import read_program
 from .hypothesis_space import HypothesisSpaceGenerator
@@ -10,9 +9,7 @@ from .hypothesis_space import HypothesisSpaceGenerator
 
 @dataclass
 class CandidateRuleSpace:
-    generated_clauses: "list[str]"
-    placed_clause_groups: "list[list[str]]"
-    placed_clauses: "list[PlacedClause]"
+    clauses: list[str]
 
 
 def read_task(filename: str) -> Program:
@@ -23,26 +20,18 @@ def build_candidate_rule_space(
     program: Program,
     arguments: Arguments,
 ) -> CandidateRuleSpace:
-    placed_list, placed_list_improved = HypothesisSpaceGenerator(
-        program, arguments
-    ).generate()
-    generated_clauses = [group[0] for group in placed_list]
+    clauses = HypothesisSpaceGenerator(program, arguments).generate()
 
     record_metric(
         "candidate",
         {
             "metric": "build_reified_hypothesis_space",
-            "generated_clauses": len(generated_clauses),
-            "placed_clause_groups": len(placed_list),
-            "placed_candidate_rules": sum(len(group) for group in placed_list),
+            "generated_clauses": len(clauses),
+            "candidate_rules": len(clauses),
         },
     )
 
-    return CandidateRuleSpace(
-        generated_clauses=generated_clauses,
-        placed_clause_groups=placed_list,
-        placed_clauses=placed_list_improved,
-    )
+    return CandidateRuleSpace(clauses=clauses)
 
 
 def build_candidate_rule_space_from_file(

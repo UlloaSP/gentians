@@ -17,11 +17,11 @@ def coverage_exp_max(
     max_as_to_generate_foreach_program: int,
     clingo_arguments: list[str],
     empty_score: float,
-) -> Callable[[list[int], list[int], list[str]], tuple[float, bool, list[int]]]:
+) -> Callable[[list[str]], tuple[float, bool, list[int]]]:
     cache: dict[tuple[str, ...], CachedFitnessResult] = {}
 
     def evaluate_score(
-        group_indexes: list[int], prog_indexes: list[int], candidate_program: list[str]
+        candidate_program: list[str],
     ) -> tuple[float, bool, list[int]]:
         return cached_fitness(
             cache,

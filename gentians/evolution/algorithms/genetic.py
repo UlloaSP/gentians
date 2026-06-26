@@ -8,7 +8,6 @@ from ..types import (
     ReplacementFn,
     SelectionFn,
 )
-from ...rule_generation.placed_clause import PlacedClause
 from ...rule_generation.program import Program
 from ...timing import phase, profile_phase, record_ga_generation
 
@@ -16,7 +15,7 @@ from ...timing import phase, profile_phase, record_ga_generation
 class Strategy:
     def __init__(
         self,
-        placed_list: list[PlacedClause],
+        rule_space: list[str],
         program: Program,
         args: Arguments,
         evaluate_score: FitnessFn,
@@ -26,7 +25,7 @@ class Strategy:
         mutation: MutationFn,
         replacement: ReplacementFn,
     ) -> None:
-        self.placed_list: list[PlacedClause] = placed_list
+        self.rule_space = rule_space
         self.program: Program = program
         self.args: Arguments = args
         self.evaluate_score = evaluate_score
@@ -48,7 +47,7 @@ class Strategy:
 
         population, best_found = self.population_initializer(
             self.args.clauses_per_individual,
-            self.placed_list,
+            self.rule_space,
             self.evaluate_score,
         )
 
@@ -88,13 +87,13 @@ class Strategy:
             # https://arxiv.org/pdf/2305.01582.pdf
             new_mutated_1 = self.mutation(
                 new_program_1,
-                self.placed_list,
+                self.rule_space,
                 self.evaluate_score,
                 known_signatures,
             )
             new_mutated_2 = self.mutation(
                 new_program_2,
-                self.placed_list,
+                self.rule_space,
                 self.evaluate_score,
                 known_signatures,
             )
@@ -115,11 +114,7 @@ class Strategy:
             population.sort(key=lambda x: x.score, reverse=True)
 
         with phase("fitness.final"):
-            res = self.evaluate_score(
-                population[0].group_indexes,
-                population[0].prog_indexes,
-                population[0].program,
-            )
+            res = self.evaluate_score(population[0].program)
 
         return (
             [population[0].program[i] for i in res[2]],

@@ -2,7 +2,7 @@ import clingo
 import time
 from pathlib import Path
 
-from .callbacks import wrapper_exit_callback, WrapperStopIfWarn
+from .callbacks import WrapperStopIfWarn
 from .coverage import Coverage, generate_clauses_for_coverage_interpretations
 from ..rule_generation.program import Example
 from ..timing import add, current_phase, record_metric
@@ -22,35 +22,6 @@ class ClingoInterface:
         self._coverage_static_program_cache: dict[
             tuple[tuple[str, ...], tuple[str, ...], bool], str
         ] = {}
-
-    # TODO: cambiare questione coverage
-    def init_clingo_ctl(self) -> "clingo.Control":
-        """
-        Init clingo and grounds the program
-        """
-        ctl = clingo.Control(self.clingo_arguments, logger=wrapper_exit_callback)
-        try:
-            for clause in self.lines:
-                ctl.add("base", [], clause)
-            start = time.perf_counter()
-            ctl.ground([("base", [])])
-            seconds = time.perf_counter() - start
-            phase = current_phase()
-            add(f"{phase}.grounding", seconds)
-            record_metric(
-                "clingo",
-                {
-                    "operation": "grounding",
-                    "phase_context": phase,
-                    "seconds": seconds,
-                    "input_clauses": len(self.lines),
-                    "clingo_arguments": " ".join(self.clingo_arguments),
-                },
-            )
-        except RuntimeError:
-            print("Syntax error, parsing failed.")
-
-        return ctl
 
     def extract_coverage_and_set_clauses(
         self,
@@ -120,8 +91,6 @@ class ClingoInterface:
             return {}
 
         # res = str(ctl.solve())
-        # answer_sets : 'list[str] '= []
-
         # key: rule_id (string containing the selected rules)
         # value: tuple(covered_pos, covered_neg)
         # needed since I need to check that NO answer sets cover

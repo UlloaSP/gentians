@@ -13,7 +13,6 @@ from ..arguments import Arguments
 from ..asp.callbacks import wrapper_exit_callback
 from ..asp.rule_analysis import get_atoms
 from ..timing import add, current_phase, record_metric
-from .placed_clause import PlacedClause
 from .parser_atoms import extract_name_arity
 from .program import Program
 
@@ -81,7 +80,7 @@ class HypothesisSpaceGenerator:
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
 
-    def generate(self) -> tuple[list[list[str]], list[PlacedClause]]:
+    def generate(self) -> list[str]:
         program = _facts(self.args, self.modes, self.capabilities) + "\n" + HYPOTHESIS_SPACE_RULES
         ctl = clingo.Control(
             [str(self.args.clauses_to_sample), *_hypothesis_space_args(self.args)],
@@ -125,8 +124,7 @@ class HypothesisSpaceGenerator:
             },
         )
 
-        unique = [[clause] for clause in sorted(dict.fromkeys(clauses))]
-        return unique, [PlacedClause(group) for group in unique]
+        return sorted(dict.fromkeys(clauses))
 
 
 def _hypothesis_capabilities(
@@ -149,7 +147,7 @@ def _hypothesis_capabilities(
         allow_equality_comparison=equality_comparison,
         allow_arithmetic=numeric_evidence and bool(args.arithmetic_operators),
         allow_aggregates=bool(aggregates),
-        allow_recursion=bool(args.sampling.get("enable_recursion", False)),
+        allow_recursion=bool(args.hypothesis_space.get("enable_recursion", False)),
         allow_constraints=bool(
             args.hypothesis_space.get(
                 "allow_constraints",

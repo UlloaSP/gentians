@@ -12,8 +12,6 @@ def test_coverage_exp_max_checks_all_models_before_best_found():
     )
 
     score, best_found, indexes = coverage_exp_max(program, 0, [], -2000)(
-        [0],
-        [0],
         ["target :- base."],
     )
 

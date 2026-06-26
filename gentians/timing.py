@@ -13,8 +13,6 @@ _counts: dict[str, int] = {}
 _stack: list[dict[str, Any]] = []
 _ga_rows: list[dict[str, float]] = []
 _event_counter = 0
-_outer_iteration = 0
-_global_generation_offset = 0
 _timings_dirty = False
 _ga_dirty = False
 _F = TypeVar("_F", bound=Callable)
@@ -132,12 +130,6 @@ def record_metric(kind: str, row: dict[str, Any]) -> None:
     _append_jsonl(path, enriched)
 
 
-def set_outer_iteration(outer_iteration: int, iterations_genetic: int) -> None:
-    global _outer_iteration, _global_generation_offset
-    _outer_iteration = outer_iteration
-    _global_generation_offset = outer_iteration * (iterations_genetic + 1)
-
-
 def record_ga_generation(
     generation: int, scores: list[float], best_so_far: float
 ) -> None:
@@ -147,9 +139,8 @@ def record_ga_generation(
     global _ga_dirty
     _ga_rows.append(
         {
-            "outer_iteration": _outer_iteration,
             "generation": generation,
-            "global_generation": _global_generation_offset + generation,
+            "global_generation": generation,
             "max_fitness": max(scores),
             "avg_fitness": sum(scores) / len(scores),
             "best_so_far": best_so_far,

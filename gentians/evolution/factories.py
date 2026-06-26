@@ -19,7 +19,6 @@ from .types import (
     ReplacementFn,
     SelectionFn,
 )
-from ..rule_generation.placed_clause import PlacedClause
 from ..rule_generation.program import Program
 from ..timing import profile_phase, record_metric
 
@@ -88,20 +87,18 @@ def create_mutation(config: dict[str, object]) -> MutationFn:
     name = _str(config, "name")
     if name == "random_group":
         probability = _float(config, "probability")
-        change_group = _bool(config, "change_group")
 
         def mutate(
             element: Individual,
-            placed_list: list[PlacedClause],
+            rule_space: list[str],
             evaluate_score: FitnessFn,
             known_signatures: set[tuple[str, ...]],
         ) -> Individual:
             return mutate_by_random_group(
                 element,
-                placed_list,
+                rule_space,
                 probability,
                 evaluate_score,
-                change_group,
                 known_signatures,
             )
 
@@ -116,11 +113,11 @@ def create_population(config: dict[str, object]) -> PopulationInitializerFn:
 
         def initialize(
             number_clauses: int,
-            placed_list: list[PlacedClause],
+            rule_space: list[str],
             evaluate_score: FitnessFn,
         ) -> tuple[list[Individual], bool]:
             return initialize_population(
-                number_clauses, placed_list, size, evaluate_score
+                number_clauses, rule_space, size, evaluate_score
             )
 
         return initialize
@@ -206,8 +203,6 @@ def _clone_parents_without_crossover(
 def _clone_individual(individual: Individual) -> Individual:
     return Individual(
         list(individual.program),
-        list(individual.group_indexes),
-        list(individual.prog_indexes),
         individual.score,
         individual.is_best,
         list(individual.l_best_indexes),

@@ -8,18 +8,17 @@ from .factories import (
     create_selection,
 )
 from ..arguments import Arguments
-from ..rule_generation.placed_clause import PlacedClause
 from ..rule_generation.program import Program
 
 
 def create_default_genetic_strategy(
-    placed_list: list[PlacedClause],
+    rule_space: list[str],
     program: Program,
     arguments: Arguments,
 ) -> Strategy:
     replacement = create_replacement(arguments.replacement)
     return Strategy(
-        placed_list,
+        rule_space,
         program,
         arguments,
         create_fitness(program, arguments.fitness),

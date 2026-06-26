@@ -8,7 +8,7 @@ from .rule_generation.candidates import (
 )
 from .rule_generation.program import Program
 from .console import print_error_and_exit
-from .timing import export as export_timings, profile_phase, set_outer_iteration
+from .timing import export as export_timings, profile_phase
 
 
 @profile_phase("total_execution")
@@ -24,15 +24,13 @@ def solve(program: Program, arguments: Arguments) -> None:
             program,
             arguments,
         )
-        placed_list = candidate_space.placed_clause_groups
-        placed_list_improved = candidate_space.placed_clauses
+        clauses = candidate_space.clauses
 
-        if len(placed_list) == 0:
+        if len(clauses) == 0:
             print_error_and_exit("No clauses found")
 
-        set_outer_iteration(0, arguments.iterations_genetic)
         prg, score, best_found = create_default_genetic_strategy(
-            placed_list_improved,
+            clauses,
             program,
             arguments,
         ).genetic_solver()

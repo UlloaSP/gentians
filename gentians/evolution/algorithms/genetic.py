@@ -8,116 +8,101 @@ from ..types import (
     ReplacementFn,
     SelectionFn,
 )
-from ...rule_generation.program import Program
 from ...timing import phase, profile_phase, record_ga_generation
 
 
-class Strategy:
-    def __init__(
-        self,
-        rule_space: list[str],
-        program: Program,
-        args: Arguments,
-        evaluate_score: FitnessFn,
-        population_initializer: PopulationInitializerFn,
-        selection: SelectionFn,
-        crossover: CrossoverFn,
-        mutation: MutationFn,
-        replacement: ReplacementFn,
-    ) -> None:
-        self.rule_space = rule_space
-        self.program: Program = program
-        self.args: Arguments = args
-        self.evaluate_score = evaluate_score
-        self.population_initializer = population_initializer
-        self.selection = selection
-        self.crossover = crossover
-        self.mutation = mutation
-        self.replacement = replacement
+@profile_phase("genetic")
+def genetic_solver(
+    rule_space: list[str],
+    args: Arguments,
+    evaluate_score: FitnessFn,
+    population_initializer: PopulationInitializerFn,
+    selection: SelectionFn,
+    crossover: CrossoverFn,
+    mutation: MutationFn,
+    replacement: ReplacementFn,
+) -> tuple[list[str], float, bool]:
+    """
+    Genetic algorithm to find the best program
+    """
 
-    @profile_phase("genetic")
-    def genetic_solver(self) -> tuple[list[str], float, bool]:
-        """
-        Genetic algorithm to find the best program
-        """
+    # step 0: initialize the population
+    population: list[Individual] = []
+    best_found = False
 
-        # step 0: initialize the population
-        population: list[Individual] = []
-        best_found = False
+    population, best_found = population_initializer(
+        args.clauses_per_individual,
+        rule_space,
+        evaluate_score,
+    )
 
-        population, best_found = self.population_initializer(
-            self.args.clauses_per_individual,
-            self.rule_space,
-            self.evaluate_score,
+    if best_found:
+        record_ga_generation(0, [population[0].score], population[0].score)
+        return population[0].program, population[0].score, True
+
+    # step 1: sort in terms of decreasing fitness
+    population.sort(key=lambda x: x.score, reverse=True)
+
+    # step 2: iterate trough programs
+    best_score_so_far = population[0].score
+    for it in range(args.iterations_genetic + 1):
+        best_score_so_far = max(best_score_so_far, population[0].score)
+        record_ga_generation(it, [el.score for el in population], best_score_so_far)
+        # 2.1: selection of the two fittest elements
+        best_a, best_b = selection(population)
+
+        # either do crossover or mutation seems to be not effective
+
+        # 2.2: crossover
+        known_signatures = {element.signature for element in population}
+        new_program_1, new_program_2 = crossover(
+            best_a, best_b, evaluate_score, known_signatures
+        )
+        # If the best found, stop the iteration
+        # _, is_best, l_best_indexes = evaluate_score([], [], new_program_1.program)
+        for prg in [new_program_1, new_program_2]:
+            if prg.is_best:
+                return (
+                    [prg.program[i] for i in prg.l_best_indexes],
+                    prg.score,
+                    True,
+                )
+
+        # 2.3: mutation
+        # https://arxiv.org/pdf/2305.01582.pdf
+        new_mutated_1 = mutation(
+            new_program_1,
+            rule_space,
+            evaluate_score,
+            known_signatures,
+        )
+        new_mutated_2 = mutation(
+            new_program_2,
+            rule_space,
+            evaluate_score,
+            known_signatures,
         )
 
-        if best_found:
-            record_ga_generation(0, [population[0].score], population[0].score)
-            return population[0].program, population[0].score, True
+        l_mutated = [new_mutated_1, new_mutated_2]
 
-        # step 1: sort in terms of decreasing fitness
+        # 3: replace elements in the population
+        for el in l_mutated:
+            # if best, return
+            if el.is_best:
+                return (
+                    [el.program[i] for i in el.l_best_indexes],
+                    el.score,
+                    True,
+                )
+
+            population = replacement(population, el)
         population.sort(key=lambda x: x.score, reverse=True)
 
-        # step 2: iterate trough programs
-        best_score_so_far = population[0].score
-        for it in range(self.args.iterations_genetic + 1):
-            best_score_so_far = max(best_score_so_far, population[0].score)
-            record_ga_generation(it, [el.score for el in population], best_score_so_far)
-            # 2.1: selection of the two fittest elements
-            best_a, best_b = self.selection(population)
+    with phase("fitness.final"):
+        res = evaluate_score(population[0].program)
 
-            # either do crossover or mutation seems to be not effective
-
-            # 2.2: crossover
-            known_signatures = {element.signature for element in population}
-            new_program_1, new_program_2 = self.crossover(
-                best_a, best_b, self.evaluate_score, known_signatures
-            )
-            # If the best found, stop the iteration
-            # _, is_best, l_best_indexes = evaluate_score([], [], new_program_1.program)
-            for prg in [new_program_1, new_program_2]:
-                if prg.is_best:
-                    return (
-                        [prg.program[i] for i in prg.l_best_indexes],
-                        prg.score,
-                        True,
-                    )
-
-            # 2.3: mutation
-            # https://arxiv.org/pdf/2305.01582.pdf
-            new_mutated_1 = self.mutation(
-                new_program_1,
-                self.rule_space,
-                self.evaluate_score,
-                known_signatures,
-            )
-            new_mutated_2 = self.mutation(
-                new_program_2,
-                self.rule_space,
-                self.evaluate_score,
-                known_signatures,
-            )
-
-            l_mutated = [new_mutated_1, new_mutated_2]
-
-            # 3: replace elements in the population
-            for el in l_mutated:
-                # if best, return
-                if el.is_best:
-                    return (
-                        [el.program[i] for i in el.l_best_indexes],
-                        el.score,
-                        True,
-                    )
-
-                population = self.replacement(population, el)
-            population.sort(key=lambda x: x.score, reverse=True)
-
-        with phase("fitness.final"):
-            res = self.evaluate_score(population[0].program)
-
-        return (
-            [population[0].program[i] for i in res[2]],
-            res[0],
-            False,
-        )
+    return (
+        [population[0].program[i] for i in res[2]],
+        res[0],
+        False,
+    )

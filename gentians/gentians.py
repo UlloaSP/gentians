@@ -1,7 +1,16 @@
 import time
 
+from gentians.evolution.algorithms.genetic import genetic_solver
+from gentians.evolution.factories import (
+    create_crossover,
+    create_fitness,
+    create_mutation,
+    create_population,
+    create_replacement,
+    create_selection,
+)
+
 from .arguments import Arguments
-from .evolution.default import create_default_genetic_strategy
 from .rule_generation.candidates import (
     build_candidate_rule_space,
     read_task,
@@ -29,11 +38,16 @@ def solve(program: Program, arguments: Arguments) -> None:
         if len(clauses) == 0:
             print_error_and_exit("No clauses found")
 
-        prg, score, best_found = create_default_genetic_strategy(
+        prg, score, best_found = genetic_solver(
             clauses,
-            program,
             arguments,
-        ).genetic_solver()
+            create_fitness(program, arguments.fitness),
+            create_population(arguments.population),
+            create_selection(arguments.selection),
+            create_crossover(arguments.crossover),
+            create_mutation(arguments.mutation),
+            create_replacement(arguments.replacement),
+        )
 
         if best_found:
             print(f"--- Found best program with score {score} ---")

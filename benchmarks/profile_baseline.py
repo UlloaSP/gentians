@@ -1,8 +1,8 @@
 import argparse
-import copy
 import csv
 import json
 import os
+import pstats
 import queue
 import random
 import re
@@ -20,12 +20,13 @@ PROFILE_BASELINE_PATH = Path(__file__).resolve()
 sys.path.insert(0, str(REPO_ROOT))
 
 from gentians import Arguments, main as gentians_main
-
-
-@dataclass(frozen=True)
-class DatasetConfig:
-    task: str
-    arguments: dict[str, object]
+from benchmarks.catalog import (
+    DEFAULT_DATASETS,
+    arguments_for,
+    arguments_from_json,
+    arguments_json,
+    case_names,
+)
 
 
 @dataclass
@@ -86,72 +87,6 @@ class GAMetric:
     avg_fitness: float
     best_so_far: float
 
-
-def cfg(task: str, **arguments: object) -> DatasetConfig:
-    return DatasetConfig(task=task, arguments=dict(arguments))
-
-
-DATASETS = {
-    "coin": cfg("coin"),
-    "knapsack": cfg("knapsack"),
-    "4queens": cfg(
-        "4queens",
-        max_depth=5,
-        arithmetic_operators=["add", "sub"],
-        comparison_operators=["lt"],
-    ),
-    "adj2red": cfg("adjacent_to_red", max_depth=4),
-    "clique": cfg("clique", max_depth=6, comparison_operators=["neq"]),
-    "coloring": cfg("coloring", disjunctive_head_length=3, max_depth=4),
-    "evenodd": cfg("even_odd"),
-    "grandparent": cfg("grandparent"),
-    "sudoku": cfg("sudoku", max_depth=3),
-    "subsum2prod": cfg(
-        "subset_sum_double_and_prod",
-        max_depth=4,
-        aggregates=["sum(el/2)", "sum(el/2)"],
-        arithmetic_operators=["add", "mul", "sub"],
-        max_variables=5,
-    ),
-}
-
-
-DEFAULT_DATASETS = ["coin", "knapsack", "adj2red"]
-
-
-DEFAULT_ARGUMENTS: dict[str, object] = {
-    "clauses_to_sample": 2000,
-    "disjunctive_head_length": 1,
-    "max_depth": 3,
-    "max_variables": 3,
-    "clauses_per_individual": 6,
-    "iterations_genetic": 5000,
-    "fitness": {
-        "name": "coverage_exp_mean",
-        "max_as": 10000,
-        "clingo_arguments": ["--project"],
-        "empty_score": -2000,
-    },
-    "selection": {
-        "name": "tournament",
-        "tournament_size": 12,
-        "prob_selecting_fittest": 0.9,
-    },
-    "crossover": {"name": "one_point", "probability": 1.0},
-    "mutation": {"name": "random_group", "probability": 0.05},
-    "population": {"name": "random", "size": 36},
-    "replacement": {
-        "name": "oldest_or_worst",
-        "prob_replacing_oldest": 0.5,
-        
-    },
-    "hypothesis_space": {
-        "clingo_arguments": [],
-        "enable_recursion": False,
-    },
-}
-
-
 ITERATION_RE = re.compile(
     r"Iteration\s+(\d+)\s+-.*best:\s+Program:.*-\s+score:\s+([-+0-9.eE]+)"
 )
@@ -207,16 +142,18 @@ def main() -> None:
     )
     parser.add_argument("--timeout-seconds", type=int, default=100)
     parser.add_argument("--python", default=_default_python())
-    parser.add_argument("--samples", type=int)
-    parser.add_argument("--genetic-iterations", type=int)
-    parser.add_argument("--fitness-json")
-    parser.add_argument("--selection-json")
-    parser.add_argument("--crossover-json")
-    parser.add_argument("--mutation-json")
-    parser.add_argument("--population-json")
-    parser.add_argument("--replacement-json")
-    parser.add_argument("--hypothesis-space-json")
-    parser.add_argument("--population", type=int)
+    parser.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        metavar="PATH=JSON",
+        help="Override Arguments field, e.g. --set iterations_genetic=1000 --set fitness.name=coverage_exp_max",
+    )
+    parser.add_argument(
+        "--arguments-json",
+        help="Full Arguments JSON object. Used for every listed dataset unless --set overrides it.",
+    )
+    parser.add_argument("--list-datasets", action="store_true")
     parser.add_argument("--seed-base", type=int, default=1)
     parser.add_argument("--no-plots", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--plots-only", action="store_true", help=argparse.SUPPRESS)
@@ -227,6 +164,10 @@ def main() -> None:
         help=argparse.SUPPRESS,
     )
     args = parser.parse_args()
+
+    if args.list_datasets:
+        print("\n".join(case_names()))
+        return
 
     out_dir: Path = args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -279,9 +220,10 @@ def main() -> None:
     commands_path.write_text("", encoding="utf-8")
 
     for dataset in dataset_names:
-        if dataset not in DATASETS:
-            raise SystemExit(f"Unknown dataset: {dataset}")
-        config = DATASETS[dataset]
+        try:
+            dataset_arguments = profile_arguments(args, dataset)
+        except (KeyError, ValueError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"Invalid arguments for dataset {dataset}: {exc}") from exc
         for run in range(1, args.runs + 1):
             completed += 1
             cprofile_path = out_dir / "runs" / f"{dataset}_run_{run}.prof"
@@ -303,7 +245,7 @@ def main() -> None:
                 out_dir / "runs" / f"{dataset}_run_{run}_clingo_metrics.jsonl"
             )
             log_path = out_dir / "runs" / f"{dataset}_run_{run}.log"
-            cmd, arguments_json = build_command(args.python, config, override_arguments(args))
+            cmd, arguments_json = build_command(args.python, dataset_arguments)
             seed = args.seed_base + completed - 1
             experiment_id = f"{dataset}_seed_{seed}"
             with commands_path.open("a", encoding="utf-8") as f:
@@ -409,60 +351,15 @@ def _default_python() -> str:
     return str(local.resolve()) if local.exists() else sys.executable
 
 
-def override_arguments(args: argparse.Namespace) -> dict[str, object]:
-    arguments = copy.deepcopy(DEFAULT_ARGUMENTS)
-    replacements = {
-        "clauses_to_sample": args.samples,
-        "iterations_genetic": args.genetic_iterations,
-    }
-    for name, value in replacements.items():
-        if value is not None:
-            arguments[name] = value
-    if args.population is not None:
-        population_config = arguments.get("population", {})
-        if not isinstance(population_config, dict):
-            population_config = {}
-        arguments["population"] = population_config | {"size": args.population}
-    for name in [
-        "fitness",
-        "selection",
-        "crossover",
-        "mutation",
-        "population",
-        "replacement",
-        "hypothesis_space",
-    ]:
-        raw = getattr(args, f"{name}_json")
-        if raw is not None:
-            base = arguments.get(name, {})
-            if not isinstance(base, dict):
-                base = {}
-            arguments[name] = base | parse_json_config(raw, name)
-    return arguments
+def profile_arguments(args: argparse.Namespace, dataset: str) -> Arguments:
+    if args.arguments_json:
+        return arguments_from_json(args.arguments_json, args.set)
+    return arguments_for(dataset, args.set)
 
 
-def parse_json_config(raw: str, name: str) -> dict[str, object]:
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise SystemExit(f"Invalid --{name}-json: {exc}") from exc
-    if not isinstance(value, dict):
-        raise SystemExit(f"--{name}-json must be a JSON object")
-    return value
-
-
-def build_command(
-    python: str, config: DatasetConfig, base_arguments: dict[str, object]
-) -> tuple[list[str], str]:
-    arguments = {
-        **base_arguments,
-        **config.arguments,
-        "filename": str(
-            (REPO_ROOT / "benchmarks" / "gentians" / f"{config.task}.txt").resolve()
-        ),
-    }
-    arguments_json = json.dumps(arguments, sort_keys=True)
-    return [python, str(PROFILE_BASELINE_PATH)], arguments_json
+def build_command(python: str, arguments: Arguments) -> tuple[list[str], str]:
+    arguments_payload = arguments_json(arguments)
+    return [python, str(PROFILE_BASELINE_PATH)], arguments_payload
 
 
 def run_profile_worker() -> None:
@@ -1038,7 +935,7 @@ def write_dashboard_data(
             }
         )
     (out_dir / "dashboard_data.json").write_text(
-        json.dumps({"benchmarks": benchmarks}, indent=2), encoding="utf-8"
+        json.dumps({"schemaVersion": 2, "benchmarks": benchmarks}, indent=2), encoding="utf-8"
     )
 
 

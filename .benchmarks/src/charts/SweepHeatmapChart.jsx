@@ -31,11 +31,19 @@ export function SweepHeatmapChart({ sweep, dataset, mode, metric = 'fitness_mean
 
 function buildOption(sweep, dataset, mode, metric) {
   const cells = (sweep?.cells || []).filter((row) => row.dataset === dataset && row.fitness_operator === mode)
-  const xs = [...new Set(cells.map((row) => String(row.outer_iterations)))].sort((a, b) => num(a) - num(b))
-  const ys = [...new Set(cells.map((row) => String(row.genetic_iterations)))].sort((a, b) => num(a) - num(b))
+  const dimensions = ((sweep?.meta?.dimensions || ['iterations_genetic']).filter((key) => key !== 'fitness.name'))
+  const xKey = dimensions[0] || 'param_key'
+  const yKey = dimensions[1] || 'fitness_operator'
+  const valueFor = (row, key) => String(row.params?.[key] ?? row[key] ?? row.param_key ?? '')
+  const sortValues = (values) => values.sort((a, b) => {
+    const delta = num(a) - num(b)
+    return delta || a.localeCompare(b)
+  })
+  const xs = sortValues([...new Set(cells.map((row) => valueFor(row, xKey)))])
+  const ys = sortValues([...new Set(cells.map((row) => valueFor(row, yKey)))])
   const rawData = cells.map((row) => [
-    xs.indexOf(String(row.outer_iterations)),
-    ys.indexOf(String(row.genetic_iterations)),
+    xs.indexOf(valueFor(row, xKey)),
+    ys.indexOf(valueFor(row, yKey)),
     num(row[metric]),
     {
       runs: row.runs || 0,
@@ -69,7 +77,7 @@ function buildOption(sweep, dataset, mode, metric) {
         const value = params.value || []
         const extra = value[3] || {}
         return [
-          `<b>outer ${xs[value[0]]} x genetic ${ys[value[1]]}</b>`,
+          `<b>${xKey} ${xs[value[0]]} / ${yKey} ${ys[value[1]]}</b>`,
           `fitness: ${fmt(value[2], 2)}`,
           `runs: ${extra.runs}`,
           `std: ${fmt(extra.std, 2)}`,
@@ -83,7 +91,7 @@ function buildOption(sweep, dataset, mode, metric) {
     xAxis: {
       type: 'category',
       data: xs,
-      name: 'outer iterations',
+      name: xKey,
       nameGap: 28,
       axisLine: { lineStyle: { color: '#d4d4d8' } },
       axisLabel: { color: '#52525b', fontWeight: 600 },
@@ -92,7 +100,7 @@ function buildOption(sweep, dataset, mode, metric) {
     yAxis: {
       type: 'category',
       data: ys,
-      name: 'genetic iterations',
+      name: yKey,
       nameGap: 52,
       axisLine: { lineStyle: { color: '#d4d4d8' } },
       axisLabel: { color: '#52525b', fontWeight: 600 },

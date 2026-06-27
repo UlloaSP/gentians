@@ -2,10 +2,10 @@ import { chartTw } from '../chartTw'
 import { fmtInt, num } from '../metrics'
 
 const rowsFor = (benchmark) => [
-  ['stubs', num(benchmark.stubs), 'bg-emerald-600'],
+  ['cláusulas', num(benchmark.clauses || benchmark.candidates), 'bg-emerald-600'],
   ['candidatas', num(benchmark.candidates), 'bg-neutral-800'],
-  ['válidas', (benchmark.stubRows || []).reduce((sum, row) => sum + num(row.valid), 0), 'bg-blue-600'],
-  ['únicas', (benchmark.stubRows || []).reduce((sum, row) => sum + num(row.unique), 0), 'bg-violet-600'],
+  ['válidas', (benchmark.clauseRows || []).reduce((sum, row) => sum + num(row.valid), 0), 'bg-blue-600'],
+  ['únicas', (benchmark.clauseRows || []).reduce((sum, row) => sum + num(row.unique), 0), 'bg-violet-600'],
   ['evaluaciones calidad', (benchmark.qualityRows || []).length, 'bg-amber-500'],
 ]
 

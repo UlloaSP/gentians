@@ -8,7 +8,6 @@ import { CallVolumeChart } from './charts/CallVolumeChart'
 import { ClingoCallsChart } from './charts/ClingoCallsChart'
 import { ClingoCostChart } from './charts/ClingoCostChart'
 import { CostByTypeChart } from './charts/CostByTypeChart'
-import { FeatureRatesChart } from './charts/FeatureRatesChart'
 import { FitnessChart } from './charts/FitnessChart'
 import { FitnessDiagnosticsChart } from './charts/FitnessDiagnosticsChart'
 import { GroundingSolvingChart } from './charts/GroundingSolvingChart'
@@ -21,7 +20,7 @@ import { RunsTimeoutsChart } from './charts/RunsTimeoutsChart'
 import { SearchSpaceFunnel } from './charts/SearchSpaceFunnel'
 import { SolverStatsChart } from './charts/SolverStatsChart'
 import { StructuralComplexityChart } from './charts/StructuralComplexityChart'
-import { StubCandidatesChart } from './charts/StubCandidatesChart'
+import { ClauseCandidatesChart } from './charts/ClauseCandidatesChart'
 import { SweepFitnessCurvesChart } from './charts/SweepFitnessCurvesChart'
 import { SweepHeatmapChart } from './charts/SweepHeatmapChart'
 import { TimingDepthChart } from './charts/TimingDepthChart'
@@ -106,9 +105,7 @@ function Sweep({ sweep }) {
 
   if (!sweep) {
     return (
-      <p className={chartTw.note}>
-        Sin sweep_dashboard_data.json. Genera datos con: python benchmarks/sweep.py --datasets coin --runs 10
-      </p>
+      <p className={chartTw.note}>Sin sweep_dashboard_data.json. Genera datos con: python benchmarks/sweep.py --datasets coin --runs 10</p>
     )
   }
 
@@ -144,7 +141,6 @@ function Comparison({ benchmarks, select }) {
       <CostByTypeChart benchmarks={benchmarks} />
       <CandidatesTimeChart benchmarks={benchmarks} />
       <GroundingSolvingChart benchmarks={benchmarks} />
-      <FeatureRatesChart benchmarks={benchmarks} />
       <CallVolumeChart benchmarks={benchmarks} />
       <RunsTimeoutsChart benchmarks={benchmarks} />
       <ChartSection title="Tabla comparativa"><DataTable rows={benchmarks} onSelect={select} /></ChartSection>
@@ -171,7 +167,6 @@ function Detail({ benchmarks, benchmark, setSelected }) {
         <Stat label="solve calls" value={fmtInt(benchmark.solveCalls)} />
         <Stat label="ground calls" value={fmtInt(benchmark.groundCalls)} />
         <Stat label="candidatas" value={fmtInt(benchmark.candidates)} />
-        <Stat label="stubs" value={fmtInt(benchmark.stubs)} />
         <Stat label="dominante" value={benchmark.dominant || topPhase(benchmark).label} />
         <Stat label="first solution" value={fmtInt(benchmark.firstSolution)} />
       </div>
@@ -181,7 +176,7 @@ function Detail({ benchmarks, benchmark, setSelected }) {
         <SearchSpaceFunnel benchmark={benchmark} />
         <FitnessChart benchmark={benchmark} />
         <FitnessDiagnosticsChart benchmark={benchmark} />
-        <StubCandidatesChart benchmark={benchmark} />
+        <ClauseCandidatesChart benchmark={benchmark} />
         <OperatorsChart benchmark={benchmark} />
         <OperatorHealthChart benchmark={benchmark} />
         <SolverStatsChart benchmark={benchmark} />
@@ -191,7 +186,7 @@ function Detail({ benchmarks, benchmark, setSelected }) {
         <TimingDepthChart benchmark={benchmark} />
         <ClingoCostChart benchmark={benchmark} />
         <ClingoCallsChart benchmark={benchmark} />
-        <ChartSection title="Stubs / candidatos"><StubTable rows={benchmark.stubRows || []} /></ChartSection>
+        <ChartSection title="Cláusulas candidatas"><StubTable rows={benchmark.clauseRows || []} /></ChartSection>
       </SectionGrid>
     </div>
   )

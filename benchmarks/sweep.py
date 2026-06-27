@@ -2,49 +2,59 @@ from __future__ import annotations
 
 import argparse
 import csv
+import itertools
 import json
-import os
 import subprocess
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from statistics import mean, stdev
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 PROFILE_BASELINE = REPO_ROOT / "benchmarks" / "profile_baseline.py"
-DEFAULT_GRID = [1000, 2000, 3000, 4000, 5000]
+DEFAULT_VARY = [
+    "iterations_genetic=1000,2000,3000,4000,5000",
+    "fitness.name=coverage_exp_mean,coverage_exp_max",
+]
+
+from benchmarks.catalog import DEFAULT_DATASETS, parse_value
 
 
 @dataclass(frozen=True)
 class Cell:
     dataset: str
-    fitness_operator: str
-    genetic_iterations: int
+    params: tuple[tuple[str, str], ...]
 
     @property
     def key(self) -> str:
-        return f"{self.dataset}__{self.fitness_operator}__genetic-{self.genetic_iterations}"
+        suffix = "__".join(f"{safe_key(k)}-{safe_key(v)}" for k, v in self.params)
+        return f"{self.dataset}__{suffix}" if suffix else self.dataset
+
+    @property
+    def param_dict(self) -> dict[str, str]:
+        return dict(self.params)
+
+    @property
+    def fitness_operator(self) -> str:
+        return self.param_dict.get("fitness.name", "coverage_exp_mean")
+
+    @property
+    def genetic_iterations(self) -> int:
+        return int(float(self.param_dict.get("iterations_genetic", "0")))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run GENTIANS parameter sweeps and aggregate dashboard data."
     )
-    parser.add_argument("--datasets", nargs="+", default=["coin"])
-    parser.add_argument(
-        "--genetic-iterations", nargs="+", type=int, default=DEFAULT_GRID
-    )
-    parser.add_argument(
-        "--fitness-operators",
-        nargs="+",
-        default=["coverage_exp_mean", "coverage_exp_max"],
-    )
+    parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
+    parser.add_argument("--vary", action="append")
+    parser.add_argument("--set", action="append", default=[])
     parser.add_argument("--runs", type=int, default=10)
     parser.add_argument("--timeout-seconds", type=int, default=100)
     parser.add_argument("--seed-base", type=int, default=1)
-    parser.add_argument("--population", type=int)
-    parser.add_argument("--samples", type=int)
     parser.add_argument("--python", default=_default_python())
     parser.add_argument(
         "--out-dir", type=Path, default=Path(".benchmarks") / "sweeps" / "latest"
@@ -54,21 +64,18 @@ def main() -> None:
     parser.add_argument("--plots-only", action="store_true")
     args = parser.parse_args()
 
+    dimensions = parse_vary(args.vary or DEFAULT_VARY)
     out_dir = args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
-    cells = [
-        Cell(dataset, mode, genetic)
-        for dataset in args.datasets
-        for mode in args.fitness_operators
-        for genetic in args.genetic_iterations
-    ]
+    cells = build_cells(args.datasets, dimensions)
     manifest = {
+        "schemaVersion": 2,
         "datasets": args.datasets,
-        "fitnessOperators": args.fitness_operators,
-        "geneticIterations": args.genetic_iterations,
+        "dimensions": [name for name, _ in dimensions],
+        "baseOverrides": args.set,
         "runs": args.runs,
         "timeoutSeconds": args.timeout_seconds,
-        "cells": [asdict(cell) | {"key": cell.key} for cell in cells],
+        "cells": [cell_row(cell) for cell in cells],
     }
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2), encoding="utf-8"
@@ -81,6 +88,30 @@ def main() -> None:
     write_sweep_outputs(out_dir, manifest)
 
 
+def parse_vary(raw_values: list[str]) -> list[tuple[str, list[str]]]:
+    dimensions: list[tuple[str, list[str]]] = []
+    for raw in raw_values:
+        if "=" not in raw:
+            raise SystemExit(f"--vary must be path=value,value: {raw}")
+        path, values = raw.split("=", 1)
+        choices = [value.strip() for value in values.split(",") if value.strip()]
+        if not path or not choices:
+            raise SystemExit(f"invalid --vary: {raw}")
+        dimensions.append((path, choices))
+    return dimensions
+
+
+def build_cells(
+    datasets: list[str], dimensions: list[tuple[str, list[str]]]
+) -> list[Cell]:
+    names = [name for name, _ in dimensions]
+    cells: list[Cell] = []
+    for dataset in datasets:
+        for values in itertools.product(*(choices for _, choices in dimensions)):
+            cells.append(Cell(dataset, tuple(zip(names, values))))
+    return cells
+
+
 def run_cell(
     args: argparse.Namespace, out_dir: Path, cell: Cell, index: int, total: int
 ) -> None:
@@ -91,6 +122,7 @@ def run_cell(
         return
 
     seed_base = args.seed_base + stable_cell_offset(cell)
+    overrides = [*args.set, *[f"{key}={json.dumps(parse_value(value))}" for key, value in cell.params]]
     cmd = [
         args.python,
         str(PROFILE_BASELINE),
@@ -102,17 +134,11 @@ def run_cell(
         str(cell_dir),
         "--timeout-seconds",
         str(args.timeout_seconds),
-        "--genetic-iterations",
-        str(cell.genetic_iterations),
-        "--fitness-json",
-        json.dumps({"name": cell.fitness_operator}),
         "--seed-base",
         str(seed_base),
     ]
-    if args.population is not None:
-        cmd += ["--population", str(args.population)]
-    if args.samples is not None:
-        cmd += ["--samples", str(args.samples)]
+    for override in overrides:
+        cmd += ["--set", override]
 
     print(f"[{index}/{total}] {cell.key}", flush=True)
     print("cmd:", subprocess.list2cmdline(cmd), flush=True)
@@ -136,20 +162,17 @@ def write_sweep_outputs(out_dir: Path, manifest: dict[str, object]) -> None:
 
     write_csv(out_dir / "cells.csv", cell_rows)
     write_csv(out_dir / "fitness_curves.csv", curve_rows)
-    datasets = sorted({str(row.get("dataset")) for row in cell_rows})
-    fitness_operators = sorted({str(row.get("fitness_operator")) for row in cell_rows})
     payload = {
+        "schemaVersion": 2,
         "meta": manifest
         | {
-            "availableDatasets": datasets,
-            "availableFitnessOperators": fitness_operators,
+            "availableDatasets": sorted({str(row.get("dataset")) for row in cell_rows}),
+            "availableFitnessOperators": sorted(
+                {str(row.get("fitness_operator")) for row in cell_rows}
+            ),
         },
         "cells": cell_rows,
         "curves": curve_rows,
-        "heatmaps": {
-            mode: [row for row in cell_rows if row.get("fitness_operator") == mode]
-            for mode in sorted({str(row.get("fitness_operator")) for row in cell_rows})
-        },
     }
     (out_dir / "sweep_dashboard_data.json").write_text(
         json.dumps(payload, indent=2), encoding="utf-8"
@@ -159,10 +182,12 @@ def write_sweep_outputs(out_dir: Path, manifest: dict[str, object]) -> None:
 def discover_cells(out_dir: Path, manifest: dict[str, object]) -> list[Cell]:
     cells_by_key: dict[str, Cell] = {}
     for raw_cell in manifest.get("cells", []):  # type: ignore[union-attr]
+        params = raw_cell.get("params", {})
+        if not isinstance(params, dict):
+            params = {}
         cell = Cell(
             str(raw_cell["dataset"]),
-            str(raw_cell["fitness_operator"]),
-            int(raw_cell["genetic_iterations"]),
+            tuple((str(key), str(value)) for key, value in sorted(params.items())),
         )
         cells_by_key[cell.key] = cell
 
@@ -175,36 +200,21 @@ def discover_cells(out_dir: Path, manifest: dict[str, object]) -> list[Cell]:
             if cell is not None:
                 cells_by_key[cell.key] = cell
 
-    return sorted(
-        cells_by_key.values(),
-        key=lambda cell: (
-            cell.dataset,
-            cell.fitness_operator,
-            cell.genetic_iterations,
-        ),
-    )
+    return sorted(cells_by_key.values(), key=lambda cell: (cell.dataset, cell.params))
 
 
 def parse_cell_key(key: str) -> Cell | None:
     parts = key.split("__")
-    if len(parts) == 4:
-        dataset, fitness_operator, outer, genetic = parts
-        if not outer.startswith("outer-") or not genetic.startswith("genetic-"):
-            return None
-    elif len(parts) == 3:
-        dataset, fitness_operator, genetic = parts
-        if not genetic.startswith("genetic-"):
-            return None
-    else:
+    if not parts:
         return None
-    try:
-        return Cell(
-            dataset,
-            fitness_operator,
-            int(genetic.removeprefix("genetic-")),
-        )
-    except ValueError:
-        return None
+    dataset = parts[0]
+    params = []
+    for part in parts[1:]:
+        if "-" not in part:
+            return None
+        name, value = part.split("-", 1)
+        params.append((unsafe_key(name), unsafe_key(value)))
+    return Cell(dataset, tuple(params))
 
 
 def summarize_cell(
@@ -292,12 +302,24 @@ def summarize_curves(
 
 
 def base_cell_row(cell: Cell) -> dict[str, object]:
+    params = cell.param_dict
     return {
         "dataset": cell.dataset,
+        "params": params,
+        "param_key": cell_label(cell),
         "fitness_operator": cell.fitness_operator,
         "genetic_iterations": cell.genetic_iterations,
         "cell_key": cell.key,
+        **params,
     }
+
+
+def cell_row(cell: Cell) -> dict[str, object]:
+    return base_cell_row(cell) | {"key": cell.key}
+
+
+def cell_label(cell: Cell) -> str:
+    return ", ".join(f"{key}={value}" for key, value in cell.params) or "default"
 
 
 def cell_complete(cell_dir: Path, expected_runs: int) -> bool:
@@ -306,8 +328,16 @@ def cell_complete(cell_dir: Path, expected_runs: int) -> bool:
 
 
 def stable_cell_offset(cell: Cell) -> int:
-    raw = f"{cell.dataset}|{cell.fitness_operator}|{cell.genetic_iterations}"
+    raw = f"{cell.dataset}|{cell.params}"
     return sum((index + 1) * ord(char) for index, char in enumerate(raw)) * 1000
+
+
+def safe_key(value: object) -> str:
+    return str(value).replace(".", "~").replace("/", "_").replace("\\", "_")
+
+
+def unsafe_key(value: str) -> str:
+    return value.replace("~", ".")
 
 
 def read_csv_dicts(path: Path) -> list[dict[str, str]]:
@@ -339,7 +369,7 @@ def float_value(value: object) -> float:
         return 1.0 if value else 0.0
     try:
         return float(value)  # type: ignore[arg-type]
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         if isinstance(value, str) and value.lower() == "true":
             return 1.0
         return 0.0

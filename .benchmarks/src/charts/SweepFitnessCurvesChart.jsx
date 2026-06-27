@@ -7,12 +7,12 @@ import { colors } from '../metrics'
 export function SweepFitnessCurvesChart({ sweep, dataset, mode }) {
   const rows = (sweep?.curves || []).filter((row) => row.dataset === dataset && row.fitness_operator === mode)
   const chart = useMemo(() => {
-    const keys = [...new Set(rows.map((row) => `${row.outer_iterations} x ${row.genetic_iterations}`))]
+    const keys = [...new Set(rows.map((row) => row.param_key))]
     const palette = [colors.self, colors.grounding, colors.solving, colors.other, colors.accent, colors.total]
     return {
       data: keys.map((key, index) => {
         const selected = rows
-          .filter((row) => `${row.outer_iterations} x ${row.genetic_iterations}` === key)
+          .filter((row) => row.param_key === key)
           .sort((a, b) => Number(a.global_generation || 0) - Number(b.global_generation || 0))
         return {
           type: 'scatter',

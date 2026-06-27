@@ -39,3 +39,6 @@ include = ["gentians*"]
 
 [tool.setuptools.package-data]
 gentians = ["logic_programs/*.lp"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

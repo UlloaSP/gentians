@@ -1,6 +1,5 @@
 export const phaseOrder = [
-  ['sampling', 'sampling'],
-  ['variablePlacement', 'placement'],
+  ['hypothesisSpace', 'hypothesis'],
   ['initialization', 'initialization'],
   ['selection', 'selection'],
   ['crossover', 'crossover'],
@@ -40,4 +39,3 @@ export const pythonSeconds = (benchmark) => sum(phaseOrder.flatMap(([phase]) => 
 export const typeTotal = (benchmark, type) => sum(phaseOrder.map(([phase]) => benchmark.phases?.[phase]?.[type]))
 export const phaseTotals = (benchmark) => phaseOrder.map(([phase, label]) => ({ phase, label, seconds: phaseTotal(benchmark, phase) }))
 export const topPhase = (benchmark) => phaseTotals(benchmark).reduce((best, row) => row.seconds > best.seconds ? row : best, { label: 'n/a', seconds: 0 })
-export const featureRate = (benchmark, key) => num(benchmark[key]) * 100

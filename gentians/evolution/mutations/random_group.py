@@ -28,6 +28,7 @@ def mutate_by_random_group(
     """
     mutated_element = element
     something_changed = False
+    original_signature = element.signature
     original_score = element.score
     changed_positions = 0
 
@@ -45,7 +46,10 @@ def mutate_by_random_group(
     if something_changed:
         mutated_element.generated_timestamp = time.time()
         mutated_element.refresh_signature()
-        if mutated_element.signature in known_signatures:
+        if mutated_element.signature == original_signature:
+            mutated_element = element
+            something_changed = False
+        elif mutated_element.signature in known_signatures:
             mutated_element.score = float("-inf")
             mutated_element.is_best = False
             mutated_element.l_best_indexes = []

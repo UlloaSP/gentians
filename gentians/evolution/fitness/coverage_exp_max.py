@@ -3,12 +3,12 @@ from collections.abc import Callable
 from .coverage_common import (
     CachedFitnessResult,
     cached_fitness,
-    extract_program_coverage,
     FitnessResult,
     record_fitness_metric,
     score_coverage_subsets,
     shortest_subset_indexes,
 )
+from ...asp.clingo import ClingoInterface
 from ...rule_generation.program import Program
 
 
@@ -19,6 +19,10 @@ def coverage_exp_max(
     empty_score: float,
 ) -> Callable[[list[str]], tuple[float, bool, list[int]]]:
     cache: dict[tuple[str, ...], CachedFitnessResult] = {}
+    solver = ClingoInterface(
+        program.background,
+        [f"{max_as_to_generate_foreach_program}", *clingo_arguments],
+    )
 
     def evaluate_score(
         candidate_program: list[str],
@@ -29,8 +33,7 @@ def coverage_exp_max(
             lambda: _evaluate_score(
                 program,
                 candidate_program,
-                max_as_to_generate_foreach_program,
-                clingo_arguments,
+                solver,
                 empty_score,
             ),
         )
@@ -41,15 +44,14 @@ def coverage_exp_max(
 def _evaluate_score(
     program: Program,
     candidate_program: list[str],
-    max_as_to_generate_foreach_program: int,
-    clingo_arguments: list[str],
+    solver: ClingoInterface,
     empty_score: float,
 ) -> FitnessResult:
-    cov = extract_program_coverage(
-        program,
+    cov = solver.extract_coverage_and_set_clauses(
         candidate_program,
-        max_as_to_generate_foreach_program,
-        clingo_arguments,
+        program.positive_examples,
+        program.negative_examples,
+        False,
     )
 
     scored = score_coverage_subsets(program, cov)

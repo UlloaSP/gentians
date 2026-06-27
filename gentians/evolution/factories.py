@@ -42,7 +42,8 @@ def create_selection(config: dict[str, object]) -> SelectionFn:
         prob_selecting_fittest = _float(config, "prob_selecting_fittest")
 
         def select(population: list[Individual]) -> tuple[Individual, Individual]:
-            return (
+            return _distinct_pair(
+                population,
                 tournament_selection(
                     population, tournament_size, prob_selecting_fittest
                 ),
@@ -56,7 +57,8 @@ def create_selection(config: dict[str, object]) -> SelectionFn:
         pick_uniform = _bool(config, "pick_uniform")
 
         def select(population: list[Individual]) -> tuple[Individual, Individual]:
-            return pick_two_fittest(population, pick_uniform)
+            best_a, best_b = pick_two_fittest(population, pick_uniform)
+            return _distinct_pair(population, best_a, best_b)
 
         return select
     raise ValueError(f"Unknown selection operator: {name}")
@@ -207,3 +209,15 @@ def _clone_individual(individual: Individual) -> Individual:
         individual.is_best,
         list(individual.l_best_indexes),
     )
+
+
+def _distinct_pair(
+    population: list[Individual], first: Individual, second: Individual
+) -> tuple[Individual, Individual]:
+    if first.signature != second.signature:
+        return first, second
+    alternative = next(
+        (element for element in population if element.signature != first.signature),
+        second,
+    )
+    return first, alternative

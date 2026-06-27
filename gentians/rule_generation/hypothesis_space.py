@@ -72,11 +72,12 @@ class HypothesisSpaceGenerator:
         self.program = program
         self.args = args
         self.predicate_arg_types = _predicate_arg_types(program)
+        self.aggregate_specs = _valid_aggregate_specs(program, args)
         self.capabilities = _hypothesis_capabilities(
-            program, args, self.predicate_arg_types
+            program, args, self.predicate_arg_types, self.aggregate_specs
         )
         self.modes = _hypothesis_modes(
-            program, args, self.capabilities, self.predicate_arg_types
+            program, args, self.capabilities, self.predicate_arg_types, self.aggregate_specs
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
 
@@ -131,6 +132,7 @@ def _hypothesis_capabilities(
     program: Program,
     args: Arguments,
     predicate_arg_types: dict[tuple[str, int, int], str],
+    aggregate_specs: list[tuple[str, list[tuple[str, int]]]],
 ) -> HypothesisCapabilities:
     numeric_evidence = any(
         arg_type == "numeric" for arg_type in predicate_arg_types.values()
@@ -140,13 +142,12 @@ def _hypothesis_capabilities(
     numeric_comparison = numeric_evidence and bool(
         comparison_operators & {"lt", "leq", "gt", "geq"}
     )
-    aggregates = _valid_aggregate_specs(program, args)
     return HypothesisCapabilities(
         has_numeric_evidence=numeric_evidence,
         allow_numeric_comparison=numeric_comparison,
         allow_equality_comparison=equality_comparison,
         allow_arithmetic=numeric_evidence and bool(args.arithmetic_operators),
-        allow_aggregates=bool(aggregates),
+        allow_aggregates=bool(aggregate_specs),
         allow_recursion=bool(args.hypothesis_space.get("enable_recursion", False)),
         allow_constraints=bool(
             args.hypothesis_space.get(
@@ -287,6 +288,8 @@ def _collect_symbolic_atoms(node: ast.AST, atoms: list[str]) -> None:
 
 
 def _valid_aggregate_specs(program: Program, args: Arguments) -> list[tuple[str, list[tuple[str, int]]]]:
+    if not args.aggregates:
+        return []
     available = _available_predicates(program)
     valid = []
     for spec in args.aggregates:
@@ -301,6 +304,7 @@ def _hypothesis_modes(
     args: Arguments,
     capabilities: HypothesisCapabilities,
     predicate_arg_types: dict[tuple[str, int, int], str],
+    aggregate_specs: list[tuple[str, list[tuple[str, int]]]],
 ) -> list[HypothesisMode]:
     modes: list[HypothesisMode] = []
     next_id = 0
@@ -361,10 +365,8 @@ def _hypothesis_modes(
             if symbol:
                 add(HypothesisMode(next_id, "body", "arithmetic", "", 3, recall, True, operator=symbol, arg_types=("numeric", "numeric", "numeric")))
 
-    aggregate_specs = Counter(
-        (function, tuple(atoms)) for function, atoms in _valid_aggregate_specs(program, args)
-    )
-    for (function, atoms_tuple), recall in aggregate_specs.items():
+    aggregate_recalls = Counter((function, tuple(atoms)) for function, atoms in aggregate_specs)
+    for (function, atoms_tuple), recall in aggregate_recalls.items():
         atoms = list(atoms_tuple)
         total_atom_arity = sum(arity for _, arity in atoms)
         tuple_arities = (
@@ -415,10 +417,11 @@ def _aggregate_spec(spec: str) -> tuple[str, list[tuple[str, int]]]:
 def _facts(
     args: Arguments, modes: list[HypothesisMode], capabilities: HypothesisCapabilities
 ) -> str:
+    max_body = args.max_depth if capabilities.allow_constraints else max(0, args.max_depth - 1)
     parts = [
         f"max_depth({args.max_depth}).",
         f"max_head({args.disjunctive_head_length}).",
-        f"max_body({args.max_depth}).",
+        f"max_body({max_body}).",
         f"max_vars({args.max_variables}).",
     ]
     if capabilities.allow_constraints:

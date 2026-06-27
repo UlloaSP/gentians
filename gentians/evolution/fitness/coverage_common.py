@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from collections.abc import Callable
 import math
 
-from ...asp.clingo import ClingoInterface
 from ...asp.coverage import Coverage
 from ...rule_generation.program import Program
 from ...timing import current_phase, record_metric
@@ -18,26 +17,6 @@ class CoverageRates:
     covered_negative: int
     positive_rate: float
     negative_rate: float
-
-
-def extract_program_coverage(
-    program: Program,
-    candidate_program: list[str],
-    max_as_to_generate_foreach_program: int,
-    clingo_arguments: list[str],
-    stop_on_best: bool = False,
-) -> dict[CoverageKey, Coverage]:
-    asp_solver = ClingoInterface(
-        program.background,
-        [f"{max_as_to_generate_foreach_program}", *clingo_arguments],
-    )
-    return asp_solver.extract_coverage_and_set_clauses(
-        candidate_program,
-        program.positive_examples,
-        program.negative_examples,
-        False,
-        stop_on_best=stop_on_best,
-    )
 
 
 def coverage_rates(program: Program, coverage: Coverage) -> CoverageRates:

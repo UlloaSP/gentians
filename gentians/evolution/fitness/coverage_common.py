@@ -9,6 +9,8 @@ from ...timing import current_phase, record_metric
 CoverageKey = tuple[int, ...]
 FitnessResult = tuple[float, bool, list[int]]
 CachedFitnessResult = tuple[float, bool, tuple[str, ...]]
+FitnessCompute = Callable[[list[str]], FitnessResult]
+CachedCoverage = dict[CoverageKey, Coverage]
 
 
 @dataclass(frozen=True)
@@ -78,6 +80,54 @@ class ScoredCoverage:
     rates_by_key: dict[CoverageKey, CoverageRates]
 
 
+class CoverageOracle:
+    def __init__(self, solver) -> None:
+        self.solver = solver
+        self._coverage_by_rules: dict[tuple[str, ...], Coverage] = {}
+        clingo_arguments = getattr(solver, "clingo_arguments", [])
+        self._cache_subprograms = bool(clingo_arguments) and clingo_arguments[0] == "0"
+
+    def extract(
+        self,
+        candidate_program: list[str],
+        positive_examples,
+        negative_examples,
+        fixed: bool,
+    ) -> CachedCoverage:
+        if fixed or not self._cache_subprograms:
+            return self.solver.extract_coverage_and_set_clauses(
+                candidate_program,
+                positive_examples,
+                negative_examples,
+                fixed,
+            )
+
+        cached = self._cached_coverage(candidate_program)
+        if cached is not None:
+            return cached
+
+        cov = self.solver.extract_coverage_and_set_clauses(
+            candidate_program,
+            positive_examples,
+            negative_examples,
+            fixed,
+        )
+        for key, coverage in cov.items():
+            self._coverage_by_rules[tuple(candidate_program[index] for index in key)] = (
+                coverage
+            )
+        return cov
+
+    def _cached_coverage(self, candidate_program: list[str]) -> CachedCoverage | None:
+        cov: CachedCoverage = {}
+        for indexes in _subset_indexes(len(candidate_program)):
+            rules = tuple(candidate_program[index] for index in indexes)
+            if rules not in self._coverage_by_rules:
+                return None
+            cov[indexes] = self._coverage_by_rules[rules]
+        return cov
+
+
 def score_coverage_subsets(program: Program, cov: dict[CoverageKey, Coverage]) -> ScoredCoverage:
     best_found = False
     l_best_indexes: list[CoverageKey] = []
@@ -104,18 +154,26 @@ def score_coverage_subsets(program: Program, cov: dict[CoverageKey, Coverage]) -
     )
 
 
+def _subset_indexes(size: int) -> list[CoverageKey]:
+    return [
+        tuple(index for index in range(size) if mask & (1 << index))
+        for mask in range(1 << size)
+    ]
+
+
 def cached_fitness(
     cache: dict[tuple[str, ...], CachedFitnessResult],
     candidate_program: list[str],
-    compute: "Callable[[], FitnessResult]",
+    compute: FitnessCompute,
 ) -> FitnessResult:
-    key = tuple(sorted(candidate_program))
+    canonical_program = sorted(set(candidate_program))
+    key = tuple(canonical_program)
     if key not in cache:
-        score, best_found, indexes = compute()
+        score, best_found, indexes = compute(canonical_program)
         cache[key] = (
             score,
             best_found,
-            tuple(candidate_program[index] for index in indexes),
+            tuple(canonical_program[index] for index in indexes),
         )
     score, best_found, selected_rules = cache[key]
     positions_by_rule: dict[str, list[int]] = {}

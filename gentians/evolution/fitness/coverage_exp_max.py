@@ -3,6 +3,7 @@ from collections.abc import Callable
 from .coverage_common import (
     CachedFitnessResult,
     cached_fitness,
+    CoverageOracle,
     FitnessResult,
     record_fitness_metric,
     score_coverage_subsets,
@@ -19,9 +20,11 @@ def coverage_exp_max(
     empty_score: float,
 ) -> Callable[[list[str]], tuple[float, bool, list[int]]]:
     cache: dict[tuple[str, ...], CachedFitnessResult] = {}
-    solver = ClingoInterface(
-        program.background,
-        [f"{max_as_to_generate_foreach_program}", *clingo_arguments],
+    coverage = CoverageOracle(
+        ClingoInterface(
+            program.background,
+            [f"{max_as_to_generate_foreach_program}", *clingo_arguments],
+        )
     )
 
     def evaluate_score(
@@ -30,10 +33,10 @@ def coverage_exp_max(
         return cached_fitness(
             cache,
             candidate_program,
-            lambda: _evaluate_score(
+            lambda canonical_program: _evaluate_score(
                 program,
-                candidate_program,
-                solver,
+                canonical_program,
+                coverage,
                 empty_score,
             ),
         )
@@ -44,10 +47,10 @@ def coverage_exp_max(
 def _evaluate_score(
     program: Program,
     candidate_program: list[str],
-    solver: ClingoInterface,
+    coverage: CoverageOracle,
     empty_score: float,
 ) -> FitnessResult:
-    cov = solver.extract_coverage_and_set_clauses(
+    cov = coverage.extract(
         candidate_program,
         program.positive_examples,
         program.negative_examples,

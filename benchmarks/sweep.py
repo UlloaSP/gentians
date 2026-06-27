@@ -4,6 +4,7 @@ import argparse
 import csv
 import itertools
 import json
+import math
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -175,7 +176,7 @@ def write_sweep_outputs(out_dir: Path, manifest: dict[str, object]) -> None:
         "curves": curve_rows,
     }
     (out_dir / "sweep_dashboard_data.json").write_text(
-        json.dumps(payload, indent=2), encoding="utf-8"
+        json.dumps(payload, indent=2, allow_nan=False), encoding="utf-8"
     )
 
 
@@ -368,7 +369,8 @@ def float_value(value: object) -> float:
     if isinstance(value, bool):
         return 1.0 if value else 0.0
     try:
-        return float(value)  # type: ignore[arg-type]
+        number = float(value)  # type: ignore[arg-type]
+        return number if math.isfinite(number) else 0.0
     except (TypeError, ValueError):
         if isinstance(value, str) and value.lower() == "true":
             return 1.0

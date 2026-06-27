@@ -1,6 +1,7 @@
 import argparse
 import csv
 import json
+import math
 import os
 import pstats
 import queue
@@ -935,7 +936,8 @@ def write_dashboard_data(
             }
         )
     (out_dir / "dashboard_data.json").write_text(
-        json.dumps({"schemaVersion": 2, "benchmarks": benchmarks}, indent=2), encoding="utf-8"
+        json.dumps({"schemaVersion": 2, "benchmarks": benchmarks}, indent=2, allow_nan=False),
+        encoding="utf-8",
     )
 
 
@@ -1366,14 +1368,16 @@ def to_float(value: object) -> float:
     if isinstance(value, bool):
         return 1.0 if value else 0.0
     if isinstance(value, (int, float)):
-        return float(value)
+        number = float(value)
+        return number if math.isfinite(number) else 0.0
     if isinstance(value, str):
         if value.lower() == "true":
             return 1.0
         if value.lower() == "false":
             return 0.0
         try:
-            return float(value)
+            number = float(value)
+            return number if math.isfinite(number) else 0.0
         except ValueError:
             return 0.0
     return 0.0

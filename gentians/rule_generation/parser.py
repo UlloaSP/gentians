@@ -1,8 +1,7 @@
 import re
+import sys
 
 from clingo import ast
-
-from ..console import print_error_and_exit
 
 
 def split_top_level_args(args: str) -> list[str]:
@@ -36,7 +35,8 @@ def extract_name_arity(atom: str) -> "tuple[str,int]":
     if parsed is not None:
         function_name, arguments = parsed
         return function_name, len(arguments)
-    print_error_and_exit(f"Error in extract_name_arity: {atom}")
+    print("\033[91m" + "Error: " + f"Error in extract_name_arity: {atom}" + "\033[0m")
+    sys.exit(-1)
     return (atom, -1)
 
 
@@ -58,7 +58,9 @@ def _normal_atom_text(atom: str) -> str:
     normalized = atom.strip()
     if normalized.startswith("not "):
         normalized = normalized[4:].strip()
-    elif normalized.startswith("not") and len(normalized) > 3 and normalized[3].isalpha():
+    elif (
+        normalized.startswith("not") and len(normalized) > 3 and normalized[3].isalpha()
+    ):
         normalized = normalized[3:]
     if normalized.startswith("{") and normalized.endswith("}"):
         normalized = normalized[1:-1].strip()
@@ -75,7 +77,10 @@ def _parse_atom_with_ast(atom: str) -> tuple[str, list[str]] | None:
                 found.append(
                     (
                         str(symbol.name),
-                        [str(argument).replace(" ", "") for argument in symbol.arguments],
+                        [
+                            str(argument).replace(" ", "")
+                            for argument in symbol.arguments
+                        ],
                     )
                 )
             return

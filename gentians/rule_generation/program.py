@@ -1,9 +1,9 @@
 import re
+import sys
 
 from clingo import ast
 
 from ..asp.callbacks import RuleCallback
-from ..console import print_error_and_exit
 from .parser import extract_name_arity
 
 
@@ -59,16 +59,26 @@ class ModeDeclaration:
         if match:
             name = match.group(1)
             if name not in ["count", "sum", "avg", "min", "max"]:
-                print_error_and_exit(f"Error: Invalid aggregate function name: {name}")
+                print(
+                    "\033[91m"
+                    + "Error: "
+                    + f"Error: Invalid aggregate function name: {name}"
+                    + "\033[0m"
+                )
+                sys.exit(-1)
             self.aggregation_function = name
             pairs = re.findall(r"(\w+)/(\d+)", match.group(2))
             if pairs:
                 for pair in pairs:
                     self.aggregation_atoms.append((pair[0], int(pair[1])))
         else:
-            print_error_and_exit(
-                f"Error: Invalid aggregate function syntax: {aggregate_str}"
+            print(
+                "\033[91m"
+                + "Error: "
+                + f"Error: Invalid aggregate function syntax: {aggregate_str}"
+                + "\033[0m"
             )
+            sys.exit(-1)
 
     def special_mode_declaration(self) -> bool:
         return any(

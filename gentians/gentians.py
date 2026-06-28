@@ -1,3 +1,4 @@
+import sys
 import time
 
 from gentians.evolution.algorithms.genetic import genetic_solver
@@ -13,7 +14,6 @@ from gentians.evolution.factories import (
 from .arguments import Arguments
 from .rule_generation.hypothesis_space import build_hypothesis_space, read_task
 from .rule_generation.program import Program
-from .console import print_error_and_exit
 from .timing import export as export_timings, phase
 
 
@@ -32,7 +32,8 @@ def solve(program: Program, arguments: Arguments) -> None:
             )
 
             if len(clauses) == 0:
-                print_error_and_exit("No clauses found")
+                print("\033[91m" + "Error: " + "No clauses found" + "\033[0m")
+                sys.exit(-1)
 
             prg, score, best_found = genetic_solver(
                 clauses,
@@ -64,7 +65,8 @@ def main(arguments: Arguments) -> None:
     if arguments.filename:
         program = read_task(arguments.filename)
     else:
-        print_error_and_exit("Specify a file with the task")
+        print("\033[91m" + "Error: " + "Specify a file with the task" + "\033[0m")
+        sys.exit(-1)
 
     if arguments.automatic_language_bias != 0:
         program.auto_generate_language_bias(arguments.automatic_language_bias)

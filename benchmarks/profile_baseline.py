@@ -882,22 +882,22 @@ def write_dashboard_data(
                 "source": "benchmarks",
                 "complexity": max(
                     1.0,
-                    to_float(candidate.get("mean_candidate_rules")) / 10,
+                    to_float(candidate.get("mean_clauses")) / 10,
                 ),
                 "candidates": int(
                     sum(
-                        to_float(row.get("candidate_rules"))
+                        candidate_clause_count(row)
                         for row in candidate_metrics
                         if row.get("dataset") == dataset
-                        and row.get("metric") == "build_reified_hypothesis_space"
+                        and is_hypothesis_space_metric(row)
                     )
                 ),
                 "clauses": int(
                     sum(
-                        to_float(row.get("generated_clauses"))
+                        candidate_clause_count(row)
                         for row in candidate_metrics
                         if row.get("dataset") == dataset
-                        and row.get("metric") == "build_reified_hypothesis_space"
+                        and is_hypothesis_space_metric(row)
                     )
                 ),
                 "variables": 0,
@@ -971,8 +971,9 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
         total = values.get(source, 0.0)
         grounding = sum_nested_metric(values, source, "grounding")
         solving = sum_nested_metric(values, source, "solving")
+        self_time = values.get(f"{source}.self")
         return {
-            "self": max(total - grounding - solving, 0.0),
+            "self": self_time if self_time is not None else max(total - grounding - solving, 0.0),
             "grounding": grounding,
             "solving": solving,
             "other": 0.0,
@@ -1042,18 +1043,19 @@ def dashboard_clause_rows(
     for row in candidate_metrics:
         if (
             row.get("dataset") != dataset
-            or row.get("metric") != "build_reified_hypothesis_space"
+            or not is_hypothesis_space_metric(row)
         ):
             continue
+        clauses = int(candidate_clause_count(row))
         rows.append(
             {
                 "clause": "hypothesis_space",
                 "literals": 0,
                 "variables": 0,
                 "aggregates": 0,
-                "candidates": int(to_float(row.get("candidate_rules"))),
-                "valid": int(to_float(row.get("candidate_rules"))),
-                "unique": int(to_float(row.get("generated_clauses"))),
+                "candidates": clauses,
+                "valid": clauses,
+                "unique": clauses,
                 "maxScore": 0.0,
                 "evalSeconds": to_float(row.get("seconds")),
             }
@@ -1173,7 +1175,7 @@ def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
         placements = [
             row
             for row in selected
-            if row.get("metric") == "build_reified_hypothesis_space"
+            if is_hypothesis_space_metric(row)
         ]
         summary.append(
             {
@@ -1182,15 +1184,24 @@ def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "mean_seconds_per_clause": mean(
                     to_float(row.get("seconds")) for row in placements
                 ),
-                "mean_generated_clauses": mean(
-                    to_float(row.get("generated_clauses")) for row in placements
-                ),
-                "mean_candidate_rules": mean(
-                    to_float(row.get("candidate_rules")) for row in placements
-                ),
+                "mean_clauses": mean(candidate_clause_count(row) for row in placements),
             }
         )
     return summary
+
+
+def is_hypothesis_space_metric(row: dict[str, object]) -> bool:
+    return row.get("metric") in {"hypothesis_space", "build_reified_hypothesis_space"}
+
+
+def candidate_clause_count(row: dict[str, object]) -> float:
+    return to_float(
+        row.get("clauses")
+        if row.get("clauses") is not None
+        else row.get("candidate_rules")
+        if row.get("candidate_rules") is not None
+        else row.get("generated_clauses")
+    )
 
 
 def quality_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:

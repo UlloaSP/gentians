@@ -12,9 +12,10 @@ from clingo import ast
 from ..arguments import Arguments
 from ..asp.callbacks import wrapper_exit_callback
 from ..asp.rule_analysis import get_atoms
-from ..timing import add, current_phase, record_metric
-from .parser_atoms import extract_name_arity, split_top_level_args
+from ..timing import add, current_phase, profile_phase, record_metric
+from .parser import parse_atom, split_top_level_args
 from .program import Program
+from .reader import read_program
 
 
 LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
@@ -128,6 +129,23 @@ class HypothesisSpaceGenerator:
         )
 
         return sorted(dict.fromkeys(clauses))
+
+
+def read_task(filename: str) -> Program:
+    return read_program(filename)
+
+
+@profile_phase("hypothesis_space")
+def build_hypothesis_space(program: Program, arguments: Arguments) -> list[str]:
+    clauses = HypothesisSpaceGenerator(program, arguments).generate()
+    record_metric(
+        "candidate",
+        {
+            "metric": "hypothesis_space",
+            "clauses": len(clauses),
+        },
+    )
+    return clauses
 
 
 def _hypothesis_capabilities(
@@ -250,27 +268,13 @@ def _predicate_arg_types(program: Program) -> dict[tuple[str, int, int], str]:
 
 
 def _parse_normal_atom(atom: str) -> tuple[str, list[str]] | None:
-    normalized = atom.strip()
-    if normalized.startswith("not "):
-        normalized = normalized[4:].strip()
-    elif normalized.startswith("not") and len(normalized) > 3 and normalized[3].isalpha():
-        normalized = normalized[3:]
-    if normalized.startswith("{") and normalized.endswith("}"):
-        normalized = normalized[1:-1].strip()
-    if normalized.startswith("#"):
-        return None
-    match = re.match(r"^([A-Za-z_]\w*)(?:\((.*)\))?$", normalized)
-    if not match:
-        return None
-    arguments = match.group(2)
-    if arguments is None or arguments == "":
-        return match.group(1), []
-    return match.group(1), split_top_level_args(arguments)
+    return parse_atom(atom)
 
 
 def _is_numeric_constant(value: str) -> bool:
     value = value.strip("()")
-    return bool(re.fullmatch(r"[-+]?\d+(?:\.\.[-+]?\d+)?", value))
+    bound = r"[-+]?\d+|[A-Za-z_]\w*"
+    return bool(re.fullmatch(rf"[-+]?\d+(?:\.\.({bound}))?", value))
 
 
 def _is_variable(value: str) -> bool:
@@ -293,11 +297,14 @@ def _atoms_in_fragment(fragment: str) -> list[str]:
     if not candidate.endswith("."):
         candidate = f":- {candidate}."
     try:
-        return get_atoms(candidate)
-    except (RuntimeError, IndexError):
         atoms: list[str] = []
         ast.parse_string(candidate, lambda stm: _collect_symbolic_atoms(stm, atoms))
         return atoms
+    except RuntimeError:
+        try:
+            return get_atoms(candidate)
+        except (RuntimeError, IndexError):
+            return []
 
 
 def _collect_symbolic_atoms(node: ast.AST, atoms: list[str]) -> None:
@@ -307,7 +314,7 @@ def _collect_symbolic_atoms(node: ast.AST, atoms: list[str]) -> None:
         child = getattr(node, key)
         if isinstance(child, ast.AST):
             _collect_symbolic_atoms(child, atoms)
-        elif isinstance(child, list):
+        elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
             for item in child:
                 if isinstance(item, ast.AST):
                     _collect_symbolic_atoms(item, atoms)

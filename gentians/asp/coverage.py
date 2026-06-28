@@ -22,18 +22,6 @@ class Coverage:
         self.pos_mask |= _mask(l_pos)
         self.neg_mask |= _mask(l_neg)
 
-    def __str__(self) -> str:
-        return (
-            "-> Positive: "
-            + ",".join([str(x) for x in self.l_pos])
-            + " - Negative: "
-            + ",".join([str(x) for x in self.l_neg])
-            + " <-"
-        )
-
-    def __repr__(self) -> str:
-        return self.__str__()
-
 
 def _mask(values: "list[int]") -> int:
     mask = 0

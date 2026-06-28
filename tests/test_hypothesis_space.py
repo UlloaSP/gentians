@@ -6,8 +6,9 @@ from gentians.arguments import Arguments
 from gentians.asp.clingo import ClingoInterface
 from gentians import timing
 from gentians.rule_generation import hypothesis_space
-from gentians.rule_generation import candidates
-from gentians.rule_generation.candidates import read_task
+from gentians.rule_generation.parser import extract_name_arity
+from gentians.rule_generation.hypothesis_space import read_task
+from gentians.rule_generation.reader import read_program
 from gentians.rule_generation.hypothesis_space import HypothesisSpaceGenerator
 from gentians.rule_generation.hypothesis_space import HypothesisCapabilities
 from gentians.rule_generation.program import ModeDeclaration, Program
@@ -110,12 +111,15 @@ def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
             return ["p."]
 
     monkeypatch.setattr(
-        candidates, "HypothesisSpaceGenerator", FakeHypothesisSpaceGenerator
+        hypothesis_space, "HypothesisSpaceGenerator", FakeHypothesisSpaceGenerator
     )
 
-    candidates.build_candidate_rule_space(Program([], [], [], [], []), Arguments())
+    clauses = hypothesis_space.build_hypothesis_space(
+        Program([], [], [], [], []), Arguments()
+    )
 
     assert phases == ["hypothesis_space"]
+    assert clauses == ["p."]
     assert "hypothesis_space" in timing._totals
     assert "total_execution.grounding" not in timing._totals
     _reset_timing_state()
@@ -171,10 +175,46 @@ def test_atom_parser_handles_nested_arguments():
         "same_row",
         ["(X1,Y)", "(X2,Y)"],
     )
-    assert hypothesis_space.extract_name_arity("same_row((X1,Y),(X2,Y))") == (
+    assert extract_name_arity("same_row((X1,Y),(X2,Y))") == (
         "same_row",
         2,
     )
+
+
+def test_reader_parses_directives_without_regex_space_loss(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "\n".join(
+            [
+                "edge(1,2).",
+                "#pos({ red(1), blue(f(2,3)) }, { green(1) }, { ctx((1,2)) }).",
+                "#neg({ bad(1) }, {}).",
+                "#modeh(1, red, 1).",
+                "#modeb(2, edge, 2, positive).",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+
+    assert program.background == ["edge(1,2)."]
+    assert program.positive_examples[0].included == "red(1), blue(f(2,3))"
+    assert program.positive_examples[0].excluded == "green(1)"
+    assert program.positive_examples[0].context == "ctx((1,2))"
+    assert program.negative_examples[0].included == "bad(1)"
+    assert program.language_bias_head[0].name == "red"
+    assert program.language_bias_body[0].name == "edge"
+
+
+def test_ast_atom_extraction_handles_choice_rules():
+    atoms = hypothesis_space._atoms_in_fragment(
+        "1 { p(P,I) : partition(P) } 1 :- number(I)."
+    )
+
+    assert "p(P,I)" in atoms
+    assert "partition(P)" in atoms
+    assert "number(I)" in atoms
 
 
 def _benchmark_clauses(name: str) -> set[str]:

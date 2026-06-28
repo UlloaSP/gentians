@@ -4,7 +4,7 @@ from clingo import ast
 
 from ..asp.callbacks import RuleCallback
 from ..console import print_error_and_exit
-from .parser_atoms import extract_name_arity
+from .parser import extract_name_arity
 
 
 class Example:
@@ -20,12 +20,6 @@ class Example:
         self.excluded: str = s[1]
         self.context: str = s[2] if len(s) == 3 else ""
         self.positive: bool = positive
-
-    def __str__(self) -> str:
-        return f"Example: {self.included} - {self.excluded} - {self.context} - {self.positive}"
-
-    def __repr__(self) -> str:
-        return self.__str__()
 
 
 class ModeDeclaration:
@@ -84,19 +78,6 @@ class ModeDeclaration:
                 self.comparison_operator != "",
             ]
         )
-
-    def __str__(self) -> str:
-        s = f"ModeDeclaration: recall: {self.recall} - name: {self.name} - arity: {self.arity} - positive: {self.positive} - head: {self.head}"
-        if self.aggregation_function != "":
-            s += f" - aggregate: {self.aggregation_function} - atoms: {self.aggregation_atoms}"
-        if self.arithmetic_operator != "":
-            s += f" - arithmetic: {self.arithmetic_operator}"
-        if self.comparison_operator != "":
-            s += f" - comparison: {self.comparison_operator}"
-        return s
-
-    def __repr__(self) -> str:
-        return self.__str__()
 
 
 class Program:
@@ -183,9 +164,3 @@ class Program:
             self.language_bias_body.append(
                 ModeDeclaration(("1", f"__inv_{i}__", "2", "positive"), False)
             )
-
-    def __str__(self) -> str:
-        return f"Program: {self.background} - {self.positive_examples} - {self.negative_examples} - {self.language_bias_head} - {self.language_bias_body}"
-
-    def __repr__(self) -> str:
-        return self.__str__()

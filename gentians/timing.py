@@ -69,6 +69,7 @@ def phase(name: str):
         "depth": len(_stack),
         "started_perf": time.perf_counter(),
         "started_wall": time.time(),
+        "child_seconds": 0.0,
     }
     _stack.append(event)
     start = time.perf_counter()
@@ -77,7 +78,9 @@ def phase(name: str):
     finally:
         ended = time.perf_counter()
         seconds = ended - start
+        self_seconds = max(seconds - float(event["child_seconds"]), 0.0)
         add(name, seconds)
+        add(f"{name}.self", self_seconds)
         row = {
             "event_id": event["event_id"],
             "parent_id": event["parent_id"],
@@ -88,9 +91,12 @@ def phase(name: str):
             "started_wall": event["started_wall"],
             "ended_wall": time.time(),
             "seconds": seconds,
+            "self_seconds": self_seconds,
         }
         _append_jsonl(os.environ.get("GENTIANS_TIMING_EVENTS_PATH"), row)
         _stack.pop()
+        if _stack:
+            _stack[-1]["child_seconds"] += seconds
 
 
 def profile_phase(name: str):

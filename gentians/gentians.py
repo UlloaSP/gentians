@@ -11,10 +11,7 @@ from gentians.evolution.factories import (
 )
 
 from .arguments import Arguments
-from .rule_generation.candidates import (
-    build_candidate_rule_space,
-    read_task,
-)
+from .rule_generation.hypothesis_space import build_hypothesis_space, read_task
 from .rule_generation.program import Program
 from .console import print_error_and_exit
 from .timing import export as export_timings, phase
@@ -29,11 +26,10 @@ def solve(program: Program, arguments: Arguments) -> None:
 
     try:
         with phase("total_execution"):
-            candidate_space = build_candidate_rule_space(
+            clauses = build_hypothesis_space(
                 program,
                 arguments,
             )
-            clauses = candidate_space.clauses
 
             if len(clauses) == 0:
                 print_error_and_exit("No clauses found")

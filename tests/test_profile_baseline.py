@@ -1,8 +1,12 @@
-from benchmarks.profile_baseline import operator_summary, parse_log
+from benchmarks.profile_baseline import (
+    TimingMetric,
+    dashboard_phases,
+    operator_summary,
+    parse_log,
+)
 from gentians import timing
 from gentians.arguments import Arguments
 from gentians.gentians import solve
-from gentians.rule_generation.candidates import CandidateRuleSpace
 from gentians.rule_generation.program import Program
 
 
@@ -59,8 +63,8 @@ def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
     exported = {}
 
     monkeypatch.setattr(
-        "gentians.gentians.build_candidate_rule_space",
-        lambda program, arguments: CandidateRuleSpace(["rule."]),
+        "gentians.gentians.build_hypothesis_space",
+        lambda program, arguments: ["rule."],
     )
     monkeypatch.setattr(
         "gentians.gentians.genetic_solver",
@@ -84,3 +88,33 @@ def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
     assert timing._stack == []
     timing._totals.clear()
     timing._counts.clear()
+
+
+def test_phase_records_exclusive_self_time(monkeypatch):
+    timing._totals.clear()
+    timing._counts.clear()
+    timing._stack.clear()
+    monkeypatch.setattr(timing, "_enabled", True)
+
+    with timing.phase("outer"):
+        with timing.phase("inner"):
+            pass
+
+    assert "outer.self" in timing._totals
+    assert "inner.self" in timing._totals
+    assert timing._totals["outer.self"] <= timing._totals["outer"]
+    timing._totals.clear()
+    timing._counts.clear()
+
+
+def test_dashboard_prefers_exported_exclusive_self_time():
+    phases = dashboard_phases(
+        [
+            TimingMetric("d", 1, "hypothesis_space", 10.0, 1),
+            TimingMetric("d", 1, "hypothesis_space.self", 2.0, 1),
+            TimingMetric("d", 1, "hypothesis_space.grounding", 3.0, 1),
+            TimingMetric("d", 1, "hypothesis_space.solving", 4.0, 1),
+        ]
+    )
+
+    assert phases["hypothesisSpace"]["self"] == 2.0

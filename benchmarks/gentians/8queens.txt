@@ -1,0 +1,33 @@
+% Example: 8queens
+% Generic N-Queens rules with 8-queen background.
+%
+% Change only this constant to reuse the background for another N.
+% Examples below are 8-specific.
+%
+% # TO LEARN
+% :- q(X1,Y), q(X2,Y), X1 < X2.
+% :- q(X1,Y1), q(X2,Y2), X1 < X2, Y1 + X1 = Z, Z = Y2 + X2.
+% :- q(X1,Y1), q(X2,Y2), X1 < X2, Y1 - X1 = Z, Z = Y2 - X2.
+
+% Background knowledge
+#const n = 8.
+number(1..n).
+1 { q(X,Y) : number(Y) } 1 :- number(X).
+1 { q(X,Y) : number(X) } 1 :- number(Y).
+
+% Positive examples
+#pos({q(1,1), q(2,5), q(3,8), q(4,6), q(5,3), q(6,7), q(7,2), q(8,4)}, {}).
+#pos({q(1,1), q(2,6), q(3,8), q(4,3), q(5,7), q(6,4), q(7,2), q(8,5)}, {}).
+#pos({q(1,1), q(2,7), q(3,4), q(4,6), q(5,8), q(6,2), q(7,5), q(8,3)}, {}).
+#pos({q(1,1), q(2,7), q(3,5), q(4,8), q(5,2), q(6,4), q(7,6), q(8,3)}, {}).
+
+% Negative examples
+#neg({q(1,1), q(2,2), q(3,3), q(4,4), q(5,5), q(6,6), q(7,7), q(8,8)}, {}).
+#neg({q(1,1), q(2,5), q(3,8), q(4,6), q(5,3), q(6,7), q(7,4), q(8,2)}, {}).
+#neg({q(1,1), q(2,6), q(3,8), q(4,3), q(5,7), q(6,4), q(7,5), q(8,2)}, {}).
+#neg({q(1,2), q(2,4), q(3,6), q(4,8), q(5,3), q(6,1), q(7,7), q(8,5)}, {}).
+
+% Head language bias
+
+% Body language bias
+#modeb(2,q,2,positive).

@@ -32,12 +32,8 @@
 
 % Head language bias
 #modeh(1,ok,1).
-#modeh(1,s0,1).
-#modeh(1,s1,1).
 
 % Body language bias
-#modeb(1,s0,1,positive).
-#modeb(1,s1,1,positive).
 
 % Original Python source
 % def subset_sum_double_and_sum() -> Program:
@@ -75,14 +71,9 @@
 %     ]
 %
 %     language_bias_head : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("1", 'ok', "1"), True),
-%         ModeDeclaration(("1", 's0', "1"), True),
-%         ModeDeclaration(("1", 's1', "1"), True)
+%         ModeDeclaration(("1", 'ok', "1"), True)
 %     ]
 %
-%     language_bias_body : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("1", 's0', "1"), False),
-%         ModeDeclaration(("1", 's1', "1"), False)
-%     ]
+%     language_bias_body : 'list[ModeDeclaration]' = []
 %
 %     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

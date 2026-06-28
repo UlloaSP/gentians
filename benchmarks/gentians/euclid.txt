@@ -39,7 +39,7 @@ result(M) :- eucl(a,b,M).
 #modeh(1,eucl,3).
 
 % Body language bias
-#modeb(1,euc,3,positive).
+#modeb(1,eucl,3,positive).
 #modeb(1,zero,1,positive).
 #modeb(2,num,1,positive).
 
@@ -89,7 +89,7 @@ result(M) :- eucl(a,b,M).
 %         ModeDeclaration(("1", "eucl", "3"), True)
 %     ]
 %     language_bias_body : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("1", "euc", "3", "positive"), False),
+%         ModeDeclaration(("1", "eucl", "3", "positive"), False),
 %         ModeDeclaration(("1", "zero", "1", "positive"), False),
 %         ModeDeclaration(("2", "num", "1", "positive"), False)
 %     ]

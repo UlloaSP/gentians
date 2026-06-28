@@ -17,10 +17,9 @@ from .rule_generation.candidates import (
 )
 from .rule_generation.program import Program
 from .console import print_error_and_exit
-from .timing import export as export_timings, profile_phase
+from .timing import export as export_timings, phase
 
 
-@profile_phase("total_execution")
 def solve(program: Program, arguments: Arguments) -> None:
     """
     Main loop.
@@ -29,35 +28,34 @@ def solve(program: Program, arguments: Arguments) -> None:
     start_total_time = time.time()
 
     try:
-        candidate_space = build_candidate_rule_space(
-            program,
-            arguments,
-        )
-        clauses = candidate_space.clauses
+        with phase("total_execution"):
+            candidate_space = build_candidate_rule_space(
+                program,
+                arguments,
+            )
+            clauses = candidate_space.clauses
 
-        if len(clauses) == 0:
-            print_error_and_exit("No clauses found")
+            if len(clauses) == 0:
+                print_error_and_exit("No clauses found")
 
-        prg, score, best_found = genetic_solver(
-            clauses,
-            arguments,
-            create_fitness(program, arguments.fitness),
-            create_population(arguments.population),
-            create_selection(arguments.selection),
-            create_crossover(arguments.crossover),
-            create_mutation(arguments.mutation),
-            create_replacement(arguments.replacement),
-        )
+            prg, score, best_found = genetic_solver(
+                clauses,
+                arguments,
+                create_fitness(program, arguments.fitness),
+                create_population(arguments.population),
+                create_selection(arguments.selection),
+                create_crossover(arguments.crossover),
+                create_mutation(arguments.mutation),
+                create_replacement(arguments.replacement),
+            )
 
-        if best_found:
-            print(f"--- Found best program with score {score} ---")
-        else:
-            print(f"--- Best candidate program with score {score} ---")
-        print("--------------------------")
-        print(*prg, sep="\n")
-        print("--------------------------")
-
-        print(f"Total time: {time.time() - start_total_time}")
+            if best_found:
+                print(f"--- Found best program with score {score} ---")
+            else:
+                print(f"--- Best candidate program with score {score} ---")
+            print(*prg, sep="\n")
+            print("--------------------------")
+            print(f"Total time: {time.time() - start_total_time}")
     finally:
         export_timings()
 

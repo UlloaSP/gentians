@@ -4,7 +4,7 @@
 % # Original program
 % red(X) ; green(X) ; blue(X) :- node(X).
 % e(X,Y) :- edge(X,Y).
-% e(Y,X) :- edge(Y,X).
+% e(Y,X) :- edge(X,Y).
 % 
 % node(1..6).
 % 
@@ -36,7 +36,7 @@ edge(4, 5).
 edge(5, 6).
 node(1..6).
 e(X,Y) :- edge(X,Y).
-e(Y,X) :- edge(Y,X).
+e(Y,X) :- edge(X,Y).
 node(1..6).
 
 % Positive examples
@@ -60,7 +60,7 @@ node(1..6).
 
 % Body language bias
 #modeb(1,node,1,positive).
-#modeb(1,edge,2,positive).
+#modeb(1,e,2,positive).
 #modeb(2,red,1,positive).
 #modeb(2,green,1,positive).
 #modeb(2,blue,1,positive).
@@ -71,7 +71,7 @@ node(1..6).
 %     # Original program
 %     red(X) ; green(X) ; blue(X) :- node(X).
 %     e(X,Y) :- edge(X,Y).
-%     e(Y,X) :- edge(Y,X).
+%     e(Y,X) :- edge(X,Y).
 %
 %     node(1..6).
 %
@@ -103,7 +103,7 @@ node(1..6).
 %         "edge(5, 6).",
 %         "node(1..6).",
 %         "e(X,Y) :- edge(X,Y).",
-%         "e(Y,X) :- edge(Y,X).",
+%         "e(Y,X) :- edge(X,Y).",
 %         "node(1..6)."
 %     ]
 %     
@@ -139,7 +139,7 @@ node(1..6).
 %
 %     language_bias_body : list[ModeDeclaration] = [
 %         ModeDeclaration(("1", 'node', "1", "positive"), False),
-%         ModeDeclaration(("1", 'edge', "2", "positive"), False),
+%         ModeDeclaration(("1", 'e', "2", "positive"), False),
 %         ModeDeclaration(("2", 'red', "1", "positive"), False),
 %         ModeDeclaration(("2", 'green', "1", "positive"), False),
 %         ModeDeclaration(("2", 'blue', "1", "positive"), False)

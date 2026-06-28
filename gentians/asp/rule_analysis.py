@@ -53,7 +53,7 @@ def is_valid_rule(clause: str) -> bool:
         return False
 
     comparison_operators = ["<=", ">=", "!=", "==", ">", "<"]
-    arithmetic_operators = ["+", "-", "*", "/"]
+    arithmetic_operators = ["+", "-", "*", "/", "\\"]
 
     atoms_list: "list[str]" = get_atoms(clause)
 
@@ -77,4 +77,3 @@ def is_valid_rule(clause: str) -> bool:
                 return False
 
     return True
-

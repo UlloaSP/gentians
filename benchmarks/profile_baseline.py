@@ -88,6 +88,7 @@ class GAMetric:
     avg_fitness: float
     best_so_far: float
 
+
 ITERATION_RE = re.compile(
     r"Iteration\s+(\d+)\s+-.*best:\s+Program:.*-\s+score:\s+([-+0-9.eE]+)"
 )
@@ -258,7 +259,6 @@ def main() -> None:
                 f"[{completed}/{total}] {dataset} run {run}/{args.runs} timeout={args.timeout_seconds}s",
                 flush=True,
             )
-            print("cmd:", subprocess.list2cmdline(cmd), flush=True)
             started = time.perf_counter()
             returncode, timed_out = run_streamed(
                 cmd,
@@ -315,10 +315,14 @@ def main() -> None:
                 read_jsonl_rows(timing_events_path, dataset, run, seed, experiment_id)
             )
             operator_metrics.extend(
-                read_jsonl_rows(operator_metrics_path, dataset, run, seed, experiment_id)
+                read_jsonl_rows(
+                    operator_metrics_path, dataset, run, seed, experiment_id
+                )
             )
             candidate_metrics.extend(
-                read_jsonl_rows(candidate_metrics_path, dataset, run, seed, experiment_id)
+                read_jsonl_rows(
+                    candidate_metrics_path, dataset, run, seed, experiment_id
+                )
             )
             quality_metrics.extend(
                 read_jsonl_rows(quality_metrics_path, dataset, run, seed, experiment_id)
@@ -342,7 +346,7 @@ def main() -> None:
                 invariants,
             )
             print(
-                f"[{completed}/{total}] {dataset} run {run} {status} {elapsed:.2f}s",
+                f"[{completed}/{total}] {dataset} run {run} {status} {elapsed:.2f}s\n",
                 flush=True,
             )
 
@@ -541,7 +545,7 @@ def read_json_rows(path: Path) -> list[dict[str, object]]:
         return []
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except (PermissionError, json.JSONDecodeError):
+    except PermissionError, json.JSONDecodeError:
         return []
 
 
@@ -594,7 +598,9 @@ def compute_accounting_invariants(
             "right_seconds": attributed,
             "delta_seconds": total - attributed,
             "delta_percent": (total - attributed) / total * 100 if total else 0.0,
-            "status": "ok" if not total or abs(total - attributed) / total < 0.15 else "check",
+            "status": "ok"
+            if not total or abs(total - attributed) / total < 0.15
+            else "check",
         },
         {
             "dataset": dataset,
@@ -619,9 +625,9 @@ def compute_accounting_invariants(
         "fitness.final",
     ]:
         phase_total = values.get(phase, 0.0)
-        clingo_total = sum_nested_metric(values, phase, "grounding") + sum_nested_metric(
-            values, phase, "solving"
-        )
+        clingo_total = sum_nested_metric(
+            values, phase, "grounding"
+        ) + sum_nested_metric(values, phase, "solving")
         rows.append(
             {
                 "dataset": dataset,
@@ -693,13 +699,17 @@ def read_existing_outputs(
             int(to_float(row.get("seed"))),
             row.get("experiment_id", ""),
             row.get("status", ""),
-            int(to_float(row.get("returncode"))) if row.get("returncode") not in (None, "") else None,
+            int(to_float(row.get("returncode")))
+            if row.get("returncode") not in (None, "")
+            else None,
             to_float(row.get("elapsed_seconds")),
             [],
             row.get("arguments_json", ""),
             row.get("log_path", ""),
             row.get("cprofile_path", ""),
-            to_float(row.get("total_seconds")) if row.get("total_seconds") not in (None, "") else None,
+            to_float(row.get("total_seconds"))
+            if row.get("total_seconds") not in (None, "")
+            else None,
             bool(to_float(row.get("success"))),
             int(to_float(row.get("first_success_generation_observed")))
             if row.get("first_success_generation_observed") not in (None, "")
@@ -802,16 +812,25 @@ def write_dashboard_data(
         dataset_results = [result for result in results if result.dataset == dataset]
         dataset_timings = [timing for timing in timings if timing.dataset == dataset]
         dataset_ga = [metric for metric in ga_metrics if metric.dataset == dataset]
-        dataset_quality = [row for row in quality_metrics if row.get("dataset") == dataset]
-        dataset_clingo_summary = [row for row in clingo_rows if row.get("dataset") == dataset]
+        dataset_quality = [
+            row for row in quality_metrics if row.get("dataset") == dataset
+        ]
+        dataset_clingo_summary = [
+            row for row in clingo_rows if row.get("dataset") == dataset
+        ]
         first_timing_run = min(
-            [int(to_float(row.get("run"))) for row in timing_events if row.get("dataset") == dataset],
+            [
+                int(to_float(row.get("run")))
+                for row in timing_events
+                if row.get("dataset") == dataset
+            ],
             default=0,
         )
         dataset_timing_events = [
             row
             for row in timing_events
-            if row.get("dataset") == dataset and int(to_float(row.get("run"))) == first_timing_run
+            if row.get("dataset") == dataset
+            and int(to_float(row.get("run"))) == first_timing_run
         ]
         candidate = first_row(candidate_rows, dataset)
         quality = first_row(quality_rows, dataset)
@@ -896,7 +915,9 @@ def write_dashboard_data(
                 "successRate": mean_bool(
                     [asdict(result) for result in dataset_results], "success"
                 ),
-                "timeouts": sum(1 for result in dataset_results if result.status == "timeout"),
+                "timeouts": sum(
+                    1 for result in dataset_results if result.status == "timeout"
+                ),
                 "firstSolution": min(
                     [
                         result.first_success_generation_observed
@@ -936,7 +957,9 @@ def write_dashboard_data(
             }
         )
     (out_dir / "dashboard_data.json").write_text(
-        json.dumps({"schemaVersion": 2, "benchmarks": benchmarks}, indent=2, allow_nan=False),
+        json.dumps(
+            {"schemaVersion": 2, "benchmarks": benchmarks}, indent=2, allow_nan=False
+        ),
         encoding="utf-8",
     )
 
@@ -965,9 +988,7 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
         "other": {"self": 0.0, "grounding": 0.0, "solving": 0.0, "other": 0.0},
     }
     total = values.get("total_execution", 0.0)
-    measured = sum(
-        sum(type_values.values()) for type_values in phases.values()
-    )
+    measured = sum(sum(type_values.values()) for type_values in phases.values())
     phases["other"]["other"] = max(total - measured, 0.0)
     return phases
 
@@ -1019,7 +1040,10 @@ def dashboard_clause_rows(
 ) -> list[dict[str, object]]:
     rows = []
     for row in candidate_metrics:
-        if row.get("dataset") != dataset or row.get("metric") != "build_reified_hypothesis_space":
+        if (
+            row.get("dataset") != dataset
+            or row.get("metric") != "build_reified_hypothesis_space"
+        ):
             continue
         rows.append(
             {
@@ -1092,7 +1116,11 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     summary: list[dict[str, object]] = []
     keys = sorted(
         {
-            (str(row.get("dataset", "")), str(row.get("operator", "")), str(row.get("strategy", "")))
+            (
+                str(row.get("dataset", "")),
+                str(row.get("operator", "")),
+                str(row.get("strategy", "")),
+            )
             for row in rows
             if row.get("operator")
         }
@@ -1143,7 +1171,9 @@ def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     for dataset in datasets:
         selected = [row for row in rows if row.get("dataset") == dataset]
         placements = [
-            row for row in selected if row.get("metric") == "build_reified_hypothesis_space"
+            row
+            for row in selected
+            if row.get("metric") == "build_reified_hypothesis_space"
         ]
         summary.append(
             {
@@ -1194,7 +1224,11 @@ def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     summary: list[dict[str, object]] = []
     keys = sorted(
         {
-            (str(row.get("dataset", "")), str(row.get("operation", "")), str(row.get("phase_context", "")))
+            (
+                str(row.get("dataset", "")),
+                str(row.get("operation", "")),
+                str(row.get("phase_context", "")),
+            )
             for row in rows
             if row.get("operation")
         }

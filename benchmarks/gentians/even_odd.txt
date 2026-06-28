@@ -25,6 +25,7 @@ prev(4,3).
 #modeh(1,odd,1).
 
 % Body language bias
+#modeb(1,even,1,positive).
 #modeb(1,odd,1,positive).
 #modeb(2,prev,2,positive).
 
@@ -61,6 +62,7 @@ prev(4,3).
 %         ModeDeclaration(("1", 'odd', "1"), True)
 %     ]
 %     language_bias_body : 'list[ModeDeclaration]' = [
+%         ModeDeclaration(("1", 'even', "1", "positive"), False),
 %         ModeDeclaration(("1", 'odd', "1", "positive"), False),
 %         ModeDeclaration(("2", 'prev', "2", "positive"), False)
 %     ]

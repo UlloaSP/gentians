@@ -52,7 +52,7 @@ number(1..n).
 % Head language bias
 
 % Body language bias
-#modeb(1,q,2,positive).
+#modeb(2,q,2,positive).
 
 % Original Python source
 % def n_4queens():
@@ -113,7 +113,7 @@ number(1..n).
 %     language_bias_head : 'list[ModeDeclaration]' = []
 %     
 %     language_bias_body : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("1", "q", "2", "positive"), False)
+%         ModeDeclaration(("2", "q", "2", "positive"), False)
 %     ]
 %     
 %     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

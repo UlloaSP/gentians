@@ -60,7 +60,7 @@ p(1,1).
 
 % Body language bias
 #modeb(2,sum_partition,2,positive).
-#modeb(1,partition,2,positive).
+#modeb(1,partition,1,positive).
 
 % Original Python source
 % def set_partition_sum():
@@ -131,7 +131,7 @@ p(1,1).
 %     
 %     language_bias_body : 'list[ModeDeclaration]' = [
 %         ModeDeclaration(("2", "sum_partition", "2", "positive"), False),
-%         ModeDeclaration(("1", "partition", "2", "positive"), False)
+%         ModeDeclaration(("1", "partition", "1", "positive"), False)
 %     ]
 %     
 %     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

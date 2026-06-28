@@ -13,7 +13,7 @@ from ..arguments import Arguments
 from ..asp.callbacks import wrapper_exit_callback
 from ..asp.rule_analysis import get_atoms
 from ..timing import add, current_phase, record_metric
-from .parser_atoms import extract_name_arity
+from .parser_atoms import extract_name_arity, split_top_level_args
 from .program import Program
 
 
@@ -24,6 +24,7 @@ HYPOTHESIS_SPACE_RULES = (LOGIC_PROGRAMS / "hypothesis_space_reified.lp").read_t
 @dataclass(frozen=True)
 class HypothesisMode:
     id: int
+    recall_group: int
     section: str
     kind: str
     name: str
@@ -103,12 +104,13 @@ class HypothesisSpaceGenerator:
                 clauses.append(rendered)
 
         seconds = time.perf_counter() - start
-        add("hypothesis_space.solving", seconds)
+        phase = current_phase()
+        add(f"{phase}.solving", seconds)
         record_metric(
             "clingo",
             {
                 "operation": "hypothesis_space",
-                "phase_context": current_phase(),
+                "phase_context": phase,
                 "seconds": seconds,
                 "models": models,
                 "program_size": 1,
@@ -165,9 +167,11 @@ def _available_predicates(program: Program) -> set[tuple[str, int]]:
     }
     for fragment in _program_fragments(program):
         for atom in _atoms_in_fragment(fragment):
-            if atom.startswith("#"):
+            parsed = _parse_normal_atom(atom)
+            if parsed is None:
                 continue
-            predicates.add(extract_name_arity(atom))
+            name, arguments = parsed
+            predicates.add((name, len(arguments)))
     return predicates
 
 
@@ -181,7 +185,9 @@ def _predicate_arg_types(program: Program) -> dict[tuple[str, int, int], str]:
         position: set() for position in positions
     }
     positions_by_constant: dict[str, set[tuple[str, int, int]]] = {}
+    variable_position_groups: list[list[tuple[str, int, int]]] = []
     for fragment in _program_fragments(program):
+        positions_by_variable: dict[str, list[tuple[str, int, int]]] = {}
         for atom in _atoms_in_fragment(fragment):
             parsed = _parse_normal_atom(atom)
             if parsed is None:
@@ -191,8 +197,14 @@ def _predicate_arg_types(program: Program) -> dict[tuple[str, int, int], str]:
             for index, value in enumerate(arguments):
                 position = (name, arity, index)
                 positions.add(position)
-                constants_by_position.setdefault(position, set()).add(value)
-                positions_by_constant.setdefault(value, set()).add(position)
+                if _is_variable(value):
+                    positions_by_variable.setdefault(value, []).append(position)
+                else:
+                    constants_by_position.setdefault(position, set()).add(value)
+                    positions_by_constant.setdefault(value, set()).add(position)
+        variable_position_groups.extend(
+            group for group in positions_by_variable.values() if len(group) > 1
+        )
 
     parent = {position: position for position in positions}
 
@@ -212,6 +224,9 @@ def _predicate_arg_types(program: Program) -> dict[tuple[str, int, int], str]:
         items = list(shared_positions)
         for other in items[1:]:
             union(items[0], other)
+    for shared_positions in variable_position_groups:
+        for other in shared_positions[1:]:
+            union(shared_positions[0], other)
 
     constants_by_root: dict[tuple[str, int, int], set[str]] = {}
     for position in positions:
@@ -223,7 +238,7 @@ def _predicate_arg_types(program: Program) -> dict[tuple[str, int, int], str]:
     type_by_root: dict[tuple[str, int, int], str] = {}
     next_type = 0
     for root, constants in constants_by_root.items():
-        if constants and all(_is_number(value) for value in constants):
+        if constants and all(_is_numeric_constant(value) for value in constants):
             type_by_root[root] = "numeric"
         elif constants:
             type_by_root[root] = f"type_{next_type}"
@@ -235,7 +250,13 @@ def _predicate_arg_types(program: Program) -> dict[tuple[str, int, int], str]:
 
 
 def _parse_normal_atom(atom: str) -> tuple[str, list[str]] | None:
-    normalized = atom.removeprefix("not")
+    normalized = atom.strip()
+    if normalized.startswith("not "):
+        normalized = normalized[4:].strip()
+    elif normalized.startswith("not") and len(normalized) > 3 and normalized[3].isalpha():
+        normalized = normalized[3:]
+    if normalized.startswith("{") and normalized.endswith("}"):
+        normalized = normalized[1:-1].strip()
     if normalized.startswith("#"):
         return None
     match = re.match(r"^([A-Za-z_]\w*)(?:\((.*)\))?$", normalized)
@@ -244,11 +265,16 @@ def _parse_normal_atom(atom: str) -> tuple[str, list[str]] | None:
     arguments = match.group(2)
     if arguments is None or arguments == "":
         return match.group(1), []
-    return match.group(1), [part.strip() for part in arguments.split(",")]
+    return match.group(1), split_top_level_args(arguments)
 
 
-def _is_number(value: str) -> bool:
-    return bool(re.fullmatch(r"[-+]?\d+", value))
+def _is_numeric_constant(value: str) -> bool:
+    value = value.strip("()")
+    return bool(re.fullmatch(r"[-+]?\d+(?:\.\.[-+]?\d+)?", value))
+
+
+def _is_variable(value: str) -> bool:
+    return bool(re.fullmatch(r"_|[A-Z]\w*", value))
 
 
 def _program_fragments(program: Program) -> list[str]:
@@ -319,6 +345,7 @@ def _hypothesis_modes(
         add(
             HypothesisMode(
                 id=next_id,
+                recall_group=next_id,
                 section="head",
                 kind="normal",
                 name=md.name,
@@ -338,6 +365,7 @@ def _hypothesis_modes(
         add(
             HypothesisMode(
                 id=next_id,
+                recall_group=next_id,
                 section="body",
                 kind="normal",
                 name=md.name,
@@ -357,13 +385,13 @@ def _hypothesis_modes(
             or (equality_operator and capabilities.allow_equality_comparison)
         ):
             arg_types = ("numeric", "numeric") if numeric_operator else ("any", "any")
-            add(HypothesisMode(next_id, "body", "comparison", "", 2, recall, True, operator=symbol, arg_types=arg_types))
+            add(HypothesisMode(next_id, next_id, "body", "comparison", "", 2, recall, True, operator=symbol, arg_types=arg_types))
 
     if capabilities.allow_arithmetic:
         for operator, recall in Counter(args.arithmetic_operators).items():
-            symbol = {"add": "+", "sub": "-", "mul": "*", "div": "/", "abs": "abs"}.get(operator)
+            symbol = {"add": "+", "sub": "-", "mul": "*", "div": "/", "mod": "\\", "abs": "abs"}.get(operator)
             if symbol:
-                add(HypothesisMode(next_id, "body", "arithmetic", "", 3, recall, True, operator=symbol, arg_types=("numeric", "numeric", "numeric")))
+                add(HypothesisMode(next_id, next_id, "body", "arithmetic", "", 3, recall, True, operator=symbol, arg_types=("numeric", "numeric", "numeric")))
 
     aggregate_recalls = Counter((function, tuple(atoms)) for function, atoms in aggregate_specs)
     for (function, atoms_tuple), recall in aggregate_recalls.items():
@@ -374,6 +402,7 @@ def _hypothesis_modes(
             if args.unbalanced_aggregates
             else [total_atom_arity]
         )
+        recall_group = next_id
         for tuple_arity in tuple_arities:
             condition_types = tuple(
                 predicate_arg_types.get((name, arity, arg), "any")
@@ -383,6 +412,7 @@ def _hypothesis_modes(
             add(
                 HypothesisMode(
                     id=next_id,
+                    recall_group=recall_group,
                     section="body",
                     kind="aggregate",
                     name="",
@@ -408,7 +438,7 @@ def _aggregate_spec(spec: str) -> tuple[str, list[tuple[str, int]]]:
     name, rest = spec.split("(", 1)
     atoms = rest.rstrip(")")
     pairs: list[tuple[str, int]] = []
-    for atom in atoms.split(","):
+    for atom in split_top_level_args(atoms):
         predicate, arity = atom.split("/", 1)
         pairs.append((predicate, int(arity)))
     return name, pairs
@@ -439,6 +469,7 @@ def _facts(
             f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{mode.recall})."
         )
         parts.append(f"recall({mode.id},{mode.recall}).")
+        parts.append(f"recall_group({mode.id},{mode.recall_group}).")
         for index, arg_type in enumerate(mode.arg_types):
             parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
         if mode.positive:

@@ -24,7 +24,7 @@ class Arguments:
     disjunctive_head_length: int = 1
 
     # Number of candidate clauses generated at each hypothesis-space step.
-    clauses_to_sample: int = 1000
+    clauses_to_sample: int = 10000
 
     # Allow aggregate literals whose variables are not fully balanced.
     unbalanced_aggregates: bool = False
@@ -33,7 +33,7 @@ class Arguments:
     clauses_per_individual: int = 6
 
     # Genetic algorithm iterations.
-    iterations_genetic: int = 5000
+    iterations_genetic: int = 2000
 
     # Fitness operator config.
     fitness: dict[str, object] = field(
@@ -120,7 +120,7 @@ class Arguments:
     # Comparison operators: lt, leq, gt, geq, eq, neq. Repeat to increase recall.
     comparison_operators: list[str] = field(default_factory=list)
 
-    # Arithmetic operators: add, sub, mul, div, abs. Repeat to increase recall.
+    # Arithmetic operators: add, sub, mul, div, mod, abs. Repeat to increase recall.
     arithmetic_operators: list[str] = field(default_factory=list)
 
     # Number of invented predicates. 0 disables predicate invention.

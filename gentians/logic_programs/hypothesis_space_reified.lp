@@ -12,6 +12,7 @@
 #defined positive_mode/1.
 #defined negative_mode/1.
 #defined recall/2.
+#defined recall_group/2.
 
 var(0..Max-1):- max_vars(Max).
 head_slot(0..Max-1):- max_head(Max), Max > 0.
@@ -34,13 +35,10 @@ head_count(Count):- Count = #count{Slot : selected_slot(head,Slot)}.
 body_count(Count):- Count = #count{Slot : selected_slot(body,Slot)}.
 :- max_depth(Max), head_count(Head), body_count(Body), Head + Body > Max.
 
-special_mode(Mode):- comparison_mode(Mode,_).
-special_mode(Mode):- arithmetic_mode(Mode,_).
-special_mode(Mode):- aggregate_mode(Mode,_,_).
-special_selected_count(Mode,Count):-
-    special_mode(Mode),
-    Count = #count{Section,Slot : selected(Section,Slot,Mode)}.
-:- special_selected_count(Mode,Count), recall(Mode,Recall), Count > Recall.
+selected_count(Group,Count):-
+    recall_group(_,Group),
+    Count = #count{Section,Slot,Mode : selected(Section,Slot,Mode), recall_group(Mode,Group)}.
+:- selected_count(Group,Count), recall_group(Mode,Group), recall(Mode,Recall), Count > Recall.
 
 arg(Section,Slot,Arg):-
     selected(Section,Slot,Mode),
@@ -68,7 +66,12 @@ repeated_var(Var):-
     var_at(S1,L1,A1,Var),
     (S0,L0,A0) < (S1,L1,A1).
 
-:- used_var(Var), not repeated_var(Var).
+aggregate_local_var(Slot,Var):-
+    aggregate_condition_var(Slot,Var),
+    not aggregate_tuple_var(Slot,Var),
+    not aggregate_result_var(Slot,Var).
+
+:- used_var(Var), not repeated_var(Var), not aggregate_local_var(_,Var).
 :- used_var(Var1), var(Var0), Var0 < Var1, not used_var(Var0).
 
 first_var_pos(Var,Section,Slot,Arg):-
@@ -183,7 +186,20 @@ safe_var(Var):- aggregate_result_var(_,Var).
     var_at(body,Slot,A0,Var),
     var_at(body,Slot,A1,Var).
 
+:- selected(body,Slot,Mode),
+    aggregate_mode(Mode,TupleArity,_),
+    mode(body,Mode,_,Arity,_),
+    A0 = TupleArity..Arity-2,
+    A1 = TupleArity..Arity-2,
+    A0 < A1,
+    var_at(body,Slot,A0,Var),
+    var_at(body,Slot,A1,Var).
+
 :- aggregate_tuple_var(Slot,Var), not aggregate_condition_var(Slot,Var).
+:- aggregate_condition_var(Slot,Var),
+    not aggregate_tuple_var(Slot,Var),
+    var_used_outside_body_slot(Slot,Var),
+    not normal_positive_body_var(Var).
 :- aggregate_condition_var(_,Var), aggregate_result_var(_,Var), not normal_positive_body_var(Var).
 :- aggregate_tuple_var(Slot,Var),
     var_at(head,_,_,Var).

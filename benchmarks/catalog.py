@@ -25,6 +25,20 @@ CASES: dict[str, Arguments] = {
         comparison_operators=["lt"],
         max_variables=3,
     ),
+    "5queens": task(
+        "5queens.txt",
+        max_depth=5,
+        arithmetic_operators=["add", "sub"],
+        comparison_operators=["lt"],
+        max_variables=5,
+    ),
+    "8queens": task(
+        "8queens.txt",
+        max_depth=5,
+        arithmetic_operators=["add", "sub"],
+        comparison_operators=["lt"],
+        max_variables=5,
+    ),
     "adj2red": task("adjacent_to_red.txt", max_depth=4),
     "clique": task(
         "clique.txt",
@@ -33,13 +47,28 @@ CASES: dict[str, Arguments] = {
         max_variables=2,
     ),
     "coin": task("coin.txt"),
+    "euclid": task(
+        "euclid.txt",
+        max_depth=8,
+        arithmetic_operators=["mod"],
+        comparison_operators=["lt", "gt", "gt"],
+        max_variables=5,
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
+    ),
     "coloring": task(
         "coloring.txt",
         disjunctive_head_length=3,
         max_depth=4,
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
-    "even_odd": task("even_odd.txt"),
-    "grandparent": task("grandparent.txt"),
+    "even_odd": task(
+        "even_odd.txt",
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
+    ),
+    "grandparent": task(
+        "grandparent.txt",
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
+    ),
     "sudoku": task("sudoku.txt", max_depth=3),
     "hamming_0": task(
         "hamming_0.txt",
@@ -91,6 +120,7 @@ CASES: dict[str, Arguments] = {
         aggregates=["sum(el/2)", "sum(el/2)"],
         arithmetic_operators=["add"],
         max_variables=3,
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
     "subset_sum_double_unbalanced": task(
         "subset_sum_double.txt",
@@ -99,6 +129,7 @@ CASES: dict[str, Arguments] = {
         arithmetic_operators=["add"],
         max_variables=3,
         unbalanced_aggregates=True,
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
     "subset_sum_double_unbalanced_count": task(
         "subset_sum_double.txt",
@@ -107,6 +138,14 @@ CASES: dict[str, Arguments] = {
         arithmetic_operators=["add"],
         max_variables=3,
         unbalanced_aggregates=True,
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
+    ),
+    "subset_sum_double_and_sum": task(
+        "subset_sum_double_and_sum.txt",
+        max_depth=4,
+        aggregates=["sum(el/2)", "sum(el/2)"],
+        arithmetic_operators=["add"],
+        max_variables=6,
     ),
     "subset_sum_double_and_prod": task(
         "subset_sum_double_and_prod.txt",
@@ -143,6 +182,7 @@ CASES: dict[str, Arguments] = {
         max_variables=4,
         aggregates=["sum(p/2)"],
         unbalanced_aggregates=True,
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
     "set_partition_sum": task(
         "set_partition_sum.txt",
@@ -151,6 +191,25 @@ CASES: dict[str, Arguments] = {
         max_variables=4,
         aggregates=["sum(p/2)"],
         unbalanced_aggregates=True,
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
+    ),
+    "set_partition_sum_and_cardinality": task(
+        "set_partition_sum_and_cardinality.txt",
+        max_depth=4,
+        comparison_operators=["neq", "neq"],
+        max_variables=4,
+        aggregates=["sum(p/2)", "count(p/2)"],
+        unbalanced_aggregates=True,
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
+    ),
+    "set_partition_sum_and_cardinality_new": task(
+        "set_partition_sum_and_cardinality_new.txt",
+        max_depth=4,
+        comparison_operators=["neq", "neq"],
+        max_variables=4,
+        aggregates=["sum(p/2)", "count(p/2)"],
+        unbalanced_aggregates=True,
+        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
 }
 
@@ -159,11 +218,16 @@ DEFAULT_DATASETS = [
     "coin",
     "adj2red",
     "clique",
-    "4queens",
+    "8queens",
     "even_odd",
     "grandparent",
     "sudoku",
     "coloring",
+    "subset_sum_double",
+    "subset_sum_double_and_sum",
+    "set_partition_sum_new",
+    "set_partition_sum",
+    "euclid",
 ]
 
 

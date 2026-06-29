@@ -44,12 +44,16 @@ def create_fitness(
         )
     if name == "coverage_fixed":
         size_penalty = float(config.get("size_penalty", 0.01))
+        literal_penalty = float(config.get("literal_penalty", 0.002))
+        redundancy_penalty = float(config.get("redundancy_penalty", 0.01))
         return coverage_fixed(
             program,
             max_as,
             clingo_arguments,
             empty_score,
             size_penalty,
+            literal_penalty,
+            redundancy_penalty,
             rule_space,
         )
     raise ValueError(f"Unknown fitness operator: {name}")

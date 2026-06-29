@@ -33,7 +33,7 @@ def test_coverage_fixed_penalizes_brave_negative_violation():
     )
 
     score, best_found, indexes = coverage_fixed(
-        program, 0, [], -2000, 0.01, RuleSpace.from_clauses([])
+        program, 0, [], -2000, 0.01, 0.002, 0.01, RuleSpace.from_clauses([])
     )([])
 
     assert score == math.exp(10)
@@ -51,7 +51,7 @@ def test_coverage_fixed_uses_brave_positive_coverage():
     )
 
     score, best_found, indexes = coverage_fixed(
-        program, 0, [], -2000, 0.01, RuleSpace.from_clauses([])
+        program, 0, [], -2000, 0.01, 0.002, 0.01, RuleSpace.from_clauses([])
     )([])
 
     assert score == math.exp(20)
@@ -68,7 +68,7 @@ def test_coverage_fixed_prefers_positive_coverage_over_clean_overconstraint():
         [],
     )
     rule_space = RuleSpace.from_clauses([":- b.", ":- a."])
-    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, rule_space)
+    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, 0.002, 0.01, rule_space)
 
     covering_score, _, _ = evaluate([1])
     overconstrained_score, _, _ = evaluate([0, 1])
@@ -98,10 +98,12 @@ def test_coverage_fixed_uses_pregrounded_rule_space(monkeypatch):
         [],
         -2000,
         0.01,
-            rule_space=RuleSpace.from_clauses([":- b."]),
+        0.002,
+        0.01,
+        rule_space=RuleSpace.from_clauses([":- b."]),
     )([0])
 
-    assert score == math.exp(19.9)
+    assert score == math.exp(19.88)
     assert best_found is True
     assert indexes == [0]
 
@@ -141,6 +143,8 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
         ["--project"],
         -2000,
         0.0,
+        0.0,
+        0.0,
         RuleSpace.from_clauses([]),
     )([])
 
@@ -171,10 +175,36 @@ def test_coverage_fixed_rejects_sudoku_without_row_constraint():
         list(args.fitness["clingo_arguments"]),
         float(args.fitness["empty_score"]),
         float(args.fitness["size_penalty"]),
+        float(args.fitness["literal_penalty"]),
+        float(args.fitness["redundancy_penalty"]),
         rule_space=rule_space,
     )(rule_space.ids)
 
     assert best_found is False
+
+
+def test_coverage_fixed_penalizes_literals_and_redundancy():
+    program = Program(
+        ["ok.", "p(1).", "q(2)."],
+        [Example(("ok", ""), True)],
+        [],
+        [],
+        [],
+    )
+    rule_space = RuleSpace.from_clauses(
+        [
+            "target :- ok,p(1),q(2).",
+            "target :- ok,p(V0),q(V1),V0!=V1,V1!=V0.",
+        ]
+    )
+    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, 0.002, 0.01, rule_space)
+
+    small_score, small_best, _ = evaluate([0])
+    redundant_score, redundant_best, _ = evaluate([1])
+
+    assert small_best is True
+    assert redundant_best is True
+    assert small_score > redundant_score
 
 
 def test_coverage_exp_max_checks_all_models_before_best_found():

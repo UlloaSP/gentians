@@ -1,5 +1,6 @@
 from collections.abc import Callable
 import math
+import re
 from .coverage_common import (
     CachedFitnessResult,
     cached_fitness,
@@ -8,6 +9,7 @@ from .coverage_common import (
     record_fitness_metric,
 )
 from ...asp.clingo import ClingoInterface
+from ...rule_generation.parser import split_top_level_args
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleId, RuleSpace
 
@@ -18,6 +20,8 @@ def coverage_fixed(
     clingo_arguments: list[str],
     empty_score: float,
     size_penalty: float,
+    literal_penalty: float,
+    redundancy_penalty: float,
     rule_space: RuleSpace,
 ) -> Callable[[list[RuleId]], tuple[float, bool, list[int]]]:
     cache: dict[tuple[RuleId, ...], CachedFitnessResult] = {}
@@ -45,6 +49,8 @@ def coverage_fixed(
                 preground_solver,
                 empty_score,
                 size_penalty,
+                literal_penalty,
+                redundancy_penalty,
             ),
         )
 
@@ -59,10 +65,17 @@ def _evaluate_score(
     preground_solver,
     empty_score: float,
     size_penalty: float,
+    literal_penalty: float,
+    redundancy_penalty: float,
 ) -> FitnessResult:
     indexes = list(range(len(candidate_program)))
-    size_cost = len(candidate_program) * size_penalty
     rendered_program = rule_space.render(candidate_program)
+    complexity = _program_complexity(rendered_program)
+    size_cost = (
+        len(candidate_program) * size_penalty
+        + complexity.body_literals * literal_penalty
+        + complexity.redundancies * redundancy_penalty
+    )
 
     coverage = preground_solver.extract_fixed_coverage_by_id(
         candidate_program,
@@ -83,7 +96,7 @@ def _evaluate_score(
         else 1.0
     )
     negative_rate = 1.0 if has_negative_violation else 0.0
-    score = math.exp(7 * (positive_rate - negative_rate - size_cost))
+    score = math.exp(10 * (2 * positive_rate - negative_rate - size_cost))
     best_found = (
         covered_positive == len(program.positive_examples)
         and not has_negative_violation
@@ -103,3 +116,51 @@ def _evaluate_score(
         {tuple(indexes): rates},
     )
     return score, best_found, indexes
+
+
+class _ProgramComplexity:
+    def __init__(self, body_literals: int, redundancies: int) -> None:
+        self.body_literals = body_literals
+        self.redundancies = redundancies
+
+
+def _program_complexity(program: list[str]) -> _ProgramComplexity:
+    body_literals = 0
+    redundancies = 0
+    for clause in program:
+        literals = _body_literals(clause)
+        body_literals += len(literals)
+        redundancies += _redundancy_count(literals)
+    return _ProgramComplexity(body_literals, redundancies)
+
+
+def _body_literals(clause: str) -> list[str]:
+    content = clause.strip().rstrip(".")
+    if ":-" not in content:
+        return []
+    _, body = content.split(":-", 1)
+    return [_normalize_literal(literal) for literal in split_top_level_args(body)]
+
+
+def _normalize_literal(literal: str) -> str:
+    return re.sub(r"\s+", "", literal.strip())
+
+
+def _redundancy_count(literals: list[str]) -> int:
+    seen: set[str] = set()
+    redundancies = 0
+    for literal in literals:
+        key = _redundancy_key(literal)
+        if key in seen:
+            redundancies += 1
+        else:
+            seen.add(key)
+    return redundancies
+
+
+def _redundancy_key(literal: str) -> str:
+    match = re.fullmatch(r"(V\d+)!=(V\d+)", literal)
+    if match:
+        left, right = sorted(match.groups())
+        return f"{left}!={right}"
+    return literal

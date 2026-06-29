@@ -25,7 +25,7 @@ class Arguments:
 
     # Maximum number of candidate clauses generated from the hypothesis space.
     # 0 means all.
-    max_candidate_clauses: int = 100000
+    max_candidate_clauses: int = 10000
 
     # Allow aggregate literals whose variables are not fully balanced.
     unbalanced_aggregates: bool = False
@@ -34,7 +34,7 @@ class Arguments:
     max_program_clauses: int = 6
 
     # Genetic algorithm iterations.
-    iterations_genetic: int = 2000
+    iterations_genetic: int = 1000
 
     # Fitness operator config.
     fitness: dict[str, object] = field(
@@ -49,6 +49,10 @@ class Arguments:
             "empty_score": -2000,
             # Fixed-program score penalty per selected rule.
             "size_penalty": 0.01,
+            # Fixed-program score penalty per body literal.
+            "literal_penalty": 0.002,
+            # Fixed-program score penalty per cheap syntactic redundancy.
+            "redundancy_penalty": 0.01,
         }
     )
 
@@ -58,7 +62,7 @@ class Arguments:
             # Parent selection implementation.
             "name": "tournament",
             # Number of candidates sampled for each tournament.
-            "tournament_size": 12,
+            "tournament_size": 25,
             # Probability of picking the fittest candidate in the tournament.
             "prob_selecting_fittest": 0.9,
         }

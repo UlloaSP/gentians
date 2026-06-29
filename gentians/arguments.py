@@ -25,7 +25,7 @@ class Arguments:
 
     # Maximum number of candidate clauses generated from the hypothesis space.
     # 0 means all.
-    max_candidate_clauses: int = 10000
+    max_candidate_clauses: int = 0
 
     # Allow aggregate literals whose variables are not fully balanced.
     unbalanced_aggregates: bool = False
@@ -34,7 +34,7 @@ class Arguments:
     max_program_clauses: int = 6
 
     # Genetic algorithm iterations.
-    iterations_genetic: int = 1000
+    iterations_genetic: int = 2000
 
     # Fitness operator config.
     fitness: dict[str, object] = field(
@@ -72,7 +72,7 @@ class Arguments:
     crossover: dict[str, object] = field(
         default_factory=lambda: {
             # Crossover implementation.
-            "name": "one_point",
+            "name": "set_mix",
             # Probability of applying crossover to selected parents.
             "probability": 0.7,
         }
@@ -119,6 +119,10 @@ class Arguments:
             "semantic_prune": False,
             # Predicate specs whose repeated variable args are invalid, e.g. ["edge/2"].
             "irreflexive": [],
+            # Drop duplicated symmetric comparisons such as V0!=V1,V1!=V0.
+            "prune_redundant_comparisons": True,
+            # Drop algebraically implied add/sub literals. Opt-in: not universal.
+            "prune_arithmetic_identities": False,
         }
     )
 

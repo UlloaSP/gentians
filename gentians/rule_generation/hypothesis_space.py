@@ -169,13 +169,9 @@ def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
 
 
 def _prune_clauses(program: Program, args: Arguments, clauses: list[str]) -> list[str]:
-    irreflexive = _predicate_specs(args.hypothesis_space.get("irreflexive", []))
-    structurally_clean = [
-        clause for clause in clauses if not _has_irreflexive_literal(clause, irreflexive)
-    ]
-    if not bool(args.hypothesis_space.get("semantic_prune", True)):
-        return structurally_clean
-    return _semantic_prune(program, structurally_clean)
+    if not bool(args.hypothesis_space.get("semantic_prune", False)):
+        return clauses
+    return _semantic_prune(program, clauses)
 
 
 def _predicate_specs(value: object) -> set[tuple[str, int]]:
@@ -190,33 +186,6 @@ def _predicate_specs(value: object) -> set[tuple[str, int]]:
         if arity.isdigit():
             specs.add((name, int(arity)))
     return specs
-
-
-def _has_irreflexive_literal(clause: str, irreflexive: set[tuple[str, int]]) -> bool:
-    if not irreflexive:
-        return False
-    for literal in _normal_literals(clause):
-        parsed = _parse_normal_atom(literal)
-        if parsed is None:
-            continue
-        name, arguments = parsed
-        if (name, len(arguments)) in irreflexive and len(set(arguments)) < len(arguments):
-            return True
-    return False
-
-
-def _normal_literals(clause: str) -> list[str]:
-    content = clause.strip().rstrip(".")
-    if ":-" in content:
-        head, body = content.split(":-", 1)
-        fragments = [*split_top_level_args(head.replace(";", ",")), *split_top_level_args(body)]
-    else:
-        fragments = split_top_level_args(content.replace(";", ","))
-    return [
-        fragment.removeprefix("not ").strip()
-        for fragment in fragments
-        if fragment.strip() and _parse_normal_atom(fragment.removeprefix("not ").strip()) is not None
-    ]
 
 
 def _semantic_prune(program: Program, clauses: list[str]) -> list[str]:
@@ -584,6 +553,7 @@ def _facts(
     args: Arguments, modes: list[HypothesisMode], capabilities: HypothesisCapabilities
 ) -> str:
     max_body = args.max_depth if capabilities.allow_constraints else max(0, args.max_depth - 1)
+    irreflexive = _predicate_specs(args.hypothesis_space.get("irreflexive", []))
     parts = [
         f"max_depth({args.max_depth}).",
         f"max_head({args.disjunctive_head_length}).",
@@ -592,6 +562,10 @@ def _facts(
     ]
     if capabilities.allow_constraints:
         parts.append("constraints_allowed.")
+    if bool(args.hypothesis_space.get("prune_redundant_comparisons", True)):
+        parts.append("prune_redundant_comparisons.")
+    if bool(args.hypothesis_space.get("prune_arithmetic_identities", False)):
+        parts.append("prune_arithmetic_identities.")
     predicate_ids: dict[tuple[str, int], int] = {}
     for mode in modes:
         section_id = mode.section
@@ -614,10 +588,18 @@ def _facts(
             parts.append(f"negative_mode({mode.id}).")
         if mode.kind == "normal":
             parts.append(f"normal_mode({mode.id}).")
+            if (mode.name, mode.arity) in irreflexive:
+                parts.append(f"irreflexive_mode({mode.id}).")
         elif mode.kind == "comparison":
             parts.append(f"comparison_mode({mode.id},{mode.id}).")
+            if mode.operator in {"==", "!="}:
+                parts.append(f"symmetric_comparison_mode({mode.id}).")
         elif mode.kind == "arithmetic":
             parts.append(f"arithmetic_mode({mode.id},{mode.id}).")
+            if mode.operator == "+":
+                parts.append(f"add_mode({mode.id}).")
+            elif mode.operator == "-":
+                parts.append(f"sub_mode({mode.id}).")
         elif mode.kind == "aggregate":
             parts.append(
                 f"aggregate_mode({mode.id},{mode.tuple_arity},{len(mode.aggregate_atoms)})."

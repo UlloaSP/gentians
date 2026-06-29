@@ -9,6 +9,12 @@
 #defined comparison_mode/2.
 #defined arithmetic_mode/2.
 #defined aggregate_mode/3.
+#defined irreflexive_mode/1.
+#defined symmetric_comparison_mode/1.
+#defined add_mode/1.
+#defined sub_mode/1.
+#defined prune_redundant_comparisons/0.
+#defined prune_arithmetic_identities/0.
 #defined positive_mode/1.
 #defined negative_mode/1.
 #defined recall/2.
@@ -172,11 +178,63 @@ safe_var(Var):- aggregate_result_var(_,Var).
     var_at(body,Slot,0,Var),
     var_at(body,Slot,1,Var).
 
+:- selected(Section,Slot,Mode),
+    irreflexive_mode(Mode),
+    var_at(Section,Slot,Arg0,Var),
+    var_at(Section,Slot,Arg1,Var),
+    Arg0 < Arg1.
+
+:- prune_redundant_comparisons,
+    selected(body,Slot0,Mode),
+    selected(body,Slot1,Mode),
+    symmetric_comparison_mode(Mode),
+    Slot0 < Slot1,
+    var_at(body,Slot0,0,Left),
+    var_at(body,Slot0,1,Right),
+    var_at(body,Slot1,0,Right),
+    var_at(body,Slot1,1,Left).
+
 :- selected(body,Slot,Mode),
     arithmetic_mode(Mode,_),
     var_at(body,Slot,Operand,Var),
     Operand = 0..1,
     var_at(body,Slot,2,Var).
+
+:- prune_arithmetic_identities,
+    selected(body,Slot0,Mode),
+    selected(body,Slot1,Mode),
+    add_mode(Mode),
+    Slot0 < Slot1,
+    var_at(body,Slot0,0,Left),
+    var_at(body,Slot0,1,Right),
+    var_at(body,Slot0,2,Result),
+    var_at(body,Slot1,0,Right),
+    var_at(body,Slot1,1,Left),
+    var_at(body,Slot1,2,Result).
+
+:- prune_arithmetic_identities,
+    selected(body,AddSlot,AddMode),
+    selected(body,SubSlot,SubMode),
+    add_mode(AddMode),
+    sub_mode(SubMode),
+    var_at(body,AddSlot,0,Left),
+    var_at(body,AddSlot,1,Right),
+    var_at(body,AddSlot,2,Result),
+    var_at(body,SubSlot,0,Result),
+    var_at(body,SubSlot,1,Left),
+    var_at(body,SubSlot,2,Right).
+
+:- prune_arithmetic_identities,
+    selected(body,AddSlot,AddMode),
+    selected(body,SubSlot,SubMode),
+    add_mode(AddMode),
+    sub_mode(SubMode),
+    var_at(body,AddSlot,0,Left),
+    var_at(body,AddSlot,1,Right),
+    var_at(body,AddSlot,2,Result),
+    var_at(body,SubSlot,0,Result),
+    var_at(body,SubSlot,1,Right),
+    var_at(body,SubSlot,2,Left).
 
 :- selected(body,Slot,Mode),
     aggregate_mode(Mode,TupleArity,_),

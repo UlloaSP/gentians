@@ -54,7 +54,7 @@ def test_coverage_fixed_uses_brave_positive_coverage():
         program, 0, [], -2000, 0.01, 0.002, 0.01, RuleSpace.from_clauses([])
     )([])
 
-    assert score == math.exp(20)
+    assert score == math.exp(15)
     assert best_found is True
     assert indexes == []
 
@@ -103,7 +103,7 @@ def test_coverage_fixed_uses_pregrounded_rule_space(monkeypatch):
         rule_space=RuleSpace.from_clauses([":- b."]),
     )([0])
 
-    assert score == math.exp(19.88)
+    assert math.isclose(score, math.exp(14.94))
     assert best_found is True
     assert indexes == [0]
 
@@ -122,8 +122,8 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
             calls.append((tuple(self.clingo_arguments), bool(interpretation_pos), bool(interpretation_neg)))
 
             class FakePreGrounded:
-                def extract_fixed_coverage_by_id(self, candidate_program, stop_on_negative=False):
-                    calls.append((tuple(candidate_program), stop_on_negative))
+                def extract_fixed_coverage_by_id(self, candidate_program):
+                    calls.append(tuple(candidate_program))
                     return Coverage([0], [0])
 
             return FakePreGrounded()
@@ -151,7 +151,7 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
     assert instances[0].clingo_arguments == ["0", "--project"]
     assert calls == [
         (("0", "--project"), True, True),
-        ((), True),
+        (),
     ]
     assert (score, best_found, indexes) == (math.exp(10), False, [])
 

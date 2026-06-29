@@ -182,6 +182,53 @@ def test_atom_parser_handles_nested_arguments():
     )
 
 
+def test_hypothesis_space_prunes_irreflexive_modes_before_rendering():
+    program = Program(
+        ["edge(1,2)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "2"), True)],
+        [ModeDeclaration(("1", "edge", "2", "positive"), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=2, hypothesis_space={"irreflexive": ["edge/2"]}),
+    ).generate().clauses
+
+    assert not any("edge(V0,V0)" in clause for clause in clauses)
+    assert "target(V0,V1) :- edge(V0,V1)." in clauses
+
+
+def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering():
+    program = Program(
+        ["p(1).", "p(2)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("2", "p", "1", "positive"), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(
+            max_depth=4,
+            max_variables=2,
+            comparison_operators=["neq", "neq"],
+        ),
+    ).generate().clauses
+
+    assert not any("V0!=V1,V1!=V0" in clause for clause in clauses)
+    assert any("V0!=V1" in clause for clause in clauses)
+
+
+def test_hypothesis_space_prunes_arithmetic_identities_before_cap():
+    args = copy.deepcopy(CASES["4queens"])
+    args.max_candidate_clauses = 10000
+    clauses = HypothesisSpaceGenerator(read_task(args.filename), args).generate().clauses
+
+    assert len(clauses) < args.max_candidate_clauses
+    assert not any("V0+V1=V2,V2-V0=V1" in clause for clause in clauses)
+
+
 def test_reader_parses_directives_without_regex_space_loss(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(

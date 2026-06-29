@@ -1,0 +1,100 @@
+import random
+
+from ..individual import Individual
+from ..types import FitnessFn
+from ...rule_generation.rule_space import RuleId
+from ...timing import phase, profile_phase, record_metric
+
+
+def _child_from_parent(parent: Individual, program: list[RuleId]) -> Individual:
+    return Individual(program, parent.score, parent.is_best, list(parent.l_best_indexes))
+
+
+def _evaluate_child(
+    parent_a: Individual,
+    parent_b: Individual,
+    program: list[RuleId],
+    evaluate_score: FitnessFn,
+    known_signatures: set[tuple[RuleId, ...]],
+) -> Individual:
+    signature = tuple(sorted(program))
+    if signature == parent_a.signature:
+        return _child_from_parent(parent_a, program)
+    if signature == parent_b.signature:
+        return _child_from_parent(parent_b, program)
+    if signature in known_signatures:
+        return Individual(program, float("-inf"), False, [])
+    with phase("crossover.fitness"):
+        current_score, is_best, l_indexes = evaluate_score(program)
+    return Individual(program, current_score, is_best, l_indexes)
+
+
+def _sample_child(
+    parent_a: Individual,
+    parent_b: Individual,
+    known_signatures: set[tuple[RuleId, ...]],
+    max_program_clauses: int,
+) -> list[RuleId]:
+    union = sorted(set(parent_a.program) | set(parent_b.program))
+    if not union:
+        return []
+
+    limit = max(1, min(max_program_clauses, len(union)))
+    for _ in range(8):
+        selected = [rule for rule in union if random.random() < 0.5]
+        if not selected:
+            selected = [random.choice(union)]
+        if len(selected) > limit:
+            selected = sorted(random.sample(selected, limit))
+        else:
+            selected = sorted(selected)
+        if tuple(selected) not in known_signatures:
+            return selected
+    return sorted(random.sample(union, random.randint(1, limit)))
+
+
+@profile_phase("crossover")
+def set_mix_crossover(
+    best_a: Individual,
+    best_b: Individual,
+    evaluate_score: FitnessFn,
+    probability: float,
+    known_signatures: set[tuple[RuleId, ...]],
+    max_program_clauses: int,
+) -> tuple[Individual, Individual]:
+    with phase("crossover.operator"):
+        program_0 = _sample_child(best_a, best_b, known_signatures, max_program_clauses)
+        local_signatures = {*known_signatures, tuple(sorted(program_0))}
+        program_1 = _sample_child(best_a, best_b, local_signatures, max_program_clauses)
+
+    i0 = _evaluate_child(best_a, best_b, program_0, evaluate_score, known_signatures)
+    i1 = _evaluate_child(best_a, best_b, program_1, evaluate_score, known_signatures)
+
+    parent_best = max(best_a.score, best_b.score)
+    same_as_parent = (
+        int(i0.signature in {best_a.signature, best_b.signature})
+        + int(i1.signature in {best_a.signature, best_b.signature})
+    )
+    duplicate_population = int(i0.score == float("-inf")) + int(i1.score == float("-inf"))
+    record_metric(
+        "operator",
+        {
+            "operator": "crossover",
+            "strategy": "set_mix",
+            "applied": True,
+            "not_applied": False,
+            "probability": probability,
+            "parent_a_score": best_a.score,
+            "parent_b_score": best_b.score,
+            "child_1_score": i0.score,
+            "child_2_score": i1.score,
+            "children": 2,
+            "children_improved": int(i0.score > parent_best) + int(i1.score > parent_best),
+            "children_best": int(i0.is_best) + int(i1.is_best),
+            "children_same_as_parent": same_as_parent,
+            "children_duplicate_parent": same_as_parent,
+            "children_duplicate_population": duplicate_population,
+        },
+    )
+
+    return i0, i1

@@ -29,7 +29,6 @@ class ClingoInterface:
         interpretation_pos: "list[Example]",  # positive examples
         interpretation_neg: "list[Example]",  # negative examples
         fixed: bool,
-        stop_on_negative: bool = False,
     ) -> "dict[CoverageKey,Coverage]":
         """
         Extracts the coverage for every subset of clauses.
@@ -108,10 +107,7 @@ class ClingoInterface:
                 if fixed:
                     # needed since for fixed there are no r/1 atoms
                     l_rules = [i for i in range(len(program))]
-                coverage = _merge_coverage_result(comb_rules, l_rules, l_cp, l_cn)
-                if stop_on_negative and coverage.neg_mask:
-                    handle.cancel()
-                    break
+                _merge_coverage_result(comb_rules, l_rules, l_cp, l_cn)
         seconds = time.perf_counter() - start
         phase = current_phase()
         add(f"{phase}.solving", seconds)
@@ -145,14 +141,12 @@ class ClingoInterface:
         program: "list[str]",
         interpretation_pos: "list[Example]",
         interpretation_neg: "list[Example]",
-        stop_on_negative: bool = False,
     ) -> Coverage:
         cov = self.extract_coverage_and_set_clauses(
             program,
             interpretation_pos,
             interpretation_neg,
             True,
-            stop_on_negative=stop_on_negative,
         )
         return cov.get(tuple(range(len(program))), Coverage([], []))
 
@@ -261,7 +255,6 @@ class PreGroundedFixedCoverageSolver:
     def extract_fixed_coverage(
         self,
         program: "list[str]",
-        stop_on_negative: bool = False,
     ) -> Coverage | None:
         if not self.available:
             return None
@@ -270,12 +263,11 @@ class PreGroundedFixedCoverageSolver:
         )
         if len(active_ids) != len(set(program)):
             return None
-        return self.extract_fixed_coverage_by_id(active_ids, stop_on_negative)
+        return self.extract_fixed_coverage_by_id(active_ids)
 
     def extract_fixed_coverage_by_id(
         self,
         active_ids: list[int],
-        stop_on_negative: bool = False,
     ) -> Coverage | None:
         if not self.available:
             return None
@@ -295,9 +287,6 @@ class PreGroundedFixedCoverageSolver:
                     models += 1
                     _, l_cp, l_cn = _parse_coverage_symbols(model.symbols(shown=True))
                     coverage.extend(l_cp, l_cn)
-                    if stop_on_negative and coverage.neg_mask:
-                        handle.cancel()
-                        break
         finally:
             for symbol in active_symbols:
                 self.ctl.assign_external(symbol, False)

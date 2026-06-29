@@ -1197,8 +1197,38 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
         children_improved = sum(
             to_float(row.get("children_improved")) for row in selected
         )
-        children_duplicates = sum(
-            to_float(row.get("children_duplicate_parent")) for row in selected
+        children_same_as_parent = sum(
+            to_float(row.get("children_same_as_parent", row.get("children_duplicate_parent")))
+            for row in selected
+        )
+        children_duplicate_population = sum(
+            to_float(row.get("children_duplicate_population")) for row in selected
+        )
+        crossover_deltas = []
+        for row in selected:
+            if not all(
+                row.get(key) not in (None, "")
+                for key in (
+                    "child_1_score",
+                    "child_2_score",
+                    "parent_a_score",
+                    "parent_b_score",
+                )
+            ):
+                continue
+            child_scores = [
+                to_float(row.get("child_1_score")),
+                to_float(row.get("child_2_score")),
+            ]
+            parent_best = max(
+                to_float(row.get("parent_a_score")),
+                to_float(row.get("parent_b_score")),
+            )
+            crossover_deltas.extend(score - parent_best for score in child_scores)
+        duplicate_population_rate = (
+            children_duplicate_population / children
+            if children
+            else mean_bool(selected, "duplicate_population")
         )
         summary.append(
             {
@@ -1206,15 +1236,21 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "operator": operator,
                 "strategy": strategy,
                 "events": len(selected),
+                "not_applied_rate": mean_bool(selected, "not_applied"),
                 "improvement_rate": children_improved / children
                 if children
                 else mean_bool(selected, "improved"),
                 "acceptance_rate": mean_bool(selected, "accepted"),
-                "duplicate_rate": children_duplicates / children
-                if children
+                "duplicate_rate": duplicate_population_rate
+                if duplicate_population_rate
                 else mean_bool(selected, "duplicate"),
+                "same_as_parent_rate": children_same_as_parent / children
+                if children
+                else 0.0,
                 "changed_rate": mean_bool(selected, "changed"),
-                "mean_score_delta": mean(
+                "mean_score_delta": mean(crossover_deltas)
+                if crossover_deltas
+                else mean(
                     to_float(row.get("new_score")) - to_float(row.get("original_score"))
                     for row in selected
                     if row.get("new_score") not in (None, "")

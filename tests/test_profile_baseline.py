@@ -63,6 +63,62 @@ def test_operator_summary_sanitizes_non_finite_scores():
     assert summary["mean_score_delta"] == -1.0
 
 
+def test_operator_summary_separates_crossover_duplicate_types():
+    rows = [
+        {
+            "dataset": "d",
+            "operator": "crossover",
+            "strategy": "set_mix",
+            "not_applied": True,
+            "children": 2,
+            "children_same_as_parent": 2,
+            "children_duplicate_population": 0,
+            "children_improved": 0,
+            "parent_a_score": 3,
+            "parent_b_score": 2,
+            "child_1_score": 3,
+            "child_2_score": 2,
+        },
+        {
+            "dataset": "d",
+            "operator": "crossover",
+            "strategy": "set_mix",
+            "not_applied": False,
+            "children": 2,
+            "children_same_as_parent": 1,
+            "children_duplicate_population": 1,
+            "children_improved": 1,
+            "parent_a_score": 3,
+            "parent_b_score": 2,
+            "child_1_score": 5,
+            "child_2_score": 1,
+        },
+    ]
+
+    [summary] = operator_summary(rows)
+
+    assert summary["not_applied_rate"] == 0.5
+    assert summary["same_as_parent_rate"] == 0.75
+    assert summary["duplicate_rate"] == 0.25
+    assert summary["improvement_rate"] == 0.25
+    assert summary["mean_score_delta"] == -0.25
+
+
+def test_operator_summary_counts_mutation_population_duplicates():
+    rows = [
+        {
+            "dataset": "d",
+            "operator": "mutation",
+            "strategy": "random_group",
+            "duplicate_population": True,
+        }
+    ]
+
+    [summary] = operator_summary(rows)
+
+    assert summary["duplicate_rate"] == 1.0
+
+
 def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
     timing._totals.clear()
     timing._counts.clear()

@@ -24,6 +24,7 @@ CASES: dict[str, Arguments] = {
         arithmetic_operators=["add", "sub"],
         comparison_operators=["lt"],
         max_variables=3,
+        hypothesis_space={"prune_arithmetic_identities": True},
     ),
     "5queens": task(
         "5queens.txt",
@@ -31,6 +32,7 @@ CASES: dict[str, Arguments] = {
         arithmetic_operators=["add", "sub"],
         comparison_operators=["lt"],
         max_variables=5,
+        hypothesis_space={"prune_arithmetic_identities": True},
     ),
     "8queens": task(
         "8queens.txt",
@@ -38,6 +40,7 @@ CASES: dict[str, Arguments] = {
         arithmetic_operators=["add", "sub"],
         comparison_operators=["lt"],
         max_variables=5,
+        hypothesis_space={"prune_arithmetic_identities": True},
     ),
     "adj2red": task(
         "adjacent_to_red.txt",
@@ -83,11 +86,19 @@ CASES: dict[str, Arguments] = {
     ),
     "even_odd": task(
         "even_odd.txt",
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
+        hypothesis_space={
+            "clingo_arguments": [],
+            "enable_recursion": True,
+            "irreflexive": ["prev/2"],
+        },
     ),
     "grandparent": task(
         "grandparent.txt",
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
+        hypothesis_space={
+            "clingo_arguments": [],
+            "enable_recursion": True,
+            "irreflexive": ["father/2", "mother/2", "target/2", "target_1/2"],
+        },
     ),
     "sudoku": task(
         "sudoku.txt",

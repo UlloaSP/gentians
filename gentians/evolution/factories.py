@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from .crossovers.one_point import one_point_crossover
+from .crossovers.set_mix import set_mix_crossover
 from .fitness.coverage_fixed import coverage_fixed
 from .fitness.coverage_exp_max import coverage_exp_max
 from .fitness.coverage_exp_mean import coverage_exp_mean
@@ -90,7 +90,7 @@ def create_selection(config: dict[str, object]) -> SelectionFn:
 
 def create_crossover(config: dict[str, object]) -> CrossoverFn:
     name = _str(config, "name")
-    if name == "one_point":
+    if name == "set_mix":
         probability = _float(config, "probability")
 
         def crossover(
@@ -101,7 +101,7 @@ def create_crossover(config: dict[str, object]) -> CrossoverFn:
             max_program_clauses: int,
         ) -> tuple[Individual, Individual]:
             if random.random() < probability:
-                return one_point_crossover(
+                return set_mix_crossover(
                     best_a,
                     best_b,
                     evaluate_score,
@@ -218,8 +218,9 @@ def _clone_parents_without_crossover(
         "operator",
         {
             "operator": "crossover",
-            "strategy": "one_point",
+            "strategy": "set_mix",
             "applied": False,
+            "not_applied": True,
             "probability": probability,
             "parent_a_score": best_a.score,
             "parent_b_score": best_b.score,
@@ -228,7 +229,9 @@ def _clone_parents_without_crossover(
             "children": 2,
             "children_improved": 0,
             "children_best": int(child_a.is_best) + int(child_b.is_best),
+            "children_same_as_parent": 2,
             "children_duplicate_parent": 2,
+            "children_duplicate_population": 0,
         },
     )
     return child_a, child_b

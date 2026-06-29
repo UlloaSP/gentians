@@ -77,16 +77,12 @@ def _evaluate_score(
         + complexity.redundancies * redundancy_penalty
     )
 
-    coverage = preground_solver.extract_fixed_coverage_by_id(
-        candidate_program,
-        stop_on_negative=True,
-    )
+    coverage = preground_solver.extract_fixed_coverage_by_id(candidate_program)
     if coverage is None:
         coverage = normal_solver.extract_fixed_coverage(
             rendered_program,
             program.positive_examples,
             program.negative_examples,
-            stop_on_negative=True,
         )
     covered_positive = coverage.pos_mask.bit_count()
     has_negative_violation = bool(coverage.neg_mask)
@@ -95,8 +91,15 @@ def _evaluate_score(
         if program.positive_examples
         else 1.0
     )
-    negative_rate = 1.0 if has_negative_violation else 0.0
-    score = math.exp(10 * (2 * positive_rate - negative_rate - size_cost))
+    negative_rate = (
+        coverage.neg_mask.bit_count() / len(program.negative_examples)
+        if program.negative_examples
+        else 0.0
+    )
+    if covered_positive == 0 and not has_negative_violation and program.positive_examples:
+        score = 1.0
+    else:
+        score = math.exp(5 * (3 * positive_rate - negative_rate - size_cost))
     best_found = (
         covered_positive == len(program.positive_examples)
         and not has_negative_violation

@@ -24,7 +24,11 @@ from ..rule_generation.program import Program
 from ..timing import profile_phase, record_metric
 
 
-def create_fitness(program: Program, config: dict[str, object]) -> FitnessFn:
+def create_fitness(
+    program: Program,
+    config: dict[str, object],
+    rule_space: list[str] | None = None,
+) -> FitnessFn:
     name = _str(config, "name")
     max_as = _int(config, "max_as")
     clingo_arguments = _str_list(config, "clingo_arguments")
@@ -41,6 +45,7 @@ def create_fitness(program: Program, config: dict[str, object]) -> FitnessFn:
             clingo_arguments,
             empty_score,
             size_penalty,
+            rule_space,
         )
     raise ValueError(f"Unknown fitness operator: {name}")
 

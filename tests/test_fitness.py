@@ -1,10 +1,12 @@
 import importlib
 
+from benchmarks.catalog import arguments_for
 from gentians.asp.coverage import Coverage
 from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
 from gentians.evolution.fitness.coverage_fixed import coverage_fixed
 from gentians.evolution.fitness.coverage_common import cached_fitness
 from gentians.evolution.fitness.coverage_exp_max import coverage_exp_max
+from gentians.rule_generation.hypothesis_space import read_task
 from gentians.rule_generation.program import Example, Program
 
 
@@ -67,7 +69,37 @@ def test_coverage_fixed_prefers_positive_coverage_over_clean_overconstraint():
     assert covering_score > overconstrained_score
 
 
-def test_coverage_fixed_uses_brave_only_for_positive_search(monkeypatch):
+def test_coverage_fixed_uses_pregrounded_rule_space(monkeypatch):
+    def fail_fallback(*args, **kwargs):
+        raise AssertionError("fixed coverage should use pregrounded rule space")
+
+    monkeypatch.setattr(
+        "gentians.asp.clingo.ClingoInterface.extract_fixed_coverage",
+        fail_fallback,
+    )
+    program = Program(
+        ["1 { a; b } 1."],
+        [Example(("a", ""), True)],
+        [Example(("b", ""), False)],
+        [],
+        [],
+    )
+
+    score, best_found, indexes = coverage_fixed(
+        program,
+        0,
+        [],
+        -2000,
+        0.01,
+        rule_space=[":- b."],
+    )([":- b."])
+
+    assert score == 1.99
+    assert best_found is True
+    assert indexes == [0]
+
+
+def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
     fixed_module = importlib.import_module("gentians.evolution.fitness.coverage_fixed")
     instances = []
     calls = []
@@ -92,11 +124,7 @@ def test_coverage_fixed_uses_brave_only_for_positive_search(monkeypatch):
                     stop_on_negative,
                 )
             )
-            if interpretation_pos:
-                return Coverage([0], [])
-            if interpretation_neg:
-                return Coverage([], [0])
-            return Coverage([], [])
+            return Coverage([0], [0])
 
     monkeypatch.setattr(fixed_module, "ClingoInterface", FakeSolver)
     program = Program(
@@ -116,12 +144,35 @@ def test_coverage_fixed_uses_brave_only_for_positive_search(monkeypatch):
     )([])
 
     assert instances[0].clingo_arguments == ["0", "--project"]
-    assert instances[1].clingo_arguments == ["0", "--enum-mode=brave", "--project"]
     assert calls == [
-        (("0", "--project"), False, True, True),
-        (("0", "--enum-mode=brave", "--project"), True, False, False),
+        (("0", "--project"), True, True, True),
     ]
     assert (score, best_found, indexes) == (1.0, False, [])
+
+
+def test_coverage_fixed_rejects_sudoku_without_row_constraint():
+    rules = [
+        ":- same_row(V0,V0),same_col(V0,V0),same_block(V1,V1).",
+        ":- same_row(V0,V0),same_col(V1,V1),same_block(V1,V1).",
+        ":- same_row(V0,V1),same_col(V0,V0),same_block(V1,V1).",
+        ":- same_row(V0,V1),same_col(V1,V0),same_block(V1,V1).",
+        ":- value(V0,V1),value(V2,V1),same_block(V0,V2).",
+        ":- value(V0,V1),value(V2,V1),same_col(V0,V2).",
+    ]
+    args = arguments_for("sudoku")
+    program = read_task(args.filename)
+
+    for rule_space in (None, rules):
+        _, best_found, _ = coverage_fixed(
+            program,
+            int(args.fitness["max_as"]),
+            list(args.fitness["clingo_arguments"]),
+            float(args.fitness["empty_score"]),
+            float(args.fitness["size_penalty"]),
+            rule_space=rule_space,
+        )(rules)
+
+        assert best_found is False
 
 
 def test_coverage_exp_max_checks_all_models_before_best_found():
@@ -173,7 +224,7 @@ def test_coverage_exp_mean_reuses_solver_for_evaluations(monkeypatch):
     assert instances[0].clingo_arguments == ["7", "--project"]
 
 
-def test_coverage_exp_mean_canonicalizes_duplicate_rules_before_clingo(monkeypatch):
+def test_coverage_exp_mean_canonicalizes_rule_order_before_clingo(monkeypatch):
     mean_module = importlib.import_module("gentians.evolution.fitness.coverage_exp_mean")
     calls = []
 
@@ -199,7 +250,7 @@ def test_coverage_exp_mean_canonicalizes_duplicate_rules_before_clingo(monkeypat
     evaluate_score(["b.", "a.", "a."])
     evaluate_score(["a.", "b."])
 
-    assert calls == [["a.", "b."]]
+    assert calls == [["a.", "a.", "b."], ["a.", "b."]]
 
 
 def test_cached_fitness_maps_canonical_selected_rules_to_original_indexes():
@@ -213,8 +264,8 @@ def test_cached_fitness_maps_canonical_selected_rules_to_original_indexes():
     score, best_found, indexes = cached_fitness(cache, ["b.", "a.", "a."], compute)
 
     assert (score, best_found) == (1.0, True)
-    assert calls == [["a.", "b."]]
-    assert indexes == [1, 0]
+    assert calls == [["a.", "a.", "b."]]
+    assert indexes == [1, 2]
 
 
 def test_coverage_exp_mean_reuses_cached_subprogram_coverage(monkeypatch):

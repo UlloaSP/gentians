@@ -17,19 +17,21 @@ def coverage_fixed(
     clingo_arguments: list[str],
     empty_score: float,
     size_penalty: float,
+    rule_space: list[str] | None = None,
 ) -> Callable[[list[str]], tuple[float, bool, list[int]]]:
     cache: dict[tuple[str, ...], CachedFitnessResult] = {}
     normal_solver = ClingoInterface(
         program.background,
         [f"{max_as_to_generate_foreach_program}", *clingo_arguments],
     )
-    brave_solver = ClingoInterface(
-        program.background,
-        [
-            f"{max_as_to_generate_foreach_program}",
-            "--enum-mode=brave",
-            *clingo_arguments,
-        ],
+    preground_solver = (
+        normal_solver.fixed_coverage_solver(
+            rule_space or [],
+            program.positive_examples,
+            program.negative_examples,
+        )
+        if rule_space
+        else None
     )
 
     def evaluate_score(candidate_program: list[str]) -> tuple[float, bool, list[int]]:
@@ -40,7 +42,7 @@ def coverage_fixed(
                 program,
                 canonical_program,
                 normal_solver,
-                brave_solver,
+                preground_solver,
                 empty_score,
                 size_penalty,
             ),
@@ -53,26 +55,28 @@ def _evaluate_score(
     program: Program,
     candidate_program: list[str],
     normal_solver: ClingoInterface,
-    brave_solver: ClingoInterface,
+    preground_solver,
     empty_score: float,
     size_penalty: float,
 ) -> FitnessResult:
     indexes = list(range(len(candidate_program)))
     size_cost = len(candidate_program) * size_penalty
 
-    negative_coverage = normal_solver.extract_fixed_coverage(
-        candidate_program,
-        [],
-        program.negative_examples,
-        stop_on_negative=True,
-    )
-    positive_coverage = brave_solver.extract_fixed_coverage(
-        candidate_program,
-        program.positive_examples,
-        [],
-    )
-    covered_positive = positive_coverage.pos_mask.bit_count()
-    has_negative_violation = bool(negative_coverage.neg_mask)
+    coverage = None
+    if preground_solver is not None:
+        coverage = preground_solver.extract_fixed_coverage(
+            candidate_program,
+            stop_on_negative=True,
+        )
+    if coverage is None:
+        coverage = normal_solver.extract_fixed_coverage(
+            candidate_program,
+            program.positive_examples,
+            program.negative_examples,
+            stop_on_negative=True,
+        )
+    covered_positive = coverage.pos_mask.bit_count()
+    has_negative_violation = bool(coverage.neg_mask)
     positive_rate = (
         covered_positive / len(program.positive_examples)
         if program.positive_examples
@@ -83,11 +87,6 @@ def _evaluate_score(
     best_found = (
         covered_positive == len(program.positive_examples)
         and not has_negative_violation
-    )
-    coverage = positive_coverage
-    coverage.extend(
-        negative_coverage.l_pos,
-        negative_coverage.l_neg,
     )
     rates = coverage_rates(program, coverage)
     record_fitness_metric(

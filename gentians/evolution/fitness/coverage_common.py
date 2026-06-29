@@ -166,7 +166,7 @@ def cached_fitness(
     candidate_program: list[str],
     compute: FitnessCompute,
 ) -> FitnessResult:
-    canonical_program = sorted(set(candidate_program))
+    canonical_program = sorted(candidate_program)
     key = tuple(canonical_program)
     if key not in cache:
         score, best_found, indexes = compute(canonical_program)

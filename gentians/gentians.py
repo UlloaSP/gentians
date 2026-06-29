@@ -38,7 +38,7 @@ def solve(program: Program, arguments: Arguments) -> None:
             prg, score, best_found = genetic_solver(
                 clauses,
                 arguments,
-                create_fitness(program, arguments.fitness),
+                create_fitness(program, arguments.fitness, clauses),
                 create_population(arguments.population),
                 create_selection(arguments.selection),
                 create_crossover(arguments.crossover),

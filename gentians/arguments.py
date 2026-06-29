@@ -34,7 +34,7 @@ class Arguments:
     max_program_clauses: int = 6
 
     # Genetic algorithm iterations.
-    iterations_genetic: int = 300
+    iterations_genetic: int = 1000
 
     # Fitness operator config.
     fitness: dict[str, object] = field(

@@ -218,16 +218,11 @@ DEFAULT_DATASETS = [
     "coin",
     "adj2red",
     "clique",
-    "8queens",
+    "4queens",
     "even_odd",
     "grandparent",
     "sudoku",
     "coloring",
-    "hamming_0",
-    "hamming_1",
-    "hamming_0_unbalanced",
-    "hamming_1_unbalanced",
-    "euclid",
 ]
 
 

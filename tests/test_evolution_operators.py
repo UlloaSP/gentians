@@ -1,12 +1,13 @@
 from gentians.evolution.factories import create_selection
 from gentians.evolution.individual import Individual
 from gentians.evolution.mutations.random_group import mutate_by_random_group
+from gentians.rule_generation.rule_space import RuleSpace
 
 
 def test_tournament_selection_returns_distinct_signatures_when_possible(monkeypatch):
     population = [
-        Individual(["a."], 2.0, False, []),
-        Individual(["b."], 1.0, False, []),
+        Individual([0], 2.0, False, []),
+        Individual([1], 1.0, False, []),
     ]
 
     def same_parent(population, tournament_size, prob_selecting_fittest):
@@ -26,17 +27,17 @@ def test_tournament_selection_returns_distinct_signatures_when_possible(monkeypa
 
 
 def test_mutation_skips_fitness_when_signature_does_not_change(monkeypatch):
-    individual = Individual(["a."], 1.0, False, [])
+    individual = Individual([0], 1.0, False, [])
 
     monkeypatch.setattr("gentians.evolution.mutations.random_group.random.random", lambda: 0.0)
-    monkeypatch.setattr("gentians.evolution.mutations.random_group.random.choice", lambda _: "a.")
+    monkeypatch.setattr("gentians.evolution.mutations.random_group.random.choice", lambda _: 0)
 
     def fail_if_called(program):
         raise AssertionError("fitness should not run for no-op mutation")
 
     mutated = mutate_by_random_group(
         individual,
-        ["a."],
+        RuleSpace.from_clauses(["a."]),
         1,
         1.0,
         fail_if_called,

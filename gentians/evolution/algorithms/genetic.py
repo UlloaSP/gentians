@@ -8,12 +8,13 @@ from ..types import (
     ReplacementFn,
     SelectionFn,
 )
+from ...rule_generation.rule_space import RuleId, RuleSpace
 from ...timing import phase, profile_phase, record_ga_generation
 
 
 @profile_phase("genetic")
 def genetic_solver(
-    rule_space: list[str],
+    rule_space: RuleSpace,
     args: Arguments,
     evaluate_score: FitnessFn,
     population_initializer: PopulationInitializerFn,
@@ -21,24 +22,19 @@ def genetic_solver(
     crossover: CrossoverFn,
     mutation: MutationFn,
     replacement: ReplacementFn,
-) -> tuple[list[str], float, bool]:
+) -> tuple[list[RuleId], float, bool]:
     """
     Genetic algorithm to find the best program
     """
 
     # step 0: initialize the population
     population: list[Individual] = []
-    best_found = False
 
-    population, best_found = population_initializer(
+    population, _ = population_initializer(
         args.max_program_clauses,
         rule_space,
         evaluate_score,
     )
-
-    if best_found:
-        record_ga_generation(0, [population[0].score], population[0].score, population)
-        return population[0].program, population[0].score, True
 
     # step 1: sort in terms of decreasing fitness
     with phase("genetic.bookkeeping"):
@@ -70,16 +66,6 @@ def genetic_solver(
             known_signatures,
             args.max_program_clauses,
         )
-        # If the best found, stop the iteration
-        # _, is_best, l_best_indexes = evaluate_score([], [], new_program_1.program)
-        for prg in [new_program_1, new_program_2]:
-            if prg.is_best:
-                return (
-                    [prg.program[i] for i in prg.l_best_indexes],
-                    prg.score,
-                    True,
-                )
-
         # 2.3: mutation
         # https://arxiv.org/pdf/2305.01582.pdf
         new_mutated_1 = mutation(
@@ -101,23 +87,36 @@ def genetic_solver(
 
         # 3: replace elements in the population
         for el in l_mutated:
-            # if best, return
-            if el.is_best:
-                return (
-                    [el.program[i] for i in el.l_best_indexes],
-                    el.score,
-                    True,
-                )
-
             population = replacement(population, el)
         with phase("genetic.bookkeeping"):
             population.sort(key=lambda x: x.score, reverse=True)
 
     with phase("fitness.final"):
         res = evaluate_score(population[0].program)
+    final_program = [population[0].program[i] for i in res[2]]
+    final_score = res[0]
+    final_best = res[1]
+    if final_best:
+        final_program, final_score = _minimize_best_program(final_program, evaluate_score)
 
-    return (
-        [population[0].program[i] for i in res[2]],
-        res[0],
-        False,
-    )
+    return final_program, final_score, final_best
+
+
+def _minimize_best_program(
+    program: list[RuleId],
+    evaluate_score: FitnessFn,
+) -> tuple[list[RuleId], float]:
+    current = list(program)
+    current_score, _, _ = evaluate_score(current)
+    changed = True
+    while changed and len(current) > 1:
+        changed = False
+        for index in range(len(current)):
+            candidate = current[:index] + current[index + 1 :]
+            score, best_found, selected = evaluate_score(candidate)
+            if best_found:
+                current = [candidate[i] for i in selected]
+                current_score = score
+                changed = True
+                break
+    return current, current_score

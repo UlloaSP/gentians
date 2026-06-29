@@ -12,6 +12,7 @@ from gentians.rule_generation.reader import read_program
 from gentians.rule_generation.hypothesis_space import HypothesisSpaceGenerator
 from gentians.rule_generation.hypothesis_space import HypothesisCapabilities
 from gentians.rule_generation.program import ModeDeclaration, Program
+from gentians.rule_generation.rule_space import RuleSpace
 
 
 def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypatch):
@@ -108,7 +109,7 @@ def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
 
         def generate(self):
             phases.append(timing.current_phase())
-            return ["p."]
+            return RuleSpace.from_clauses(["p."])
 
     monkeypatch.setattr(
         hypothesis_space, "HypothesisSpaceGenerator", FakeHypothesisSpaceGenerator
@@ -119,7 +120,7 @@ def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
     )
 
     assert phases == ["hypothesis_space"]
-    assert clauses == ["p."]
+    assert clauses.clauses == ["p."]
     assert "hypothesis_space" in timing._totals
     assert "total_execution.grounding" not in timing._totals
     _reset_timing_state()
@@ -162,7 +163,7 @@ def test_unbalanced_aggregate_variants_share_recall():
             aggregates=["sum(el/2)"],
             unbalanced_aggregates=True,
         ),
-    ).generate()
+    ).generate().clauses
 
     assert not any("#sum{V0:el(V0,V0)}" in clause for clause in clauses)
     assert any("#sum{V0:el(V0,V1)}" in clause for clause in clauses)
@@ -220,7 +221,7 @@ def test_ast_atom_extraction_handles_choice_rules():
 def _benchmark_clauses(name: str) -> set[str]:
     args = copy.deepcopy(CASES[name])
     args.max_candidate_clauses = 0
-    return set(HypothesisSpaceGenerator(read_task(args.filename), args).generate())
+    return set(HypothesisSpaceGenerator(read_task(args.filename), args).generate().clauses)
 
 
 def test_coloring_hypothesis_space_contains_target_rules():
@@ -281,7 +282,7 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     program = read_task(args.filename)
     clauses = HypothesisSpaceGenerator(program, args).generate()
     random.seed(1)
-    candidate = sorted(random.sample(clauses, args.max_program_clauses))
+    candidate = clauses.render(sorted(random.sample(clauses.ids, args.max_program_clauses)))
 
     ClingoInterface(program.background, args.fitness["clingo_arguments"]).extract_coverage_and_set_clauses(
         candidate,

@@ -2,12 +2,13 @@ import random
 
 from ..individual import Individual
 from ..types import FitnessFn
+from ...rule_generation.rule_space import RuleId
 from ...timing import phase, profile_phase, record_metric
 
 
 def _child_from_parent(
     parent: Individual,
-    program: list[str],
+    program: list[RuleId],
 ) -> Individual:
     return Individual(
         program,
@@ -20,9 +21,9 @@ def _child_from_parent(
 def _evaluate_child(
     parent_a: Individual,
     parent_b: Individual,
-    program: list[str],
+    program: list[RuleId],
     evaluate_score: FitnessFn,
-    known_signatures: set[tuple[str, ...]],
+    known_signatures: set[tuple[RuleId, ...]],
 ) -> Individual:
     if program == parent_a.program:
         return _child_from_parent(parent_a, program)
@@ -37,10 +38,10 @@ def _evaluate_child(
 
 
 def _cap_program(
-    program: list[str],
+    program: list[RuleId],
     max_program_clauses: int,
-    fallback: list[str],
-) -> list[str]:
+    fallback: list[RuleId],
+) -> list[RuleId]:
     capped = list(dict.fromkeys(program))[:max(1, max_program_clauses)]
     return capped if capped else [random.choice(fallback)]
 
@@ -51,7 +52,7 @@ def one_point_crossover(
     best_b: Individual,
     evaluate_score: FitnessFn,
     probability: float,
-    known_signatures: set[tuple[str, ...]],
+    known_signatures: set[tuple[RuleId, ...]],
     max_program_clauses: int,
 ) -> "tuple[Individual,Individual]":
     """

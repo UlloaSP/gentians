@@ -26,20 +26,20 @@ def solve(program: Program, arguments: Arguments) -> None:
 
     try:
         with phase("total_execution"):
-            clauses = build_hypothesis_space(
+            rule_space = build_hypothesis_space(
                 program,
                 arguments,
             )
 
-            if len(clauses) == 0:
+            if len(rule_space) == 0:
                 print("\033[91m" + "Error: " + "No clauses found" + "\033[0m")
                 sys.exit(-1)
 
             with phase("fitness.setup"):
-                evaluate_score = create_fitness(program, arguments.fitness, clauses)
+                evaluate_score = create_fitness(program, arguments.fitness, rule_space)
 
             prg, score, best_found = genetic_solver(
-                clauses,
+                rule_space,
                 arguments,
                 evaluate_score,
                 create_population(arguments.population),
@@ -53,7 +53,7 @@ def solve(program: Program, arguments: Arguments) -> None:
                 print(f"--- Found best program with score {score} ---")
             else:
                 print(f"--- Best candidate program with score {score} ---")
-            print(*prg, sep="\n")
+            print(*rule_space.render(prg), sep="\n")
             print("--------------------------")
             print(f"Total time: {time.time() - start_total_time}")
     finally:

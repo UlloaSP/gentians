@@ -9,6 +9,7 @@ from gentians.evolution.fitness.coverage_common import cached_fitness
 from gentians.evolution.fitness.coverage_exp_max import coverage_exp_max
 from gentians.rule_generation.hypothesis_space import read_task
 from gentians.rule_generation.program import Example, Program
+from gentians.rule_generation.rule_space import RuleSpace
 
 
 def test_excluded_atoms_are_checked_individually():
@@ -31,7 +32,9 @@ def test_coverage_fixed_penalizes_brave_negative_violation():
         [],
     )
 
-    score, best_found, indexes = coverage_fixed(program, 0, [], -2000, 0.01)([])
+    score, best_found, indexes = coverage_fixed(
+        program, 0, [], -2000, 0.01, RuleSpace.from_clauses([])
+    )([])
 
     assert score == math.exp(10)
     assert best_found is False
@@ -47,7 +50,9 @@ def test_coverage_fixed_uses_brave_positive_coverage():
         [],
     )
 
-    score, best_found, indexes = coverage_fixed(program, 0, [], -2000, 0.01)([])
+    score, best_found, indexes = coverage_fixed(
+        program, 0, [], -2000, 0.01, RuleSpace.from_clauses([])
+    )([])
 
     assert score == math.exp(20)
     assert best_found is True
@@ -62,10 +67,11 @@ def test_coverage_fixed_prefers_positive_coverage_over_clean_overconstraint():
         [],
         [],
     )
-    evaluate = coverage_fixed(program, 0, [], -2000, 0.01)
+    rule_space = RuleSpace.from_clauses([":- b.", ":- a."])
+    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, rule_space)
 
-    covering_score, _, _ = evaluate([":- b."])
-    overconstrained_score, _, _ = evaluate([":- a.", ":- b."])
+    covering_score, _, _ = evaluate([1])
+    overconstrained_score, _, _ = evaluate([0, 1])
 
     assert covering_score > overconstrained_score
 
@@ -92,8 +98,8 @@ def test_coverage_fixed_uses_pregrounded_rule_space(monkeypatch):
         [],
         -2000,
         0.01,
-        rule_space=[":- b."],
-    )([":- b."])
+            rule_space=RuleSpace.from_clauses([":- b."]),
+    )([0])
 
     assert score == math.exp(19.9)
     assert best_found is True
@@ -110,22 +116,15 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
             self.clingo_arguments = clingo_arguments
             instances.append(self)
 
-        def extract_fixed_coverage(
-            self,
-            candidate_program,
-            interpretation_pos,
-            interpretation_neg,
-            stop_on_negative=False,
-        ):
-            calls.append(
-                (
-                    tuple(self.clingo_arguments),
-                    bool(interpretation_pos),
-                    bool(interpretation_neg),
-                    stop_on_negative,
-                )
-            )
-            return Coverage([0], [0])
+        def fixed_coverage_solver(self, rule_space, interpretation_pos, interpretation_neg):
+            calls.append((tuple(self.clingo_arguments), bool(interpretation_pos), bool(interpretation_neg)))
+
+            class FakePreGrounded:
+                def extract_fixed_coverage_by_id(self, candidate_program, stop_on_negative=False):
+                    calls.append((tuple(candidate_program), stop_on_negative))
+                    return Coverage([0], [0])
+
+            return FakePreGrounded()
 
     monkeypatch.setattr(fixed_module, "ClingoInterface", FakeSolver)
     program = Program(
@@ -142,11 +141,13 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
         ["--project"],
         -2000,
         0.0,
+        RuleSpace.from_clauses([]),
     )([])
 
     assert instances[0].clingo_arguments == ["0", "--project"]
     assert calls == [
-        (("0", "--project"), True, True, True),
+        (("0", "--project"), True, True),
+        ((), True),
     ]
     assert (score, best_found, indexes) == (math.exp(10), False, [])
 
@@ -163,17 +164,17 @@ def test_coverage_fixed_rejects_sudoku_without_row_constraint():
     args = arguments_for("sudoku")
     program = read_task(args.filename)
 
-    for rule_space in (None, rules):
-        _, best_found, _ = coverage_fixed(
-            program,
-            int(args.fitness["max_as"]),
-            list(args.fitness["clingo_arguments"]),
-            float(args.fitness["empty_score"]),
-            float(args.fitness["size_penalty"]),
-            rule_space=rule_space,
-        )(rules)
+    rule_space = RuleSpace.from_clauses(rules)
+    _, best_found, _ = coverage_fixed(
+        program,
+        int(args.fitness["max_as"]),
+        list(args.fitness["clingo_arguments"]),
+        float(args.fitness["empty_score"]),
+        float(args.fitness["size_penalty"]),
+        rule_space=rule_space,
+    )(rule_space.ids)
 
-        assert best_found is False
+    assert best_found is False
 
 
 def test_coverage_exp_max_checks_all_models_before_best_found():
@@ -262,10 +263,10 @@ def test_cached_fitness_maps_canonical_selected_rules_to_original_indexes():
         calls.append(candidate_program)
         return 1.0, True, [0, 1]
 
-    score, best_found, indexes = cached_fitness(cache, ["b.", "a.", "a."], compute)
+    score, best_found, indexes = cached_fitness(cache, [1, 0, 0], compute)
 
     assert (score, best_found) == (1.0, True)
-    assert calls == [["a.", "a.", "b."]]
+    assert calls == [[0, 0, 1]]
     assert indexes == [1, 2]
 
 

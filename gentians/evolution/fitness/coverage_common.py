@@ -4,12 +4,13 @@ import math
 
 from ...asp.coverage import Coverage
 from ...rule_generation.program import Program
+from ...rule_generation.rule_space import RuleId
 from ...timing import current_phase, record_metric
 
 CoverageKey = tuple[int, ...]
 FitnessResult = tuple[float, bool, list[int]]
-CachedFitnessResult = tuple[float, bool, tuple[str, ...]]
-FitnessCompute = Callable[[list[str]], FitnessResult]
+CachedFitnessResult = tuple[float, bool, tuple[RuleId, ...]]
+FitnessCompute = Callable[[list[RuleId]], FitnessResult]
 CachedCoverage = dict[CoverageKey, Coverage]
 
 
@@ -162,8 +163,8 @@ def _subset_indexes(size: int) -> list[CoverageKey]:
 
 
 def cached_fitness(
-    cache: dict[tuple[str, ...], CachedFitnessResult],
-    candidate_program: list[str],
+    cache: dict[tuple[RuleId, ...], CachedFitnessResult],
+    candidate_program: list[RuleId],
     compute: FitnessCompute,
 ) -> FitnessResult:
     canonical_program = sorted(candidate_program)
@@ -176,7 +177,7 @@ def cached_fitness(
             tuple(canonical_program[index] for index in indexes),
         )
     score, best_found, selected_rules = cache[key]
-    positions_by_rule: dict[str, list[int]] = {}
+    positions_by_rule: dict[RuleId, list[int]] = {}
     for index, rule in enumerate(candidate_program):
         positions_by_rule.setdefault(rule, []).append(index)
     indexes = []

@@ -261,6 +261,19 @@ def main() -> None:
                 out_dir / "runs" / f"{dataset}_run_{run}_clingo_metrics.jsonl"
             )
             log_path = out_dir / "runs" / f"{dataset}_run_{run}.log"
+            reset_run_outputs(
+                [
+                    cprofile_path,
+                    timings_path,
+                    timing_events_path,
+                    ga_metrics_path,
+                    operator_metrics_path,
+                    candidate_metrics_path,
+                    quality_metrics_path,
+                    clingo_metrics_path,
+                    log_path,
+                ]
+            )
             cmd, arguments_json = build_command(args.python, dataset_arguments)
             seed = args.seed_base + completed - 1
             experiment_id = f"{dataset}_seed_{seed}"
@@ -368,6 +381,14 @@ def main() -> None:
 def _default_python() -> str:
     local = Path(".venv") / "Scripts" / "python.exe"
     return str(local.resolve()) if local.exists() else sys.executable
+
+
+def reset_run_outputs(paths: list[Path]) -> None:
+    for path in paths:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def profile_arguments(args: argparse.Namespace, dataset: str) -> Arguments:
@@ -863,17 +884,14 @@ def write_dashboard_data(
         dataset_clingo_metrics = [
             row for row in clingo_metrics if row.get("dataset") == dataset
         ]
-        solve_calls = sum(
-            to_float(row.get("calls"))
-            for row in clingo_rows
-            if row.get("dataset") == dataset
-            and clingo_operation_category(row) == "solving"
+        run_ids = sorted({result.run for result in dataset_results})
+        solve_calls = mean(
+            _clingo_calls_for_run(dataset_clingo_metrics, run, "solving")
+            for run in run_ids
         )
-        ground_calls = sum(
-            to_float(row.get("calls"))
-            for row in clingo_rows
-            if row.get("dataset") == dataset
-            and clingo_operation_category(row) == "grounding"
+        ground_calls = mean(
+            _clingo_calls_for_run(dataset_clingo_metrics, run, "grounding")
+            for run in run_ids
         )
         atoms = max(
             [to_float(row.get("stats_atoms")) for row in dataset_clingo_metrics],
@@ -883,20 +901,23 @@ def write_dashboard_data(
             [to_float(row.get("stats_rules")) for row in dataset_clingo_metrics],
             default=0.0,
         )
-        choices = sum(
-            to_float(row.get("stats_choices"))
-            for row in dataset_clingo_metrics
-            if clingo_operation_category(row) == "solving"
+        choices = mean(
+            _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "stats_choices")
+            for run in run_ids
         )
-        conflicts = sum(
-            to_float(row.get("stats_conflicts"))
-            for row in dataset_clingo_metrics
-            if clingo_operation_category(row) == "solving"
+        conflicts = mean(
+            _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "stats_conflicts")
+            for run in run_ids
         )
-        models = sum(
-            to_float(row.get("models"))
-            for row in dataset_clingo_metrics
-            if clingo_operation_category(row) == "solving"
+        models = mean(
+            _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "models")
+            for run in run_ids
+        )
+        candidates = mean(
+            candidate_clause_count(row)
+            for row in candidate_metrics
+            if row.get("dataset") == dataset
+            and is_hypothesis_space_metric(row)
         )
         benchmarks.append(
             {
@@ -907,22 +928,8 @@ def write_dashboard_data(
                     1.0,
                     to_float(candidate.get("mean_clauses")) / 10,
                 ),
-                "candidates": int(
-                    sum(
-                        candidate_clause_count(row)
-                        for row in candidate_metrics
-                        if row.get("dataset") == dataset
-                        and is_hypothesis_space_metric(row)
-                    )
-                ),
-                "clauses": int(
-                    sum(
-                        candidate_clause_count(row)
-                        for row in candidate_metrics
-                        if row.get("dataset") == dataset
-                        and is_hypothesis_space_metric(row)
-                    )
-                ),
+                "candidates": int(candidates),
+                "clauses": int(candidates),
                 "variables": 0,
                 "predicates": 0,
                 "avgArity": 0,
@@ -983,6 +990,28 @@ def write_dashboard_data(
     (out_dir / "dashboard_data.json").write_text(
         json.dumps(json_safe(payload), indent=2, allow_nan=False),
         encoding="utf-8",
+    )
+
+
+def _clingo_calls_for_run(
+    rows: list[dict[str, object]], run: int, category: str
+) -> float:
+    return sum(
+        1
+        for row in rows
+        if int(to_float(row.get("run"))) == run
+        and clingo_operation_category(row) == category
+    )
+
+
+def _clingo_stat_sum_for_run(
+    rows: list[dict[str, object]], run: int, category: str, key: str
+) -> float:
+    return sum(
+        to_float(row.get(key))
+        for row in rows
+        if int(to_float(row.get("run"))) == run
+        and clingo_operation_category(row) == category
     )
 
 
@@ -1067,30 +1096,29 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
 def dashboard_clause_rows(
     dataset: str, candidate_metrics: list[dict[str, object]]
 ) -> list[dict[str, object]]:
-    rows = []
-    for row in candidate_metrics:
-        if (
-            row.get("dataset") != dataset
-            or not is_hypothesis_space_metric(row)
-        ):
-            continue
-        clauses = int(candidate_clause_count(row))
-        rows.append(
-            {
-                "clause": "hypothesis_space",
-                "origin": "hypothesis_space",
-                "kind": "rule_space",
-                "literals": 0,
-                "variables": 0,
-                "aggregates": 0,
-                "candidates": clauses,
-                "valid": clauses,
-                "unique": clauses,
-                "maxScore": 0.0,
-                "evalSeconds": to_float(row.get("seconds")),
-            }
-        )
-    return rows
+    rows = [
+        row
+        for row in candidate_metrics
+        if row.get("dataset") == dataset and is_hypothesis_space_metric(row)
+    ]
+    if not rows:
+        return []
+    clauses = int(mean(candidate_clause_count(row) for row in rows))
+    return [
+        {
+            "clause": "hypothesis_space",
+            "origin": "hypothesis_space",
+            "kind": "rule_space",
+            "literals": 0,
+            "variables": 0,
+            "aggregates": 0,
+            "candidates": clauses,
+            "valid": clauses,
+            "unique": clauses,
+            "maxScore": 0.0,
+            "evalSeconds": mean(to_float(row.get("seconds")) for row in rows),
+        }
+    ]
 
 
 def dashboard_quality_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -1280,7 +1308,7 @@ def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             for row in rows
             if row.get("dataset") == dataset
             and row.get("operation") == operation
-            and row.get("phase_context") == phase_context
+            and str(row.get("phase_context", "")) == phase_context
         ]
         mean_models = mean(to_float(row.get("models")) for row in selected)
         summary.append(

@@ -9,6 +9,7 @@ from .coverage_common import (
 )
 from ...asp.clingo import ClingoInterface
 from ...rule_generation.program import Program
+from ...rule_generation.rule_space import RuleId, RuleSpace
 
 
 def coverage_fixed(
@@ -17,30 +18,29 @@ def coverage_fixed(
     clingo_arguments: list[str],
     empty_score: float,
     size_penalty: float,
-    rule_space: list[str] | None = None,
-) -> Callable[[list[str]], tuple[float, bool, list[int]]]:
-    cache: dict[tuple[str, ...], CachedFitnessResult] = {}
+    rule_space: RuleSpace,
+) -> Callable[[list[RuleId]], tuple[float, bool, list[int]]]:
+    cache: dict[tuple[RuleId, ...], CachedFitnessResult] = {}
     normal_solver = ClingoInterface(
         program.background,
         [f"{max_as_to_generate_foreach_program}", *clingo_arguments],
     )
-    preground_solver = (
-        normal_solver.fixed_coverage_solver(
-            rule_space or [],
-            program.positive_examples,
-            program.negative_examples,
-        )
-        if rule_space
-        else None
+    preground_solver = normal_solver.fixed_coverage_solver(
+        rule_space.clauses,
+        program.positive_examples,
+        program.negative_examples,
     )
 
-    def evaluate_score(candidate_program: list[str]) -> tuple[float, bool, list[int]]:
+    def evaluate_score(
+        candidate_program: list[RuleId],
+    ) -> tuple[float, bool, list[int]]:
         return cached_fitness(
             cache,
             candidate_program,
             lambda canonical_program: _evaluate_score(
                 program,
                 canonical_program,
+                rule_space,
                 normal_solver,
                 preground_solver,
                 empty_score,
@@ -53,7 +53,8 @@ def coverage_fixed(
 
 def _evaluate_score(
     program: Program,
-    candidate_program: list[str],
+    candidate_program: list[RuleId],
+    rule_space: RuleSpace,
     normal_solver: ClingoInterface,
     preground_solver,
     empty_score: float,
@@ -61,16 +62,15 @@ def _evaluate_score(
 ) -> FitnessResult:
     indexes = list(range(len(candidate_program)))
     size_cost = len(candidate_program) * size_penalty
+    rendered_program = rule_space.render(candidate_program)
 
-    coverage = None
-    if preground_solver is not None:
-        coverage = preground_solver.extract_fixed_coverage(
-            candidate_program,
-            stop_on_negative=True,
-        )
+    coverage = preground_solver.extract_fixed_coverage_by_id(
+        candidate_program,
+        stop_on_negative=True,
+    )
     if coverage is None:
         coverage = normal_solver.extract_fixed_coverage(
-            candidate_program,
+            rendered_program,
             program.positive_examples,
             program.negative_examples,
             stop_on_negative=True,
@@ -83,7 +83,7 @@ def _evaluate_score(
         else 1.0
     )
     negative_rate = 1.0 if has_negative_violation else 0.0
-    score = math.exp(10 * (2 * positive_rate - negative_rate - size_cost))
+    score = math.exp(7 * (positive_rate - negative_rate - size_cost))
     best_found = (
         covered_positive == len(program.positive_examples)
         and not has_negative_violation
@@ -92,7 +92,7 @@ def _evaluate_score(
     record_fitness_metric(
         "coverage_fixed",
         program,
-        candidate_program,
+        rendered_program,
         {tuple(indexes): coverage},
         [score],
         score,

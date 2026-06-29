@@ -3,6 +3,7 @@ import time
 
 from ..individual import Individual
 from ..types import FitnessFn
+from ...rule_generation.rule_space import RuleId, RuleSpace
 from ...timing import phase, profile_phase, record_metric
 
 
@@ -18,11 +19,11 @@ def _clone_individual(element: Individual) -> Individual:
 @profile_phase("mutation")
 def mutate_by_random_group(
     element: Individual,
-    rule_space: list[str],
+    rule_space: RuleSpace,
     max_program_clauses: int,
     probability: float,
     evaluate_score: FitnessFn,
-    known_signatures: set[tuple[str, ...]],
+    known_signatures: set[tuple[RuleId, ...]],
 ):
     """
     Mutation of an element
@@ -40,7 +41,7 @@ def mutate_by_random_group(
                     mutated_element = _clone_individual(element)
                 something_changed = True
                 changed_positions += 1
-                mutated_element.program[i] = random.choice(rule_space)
+                mutated_element.program[i] = random.choice(rule_space.ids)
         if (
             random.random() < probability
             and len(mutated_element.program) < max_program_clauses
@@ -49,7 +50,7 @@ def mutate_by_random_group(
                 mutated_element = _clone_individual(element)
             something_changed = True
             changed_positions += 1
-            mutated_element.program.append(random.choice(rule_space))
+            mutated_element.program.append(random.choice(rule_space.ids))
         if random.random() < probability and len(mutated_element.program) > 1:
             if not something_changed:
                 mutated_element = _clone_individual(element)

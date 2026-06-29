@@ -8,12 +8,14 @@ from benchmarks.profile_baseline import (
     dashboard_phases,
     operator_summary,
     parse_log,
+    reset_run_outputs,
     write_dashboard_data,
 )
 from gentians import timing
 from gentians.arguments import Arguments
 from gentians.gentians import solve
 from gentians.rule_generation.program import Program
+from gentians.rule_generation.rule_space import RuleSpace
 
 
 def test_parse_log_marks_only_found_best_as_success(tmp_path):
@@ -70,11 +72,11 @@ def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
 
     monkeypatch.setattr(
         "gentians.gentians.build_hypothesis_space",
-        lambda program, arguments: ["rule."],
+        lambda program, arguments: RuleSpace.from_clauses(["rule."]),
     )
     monkeypatch.setattr(
         "gentians.gentians.genetic_solver",
-        lambda *args, **kwargs: (["rule."], 1.0, True),
+        lambda *args, **kwargs: ([0], 1.0, True),
     )
     monkeypatch.setattr("gentians.gentians.create_fitness", lambda *args: object())
     monkeypatch.setattr("gentians.gentians.create_population", lambda *args: object())
@@ -202,6 +204,7 @@ def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
         [
             {
                 "dataset": "d",
+                "run": 1,
                 "operation": "fixed_preground",
                 "operation_category": "grounding",
                 "phase_context": "fitness.setup",
@@ -211,6 +214,7 @@ def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
             },
             {
                 "dataset": "d",
+                "run": 1,
                 "operation": "fixed_presolve",
                 "operation_category": "solving",
                 "phase_context": "mutation.fitness",
@@ -228,6 +232,73 @@ def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
     assert bench["atoms"] == 10
     assert bench["groundRules"] == 20
     assert bench["models"] == 3
+
+
+def test_reset_run_outputs_removes_stale_profile_files(tmp_path):
+    paths = [tmp_path / "a.jsonl", tmp_path / "b.json"]
+    for path in paths:
+        path.write_text("stale", encoding="utf-8")
+
+    reset_run_outputs(paths)
+
+    assert all(not path.exists() for path in paths)
+
+
+def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
+    results = [
+        RunResult("d", 1, 1, "run1", "ok", 0, 1.0, [], "{}", "", ""),
+        RunResult("d", 2, 2, "run2", "ok", 0, 1.0, [], "{}", "", ""),
+    ]
+    write_dashboard_data(
+        tmp_path,
+        results,
+        [],
+        [],
+        [],
+        [],
+        [
+            {"dataset": "d", "run": 1, "metric": "hypothesis_space", "clauses": 100},
+            {"dataset": "d", "run": 2, "metric": "hypothesis_space", "clauses": 300},
+        ],
+        [],
+        [
+            {
+                "dataset": "d",
+                "run": 1,
+                "operation": "fixed_preground",
+                "operation_category": "grounding",
+                "stats_atoms": 10,
+                "stats_rules": 20,
+            },
+            {
+                "dataset": "d",
+                "run": 1,
+                "operation": "fixed_presolve",
+                "operation_category": "solving",
+                "models": 4,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "operation": "fixed_presolve",
+                "operation_category": "solving",
+                "models": 8,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "operation": "fixed_presolve",
+                "operation_category": "solving",
+                "models": 2,
+            },
+        ],
+    )
+
+    bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
+    assert bench["candidates"] == 200
+    assert bench["groundCalls"] == 0.5
+    assert bench["solveCalls"] == 1.5
+    assert bench["models"] == 7
 
 
 def test_dashboard_uses_real_ga_diversity(tmp_path):

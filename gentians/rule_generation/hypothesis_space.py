@@ -16,6 +16,7 @@ from ..timing import add, current_phase, profile_phase, record_metric
 from .parser import parse_atom, split_top_level_args
 from .program import Program
 from .reader import read_program
+from .rule_space import RuleSpace
 
 
 LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
@@ -83,7 +84,7 @@ class HypothesisSpaceGenerator:
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
 
-    def generate(self) -> list[str]:
+    def generate(self) -> RuleSpace:
         program = _facts(self.args, self.modes, self.capabilities) + "\n" + HYPOTHESIS_SPACE_RULES
         ctl = clingo.Control(
             [str(self.args.max_candidate_clauses), *_hypothesis_space_args(self.args)],
@@ -147,7 +148,7 @@ class HypothesisSpaceGenerator:
             },
         )
 
-        return sorted(dict.fromkeys(clauses))
+        return RuleSpace.from_clauses(_prune_clauses(self.program, self.args, clauses))
 
 
 def read_task(filename: str) -> Program:
@@ -155,16 +156,125 @@ def read_task(filename: str) -> Program:
 
 
 @profile_phase("hypothesis_space")
-def build_hypothesis_space(program: Program, arguments: Arguments) -> list[str]:
-    clauses = HypothesisSpaceGenerator(program, arguments).generate()
+def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
+    rule_space = HypothesisSpaceGenerator(program, arguments).generate()
     record_metric(
         "candidate",
         {
             "metric": "hypothesis_space",
-            "clauses": len(clauses),
+            "clauses": len(rule_space),
         },
     )
-    return clauses
+    return rule_space
+
+
+def _prune_clauses(program: Program, args: Arguments, clauses: list[str]) -> list[str]:
+    irreflexive = _predicate_specs(args.hypothesis_space.get("irreflexive", []))
+    structurally_clean = [
+        clause for clause in clauses if not _has_irreflexive_literal(clause, irreflexive)
+    ]
+    if not bool(args.hypothesis_space.get("semantic_prune", True)):
+        return structurally_clean
+    return _semantic_prune(program, structurally_clean)
+
+
+def _predicate_specs(value: object) -> set[tuple[str, int]]:
+    if not isinstance(value, list):
+        return set()
+    specs = set()
+    for item in value:
+        raw = str(item)
+        if "/" not in raw:
+            continue
+        name, arity = raw.rsplit("/", 1)
+        if arity.isdigit():
+            specs.add((name, int(arity)))
+    return specs
+
+
+def _has_irreflexive_literal(clause: str, irreflexive: set[tuple[str, int]]) -> bool:
+    if not irreflexive:
+        return False
+    for literal in _normal_literals(clause):
+        parsed = _parse_normal_atom(literal)
+        if parsed is None:
+            continue
+        name, arguments = parsed
+        if (name, len(arguments)) in irreflexive and len(set(arguments)) < len(arguments):
+            return True
+    return False
+
+
+def _normal_literals(clause: str) -> list[str]:
+    content = clause.strip().rstrip(".")
+    if ":-" in content:
+        head, body = content.split(":-", 1)
+        fragments = [*split_top_level_args(head.replace(";", ",")), *split_top_level_args(body)]
+    else:
+        fragments = split_top_level_args(content.replace(";", ","))
+    return [
+        fragment.removeprefix("not ").strip()
+        for fragment in fragments
+        if fragment.strip() and _parse_normal_atom(fragment.removeprefix("not ").strip()) is not None
+    ]
+
+
+def _semantic_prune(program: Program, clauses: list[str]) -> list[str]:
+    learned = {(mode.name, mode.arity) for mode in program.language_bias_head}
+    checkable: dict[int, str] = {}
+    kept = set(range(len(clauses)))
+    for index, clause in enumerate(clauses):
+        body = _clause_body(clause)
+        if body is None:
+            continue
+        body_predicates = _body_predicates(body)
+        if body_predicates and body_predicates.isdisjoint(learned):
+            checkable[index] = body
+    if not checkable:
+        return clauses
+
+    lines = [*program.background]
+    lines.extend(f"possible({index}) :- {body}." for index, body in checkable.items())
+    lines.append("#show possible/1.")
+    ctl = clingo.Control(["0"], logger=wrapper_exit_callback)
+    ctl.add("base", [], "\n".join(lines))
+    try:
+        ctl.ground([("base", [])])
+    except RuntimeError:
+        return clauses
+
+    possible: set[int] = set()
+    with ctl.solve(yield_=True) as handle:  # type: ignore
+        for model in handle:  # type: ignore
+            for symbol in model.symbols(shown=True):
+                if symbol.name == "possible" and len(symbol.arguments) == 1:
+                    possible.add(symbol.arguments[0].number)
+            if possible == set(checkable):
+                handle.cancel()
+                break
+    for index in set(checkable) - possible:
+        kept.discard(index)
+    return [clause for index, clause in enumerate(clauses) if index in kept]
+
+
+def _clause_body(clause: str) -> str | None:
+    content = clause.strip().rstrip(".")
+    if ":-" not in content:
+        return None
+    _, body = content.split(":-", 1)
+    body = body.strip()
+    return body or None
+
+
+def _body_predicates(body: str) -> set[tuple[str, int]]:
+    predicates = set()
+    for fragment in split_top_level_args(body):
+        literal = fragment.strip().removeprefix("not ").strip()
+        parsed = _parse_normal_atom(literal)
+        if parsed is not None:
+            name, arguments = parsed
+            predicates.add((name, len(arguments)))
+    return predicates
 
 
 def _hypothesis_capabilities(

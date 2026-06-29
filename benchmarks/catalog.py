@@ -39,12 +39,27 @@ CASES: dict[str, Arguments] = {
         comparison_operators=["lt"],
         max_variables=5,
     ),
-    "adj2red": task("adjacent_to_red.txt", max_depth=4),
+    "adj2red": task(
+        "adjacent_to_red.txt",
+        max_depth=4,
+        hypothesis_space={
+            "clingo_arguments": [],
+            "enable_recursion": False,
+            "semantic_prune": True,
+            "irreflexive": ["edge/2"],
+        },
+    ),
     "clique": task(
         "clique.txt",
         max_depth=7,
         comparison_operators=["neq"],
         max_variables=2,
+        hypothesis_space={
+            "clingo_arguments": [],
+            "enable_recursion": False,
+            "semantic_prune": False,
+            "irreflexive": ["ne/2"],
+        },
     ),
     "coin": task("coin.txt"),
     "euclid": task(
@@ -59,7 +74,12 @@ CASES: dict[str, Arguments] = {
         "coloring.txt",
         disjunctive_head_length=3,
         max_depth=4,
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
+        hypothesis_space={
+            "clingo_arguments": [],
+            "enable_recursion": True,
+            "semantic_prune": False,
+            "irreflexive": ["e/2"],
+        },
     ),
     "even_odd": task(
         "even_odd.txt",
@@ -69,7 +89,16 @@ CASES: dict[str, Arguments] = {
         "grandparent.txt",
         hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
-    "sudoku": task("sudoku.txt", max_depth=3),
+    "sudoku": task(
+        "sudoku.txt",
+        max_depth=3,
+        hypothesis_space={
+            "clingo_arguments": [],
+            "enable_recursion": False,
+            "semantic_prune": False,
+            "irreflexive": ["same_row/2", "same_col/2", "same_block/2"],
+        },
+    ),
     "hamming_0": task(
         "hamming_0.txt",
         max_depth=3,

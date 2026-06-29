@@ -25,7 +25,7 @@ class Arguments:
 
     # Maximum number of candidate clauses generated from the hypothesis space.
     # 0 means all.
-    max_candidate_clauses: int = 10000
+    max_candidate_clauses: int = 100000
 
     # Allow aggregate literals whose variables are not fully balanced.
     unbalanced_aggregates: bool = False
@@ -34,7 +34,7 @@ class Arguments:
     max_program_clauses: int = 6
 
     # Genetic algorithm iterations.
-    iterations_genetic: int = 1000
+    iterations_genetic: int = 2000
 
     # Fitness operator config.
     fitness: dict[str, object] = field(
@@ -111,6 +111,10 @@ class Arguments:
             "clingo_arguments": [],
             # Whether sampled rules may recursively use the target predicate.
             "enable_recursion": False,
+            # Drop bodies proved impossible under background-only predicates.
+            "semantic_prune": False,
+            # Predicate specs whose repeated variable args are invalid, e.g. ["edge/2"].
+            "irreflexive": [],
         }
     )
 

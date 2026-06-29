@@ -270,7 +270,16 @@ class PreGroundedFixedCoverageSolver:
         )
         if len(active_ids) != len(set(program)):
             return None
+        return self.extract_fixed_coverage_by_id(active_ids, stop_on_negative)
 
+    def extract_fixed_coverage_by_id(
+        self,
+        active_ids: list[int],
+        stop_on_negative: bool = False,
+    ) -> Coverage | None:
+        if not self.available:
+            return None
+        active_ids = sorted(set(active_ids))
         active_symbols = [
             clingo.Function("active", [clingo.Number(index)])
             for index in active_ids
@@ -310,7 +319,7 @@ class PreGroundedFixedCoverageSolver:
                 "seconds": seconds,
                 "models": models,
                 "coverage_subsets": 1,
-                "program_size": len(program),
+                "program_size": len(active_ids),
                 "active_rules": len(active_ids),
                 "clingo_arguments": " ".join(self.clingo_arguments),
                 "stats_models_enumerated": _clingo_stat(

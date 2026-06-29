@@ -1,4 +1,5 @@
 import importlib
+import math
 
 from benchmarks.catalog import arguments_for
 from gentians.asp.coverage import Coverage
@@ -32,7 +33,7 @@ def test_coverage_fixed_penalizes_brave_negative_violation():
 
     score, best_found, indexes = coverage_fixed(program, 0, [], -2000, 0.01)([])
 
-    assert score == 1.0
+    assert score == math.exp(10)
     assert best_found is False
     assert indexes == []
 
@@ -48,7 +49,7 @@ def test_coverage_fixed_uses_brave_positive_coverage():
 
     score, best_found, indexes = coverage_fixed(program, 0, [], -2000, 0.01)([])
 
-    assert score == 2.0
+    assert score == math.exp(20)
     assert best_found is True
     assert indexes == []
 
@@ -94,7 +95,7 @@ def test_coverage_fixed_uses_pregrounded_rule_space(monkeypatch):
         rule_space=[":- b."],
     )([":- b."])
 
-    assert score == 1.99
+    assert score == math.exp(19.9)
     assert best_found is True
     assert indexes == [0]
 
@@ -147,7 +148,7 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
     assert calls == [
         (("0", "--project"), True, True, True),
     ]
-    assert (score, best_found, indexes) == (1.0, False, [])
+    assert (score, best_found, indexes) == (math.exp(10), False, [])
 
 
 def test_coverage_fixed_rejects_sudoku_without_row_constraint():

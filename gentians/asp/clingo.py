@@ -65,12 +65,14 @@ class ClingoInterface:
         start = time.perf_counter()
         ctl.ground([("base", [])])
         seconds = time.perf_counter() - start
+        ground_stats = _ground_stats(ctl)
         phase = current_phase()
         add(f"{phase}.grounding", seconds)
         record_metric(
             "clingo",
             {
                 "operation": "grounding",
+                "operation_category": "grounding",
                 "phase_context": phase,
                 "seconds": seconds,
                 "input_clauses": len(self.lines) + len(program),
@@ -78,8 +80,8 @@ class ClingoInterface:
                 "positive_examples": len(interpretation_pos),
                 "negative_examples": len(interpretation_neg),
                 "clingo_arguments": " ".join(self.clingo_arguments),
-                "stats_atoms": _clingo_stat(ctl.statistics, "problem", "lp", "atoms"),
-                "stats_rules": _clingo_stat(ctl.statistics, "problem", "lp", "rules"),
+                "stats_atoms": ground_stats["atoms"],
+                "stats_rules": ground_stats["rules"],
             },
         )
 
@@ -117,6 +119,7 @@ class ClingoInterface:
             "clingo",
             {
                 "operation": "solving",
+                "operation_category": "solving",
                 "phase_context": phase,
                 "seconds": seconds,
                 "models": models,
@@ -200,6 +203,8 @@ class PreGroundedFixedCoverageSolver:
         self.interpretation_neg = interpretation_neg
         self.rule_ids = {rule: index for index, rule in enumerate(rule_space)}
         self.available = True
+        self._last_choices = 0.0
+        self._last_conflicts = 0.0
 
         generated_program = _build_coverage_static_program(
             lines,
@@ -231,12 +236,14 @@ class PreGroundedFixedCoverageSolver:
         start = time.perf_counter()
         self.ctl.ground([("base", [])])
         seconds = time.perf_counter() - start
+        ground_stats = _ground_stats(self.ctl)
         phase = current_phase()
         add(f"{phase}.grounding", seconds)
         record_metric(
             "clingo",
             {
                 "operation": "fixed_preground",
+                "operation_category": "grounding",
                 "phase_context": phase,
                 "seconds": seconds,
                 "input_clauses": len(lines) + len(rule_space),
@@ -244,12 +251,8 @@ class PreGroundedFixedCoverageSolver:
                 "positive_examples": len(interpretation_pos),
                 "negative_examples": len(interpretation_neg),
                 "clingo_arguments": " ".join(clingo_arguments),
-                "stats_atoms": _clingo_stat(
-                    self.ctl.statistics, "problem", "lp", "atoms"
-                ),
-                "stats_rules": _clingo_stat(
-                    self.ctl.statistics, "problem", "lp", "rules"
-                ),
+                "stats_atoms": ground_stats["atoms"],
+                "stats_rules": ground_stats["rules"],
             },
         )
         if wrp.atom_undefined:
@@ -290,12 +293,19 @@ class PreGroundedFixedCoverageSolver:
             for symbol in active_symbols:
                 self.ctl.assign_external(symbol, False)
         seconds = time.perf_counter() - start
+        choices = _clingo_stat(self.ctl.statistics, "solving", "solvers", "choices")
+        conflicts = _clingo_stat(self.ctl.statistics, "solving", "solvers", "conflicts")
+        delta_choices = max(choices - self._last_choices, 0.0)
+        delta_conflicts = max(conflicts - self._last_conflicts, 0.0)
+        self._last_choices = choices
+        self._last_conflicts = conflicts
         phase = current_phase()
         add(f"{phase}.solving", seconds)
         record_metric(
             "clingo",
             {
                 "operation": "fixed_presolve",
+                "operation_category": "solving",
                 "phase_context": phase,
                 "seconds": seconds,
                 "models": models,
@@ -306,12 +316,10 @@ class PreGroundedFixedCoverageSolver:
                 "stats_models_enumerated": _clingo_stat(
                     self.ctl.statistics, "summary", "models", "enumerated"
                 ),
-                "stats_choices": _clingo_stat(
-                    self.ctl.statistics, "solving", "solvers", "choices"
-                ),
-                "stats_conflicts": _clingo_stat(
-                    self.ctl.statistics, "solving", "solvers", "conflicts"
-                ),
+                "stats_choices": delta_choices,
+                "stats_conflicts": delta_conflicts,
+                "stats_choices_cumulative": choices,
+                "stats_conflicts_cumulative": conflicts,
             },
         )
         return coverage
@@ -404,3 +412,17 @@ def _clingo_stat(stats, *path: str) -> float:
             return 0.0
         current = current[key]
     return float(current) if isinstance(current, (int, float)) else 0.0
+
+
+def _ground_stats(ctl) -> dict[str, float]:
+    stats = ctl.statistics
+    atoms = max(
+        _clingo_stat(stats, "problem", "lp", "atoms"),
+        _clingo_stat(stats, "problem", "lpStep", "atoms"),
+        float(sum(1 for _ in ctl.symbolic_atoms)),
+    )
+    rules = max(
+        _clingo_stat(stats, "problem", "lp", "rules"),
+        _clingo_stat(stats, "problem", "lpStep", "rules"),
+    )
+    return {"atoms": atoms, "rules": rules}

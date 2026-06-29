@@ -37,7 +37,7 @@ def genetic_solver(
     )
 
     if best_found:
-        record_ga_generation(0, [population[0].score], population[0].score)
+        record_ga_generation(0, [population[0].score], population[0].score, population)
         return population[0].program, population[0].score, True
 
     # step 1: sort in terms of decreasing fitness
@@ -49,7 +49,12 @@ def genetic_solver(
     for it in range(args.iterations_genetic + 1):
         with phase("genetic.bookkeeping"):
             best_score_so_far = max(best_score_so_far, population[0].score)
-            record_ga_generation(it, [el.score for el in population], best_score_so_far)
+            record_ga_generation(
+                it,
+                [el.score for el in population],
+                best_score_so_far,
+                population,
+            )
         # 2.1: selection of the two fittest elements
         best_a, best_b = selection(population)
 

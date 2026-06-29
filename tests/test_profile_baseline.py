@@ -4,6 +4,7 @@ from benchmarks.profile_baseline import (
     GAMetric,
     RunResult,
     TimingMetric,
+    clingo_summary,
     dashboard_phases,
     operator_summary,
     parse_log,
@@ -140,6 +141,127 @@ def test_dashboard_attributes_genetic_self_to_ga_python():
     assert phases["gaPython"]["self"] == 3.0
     assert phases["replacement"]["self"] == 5.0
     assert "other" not in phases
+
+
+def test_dashboard_has_fitness_setup_phase():
+    phases = dashboard_phases(
+        [
+            TimingMetric("d", 1, "total_execution", 10.0, 1),
+            TimingMetric("d", 1, "fitness.setup", 4.0, 1),
+            TimingMetric("d", 1, "fitness.setup.grounding", 3.0, 1),
+        ]
+    )
+
+    assert phases["fitnessSetup"]["grounding"] == 3.0
+    assert phases["fitnessSetup"]["self"] == 1.0
+
+
+def test_clingo_summary_uses_categories_and_mean_models_from_zero():
+    [summary] = clingo_summary(
+        [
+            {
+                "dataset": "d",
+                "operation": "fixed_presolve",
+                "operation_category": "solving",
+                "phase_context": "mutation.fitness",
+                "seconds": 0.2,
+                "models": 2,
+            }
+        ]
+    )
+
+    assert summary["operation_category"] == "solving"
+    assert summary["mean_models"] == 2
+    assert summary["mean_models_points"][0] == [0, 0.0]
+
+
+def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
+    write_dashboard_data(
+        tmp_path,
+        [
+            RunResult(
+                "d",
+                1,
+                1,
+                "run",
+                "ok",
+                0,
+                1.0,
+                [],
+                "{}",
+                "",
+                "",
+            )
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [
+            {
+                "dataset": "d",
+                "operation": "fixed_preground",
+                "operation_category": "grounding",
+                "phase_context": "fitness.setup",
+                "seconds": 0.5,
+                "stats_atoms": 10,
+                "stats_rules": 20,
+            },
+            {
+                "dataset": "d",
+                "operation": "fixed_presolve",
+                "operation_category": "solving",
+                "phase_context": "mutation.fitness",
+                "seconds": 0.1,
+                "models": 3,
+                "stats_atoms": 10,
+                "stats_rules": 20,
+            },
+        ],
+    )
+
+    bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
+    assert bench["groundCalls"] == 1
+    assert bench["solveCalls"] == 1
+    assert bench["atoms"] == 10
+    assert bench["groundRules"] == 20
+    assert bench["models"] == 3
+
+
+def test_dashboard_uses_real_ga_diversity(tmp_path):
+    write_dashboard_data(
+        tmp_path,
+        [
+            RunResult(
+                "d",
+                1,
+                1,
+                "run",
+                "ok",
+                0,
+                1.0,
+                [],
+                "{}",
+                "",
+                "",
+            )
+        ],
+        [],
+        [GAMetric("d", 1, 0, 0, 1.0, 0.5, 1.0, 4, 2, 0.5, 1, 0.25, 2.0)],
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
+
+    run = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0][
+        "fitnessRuns"
+    ][0]
+    assert run["diversity"] == [[0, 0.5]]
+    assert run["invalid"] == [[0, 0.25]]
 
 
 def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):

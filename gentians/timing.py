@@ -189,21 +189,44 @@ def record_metric(kind: str, row: dict[str, Any]) -> None:
 
 
 def record_ga_generation(
-    generation: int, scores: list[float], best_so_far: float
+    generation: int,
+    scores: list[float],
+    best_so_far: float,
+    population: list[object] | None = None,
 ) -> None:
     path = os.environ.get("GENTIANS_GA_METRICS_PATH")
     if not path or not scores:
         return
     global _ga_dirty
-    _ga_rows.append(
-        {
-            "generation": generation,
-            "global_generation": generation,
-            "max_fitness": max(scores),
-            "avg_fitness": sum(scores) / len(scores),
-            "best_so_far": best_so_far,
-        }
-    )
+    row = {
+        "generation": generation,
+        "global_generation": generation,
+        "max_fitness": max(scores),
+        "avg_fitness": sum(scores) / len(scores),
+        "best_so_far": best_so_far,
+    }
+    if population is not None:
+        signatures = [getattr(element, "signature", None) for element in population]
+        valid_signatures = [signature for signature in signatures if signature is not None]
+        sizes = [len(getattr(element, "program", [])) for element in population]
+        invalid = sum(
+            1 for element in population if getattr(element, "score", 0.0) == float("-inf")
+        )
+        row.update(
+            {
+                "population_size": len(population),
+                "unique_signatures": len(set(valid_signatures)),
+                "diversity": (
+                    len(set(valid_signatures)) / len(population)
+                    if population
+                    else 0.0
+                ),
+                "invalid_count": invalid,
+                "invalid_rate": invalid / len(population) if population else 0.0,
+                "mean_program_size": sum(sizes) / len(sizes) if sizes else 0.0,
+            }
+        )
+    _ga_rows.append(row)
     _ga_dirty = True
 
 

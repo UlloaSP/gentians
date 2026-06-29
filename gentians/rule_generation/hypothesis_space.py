@@ -92,7 +92,25 @@ class HypothesisSpaceGenerator:
         ctl.add("base", [], program)
         start = time.perf_counter()
         ctl.ground([("base", [])])
-        add(f"{current_phase()}.grounding", time.perf_counter() - start)
+        grounding_seconds = time.perf_counter() - start
+        add(f"{current_phase()}.grounding", grounding_seconds)
+        ground_stats = _ground_stats(ctl)
+        record_metric(
+            "clingo",
+            {
+                "operation": "hypothesis_space_grounding",
+                "operation_category": "grounding",
+                "phase_context": current_phase(),
+                "seconds": grounding_seconds,
+                "program_size": 1,
+                "program_chars": len(program),
+                "stats_atoms": ground_stats["atoms"],
+                "stats_rules": ground_stats["rules"],
+                "clingo_arguments": " ".join(
+                    [str(self.args.max_candidate_clauses), *_hypothesis_space_args(self.args)]
+                ),
+            },
+        )
 
         clauses: list[str] = []
         start = time.perf_counter()
@@ -110,7 +128,8 @@ class HypothesisSpaceGenerator:
         record_metric(
             "clingo",
             {
-                "operation": "hypothesis_space",
+                "operation": "hypothesis_space_solving",
+                "operation_category": "solving",
                 "phase_context": phase,
                 "seconds": seconds,
                 "models": models,
@@ -574,3 +593,26 @@ def _hypothesis_space_args(args: Arguments) -> list[str]:
     if isinstance(value, str):
         return [] if value.isdigit() else [value]
     return []
+
+
+def _ground_stats(ctl: clingo.Control) -> dict[str, float]:
+    stats = ctl.statistics
+    atoms = max(
+        _clingo_stat(stats, "problem", "lp", "atoms"),
+        _clingo_stat(stats, "problem", "lpStep", "atoms"),
+        float(sum(1 for _ in ctl.symbolic_atoms)),
+    )
+    rules = max(
+        _clingo_stat(stats, "problem", "lp", "rules"),
+        _clingo_stat(stats, "problem", "lpStep", "rules"),
+    )
+    return {"atoms": atoms, "rules": rules}
+
+
+def _clingo_stat(stats, *path: str) -> float:
+    current = stats
+    for key in path:
+        if not isinstance(current, dict) or key not in current:
+            return 0.0
+        current = current[key]
+    return float(current) if isinstance(current, (int, float)) else 0.0

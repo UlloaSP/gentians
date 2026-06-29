@@ -35,10 +35,13 @@ def solve(program: Program, arguments: Arguments) -> None:
                 print("\033[91m" + "Error: " + "No clauses found" + "\033[0m")
                 sys.exit(-1)
 
+            with phase("fitness.setup"):
+                evaluate_score = create_fitness(program, arguments.fitness, clauses)
+
             prg, score, best_found = genetic_solver(
                 clauses,
                 arguments,
-                create_fitness(program, arguments.fitness, clauses),
+                evaluate_score,
                 create_population(arguments.population),
                 create_selection(arguments.selection),
                 create_crossover(arguments.crossover),

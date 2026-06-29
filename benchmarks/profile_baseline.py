@@ -87,6 +87,12 @@ class GAMetric:
     max_fitness: float
     avg_fitness: float
     best_so_far: float
+    population_size: float = 0.0
+    unique_signatures: float = 0.0
+    diversity: float = 0.0
+    invalid_count: float = 0.0
+    invalid_rate: float = 0.0
+    mean_program_size: float = 0.0
 
 
 ITERATION_RE = re.compile(
@@ -113,6 +119,9 @@ STANDARD_TIMING_METRICS = [
     "hypothesis_space",
     "hypothesis_space.grounding",
     "hypothesis_space.solving",
+    "fitness.setup",
+    "fitness.setup.grounding",
+    "fitness.setup.solving",
     "selection",
     "replacement",
     "replacement.self",
@@ -540,6 +549,12 @@ def read_ga_metrics(path: Path, dataset: str, run: int) -> list[GAMetric]:
             float(row["max_fitness"]),
             float(row["avg_fitness"]),
             float(row["best_so_far"]),
+            to_float(row.get("population_size")),
+            to_float(row.get("unique_signatures")),
+            to_float(row.get("diversity")),
+            to_float(row.get("invalid_count")),
+            to_float(row.get("invalid_rate")),
+            to_float(row.get("mean_program_size")),
         )
         for row in rows
     ]
@@ -845,40 +860,43 @@ def write_dashboard_data(
             for timing in dataset_timings
             if timing.metric == "total_execution"
         )
+        dataset_clingo_metrics = [
+            row for row in clingo_metrics if row.get("dataset") == dataset
+        ]
         solve_calls = sum(
             to_float(row.get("calls"))
             for row in clingo_rows
-            if row.get("dataset") == dataset and row.get("operation") == "solving"
+            if row.get("dataset") == dataset
+            and clingo_operation_category(row) == "solving"
         )
         ground_calls = sum(
             to_float(row.get("calls"))
             for row in clingo_rows
-            if row.get("dataset") == dataset and row.get("operation") == "grounding"
-        )
-        atoms = sum(
-            to_float(row.get("stats_atoms"))
-            for row in clingo_metrics
             if row.get("dataset") == dataset
+            and clingo_operation_category(row) == "grounding"
         )
-        ground_rules = sum(
-            to_float(row.get("stats_rules"))
-            for row in clingo_metrics
-            if row.get("dataset") == dataset
+        atoms = max(
+            [to_float(row.get("stats_atoms")) for row in dataset_clingo_metrics],
+            default=0.0,
+        )
+        ground_rules = max(
+            [to_float(row.get("stats_rules")) for row in dataset_clingo_metrics],
+            default=0.0,
         )
         choices = sum(
             to_float(row.get("stats_choices"))
-            for row in clingo_metrics
-            if row.get("dataset") == dataset
+            for row in dataset_clingo_metrics
+            if clingo_operation_category(row) == "solving"
         )
         conflicts = sum(
             to_float(row.get("stats_conflicts"))
-            for row in clingo_metrics
-            if row.get("dataset") == dataset
+            for row in dataset_clingo_metrics
+            if clingo_operation_category(row) == "solving"
         )
         models = sum(
             to_float(row.get("models"))
-            for row in clingo_metrics
-            if row.get("dataset") == dataset
+            for row in dataset_clingo_metrics
+            if clingo_operation_category(row) == "solving"
         )
         benchmarks.append(
             {
@@ -984,6 +1002,7 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
 
     phases = {
         "hypothesisSpace": phase("hypothesisSpace", "hypothesis_space"),
+        "fitnessSetup": phase("fitnessSetup", "fitness.setup"),
         "initialization": phase("initialization", "fitness.initialization"),
         "selection": phase("selection", "selection"),
         "crossover": phase("crossover", "crossover"),
@@ -1038,8 +1057,8 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
                     [point.global_generation, point.avg_fitness] for point in points
                 ],
                 "globalBestArr": global_best,
-                "diversity": [[point.generation, 0.0] for point in points],
-                "invalid": [[point.generation, 0.0] for point in points],
+                "diversity": [[point.generation, point.diversity] for point in points],
+                "invalid": [[point.generation, point.invalid_rate] for point in points],
             }
         )
     return runs
@@ -1059,6 +1078,8 @@ def dashboard_clause_rows(
         rows.append(
             {
                 "clause": "hypothesis_space",
+                "origin": "hypothesis_space",
+                "kind": "rule_space",
                 "literals": 0,
                 "variables": 0,
                 "aggregates": 0,
@@ -1261,18 +1282,42 @@ def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             and row.get("operation") == operation
             and row.get("phase_context") == phase_context
         ]
+        mean_models = mean(to_float(row.get("models")) for row in selected)
         summary.append(
             {
                 "dataset": dataset,
                 "operation": operation,
+                "operation_category": clingo_operation_category(selected[0]),
                 "phase_context": phase_context,
                 "calls": len(selected),
                 "total_seconds": sum(to_float(row.get("seconds")) for row in selected),
                 "mean_seconds": mean(to_float(row.get("seconds")) for row in selected),
                 "total_models": sum(to_float(row.get("models")) for row in selected),
+                "mean_models": mean_models,
+                "mean_models_points": [[0, 0.0], [len(selected), mean_models]],
+                "max_atoms": max(
+                    [to_float(row.get("stats_atoms")) for row in selected],
+                    default=0.0,
+                ),
+                "max_rules": max(
+                    [to_float(row.get("stats_rules")) for row in selected],
+                    default=0.0,
+                ),
             }
         )
     return summary
+
+
+def clingo_operation_category(row: dict[str, object]) -> str:
+    category = str(row.get("operation_category") or "")
+    if category:
+        return category
+    operation = str(row.get("operation") or "")
+    if operation in {"grounding", "fixed_preground", "hypothesis_space_grounding"}:
+        return "grounding"
+    if operation in {"solving", "fixed_presolve", "hypothesis_space_solving", "hypothesis_space"}:
+        return "solving"
+    return operation
 
 
 def ga_fitness_means(points: list[GAMetric]) -> list[dict[str, object]]:
@@ -1292,11 +1337,14 @@ def ga_fitness_means(points: list[GAMetric]) -> list[dict[str, object]]:
                     "max_std": stddev(p.max_fitness for p in generation_points),
                     "avg_mean": mean(p.avg_fitness for p in generation_points),
                     "avg_std": stddev(p.avg_fitness for p in generation_points),
-                    "best_so_far_mean": mean(p.best_so_far for p in generation_points),
-                    "best_so_far_std": stddev(p.best_so_far for p in generation_points),
-                    "runs": len(generation_points),
-                }
-            )
+                "best_so_far_mean": mean(p.best_so_far for p in generation_points),
+                "best_so_far_std": stddev(p.best_so_far for p in generation_points),
+                "diversity_mean": mean(p.diversity for p in generation_points),
+                "invalid_rate_mean": mean(p.invalid_rate for p in generation_points),
+                "mean_program_size": mean(p.mean_program_size for p in generation_points),
+                "runs": len(generation_points),
+            }
+        )
     return rows
 
 

@@ -19,6 +19,7 @@ def _clone_individual(element: Individual) -> Individual:
 def mutate_by_random_group(
     element: Individual,
     rule_space: list[str],
+    max_program_clauses: int,
     probability: float,
     evaluate_score: FitnessFn,
     known_signatures: set[tuple[str, ...]],
@@ -40,6 +41,21 @@ def mutate_by_random_group(
                 something_changed = True
                 changed_positions += 1
                 mutated_element.program[i] = random.choice(rule_space)
+        if (
+            random.random() < probability
+            and len(mutated_element.program) < max_program_clauses
+        ):
+            if not something_changed:
+                mutated_element = _clone_individual(element)
+            something_changed = True
+            changed_positions += 1
+            mutated_element.program.append(random.choice(rule_space))
+        if random.random() < probability and len(mutated_element.program) > 1:
+            if not something_changed:
+                mutated_element = _clone_individual(element)
+            something_changed = True
+            changed_positions += 1
+            del mutated_element.program[random.randrange(len(mutated_element.program))]
 
     # TODO: add annealing to accept or reject the mutated program?
     # compute the new score if something has changed

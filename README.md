@@ -156,7 +156,8 @@ Here we list only the main ones:
 - `max_variables`: maximum number of variables to consider in a rule. Default 3.
 - `max_depth`: maximum number of literals in a rule (number of atoms in the head + number of literals in the body). Default 3.
 - `disjunctive_head_length`: maximum number of atoms in disjunctive head. Default 1.
-- `clauses_to_sample`: number of clauses to sample. Default 1000.
+- `max_candidate_clauses`: maximum number of candidate clauses to generate. `0` means all.
+- `max_program_clauses`: maximum number of clauses in one candidate program. Default 6.
 - `unbalanced_aggregates`: enable unbalanced aggregates. Default false.
 - `filename`: task file to parse.
 - `comparison_operators`: enable comparison operators. Values: `lt`,`leq`,`gt`,`geq`,`eq`,`neq`. Repeat an operator to increase recall. Example: `["lt", "lt"]`.

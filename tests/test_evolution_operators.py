@@ -37,6 +37,7 @@ def test_mutation_skips_fitness_when_signature_does_not_change(monkeypatch):
     mutated = mutate_by_random_group(
         individual,
         ["a."],
+        1,
         1.0,
         fail_if_called,
         {individual.signature},

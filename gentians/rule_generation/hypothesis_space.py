@@ -86,7 +86,7 @@ class HypothesisSpaceGenerator:
     def generate(self) -> list[str]:
         program = _facts(self.args, self.modes, self.capabilities) + "\n" + HYPOTHESIS_SPACE_RULES
         ctl = clingo.Control(
-            [str(self.args.clauses_to_sample), *_hypothesis_space_args(self.args)],
+            [str(self.args.max_candidate_clauses), *_hypothesis_space_args(self.args)],
             logger=wrapper_exit_callback,
         )
         ctl.add("base", [], program)
@@ -123,7 +123,7 @@ class HypothesisSpaceGenerator:
                 "allow_recursion": self.capabilities.allow_recursion,
                 "allow_constraints": self.capabilities.allow_constraints,
                 "clingo_arguments": " ".join(
-                    [str(self.args.clauses_to_sample), *_hypothesis_space_args(self.args)]
+                    [str(self.args.max_candidate_clauses), *_hypothesis_space_args(self.args)]
                 ),
             },
         )

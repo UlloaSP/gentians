@@ -36,6 +36,15 @@ def _evaluate_child(
     return Individual(program, current_score, is_best, l_indexes)
 
 
+def _cap_program(
+    program: list[str],
+    max_program_clauses: int,
+    fallback: list[str],
+) -> list[str]:
+    capped = list(dict.fromkeys(program))[:max(1, max_program_clauses)]
+    return capped if capped else [random.choice(fallback)]
+
+
 @profile_phase("crossover")
 def one_point_crossover(
     best_a: Individual,
@@ -43,15 +52,20 @@ def one_point_crossover(
     evaluate_score: FitnessFn,
     probability: float,
     known_signatures: set[tuple[str, ...]],
+    max_program_clauses: int,
 ) -> "tuple[Individual,Individual]":
     """
     Crossover: pick a random index and generate a element
     """
     with phase("crossover.operator"):
-        crossover_position = random.randint(0, len(best_a.program) - 1)
-        new_program = list(
-            best_a.program[:crossover_position]
-            + best_b.program[crossover_position:]
+        crossover_position_a = random.randint(0, len(best_a.program))
+        crossover_position_b = random.randint(0, len(best_b.program))
+        fallback = best_a.program + best_b.program
+        new_program = _cap_program(
+            best_a.program[:crossover_position_a]
+            + best_b.program[crossover_position_b:],
+            max_program_clauses,
+            fallback,
         )
     i0 = _evaluate_child(
         best_a,
@@ -62,9 +76,11 @@ def one_point_crossover(
     )
 
     with phase("crossover.operator"):
-        new_program = list(
-            best_b.program[:crossover_position]
-            + best_a.program[crossover_position:]
+        new_program = _cap_program(
+            best_b.program[:crossover_position_b]
+            + best_a.program[crossover_position_a:],
+            max_program_clauses,
+            fallback,
         )
     i1 = _evaluate_child(
         best_a,

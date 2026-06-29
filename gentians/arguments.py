@@ -23,29 +23,32 @@ class Arguments:
     # Maximum number of atoms allowed in a disjunctive head.
     disjunctive_head_length: int = 1
 
-    # Number of candidate clauses generated at each hypothesis-space step.
-    clauses_to_sample: int = 10000
+    # Maximum number of candidate clauses generated from the hypothesis space.
+    # 0 means all.
+    max_candidate_clauses: int = 10000
 
     # Allow aggregate literals whose variables are not fully balanced.
     unbalanced_aggregates: bool = False
 
     # Maximum number of clauses in one candidate program.
-    clauses_per_individual: int = 6
+    max_program_clauses: int = 6
 
     # Genetic algorithm iterations.
-    iterations_genetic: int = 2000
+    iterations_genetic: int = 300
 
     # Fitness operator config.
     fitness: dict[str, object] = field(
         default_factory=lambda: {
             # Fitness function implementation.
-            "name": "coverage_exp_mean",
-            # Maximum answer sets requested from Clingo per coverage check.
-            "max_as": 10000,
+            "name": "coverage_fixed",
+            # Maximum answer sets requested from Clingo per coverage check. 0 means all.
+            "max_as": 0,
             # Clingo CLI arguments used by the fitness evaluator.
             "clingo_arguments": ["--project"],
             # Score assigned when no coverage signal can be computed.
             "empty_score": -2000,
+            # Fixed-program score penalty per selected rule.
+            "size_penalty": 0.01,
         }
     )
 
@@ -87,7 +90,7 @@ class Arguments:
             # Population initialization implementation.
             "name": "random",
             # Number of individuals kept in the population.
-            "size": 50,
+            "size": 100,
         }
     )
 

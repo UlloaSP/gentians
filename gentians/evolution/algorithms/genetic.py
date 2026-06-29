@@ -31,7 +31,7 @@ def genetic_solver(
     best_found = False
 
     population, best_found = population_initializer(
-        args.clauses_per_individual,
+        args.max_program_clauses,
         rule_space,
         evaluate_score,
     )
@@ -41,22 +41,29 @@ def genetic_solver(
         return population[0].program, population[0].score, True
 
     # step 1: sort in terms of decreasing fitness
-    population.sort(key=lambda x: x.score, reverse=True)
+    with phase("genetic.bookkeeping"):
+        population.sort(key=lambda x: x.score, reverse=True)
 
     # step 2: iterate trough programs
     best_score_so_far = population[0].score
     for it in range(args.iterations_genetic + 1):
-        best_score_so_far = max(best_score_so_far, population[0].score)
-        record_ga_generation(it, [el.score for el in population], best_score_so_far)
+        with phase("genetic.bookkeeping"):
+            best_score_so_far = max(best_score_so_far, population[0].score)
+            record_ga_generation(it, [el.score for el in population], best_score_so_far)
         # 2.1: selection of the two fittest elements
         best_a, best_b = selection(population)
 
         # either do crossover or mutation seems to be not effective
 
         # 2.2: crossover
-        known_signatures = {element.signature for element in population}
+        with phase("genetic.bookkeeping"):
+            known_signatures = {element.signature for element in population}
         new_program_1, new_program_2 = crossover(
-            best_a, best_b, evaluate_score, known_signatures
+            best_a,
+            best_b,
+            evaluate_score,
+            known_signatures,
+            args.max_program_clauses,
         )
         # If the best found, stop the iteration
         # _, is_best, l_best_indexes = evaluate_score([], [], new_program_1.program)
@@ -73,12 +80,14 @@ def genetic_solver(
         new_mutated_1 = mutation(
             new_program_1,
             rule_space,
+            args.max_program_clauses,
             evaluate_score,
             known_signatures,
         )
         new_mutated_2 = mutation(
             new_program_2,
             rule_space,
+            args.max_program_clauses,
             evaluate_score,
             known_signatures,
         )
@@ -96,7 +105,8 @@ def genetic_solver(
                 )
 
             population = replacement(population, el)
-        population.sort(key=lambda x: x.score, reverse=True)
+        with phase("genetic.bookkeeping"):
+            population.sort(key=lambda x: x.score, reverse=True)
 
     with phase("fitness.final"):
         res = evaluate_score(population[0].program)

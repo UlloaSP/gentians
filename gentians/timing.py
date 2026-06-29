@@ -1,5 +1,7 @@
 import json
 import os
+import queue
+import threading
 import time
 from contextlib import contextmanager
 from functools import wraps
@@ -15,6 +17,9 @@ _ga_rows: list[dict[str, float]] = []
 _event_counter = 0
 _timings_dirty = False
 _ga_dirty = False
+_write_queue: "queue.Queue[tuple[str | None, dict[str, Any] | threading.Event] | None]" = queue.Queue()
+_writer_thread: threading.Thread | None = None
+_writer_lock = threading.Lock()
 _F = TypeVar("_F", bound=Callable)
 
 
@@ -38,11 +43,58 @@ def _write_json_atomic(path: str, rows: list[dict[str, object]]) -> None:
 def _append_jsonl(path: str | None, row: dict[str, Any]) -> None:
     if not path:
         return
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with target.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(row, sort_keys=True) + "\n")
-        f.flush()
+    _start_writer()
+    _write_queue.put((path, row))
+
+
+def _start_writer() -> None:
+    global _writer_thread
+    if _writer_thread is not None:
+        return
+    with _writer_lock:
+        if _writer_thread is None:
+            _writer_thread = threading.Thread(target=_writer_loop, daemon=True)
+            _writer_thread.start()
+
+
+def _writer_loop() -> None:
+    handles: dict[str, Any] = {}
+    try:
+        while True:
+            item = _write_queue.get()
+            try:
+                if item is None:
+                    return
+                path, row = item
+                if path is None:
+                    for handle in handles.values():
+                        handle.flush()
+                    assert isinstance(row, threading.Event)
+                    row.set()
+                    continue
+                assert isinstance(row, dict)
+                handle = handles.get(path)
+                if handle is None:
+                    target = Path(path)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    handle = target.open("a", encoding="utf-8")
+                    handles[path] = handle
+                handle.write(json.dumps(row, sort_keys=True) + "\n")
+            finally:
+                _write_queue.task_done()
+    finally:
+        for handle in handles.values():
+            handle.flush()
+            handle.close()
+
+
+def _flush_async_writes() -> None:
+    if _writer_thread is None:
+        return
+    flushed = threading.Event()
+    _write_queue.put((None, flushed))
+    flushed.wait()
+    _write_queue.join()
 
 
 def add(name: str, seconds: float) -> None:
@@ -156,6 +208,7 @@ def record_ga_generation(
 
 
 def export() -> None:
+    _flush_async_writes()
     _flush_timings()
     ga_path = os.environ.get("GENTIANS_GA_METRICS_PATH")
     global _ga_dirty

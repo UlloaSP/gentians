@@ -1,4 +1,5 @@
 from ..rule_generation.program import Example
+from ..rule_generation.parser import split_top_level_args
 
 
 class Coverage:
@@ -49,14 +50,14 @@ def generate_clauses_for_coverage_interpretations(
             # if len(example.excluded) > 1:
             # exclusion
         if len(example.excluded) > 0:
-            # for atom in atoms[1].split(' '):
-            parts.append(f"{suffix}e({cl_index}):- {example.excluded}.")
+            for atom in split_top_level_args(example.excluded):
+                parts.append(f"{suffix}e({cl_index}):- {atom}.")
 
             # if len(example.) > 2:
             # context dependent examples
-            if len(example.context) > 0:
-                # for atom in atoms[2].split(' '):
-                parts.append(example.context + ".")
+        if len(example.context) > 0:
+            # for atom in atoms[2].split(' '):
+            parts.append(example.context + ".")
 
         cl_index += 1
 

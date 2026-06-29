@@ -30,6 +30,7 @@ class ClingoInterface:
         interpretation_neg: "list[Example]",  # negative examples
         fixed: bool,
         stop_on_best: bool = False,
+        stop_on_negative: bool = False,
     ) -> "dict[CoverageKey,Coverage]":
         """
         Extracts the coverage for every subset of clauses.
@@ -108,6 +109,9 @@ class ClingoInterface:
                     # needed since for fixed there are no r/1 atoms
                     l_rules = [i for i in range(len(program))]
                 coverage = _merge_coverage_result(comb_rules, l_rules, l_cp, l_cn)
+                if stop_on_negative and coverage.neg_mask:
+                    handle.cancel()
+                    break
                 if (
                     stop_on_best
                     and coverage.pos_mask == all_pos_mask
@@ -141,6 +145,22 @@ class ClingoInterface:
         )
 
         return comb_rules
+
+    def extract_fixed_coverage(
+        self,
+        program: "list[str]",
+        interpretation_pos: "list[Example]",
+        interpretation_neg: "list[Example]",
+        stop_on_negative: bool = False,
+    ) -> Coverage:
+        cov = self.extract_coverage_and_set_clauses(
+            program,
+            interpretation_pos,
+            interpretation_neg,
+            True,
+            stop_on_negative=stop_on_negative,
+        )
+        return cov.get(tuple(range(len(program))), Coverage([], []))
 
     def _coverage_static_program(
         self,

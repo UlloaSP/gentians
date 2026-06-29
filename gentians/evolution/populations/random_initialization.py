@@ -7,7 +7,7 @@ from ...timing import profile_phase
 
 @profile_phase("fitness.initialization")
 def initialize_population(
-    number_clauses: int,
+    max_program_clauses: int,
     rule_space: list[str],
     population_size: int,
     evaluate_score: FitnessFn,
@@ -23,8 +23,10 @@ def initialize_population(
 
     while len(sampled_individuals) < population_size:
         attempts += 1
+        size_limit = max(1, min(max_program_clauses, len(rule_space)))
+        program_size = random.randint(1, size_limit)
         program = sorted(
-            random.sample(rule_space, min(number_clauses, len(rule_space)))
+            random.sample(rule_space, program_size)
         )
         signature = tuple(program)
         if signature in seen_signatures and attempts < max_unique_attempts:

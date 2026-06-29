@@ -1,9 +1,127 @@
 import importlib
 
 from gentians.asp.coverage import Coverage
+from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
+from gentians.evolution.fitness.coverage_fixed import coverage_fixed
 from gentians.evolution.fitness.coverage_common import cached_fitness
 from gentians.evolution.fitness.coverage_exp_max import coverage_exp_max
 from gentians.rule_generation.program import Example, Program
+
+
+def test_excluded_atoms_are_checked_individually():
+    clauses = generate_clauses_for_coverage_interpretations(
+        [Example(("ok", "bad(1), bad(f(2,3))"), True)],
+        True,
+    )
+
+    assert "cpe(0):- bad(1)." in clauses
+    assert "cpe(0):- bad(f(2,3))." in clauses
+    assert "cpe(0):- bad(1), bad(f(2,3))." not in clauses
+
+
+def test_coverage_fixed_penalizes_brave_negative_violation():
+    program = Program(
+        ["1 { a; b } 1."],
+        [Example(("a", ""), True)],
+        [Example(("a", ""), False)],
+        [],
+        [],
+    )
+
+    score, best_found, indexes = coverage_fixed(program, 0, [], -2000, 0.01)([])
+
+    assert score == 1.0
+    assert best_found is False
+    assert indexes == []
+
+
+def test_coverage_fixed_uses_brave_positive_coverage():
+    program = Program(
+        ["1 { a; b } 1."],
+        [Example(("a", ""), True), Example(("b", ""), True)],
+        [],
+        [],
+        [],
+    )
+
+    score, best_found, indexes = coverage_fixed(program, 0, [], -2000, 0.01)([])
+
+    assert score == 2.0
+    assert best_found is True
+    assert indexes == []
+
+
+def test_coverage_fixed_prefers_positive_coverage_over_clean_overconstraint():
+    program = Program(
+        ["1 { a; b } 1."],
+        [Example(("a", ""), True)],
+        [Example(("b", ""), False)],
+        [],
+        [],
+    )
+    evaluate = coverage_fixed(program, 0, [], -2000, 0.01)
+
+    covering_score, _, _ = evaluate([":- b."])
+    overconstrained_score, _, _ = evaluate([":- a.", ":- b."])
+
+    assert covering_score > overconstrained_score
+
+
+def test_coverage_fixed_uses_brave_only_for_positive_search(monkeypatch):
+    fixed_module = importlib.import_module("gentians.evolution.fitness.coverage_fixed")
+    instances = []
+    calls = []
+
+    class FakeSolver:
+        def __init__(self, lines, clingo_arguments):
+            self.clingo_arguments = clingo_arguments
+            instances.append(self)
+
+        def extract_fixed_coverage(
+            self,
+            candidate_program,
+            interpretation_pos,
+            interpretation_neg,
+            stop_on_negative=False,
+        ):
+            calls.append(
+                (
+                    tuple(self.clingo_arguments),
+                    bool(interpretation_pos),
+                    bool(interpretation_neg),
+                    stop_on_negative,
+                )
+            )
+            if interpretation_pos:
+                return Coverage([0], [])
+            if interpretation_neg:
+                return Coverage([], [0])
+            return Coverage([], [])
+
+    monkeypatch.setattr(fixed_module, "ClingoInterface", FakeSolver)
+    program = Program(
+        [],
+        [Example(("p", ""), True)],
+        [Example(("n", ""), False)],
+        [],
+        [],
+    )
+
+    score, best_found, indexes = fixed_module.coverage_fixed(
+        program,
+        0,
+        ["--project"],
+        -2000,
+        0.0,
+    )([])
+
+    assert instances[0].clingo_arguments == ["0", "--project"]
+    assert instances[1].clingo_arguments == ["0", "--enum-mode=brave", "--project"]
+    assert calls == [
+        (("0", "--project"), False, True, True),
+        (("0", "--enum-mode=brave", "--project"), True, False, False),
+    ]
+    assert (score, best_found, indexes) == (1.0, False, [])
 
 
 def test_coverage_exp_max_checks_all_models_before_best_found():

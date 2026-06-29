@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 
 from .crossovers.one_point import one_point_crossover
+from .fitness.coverage_fixed import coverage_fixed
 from .fitness.coverage_exp_max import coverage_exp_max
 from .fitness.coverage_exp_mean import coverage_exp_mean
 from .individual import Individual
@@ -32,6 +33,15 @@ def create_fitness(program: Program, config: dict[str, object]) -> FitnessFn:
         return coverage_exp_mean(program, max_as, clingo_arguments, empty_score)
     if name == "coverage_exp_max":
         return coverage_exp_max(program, max_as, clingo_arguments, empty_score)
+    if name == "coverage_fixed":
+        size_penalty = float(config.get("size_penalty", 0.01))
+        return coverage_fixed(
+            program,
+            max_as,
+            clingo_arguments,
+            empty_score,
+            size_penalty,
+        )
     raise ValueError(f"Unknown fitness operator: {name}")
 
 
@@ -74,10 +84,16 @@ def create_crossover(config: dict[str, object]) -> CrossoverFn:
             best_b: Individual,
             evaluate_score: FitnessFn,
             known_signatures: set[tuple[str, ...]],
+            max_program_clauses: int,
         ) -> tuple[Individual, Individual]:
             if random.random() < probability:
                 return one_point_crossover(
-                    best_a, best_b, evaluate_score, probability, known_signatures
+                    best_a,
+                    best_b,
+                    evaluate_score,
+                    probability,
+                    known_signatures,
+                    max_program_clauses,
                 )
             return _clone_parents_without_crossover(best_a, best_b, probability)
 
@@ -93,12 +109,14 @@ def create_mutation(config: dict[str, object]) -> MutationFn:
         def mutate(
             element: Individual,
             rule_space: list[str],
+            max_program_clauses: int,
             evaluate_score: FitnessFn,
             known_signatures: set[tuple[str, ...]],
         ) -> Individual:
             return mutate_by_random_group(
                 element,
                 rule_space,
+                max_program_clauses,
                 probability,
                 evaluate_score,
                 known_signatures,
@@ -114,12 +132,12 @@ def create_population(config: dict[str, object]) -> PopulationInitializerFn:
         size = _int(config, "size")
 
         def initialize(
-            number_clauses: int,
+            max_program_clauses: int,
             rule_space: list[str],
             evaluate_score: FitnessFn,
         ) -> tuple[list[Individual], bool]:
             return initialize_population(
-                number_clauses, rule_space, size, evaluate_score
+                max_program_clauses, rule_space, size, evaluate_score
             )
 
         return initialize

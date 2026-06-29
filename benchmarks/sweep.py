@@ -21,6 +21,7 @@ DEFAULT_VARY = [
 ]
 
 from benchmarks.catalog import DEFAULT_DATASETS, parse_value
+from benchmarks.profile_baseline import json_safe
 
 
 @dataclass(frozen=True)
@@ -176,7 +177,7 @@ def write_sweep_outputs(out_dir: Path, manifest: dict[str, object]) -> None:
         "curves": curve_rows,
     }
     (out_dir / "sweep_dashboard_data.json").write_text(
-        json.dumps(payload, indent=2, allow_nan=False), encoding="utf-8"
+        json.dumps(json_safe(payload), indent=2, allow_nan=False), encoding="utf-8"
     )
 
 

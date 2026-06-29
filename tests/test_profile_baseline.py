@@ -1,8 +1,13 @@
+import json
+
 from benchmarks.profile_baseline import (
+    GAMetric,
+    RunResult,
     TimingMetric,
     dashboard_phases,
     operator_summary,
     parse_log,
+    write_dashboard_data,
 )
 from gentians import timing
 from gentians.arguments import Arguments
@@ -107,7 +112,7 @@ def test_phase_records_exclusive_self_time(monkeypatch):
     timing._counts.clear()
 
 
-def test_dashboard_prefers_exported_exclusive_self_time():
+def test_dashboard_attributes_nested_python_to_phase_self_time():
     phases = dashboard_phases(
         [
             TimingMetric("d", 1, "hypothesis_space", 10.0, 1),
@@ -117,4 +122,53 @@ def test_dashboard_prefers_exported_exclusive_self_time():
         ]
     )
 
-    assert phases["hypothesisSpace"]["self"] == 2.0
+    assert phases["hypothesisSpace"]["self"] == 3.0
+
+
+def test_dashboard_attributes_genetic_self_to_ga_python():
+    phases = dashboard_phases(
+        [
+            TimingMetric("d", 1, "total_execution", 10.0, 1),
+            TimingMetric("d", 1, "genetic.self", 3.0, 1),
+            TimingMetric("d", 1, "selection", 2.0, 1),
+            TimingMetric("d", 1, "selection.self", 2.0, 1),
+            TimingMetric("d", 1, "replacement", 5.0, 1),
+            TimingMetric("d", 1, "replacement.self", 5.0, 1),
+        ]
+    )
+
+    assert phases["gaPython"]["self"] == 3.0
+    assert phases["replacement"]["self"] == 5.0
+    assert "other" not in phases
+
+
+def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
+    write_dashboard_data(
+        tmp_path,
+        [
+            RunResult(
+                "even_odd",
+                1,
+                1,
+                "run",
+                "ok",
+                0,
+                1.0,
+                [],
+                "{}",
+                "",
+                "",
+            )
+        ],
+        [],
+        [GAMetric("even_odd", 1, 332, 332, -0.02, float("-inf"), -0.02)],
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
+
+    payload = json.loads((tmp_path / "dashboard_data.json").read_text())
+
+    assert payload["benchmarks"][0]["fitnessRuns"][0]["avgArr"] == [[332, None]]

@@ -223,10 +223,10 @@ DEFAULT_DATASETS = [
     "grandparent",
     "sudoku",
     "coloring",
-    "subset_sum_double",
-    "subset_sum_double_and_sum",
-    "set_partition_sum_new",
-    "set_partition_sum",
+    "hamming_0",
+    "hamming_1",
+    "hamming_0_unbalanced",
+    "hamming_1_unbalanced",
     "euclid",
 ]
 

@@ -1,9 +1,10 @@
 import random
 
 from ..individual import Individual
-from ...timing import record_metric
+from ...timing import profile_phase, record_metric
 
 
+@profile_phase("replacement")
 def replace_oldest_or_worst(
     population: list[Individual],
     element: Individual,

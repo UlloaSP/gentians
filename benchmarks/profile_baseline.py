@@ -103,6 +103,7 @@ PHASE_FUNCTIONS = {
     "genetic.selection": {"tournament", "pick_two_fittest", "get_fittest"},
     "genetic.crossover_inclusive": {"crossover"},
     "genetic.mutation_inclusive": {"mutate"},
+    "genetic.replacement": {"replace_oldest_or_worst"},
     "genetic.evaluation.total": {"evaluate_score"},
     "coverage.extract": {"extract_coverage_and_set_clauses"},
 }
@@ -113,6 +114,10 @@ STANDARD_TIMING_METRICS = [
     "hypothesis_space.grounding",
     "hypothesis_space.solving",
     "selection",
+    "replacement",
+    "replacement.self",
+    "genetic.bookkeeping",
+    "genetic.bookkeeping.self",
     "crossover.operator",
     "crossover.fitness",
     "mutation.grounding",
@@ -956,10 +961,9 @@ def write_dashboard_data(
                 "clingoSummary": dataset_clingo_summary,
             }
         )
+    payload = {"schemaVersion": 2, "benchmarks": benchmarks}
     (out_dir / "dashboard_data.json").write_text(
-        json.dumps(
-            {"schemaVersion": 2, "benchmarks": benchmarks}, indent=2, allow_nan=False
-        ),
+        json.dumps(json_safe(payload), indent=2, allow_nan=False),
         encoding="utf-8",
     )
 
@@ -971,9 +975,8 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
         total = values.get(source, 0.0)
         grounding = sum_nested_metric(values, source, "grounding")
         solving = sum_nested_metric(values, source, "solving")
-        self_time = values.get(f"{source}.self")
         return {
-            "self": self_time if self_time is not None else max(total - grounding - solving, 0.0),
+            "self": max(total - grounding - solving, 0.0),
             "grounding": grounding,
             "solving": solving,
             "other": 0.0,
@@ -985,12 +988,18 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
         "selection": phase("selection", "selection"),
         "crossover": phase("crossover", "crossover"),
         "mutation": phase("mutation", "mutation"),
+        "replacement": phase("replacement", "replacement"),
+        "gaPython": {
+            "self": values.get("genetic.self", 0.0),
+            "grounding": 0.0,
+            "solving": 0.0,
+            "other": 0.0,
+        },
         "fitnessFinal": phase("fitnessFinal", "fitness.final"),
-        "other": {"self": 0.0, "grounding": 0.0, "solving": 0.0, "other": 0.0},
     }
     total = values.get("total_execution", 0.0)
     measured = sum(sum(type_values.values()) for type_values in phases.values())
-    phases["other"]["other"] = max(total - measured, 0.0)
+    phases["gaPython"]["self"] += max(total - measured, 0.0)
     return phases
 
 
@@ -1426,6 +1435,16 @@ def to_float(value: object) -> float:
         except ValueError:
             return 0.0
     return 0.0
+
+
+def json_safe(value: object) -> object:
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    return value
 
 
 def mean_bool(rows: list[dict[str, object]], key: str) -> float:

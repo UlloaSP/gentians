@@ -137,7 +137,7 @@ def test_hypothesis_space_clingo_times_use_current_phase(monkeypatch):
     )
 
     with timing.phase("outer"):
-        HypothesisSpaceGenerator(program, Arguments(clauses_to_sample=0)).generate()
+        HypothesisSpaceGenerator(program, Arguments(max_candidate_clauses=0)).generate()
 
     assert "outer.grounding" in timing._totals
     assert "outer.solving" in timing._totals
@@ -158,7 +158,7 @@ def test_unbalanced_aggregate_variants_share_recall():
         Arguments(
             max_depth=6,
             max_variables=8,
-            clauses_to_sample=0,
+            max_candidate_clauses=0,
             aggregates=["sum(el/2)"],
             unbalanced_aggregates=True,
         ),
@@ -219,7 +219,7 @@ def test_ast_atom_extraction_handles_choice_rules():
 
 def _benchmark_clauses(name: str) -> set[str]:
     args = copy.deepcopy(CASES[name])
-    args.clauses_to_sample = 0
+    args.max_candidate_clauses = 0
     return set(HypothesisSpaceGenerator(read_task(args.filename), args).generate())
 
 
@@ -281,7 +281,7 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     program = read_task(args.filename)
     clauses = HypothesisSpaceGenerator(program, args).generate()
     random.seed(1)
-    candidate = sorted(random.sample(clauses, args.clauses_per_individual))
+    candidate = sorted(random.sample(clauses, args.max_program_clauses))
 
     ClingoInterface(program.background, args.fitness["clingo_arguments"]).extract_coverage_and_set_clauses(
         candidate,

@@ -76,13 +76,15 @@ def test_coverage_fixed_prefers_positive_coverage_over_clean_overconstraint():
     assert covering_score > overconstrained_score
 
 
-def test_coverage_fixed_uses_pregrounded_rule_space(monkeypatch):
-    def fail_fallback(*args, **kwargs):
-        raise AssertionError("fixed coverage should use pregrounded rule space")
+def test_coverage_fixed_uses_example_assumptions(monkeypatch):
+    def fail_legacy(*args, **kwargs):
+        raise AssertionError("fixed coverage should use example assumptions")
 
+    monkeypatch.setattr("gentians.asp.clingo.ClingoInterface.extract_fixed_coverage", fail_legacy)
     monkeypatch.setattr(
-        "gentians.asp.clingo.ClingoInterface.extract_fixed_coverage",
-        fail_fallback,
+        "gentians.asp.clingo.ClingoInterface.fixed_coverage_solver",
+        fail_legacy,
+        raising=False,
     )
     program = Program(
         ["1 { a; b } 1."],
@@ -108,7 +110,7 @@ def test_coverage_fixed_uses_pregrounded_rule_space(monkeypatch):
     assert indexes == [0]
 
 
-def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
+def test_coverage_fixed_grounds_candidate_program_for_fixed_coverage(monkeypatch):
     fixed_module = importlib.import_module("gentians.evolution.fitness.coverage_fixed")
     instances = []
     calls = []
@@ -118,15 +120,14 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
             self.clingo_arguments = clingo_arguments
             instances.append(self)
 
-        def fixed_coverage_solver(self, rule_space, interpretation_pos, interpretation_neg):
-            calls.append((tuple(self.clingo_arguments), bool(interpretation_pos), bool(interpretation_neg)))
-
-            class FakePreGrounded:
-                def extract_fixed_coverage_by_id(self, candidate_program):
-                    calls.append(tuple(candidate_program))
-                    return Coverage([0], [0])
-
-            return FakePreGrounded()
+        def extract_example_assumption_coverage(
+            self,
+            candidate_program,
+            interpretation_pos,
+            interpretation_neg,
+        ):
+            calls.append((tuple(candidate_program), bool(interpretation_pos), bool(interpretation_neg)))
+            return Coverage([0], [0])
 
     monkeypatch.setattr(fixed_module, "ClingoInterface", FakeSolver)
     program = Program(
@@ -148,10 +149,9 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
         RuleSpace.from_clauses([]),
     )([])
 
-    assert instances[0].clingo_arguments == ["0", "--project"]
+    assert instances[0].clingo_arguments == ["1", "--project"]
     assert calls == [
-        (("0", "--project"), True, True),
-        (),
+        ((), True, True),
     ]
     assert (score, best_found, indexes) == (math.exp(10), False, [])
 

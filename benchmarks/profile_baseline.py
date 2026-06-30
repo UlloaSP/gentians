@@ -1379,9 +1379,20 @@ def clingo_operation_category(row: dict[str, object]) -> str:
     if category:
         return category
     operation = str(row.get("operation") or "")
-    if operation in {"grounding", "fixed_preground", "hypothesis_space_grounding"}:
+    if operation in {
+        "grounding",
+        "fixed_preground",
+        "hypothesis_space_grounding",
+        "example_assumption_grounding",
+    }:
         return "grounding"
-    if operation in {"solving", "fixed_presolve", "hypothesis_space_solving", "hypothesis_space"}:
+    if operation in {
+        "solving",
+        "fixed_presolve",
+        "hypothesis_space_solving",
+        "hypothesis_space",
+        "example_assumption_solving",
+    }:
         return "solving"
     return operation
 

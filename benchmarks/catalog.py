@@ -87,9 +87,11 @@ CASES: dict[str, Arguments] = {
         "coloring.txt",
         disjunctive_head_length=3,
         max_depth=4,
+        max_program_clauses=4,
         hypothesis_space={
             "clingo_arguments": [],
             "enable_recursion": True,
+            "canonical_prune": True,
             "irreflexive": ["e/2"],
         },
     ),
@@ -103,9 +105,12 @@ CASES: dict[str, Arguments] = {
     ),
     "grandparent": task(
         "grandparent.txt",
+        max_program_clauses=3,
         hypothesis_space={
             "clingo_arguments": [],
             "enable_recursion": True,
+            "allow_constraints": False,
+            "canonical_prune": True,
             "irreflexive": ["father/2", "mother/2", "target/2", "target_1/2"],
         },
     ),

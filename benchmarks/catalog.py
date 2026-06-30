@@ -272,6 +272,8 @@ DEFAULT_DATASETS = [
     "adj2red",
     "clique",
     "4queens",
+    "5queens",
+    "8queens",
     "even_odd",
     "grandparent",
     "sudoku",

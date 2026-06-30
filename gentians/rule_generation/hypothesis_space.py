@@ -16,7 +16,7 @@ from ..timing import add, current_phase, profile_phase, record_metric
 from .parser import parse_atom, split_top_level_args
 from .program import Program
 from .reader import read_program
-from .rule_space import RuleSpace
+from .rule_space import Rule, RuleSpace
 
 
 LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
@@ -85,7 +85,17 @@ class HypothesisSpaceGenerator:
         self.modes_by_id = {mode.id: mode for mode in self.modes}
 
     def generate(self) -> RuleSpace:
-        program = _facts(self.args, self.modes, self.capabilities) + "\n" + HYPOTHESIS_SPACE_RULES
+        program = (
+            _facts(
+                self.program,
+                self.args,
+                self.modes,
+                self.capabilities,
+                self.predicate_arg_types,
+            )
+            + "\n"
+            + HYPOTHESIS_SPACE_RULES
+        )
         ctl = clingo.Control(
             [str(self.args.max_candidate_clauses), *_hypothesis_space_args(self.args)],
             logger=wrapper_exit_callback,
@@ -148,7 +158,9 @@ class HypothesisSpaceGenerator:
             },
         )
 
-        return RuleSpace.from_clauses(_prune_clauses(self.program, self.args, clauses))
+        return RuleSpace(
+            [Rule(index, clause) for index, clause in enumerate(sorted(clauses))]
+        )
 
 
 def read_task(filename: str) -> Program:
@@ -168,10 +180,34 @@ def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
     return rule_space
 
 
-def _prune_clauses(program: Program, args: Arguments, clauses: list[str]) -> list[str]:
-    if not bool(args.hypothesis_space.get("semantic_prune", False)):
-        return clauses
-    return _semantic_prune(program, clauses)
+def _numeric_domain_values(program: Program) -> set[int]:
+    fragments = [*program.background]
+    for example in [*program.positive_examples, *program.negative_examples]:
+        fragments.extend([example.included, example.excluded, example.context])
+    constants = _numeric_constants(fragments)
+    values = set(constants.values())
+    for fragment in fragments:
+        for start, end in re.findall(r"(-?\d+)\.\.([A-Za-z_]\w*|-?\d+)", fragment):
+            if end.lstrip("-").isdigit():
+                end_value = int(end)
+            elif end in constants:
+                end_value = constants[end]
+            else:
+                continue
+            start_value = int(start)
+            if abs(end_value - start_value) <= 10000:
+                step = 1 if start_value <= end_value else -1
+                values.update(range(start_value, end_value + step, step))
+        values.update(int(value) for value in re.findall(r"(?<![\w-])-?\d+(?![\w])", fragment))
+    return values
+
+
+def _numeric_constants(fragments: list[str]) -> dict[str, int]:
+    constants: dict[str, int] = {}
+    for fragment in fragments:
+        for name, value in re.findall(r"#const\s+([A-Za-z_]\w*)\s*=\s*(-?\d+)\s*\.", fragment):
+            constants[name] = int(value)
+    return constants
 
 
 def _predicate_specs(value: object) -> set[tuple[str, int]]:
@@ -186,64 +222,6 @@ def _predicate_specs(value: object) -> set[tuple[str, int]]:
         if arity.isdigit():
             specs.add((name, int(arity)))
     return specs
-
-
-def _semantic_prune(program: Program, clauses: list[str]) -> list[str]:
-    learned = {(mode.name, mode.arity) for mode in program.language_bias_head}
-    checkable: dict[int, str] = {}
-    kept = set(range(len(clauses)))
-    for index, clause in enumerate(clauses):
-        body = _clause_body(clause)
-        if body is None:
-            continue
-        body_predicates = _body_predicates(body)
-        if body_predicates and body_predicates.isdisjoint(learned):
-            checkable[index] = body
-    if not checkable:
-        return clauses
-
-    lines = [*program.background]
-    lines.extend(f"possible({index}) :- {body}." for index, body in checkable.items())
-    lines.append("#show possible/1.")
-    ctl = clingo.Control(["0"], logger=wrapper_exit_callback)
-    ctl.add("base", [], "\n".join(lines))
-    try:
-        ctl.ground([("base", [])])
-    except RuntimeError:
-        return clauses
-
-    possible: set[int] = set()
-    with ctl.solve(yield_=True) as handle:  # type: ignore
-        for model in handle:  # type: ignore
-            for symbol in model.symbols(shown=True):
-                if symbol.name == "possible" and len(symbol.arguments) == 1:
-                    possible.add(symbol.arguments[0].number)
-            if possible == set(checkable):
-                handle.cancel()
-                break
-    for index in set(checkable) - possible:
-        kept.discard(index)
-    return [clause for index, clause in enumerate(clauses) if index in kept]
-
-
-def _clause_body(clause: str) -> str | None:
-    content = clause.strip().rstrip(".")
-    if ":-" not in content:
-        return None
-    _, body = content.split(":-", 1)
-    body = body.strip()
-    return body or None
-
-
-def _body_predicates(body: str) -> set[tuple[str, int]]:
-    predicates = set()
-    for fragment in split_top_level_args(body):
-        literal = fragment.strip().removeprefix("not ").strip()
-        parsed = _parse_normal_atom(literal)
-        if parsed is not None:
-            name, arguments = parsed
-            predicates.add((name, len(arguments)))
-    return predicates
 
 
 def _hypothesis_capabilities(
@@ -550,7 +528,11 @@ def _aggregate_spec(spec: str) -> tuple[str, list[tuple[str, int]]]:
 
 
 def _facts(
-    args: Arguments, modes: list[HypothesisMode], capabilities: HypothesisCapabilities
+    program: Program,
+    args: Arguments,
+    modes: list[HypothesisMode],
+    capabilities: HypothesisCapabilities,
+    predicate_arg_types: dict[tuple[str, int, int], str],
 ) -> str:
     max_body = args.max_depth if capabilities.allow_constraints else max(0, args.max_depth - 1)
     irreflexive = _predicate_specs(args.hypothesis_space.get("irreflexive", []))
@@ -566,6 +548,12 @@ def _facts(
         parts.append("prune_redundant_comparisons.")
     if bool(args.hypothesis_space.get("prune_arithmetic_identities", False)):
         parts.append("prune_arithmetic_identities.")
+    if bool(args.hypothesis_space.get("canonical_prune", False)):
+        parts.append("canonical_prune.")
+    if bool(args.hypothesis_space.get("domain_arithmetic_prune", False)):
+        domain = _numeric_domain_values(program)
+        if domain and 0 not in domain:
+            parts.append("zero_not_in_numeric_domain.")
     predicate_ids: dict[tuple[str, int], int] = {}
     for mode in modes:
         section_id = mode.section
@@ -582,6 +570,12 @@ def _facts(
         parts.append(f"recall_group({mode.id},{mode.recall_group}).")
         for index, arg_type in enumerate(mode.arg_types):
             parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
+            if (
+                bool(args.hypothesis_space.get("domain_arithmetic_prune", False))
+                and mode.kind == "normal"
+                and predicate_arg_types.get((mode.name, mode.arity, index)) == "numeric"
+            ):
+                parts.append(f"domain_numeric_arg({predicate_id},{mode.arity},{index}).")
         if mode.positive:
             parts.append(f"positive_mode({mode.id}).")
         else:

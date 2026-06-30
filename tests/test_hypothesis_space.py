@@ -1,5 +1,6 @@
 import copy
 import random
+import re
 
 from benchmarks.catalog import CASES
 from gentians.arguments import Arguments
@@ -53,6 +54,7 @@ def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
 
 def test_facts_reduces_body_slots_when_head_is_required():
     facts = hypothesis_space._facts(
+        Program([], [], [], [], []),
         Arguments(max_depth=4),
         [],
         HypothesisCapabilities(
@@ -64,6 +66,7 @@ def test_facts_reduces_body_slots_when_head_is_required():
             allow_recursion=False,
             allow_constraints=False,
         ),
+        {},
     )
 
     assert "max_body(3)." in facts
@@ -72,6 +75,7 @@ def test_facts_reduces_body_slots_when_head_is_required():
 
 def test_facts_keeps_full_body_slots_for_constraints():
     facts = hypothesis_space._facts(
+        Program([], [], [], [], []),
         Arguments(max_depth=4),
         [],
         HypothesisCapabilities(
@@ -83,6 +87,7 @@ def test_facts_keeps_full_body_slots_for_constraints():
             allow_recursion=False,
             allow_constraints=True,
         ),
+        {},
     )
 
     assert "max_body(4)." in facts
@@ -227,6 +232,60 @@ def test_hypothesis_space_prunes_arithmetic_identities_before_cap():
 
     assert len(clauses) < args.max_candidate_clauses
     assert not any("V0+V1=V2,V2-V0=V1" in clause for clause in clauses)
+
+
+def test_canonical_prune_prevents_reversed_add_operands():
+    program_without_zero = Program(
+        ["#const n = 2.", "number(1..n).", "q(1,1)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program_without_zero,
+        Arguments(
+            max_depth=4,
+            max_variables=3,
+            arithmetic_operators=["add"],
+            hypothesis_space={"canonical_prune": True},
+        ),
+    ).generate().clauses
+
+    assert clauses
+    assert not any(
+        left > right
+        for clause in clauses
+        for left, right in re.findall(r"V(\d+)\+V(\d+)=", clause)
+    )
+
+
+def test_domain_arithmetic_prune_removes_impossible_zero_result_only_when_domain_excludes_zero():
+    program_without_zero = Program(
+        ["#const n = 2.", "number(1..n).", "q(1,1)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+    )
+    program_with_zero = Program(
+        ["number(0..2).", "q(0,0)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+    )
+    args = Arguments(
+        max_depth=4,
+        max_variables=3,
+        arithmetic_operators=["sub"],
+        hypothesis_space={"domain_arithmetic_prune": True},
+    )
+    without_zero = HypothesisSpaceGenerator(program_without_zero, args).generate().clauses
+    with_zero = HypothesisSpaceGenerator(program_with_zero, args).generate().clauses
+
+    assert not any("V0-V0=V1" in clause and "q(V0,V1)" in clause for clause in without_zero)
+    assert any("V0-V0=V1" in clause and "q(V0,V1)" in clause for clause in with_zero)
 
 
 def test_reader_parses_directives_without_regex_space_loss(tmp_path):

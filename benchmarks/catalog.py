@@ -24,7 +24,11 @@ CASES: dict[str, Arguments] = {
         arithmetic_operators=["add", "sub"],
         comparison_operators=["lt"],
         max_variables=3,
-        hypothesis_space={"prune_arithmetic_identities": True},
+        hypothesis_space={
+            "prune_arithmetic_identities": True,
+            "canonical_prune": True,
+            "domain_arithmetic_prune": True,
+        },
     ),
     "5queens": task(
         "5queens.txt",
@@ -32,7 +36,11 @@ CASES: dict[str, Arguments] = {
         arithmetic_operators=["add", "sub"],
         comparison_operators=["lt"],
         max_variables=5,
-        hypothesis_space={"prune_arithmetic_identities": True},
+        hypothesis_space={
+            "prune_arithmetic_identities": True,
+            "canonical_prune": True,
+            "domain_arithmetic_prune": True,
+        },
     ),
     "8queens": task(
         "8queens.txt",
@@ -40,7 +48,11 @@ CASES: dict[str, Arguments] = {
         arithmetic_operators=["add", "sub"],
         comparison_operators=["lt"],
         max_variables=5,
-        hypothesis_space={"prune_arithmetic_identities": True},
+        hypothesis_space={
+            "prune_arithmetic_identities": True,
+            "canonical_prune": True,
+            "domain_arithmetic_prune": True,
+        },
     ),
     "adj2red": task(
         "adjacent_to_red.txt",
@@ -48,7 +60,6 @@ CASES: dict[str, Arguments] = {
         hypothesis_space={
             "clingo_arguments": [],
             "enable_recursion": False,
-            "semantic_prune": True,
             "irreflexive": ["edge/2"],
         },
     ),
@@ -60,7 +71,6 @@ CASES: dict[str, Arguments] = {
         hypothesis_space={
             "clingo_arguments": [],
             "enable_recursion": False,
-            "semantic_prune": False,
             "irreflexive": ["ne/2"],
         },
     ),
@@ -80,7 +90,6 @@ CASES: dict[str, Arguments] = {
         hypothesis_space={
             "clingo_arguments": [],
             "enable_recursion": True,
-            "semantic_prune": False,
             "irreflexive": ["e/2"],
         },
     ),
@@ -106,7 +115,6 @@ CASES: dict[str, Arguments] = {
         hypothesis_space={
             "clingo_arguments": [],
             "enable_recursion": False,
-            "semantic_prune": False,
             "irreflexive": ["same_row/2", "same_col/2", "same_block/2"],
         },
     ),

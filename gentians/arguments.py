@@ -115,8 +115,6 @@ class Arguments:
             "clingo_arguments": [],
             # Whether sampled rules may recursively use the target predicate.
             "enable_recursion": False,
-            # Drop bodies proved impossible under background-only predicates.
-            "semantic_prune": False,
             # Predicate specs whose repeated variable args are invalid, e.g. ["edge/2"].
             "irreflexive": [],
             # Drop duplicated symmetric comparisons such as V0!=V1,V1!=V0.

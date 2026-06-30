@@ -15,6 +15,9 @@
 #defined sub_mode/1.
 #defined prune_redundant_comparisons/0.
 #defined prune_arithmetic_identities/0.
+#defined canonical_prune/0.
+#defined zero_not_in_numeric_domain/0.
+#defined domain_numeric_arg/3.
 #defined positive_mode/1.
 #defined negative_mode/1.
 #defined recall/2.
@@ -33,6 +36,24 @@ selected_slot(Section,Slot):- selected(Section,Slot,_).
 
 :- selected_slot(Section,Slot), Slot > 0, not selected_slot(Section,Slot-1).
 :- selected(Section,Slot0,Mode0), selected(Section,Slot1,Mode1), Slot0 < Slot1, Mode0 > Mode1.
+
+same_mode_tuple_gt(Section,Slot0,Slot1):-
+    canonical_prune,
+    selected(Section,Slot0,Mode),
+    selected(Section,Slot1,Mode),
+    Slot0 < Slot1,
+    mode(Section,Mode,_,Arity,_),
+    Arg = 0..Arity-1,
+    var_at(Section,Slot0,Arg,Left),
+    var_at(Section,Slot1,Arg,Right),
+    Left > Right,
+    Arg = #count{
+        Prev : Prev = 0..Arg-1,
+        var_at(Section,Slot0,Prev,Same),
+        var_at(Section,Slot1,Prev,Same)
+    }.
+
+:- same_mode_tuple_gt(Section,Slot0,Slot1).
 
 :- not selected_slot(body,_).
 :- not selected_slot(head,_), not constraints_allowed.
@@ -199,6 +220,27 @@ safe_var(Var):- aggregate_result_var(_,Var).
     var_at(body,Slot,Operand,Var),
     Operand = 0..1,
     var_at(body,Slot,2,Var).
+
+:- canonical_prune,
+    selected(body,Slot,Mode),
+    add_mode(Mode),
+    var_at(body,Slot,0,Left),
+    var_at(body,Slot,1,Right),
+    Left > Right.
+
+domain_constrained_var(Var):-
+    selected(Section,Slot,Mode),
+    mode(Section,Mode,Pred,Arity,_),
+    domain_numeric_arg(Pred,Arity,Arg),
+    var_at(Section,Slot,Arg,Var).
+
+:- zero_not_in_numeric_domain,
+    selected(body,Slot,Mode),
+    sub_mode(Mode),
+    var_at(body,Slot,0,Value),
+    var_at(body,Slot,1,Value),
+    var_at(body,Slot,2,Result),
+    domain_constrained_var(Result).
 
 :- prune_arithmetic_identities,
     selected(body,Slot0,Mode),

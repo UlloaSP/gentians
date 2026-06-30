@@ -1,6 +1,8 @@
+import math
 import random
 
 from ..individual import Individual
+from ...rule_generation.rule_space import RuleId
 from ...timing import profile_phase, record_metric
 
 
@@ -8,40 +10,51 @@ from ...timing import profile_phase, record_metric
 def replace_oldest_or_worst(
     population: list[Individual],
     element: Individual,
+    population_signatures: set[tuple[RuleId, ...]],
     prob_replacing_oldest: float,
 ) -> list[Individual]:
-    found = False
-    # if not best, check whether it is already in the population
-    for pop in population:
-        if pop.signature == element.signature:
-            found = True
-            break
-
-    # if not in the population, insert
-    if not found:
-        i = 0
-        for i, current in enumerate(population):
-            # equal to have some variability?
-            if element.score >= current.score:
-                break
-        population.insert(i, element)
-
-        # drop the element
-        if random.random() < prob_replacing_oldest:
-            # drop the oldest element
-            oldest = min(population, key=lambda x: x.generated_timestamp)
-            population.remove(oldest)
+    accepted = False
+    reject_reason = ""
+    if element.signature in population_signatures:
+        reject_reason = "duplicate"
+    elif not math.isfinite(element.score):
+        reject_reason = "non_finite"
+    elif not population:
+        population.append(element)
+        population_signatures.add(element.signature)
+        accepted = True
+    else:
+        replace_oldest = random.random() < prob_replacing_oldest
+        if not replace_oldest and element.score < population[-1].score:
+            reject_reason = "not_competitive"
         else:
-            # drop the element with the lowest fitness
-            population = population[:-1]
+            insert_at = len(population)
+            for index, current in enumerate(population):
+                if element.score >= current.score:
+                    insert_at = index
+                    break
+            population.insert(insert_at, element)
+            population_signatures.add(element.signature)
+
+            if replace_oldest:
+                victim = min(
+                    (current for current in population if current is not element),
+                    key=lambda x: x.generated_timestamp,
+                )
+                population.remove(victim)
+            else:
+                victim = population.pop()
+            population_signatures.discard(victim.signature)
+            accepted = True
 
     record_metric(
         "operator",
         {
             "operator": "replacement",
             "strategy": "oldest_or_worst",
-            "accepted": not found,
-            "duplicate": found,
+            "accepted": accepted,
+            "duplicate": reject_reason == "duplicate",
+            "reject_reason": reject_reason,
             "candidate_score": element.score,
             "population_size": len(population),
         },

@@ -23,6 +23,6 @@ MutationFn = Callable[
     Individual,
 ]
 ReplacementFn = Callable[
-    [list[Individual], Individual],
+    [list[Individual], Individual, set[tuple[RuleId, ...]]],
     list[Individual],
 ]

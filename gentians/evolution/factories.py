@@ -163,9 +163,13 @@ def create_replacement(config: dict[str, object]) -> ReplacementFn:
     if name == "oldest_or_worst":
         prob_replacing_oldest = _float(config, "prob_replacing_oldest")
 
-        def replace(population: list[Individual], element: Individual) -> list[Individual]:
+        def replace(
+            population: list[Individual],
+            element: Individual,
+            population_signatures: set[tuple[RuleId, ...]],
+        ) -> list[Individual]:
             return replace_oldest_or_worst(
-                population, element, prob_replacing_oldest
+                population, element, population_signatures, prob_replacing_oldest
             )
 
         return replace

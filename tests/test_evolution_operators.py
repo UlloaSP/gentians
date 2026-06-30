@@ -1,6 +1,7 @@
 from gentians.evolution.factories import create_selection
 from gentians.evolution.individual import Individual
 from gentians.evolution.mutations.random_group import mutate_by_random_group
+from gentians.evolution.replacements.oldest_or_worst import replace_oldest_or_worst
 from gentians.rule_generation.rule_space import RuleSpace
 
 
@@ -46,3 +47,71 @@ def test_mutation_skips_fitness_when_signature_does_not_change(monkeypatch):
 
     assert mutated is individual
     assert mutated.score == 1.0
+
+
+def test_mutation_applies_one_unique_edit(monkeypatch):
+    individual = Individual([0, 1], 1.0, False, [])
+    choices = iter(["append", 2])
+
+    monkeypatch.setattr("gentians.evolution.mutations.random_group.random.random", lambda: 0.0)
+    monkeypatch.setattr(
+        "gentians.evolution.mutations.random_group.random.choice",
+        lambda _: next(choices),
+    )
+
+    def score(program):
+        assert len(program) == len(set(program))
+        return 2.0, False, []
+
+    mutated = mutate_by_random_group(
+        individual,
+        RuleSpace.from_clauses(["a.", "b.", "c."]),
+        3,
+        1.0,
+        score,
+        {individual.signature},
+    )
+
+    assert mutated.program == [0, 1, 2]
+    assert mutated.score == 2.0
+
+
+def test_replacement_rejects_duplicate_and_non_finite():
+    population = [Individual([0], 2.0, False, [])]
+    signatures = {population[0].signature}
+
+    duplicate = replace_oldest_or_worst(
+        population,
+        Individual([0], 3.0, False, []),
+        signatures,
+        0.0,
+    )
+    non_finite = replace_oldest_or_worst(
+        population,
+        Individual([1], float("-inf"), False, []),
+        signatures,
+        0.0,
+    )
+
+    assert duplicate == population
+    assert non_finite == population
+    assert signatures == {population[0].signature}
+
+
+def test_replacement_updates_population_signatures(monkeypatch):
+    population = [
+        Individual([0], 3.0, False, []),
+        Individual([1], 1.0, False, []),
+    ]
+    signatures = {individual.signature for individual in population}
+    monkeypatch.setattr("gentians.evolution.replacements.oldest_or_worst.random.random", lambda: 1.0)
+
+    updated = replace_oldest_or_worst(
+        population,
+        Individual([2], 2.0, False, []),
+        signatures,
+        0.0,
+    )
+
+    assert [individual.program for individual in updated] == [[0], [2]]
+    assert signatures == {updated[0].signature, updated[1].signature}

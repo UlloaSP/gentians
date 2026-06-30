@@ -33,30 +33,33 @@ def mutate_by_random_group(
     original_signature = element.signature
     original_score = element.score
     changed_positions = 0
+    operation = "none"
 
     with phase("mutation.operator"):
-        for i, _ in enumerate(element.program):
-            if random.random() < probability:
-                if not something_changed:
-                    mutated_element = _clone_individual(element)
+        if random.random() < probability:
+            current_rules = set(element.program)
+            available_rules = [rule for rule in rule_space.ids if rule not in current_rules]
+            operations = []
+            if element.program and available_rules:
+                operations.append("replace")
+            if len(element.program) < max_program_clauses and available_rules:
+                operations.append("append")
+            if len(element.program) > 1:
+                operations.append("delete")
+
+            if operations:
+                mutated_element = _clone_individual(element)
+                operation = random.choice(operations)
                 something_changed = True
-                changed_positions += 1
-                mutated_element.program[i] = random.choice(rule_space.ids)
-        if (
-            random.random() < probability
-            and len(mutated_element.program) < max_program_clauses
-        ):
-            if not something_changed:
-                mutated_element = _clone_individual(element)
-            something_changed = True
-            changed_positions += 1
-            mutated_element.program.append(random.choice(rule_space.ids))
-        if random.random() < probability and len(mutated_element.program) > 1:
-            if not something_changed:
-                mutated_element = _clone_individual(element)
-            something_changed = True
-            changed_positions += 1
-            del mutated_element.program[random.randrange(len(mutated_element.program))]
+                changed_positions = 1
+                if operation == "replace":
+                    mutated_element.program[random.randrange(len(mutated_element.program))] = (
+                        random.choice(available_rules)
+                    )
+                elif operation == "append":
+                    mutated_element.program.append(random.choice(available_rules))
+                else:
+                    del mutated_element.program[random.randrange(len(mutated_element.program))]
 
     # TODO: add annealing to accept or reject the mutated program?
     # compute the new score if something has changed
@@ -83,6 +86,7 @@ def mutate_by_random_group(
             "strategy": "random_group",
             "changed": something_changed,
             "changed_positions": changed_positions,
+            "mutation_operation": operation,
             "probability": probability,
             "original_score": original_score,
             "new_score": mutated_element.score,

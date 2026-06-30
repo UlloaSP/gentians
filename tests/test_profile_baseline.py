@@ -252,7 +252,7 @@ def test_clingo_summary_uses_categories_and_mean_models_from_zero():
         [
             {
                 "dataset": "d",
-                "operation": "fixed_presolve",
+                "operation": "solving",
                 "operation_category": "solving",
                 "phase_context": "mutation.fitness",
                 "seconds": 0.2,
@@ -294,7 +294,7 @@ def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
             {
                 "dataset": "d",
                 "run": 1,
-                "operation": "fixed_preground",
+                "operation": "grounding",
                 "operation_category": "grounding",
                 "phase_context": "fitness.setup",
                 "seconds": 0.5,
@@ -304,7 +304,7 @@ def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
             {
                 "dataset": "d",
                 "run": 1,
-                "operation": "fixed_presolve",
+                "operation": "solving",
                 "operation_category": "solving",
                 "phase_context": "mutation.fitness",
                 "seconds": 0.1,
@@ -354,7 +354,7 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
             {
                 "dataset": "d",
                 "run": 1,
-                "operation": "fixed_preground",
+                "operation": "grounding",
                 "operation_category": "grounding",
                 "stats_atoms": 10,
                 "stats_rules": 20,
@@ -362,21 +362,21 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
             {
                 "dataset": "d",
                 "run": 1,
-                "operation": "fixed_presolve",
+                "operation": "solving",
                 "operation_category": "solving",
                 "models": 4,
             },
             {
                 "dataset": "d",
                 "run": 2,
-                "operation": "fixed_presolve",
+                "operation": "solving",
                 "operation_category": "solving",
                 "models": 8,
             },
             {
                 "dataset": "d",
                 "run": 2,
-                "operation": "fixed_presolve",
+                "operation": "solving",
                 "operation_category": "solving",
                 "models": 2,
             },

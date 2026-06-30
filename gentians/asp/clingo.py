@@ -150,20 +150,6 @@ class ClingoInterface:
         )
         return cov.get(tuple(range(len(program))), Coverage([], []))
 
-    def fixed_coverage_solver(
-        self,
-        rule_space: "list[str]",
-        interpretation_pos: "list[Example]",
-        interpretation_neg: "list[Example]",
-    ) -> "PreGroundedFixedCoverageSolver":
-        return PreGroundedFixedCoverageSolver(
-            self.lines,
-            self.clingo_arguments,
-            rule_space,
-            interpretation_pos,
-            interpretation_neg,
-        )
-
     def _coverage_static_program(
         self,
         interpretation_pos: "list[Example]",
@@ -180,147 +166,6 @@ class ClingoInterface:
                 self.lines, interpretation_pos, interpretation_neg, fixed
             )
         return self._coverage_static_program_cache[key]
-
-
-class PreGroundedFixedCoverageSolver:
-    def __init__(
-        self,
-        lines: "list[str]",
-        clingo_arguments: "list[str]",
-        rule_space: "list[str]",
-        interpretation_pos: "list[Example]",
-        interpretation_neg: "list[Example]",
-    ) -> None:
-        self.lines = lines
-        self.clingo_arguments = clingo_arguments
-        self.interpretation_pos = interpretation_pos
-        self.interpretation_neg = interpretation_neg
-        self.rule_ids = {rule: index for index, rule in enumerate(rule_space)}
-        self.available = True
-        self._last_choices = 0.0
-        self._last_conflicts = 0.0
-
-        generated_program = _build_coverage_static_program(
-            lines,
-            interpretation_pos,
-            interpretation_neg,
-            True,
-        )
-        active_declarations = (
-            f"#external active(0..{len(rule_space) - 1})."
-            if rule_space
-            else ""
-        )
-        guarded_rules = "\n".join(
-            _guard_candidate_clause(index, rule)
-            for index, rule in enumerate(rule_space)
-        )
-        generated_program = "\n".join(
-            part
-            for part in [generated_program, active_declarations, guarded_rules]
-            if part
-        )
-
-        wrp = WrapperStopIfWarn()
-        self.ctl = clingo.Control(
-            clingo_arguments,
-            logger=wrp.wrapper_warn_undefined_callback,
-        )  # type: ignore
-        self.ctl.add("base", [], generated_program)
-        start = time.perf_counter()
-        self.ctl.ground([("base", [])])
-        seconds = time.perf_counter() - start
-        ground_stats = _ground_stats(self.ctl)
-        phase = current_phase()
-        add(f"{phase}.grounding", seconds)
-        record_metric(
-            "clingo",
-            {
-                "operation": "fixed_preground",
-                "operation_category": "grounding",
-                "phase_context": phase,
-                "seconds": seconds,
-                "input_clauses": len(lines) + len(rule_space),
-                "program_chars": len(generated_program),
-                "positive_examples": len(interpretation_pos),
-                "negative_examples": len(interpretation_neg),
-                "clingo_arguments": " ".join(clingo_arguments),
-                "stats_atoms": ground_stats["atoms"],
-                "stats_rules": ground_stats["rules"],
-            },
-        )
-        if wrp.atom_undefined:
-            self.available = False
-
-    def extract_fixed_coverage(
-        self,
-        program: "list[str]",
-    ) -> Coverage | None:
-        if not self.available:
-            return None
-        active_ids = sorted(
-            {self.rule_ids[rule] for rule in program if rule in self.rule_ids}
-        )
-        if len(active_ids) != len(set(program)):
-            return None
-        return self.extract_fixed_coverage_by_id(active_ids)
-
-    def extract_fixed_coverage_by_id(
-        self,
-        active_ids: list[int],
-    ) -> Coverage | None:
-        if not self.available:
-            return None
-        active_ids = sorted(set(active_ids))
-        active_symbols = [
-            clingo.Function("active", [clingo.Number(index)])
-            for index in active_ids
-        ]
-        coverage = Coverage([], [])
-        start = time.perf_counter()
-        models = 0
-        for symbol in active_symbols:
-            self.ctl.assign_external(symbol, True)
-        try:
-            with self.ctl.solve(yield_=True) as handle:  # type: ignore
-                for model in handle:  # type: ignore
-                    models += 1
-                    _, l_cp, l_cn = _parse_coverage_symbols(model.symbols(shown=True))
-                    coverage.extend(l_cp, l_cn)
-        finally:
-            for symbol in active_symbols:
-                self.ctl.assign_external(symbol, False)
-        seconds = time.perf_counter() - start
-        choices = _clingo_stat(self.ctl.statistics, "solving", "solvers", "choices")
-        conflicts = _clingo_stat(self.ctl.statistics, "solving", "solvers", "conflicts")
-        delta_choices = max(choices - self._last_choices, 0.0)
-        delta_conflicts = max(conflicts - self._last_conflicts, 0.0)
-        self._last_choices = choices
-        self._last_conflicts = conflicts
-        phase = current_phase()
-        add(f"{phase}.solving", seconds)
-        record_metric(
-            "clingo",
-            {
-                "operation": "fixed_presolve",
-                "operation_category": "solving",
-                "phase_context": phase,
-                "seconds": seconds,
-                "models": models,
-                "coverage_subsets": 1,
-                "program_size": len(active_ids),
-                "active_rules": len(active_ids),
-                "clingo_arguments": " ".join(self.clingo_arguments),
-                "stats_models_enumerated": _clingo_stat(
-                    self.ctl.statistics, "summary", "models", "enumerated"
-                ),
-                "stats_choices": delta_choices,
-                "stats_conflicts": delta_conflicts,
-                "stats_choices_cumulative": choices,
-                "stats_conflicts_cumulative": conflicts,
-            },
-        )
-        return coverage
 
 
 def _build_coverage_static_program(
@@ -353,22 +198,6 @@ def _candidate_program_clauses(program: "list[str]", fixed: bool) -> "list[str]"
             clauses.append(clause[:-1] + f", {r}.")
             clauses.append("{" + r + "}.")
     return clauses
-
-
-def _guard_candidate_clause(index: int, clause: str) -> str:
-    normalized = clause.strip()
-    if not normalized.endswith("."):
-        normalized = f"{normalized}."
-    body_guard = f"active({index})"
-    content = normalized[:-1].strip()
-    if ":-" not in content:
-        return f"{content} :- {body_guard}."
-    head, body = content.split(":-", 1)
-    head = head.strip()
-    body = body.strip()
-    if head:
-        return f"{head} :- {body_guard}, {body}."
-    return f":- {body_guard}, {body}."
 
 
 def _parse_coverage_symbols(symbols) -> "tuple[list[int],list[int],list[int]]":

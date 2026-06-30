@@ -1,11 +1,13 @@
 export const phaseOrder = [
   ['hypothesisSpace', 'hypothesis'],
+  ['fitnessSetup', 'fitness setup'],
   ['initialization', 'initialization'],
   ['selection', 'selection'],
   ['crossover', 'crossover'],
   ['mutation', 'mutation'],
+  ['replacement', 'replacement'],
+  ['gaPython', 'ga python'],
   ['fitnessFinal', 'fitness final'],
-  ['other', 'other'],
 ]
 
 export const typeOrder = [

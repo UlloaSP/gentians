@@ -621,6 +621,7 @@ def compute_accounting_invariants(
     total = values.get("total_execution", 0.0)
     top_level = [
         "hypothesis_space",
+        "fitness.setup",
         "genetic",
     ]
     attributed = sum(values.get(metric, 0.0) for metric in top_level)
@@ -660,6 +661,7 @@ def compute_accounting_invariants(
     ]
     for phase in [
         "hypothesis_space",
+        "fitness.setup",
         "fitness.initialization",
         "crossover",
         "mutation",

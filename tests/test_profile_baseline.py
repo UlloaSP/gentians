@@ -1,10 +1,13 @@
 import json
+import re
+from pathlib import Path
 
 from benchmarks.profile_baseline import (
     GAMetric,
     RunResult,
     TimingMetric,
     clingo_summary,
+    compute_accounting_invariants,
     dashboard_phases,
     operator_summary,
     parse_log,
@@ -212,6 +215,36 @@ def test_dashboard_has_fitness_setup_phase():
 
     assert phases["fitnessSetup"]["grounding"] == 3.0
     assert phases["fitnessSetup"]["self"] == 1.0
+
+
+def test_frontend_phase_order_matches_dashboard_phases():
+    metrics_js = Path(".benchmarks/src/metrics.js").read_text(encoding="utf-8")
+    match = re.search(r"phaseOrder = \[(.*?)\]\n\nexport const typeOrder", metrics_js, re.S)
+    assert match is not None
+    frontend_phases = re.findall(r"\['([^']+)'", match.group(1))
+
+    backend_phases = dashboard_phases([]).keys()
+
+    assert set(frontend_phases) == set(backend_phases)
+
+
+def test_accounting_invariants_include_fitness_setup():
+    rows = compute_accounting_invariants(
+        "d",
+        1,
+        [
+            TimingMetric("d", 1, "total_execution", 10.0, 1),
+            TimingMetric("d", 1, "hypothesis_space", 2.0, 1),
+            TimingMetric("d", 1, "fitness.setup", 3.0, 1),
+            TimingMetric("d", 1, "fitness.setup.grounding", 2.5, 1),
+            TimingMetric("d", 1, "genetic", 5.0, 1),
+        ],
+    )
+
+    by_name = {row["invariant"]: row for row in rows}
+
+    assert by_name["total_vs_top_level"]["right_seconds"] == 10.0
+    assert by_name["fitness.setup_contains_clingo"]["right_seconds"] == 2.5
 
 
 def test_clingo_summary_uses_categories_and_mean_models_from_zero():

@@ -44,9 +44,7 @@ class Arguments:
             # Maximum answer sets requested from Clingo per coverage check. 0 means all.
             "max_as": 0,
             # Clingo CLI arguments used by the fitness evaluator.
-            "clingo_arguments": ["--project"],
-            # Score assigned when no coverage signal can be computed.
-            "empty_score": -2000,
+            "clingo_arguments": ["--enum-mode=brave"],
             # Fixed-program score penalty per selected rule.
             "size_penalty": 0.01,
             # Fixed-program score penalty per body literal.

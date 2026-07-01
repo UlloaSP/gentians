@@ -390,9 +390,8 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     random.seed(1)
     candidate = sorted(random.sample(clauses.clauses, args.max_program_clauses))
 
-    ClingoInterface(program.background, args.fitness["clingo_arguments"]).extract_coverage_and_set_clauses(
+    ClingoInterface(program.background, args.fitness["clingo_arguments"]).extract_fixed_coverage(
         candidate,
         program.positive_examples,
         program.negative_examples,
-        False,
     )

@@ -2,6 +2,7 @@ import importlib
 import math
 
 from benchmarks.catalog import arguments_for
+from gentians.asp.clingo import ClingoInterface
 from gentians.asp.coverage import Coverage
 from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
 from gentians.evolution.fitness.coverage_fixed import coverage_fixed
@@ -32,7 +33,7 @@ def test_coverage_fixed_penalizes_brave_negative_violation():
     )
 
     score, best_found, indexes = coverage_fixed(
-        program, 0, [], -2000, 0.01, 0.002, 0.01
+        program, 0, [], 0.01, 0.002, 0.01
     )([])
 
     assert score == math.exp(10)
@@ -50,7 +51,7 @@ def test_coverage_fixed_uses_brave_positive_coverage():
     )
 
     score, best_found, indexes = coverage_fixed(
-        program, 0, [], -2000, 0.01, 0.002, 0.01
+        program, 0, [], 0.01, 0.002, 0.01
     )([])
 
     assert score == math.exp(15)
@@ -66,7 +67,7 @@ def test_coverage_fixed_prefers_positive_coverage_over_clean_overconstraint():
         [],
         [],
     )
-    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, 0.002, 0.01)
+    evaluate = coverage_fixed(program, 0, [], 0.01, 0.002, 0.01)
 
     covering_score, _, _ = evaluate([":- b."])
     overconstrained_score, _, _ = evaluate([":- a.", ":- b."])
@@ -87,7 +88,6 @@ def test_coverage_fixed_uses_normal_fixed_coverage():
         program,
         0,
         [],
-        -2000,
         0.01,
         0.002,
         0.01,
@@ -137,7 +137,6 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
         program,
         0,
         ["--project"],
-        -2000,
         0.0,
         0.0,
         0.0,
@@ -167,7 +166,6 @@ def test_coverage_fixed_rejects_sudoku_without_row_constraint():
         program,
         int(args.fitness["max_as"]),
         list(args.fitness["clingo_arguments"]),
-        float(args.fitness["empty_score"]),
         float(args.fitness["size_penalty"]),
         float(args.fitness["literal_penalty"]),
         float(args.fitness["redundancy_penalty"]),
@@ -188,7 +186,7 @@ def test_coverage_fixed_penalizes_literals_and_redundancy():
         "target :- ok,p(1),q(2).",
         "target :- ok,p(V0),q(V1),V0!=V1,V1!=V0.",
     ]
-    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, 0.002, 0.01)
+    evaluate = coverage_fixed(program, 0, [], 0.01, 0.002, 0.01)
 
     small_score, small_best, _ = evaluate([rules[0]])
     redundant_score, redundant_best, _ = evaluate([rules[1]])
@@ -211,5 +209,28 @@ def test_cached_fitness_maps_canonical_selected_rules_to_original_indexes():
     assert (score, best_found) == (1.0, True)
     assert calls == [[0, 0, 1]]
     assert indexes == [1, 2]
+
+
+def test_dump_coverage_program_writes_debug_clingo_dir(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GENTIANS_DUMP_COVERAGE_PROGRAMS", "1")
+    monkeypatch.setenv("GENTIANS_BENCHMARK_NAME", "coin")
+    monkeypatch.setenv("GENTIANS_RUN_NUMBER", "7")
+
+    coverage = ClingoInterface(["base."], ["0", "--enum-mode=brave"]).extract_fixed_coverage(
+        ["target :- base."],
+        [Example(("target", ""), True)],
+        [],
+    )
+
+    dumps = list((tmp_path / ".debug" / "clingo").glob("*.lp"))
+    args = list((tmp_path / ".debug" / "clingo").glob("*.args.txt"))
+    assert coverage.pos_mask == 1
+    assert len(dumps) == 1
+    assert len(args) == 1
+    assert dumps[0].name.startswith("coin_run7-coverage_")
+    assert args[0].name.startswith("coin_run7-coverage_")
+    assert "target :- base." in dumps[0].read_text(encoding="utf-8")
+    assert "python -m clingo 0 --enum-mode=brave" in args[0].read_text(encoding="utf-8")
 
 

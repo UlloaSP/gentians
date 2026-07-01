@@ -1,4 +1,5 @@
 import clingo
+import os
 import time
 from pathlib import Path
 
@@ -7,12 +8,9 @@ from .coverage import Coverage, generate_clauses_for_coverage_interpretations
 from ..rule_generation.program import Example
 from ..timing import add, current_phase, record_metric
 
-CoverageKey = tuple[int, ...]
 LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
 COVERAGE_RULES = (LOGIC_PROGRAMS / "coverage_rules.lp").read_text()
-COVERAGE_SHOW_SELECTED_RULES = (
-    LOGIC_PROGRAMS / "coverage_show_selected_rules.lp"
-).read_text()
+_coverage_dump_counter = 0
 
 
 class ClingoInterface:
@@ -20,41 +18,26 @@ class ClingoInterface:
         self.lines = lines
         self.clingo_arguments = clingo_arguments
         self._coverage_static_program_cache: dict[
-            tuple[tuple[str, ...], tuple[str, ...], bool], str
+            tuple[tuple[str, ...], tuple[str, ...]], str
         ] = {}
 
-    def extract_coverage_and_set_clauses(
+    def extract_fixed_coverage(
         self,
         program: "list[str]",
         interpretation_pos: "list[Example]",  # positive examples
         interpretation_neg: "list[Example]",  # negative examples
-        fixed: bool,
-    ) -> "dict[CoverageKey,Coverage]":
+    ) -> Coverage:
         """
-        Extracts the coverage for every subset of clauses.
+        Extracts coverage for the full candidate program.
         """
-        # l_results : 'list[tuple[int,int,list[int]]]' = []
-        # TODO: ora fisso il numero massimo di clausole e il
-        # solver ASP mi dice quale combinazione è la migliore.
-        # Potrei invece (da fare) considerare iterativamente un
-        # numero di clausole maggiore.
         # TODO: aggiungere un flag per imporre che il programma abbia
         # come answer set solo quelli che gli sono stati passati come
         # esempi positivi
 
-        # print("Extract coverage")
-        # print(program)
-        # print("----- HERE -----")
-        # print('FISSATO')
-        # program = ["red(X) ; green(X) ; blue(X) :- node(X).", ":- e(X,Y), red(X), red(Y).", ":- e(X,Y), green(X), green(Y).", ":- e(X,Y), blue(X), blue(Y)."]
-
-        generated_program = (
-            self._coverage_static_program(
-                interpretation_pos, interpretation_neg, fixed
-            )
-            + "\n"
-            + "\n".join(_candidate_program_clauses(program, fixed))
-        )
+        generated_program = self._coverage_static_program(
+            interpretation_pos, interpretation_neg
+        ) + "\n" + "\n".join(program)
+        _dump_coverage_program(generated_program, self.clingo_arguments)
 
         wrp = WrapperStopIfWarn()
         ctl = clingo.Control(
@@ -89,25 +72,17 @@ class ClingoInterface:
             # check for the coverage: ATTENTION: if the language bias is
             # not ok, this is a problem
             # print("Warning: undefined coverage")
-            return {}
+            return Coverage([], [])
 
-        # res = str(ctl.solve())
-        # key: rule_id (string containing the selected rules)
-        # value: tuple(covered_pos, covered_neg)
-        # needed since I need to check that NO answer sets cover
-        # negative examples.
-        comb_rules: "dict[CoverageKey,Coverage]" = {}
+        coverage = Coverage([], [])
 
         start = time.perf_counter()
         models = 0
         with ctl.solve(yield_=True) as handle:  # type: ignore
             for m in handle:  # type: ignore
                 models += 1
-                l_rules, l_cp, l_cn = _parse_coverage_symbols(m.symbols(shown=True))
-                if fixed:
-                    # needed since for fixed there are no r/1 atoms
-                    l_rules = [i for i in range(len(program))]
-                _merge_coverage_result(comb_rules, l_rules, l_cp, l_cn)
+                l_cp, l_cn = _parse_coverage_symbols(m.symbols(shown=True))
+                coverage.extend(l_cp, l_cn)
         seconds = time.perf_counter() - start
         phase = current_phase()
         add(f"{phase}.solving", seconds)
@@ -119,7 +94,8 @@ class ClingoInterface:
                 "phase_context": phase,
                 "seconds": seconds,
                 "models": models,
-                "coverage_subsets": len(comb_rules),
+                "covered_positive": coverage.pos_mask.bit_count(),
+                "covered_negative": coverage.neg_mask.bit_count(),
                 "program_size": len(program),
                 "clingo_arguments": " ".join(self.clingo_arguments),
                 "stats_models_enumerated": _clingo_stat(
@@ -134,36 +110,20 @@ class ClingoInterface:
             },
         )
 
-        return comb_rules
-
-    def extract_fixed_coverage(
-        self,
-        program: "list[str]",
-        interpretation_pos: "list[Example]",
-        interpretation_neg: "list[Example]",
-    ) -> Coverage:
-        cov = self.extract_coverage_and_set_clauses(
-            program,
-            interpretation_pos,
-            interpretation_neg,
-            True,
-        )
-        return cov.get(tuple(range(len(program))), Coverage([], []))
+        return coverage
 
     def _coverage_static_program(
         self,
         interpretation_pos: "list[Example]",
         interpretation_neg: "list[Example]",
-        fixed: bool,
     ) -> str:
         key = (
             tuple(str(example) for example in interpretation_pos),
             tuple(str(example) for example in interpretation_neg),
-            fixed,
         )
         if key not in self._coverage_static_program_cache:
             self._coverage_static_program_cache[key] = _build_coverage_static_program(
-                self.lines, interpretation_pos, interpretation_neg, fixed
+                self.lines, interpretation_pos, interpretation_neg
             )
         return self._coverage_static_program_cache[key]
 
@@ -172,7 +132,6 @@ def _build_coverage_static_program(
     background: "list[str]",
     interpretation_pos: "list[Example]",
     interpretation_neg: "list[Example]",
-    fixed: bool,
 ) -> str:
     parts: list[str] = []
     parts.extend(background)
@@ -183,53 +142,66 @@ def _build_coverage_static_program(
         parts.append(f"neg_exs(0..{len(interpretation_neg) - 1}).")
         parts.append(generate_clauses_for_coverage_interpretations(interpretation_neg, False))
     parts.append(COVERAGE_RULES)
-    if not fixed:
-        parts.append(COVERAGE_SHOW_SELECTED_RULES)
     return "\n".join(parts)
 
 
-def _candidate_program_clauses(program: "list[str]", fixed: bool) -> "list[str]":
-    clauses: list[str] = []
-    for cl_index, clause in enumerate(program):
-        if fixed:
-            clauses.append(clause)
-        else:
-            r = f"r({cl_index})"
-            clauses.append(clause[:-1] + f", {r}.")
-            clauses.append("{" + r + "}.")
-    return clauses
+def _dump_coverage_program(program: str, clingo_arguments: "list[str]") -> None:
+    target = os.environ.get("GENTIANS_DUMP_COVERAGE_PROGRAMS")
+    if not target:
+        return
+    directory = (
+        Path(".debug") / "clingo"
+        if target.lower() in {"1", "true", "yes", "on"}
+        else Path(target)
+    )
+    directory.mkdir(parents=True, exist_ok=True)
+    global _coverage_dump_counter
+    _coverage_dump_counter += 1
+    stem = "-".join(
+        part
+        for part in (
+            _dump_context_prefix(),
+            f"coverage_{_coverage_dump_counter:06d}",
+            _safe_filename(current_phase()),
+        )
+        if part
+    )
+    lp_path = directory / f"{stem}.lp"
+    lp_path.write_text(program, encoding="utf-8")
+    args = " ".join(clingo_arguments)
+    (directory / f"{stem}.args.txt").write_text(
+        f"python -m clingo {args} {lp_path}\n", encoding="utf-8"
+    )
 
 
-def _parse_coverage_symbols(symbols) -> "tuple[list[int],list[int],list[int]]":
-    l_rules: list[int] = []
+def _safe_filename(value: str) -> str:
+    return "".join(char if char.isalnum() or char in "._-" else "_" for char in value)
+
+
+def _dump_context_prefix() -> str:
+    benchmark = os.environ.get("GENTIANS_BENCHMARK_NAME", "")
+    run = os.environ.get("GENTIANS_RUN_NUMBER", "")
+    if benchmark and run:
+        return f"{_safe_filename(benchmark)}_run{_safe_filename(run)}"
+    if benchmark:
+        return _safe_filename(benchmark)
+    if run:
+        return f"run{_safe_filename(run)}"
+    return ""
+
+
+def _parse_coverage_symbols(symbols) -> "tuple[list[int],list[int]]":
     l_cp: list[int] = []
     l_cn: list[int] = []
     for symbol in symbols:
         if len(symbol.arguments) != 1:
             continue
         value = symbol.arguments[0].number
-        if symbol.name == "r":
-            l_rules.append(value)
-        elif symbol.name == "extended_p":
+        if symbol.name == "extended_p":
             l_cp.append(value)
         elif symbol.name == "extended_n":
             l_cn.append(value)
-    return l_rules, l_cp, l_cn
-
-
-def _merge_coverage_result(
-    comb_rules: "dict[CoverageKey,Coverage]",
-    l_rules: "list[int]",
-    l_cp: "list[int]",
-    l_cn: "list[int]",
-) -> Coverage:
-    dict_key = tuple(sorted(l_rules))
-    if dict_key in comb_rules:
-        # this solution also considers duplicates
-        comb_rules[dict_key].extend(l_cp, l_cn)
-    else:
-        comb_rules[dict_key] = Coverage(l_cp, l_cn)
-    return comb_rules[dict_key]
+    return l_cp, l_cn
 
 
 def _clingo_stat(stats, *path: str) -> float:

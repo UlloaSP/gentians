@@ -31,7 +31,6 @@ def create_fitness(
     name = _str(config, "name")
     max_as = _int(config, "max_as")
     clingo_arguments = _str_list(config, "clingo_arguments")
-    empty_score = _float(config, "empty_score")
     if name == "coverage_fixed":
         size_penalty = float(config.get("size_penalty", 0.01))
         literal_penalty = float(config.get("literal_penalty", 0.002))
@@ -40,7 +39,6 @@ def create_fitness(
             program,
             max_as,
             clingo_arguments,
-            empty_score,
             size_penalty,
             literal_penalty,
             redundancy_penalty,

@@ -9,14 +9,6 @@ class Coverage:
         self.pos_mask = _mask(l_pos)
         self.neg_mask = _mask(l_neg)
 
-    def get_cost(self) -> int:
-        # if the best solution is not found, I compare the different programs
-        # arising from one element. Here, I assume that the cost of covering
-        # a positive example is -1 while the one of covering a negative is 1.
-        # That is, the lowest is the score, the better is the program.
-        # Thus, the cost of a solution is len(self.l_neg) - len(self.l_pos)
-        return self.neg_mask.bit_count() - self.pos_mask.bit_count()
-
     def extend(self, l_pos: "list[int]", l_neg: "list[int]") -> None:
         self.l_pos.extend(l_pos)
         self.l_neg.extend(l_neg)

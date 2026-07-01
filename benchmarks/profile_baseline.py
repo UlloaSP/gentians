@@ -111,7 +111,7 @@ PHASE_FUNCTIONS = {
     "genetic.mutation_inclusive": {"mutate"},
     "genetic.replacement": {"replace_oldest_or_worst"},
     "genetic.evaluation.total": {"evaluate_score"},
-    "coverage.extract": {"extract_coverage_and_set_clauses"},
+    "coverage.extract": {"extract_fixed_coverage"},
 }
 
 
@@ -435,6 +435,8 @@ def run_streamed(
     env["GENTIANS_PROFILE_WORKER"] = "1"
     env["GENTIANS_ARGUMENTS_JSON"] = arguments_json
     env["GENTIANS_RANDOM_SEED"] = str(seed)
+    env["GENTIANS_BENCHMARK_NAME"] = dataset
+    env["GENTIANS_RUN_NUMBER"] = str(run)
     env["GENTIANS_TIMINGS_PATH"] = str(timings_path.resolve())
     env["GENTIANS_TIMING_EVENTS_PATH"] = str(timing_events_path.resolve())
     env["GENTIANS_GA_METRICS_PATH"] = str(ga_metrics_path.resolve())

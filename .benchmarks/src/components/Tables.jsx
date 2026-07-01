@@ -29,28 +29,3 @@ export function DataTable({ rows, onSelect }) {
     </div>
   )
 }
-
-export function StubTable({ rows }) {
-  if (!rows.length) return <p className={chartTw.note}>Sin clauseRows en dashboard_data.json</p>
-  return (
-    <div className={chartTw.tableWrap}>
-      <div className={chartTw.tableScroller}>
-        <table className={chartTw.table}>
-          <thead><tr>{['origen', 'candidates', 'valid', 'unique', 'variables', 'literals', 'eval seconds', 'max score'].map((h) => <th className={chartTw.th} key={h}>{h}</th>)}</tr></thead>
-          <tbody>{rows.slice(0, 80).map((row, index) => (
-            <tr key={`${row.clause}-${index}`}>
-              <td className={chartTw.td}>{row.clause}</td>
-              <td className={chartTw.td}>{fmtInt(row.candidates)}</td>
-              <td className={chartTw.td}>{fmtInt(row.valid)}</td>
-              <td className={chartTw.td}>{fmtInt(row.unique)}</td>
-              <td className={chartTw.td}>{fmtInt(row.variables)}</td>
-              <td className={chartTw.td}>{fmtInt(row.literals)}</td>
-              <td className={chartTw.td}>{fmt(row.evalSeconds, 3)}s</td>
-              <td className={chartTw.td}>{fmt(row.maxScore, 2)}</td>
-            </tr>
-          ))}</tbody>
-        </table>
-      </div>
-    </div>
-  )
-}

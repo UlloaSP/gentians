@@ -36,18 +36,32 @@ function toEChart(data = [], layout = {}) {
   }
 
   if (data[0]?.type === 'pie') {
+    const trace = data[0]
     return {
       backgroundColor: 'transparent',
       color: [colors.self, colors.grounding, colors.solving, colors.other, colors.accent],
-      tooltip: { ...tooltip, trigger: 'item' },
+      tooltip: {
+        ...tooltip,
+        trigger: 'item',
+        formatter: (params) => {
+          const extra = trace.customdata?.[params.dataIndex]
+          const value = Number(params.value || 0).toLocaleString('es-ES', { maximumFractionDigits: 2 })
+          return [
+            `${params.marker}${params.name}: ${params.percent}%`,
+            `${trace.valueLabel || 'valor'}: ${value}`,
+            extra,
+          ].filter(Boolean).join('<br/>')
+        },
+      },
       legend: { bottom: 0, textStyle: { color: '#71717a' } },
       series: [{
         type: 'pie',
-        radius: data[0].hole ? ['48%', '72%'] : '70%',
-        data: data[0].labels.map((name, i) => ({
+        name: trace.name,
+        radius: trace.hole ? ['48%', '72%'] : '70%',
+        data: trace.labels.map((name, i) => ({
           name,
-          value: data[0].values[i],
-          itemStyle: { color: data[0].marker?.colors?.[i] },
+          value: trace.values[i],
+          itemStyle: { color: trace.marker?.colors?.[i] },
         })),
         label: { formatter: '{b}\n{d}%' },
         emphasis: { scale: true, scaleSize: 6 },

@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { chartTw } from './chartTw'
-import { DataTable, StubTable } from './components/Tables'
+import { DataTable } from './components/Tables'
 import { ChartSection, PageLayout, SectionGrid, Stat } from './components/Layout'
 import { CandidatesTimeChart } from './charts/CandidatesTimeChart'
 import { CallVolumeChart } from './charts/CallVolumeChart'
+import { ClingoBottleneckChart } from './charts/ClingoBottleneckChart'
 import { ClingoCallsChart } from './charts/ClingoCallsChart'
 import { ClingoCostChart } from './charts/ClingoCostChart'
+import { ClingoModelsChart } from './charts/ClingoModelsChart'
 import { CostByTypeChart } from './charts/CostByTypeChart'
 import { FitnessChart } from './charts/FitnessChart'
-import { FitnessDiagnosticsChart } from './charts/FitnessDiagnosticsChart'
 import { GroundingSolvingChart } from './charts/GroundingSolvingChart'
 import { OperatorHealthChart } from './charts/OperatorHealthChart'
 import { OperatorsChart } from './charts/OperatorsChart'
@@ -17,14 +18,11 @@ import { PhaseTypeChart } from './charts/PhaseTypeChart'
 import { QualityProgramChart } from './charts/QualityProgramChart'
 import { QualityChart } from './charts/QualityChart'
 import { RunsTimeoutsChart } from './charts/RunsTimeoutsChart'
-import { SearchSpaceFunnel } from './charts/SearchSpaceFunnel'
 import { SolverStatsChart } from './charts/SolverStatsChart'
 import { StructuralComplexityChart } from './charts/StructuralComplexityChart'
-import { ClauseCandidatesChart } from './charts/ClauseCandidatesChart'
 import { SweepFitnessCurvesChart } from './charts/SweepFitnessCurvesChart'
 import { SweepHeatmapChart } from './charts/SweepHeatmapChart'
 import { TimingDepthChart } from './charts/TimingDepthChart'
-import { TimelineChart } from './charts/TimelineChart'
 import { TotalTimeChart } from './charts/TotalTimeChart'
 import { TypeSplitChart } from './charts/TypeSplitChart'
 import { clingoSeconds, dataUrl, fmt, fmtInt, pythonSeconds, runCount, sweepUrl, topPhase, totalSeconds } from './metrics'
@@ -173,20 +171,17 @@ function Detail({ benchmarks, benchmark, setSelected }) {
       <SectionGrid>
         <PhaseTypeChart benchmark={benchmark} />
         <TypeSplitChart benchmark={benchmark} />
-        <SearchSpaceFunnel benchmark={benchmark} />
         <FitnessChart benchmark={benchmark} />
-        <FitnessDiagnosticsChart benchmark={benchmark} />
-        <ClauseCandidatesChart benchmark={benchmark} />
         <OperatorsChart benchmark={benchmark} />
         <OperatorHealthChart benchmark={benchmark} />
-        <SolverStatsChart benchmark={benchmark} />
         <QualityChart benchmark={benchmark} />
         <QualityProgramChart benchmark={benchmark} />
-        <TimelineChart benchmark={benchmark} />
         <TimingDepthChart benchmark={benchmark} />
+        <SolverStatsChart benchmark={benchmark} />
+        <ClingoBottleneckChart benchmark={benchmark} />
+        <ClingoModelsChart benchmark={benchmark} />
         <ClingoCostChart benchmark={benchmark} />
         <ClingoCallsChart benchmark={benchmark} />
-        <ChartSection title="Cláusulas candidatas"><StubTable rows={benchmark.clauseRows || []} /></ChartSection>
       </SectionGrid>
     </div>
   )

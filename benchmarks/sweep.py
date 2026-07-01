@@ -17,7 +17,7 @@ sys.path.insert(0, str(REPO_ROOT))
 PROFILE_BASELINE = REPO_ROOT / "benchmarks" / "profile_baseline.py"
 DEFAULT_VARY = [
     "iterations_genetic=1000,2000,3000,4000,5000",
-    "fitness.name=coverage_exp_mean,coverage_exp_max",
+    "fitness.name=coverage_fixed",
 ]
 
 from benchmarks.catalog import DEFAULT_DATASETS, parse_value
@@ -40,7 +40,7 @@ class Cell:
 
     @property
     def fitness_operator(self) -> str:
-        return self.param_dict.get("fitness.name", "coverage_exp_mean")
+        return self.param_dict.get("fitness.name", "coverage_fixed")
 
     @property
     def genetic_iterations(self) -> int:

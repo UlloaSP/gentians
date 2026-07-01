@@ -4,8 +4,6 @@ import random
 
 from .crossovers.set_mix import set_mix_crossover
 from .fitness.coverage_fixed import coverage_fixed
-from .fitness.coverage_exp_max import coverage_exp_max
-from .fitness.coverage_exp_mean import coverage_exp_mean
 from .individual import Individual
 from .mutations.random_group import mutate_by_random_group
 from .populations.random_initialization import initialize_population
@@ -34,10 +32,6 @@ def create_fitness(
     max_as = _int(config, "max_as")
     clingo_arguments = _str_list(config, "clingo_arguments")
     empty_score = _float(config, "empty_score")
-    if name == "coverage_exp_mean":
-        return coverage_exp_mean(program, max_as, clingo_arguments, empty_score)
-    if name == "coverage_exp_max":
-        return coverage_exp_max(program, max_as, clingo_arguments, empty_score)
     if name == "coverage_fixed":
         size_penalty = float(config.get("size_penalty", 0.01))
         literal_penalty = float(config.get("literal_penalty", 0.002))

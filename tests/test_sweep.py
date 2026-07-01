@@ -17,8 +17,8 @@ def write_cell(out_dir, cell):
 
 
 def test_write_sweep_outputs_discovers_existing_cell_dirs(tmp_path):
-    coin = Cell("coin", (("fitness.name", "coverage_exp_mean"), ("iterations_genetic", "1")))
-    sudoku = Cell("sudoku", (("fitness.name", "coverage_exp_mean"), ("iterations_genetic", "1")))
+    coin = Cell("coin", (("fitness.name", "coverage_fixed"), ("iterations_genetic", "1")))
+    sudoku = Cell("sudoku", (("fitness.name", "coverage_fixed"), ("iterations_genetic", "1")))
     write_cell(tmp_path, coin)
     write_cell(tmp_path, sudoku)
     manifest = {

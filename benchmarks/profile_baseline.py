@@ -46,7 +46,7 @@ class RunResult:
     total_seconds: float | None = None
     success: bool = False
     first_success_generation_observed: int | None = None
-    fitness_operator: str = "coverage_exp_mean"
+    fitness_operator: str = "coverage_fixed"
     genetic_iterations: int = 0
 
 
@@ -163,7 +163,7 @@ def main() -> None:
         action="append",
         default=[],
         metavar="PATH=JSON",
-        help="Override Arguments field, e.g. --set iterations_genetic=1000 --set fitness.name=coverage_exp_max",
+        help="Override Arguments field, e.g. --set iterations_genetic=1000 --set fitness.name=coverage_fixed",
     )
     parser.add_argument(
         "--arguments-json",
@@ -330,7 +330,7 @@ def main() -> None:
                 first_success_generation_observed=parsed[
                     "first_success_generation_observed"
                 ],
-                fitness_operator=str(fitness_config.get("name", "coverage_exp_mean")),
+                fitness_operator=str(fitness_config.get("name", "coverage_fixed")),
                 genetic_iterations=int(run_arguments.get("iterations_genetic", 0)),
             )
             results.append(run_result)
@@ -757,7 +757,7 @@ def read_existing_outputs(
             int(to_float(row.get("first_success_generation_observed")))
             if row.get("first_success_generation_observed") not in (None, "")
             else None,
-            row.get("fitness_operator", "coverage_exp_mean"),
+            row.get("fitness_operator", "coverage_fixed"),
             int(to_float(row.get("genetic_iterations"))),
         )
         for row in read_csv_dicts(out_dir / "runs.csv")

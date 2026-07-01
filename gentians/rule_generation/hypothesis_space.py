@@ -16,7 +16,7 @@ from ..timing import add, current_phase, profile_phase, record_metric
 from .parser import parse_atom, split_top_level_args
 from .program import Program
 from .reader import read_program
-from .rule_space import RuleSpace
+from .rule_space import Predicate, RuleEntry, RuleSpace
 
 
 LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
@@ -68,6 +68,26 @@ class ReifiedClause:
         head = ";".join(_render_literal(literal, modes[literal.mode_id]) for literal in self.head)
         body = ",".join(_render_literal(literal, modes[literal.mode_id]) for literal in self.body)
         return f"{head} :- {body}." if head else f":- {body}."
+
+
+def _rule_entry_from_clause(
+    rendered: str,
+    clause: ReifiedClause,
+    modes: dict[int, HypothesisMode],
+) -> RuleEntry:
+    heads: set[Predicate] = set()
+    deps: set[Predicate] = set()
+    for literal in clause.head:
+        mode = modes[literal.mode_id]
+        if mode.kind == "normal":
+            heads.add((mode.name, mode.arity))
+    for literal in clause.body:
+        mode = modes[literal.mode_id]
+        if mode.kind == "normal":
+            deps.add((mode.name, mode.arity))
+        elif mode.kind == "aggregate":
+            deps.update(mode.aggregate_atoms)
+    return RuleEntry(rendered, frozenset(heads), frozenset(deps), len(clause.body))
 
 
 class HypothesisSpaceGenerator:
@@ -123,7 +143,7 @@ class HypothesisSpaceGenerator:
             },
         )
 
-        clauses: list[str] = []
+        entries: list[RuleEntry] = []
         start = time.perf_counter()
         models = 0
         with ctl.solve(yield_=True) as handle:  # type: ignore
@@ -131,7 +151,7 @@ class HypothesisSpaceGenerator:
                 models += 1
                 clause = _clause_from_symbols(model.symbols(shown=True))
                 rendered = clause.render(self.modes_by_id)
-                clauses.append(rendered)
+                entries.append(_rule_entry_from_clause(rendered, clause, self.modes_by_id))
 
         seconds = time.perf_counter() - start
         phase = current_phase()
@@ -158,7 +178,7 @@ class HypothesisSpaceGenerator:
             },
         )
 
-        return RuleSpace.from_clauses(clauses)
+        return RuleSpace.from_entries(entries)
 
 
 def read_task(filename: str) -> Program:

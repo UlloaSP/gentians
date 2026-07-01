@@ -57,7 +57,7 @@ export const chartTw = {
     'dark:text-neutral-400',
   ].join(' '),
   metricValue: [
-    'mt-1', 'text-2xl', 'font-semibold', 'tracking-tight', 'text-neutral-950',
+    'mt-2', 'block', 'break-words', 'text-2xl', 'font-semibold', 'tracking-tight', 'text-neutral-950',
     'dark:text-neutral-50',
   ].join(' '),
   metricHint: ['mt-1', 'text-xs', 'leading-5', 'text-neutral-500', 'dark:text-neutral-400'].join(' '),

@@ -48,7 +48,7 @@ export function ChartSection({ title, children }) {
 
 export function Stat({ label, value, sub }) {
   return (
-    <div className="border-t border-neutral-200 py-3 dark:border-neutral-800">
+    <div className="min-h-24 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
       <span className={chartTw.metricLabel}>{label}</span>
       <strong className={chartTw.metricValue}>{value}</strong>
       {sub && <small className={chartTw.metricHint}>{sub}</small>}

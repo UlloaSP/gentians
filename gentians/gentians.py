@@ -14,6 +14,7 @@ from gentians.evolution.factories import (
 from .arguments import Arguments
 from .rule_generation.hypothesis_space import build_hypothesis_space, read_task
 from .rule_generation.program import Program
+from .evolution.program_sampler import ProgramSampler
 from .timing import export as export_timings, phase
 
 
@@ -36,16 +37,17 @@ def solve(program: Program, arguments: Arguments) -> None:
                 sys.exit(-1)
 
             with phase("fitness.setup"):
+                sampler = ProgramSampler(program, rule_space)
                 evaluate_score = create_fitness(program, arguments.fitness, rule_space)
 
             prg, score, best_found = genetic_solver(
                 rule_space,
                 arguments,
                 evaluate_score,
-                create_population(arguments.population),
+                create_population(arguments.population, sampler),
                 create_selection(arguments.selection),
-                create_crossover(arguments.crossover),
-                create_mutation(arguments.mutation),
+                create_crossover(arguments.crossover, sampler),
+                create_mutation(arguments.mutation, sampler),
                 create_replacement(arguments.replacement),
             )
 

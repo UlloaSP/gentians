@@ -8,7 +8,6 @@ const FITNESS_PHASES = new Set([
   'fitness.initialization',
   'crossover.fitness',
   'mutation.fitness',
-  'fitness.final',
   'genetic',
 ])
 

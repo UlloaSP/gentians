@@ -2,6 +2,7 @@ import random
 import time
 
 from ..individual import Individual
+from ..program_sampler import ProgramSampler
 from ..types import FitnessFn
 from ...rule_generation.rule_space import RuleSpace
 from ...timing import phase, profile_phase, record_metric
@@ -24,6 +25,7 @@ def mutate_by_random_group(
     probability: float,
     evaluate_score: FitnessFn,
     known_signatures: set[tuple[str, ...]],
+    sampler: ProgramSampler | None = None,
 ):
     """
     Mutation of an element
@@ -34,51 +36,61 @@ def mutate_by_random_group(
     original_score = element.score
     changed_positions = 0
     operation = "none"
+    duplicate_attempts = 0
 
     with phase("mutation.operator"):
         if random.random() < probability:
-            current_rules = set(element.program)
-            available_rules = [
-                rule for rule in rule_space.clauses if rule not in current_rules
-            ]
-            operations = []
-            if element.program and available_rules:
-                operations.append("replace")
-            if len(element.program) < max_program_clauses and available_rules:
-                operations.append("append")
-            if len(element.program) > 1:
-                operations.append("delete")
+            for _ in range(8):
+                current_rules = set(element.program)
+                available_rules = [
+                    rule for rule in rule_space.clauses if rule not in current_rules
+                ]
+                operations = []
+                if element.program and available_rules:
+                    operations.append("replace")
+                if len(element.program) < max_program_clauses and available_rules:
+                    operations.append("append")
+                if len(element.program) > 1:
+                    operations.append("delete")
 
-            if operations:
-                mutated_element = _clone_individual(element)
-                operation = random.choice(operations)
-                something_changed = True
-                changed_positions = 1
-                if operation == "replace":
-                    mutated_element.program[random.randrange(len(mutated_element.program))] = (
+                if not operations:
+                    break
+
+                candidate = _clone_individual(element)
+                attempted_operation = random.choice(operations)
+                if attempted_operation == "replace":
+                    candidate.program[random.randrange(len(candidate.program))] = (
                         random.choice(available_rules)
                     )
-                elif operation == "append":
-                    mutated_element.program.append(random.choice(available_rules))
+                elif attempted_operation == "append":
+                    candidate.program.append(random.choice(available_rules))
                 else:
-                    del mutated_element.program[random.randrange(len(mutated_element.program))]
+                    del candidate.program[random.randrange(len(candidate.program))]
 
-    # TODO: add annealing to accept or reject the mutated program?
-    # compute the new score if something has changed
+                if sampler is not None:
+                    repaired = sampler.repair(candidate.program, max_program_clauses)
+                    if repaired is None:
+                        continue
+                    candidate.program = repaired
+
+                candidate.generated_timestamp = time.time()
+                candidate.refresh_signature()
+                if candidate.signature == original_signature:
+                    continue
+                if candidate.signature in known_signatures:
+                    duplicate_attempts += 1
+                    continue
+
+                mutated_element = candidate
+                operation = attempted_operation
+                something_changed = True
+                changed_positions = 1
+                break
+
     if something_changed:
-        mutated_element.generated_timestamp = time.time()
-        mutated_element.refresh_signature()
-        if mutated_element.signature == original_signature:
-            mutated_element = element
-            something_changed = False
-        elif mutated_element.signature in known_signatures:
-            mutated_element.score = float("-inf")
-            mutated_element.is_best = False
-            mutated_element.l_best_indexes = []
-        else:
-            with phase("mutation.fitness"):
-                mutated_element.score, mutated_element.is_best, mutated_element.l_best_indexes = (
-                    evaluate_score(mutated_element.program)
+        with phase("mutation.fitness"):
+            mutated_element.score, mutated_element.is_best, mutated_element.l_best_indexes = (
+                evaluate_score(mutated_element.program)
             )
 
     record_metric(
@@ -97,6 +109,7 @@ def mutate_by_random_group(
             "duplicate_population": (
                 something_changed and mutated_element.signature in known_signatures
             ),
+            "duplicate_attempts": duplicate_attempts,
         },
     )
 

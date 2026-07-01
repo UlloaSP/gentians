@@ -1,6 +1,7 @@
 import random
 
 from ..individual import Individual
+from ..program_sampler import ProgramSampler
 from ..types import FitnessFn
 from ...rule_generation.rule_space import RuleSpace
 from ...timing import profile_phase
@@ -12,6 +13,7 @@ def initialize_population(
     rule_space: RuleSpace,
     population_size: int,
     evaluate_score: FitnessFn,
+    sampler: ProgramSampler | None = None,
 ) -> tuple[list[Individual],bool]:
     """
     Initialize the population of individuals
@@ -25,8 +27,17 @@ def initialize_population(
     while len(sampled_individuals) < population_size:
         attempts += 1
         size_limit = max(1, min(max_program_clauses, len(rule_space)))
-        program_size = random.randint(1, size_limit)
-        program = sorted(random.sample(rule_space.clauses, program_size))
+        if sampler is None:
+            program_size = random.randint(1, size_limit)
+            program = sorted(random.sample(rule_space.clauses, program_size))
+        else:
+            known = seen_signatures if attempts < max_unique_attempts else None
+            program = sampler.sample(max_program_clauses, known)
+            if program is None:
+                if sampled_individuals:
+                    program = list(random.choice(sampled_individuals).program)
+                else:
+                    raise RuntimeError("Could not sample a dependency-closed program")
         signature = tuple(program)
         if signature in seen_signatures and attempts < max_unique_attempts:
             continue

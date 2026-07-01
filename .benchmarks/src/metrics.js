@@ -7,7 +7,6 @@ export const phaseOrder = [
   ['mutation', 'mutation'],
   ['replacement', 'replacement'],
   ['gaPython', 'ga python'],
-  ['fitnessFinal', 'fitness final'],
 ]
 
 export const typeOrder = [
@@ -29,15 +28,28 @@ export const colors = {
 export const dataUrl = () => new URLSearchParams(window.location.search).get('data') || 'baseline_profile/dashboard_data.json'
 export const sweepUrl = () => new URLSearchParams(window.location.search).get('sweep') || 'sweeps/latest/sweep_dashboard_data.json'
 export const num = (value) => Number(value || 0)
+export const maybeNum = (value) => value === null || value === undefined || value === '' ? null : Number(value)
 export const sum = (values) => values.reduce((a, b) => a + num(b), 0)
 export const fmt = (value, digits = 2) => num(value).toLocaleString('es-ES', { maximumFractionDigits: digits, minimumFractionDigits: digits })
 export const fmtInt = (value) => Math.round(num(value)).toLocaleString('es-ES')
 export const runCount = (benchmark) => num(benchmark.runCount) || benchmark.fitnessRuns?.length || 0
+export const bestRunRatio = (benchmark) => `${fmtInt(benchmark.bestFoundRuns ?? Math.round(num(benchmark.exactSolved) * runCount(benchmark)))}/${fmtInt(runCount(benchmark))}`
 export const phaseTotal = (benchmark, phase) => sum(typeOrder.map(([type]) => benchmark.phases?.[phase]?.[type]))
 export const measuredTotal = (benchmark) => sum(phaseOrder.map(([phase]) => phaseTotal(benchmark, phase)))
 export const totalSeconds = (benchmark) => measuredTotal(benchmark) || num(benchmark.total)
 export const clingoSeconds = (benchmark) => sum(phaseOrder.flatMap(([phase]) => [benchmark.phases?.[phase]?.grounding, benchmark.phases?.[phase]?.solving]))
 export const pythonSeconds = (benchmark) => sum(phaseOrder.flatMap(([phase]) => [benchmark.phases?.[phase]?.self, benchmark.phases?.[phase]?.other]))
+export const hypothesisSeconds = (benchmark) => phaseTotal(benchmark, 'hypothesisSpace')
+export const evolutionarySeconds = (benchmark) => sum(['initialization', 'selection', 'crossover', 'mutation', 'replacement', 'gaPython'].map((phase) => phaseTotal(benchmark, phase)))
 export const typeTotal = (benchmark, type) => sum(phaseOrder.map(([phase]) => benchmark.phases?.[phase]?.[type]))
 export const phaseTotals = (benchmark) => phaseOrder.map(([phase, label]) => ({ phase, label, seconds: phaseTotal(benchmark, phase) }))
 export const topPhase = (benchmark) => phaseTotals(benchmark).reduce((best, row) => row.seconds > best.seconds ? row : best, { label: 'n/a', seconds: 0 })
+export const dominantLabel = (value) => value === 'overhead' ? 'python' : value
+
+export const operatorLabel = (row) => `${row.operator}:${row.strategy}`
+export const candidateOperatorRows = (benchmark) => (benchmark.operatorSummary || [])
+  .filter((row) => ['crossover', 'mutation'].includes(row.operator))
+export const replacementOperatorRows = (benchmark) => (benchmark.operatorSummary || [])
+  .filter((row) => row.operator === 'replacement')
+export const scoreDeltaRows = (benchmark) => candidateOperatorRows(benchmark)
+  .filter((row) => maybeNum(row.mean_score_delta) !== null)

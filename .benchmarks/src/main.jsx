@@ -13,6 +13,7 @@ import { CostByTypeChart } from './charts/CostByTypeChart'
 import { FitnessChart } from './charts/FitnessChart'
 import { GroundingSolvingChart } from './charts/GroundingSolvingChart'
 import { OperatorHealthChart } from './charts/OperatorHealthChart'
+import { OperatorScoreDeltaChart } from './charts/OperatorScoreDeltaChart'
 import { OperatorsChart } from './charts/OperatorsChart'
 import { PhaseTypeChart } from './charts/PhaseTypeChart'
 import { QualityProgramChart } from './charts/QualityProgramChart'
@@ -25,7 +26,7 @@ import { SweepHeatmapChart } from './charts/SweepHeatmapChart'
 import { TimingDepthChart } from './charts/TimingDepthChart'
 import { TotalTimeChart } from './charts/TotalTimeChart'
 import { TypeSplitChart } from './charts/TypeSplitChart'
-import { clingoSeconds, dataUrl, fmt, fmtInt, pythonSeconds, runCount, sweepUrl, topPhase, totalSeconds } from './metrics'
+import { bestRunRatio, clingoSeconds, dataUrl, dominantLabel, evolutionarySeconds, fmt, fmtInt, hypothesisSeconds, pythonSeconds, runCount, sweepUrl, topPhase, totalSeconds } from './metrics'
 import './styles.css'
 
 function useHashPage() {
@@ -157,16 +158,18 @@ function Detail({ benchmarks, benchmark, setSelected }) {
           </select>
         </label>
       </div>
-      <div className="grid grid-cols-5 gap-3">
-        <Stat label="runs" value={runCount(benchmark)} sub="leídos del profiling" />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
+        <Stat label="runs" value={runCount(benchmark)} />
         <Stat label="total" value={`${fmt(totalSeconds(benchmark), 2)}s`} />
         <Stat label="clingo" value={`${fmt(clingoSeconds(benchmark), 2)}s`} />
         <Stat label="python" value={`${fmt(pythonSeconds(benchmark), 2)}s`} />
         <Stat label="solve calls" value={fmtInt(benchmark.solveCalls)} />
         <Stat label="ground calls" value={fmtInt(benchmark.groundCalls)} />
         <Stat label="candidatas" value={fmtInt(benchmark.candidates)} />
-        <Stat label="dominante" value={benchmark.dominant || topPhase(benchmark).label} />
-        <Stat label="first solution" value={fmtInt(benchmark.firstSolution)} />
+        <Stat label="dominante" value={dominantLabel(benchmark.dominant || topPhase(benchmark).label)} />
+        <Stat label="is best" value={bestRunRatio(benchmark)} />
+        <Stat label="hypothesis" value={`${fmt(hypothesisSeconds(benchmark), 2)}s`} />
+        <Stat label="tiempo evolutivo" value={`${fmt(evolutionarySeconds(benchmark), 2)}s`} />
       </div>
       <SectionGrid>
         <PhaseTypeChart benchmark={benchmark} />
@@ -174,6 +177,7 @@ function Detail({ benchmarks, benchmark, setSelected }) {
         <FitnessChart benchmark={benchmark} />
         <OperatorsChart benchmark={benchmark} />
         <OperatorHealthChart benchmark={benchmark} />
+        <OperatorScoreDeltaChart benchmark={benchmark} />
         <QualityChart benchmark={benchmark} />
         <QualityProgramChart benchmark={benchmark} />
         <TimingDepthChart benchmark={benchmark} />

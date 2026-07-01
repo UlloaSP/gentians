@@ -137,13 +137,10 @@ STANDARD_TIMING_METRICS = [
     "crossover.solving",
     "fitness.initialization.grounding",
     "fitness.initialization.solving",
-    "fitness.final.grounding",
-    "fitness.final.solving",
     "mutation",
     "crossover",
     "genetic",
     "fitness.initialization",
-    "fitness.final",
 ]
 
 
@@ -667,7 +664,6 @@ def compute_accounting_invariants(
         "fitness.initialization",
         "crossover",
         "mutation",
-        "fitness.final",
     ]:
         phase_total = values.get(phase, 0.0)
         clingo_total = sum_nested_metric(
@@ -946,6 +942,7 @@ def write_dashboard_data(
                 "contextAtoms": 0,
                 "total": total,
                 "runCount": len(dataset_results),
+                "bestFoundRuns": sum(1 for result in dataset_results if result.success),
                 "successRate": mean_bool(
                     [asdict(result) for result in dataset_results], "success"
                 ),
@@ -1047,7 +1044,6 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
             "solving": 0.0,
             "other": 0.0,
         },
-        "fitnessFinal": phase("fitnessFinal", "fitness.final"),
     }
     total = values.get("total_execution", 0.0)
     measured = sum(sum(type_values.values()) for type_values in phases.values())
@@ -1063,7 +1059,7 @@ def dominant_phase(phases: dict[str, dict[str, float]]) -> str:
         return "grounding"
     if solving >= self_time:
         return "solving"
-    return "overhead"
+    return "python"
 
 
 def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
@@ -1234,6 +1230,37 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             if children
             else mean_bool(selected, "duplicate_population")
         )
+        replacement_rejects = [row for row in selected if row.get("operator") == "replacement"]
+        generation_operator = operator in {"crossover", "mutation"}
+        replacement_operator = operator == "replacement"
+        produced_rate = None
+        if operator == "crossover" and children:
+            produced_rate = max(
+                (children - children_same_as_parent - children_duplicate_population)
+                / children,
+                0.0,
+            )
+        elif operator == "mutation":
+            produced_rate = mean_bool(selected, "changed")
+        improvement_rate = (
+            children_improved / children
+            if operator == "crossover" and children
+            else mean_bool(selected, "improved") if operator == "mutation" else None
+        )
+        acceptance_rate = mean_bool(selected, "accepted") if replacement_operator else None
+        reject_duplicate_rate = (
+            mean_bool(replacement_rejects, "duplicate") if replacement_operator else None
+        )
+        reject_non_finite_rate = (
+            mean_match(replacement_rejects, "reject_reason", "non_finite")
+            if replacement_operator
+            else None
+        )
+        reject_not_competitive_rate = (
+            mean_match(replacement_rejects, "reject_reason", "not_competitive")
+            if replacement_operator
+            else None
+        )
         summary.append(
             {
                 "dataset": dataset,
@@ -1241,25 +1268,27 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "strategy": strategy,
                 "events": len(selected),
                 "not_applied_rate": mean_bool(selected, "not_applied"),
-                "improvement_rate": children_improved / children
-                if children
-                else mean_bool(selected, "improved"),
-                "acceptance_rate": mean_bool(selected, "accepted"),
+                "produced_rate": produced_rate,
+                "improvement_rate": improvement_rate,
+                "acceptance_rate": acceptance_rate,
                 "duplicate_rate": duplicate_population_rate
-                if duplicate_population_rate
-                else mean_bool(selected, "duplicate"),
+                if generation_operator
+                else reject_duplicate_rate if replacement_operator else None,
+                "reject_duplicate_rate": reject_duplicate_rate,
+                "reject_non_finite_rate": reject_non_finite_rate,
+                "reject_not_competitive_rate": reject_not_competitive_rate,
                 "same_as_parent_rate": children_same_as_parent / children
-                if children
-                else 0.0,
-                "changed_rate": mean_bool(selected, "changed"),
+                if operator == "crossover" and children
+                else None,
+                "changed_rate": mean_bool(selected, "changed") if operator == "mutation" else None,
                 "mean_score_delta": mean(crossover_deltas)
-                if crossover_deltas
+                if operator == "crossover" and crossover_deltas
                 else mean(
                     to_float(row.get("new_score")) - to_float(row.get("original_score"))
                     for row in selected
                     if row.get("new_score") not in (None, "")
                     and row.get("original_score") not in (None, "")
-                ),
+                ) if operator == "mutation" else None,
             }
         )
     return summary
@@ -1570,6 +1599,10 @@ def mean_bool(rows: list[dict[str, object]], key: str) -> float:
         if key in row and row.get(key) not in (None, "")
     ]
     return mean(values)
+
+
+def mean_match(rows: list[dict[str, object]], key: str, value: object) -> float:
+    return mean(1.0 if row.get(key) == value else 0.0 for row in rows)
 
 
 def stddev(values: Iterable[float]) -> float:

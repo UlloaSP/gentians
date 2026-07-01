@@ -5,6 +5,7 @@ import random
 from .crossovers.set_mix import set_mix_crossover
 from .fitness.coverage_fixed import coverage_fixed
 from .individual import Individual
+from .program_sampler import ProgramSampler
 from .mutations.random_group import mutate_by_random_group
 from .populations.random_initialization import initialize_population
 from .replacements.oldest_or_worst import replace_oldest_or_worst
@@ -75,7 +76,7 @@ def create_selection(config: dict[str, object]) -> SelectionFn:
     raise ValueError(f"Unknown selection operator: {name}")
 
 
-def create_crossover(config: dict[str, object]) -> CrossoverFn:
+def create_crossover(config: dict[str, object], sampler: ProgramSampler) -> CrossoverFn:
     name = _str(config, "name")
     if name == "set_mix":
         probability = _float(config, "probability")
@@ -95,6 +96,7 @@ def create_crossover(config: dict[str, object]) -> CrossoverFn:
                     probability,
                     known_signatures,
                     max_program_clauses,
+                    sampler,
                 )
             return _clone_parents_without_crossover(best_a, best_b, probability)
 
@@ -102,7 +104,7 @@ def create_crossover(config: dict[str, object]) -> CrossoverFn:
     raise ValueError(f"Unknown crossover operator: {name}")
 
 
-def create_mutation(config: dict[str, object]) -> MutationFn:
+def create_mutation(config: dict[str, object], sampler: ProgramSampler) -> MutationFn:
     name = _str(config, "name")
     if name == "random_group":
         probability = _float(config, "probability")
@@ -121,13 +123,14 @@ def create_mutation(config: dict[str, object]) -> MutationFn:
                 probability,
                 evaluate_score,
                 known_signatures,
+                sampler,
             )
 
         return mutate
     raise ValueError(f"Unknown mutation operator: {name}")
 
 
-def create_population(config: dict[str, object]) -> PopulationInitializerFn:
+def create_population(config: dict[str, object], sampler: ProgramSampler) -> PopulationInitializerFn:
     name = _str(config, "name")
     if name == "random":
         size = _int(config, "size")
@@ -138,7 +141,7 @@ def create_population(config: dict[str, object]) -> PopulationInitializerFn:
             evaluate_score: FitnessFn,
         ) -> tuple[list[Individual], bool]:
             return initialize_population(
-                max_program_clauses, rule_space, size, evaluate_score
+                max_program_clauses, rule_space, size, evaluate_score, sampler
             )
 
         return initialize

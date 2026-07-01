@@ -1,6 +1,7 @@
 import random
 
 from ..individual import Individual
+from ..program_sampler import ProgramSampler
 from ..types import FitnessFn
 from ...timing import phase, profile_phase, record_metric
 
@@ -33,6 +34,7 @@ def _sample_child(
     parent_b: Individual,
     known_signatures: set[tuple[str, ...]],
     max_program_clauses: int,
+    sampler: ProgramSampler | None,
 ) -> list[str]:
     union = sorted(set(parent_a.program) | set(parent_b.program))
     if not union:
@@ -47,8 +49,25 @@ def _sample_child(
             selected = sorted(random.sample(selected, limit))
         else:
             selected = sorted(selected)
-        if tuple(selected) not in known_signatures:
+        if sampler is not None:
+            repaired = sampler.repair(
+                selected,
+                max_program_clauses,
+                preferred_rules=union,
+            )
+            if repaired is not None and tuple(repaired) not in known_signatures:
+                return repaired
+        elif tuple(selected) not in known_signatures:
             return selected
+    if sampler is not None:
+        sampled = sampler.sample(
+            max_program_clauses,
+            known_signatures,
+            preferred_rules=union,
+        )
+        if sampled is not None:
+            return sampled
+        return list(random.choice((parent_a, parent_b)).program)
     return sorted(random.sample(union, random.randint(1, limit)))
 
 
@@ -60,11 +79,24 @@ def set_mix_crossover(
     probability: float,
     known_signatures: set[tuple[str, ...]],
     max_program_clauses: int,
+    sampler: ProgramSampler | None = None,
 ) -> tuple[Individual, Individual]:
     with phase("crossover.operator"):
-        program_0 = _sample_child(best_a, best_b, known_signatures, max_program_clauses)
+        program_0 = _sample_child(
+            best_a,
+            best_b,
+            known_signatures,
+            max_program_clauses,
+            sampler,
+        )
         local_signatures = {*known_signatures, tuple(sorted(program_0))}
-        program_1 = _sample_child(best_a, best_b, local_signatures, max_program_clauses)
+        program_1 = _sample_child(
+            best_a,
+            best_b,
+            local_signatures,
+            max_program_clauses,
+            sampler,
+        )
 
     i0 = _evaluate_child(best_a, best_b, program_0, evaluate_score, known_signatures)
     i1 = _evaluate_child(best_a, best_b, program_1, evaluate_score, known_signatures)

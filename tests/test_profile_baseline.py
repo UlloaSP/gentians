@@ -323,6 +323,27 @@ def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
     assert bench["models"] == 3
 
 
+def test_dashboard_counts_best_found_runs(tmp_path):
+    write_dashboard_data(
+        tmp_path,
+        [
+            RunResult("d", 1, 1, "run", "ok", 0, 1.0, [], "{}", "", ""),
+            RunResult("d", 2, 2, "run", "ok", 0, 1.0, [], "{}", "", "", success=True),
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
+
+    bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
+    assert bench["runCount"] == 2
+    assert bench["bestFoundRuns"] == 1
+
+
 def test_reset_run_outputs_removes_stale_profile_files(tmp_path):
     paths = [tmp_path / "a.jsonl", tmp_path / "b.json"]
     for path in paths:

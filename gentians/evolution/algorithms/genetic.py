@@ -8,7 +8,7 @@ from ..types import (
     ReplacementFn,
     SelectionFn,
 )
-from ...rule_generation.rule_space import RuleId, RuleSpace
+from ...rule_generation.rule_space import RuleSpace
 from ...timing import phase, profile_phase, record_ga_generation
 
 
@@ -22,7 +22,7 @@ def genetic_solver(
     crossover: CrossoverFn,
     mutation: MutationFn,
     replacement: ReplacementFn,
-) -> tuple[list[RuleId], float, bool]:
+) -> tuple[list[str], float, bool]:
     """
     Genetic algorithm to find the best program
     """
@@ -127,7 +127,7 @@ def _best_individual(population: list[Individual]) -> Individual | None:
 def _return_best(
     individual: Individual,
     evaluate_score: FitnessFn,
-) -> tuple[list[RuleId], float, bool]:
+) -> tuple[list[str], float, bool]:
     indexes = individual.l_best_indexes or list(range(len(individual.program)))
     program = [individual.program[i] for i in indexes]
     program, score = _minimize_best_program(program, evaluate_score)
@@ -135,9 +135,9 @@ def _return_best(
 
 
 def _minimize_best_program(
-    program: list[RuleId],
+    program: list[str],
     evaluate_score: FitnessFn,
-) -> tuple[list[RuleId], float]:
+) -> tuple[list[str], float]:
     current = list(program)
     current_score, _, _ = evaluate_score(current)
     changed = True

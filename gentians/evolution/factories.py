@@ -21,7 +21,7 @@ from .types import (
     SelectionFn,
 )
 from ..rule_generation.program import Program
-from ..rule_generation.rule_space import RuleId, RuleSpace
+from ..rule_generation.rule_space import RuleSpace
 from ..timing import profile_phase, record_metric
 
 
@@ -35,13 +35,9 @@ def create_fitness(
     clingo_arguments = _str_list(config, "clingo_arguments")
     empty_score = _float(config, "empty_score")
     if name == "coverage_exp_mean":
-        return _rendering_fitness(
-            rule_space, coverage_exp_mean(program, max_as, clingo_arguments, empty_score)
-        )
+        return coverage_exp_mean(program, max_as, clingo_arguments, empty_score)
     if name == "coverage_exp_max":
-        return _rendering_fitness(
-            rule_space, coverage_exp_max(program, max_as, clingo_arguments, empty_score)
-        )
+        return coverage_exp_max(program, max_as, clingo_arguments, empty_score)
     if name == "coverage_fixed":
         size_penalty = float(config.get("size_penalty", 0.01))
         literal_penalty = float(config.get("literal_penalty", 0.002))
@@ -54,7 +50,6 @@ def create_fitness(
             size_penalty,
             literal_penalty,
             redundancy_penalty,
-            rule_space,
         )
     raise ValueError(f"Unknown fitness operator: {name}")
 
@@ -97,7 +92,7 @@ def create_crossover(config: dict[str, object]) -> CrossoverFn:
             best_a: Individual,
             best_b: Individual,
             evaluate_score: FitnessFn,
-            known_signatures: set[tuple[RuleId, ...]],
+            known_signatures: set[tuple[str, ...]],
             max_program_clauses: int,
         ) -> tuple[Individual, Individual]:
             if random.random() < probability:
@@ -125,7 +120,7 @@ def create_mutation(config: dict[str, object]) -> MutationFn:
             rule_space: RuleSpace,
             max_program_clauses: int,
             evaluate_score: FitnessFn,
-            known_signatures: set[tuple[RuleId, ...]],
+            known_signatures: set[tuple[str, ...]],
         ) -> Individual:
             return mutate_by_random_group(
                 element,
@@ -166,7 +161,7 @@ def create_replacement(config: dict[str, object]) -> ReplacementFn:
         def replace(
             population: list[Individual],
             element: Individual,
-            population_signatures: set[tuple[RuleId, ...]],
+            population_signatures: set[tuple[str, ...]],
         ) -> list[Individual]:
             return replace_oldest_or_worst(
                 population, element, population_signatures, prob_replacing_oldest
@@ -248,14 +243,6 @@ def _clone_individual(individual: Individual) -> Individual:
         individual.is_best,
         list(individual.l_best_indexes),
     )
-
-
-def _rendering_fitness(rule_space: RuleSpace, evaluate_text_program):
-    def evaluate(program: list[RuleId]) -> tuple[float, bool, list[int]]:
-        return evaluate_text_program(rule_space.render(program))
-
-    return evaluate
-
 
 def _distinct_pair(
     population: list[Individual], first: Individual, second: Individual

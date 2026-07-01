@@ -33,7 +33,7 @@ def test_coverage_fixed_penalizes_brave_negative_violation():
     )
 
     score, best_found, indexes = coverage_fixed(
-        program, 0, [], -2000, 0.01, 0.002, 0.01, RuleSpace.from_clauses([])
+        program, 0, [], -2000, 0.01, 0.002, 0.01
     )([])
 
     assert score == math.exp(10)
@@ -51,7 +51,7 @@ def test_coverage_fixed_uses_brave_positive_coverage():
     )
 
     score, best_found, indexes = coverage_fixed(
-        program, 0, [], -2000, 0.01, 0.002, 0.01, RuleSpace.from_clauses([])
+        program, 0, [], -2000, 0.01, 0.002, 0.01
     )([])
 
     assert score == math.exp(15)
@@ -67,23 +67,15 @@ def test_coverage_fixed_prefers_positive_coverage_over_clean_overconstraint():
         [],
         [],
     )
-    rule_space = RuleSpace.from_clauses([":- b.", ":- a."])
-    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, 0.002, 0.01, rule_space)
+    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, 0.002, 0.01)
 
-    covering_score, _, _ = evaluate([1])
-    overconstrained_score, _, _ = evaluate([0, 1])
+    covering_score, _, _ = evaluate([":- b."])
+    overconstrained_score, _, _ = evaluate([":- a.", ":- b."])
 
     assert covering_score > overconstrained_score
 
 
-def test_coverage_fixed_uses_pregrounded_rule_space(monkeypatch):
-    def fail_fallback(*args, **kwargs):
-        raise AssertionError("fixed coverage should use pregrounded rule space")
-
-    monkeypatch.setattr(
-        "gentians.asp.clingo.ClingoInterface.extract_fixed_coverage",
-        fail_fallback,
-    )
+def test_coverage_fixed_uses_normal_fixed_coverage():
     program = Program(
         ["1 { a; b } 1."],
         [Example(("a", ""), True)],
@@ -100,8 +92,7 @@ def test_coverage_fixed_uses_pregrounded_rule_space(monkeypatch):
         0.01,
         0.002,
         0.01,
-        rule_space=RuleSpace.from_clauses([":- b."]),
-    )([0])
+    )([":- b."])
 
     assert math.isclose(score, math.exp(14.94))
     assert best_found is True
@@ -118,15 +109,21 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
             self.clingo_arguments = clingo_arguments
             instances.append(self)
 
-        def fixed_coverage_solver(self, rule_space, interpretation_pos, interpretation_neg):
-            calls.append((tuple(self.clingo_arguments), bool(interpretation_pos), bool(interpretation_neg)))
-
-            class FakePreGrounded:
-                def extract_fixed_coverage_by_id(self, candidate_program):
-                    calls.append(tuple(candidate_program))
-                    return Coverage([0], [0])
-
-            return FakePreGrounded()
+        def extract_fixed_coverage(
+            self,
+            candidate_program,
+            interpretation_pos,
+            interpretation_neg,
+        ):
+            calls.append(
+                (
+                    tuple(candidate_program),
+                    tuple(self.clingo_arguments),
+                    bool(interpretation_pos),
+                    bool(interpretation_neg),
+                )
+            )
+            return Coverage([0], [0])
 
     monkeypatch.setattr(fixed_module, "ClingoInterface", FakeSolver)
     program = Program(
@@ -145,13 +142,11 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
         0.0,
         0.0,
         0.0,
-        RuleSpace.from_clauses([]),
     )([])
 
     assert instances[0].clingo_arguments == ["0", "--project"]
     assert calls == [
-        (("0", "--project"), True, True),
-        (),
+        ((), ("0", "--project"), True, True),
     ]
     assert (score, best_found, indexes) == (math.exp(10), False, [])
 
@@ -177,8 +172,7 @@ def test_coverage_fixed_rejects_sudoku_without_row_constraint():
         float(args.fitness["size_penalty"]),
         float(args.fitness["literal_penalty"]),
         float(args.fitness["redundancy_penalty"]),
-        rule_space=rule_space,
-    )(rule_space.ids)
+    )(rule_space.clauses)
 
     assert best_found is False
 
@@ -191,16 +185,14 @@ def test_coverage_fixed_penalizes_literals_and_redundancy():
         [],
         [],
     )
-    rule_space = RuleSpace.from_clauses(
-        [
-            "target :- ok,p(1),q(2).",
-            "target :- ok,p(V0),q(V1),V0!=V1,V1!=V0.",
-        ]
-    )
-    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, 0.002, 0.01, rule_space)
+    rules = [
+        "target :- ok,p(1),q(2).",
+        "target :- ok,p(V0),q(V1),V0!=V1,V1!=V0.",
+    ]
+    evaluate = coverage_fixed(program, 0, [], -2000, 0.01, 0.002, 0.01)
 
-    small_score, small_best, _ = evaluate([0])
-    redundant_score, redundant_best, _ = evaluate([1])
+    small_score, small_best, _ = evaluate([rules[0]])
+    redundant_score, redundant_best, _ = evaluate([rules[1]])
 
     assert small_best is True
     assert redundant_best is True

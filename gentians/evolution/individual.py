@@ -1,12 +1,10 @@
 import time
 
-from ..rule_generation.rule_space import RuleId
-
 
 class Individual:
     def __init__(
         self,
-        program: list[RuleId],
+        program: list[str],
         score: float,
         is_best: bool,  # does this cover everything positive and no negative?
         l_best_indexes: list[int],  # best indexes, if it is the best

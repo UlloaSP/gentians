@@ -53,7 +53,7 @@ def solve(program: Program, arguments: Arguments) -> None:
                 print(f"--- Found best program with score {score} ---")
             else:
                 print(f"--- Best candidate program with score {score} ---")
-            print(*rule_space.render(prg), sep="\n")
+            print(*prg, sep="\n")
             print("--------------------------")
             print(f"Total time: {time.time() - start_total_time}")
     finally:

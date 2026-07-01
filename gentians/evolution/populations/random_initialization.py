@@ -18,7 +18,7 @@ def initialize_population(
     """
     sampled_individuals: list[Individual] = []
     best_found = False
-    seen_signatures: set[tuple[int, ...]] = set()
+    seen_signatures: set[tuple[str, ...]] = set()
     attempts = 0
     max_unique_attempts = population_size * 20
 
@@ -26,9 +26,7 @@ def initialize_population(
         attempts += 1
         size_limit = max(1, min(max_program_clauses, len(rule_space)))
         program_size = random.randint(1, size_limit)
-        program = sorted(
-            random.sample(rule_space.ids, program_size)
-        )
+        program = sorted(random.sample(rule_space.clauses, program_size))
         signature = tuple(program)
         if signature in seen_signatures and attempts < max_unique_attempts:
             continue

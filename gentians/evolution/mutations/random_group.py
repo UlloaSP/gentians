@@ -3,7 +3,7 @@ import time
 
 from ..individual import Individual
 from ..types import FitnessFn
-from ...rule_generation.rule_space import RuleId, RuleSpace
+from ...rule_generation.rule_space import RuleSpace
 from ...timing import phase, profile_phase, record_metric
 
 
@@ -23,7 +23,7 @@ def mutate_by_random_group(
     max_program_clauses: int,
     probability: float,
     evaluate_score: FitnessFn,
-    known_signatures: set[tuple[RuleId, ...]],
+    known_signatures: set[tuple[str, ...]],
 ):
     """
     Mutation of an element
@@ -38,7 +38,9 @@ def mutate_by_random_group(
     with phase("mutation.operator"):
         if random.random() < probability:
             current_rules = set(element.program)
-            available_rules = [rule for rule in rule_space.ids if rule not in current_rules]
+            available_rules = [
+                rule for rule in rule_space.clauses if rule not in current_rules
+            ]
             operations = []
             if element.program and available_rules:
                 operations.append("replace")

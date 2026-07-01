@@ -16,7 +16,7 @@ from ..timing import add, current_phase, profile_phase, record_metric
 from .parser import parse_atom, split_top_level_args
 from .program import Program
 from .reader import read_program
-from .rule_space import Rule, RuleSpace
+from .rule_space import RuleSpace
 
 
 LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
@@ -158,9 +158,7 @@ class HypothesisSpaceGenerator:
             },
         )
 
-        return RuleSpace(
-            [Rule(index, clause) for index, clause in enumerate(sorted(clauses))]
-        )
+        return RuleSpace.from_clauses(clauses)
 
 
 def read_task(filename: str) -> Program:

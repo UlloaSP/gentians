@@ -388,7 +388,7 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     program = read_task(args.filename)
     clauses = HypothesisSpaceGenerator(program, args).generate()
     random.seed(1)
-    candidate = clauses.render(sorted(random.sample(clauses.ids, args.max_program_clauses)))
+    candidate = sorted(random.sample(clauses.clauses, args.max_program_clauses))
 
     ClingoInterface(program.background, args.fitness["clingo_arguments"]).extract_coverage_and_set_clauses(
         candidate,

@@ -2,20 +2,19 @@ import random
 
 from ..individual import Individual
 from ..types import FitnessFn
-from ...rule_generation.rule_space import RuleId
 from ...timing import phase, profile_phase, record_metric
 
 
-def _child_from_parent(parent: Individual, program: list[RuleId]) -> Individual:
+def _child_from_parent(parent: Individual, program: list[str]) -> Individual:
     return Individual(program, parent.score, parent.is_best, list(parent.l_best_indexes))
 
 
 def _evaluate_child(
     parent_a: Individual,
     parent_b: Individual,
-    program: list[RuleId],
+    program: list[str],
     evaluate_score: FitnessFn,
-    known_signatures: set[tuple[RuleId, ...]],
+    known_signatures: set[tuple[str, ...]],
 ) -> Individual:
     signature = tuple(sorted(program))
     if signature == parent_a.signature:
@@ -32,9 +31,9 @@ def _evaluate_child(
 def _sample_child(
     parent_a: Individual,
     parent_b: Individual,
-    known_signatures: set[tuple[RuleId, ...]],
+    known_signatures: set[tuple[str, ...]],
     max_program_clauses: int,
-) -> list[RuleId]:
+) -> list[str]:
     union = sorted(set(parent_a.program) | set(parent_b.program))
     if not union:
         return []
@@ -59,7 +58,7 @@ def set_mix_crossover(
     best_b: Individual,
     evaluate_score: FitnessFn,
     probability: float,
-    known_signatures: set[tuple[RuleId, ...]],
+    known_signatures: set[tuple[str, ...]],
     max_program_clauses: int,
 ) -> tuple[Individual, Individual]:
     with phase("crossover.operator"):

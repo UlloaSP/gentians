@@ -2,7 +2,6 @@ import math
 import random
 
 from ..individual import Individual
-from ...rule_generation.rule_space import RuleId
 from ...timing import profile_phase, record_metric
 
 
@@ -10,7 +9,7 @@ from ...timing import profile_phase, record_metric
 def replace_oldest_or_worst(
     population: list[Individual],
     element: Individual,
-    population_signatures: set[tuple[RuleId, ...]],
+    population_signatures: set[tuple[str, ...]],
     prob_replacing_oldest: float,
 ) -> list[Individual]:
     accepted = False

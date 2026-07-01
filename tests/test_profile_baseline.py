@@ -13,6 +13,7 @@ from benchmarks.profile_baseline import (
     parse_log,
     reset_run_outputs,
     write_dashboard_data,
+    write_debug_clingo_program,
 )
 from gentians import timing
 from gentians.arguments import Arguments
@@ -26,6 +27,7 @@ def test_parse_log_marks_only_found_best_as_success(tmp_path):
     log.write_text(
         "--- Found best program with score 1.0 ---\n"
         "rule.\n"
+        "--------------------------\n"
         "Total time: 0.1\n",
         encoding="utf-8",
     )
@@ -33,6 +35,7 @@ def test_parse_log_marks_only_found_best_as_success(tmp_path):
     parsed = parse_log(log, "dataset", 1)
 
     assert parsed["success"] is True
+    assert parsed["best_program"] == ["rule."]
 
 
 def test_parse_log_keeps_best_candidate_as_not_success(tmp_path):
@@ -40,6 +43,7 @@ def test_parse_log_keeps_best_candidate_as_not_success(tmp_path):
     log.write_text(
         "--- Best candidate program with score 1.0 ---\n"
         "rule.\n"
+        "--------------------------\n"
         "Total time: 0.1\n",
         encoding="utf-8",
     )
@@ -47,6 +51,36 @@ def test_parse_log_keeps_best_candidate_as_not_success(tmp_path):
     parsed = parse_log(log, "dataset", 1)
 
     assert parsed["success"] is False
+    assert parsed["best_program"] == ["rule."]
+
+
+def test_profile_baseline_writes_debug_clingo_program(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "base.\n"
+        "#pos({target},{}).\n"
+        "#modeh(1,target,0).\n",
+        encoding="utf-8",
+    )
+    arguments = Arguments(filename=str(task))
+
+    write_debug_clingo_program(
+        tmp_path / ".debug" / "clingo",
+        "coin/run",
+        arguments,
+        ["target."],
+    )
+
+    dump = (tmp_path / ".debug" / "clingo" / "coin_run.lp").read_text(
+        encoding="utf-8"
+    )
+    args = (tmp_path / ".debug" / "clingo" / "coin_run.args.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "base." in dump
+    assert "pos_exs(0..0)." in dump
+    assert "target." in dump
+    assert "python -m clingo 0 --enum-mode=brave" in args
 
 
 def test_operator_summary_sanitizes_non_finite_scores():
@@ -66,7 +100,7 @@ def test_operator_summary_sanitizes_non_finite_scores():
     assert summary["mean_score_delta"] == -1.0
 
 
-def test_operator_summary_separates_crossover_duplicate_types():
+def test_operator_summary_counts_crossover_parent_duplicates_as_duplicates():
     rows = [
         {
             "dataset": "d",
@@ -101,8 +135,9 @@ def test_operator_summary_separates_crossover_duplicate_types():
     [summary] = operator_summary(rows)
 
     assert summary["not_applied_rate"] == 0.5
-    assert summary["same_as_parent_rate"] == 0.75
-    assert summary["duplicate_rate"] == 0.25
+    assert summary["same_as_parent_rate"] is None
+    assert summary["duplicate_rate"] == 1.0
+    assert summary["produced_rate"] == 0.0
     assert summary["improvement_rate"] == 0.25
     assert summary["mean_score_delta"] == -0.25
 

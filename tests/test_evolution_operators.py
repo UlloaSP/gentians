@@ -215,6 +215,29 @@ def test_replacement_updates_population_signatures(monkeypatch):
     assert signatures == {updated[0].signature, updated[1].signature}
 
 
+def test_replacement_keeps_population_sorted_when_replacing_oldest(monkeypatch):
+    population = [
+        Individual(["a."], 3.0, False, []),
+        Individual(["b."], 2.0, False, []),
+        Individual(["c."], 1.0, False, []),
+    ]
+    population[1].generated_timestamp = 0.0
+    population[0].generated_timestamp = 1.0
+    population[2].generated_timestamp = 2.0
+    signatures = {individual.signature for individual in population}
+    monkeypatch.setattr("gentians.evolution.replacements.oldest_or_worst.random.random", lambda: 0.0)
+
+    updated = replace_oldest_or_worst(
+        population,
+        Individual(["d."], 2.5, False, []),
+        signatures,
+        1.0,
+    )
+
+    assert [individual.score for individual in updated] == [3.0, 2.5, 1.0]
+    assert signatures == {updated[0].signature, updated[1].signature, updated[2].signature}
+
+
 def test_program_sampler_repairs_missing_dependency():
     rules = [
         "heads(V0):- coin(V0),not tails(V0).",
@@ -261,6 +284,57 @@ def test_crossover_does_not_evaluate_unrepaired_sampler_child():
 
     assert child_a.signature in {parent_a.signature, parent_b.signature}
     assert child_b.signature in {parent_a.signature, parent_b.signature}
+
+
+def test_crossover_counts_parent_children_as_duplicates(monkeypatch):
+    parent_a = Individual(["a."], 1.0, False, [])
+    parent_b = Individual(["b."], 2.0, False, [])
+    metrics = []
+
+    class ParentSampler:
+        def repair(self, *args, **kwargs):
+            return ["a."]
+
+        def sample(self, *args, **kwargs):
+            return ["a."]
+
+    monkeypatch.setattr(
+        "gentians.evolution.crossovers.set_mix.record_metric",
+        lambda kind, row: metrics.append(row),
+    )
+
+    set_mix_crossover(
+        parent_a,
+        parent_b,
+        lambda program: (3.0, False, []),
+        1.0,
+        {parent_a.signature, parent_b.signature},
+        1,
+        ParentSampler(),
+    )
+
+    assert metrics[-1]["children_same_as_parent"] == 0
+    assert metrics[-1]["children_duplicate_parent"] == 2
+    assert metrics[-1]["children_duplicate_population"] == 0
+
+
+def test_initialization_stops_when_exact_solution_found():
+    calls = []
+
+    def score(program):
+        calls.append(program)
+        return 1.0, True, []
+
+    population, best_found = initialize_population(
+        1,
+        RuleSpace.from_clauses(["a."]),
+        5,
+        score,
+    )
+
+    assert best_found is True
+    assert len(population) == 1
+    assert len(calls) == 1
 
 
 def test_initialization_does_not_fallback_to_raw_when_sampler_fails():

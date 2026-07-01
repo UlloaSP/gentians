@@ -1,5 +1,4 @@
 import clingo
-import os
 import time
 from pathlib import Path
 
@@ -10,7 +9,6 @@ from ..timing import add, current_phase, record_metric
 
 LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
 COVERAGE_RULES = (LOGIC_PROGRAMS / "coverage_rules.lp").read_text()
-_coverage_dump_counter = 0
 
 
 class ClingoInterface:
@@ -37,7 +35,6 @@ class ClingoInterface:
         generated_program = self._coverage_static_program(
             interpretation_pos, interpretation_neg
         ) + "\n" + "\n".join(program)
-        _dump_coverage_program(generated_program, self.clingo_arguments)
 
         wrp = WrapperStopIfWarn()
         ctl = clingo.Control(
@@ -145,49 +142,16 @@ def _build_coverage_static_program(
     return "\n".join(parts)
 
 
-def _dump_coverage_program(program: str, clingo_arguments: "list[str]") -> None:
-    target = os.environ.get("GENTIANS_DUMP_COVERAGE_PROGRAMS")
-    if not target:
-        return
-    directory = (
-        Path(".debug") / "clingo"
-        if target.lower() in {"1", "true", "yes", "on"}
-        else Path(target)
+def build_fixed_coverage_program(
+    background: "list[str]",
+    program: "list[str]",
+    interpretation_pos: "list[Example]",
+    interpretation_neg: "list[Example]",
+) -> str:
+    static_program = _build_coverage_static_program(
+        background, interpretation_pos, interpretation_neg
     )
-    directory.mkdir(parents=True, exist_ok=True)
-    global _coverage_dump_counter
-    _coverage_dump_counter += 1
-    stem = "-".join(
-        part
-        for part in (
-            _dump_context_prefix(),
-            f"coverage_{_coverage_dump_counter:06d}",
-            _safe_filename(current_phase()),
-        )
-        if part
-    )
-    lp_path = directory / f"{stem}.lp"
-    lp_path.write_text(program, encoding="utf-8")
-    args = " ".join(clingo_arguments)
-    (directory / f"{stem}.args.txt").write_text(
-        f"python -m clingo {args} {lp_path}\n", encoding="utf-8"
-    )
-
-
-def _safe_filename(value: str) -> str:
-    return "".join(char if char.isalnum() or char in "._-" else "_" for char in value)
-
-
-def _dump_context_prefix() -> str:
-    benchmark = os.environ.get("GENTIANS_BENCHMARK_NAME", "")
-    run = os.environ.get("GENTIANS_RUN_NUMBER", "")
-    if benchmark and run:
-        return f"{_safe_filename(benchmark)}_run{_safe_filename(run)}"
-    if benchmark:
-        return _safe_filename(benchmark)
-    if run:
-        return f"run{_safe_filename(run)}"
-    return ""
+    return static_program + "\n" + "\n".join(str(rule) for rule in program)
 
 
 def _parse_coverage_symbols(symbols) -> "tuple[list[int],list[int]]":
@@ -218,8 +182,9 @@ def _ground_stats(ctl) -> dict[str, float]:
     atoms = max(
         _clingo_stat(stats, "problem", "lp", "atoms"),
         _clingo_stat(stats, "problem", "lpStep", "atoms"),
-        float(sum(1 for _ in ctl.symbolic_atoms)),
     )
+    if not atoms:
+        atoms = float(sum(1 for _ in ctl.symbolic_atoms))
     rules = max(
         _clingo_stat(stats, "problem", "lp", "rules"),
         _clingo_stat(stats, "problem", "lpStep", "rules"),

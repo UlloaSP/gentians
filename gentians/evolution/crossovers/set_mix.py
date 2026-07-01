@@ -102,7 +102,7 @@ def set_mix_crossover(
     i1 = _evaluate_child(best_a, best_b, program_1, evaluate_score, known_signatures)
 
     parent_best = max(best_a.score, best_b.score)
-    same_as_parent = (
+    parent_duplicates = (
         int(i0.signature in {best_a.signature, best_b.signature})
         + int(i1.signature in {best_a.signature, best_b.signature})
     )
@@ -122,8 +122,8 @@ def set_mix_crossover(
             "children": 2,
             "children_improved": int(i0.score > parent_best) + int(i1.score > parent_best),
             "children_best": int(i0.is_best) + int(i1.is_best),
-            "children_same_as_parent": same_as_parent,
-            "children_duplicate_parent": same_as_parent,
+            "children_same_as_parent": 0,
+            "children_duplicate_parent": parent_duplicates,
             "children_duplicate_population": duplicate_population,
         },
     )

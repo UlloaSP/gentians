@@ -17,6 +17,24 @@ def _clone_individual(element: Individual) -> Individual:
     )
 
 
+def _random_rule_outside(rule_pool: list[str], current_rules: set[str]) -> str | None:
+    if not rule_pool:
+        return None
+    for _ in range(16):
+        rule = random.choice(rule_pool)
+        if rule not in current_rules:
+            return rule
+    available_rules = [rule for rule in rule_pool if rule not in current_rules]
+    return random.choice(available_rules) if available_rules else None
+
+
+def _has_rule_outside(rule_pool: list[str], current_rules: set[str]) -> bool:
+    return bool(rule_pool) and (
+        len(current_rules) < len(rule_pool)
+        or any(rule not in current_rules for rule in rule_pool)
+    )
+
+
 @profile_phase("mutation")
 def mutate_by_random_group(
     element: Individual,
@@ -42,13 +60,11 @@ def mutate_by_random_group(
         if random.random() < probability:
             for _ in range(8):
                 current_rules = set(element.program)
-                available_rules = [
-                    rule for rule in rule_space.clauses if rule not in current_rules
-                ]
+                has_available_rule = _has_rule_outside(rule_space.clauses, current_rules)
                 operations = []
-                if element.program and available_rules:
+                if element.program and has_available_rule:
                     operations.append("replace")
-                if len(element.program) < max_program_clauses and available_rules:
+                if len(element.program) < max_program_clauses and has_available_rule:
                     operations.append("append")
                 if len(element.program) > 1:
                     operations.append("delete")
@@ -59,11 +75,15 @@ def mutate_by_random_group(
                 candidate = _clone_individual(element)
                 attempted_operation = random.choice(operations)
                 if attempted_operation == "replace":
-                    candidate.program[random.randrange(len(candidate.program))] = (
-                        random.choice(available_rules)
-                    )
+                    rule = _random_rule_outside(rule_space.clauses, current_rules)
+                    if rule is None:
+                        continue
+                    candidate.program[random.randrange(len(candidate.program))] = rule
                 elif attempted_operation == "append":
-                    candidate.program.append(random.choice(available_rules))
+                    rule = _random_rule_outside(rule_space.clauses, current_rules)
+                    if rule is None:
+                        continue
+                    candidate.program.append(rule)
                 else:
                     del candidate.program[random.randrange(len(candidate.program))]
 

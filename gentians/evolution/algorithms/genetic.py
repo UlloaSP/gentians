@@ -107,12 +107,6 @@ def genetic_solver(
 
         # 3: replace elements in the population
         for el in l_mutated:
-            with phase("replacement"):
-                duplicate = el.signature in population_signatures
-            if duplicate:
-                continue
             population = replacement(population, el, population_signatures)
-        with phase("replacement"):
-            population.sort(key=lambda x: x.score, reverse=True)
 
     return population[0].program, population[0].score, population[0].is_best

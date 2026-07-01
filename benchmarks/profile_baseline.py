@@ -21,6 +21,8 @@ PROFILE_BASELINE_PATH = Path(__file__).resolve()
 sys.path.insert(0, str(REPO_ROOT))
 
 from gentians import Arguments, main as gentians_main
+from gentians.asp.clingo import build_fixed_coverage_program
+from gentians.rule_generation.hypothesis_space import read_task
 from benchmarks.catalog import (
     DEFAULT_DATASETS,
     arguments_for,
@@ -306,6 +308,13 @@ def main() -> None:
             elapsed = time.perf_counter() - started
             status = "timeout" if timed_out else "ok" if returncode == 0 else "failed"
             parsed = parse_log(log_path, dataset, run)
+            if returncode == 0:
+                write_debug_clingo_program(
+                    REPO_ROOT / ".debug" / "clingo",
+                    dataset,
+                    dataset_arguments,
+                    parsed["best_program"],
+                )
             run_arguments = json.loads(arguments_json)
             fitness_config = run_arguments.get("fitness", {})
             if not isinstance(fitness_config, dict):
@@ -501,6 +510,8 @@ def parse_log(path: Path, dataset: str, run: int) -> dict[str, object]:
     last_generation: int | None = None
     total_seconds: float | None = None
     success = False
+    best_program: list[str] | None = None
+    capturing_program = False
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         match = ITERATION_RE.search(line)
         if match:
@@ -511,6 +522,18 @@ def parse_log(path: Path, dataset: str, run: int) -> dict[str, object]:
             points.append(FitnessPoint(dataset, run, generation, score, best_so_far))
         if "Found best program" in line:
             success = True
+            best_program = []
+            capturing_program = True
+            continue
+        if "Best candidate program" in line:
+            best_program = []
+            capturing_program = True
+            continue
+        if capturing_program:
+            if line == "--------------------------" or line.startswith("Total time:"):
+                capturing_program = False
+            elif best_program is not None:
+                best_program.append(line)
         total_match = TOTAL_RE.search(line)
         if total_match:
             total_seconds = float(total_match.group(1))
@@ -523,7 +546,47 @@ def parse_log(path: Path, dataset: str, run: int) -> dict[str, object]:
         )
         if success
         else None,
+        "best_program": best_program,
     }
+
+
+def write_debug_clingo_program(
+    directory: Path,
+    dataset: str,
+    arguments: Arguments,
+    best_program: object,
+) -> None:
+    if arguments.filename is None or not isinstance(best_program, list):
+        return
+    task = read_task(arguments.filename)
+    lp_path = directory / f"{safe_filename(dataset)}.lp"
+    args_path = directory / f"{safe_filename(dataset)}.args.txt"
+    directory.mkdir(parents=True, exist_ok=True)
+    lp_path.write_text(
+        build_fixed_coverage_program(
+            task.background,
+            [str(rule) for rule in best_program],
+            task.positive_examples,
+            task.negative_examples,
+        ),
+        encoding="utf-8",
+    )
+    args_path.write_text(
+        f"python -m clingo {' '.join(fitness_clingo_arguments(arguments))} {lp_path}\n",
+        encoding="utf-8",
+    )
+
+
+def fitness_clingo_arguments(arguments: Arguments) -> list[str]:
+    fitness = arguments.fitness
+    clingo_args = fitness.get("clingo_arguments", [])
+    if isinstance(clingo_args, str):
+        clingo_args = [clingo_args]
+    return [str(fitness.get("max_as", 0)), *[str(arg) for arg in clingo_args]]
+
+
+def safe_filename(value: str) -> str:
+    return "".join(char if char.isalnum() or char in "._-" else "_" for char in value)
 
 
 def read_phase_times(path: Path, dataset: str, run: int) -> list[PhaseTime]:
@@ -1197,13 +1260,14 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
         children_improved = sum(
             to_float(row.get("children_improved")) for row in selected
         )
-        children_same_as_parent = sum(
-            to_float(row.get("children_same_as_parent", row.get("children_duplicate_parent")))
+        children_duplicate_parent = sum(
+            to_float(row.get("children_duplicate_parent", row.get("children_same_as_parent")))
             for row in selected
         )
         children_duplicate_population = sum(
             to_float(row.get("children_duplicate_population")) for row in selected
         )
+        children_duplicate = children_duplicate_parent + children_duplicate_population
         crossover_deltas = []
         for row in selected:
             if not all(
@@ -1225,8 +1289,8 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 to_float(row.get("parent_b_score")),
             )
             crossover_deltas.extend(score - parent_best for score in child_scores)
-        duplicate_population_rate = (
-            children_duplicate_population / children
+        duplicate_rate = (
+            children_duplicate / children
             if children
             else mean_bool(selected, "duplicate_population")
         )
@@ -1236,7 +1300,7 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
         produced_rate = None
         if operator == "crossover" and children:
             produced_rate = max(
-                (children - children_same_as_parent - children_duplicate_population)
+                (children - children_duplicate)
                 / children,
                 0.0,
             )
@@ -1271,15 +1335,13 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "produced_rate": produced_rate,
                 "improvement_rate": improvement_rate,
                 "acceptance_rate": acceptance_rate,
-                "duplicate_rate": duplicate_population_rate
+                "duplicate_rate": duplicate_rate
                 if generation_operator
                 else reject_duplicate_rate if replacement_operator else None,
                 "reject_duplicate_rate": reject_duplicate_rate,
                 "reject_non_finite_rate": reject_non_finite_rate,
                 "reject_not_competitive_rate": reject_not_competitive_rate,
-                "same_as_parent_rate": children_same_as_parent / children
-                if operator == "crossover" and children
-                else None,
+                "same_as_parent_rate": None,
                 "changed_rate": mean_bool(selected, "changed") if operator == "mutation" else None,
                 "mean_score_delta": mean(crossover_deltas)
                 if operator == "crossover" and crossover_deltas

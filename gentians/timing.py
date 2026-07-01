@@ -179,6 +179,8 @@ def record_metric(kind: str, row: dict[str, Any]) -> None:
         "clingo": "GENTIANS_CLINGO_METRICS_PATH",
     }
     path = os.environ.get(env_paths[kind])
+    if not path:
+        return
     enriched = {
         "phase": current_phase(),
         "event_id": current_event_id(),

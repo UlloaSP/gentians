@@ -45,5 +45,7 @@ def initialize_population(
         current_score, best_found, l_index = evaluate_score(program)
 
         sampled_individuals.append(Individual(program, current_score, best_found, l_index))
+        if best_found:
+            return sampled_individuals, True
 
     return sampled_individuals, best_found

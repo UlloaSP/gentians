@@ -223,7 +223,7 @@ def _clone_parents_without_crossover(
             "children": 2,
             "children_improved": 0,
             "children_best": int(child_a.is_best) + int(child_b.is_best),
-            "children_same_as_parent": 2,
+            "children_same_as_parent": 0,
             "children_duplicate_parent": 2,
             "children_duplicate_population": 0,
         },

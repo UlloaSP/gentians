@@ -704,8 +704,9 @@ def _ground_stats(ctl: clingo.Control) -> dict[str, float]:
     atoms = max(
         _clingo_stat(stats, "problem", "lp", "atoms"),
         _clingo_stat(stats, "problem", "lpStep", "atoms"),
-        float(sum(1 for _ in ctl.symbolic_atoms)),
     )
+    if not atoms:
+        atoms = float(sum(1 for _ in ctl.symbolic_atoms))
     rules = max(
         _clingo_stat(stats, "problem", "lp", "rules"),
         _clingo_stat(stats, "problem", "lpStep", "rules"),

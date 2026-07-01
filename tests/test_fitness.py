@@ -2,7 +2,7 @@ import importlib
 import math
 
 from benchmarks.catalog import arguments_for
-from gentians.asp.clingo import ClingoInterface
+from gentians.asp.clingo import ClingoInterface, build_fixed_coverage_program
 from gentians.asp.coverage import Coverage
 from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
 from gentians.evolution.fitness.coverage_fixed import coverage_fixed
@@ -211,11 +211,8 @@ def test_cached_fitness_maps_canonical_selected_rules_to_original_indexes():
     assert indexes == [1, 2]
 
 
-def test_dump_coverage_program_writes_debug_clingo_dir(monkeypatch, tmp_path):
+def test_extract_fixed_coverage_does_not_dump_each_candidate(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("GENTIANS_DUMP_COVERAGE_PROGRAMS", "1")
-    monkeypatch.setenv("GENTIANS_BENCHMARK_NAME", "coin")
-    monkeypatch.setenv("GENTIANS_RUN_NUMBER", "7")
 
     coverage = ClingoInterface(["base."], ["0", "--enum-mode=brave"]).extract_fixed_coverage(
         ["target :- base."],
@@ -223,14 +220,20 @@ def test_dump_coverage_program_writes_debug_clingo_dir(monkeypatch, tmp_path):
         [],
     )
 
-    dumps = list((tmp_path / ".debug" / "clingo").glob("*.lp"))
-    args = list((tmp_path / ".debug" / "clingo").glob("*.args.txt"))
     assert coverage.pos_mask == 1
-    assert len(dumps) == 1
-    assert len(args) == 1
-    assert dumps[0].name.startswith("coin_run7-coverage_")
-    assert args[0].name.startswith("coin_run7-coverage_")
-    assert "target :- base." in dumps[0].read_text(encoding="utf-8")
-    assert "python -m clingo 0 --enum-mode=brave" in args[0].read_text(encoding="utf-8")
+    assert not (tmp_path / ".debug" / "clingo").exists()
+
+
+def test_build_fixed_coverage_program_combines_static_program_and_rules():
+    dump = build_fixed_coverage_program(
+        ["base."],
+        ["target :- base."],
+        [Example(("target", ""), True)],
+        [],
+    )
+
+    assert "base." in dump
+    assert "pos_exs(0..0)." in dump
+    assert "target :- base." in dump
 
 

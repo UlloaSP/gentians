@@ -11,7 +11,6 @@ export function OperatorsChart({ benchmark }) {
       { type: 'bar', name: 'produced', x: rows.map(operatorLabel), y: rows.map((r) => maybeNum(r.produced_rate)), marker: { color: colors.self } },
       { type: 'bar', name: 'improved', x: rows.map(operatorLabel), y: rows.map((r) => maybeNum(r.improvement_rate)), marker: { color: colors.accent } },
       { type: 'bar', name: 'duplicate', x: rows.map(operatorLabel), y: rows.map((r) => maybeNum(r.duplicate_rate)), marker: { color: colors.other } },
-      { type: 'bar', name: 'same parent', x: rows.map(operatorLabel), y: rows.map((r) => maybeNum(r.same_as_parent_rate)), marker: { color: colors.grounding } },
     ],
     layout: { barmode: 'group', yaxis: { title: 'rate' }, margin: { l: 70, r: 18, t: 30, b: 80 } },
   }), [rows])

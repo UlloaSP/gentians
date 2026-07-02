@@ -209,6 +209,23 @@ def test_phase_records_exclusive_self_time(monkeypatch):
     timing._counts.clear()
 
 
+def test_export_closes_jsonl_writer_before_reset(monkeypatch, tmp_path):
+    path = tmp_path / "timing_events.jsonl"
+    timing._totals.clear()
+    timing._counts.clear()
+    timing._stack.clear()
+    monkeypatch.setattr(timing, "_enabled", True)
+    monkeypatch.setenv("GENTIANS_TIMING_EVENTS_PATH", str(path))
+
+    with timing.phase("outer"):
+        pass
+
+    timing.export()
+    reset_run_outputs([path])
+
+    assert not path.exists()
+
+
 def test_dashboard_attributes_nested_python_to_phase_self_time():
     phases = dashboard_phases(
         [

@@ -60,7 +60,8 @@ def mutate_by_random_group(
         if random.random() < probability:
             for _ in range(8):
                 current_rules = set(element.program)
-                has_available_rule = _has_rule_outside(rule_space.clauses, current_rules)
+                rule_pool = sampler.rule_space.clauses if sampler is not None else rule_space.clauses
+                has_available_rule = _has_rule_outside(rule_pool, current_rules)
                 operations = []
                 if element.program and has_available_rule:
                     operations.append("replace")
@@ -75,12 +76,12 @@ def mutate_by_random_group(
                 candidate = _clone_individual(element)
                 attempted_operation = random.choice(operations)
                 if attempted_operation == "replace":
-                    rule = _random_rule_outside(rule_space.clauses, current_rules)
+                    rule = _random_rule_outside(rule_pool, current_rules)
                     if rule is None:
                         continue
                     candidate.program[random.randrange(len(candidate.program))] = rule
                 elif attempted_operation == "append":
-                    rule = _random_rule_outside(rule_space.clauses, current_rules)
+                    rule = _random_rule_outside(rule_pool, current_rules)
                     if rule is None:
                         continue
                     candidate.program.append(rule)
@@ -88,10 +89,14 @@ def mutate_by_random_group(
                     del candidate.program[random.randrange(len(candidate.program))]
 
                 if sampler is not None:
-                    repaired = sampler.repair(candidate.program, max_program_clauses)
-                    if repaired is None:
+                    closed = sampler.closed_program(
+                        max_program_clauses,
+                        forced_rules=candidate.program,
+                        known_signatures=known_signatures,
+                    )
+                    if closed is None:
                         continue
-                    candidate.program = repaired
+                    candidate.program = closed
 
                 candidate.generated_timestamp = time.time()
                 candidate.refresh_signature()

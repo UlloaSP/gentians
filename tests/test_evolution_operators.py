@@ -238,7 +238,7 @@ def test_replacement_keeps_population_sorted_when_replacing_oldest(monkeypatch):
     assert signatures == {updated[0].signature, updated[1].signature, updated[2].signature}
 
 
-def test_program_sampler_repairs_missing_dependency():
+def test_program_sampler_generates_closed_program_from_forced_rules():
     rules = [
         "heads(V0):- coin(V0),not tails(V0).",
         "tails(V0):- coin(V0),not heads(V0).",
@@ -252,10 +252,72 @@ def test_program_sampler_repairs_missing_dependency():
     )
     sampler = ProgramSampler(program, RuleSpace.from_clauses(rules))
 
-    repaired = sampler.repair([rules[0]], 2)
+    closed = sampler.closed_program(2, forced_rules=[rules[0]])
 
-    assert repaired == sorted(rules)
-    assert sampler.is_closed(repaired)
+    assert closed == sorted(rules)
+
+
+def test_program_sampler_excludes_known_signature(monkeypatch):
+    rules = ["target :- base.", "target :- alt."]
+    program = Program(
+        ["base.", "alt."],
+        [Example(("target", ""), True)],
+        [],
+        [],
+        [],
+    )
+    sampler = ProgramSampler(program, RuleSpace.from_clauses(rules))
+    choices = iter(["target :- base.", "target :- alt."])
+    monkeypatch.setattr("gentians.evolution.program_sampler.random.choice", lambda _: next(choices))
+
+    sampled = sampler.closed_program(1, target_size=1, known_signatures={("target :- base.",)})
+
+    assert sampled == ["target :- alt."]
+
+
+def test_program_sampler_returns_none_when_dependency_cannot_close():
+    rules = ["target :- missing."]
+    program = Program(
+        [],
+        [Example(("target", ""), True)],
+        [],
+        [],
+        [],
+    )
+    sampler = ProgramSampler(program, RuleSpace.from_clauses(rules))
+
+    assert sampler.closed_program(1, forced_rules=rules) is None
+
+
+def test_program_sampler_prunes_rules_with_unavailable_dependencies():
+    rules = ["target :- base.", "target :- missing."]
+    program = Program(
+        ["base."],
+        [Example(("target", ""), True)],
+        [],
+        [],
+        [],
+    )
+    sampler = ProgramSampler(program, RuleSpace.from_clauses(rules))
+
+    assert sampler.rule_space.clauses == ["target :- base."]
+
+
+def test_program_sampler_respects_target_size_after_closure():
+    rules = [
+        "heads(V0):- coin(V0),not tails(V0).",
+        "tails(V0):- coin(V0),not heads(V0).",
+    ]
+    program = Program(
+        ["coin(c1)."],
+        [Example(("heads(c1)", "tails(c1)"), True)],
+        [],
+        [],
+        [],
+    )
+    sampler = ProgramSampler(program, RuleSpace.from_clauses(rules))
+
+    assert sampler.closed_program(2, target_size=1) is None
 
 
 def test_crossover_does_not_evaluate_unrepaired_sampler_child():
@@ -263,10 +325,7 @@ def test_crossover_does_not_evaluate_unrepaired_sampler_child():
     parent_b = Individual(["b."], 2.0, False, [])
 
     class RejectingSampler:
-        def repair(self, *args, **kwargs):
-            return None
-
-        def sample(self, *args, **kwargs):
+        def closed_program(self, *args, **kwargs):
             return None
 
     def fail_if_called(program):
@@ -292,10 +351,7 @@ def test_crossover_counts_parent_children_as_duplicates(monkeypatch):
     metrics = []
 
     class ParentSampler:
-        def repair(self, *args, **kwargs):
-            return ["a."]
-
-        def sample(self, *args, **kwargs):
+        def closed_program(self, *args, **kwargs):
             return ["a."]
 
     monkeypatch.setattr(
@@ -339,7 +395,7 @@ def test_initialization_stops_when_exact_solution_found():
 
 def test_initialization_does_not_fallback_to_raw_when_sampler_fails():
     class RejectingSampler:
-        def sample(self, *args, **kwargs):
+        def closed_program(self, *args, **kwargs):
             return None
 
     def fail_if_called(program):

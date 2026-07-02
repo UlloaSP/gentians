@@ -41,6 +41,8 @@ def _sample_child(
         return []
 
     limit = max(1, min(max_program_clauses, len(union)))
+    if sampler is not None and len(union) <= max_program_clauses and tuple(union) not in known_signatures:
+        return union
     for _ in range(8):
         selected = [rule for rule in union if random.random() < 0.5]
         if not selected:
@@ -50,20 +52,19 @@ def _sample_child(
         else:
             selected = sorted(selected)
         if sampler is not None:
-            repaired = sampler.repair(
-                selected,
+            child = sampler.closed_program(
                 max_program_clauses,
-                preferred_rules=union,
+                forced_rules=selected,
+                known_signatures=known_signatures,
             )
-            if repaired is not None and tuple(repaired) not in known_signatures:
-                return repaired
+            if child is not None:
+                return child
         elif tuple(selected) not in known_signatures:
             return selected
     if sampler is not None:
-        sampled = sampler.sample(
+        sampled = sampler.closed_program(
             max_program_clauses,
-            known_signatures,
-            preferred_rules=union,
+            known_signatures=known_signatures,
         )
         if sampled is not None:
             return sampled

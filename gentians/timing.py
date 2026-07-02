@@ -89,12 +89,17 @@ def _writer_loop() -> None:
 
 
 def _flush_async_writes() -> None:
+    global _writer_thread
     if _writer_thread is None:
         return
     flushed = threading.Event()
     _write_queue.put((None, flushed))
     flushed.wait()
     _write_queue.join()
+    _write_queue.put(None)
+    _write_queue.join()
+    _writer_thread.join()
+    _writer_thread = None
 
 
 def add(name: str, seconds: float) -> None:

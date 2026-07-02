@@ -32,7 +32,10 @@ def initialize_population(
             program = sorted(random.sample(rule_space.clauses, program_size))
         else:
             known = seen_signatures if attempts < max_unique_attempts else None
-            program = sampler.sample(max_program_clauses, known)
+            program = sampler.closed_program(
+                max_program_clauses,
+                known_signatures=known,
+            )
             if program is None:
                 if sampled_individuals:
                     program = list(random.choice(sampled_individuals).program)

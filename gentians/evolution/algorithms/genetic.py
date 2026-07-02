@@ -35,6 +35,12 @@ def genetic_solver(
         rule_space,
         evaluate_score,
     )
+    if not population:
+        raise RuntimeError("Could not initialize population")
+    
+    if len(population) == 1:
+        return population[0].program, population[0].score, population[0].is_best
+
     with phase("fitness.initialization"):
         population_signatures = {individual.signature for individual in population}
 

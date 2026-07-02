@@ -50,6 +50,31 @@ def test_genetic_solver_returns_best_candidate_without_marking_exact_solution():
     assert best_found is False
 
 
+def test_genetic_solver_returns_single_candidate_without_evolution():
+    population = [Individual(["only."], 1.0, False, [])]
+
+    def initialize(max_program_clauses, rule_space, evaluate_score):
+        return population, False
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("single-candidate population should return directly")
+
+    program, score, best_found = genetic_solver(
+        RuleSpace.from_clauses(["only."]),
+        Arguments(iterations_genetic=10),
+        lambda program: (0.0, False, []),
+        initialize,
+        fail_if_called,
+        fail_if_called,
+        fail_if_called,
+        fail_if_called,
+    )
+
+    assert program == ["only."]
+    assert score == 1.0
+    assert best_found is False
+
+
 def test_tournament_selection_returns_distinct_signatures_when_possible(monkeypatch):
     population = [
         Individual(["a."], 2.0, False, []),
@@ -70,6 +95,20 @@ def test_tournament_selection_returns_distinct_signatures_when_possible(monkeypa
     )(population)
 
     assert selected_a.signature != selected_b.signature
+
+
+def test_selection_accepts_single_individual_population():
+    population = [Individual(["a."], 1.0, False, [])]
+
+    selected_a, selected_b = create_selection(
+        {
+            "name": "fittest",
+            "pick_uniform": True,
+        }
+    )(population)
+
+    assert selected_a is population[0]
+    assert selected_b is population[0]
 
 
 def test_mutation_skips_fitness_when_signature_does_not_change(monkeypatch):
@@ -409,3 +448,57 @@ def test_initialization_does_not_fallback_to_raw_when_sampler_fails():
             fail_if_called,
             RejectingSampler(),
         )
+
+
+def test_initialization_accepts_partial_population_when_sampler_exhausts():
+    class OneProgramSampler:
+        def __init__(self):
+            self.calls = 0
+
+        def closed_program(self, *args, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return ["a."]
+            return None
+
+    calls = []
+
+    def score(program):
+        calls.append(program)
+        return 1.0, False, []
+
+    population, best_found = initialize_population(
+        1,
+        RuleSpace.from_clauses(["a."]),
+        5,
+        score,
+        OneProgramSampler(),
+    )
+
+    assert best_found is False
+    assert [individual.program for individual in population] == [["a."]]
+    assert calls == [["a."]]
+
+
+def test_initialization_stops_retrying_duplicates_after_unique_attempts():
+    class DuplicateSampler:
+        def closed_program(self, *args, **kwargs):
+            return ["a."]
+
+    calls = []
+
+    def score(program):
+        calls.append(program)
+        return 1.0, False, []
+
+    population, best_found = initialize_population(
+        1,
+        RuleSpace.from_clauses(["a."]),
+        2,
+        score,
+        DuplicateSampler(),
+    )
+
+    assert best_found is False
+    assert [individual.program for individual in population] == [["a."]]
+    assert calls == [["a."]]

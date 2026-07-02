@@ -31,19 +31,20 @@ def initialize_population(
             program_size = random.randint(1, size_limit)
             program = sorted(random.sample(rule_space.clauses, program_size))
         else:
-            known = seen_signatures if attempts < max_unique_attempts else None
             program = sampler.closed_program(
                 max_program_clauses,
-                known_signatures=known,
+                known_signatures=seen_signatures,
             )
             if program is None:
                 if sampled_individuals:
-                    program = list(random.choice(sampled_individuals).program)
+                    break
                 else:
                     raise RuntimeError("Could not sample a dependency-closed program")
         signature = tuple(program)
-        if signature in seen_signatures and attempts < max_unique_attempts:
-            continue
+        if signature in seen_signatures:
+            if attempts < max_unique_attempts:
+                continue
+            break
         seen_signatures.add(signature)
         current_score, best_found, l_index = evaluate_score(program)
 

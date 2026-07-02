@@ -37,9 +37,6 @@ def genetic_solver(
     )
     if not population:
         raise RuntimeError("Could not initialize population")
-    
-    if len(population) == 1:
-        return population[0].program, population[0].score, population[0].is_best
 
     with phase("fitness.initialization"):
         population_signatures = {individual.signature for individual in population}
@@ -50,6 +47,8 @@ def genetic_solver(
     best = next((individual for individual in population if individual.is_best), None)
     if best is not None:
         return best.program, best.score, best.is_best
+    if len(population) == 1:
+        return population[0].program, population[0].score, population[0].is_best
 
     # step 2: iterate trough programs
     best_score_so_far = population[0].score

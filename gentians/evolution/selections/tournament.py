@@ -20,6 +20,9 @@ def tournament_selection(
     """
     Tournament to select the individuals to combine and mutate
     """
+    if not population:
+        raise ValueError("Cannot select from an empty population")
+
     tournament_size = min(tournament_size, len(population))
     random_subset = random.sample(population, tournament_size)
     stop = False

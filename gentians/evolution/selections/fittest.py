@@ -13,6 +13,11 @@ def pick_two_fittest(
     If pick_uniform is true, select a random element between the ones with
     the highest fit (since most programs have the same fitness).
     """
+    if not population:
+        raise ValueError("Cannot select from an empty population")
+    if len(population) == 1:
+        return population[0], population[0]
+
     max_score = population[0].score
     i = 1
     j = 1

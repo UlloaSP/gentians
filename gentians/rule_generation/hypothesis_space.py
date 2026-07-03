@@ -576,11 +576,9 @@ def _facts(
             if key not in predicate_ids:
                 predicate_ids[key] = len(predicate_ids)
             predicate_id = predicate_ids[key]
-        recall = max(0, mode.recall)
+        recall = args.max_depth if mode.recall < 0 else mode.recall
         parts.append(f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{recall}).")
         parts.append(f"recall({mode.id},{recall}).")
-        if mode.recall < 0:
-            parts.append(f"unbounded_recall({mode.id}).")
         parts.append(f"recall_group({mode.id},{mode.recall_group}).")
         for index, arg_type in enumerate(mode.arg_types):
             parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
@@ -690,9 +688,7 @@ def _hypothesis_space_args(args: Arguments) -> list[str]:
     value = args.hypothesis_space.get("clingo_arguments", [])
     if isinstance(value, list):
         return [str(item) for item in value]
-    if isinstance(value, str):
-        return [value]
-    return []
+    raise ValueError("hypothesis_space.clingo_arguments must be a list")
 
 
 def _ground_stats(ctl: clingo.Control) -> dict[str, float]:

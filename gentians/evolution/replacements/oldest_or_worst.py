@@ -12,7 +12,6 @@ def replace_oldest_or_worst(
     population_signatures: set[tuple[str, ...]],
     prob_replacing_oldest: float,
 ) -> list[Individual]:
-    _sync_population_signatures(population, population_signatures)
     accepted = False
     reject_reason = ""
     if element.signature in population_signatures:
@@ -47,7 +46,6 @@ def replace_oldest_or_worst(
             population_signatures.discard(victim.signature)
             accepted = True
 
-    _sync_population_signatures(population, population_signatures)
     record_metric(
         "operator",
         {
@@ -62,11 +60,3 @@ def replace_oldest_or_worst(
     )
 
     return population
-
-
-def _sync_population_signatures(
-    population: list[Individual],
-    population_signatures: set[tuple[str, ...]],
-) -> None:
-    population_signatures.clear()
-    population_signatures.update(individual.signature for individual in population)

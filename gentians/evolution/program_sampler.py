@@ -17,19 +17,20 @@ class _RuleMask:
 
 class ProgramSampler:
     def __init__(self, program: Program, rule_space: RuleSpace) -> None:
+        background_predicates = _defined_predicates(program.background)
         entries = _prune_uncloseable_rules(
             rule_space.entries,
-            _defined_predicates(program.background),
+            background_predicates,
         )
         self.rule_space = RuleSpace.from_entries(entries)
-        predicates = _defined_predicates(program.background) | _example_predicates(program)
+        predicates = background_predicates | _example_predicates(program)
         for entry in self.rule_space.entries:
             predicates.update(entry.heads)
             predicates.update(entry.deps)
         self.predicate_ids = {
             predicate: index for index, predicate in enumerate(sorted(predicates))
         }
-        self.background_mask = self._predicate_mask(_defined_predicates(program.background))
+        self.background_mask = self._predicate_mask(background_predicates)
         self.example_mask = self._predicate_mask(_example_predicates(program))
         self.masks_by_rule = {
             entry.text: _RuleMask(

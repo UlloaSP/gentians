@@ -1,5 +1,6 @@
 import re
 import sys
+from functools import lru_cache
 
 from clingo import ast
 
@@ -44,9 +45,10 @@ def parse_atom(atom: str) -> tuple[str, list[str]] | None:
     normalized = _normal_atom_text(atom)
     if not normalized or normalized.startswith("#"):
         return None
-    parsed = _parse_atom_with_ast(normalized)
+    parsed = _parse_atom_cached(normalized)
     if parsed is not None:
-        return parsed
+        name, arguments = parsed
+        return name, list(arguments)
     match = re.match(r"^([A-Za-z_]\w*)(?:\((.*)\))?$", normalized)
     if not match:
         return None
@@ -63,8 +65,9 @@ def _normal_atom_text(atom: str) -> str:
     return normalized
 
 
-def _parse_atom_with_ast(atom: str) -> tuple[str, list[str]] | None:
-    found: list[tuple[str, list[str]]] = []
+@lru_cache(maxsize=None)
+def _parse_atom_cached(atom: str) -> tuple[str, tuple[str, ...]] | None:
+    found: list[tuple[str, tuple[str, ...]]] = []
 
     def collect(node: ast.AST) -> None:
         if node.ast_type == ast.ASTType.SymbolicAtom:
@@ -73,10 +76,10 @@ def _parse_atom_with_ast(atom: str) -> tuple[str, list[str]] | None:
                 found.append(
                     (
                         str(symbol.name),
-                        [
+                        tuple(
                             str(argument).replace(" ", "")
                             for argument in symbol.arguments
-                        ],
+                        ),
                     )
                 )
             return

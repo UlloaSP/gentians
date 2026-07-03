@@ -12,7 +12,6 @@ def _clone_individual(element: Individual) -> Individual:
         list(element.program),
         element.score,
         element.is_best,
-        list(element.l_best_indexes),
     )
 
 
@@ -110,8 +109,8 @@ def mutate_by_random_group(
 
     if something_changed:
         with phase("mutation.fitness"):
-            mutated_element.score, mutated_element.is_best, mutated_element.l_best_indexes = (
-                evaluate_score(mutated_element.program)
+            mutated_element.score, mutated_element.is_best = evaluate_score(
+                mutated_element.program
             )
 
     record_metric(

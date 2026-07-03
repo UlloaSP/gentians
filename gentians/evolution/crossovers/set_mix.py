@@ -7,7 +7,7 @@ from ...timing import phase, profile_phase, record_metric
 
 
 def _child_from_parent(parent: Individual, program: list[str]) -> Individual:
-    return Individual(program, parent.score, parent.is_best, list(parent.l_best_indexes))
+    return Individual(program, parent.score, parent.is_best)
 
 
 def _evaluate_child(
@@ -17,16 +17,16 @@ def _evaluate_child(
     evaluate_score: FitnessFn,
     known_signatures: set[tuple[str, ...]],
 ) -> Individual:
-    signature = tuple(sorted(program))
+    signature = tuple(program)
     if signature == parent_a.signature:
         return _child_from_parent(parent_a, program)
     if signature == parent_b.signature:
         return _child_from_parent(parent_b, program)
     if signature in known_signatures:
-        return Individual(program, float("-inf"), False, [])
+        return Individual(program, float("-inf"), False)
     with phase("crossover.fitness"):
-        current_score, is_best, l_indexes = evaluate_score(program)
-    return Individual(program, current_score, is_best, l_indexes)
+        current_score, is_best = evaluate_score(program)
+    return Individual(program, current_score, is_best)
 
 
 def _sample_child(
@@ -83,7 +83,7 @@ def set_mix_crossover(
             max_program_clauses,
             sampler,
         )
-        local_signatures = {*known_signatures, tuple(sorted(program_0))}
+        local_signatures = {*known_signatures, tuple(program_0)}
         program_1 = _sample_child(
             best_a,
             best_b,

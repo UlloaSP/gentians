@@ -54,7 +54,6 @@ def genetic_solver(
             best_score_so_far = max(best_score_so_far, population[0].score)
             record_ga_generation(
                 it,
-                [el.score for el in population],
                 best_score_so_far,
                 population,
             )

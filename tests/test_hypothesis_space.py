@@ -200,7 +200,18 @@ def test_hypothesis_space_args_keep_numeric_strings():
     assert _hypothesis_space_args(args) == ["0", "--project"]
 
 
-def test_star_recall_is_unbounded():
+def test_hypothesis_space_args_reject_string():
+    args = Arguments(hypothesis_space={"clingo_arguments": "--project"})
+
+    try:
+        _hypothesis_space_args(args)
+    except ValueError as exc:
+        assert "clingo_arguments" in str(exc)
+    else:
+        raise AssertionError("string clingo_arguments should fail")
+
+
+def test_star_recall_uses_max_depth():
     mode = ModeDeclaration(("*", "p", "1"), True)
     facts = hypothesis_space._facts(
         Program([], [], [], [mode], []),
@@ -228,7 +239,34 @@ def test_star_recall_is_unbounded():
         {},
     )
 
-    assert "unbounded_recall(0)." in facts
+    assert "recall(0,2)." in facts
+    assert "unbounded_recall" not in facts
+
+
+def test_reader_deduplicates_equal_directives(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "\n".join(
+            [
+                "#pos({ a(1) }, {}).",
+                "#pos({ a(1) }, {}).",
+                "#neg({ b(1) }, {}).",
+                "#neg({ b(1) }, {}).",
+                "#modeh(1, a, 1).",
+                "#modeh(1, a, 1).",
+                "#modeb(1, b, 1, positive).",
+                "#modeb(1, b, 1, positive).",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+
+    assert len(program.positive_examples) == 1
+    assert len(program.negative_examples) == 1
+    assert len(program.language_bias_head) == 1
+    assert len(program.language_bias_body) == 1
 
 
 def test_hypothesis_space_prunes_irreflexive_modes_before_rendering():

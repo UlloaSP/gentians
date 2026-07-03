@@ -231,7 +231,6 @@ def _clone_individual(individual: Individual) -> Individual:
         list(individual.program),
         individual.score,
         individual.is_best,
-        list(individual.l_best_indexes),
     )
 
 def _distinct_pair(

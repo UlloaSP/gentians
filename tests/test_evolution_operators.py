@@ -15,8 +15,8 @@ from gentians.rule_generation.rule_space import RuleSpace
 
 def test_genetic_solver_returns_best_candidate_without_marking_exact_solution():
     population = [
-        Individual(["low."], 1.0, False, []),
-        Individual(["high."], 2.0, False, []),
+        Individual(["low."], 1.0, False),
+        Individual(["high."], 2.0, False),
     ]
 
     def initialize(max_program_clauses, evaluate_score):
@@ -36,7 +36,7 @@ def test_genetic_solver_returns_best_candidate_without_marking_exact_solution():
 
     program, score, best_found = genetic_solver(
         Arguments(iterations_genetic=0),
-        lambda program: (0.0, False, []),
+        lambda program: (0.0, False),
         initialize,
         select,
         crossover,
@@ -50,7 +50,7 @@ def test_genetic_solver_returns_best_candidate_without_marking_exact_solution():
 
 
 def test_genetic_solver_returns_single_candidate_without_evolution():
-    population = [Individual(["only."], 1.0, False, [])]
+    population = [Individual(["only."], 1.0, False)]
 
     def initialize(max_program_clauses, evaluate_score):
         return population, False
@@ -60,7 +60,7 @@ def test_genetic_solver_returns_single_candidate_without_evolution():
 
     program, score, best_found = genetic_solver(
         Arguments(iterations_genetic=10),
-        lambda program: (0.0, False, []),
+        lambda program: (0.0, False),
         initialize,
         fail_if_called,
         fail_if_called,
@@ -75,8 +75,8 @@ def test_genetic_solver_returns_single_candidate_without_evolution():
 
 def test_tournament_selection_returns_distinct_signatures_when_possible(monkeypatch):
     population = [
-        Individual(["a."], 2.0, False, []),
-        Individual(["b."], 1.0, False, []),
+        Individual(["a."], 2.0, False),
+        Individual(["b."], 1.0, False),
     ]
 
     def same_parent(population, tournament_size, prob_selecting_fittest):
@@ -96,7 +96,7 @@ def test_tournament_selection_returns_distinct_signatures_when_possible(monkeypa
 
 
 def test_selection_accepts_single_individual_population():
-    population = [Individual(["a."], 1.0, False, [])]
+    population = [Individual(["a."], 1.0, False)]
 
     selected_a, selected_b = create_selection(
         {
@@ -114,7 +114,7 @@ def _sampler(rules: list[str]) -> ProgramSampler:
 
 
 def test_mutation_skips_fitness_when_signature_does_not_change(monkeypatch):
-    individual = Individual(["a."], 1.0, False, [])
+    individual = Individual(["a."], 1.0, False)
 
     monkeypatch.setattr("gentians.evolution.mutations.random_group.random.random", lambda: 0.0)
     monkeypatch.setattr("gentians.evolution.mutations.random_group.random.choice", lambda _: "a.")
@@ -136,7 +136,7 @@ def test_mutation_skips_fitness_when_signature_does_not_change(monkeypatch):
 
 
 def test_mutation_applies_one_unique_edit(monkeypatch):
-    individual = Individual(["a.", "b."], 1.0, False, [])
+    individual = Individual(["a.", "b."], 1.0, False)
     choices = iter(["append", "c."])
 
     monkeypatch.setattr("gentians.evolution.mutations.random_group.random.random", lambda: 0.0)
@@ -147,7 +147,7 @@ def test_mutation_applies_one_unique_edit(monkeypatch):
 
     def score(program):
         assert len(program) == len(set(program))
-        return 2.0, False, []
+        return 2.0, False
 
     mutated = mutate_by_random_group(
         individual,
@@ -163,7 +163,7 @@ def test_mutation_applies_one_unique_edit(monkeypatch):
 
 
 def test_mutation_retries_duplicate_before_fitness(monkeypatch):
-    individual = Individual(["a."], 1.0, False, [])
+    individual = Individual(["a."], 1.0, False)
     choices = iter(["replace", "b.", "replace", "c."])
     metrics = []
 
@@ -182,7 +182,7 @@ def test_mutation_retries_duplicate_before_fitness(monkeypatch):
 
     def score(program):
         calls.append(program)
-        return 2.0, False, []
+        return 2.0, False
 
     mutated = mutate_by_random_group(
         individual,
@@ -200,18 +200,18 @@ def test_mutation_retries_duplicate_before_fitness(monkeypatch):
 
 
 def test_replacement_rejects_duplicate_and_non_finite():
-    population = [Individual(["a."], 2.0, False, [])]
+    population = [Individual(["a."], 2.0, False)]
     signatures = {population[0].signature}
 
     duplicate = replace_oldest_or_worst(
         population,
-        Individual(["a."], 3.0, False, []),
+        Individual(["a."], 3.0, False),
         signatures,
         0.0,
     )
     non_finite = replace_oldest_or_worst(
         population,
-        Individual(["b."], float("-inf"), False, []),
+        Individual(["b."], float("-inf"), False),
         signatures,
         0.0,
     )
@@ -221,33 +221,17 @@ def test_replacement_rejects_duplicate_and_non_finite():
     assert signatures == {population[0].signature}
 
 
-def test_replacement_rejects_duplicate_with_stale_signature_set():
-    population = [Individual(["a."], 2.0, False, [])]
-    signatures = set()
-
-    updated = replace_oldest_or_worst(
-        population,
-        Individual(["a."], 3.0, False, []),
-        signatures,
-        0.0,
-    )
-
-    assert updated == population
-    assert [individual.program for individual in updated] == [["a."]]
-    assert signatures == {population[0].signature}
-
-
 def test_replacement_updates_population_signatures(monkeypatch):
     population = [
-        Individual(["a."], 3.0, False, []),
-        Individual(["b."], 1.0, False, []),
+        Individual(["a."], 3.0, False),
+        Individual(["b."], 1.0, False),
     ]
     signatures = {individual.signature for individual in population}
     monkeypatch.setattr("gentians.evolution.replacements.oldest_or_worst.random.random", lambda: 1.0)
 
     updated = replace_oldest_or_worst(
         population,
-        Individual(["c."], 2.0, False, []),
+        Individual(["c."], 2.0, False),
         signatures,
         0.0,
     )
@@ -258,9 +242,9 @@ def test_replacement_updates_population_signatures(monkeypatch):
 
 def test_replacement_keeps_population_sorted_when_replacing_oldest(monkeypatch):
     population = [
-        Individual(["a."], 3.0, False, []),
-        Individual(["b."], 2.0, False, []),
-        Individual(["c."], 1.0, False, []),
+        Individual(["a."], 3.0, False),
+        Individual(["b."], 2.0, False),
+        Individual(["c."], 1.0, False),
     ]
     population[1].generated_timestamp = 0.0
     population[0].generated_timestamp = 1.0
@@ -270,7 +254,7 @@ def test_replacement_keeps_population_sorted_when_replacing_oldest(monkeypatch):
 
     updated = replace_oldest_or_worst(
         population,
-        Individual(["d."], 2.5, False, []),
+        Individual(["d."], 2.5, False),
         signatures,
         1.0,
     )
@@ -362,8 +346,8 @@ def test_program_sampler_respects_target_size_after_closure():
 
 
 def test_crossover_does_not_evaluate_unrepaired_sampler_child():
-    parent_a = Individual(["a."], 1.0, False, [])
-    parent_b = Individual(["b."], 2.0, False, [])
+    parent_a = Individual(["a."], 1.0, False)
+    parent_b = Individual(["b."], 2.0, False)
 
     class RejectingSampler:
         def closed_program(self, *args, **kwargs):
@@ -387,8 +371,8 @@ def test_crossover_does_not_evaluate_unrepaired_sampler_child():
 
 
 def test_crossover_counts_parent_children_as_duplicates(monkeypatch):
-    parent_a = Individual(["a."], 1.0, False, [])
-    parent_b = Individual(["b."], 2.0, False, [])
+    parent_a = Individual(["a."], 1.0, False)
+    parent_b = Individual(["b."], 2.0, False)
     metrics = []
 
     class ParentSampler:
@@ -403,7 +387,7 @@ def test_crossover_counts_parent_children_as_duplicates(monkeypatch):
     set_mix_crossover(
         parent_a,
         parent_b,
-        lambda program: (3.0, False, []),
+        lambda program: (3.0, False),
         1.0,
         {parent_a.signature, parent_b.signature},
         1,
@@ -420,7 +404,7 @@ def test_initialization_stops_when_exact_solution_found():
 
     def score(program):
         calls.append(program)
-        return 1.0, True, []
+        return 1.0, True
 
     population, best_found = initialize_population(
         1,
@@ -466,7 +450,7 @@ def test_initialization_accepts_partial_population_when_sampler_exhausts():
 
     def score(program):
         calls.append(program)
-        return 1.0, False, []
+        return 1.0, False
 
     population, best_found = initialize_population(
         1,
@@ -489,7 +473,7 @@ def test_initialization_stops_retrying_duplicates_after_unique_attempts():
 
     def score(program):
         calls.append(program)
-        return 1.0, False, []
+        return 1.0, False
 
     population, best_found = initialize_population(
         1,

@@ -5,8 +5,8 @@ from ...asp.coverage import Coverage
 from ...rule_generation.program import Program
 from ...timing import current_phase, record_metric
 
-FitnessResult = tuple[float, bool, list[int]]
-CachedFitnessResult = tuple[float, bool, tuple[str, ...]]
+FitnessResult = tuple[float, bool]
+CachedFitnessResult = tuple[float, bool]
 FitnessCompute = Callable[[list[str]], FitnessResult]
 
 
@@ -47,22 +47,8 @@ def cached_fitness(
     canonical_program = sorted(candidate_program)
     key = tuple(canonical_program)
     if key not in cache:
-        score, best_found, indexes = compute(canonical_program)
-        cache[key] = (
-            score,
-            best_found,
-            tuple(canonical_program[index] for index in indexes),
-        )
-    score, best_found, selected_rules = cache[key]
-    positions_by_rule: dict[str, list[int]] = {}
-    for index, rule in enumerate(candidate_program):
-        positions_by_rule.setdefault(rule, []).append(index)
-    indexes = []
-    for rule in selected_rules:
-        positions = positions_by_rule.get(rule)
-        if positions:
-            indexes.append(positions.pop(0))
-    return score, best_found, indexes
+        cache[key] = compute(canonical_program)
+    return cache[key]
 
 
 def record_fitness_metric(
@@ -72,7 +58,6 @@ def record_fitness_metric(
     coverage: Coverage,
     score: float,
     best_found: bool,
-    l_index: list[int],
     rates: CoverageRates,
 ) -> None:
     record_metric(
@@ -86,7 +71,7 @@ def record_fitness_metric(
             "score": score,
             "fitness_operator": fitness_operator,
             "best_found": best_found,
-            "selected_rules": len(l_index),
+            "selected_rules": len(candidate_program),
             "covered_positive": rates.covered_positive,
             "covered_negative": rates.covered_negative,
             "total_positive": len(program.positive_examples),

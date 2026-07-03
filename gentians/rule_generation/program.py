@@ -21,6 +21,15 @@ class Example:
         self.context: str = s[2] if len(s) == 3 else ""
         self.positive: bool = positive
 
+    def __eq__(self, other: object) -> bool:
+        return (
+            isinstance(other, Example)
+            and self.included == other.included
+            and self.excluded == other.excluded
+            and self.context == other.context
+            and self.positive == other.positive
+        )
+
 
 class ModeDeclaration:
     """
@@ -47,6 +56,20 @@ class ModeDeclaration:
         self.aggregation_atoms: "list[tuple[str,int]]" = []
         self.arithmetic_operator: str = ""
         self.comparison_operator: str = ""
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            isinstance(other, ModeDeclaration)
+            and self.recall == other.recall
+            and self.name == other.name
+            and self.arity == other.arity
+            and self.positive == other.positive
+            and self.head == other.head
+            and self.aggregation_function == other.aggregation_function
+            and self.aggregation_atoms == other.aggregation_atoms
+            and self.arithmetic_operator == other.arithmetic_operator
+            and self.comparison_operator == other.comparison_operator
+        )
 
     def add_aggregate(self, aggregate_str: str):
         """

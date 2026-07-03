@@ -16,13 +16,17 @@ def _evaluate_child(
     program: list[str],
     evaluate_score: FitnessFn,
     known_signatures: set[tuple[str, ...]],
+    extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
 ) -> Individual:
     signature = tuple(program)
     if signature == parent_a.signature:
         return _child_from_parent(parent_a, program)
     if signature == parent_b.signature:
         return _child_from_parent(parent_b, program)
-    if signature in known_signatures:
+    if signature in known_signatures or (
+        extra_forbidden_signatures is not None
+        and signature in extra_forbidden_signatures
+    ):
         return Individual(program, float("-inf"), False)
     with phase("crossover.fitness"):
         current_score, is_best = evaluate_score(program)
@@ -35,6 +39,7 @@ def _sample_child(
     known_signatures: set[tuple[str, ...]],
     max_program_clauses: int,
     sampler: ProgramSampler,
+    extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
 ) -> list[str]:
     union = sorted(set(parent_a.program) | set(parent_b.program))
     if not union:
@@ -53,12 +58,14 @@ def _sample_child(
             max_program_clauses,
             forced_rules=selected,
             known_signatures=known_signatures,
+            extra_forbidden_signatures=extra_forbidden_signatures,
         )
         if child is not None:
             return child
     sampled = sampler.closed_program(
         max_program_clauses,
         known_signatures=known_signatures,
+        extra_forbidden_signatures=extra_forbidden_signatures,
     )
     if sampled is not None:
         return sampled
@@ -83,24 +90,33 @@ def set_mix_crossover(
             max_program_clauses,
             sampler,
         )
-        local_signatures = {*known_signatures, tuple(program_0)}
+        extra_forbidden_signatures = {tuple(program_0)}
         program_1 = _sample_child(
             best_a,
             best_b,
-            local_signatures,
+            known_signatures,
             max_program_clauses,
             sampler,
+            extra_forbidden_signatures,
         )
 
     i0 = _evaluate_child(best_a, best_b, program_0, evaluate_score, known_signatures)
-    i1 = _evaluate_child(best_a, best_b, program_1, evaluate_score, known_signatures)
+    i1 = _evaluate_child(
+        best_a,
+        best_b,
+        program_1,
+        evaluate_score,
+        known_signatures,
+        extra_forbidden_signatures,
+    )
 
     if metric_enabled("operator"):
         with instrumentation():
             parent_best = max(best_a.score, best_b.score)
+            parent_signatures = {best_a.signature, best_b.signature}
             parent_duplicates = (
-                int(i0.signature in {best_a.signature, best_b.signature})
-                + int(i1.signature in {best_a.signature, best_b.signature})
+                int(i0.signature in parent_signatures)
+                + int(i1.signature in parent_signatures)
             )
             duplicate_population = int(i0.score == float("-inf")) + int(
                 i1.score == float("-inf")

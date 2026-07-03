@@ -28,7 +28,13 @@ def test_genetic_solver_returns_best_candidate_without_marking_exact_solution():
     def crossover(parent_a, parent_b, evaluate_score, known_signatures, max_program_clauses):
         return parent_a, parent_b
 
-    def mutation(individual, max_program_clauses, evaluate_score, known_signatures):
+    def mutation(
+        individual,
+        max_program_clauses,
+        evaluate_score,
+        known_signatures,
+        extra_forbidden_signatures,
+    ):
         return individual
 
     def replacement(population, individual, population_signatures):

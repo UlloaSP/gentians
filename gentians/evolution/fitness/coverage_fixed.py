@@ -54,11 +54,11 @@ def _evaluate_score(
     literal_penalty: float,
     redundancy_penalty: float,
 ) -> FitnessResult:
-    complexity = _program_complexity(candidate_program)
+    body_literals, redundancies = _program_complexity(candidate_program)
     size_cost = (
         len(candidate_program) * size_penalty
-        + complexity.body_literals * literal_penalty
-        + complexity.redundancies * redundancy_penalty
+        + body_literals * literal_penalty
+        + redundancies * redundancy_penalty
     )
 
     coverage = normal_solver.extract_fixed_coverage(
@@ -97,20 +97,14 @@ def _evaluate_score(
     return score, best_found
 
 
-class _ProgramComplexity:
-    def __init__(self, body_literals: int, redundancies: int) -> None:
-        self.body_literals = body_literals
-        self.redundancies = redundancies
-
-
-def _program_complexity(program: list[str]) -> _ProgramComplexity:
+def _program_complexity(program: list[str]) -> tuple[int, int]:
     body_literals = 0
     redundancies = 0
     for clause in program:
         literals = _body_literals(clause)
         body_literals += len(literals)
         redundancies += _redundancy_count(literals)
-    return _ProgramComplexity(body_literals, redundancies)
+    return body_literals, redundancies
 
 
 @lru_cache(maxsize=None)

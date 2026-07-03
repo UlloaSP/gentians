@@ -27,13 +27,16 @@ from .timing import (
 
 
 def solve(
-    program: Program, arguments: Arguments, rule_space: RuleSpace | None = None
+    program: Program,
+    arguments: Arguments,
+    rule_space: RuleSpace | None = None,
+    start_total_time: float | None = None,
 ) -> None:
     """
     Main loop.
     """
 
-    start_total_time = time.time()
+    start_total_time = time.time() if start_total_time is None else start_total_time
 
     try:
         with phase("total_execution"):

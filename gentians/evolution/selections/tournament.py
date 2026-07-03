@@ -4,13 +4,6 @@ from ..individual import Individual
 from ...timing import instrumentation, metric_enabled, profile_phase, record_metric
 
 
-def get_fittest(selected_individuals: "list[Individual]") -> Individual:
-    """
-    Returns the fittest element in the current selection
-    """
-    return max(selected_individuals, key=lambda x: x.score)
-
-
 @profile_phase("selection")
 def tournament_selection(
     population: list[Individual],
@@ -24,15 +17,18 @@ def tournament_selection(
         raise ValueError("Cannot select from an empty population")
 
     tournament_size = min(tournament_size, len(population))
-    random_subset = random.sample(population, tournament_size)
-    stop = False
-    best_element = get_fittest(random_subset)
-    while len(random_subset) > 1 and not stop:
-        if random.random() > prob_selecting_fittest:
-            random_subset.remove(best_element)
-            best_element = get_fittest(random_subset)
-        else:
-            stop = True
+    ranked = sorted(
+        random.sample(population, tournament_size),
+        key=lambda individual: individual.score,
+        reverse=True,
+    )
+    selected_index = 0
+    while (
+        selected_index < len(ranked) - 1
+        and random.random() > prob_selecting_fittest
+    ):
+        selected_index += 1
+    best_element = ranked[selected_index]
 
     if metric_enabled("operator"):
         with instrumentation():

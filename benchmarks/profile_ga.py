@@ -15,8 +15,9 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.hypothesis_files import (
     hypothesis_path,
-    read_hypothesis_file,
-    read_hypothesis_metrics,
+    metrics_from_payload,
+    read_hypothesis_payload,
+    rule_space_from_payload,
 )
 from benchmarks.profile_baseline import (
     parse_profile_args,
@@ -45,7 +46,8 @@ def add_hypothesis_dir_arg(parser: argparse.ArgumentParser) -> None:
 def hypothesis_env(directory: Path):
     def env(dataset: str, arguments: Arguments) -> dict[str, str]:
         path = hypothesis_path(directory, dataset)
-        read_hypothesis_file(path, arguments)
+        if not path.exists():
+            raise FileNotFoundError(f"Hypothesis space not found: {path}")
         return {"GENTIANS_HYPOTHESIS_SPACE_PATH": str(path.resolve())}
 
     return env
@@ -58,9 +60,22 @@ def run_profile_worker() -> None:
     if seed is not None:
         random.seed(int(seed))
     path = Path(os.environ["GENTIANS_HYPOTHESIS_SPACE_PATH"])
-    rule_space = read_hypothesis_file(path, arguments)
-    replay_hypothesis_metrics(read_hypothesis_metrics(path, arguments))
-    solve(program_from_arguments(arguments), arguments, rule_space)
+    worker_started = time.time()
+    started = time.perf_counter()
+    payload = read_hypothesis_payload(path, arguments)
+    rule_space = rule_space_from_payload(payload, path)
+    load_seconds = time.perf_counter() - started
+    timing.add("hypothesis_load", load_seconds)
+    timing.add("hypothesis_space", load_seconds)
+    timing.add("hypothesis_space.self", load_seconds)
+    timing.add("total_execution", load_seconds)
+    replay_hypothesis_metrics(metrics_from_payload(payload))
+    solve(
+        program_from_arguments(arguments),
+        arguments,
+        rule_space,
+        start_total_time=worker_started,
+    )
 
 
 def replay_hypothesis_metrics(metrics: dict[str, object]) -> None:
@@ -139,7 +154,7 @@ def append_jsonl(path: str | None, rows: list[dict[str, object]]) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("a", encoding="utf-8") as f:
         for row in rows:
-            f.write(json.dumps(row, sort_keys=True) + "\n")
+            f.write(json.dumps(row) + "\n")
 
 
 if __name__ == "__main__":

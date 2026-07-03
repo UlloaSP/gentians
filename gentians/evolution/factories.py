@@ -112,6 +112,7 @@ def create_mutation(config: dict[str, object], sampler: ProgramSampler) -> Mutat
             max_program_clauses: int,
             evaluate_score: FitnessFn,
             known_signatures: set[tuple[str, ...]],
+            extra_forbidden_signatures: set[tuple[str, ...]],
         ) -> Individual:
             return mutate_by_random_group(
                 element,
@@ -120,6 +121,7 @@ def create_mutation(config: dict[str, object], sampler: ProgramSampler) -> Mutat
                 evaluate_score,
                 known_signatures,
                 sampler,
+                extra_forbidden_signatures,
             )
 
         return mutate

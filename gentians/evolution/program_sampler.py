@@ -23,7 +23,7 @@ class ProgramSampler:
             rule_space.entries,
             background_predicates,
         )
-        self.rule_space = RuleSpace.from_entries(entries)
+        self.rule_space = RuleSpace(entries)
         predicates = background_predicates | example_predicates
         for entry in self.rule_space.entries:
             predicates.update(entry.heads)
@@ -56,6 +56,7 @@ class ProgramSampler:
         target_size: int | None = None,
         forced_rules: list[str] | None = None,
         known_signatures: set[tuple[str, ...]] | None = None,
+        extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
     ) -> list[str] | None:
         if not self.rule_space:
             return None
@@ -64,12 +65,15 @@ class ProgramSampler:
             return None
         limit = max(1, min(max_program_clauses, len(self.rule_space)))
         known = known_signatures or set()
+        extra_forbidden = extra_forbidden_signatures or ()
         if forced:
             closed = self._close(forced, limit)
+            signature = tuple(closed) if closed is not None else ()
             if (
                 closed is None
                 or (target_size is not None and len(closed) > target_size)
-                or tuple(closed) in known
+                or signature in known
+                or signature in extra_forbidden
             ):
                 return None
             return closed
@@ -92,8 +96,10 @@ class ProgramSampler:
                     closed = None
                 else:
                     closed_set = set(closed) if closed is not None else set()
-            if closed is not None and tuple(closed) not in known:
-                return closed
+            if closed is not None:
+                signature = tuple(closed)
+                if signature not in known and signature not in extra_forbidden:
+                    return closed
         return None
 
     def _close(self, program: list[str], max_program_clauses: int) -> list[str] | None:

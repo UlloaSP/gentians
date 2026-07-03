@@ -52,6 +52,7 @@ def genetic_solver(
     for it in range(args.iterations_genetic + 1):
         with phase("genetic.bookkeeping"):
             best_score_so_far = max(best_score_so_far, population[0].score)
+            generation_signatures: set[tuple[str, ...]] = set()
             record_ga_generation(
                 it,
                 best_score_so_far,
@@ -63,20 +64,18 @@ def genetic_solver(
         # either do crossover or mutation seems to be not effective
 
         # 2.2: crossover
-        with phase("crossover"):
-            known_signatures = set(population_signatures)
         new_program_1, new_program_2 = crossover(
             best_a,
             best_b,
             evaluate_score,
-            known_signatures,
+            population_signatures,
             args.max_program_clauses,
         )
         with phase("crossover"):
             for child in (new_program_1, new_program_2):
                 if child.is_best:
                     return child.program, child.score, child.is_best
-                known_signatures.add(child.signature)
+                generation_signatures.add(child.signature)
 
         # 2.3: mutation
         # https://arxiv.org/pdf/2305.01582.pdf
@@ -84,28 +83,28 @@ def genetic_solver(
             new_program_1,
             args.max_program_clauses,
             evaluate_score,
-            known_signatures,
+            population_signatures,
+            generation_signatures,
         )
         with phase("mutation"):
             if new_mutated_1.is_best:
                 return new_mutated_1.program, new_mutated_1.score, new_mutated_1.is_best
-            known_signatures.add(new_mutated_1.signature)
+            generation_signatures.add(new_mutated_1.signature)
 
         new_mutated_2 = mutation(
             new_program_2,
             args.max_program_clauses,
             evaluate_score,
-            known_signatures,
+            population_signatures,
+            generation_signatures,
         )
         with phase("mutation"):
             if new_mutated_2.is_best:
                 return new_mutated_2.program, new_mutated_2.score, new_mutated_2.is_best
-            known_signatures.add(new_mutated_2.signature)
-
-        l_mutated = [new_mutated_1, new_mutated_2]
+            generation_signatures.add(new_mutated_2.signature)
 
         # 3: replace elements in the population
-        for el in l_mutated:
+        for el in (new_mutated_1, new_mutated_2):
             population = replacement(population, el, population_signatures)
 
     return population[0].program, population[0].score, population[0].is_best

@@ -32,6 +32,7 @@ def mutate_by_random_group(
     evaluate_score: FitnessFn,
     known_signatures: set[tuple[str, ...]],
     sampler: ProgramSampler,
+    extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
 ):
     """
     Mutation of an element
@@ -43,6 +44,7 @@ def mutate_by_random_group(
     changed_positions = 0
     operation = "none"
     duplicate_attempts = 0
+    extra_forbidden = extra_forbidden_signatures or ()
 
     with phase("mutation.operator"):
         if random.random() < probability:
@@ -84,7 +86,10 @@ def mutate_by_random_group(
                     candidate_signature = tuple(closed)
                     if candidate_signature == original_signature:
                         continue
-                    if candidate_signature in known_signatures:
+                    if (
+                        candidate_signature in known_signatures
+                        or candidate_signature in extra_forbidden
+                    ):
                         duplicate_attempts += 1
                         continue
 
@@ -116,7 +121,11 @@ def mutate_by_random_group(
                     "improved": mutated_element.score > original_score,
                     "is_best": mutated_element.is_best,
                     "duplicate_population": (
-                        something_changed and mutated_element.signature in known_signatures
+                        something_changed
+                        and (
+                            mutated_element.signature in known_signatures
+                            or mutated_element.signature in extra_forbidden
+                        )
                     ),
                     "duplicate_attempts": duplicate_attempts,
                 },

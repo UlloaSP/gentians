@@ -36,11 +36,15 @@ def replace_oldest_or_worst(
             population_signatures.add(element.signature)
 
             if replace_oldest:
-                victim = min(
-                    (current for current in population if current is not element),
-                    key=lambda x: x.generated_timestamp,
+                victim_index = min(
+                    (
+                        index
+                        for index, current in enumerate(population)
+                        if current is not element
+                    ),
+                    key=lambda index: population[index].generated_timestamp,
                 )
-                population.remove(victim)
+                victim = population.pop(victim_index)
             else:
                 victim = population.pop()
             population_signatures.discard(victim.signature)

@@ -18,7 +18,7 @@ CrossoverFn = Callable[
     tuple[Individual, Individual],
 ]
 MutationFn = Callable[
-    [Individual, int, FitnessFn, set[tuple[str, ...]]],
+    [Individual, int, FitnessFn, set[tuple[str, ...]], set[tuple[str, ...]]],
     Individual,
 ]
 ReplacementFn = Callable[

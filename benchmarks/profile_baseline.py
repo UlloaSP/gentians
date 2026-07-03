@@ -108,7 +108,7 @@ PHASE_FUNCTIONS = {
     "hypothesis_space.total": {"generate"},
     "hypothesis_space.clause_generation": {"generate"},
     "genetic.total": {"genetic_solver"},
-    "genetic.selection": {"tournament", "pick_two_fittest", "get_fittest"},
+    "genetic.selection": {"tournament", "pick_two_fittest"},
     "genetic.crossover_inclusive": {"crossover"},
     "genetic.mutation_inclusive": {"mutate"},
     "genetic.replacement": {"replace_oldest_or_worst"},

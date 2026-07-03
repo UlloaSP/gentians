@@ -3,9 +3,16 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks.hypothesis_files import read_hypothesis_file, write_hypothesis_file
+from benchmarks.hypothesis_files import (
+    read_hypothesis_file,
+    write_hypothesis_file,
+)
 from benchmarks.profile_baseline import build_command
-from benchmarks.profile_ga import replay_hypothesis_metrics, run_profile_worker
+from benchmarks.profile_ga import (
+    hypothesis_env,
+    replay_hypothesis_metrics,
+    run_profile_worker,
+)
 from gentians import timing
 from gentians.arguments import Arguments
 from gentians.rule_generation.program import Program
@@ -20,6 +27,44 @@ def test_hypothesis_file_ignores_ga_only_arguments(tmp_path):
     write_hypothesis_file(path, "coin", generated, RuleSpace.from_clauses(["rule."]))
 
     rule_space = read_hypothesis_file(path, requested)
+
+    assert rule_space.clauses == ["rule."]
+
+
+def test_hypothesis_file_stores_entries_to_avoid_reparse(monkeypatch, tmp_path):
+    path = tmp_path / "coin.json"
+    arguments = Arguments(filename="coin.txt")
+    write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
+    payload = json.loads(path.read_text(encoding="utf-8"))
+
+    assert "entries" in payload
+    assert "clauses" not in payload
+
+    monkeypatch.setattr(
+        "benchmarks.hypothesis_files.RuleSpace.from_clauses",
+        lambda clauses: (_ for _ in ()).throw(AssertionError("unexpected reparse")),
+    )
+    monkeypatch.setattr(
+        "benchmarks.hypothesis_files.RuleSpace.from_entries",
+        lambda entries: (_ for _ in ()).throw(AssertionError("unexpected rebuild")),
+    )
+
+    rule_space = read_hypothesis_file(path, arguments)
+
+    assert rule_space.clauses == ["rule."]
+
+
+def test_hypothesis_file_reads_legacy_clauses(tmp_path):
+    path = tmp_path / "coin.json"
+    arguments = Arguments(filename="coin.txt")
+    write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["schemaVersion"] = 1
+    payload["clauses"] = ["rule."]
+    payload.pop("entries")
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    rule_space = read_hypothesis_file(path, arguments)
 
     assert rule_space.clauses == ["rule."]
 
@@ -44,11 +89,30 @@ def test_build_command_accepts_profile_script_path():
     assert json.loads(payload)["iterations_genetic"] == 1000
 
 
+def test_profile_ga_parent_validates_without_loading_rule_space(monkeypatch, tmp_path):
+    path = tmp_path / "coin.json"
+    arguments = Arguments(filename="coin.txt")
+    write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
+    monkeypatch.setattr(
+        "benchmarks.profile_ga.read_hypothesis_payload",
+        lambda path, arguments: (_ for _ in ()).throw(AssertionError("unexpected load")),
+    )
+
+    env = hypothesis_env(tmp_path)("coin", arguments)
+
+    assert env["GENTIANS_HYPOTHESIS_SPACE_PATH"] == str(path.resolve())
+
+
 def test_profile_ga_worker_loads_hypothesis_file(monkeypatch, tmp_path):
     path = tmp_path / "coin.json"
     arguments = Arguments(filename="coin.txt")
     write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
     captured = {}
+    timing._totals.clear()
+    timing._counts.clear()
+    monkeypatch.setattr(timing, "_enabled", True)
+    values = iter([1.0, 3.5])
+    monkeypatch.setattr("benchmarks.profile_ga.time.perf_counter", lambda: next(values))
 
     monkeypatch.setenv("GENTIANS_ARGUMENTS_JSON", json.dumps(arguments.__dict__))
     monkeypatch.setenv("GENTIANS_HYPOTHESIS_SPACE_PATH", str(path))
@@ -57,9 +121,10 @@ def test_profile_ga_worker_loads_hypothesis_file(monkeypatch, tmp_path):
         lambda loaded: Program([], [], [], [], []),
     )
 
-    def fake_solve(program, loaded, rule_space):
+    def fake_solve(program, loaded, rule_space, start_total_time=None):
         captured["clauses"] = rule_space.clauses
         captured["arguments"] = loaded
+        captured["start_total_time"] = start_total_time
 
     monkeypatch.setattr("benchmarks.profile_ga.solve", fake_solve)
 
@@ -67,6 +132,13 @@ def test_profile_ga_worker_loads_hypothesis_file(monkeypatch, tmp_path):
 
     assert captured["clauses"] == ["rule."]
     assert captured["arguments"].filename == "coin.txt"
+    assert captured["start_total_time"] is not None
+    assert timing._totals["hypothesis_load"] == 2.5
+    assert timing._totals["hypothesis_space"] == 2.5
+    assert timing._totals["hypothesis_space.self"] == 2.5
+    assert timing._totals["total_execution"] == 2.5
+    timing._totals.clear()
+    timing._counts.clear()
 
 
 def test_profile_ga_replays_hypothesis_metrics(monkeypatch, tmp_path):

@@ -13,7 +13,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -146,15 +146,17 @@ STANDARD_TIMING_METRICS = [
 ]
 
 
-def main() -> None:
+def parse_profile_args(
+    description: str,
+    default_out_dir: Path,
+    add_args: Callable[[argparse.ArgumentParser], None] | None = None,
+) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="External profiler for baseline GENTIANS. Does not modify gentians code."
+        description=description
     )
     parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
     parser.add_argument("--runs", type=int, default=10)
-    parser.add_argument(
-        "--out-dir", type=Path, default=Path(".benchmarks") / "baseline_profile"
-    )
+    parser.add_argument("--out-dir", type=Path, default=default_out_dir)
     parser.add_argument("--timeout-seconds", type=int, default=100)
     parser.add_argument("--python", default=_default_python())
     parser.add_argument(
@@ -178,8 +180,24 @@ def main() -> None:
         default=2.0,
         help=argparse.SUPPRESS,
     )
-    args = parser.parse_args()
+    if add_args is not None:
+        add_args(parser)
+    return parser.parse_args()
 
+
+def main() -> None:
+    args = parse_profile_args(
+        "External profiler for baseline GENTIANS. Does not modify gentians code.",
+        Path(".benchmarks") / "baseline_profile",
+    )
+    run_benchmark_suite(args, PROFILE_BASELINE_PATH)
+
+
+def run_benchmark_suite(
+    args: argparse.Namespace,
+    profile_path: Path,
+    run_env: Callable[[str, Arguments], dict[str, str]] | None = None,
+) -> None:
     if args.list_datasets:
         print("\n".join(case_names()))
         return
@@ -273,7 +291,9 @@ def main() -> None:
                     log_path,
                 ]
             )
-            cmd, arguments_json = build_command(args.python, dataset_arguments)
+            cmd, arguments_json = build_command(
+                args.python, dataset_arguments, profile_path
+            )
             seed = args.seed_base + completed - 1
             experiment_id = f"{dataset}_seed_{seed}"
             with commands_path.open("a", encoding="utf-8") as f:
@@ -304,6 +324,7 @@ def main() -> None:
                 seed,
                 ga_metrics,
                 timings,
+                run_env(dataset, dataset_arguments) if run_env is not None else None,
             )
             elapsed = time.perf_counter() - started
             status = "timeout" if timed_out else "ok" if returncode == 0 else "failed"
@@ -403,9 +424,11 @@ def profile_arguments(args: argparse.Namespace, dataset: str) -> Arguments:
     return arguments_for(dataset, args.set)
 
 
-def build_command(python: str, arguments: Arguments) -> tuple[list[str], str]:
+def build_command(
+    python: str, arguments: Arguments, profile_path: Path = PROFILE_BASELINE_PATH
+) -> tuple[list[str], str]:
     arguments_payload = arguments_json(arguments)
-    return [python, str(PROFILE_BASELINE_PATH)], arguments_payload
+    return [python, str(profile_path)], arguments_payload
 
 
 def run_profile_worker() -> None:
@@ -434,6 +457,7 @@ def run_streamed(
     seed: int,
     completed_ga_metrics: list[GAMetric],
     completed_timings: list[TimingMetric],
+    extra_env: dict[str, str] | None = None,
 ) -> tuple[int | None, bool]:
     _ = (out_dir, dataset, run, completed_ga_metrics, completed_timings)
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
@@ -450,6 +474,8 @@ def run_streamed(
     env["GENTIANS_CANDIDATE_METRICS_PATH"] = str(candidate_metrics_path.resolve())
     env["GENTIANS_QUALITY_METRICS_PATH"] = str(quality_metrics_path.resolve())
     env["GENTIANS_CLINGO_METRICS_PATH"] = str(clingo_metrics_path.resolve())
+    if extra_env:
+        env.update(extra_env)
     with log_path.open("w", encoding="utf-8") as log:
         process = subprocess.Popen(
             cmd,
@@ -956,14 +982,8 @@ def write_dashboard_data(
             _clingo_calls_for_run(dataset_clingo_metrics, run, "grounding")
             for run in run_ids
         )
-        atoms = max(
-            [to_float(row.get("stats_atoms")) for row in dataset_clingo_metrics],
-            default=0.0,
-        )
-        ground_rules = max(
-            [to_float(row.get("stats_rules")) for row in dataset_clingo_metrics],
-            default=0.0,
-        )
+        atoms = mean_run_call_mean(dataset_clingo_metrics, run_ids, "stats_atoms")
+        ground_rules = mean_run_call_mean(dataset_clingo_metrics, run_ids, "stats_rules")
         choices = mean(
             _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "stats_choices")
             for run in run_ids
@@ -1422,6 +1442,10 @@ def quality_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
 
 def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     summary: list[dict[str, object]] = []
+    runs_by_dataset = {
+        dataset: _run_ids_for_dataset(rows, dataset)
+        for dataset in {str(row.get("dataset", "")) for row in rows}
+    }
     keys = sorted(
         {
             (
@@ -1434,6 +1458,7 @@ def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
         }
     )
     for dataset, operation, phase_context in keys:
+        run_ids = runs_by_dataset.get(dataset, [])
         selected = [
             row
             for row in rows
@@ -1441,30 +1466,77 @@ def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             and row.get("operation") == operation
             and str(row.get("phase_context", "")) == phase_context
         ]
-        mean_models = mean(to_float(row.get("models")) for row in selected)
+        calls = mean(len(_rows_for_run(selected, run)) for run in run_ids)
+        total_seconds = mean(
+            sum(to_float(row.get("seconds")) for row in _rows_for_run(selected, run))
+            for run in run_ids
+        )
+        total_models = mean(
+            sum(to_float(row.get("models")) for row in _rows_for_run(selected, run))
+            for run in run_ids
+        )
+        mean_seconds = mean(
+            mean(to_float(row.get("seconds")) for row in run_rows)
+            for run in run_ids
+            if (run_rows := _rows_for_run(selected, run))
+        )
+        mean_models = mean(
+            mean(to_float(row.get("models")) for row in run_rows)
+            for run in run_ids
+            if (run_rows := _rows_for_run(selected, run))
+        )
+        mean_atoms = mean_run_call_mean(selected, run_ids, "stats_atoms")
+        mean_rules = mean_run_call_mean(selected, run_ids, "stats_rules")
         summary.append(
             {
                 "dataset": dataset,
                 "operation": operation,
                 "operation_category": clingo_operation_category(selected[0]),
                 "phase_context": phase_context,
-                "calls": len(selected),
-                "total_seconds": sum(to_float(row.get("seconds")) for row in selected),
-                "mean_seconds": mean(to_float(row.get("seconds")) for row in selected),
-                "total_models": sum(to_float(row.get("models")) for row in selected),
+                "calls": calls,
+                "total_seconds": total_seconds,
+                "mean_seconds": mean_seconds,
+                "total_models": total_models,
                 "mean_models": mean_models,
-                "mean_models_points": [[0, 0.0], [len(selected), mean_models]],
-                "max_atoms": max(
-                    [to_float(row.get("stats_atoms")) for row in selected],
-                    default=0.0,
-                ),
-                "max_rules": max(
-                    [to_float(row.get("stats_rules")) for row in selected],
-                    default=0.0,
-                ),
+                "mean_models_points": [[0, 0.0], [calls, mean_models]],
+                "mean_atoms": mean_atoms,
+                "mean_rules": mean_rules,
+                "max_atoms": mean_atoms,
+                "max_rules": mean_rules,
             }
         )
     return summary
+
+
+def _run_ids_for_dataset(rows: list[dict[str, object]], dataset: str) -> list[int]:
+    run_ids = sorted(
+        {
+            int(to_float(row.get("run")))
+            for row in rows
+            if row.get("dataset") == dataset and row.get("run") not in (None, "")
+        }
+    )
+    return run_ids or [0]
+
+
+def _rows_for_run(rows: list[dict[str, object]], run: int) -> list[dict[str, object]]:
+    return [row for row in rows if int(to_float(row.get("run"))) == run]
+
+
+def mean_run_call_mean(
+    rows: list[dict[str, object]], run_ids: list[int], key: str
+) -> float:
+    return mean(
+        mean(to_float(row.get(key)) for row in run_rows if row.get(key) not in (None, ""))
+        for run in run_ids
+        if (
+            run_rows := [
+                row
+                for row in _rows_for_run(rows, run)
+                if row.get(key) not in (None, "")
+            ]
+        )
+    )
 
 
 def clingo_operation_category(row: dict[str, object]) -> str:

@@ -1,7 +1,6 @@
 import { chartTw } from '../chartTw'
 
-export function PageLayout({ page, go, children, error }) {
-  const title = page === 'comparison' ? 'Comparación de ejemplos' : page === 'sweep' ? 'Sweep de parámetros' : 'Detalle por ejemplo'
+export function PageLayout({ title = 'GENTIANS profiling', actions, children, error }) {
   if (error) {
     return (
       <main className={chartTw.page}>
@@ -16,16 +15,12 @@ export function PageLayout({ page, go, children, error }) {
   return (
     <main className={chartTw.page}>
       <div className={chartTw.shell}>
-        <header className="flex items-end justify-between gap-5 border-b border-neutral-200 pb-5 dark:border-neutral-800">
+        <header className="relative border-b border-neutral-200 pb-5 pr-0 dark:border-neutral-800 md:pr-64">
           <div>
             <span className="text-xs font-medium uppercase tracking-[.24em] text-blue-600">GENTIANS profiling</span>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight">{title}</h1>
           </div>
-          <nav className="flex gap-2">
-            <button className={page === 'comparison' ? chartTw.buttonActive : chartTw.button} onClick={() => go('comparison')}>Comparar</button>
-            <button className={page === 'example' ? chartTw.buttonActive : chartTw.button} onClick={() => go('example')}>Filtrar ejemplo</button>
-            <button className={page === 'sweep' ? chartTw.buttonActive : chartTw.button} onClick={() => go('sweep')}>Sweep</button>
-          </nav>
+          {actions && <div className={chartTw.floatingSelect}>{actions}</div>}
         </header>
         {children}
       </div>

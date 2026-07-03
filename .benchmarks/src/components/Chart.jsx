@@ -26,7 +26,8 @@ export function Chart({ data, layout, height = 420 }) {
 
 function toEChart(data = [], layout = {}) {
   const axisLine = { lineStyle: { color: '#d4d4d8' } }
-  const axisLabel = { color: '#71717a' }
+  const axisLabel = { color: '#3f3f46', fontSize: 11, fontWeight: 500 }
+  const axisName = { color: '#27272a', fontSize: 12, fontWeight: 700 }
   const splitLine = { lineStyle: { color: '#e5e5e5' } }
   const tooltip = {
     backgroundColor: '#111827',
@@ -45,15 +46,17 @@ function toEChart(data = [], layout = {}) {
         trigger: 'item',
         formatter: (params) => {
           const extra = trace.customdata?.[params.dataIndex]
-          const value = Number(params.value || 0).toLocaleString('es-ES', { maximumFractionDigits: 2 })
+          const value = trace.valueFormatter
+            ? trace.valueFormatter(params.value)
+            : Number(params.value || 0).toLocaleString('es-ES', { maximumFractionDigits: 2 })
           return [
-            `${params.marker}${params.name}: ${params.percent}%`,
+            `${params.marker}${params.name}: ${params.percent}%${trace.percentLabel ? ` ${trace.percentLabel}` : ''}`,
             `${trace.valueLabel || 'valor'}: ${value}`,
             extra,
           ].filter(Boolean).join('<br/>')
         },
       },
-      legend: { bottom: 0, textStyle: { color: '#71717a' } },
+      legend: layout.showlegend === false ? undefined : { bottom: 0, textStyle: { color: '#71717a' } },
       series: [{
         type: 'pie',
         name: trace.name,
@@ -66,6 +69,19 @@ function toEChart(data = [], layout = {}) {
         label: { formatter: '{b}\n{d}%' },
         emphasis: { scale: true, scaleSize: 6 },
       }],
+      graphic: trace.centerText ? {
+        type: 'text',
+        left: 'center',
+        top: 'middle',
+        style: {
+          text: trace.centerText,
+          textAlign: 'center',
+          fill: '#111827',
+          fontSize: 16,
+          fontWeight: 700,
+          lineHeight: 22,
+        },
+      } : undefined,
     }
   }
 
@@ -111,6 +127,13 @@ function toEChart(data = [], layout = {}) {
   const isScatter = ['scatter', 'scattergl'].includes(first.type)
   const categories = horizontal ? first.y : first.x
   const hasBase = horizontal && first.base
+  const legendData = data.filter((trace) => trace.legend !== false).map((trace) => trace.name)
+  const tooltipOption = {
+    ...tooltip,
+    trigger: layout.tooltip?.trigger || (isScatter ? 'item' : 'axis'),
+    axisPointer: layout.tooltip?.axisPointer || { type: 'shadow', shadowStyle: { color: 'rgba(59,130,246,.08)' } },
+    formatter: layout.tooltip?.formatter,
+  }
   const series = []
 
   if (hasBase) {
@@ -127,14 +150,21 @@ function toEChart(data = [], layout = {}) {
       },
     }
     if (['scatter', 'scattergl'].includes(trace.type)) {
+      const symbolSize = Array.isArray(trace.marker?.size)
+        ? (_, params) => trace.marker.size[params.dataIndex]
+        : trace.marker?.size ?? 8
       series.push({
         ...baseSeries,
         type: trace.mode?.includes('lines') ? 'line' : 'scatter',
+        stack: trace.stack,
+        silent: trace.silent,
         data: (trace.x || []).map((x, i) => ({ name: trace.text?.[i], value: [x, trace.y?.[i]], runCount: trace.customdata?.[i] })),
-        showSymbol: !trace.mode?.includes('lines'),
-        symbolSize: Array.isArray(trace.marker?.size) ? (_, params) => trace.marker.size[params.dataIndex] : trace.marker?.size || 8,
+        showSymbol: trace.showSymbol ?? !trace.mode?.includes('lines'),
+        symbolSize,
         label: trace.mode?.includes('text') ? { show: true, formatter: (p) => p.data.name, position: 'top' } : undefined,
         lineStyle: trace.line ? { color: trace.line.color, width: trace.line.width, type: trace.line.dash === 'dot' ? 'dotted' : 'solid' } : undefined,
+        areaStyle: trace.areaStyle,
+        tooltip: trace.tooltip === false ? { show: false } : undefined,
       })
       return
     }
@@ -143,7 +173,7 @@ function toEChart(data = [], layout = {}) {
       type: 'bar',
       stack: layout.barmode === 'stack' || trace.base ? 'timeline' : undefined,
       barMaxWidth: 28,
-      itemStyle: { ...baseSeries.itemStyle, borderRadius: horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0] },
+      itemStyle: { ...baseSeries.itemStyle, borderRadius: layout.barRadius ?? (horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0]) },
       data: horizontal ? trace.x : trace.y,
     })
   })
@@ -151,8 +181,8 @@ function toEChart(data = [], layout = {}) {
   return {
     backgroundColor: 'transparent',
     color: [colors.self, colors.grounding, colors.solving, colors.other, colors.accent],
-    tooltip: { ...tooltip, trigger: isScatter ? 'item' : 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(59,130,246,.08)' } } },
-    legend: data.length > 1 ? { bottom: 0, type: 'scroll', textStyle: { color: '#71717a' } } : undefined,
+    tooltip: tooltipOption,
+    legend: legendData.length > 1 ? { bottom: 0, type: 'scroll', data: legendData, textStyle: { color: '#71717a' } } : undefined,
     grid: {
       left: layout.margin?.l || (horizontal ? 120 : 60),
       right: layout.margin?.r || 24,
@@ -160,11 +190,11 @@ function toEChart(data = [], layout = {}) {
       bottom: layout.margin?.b || (data.length > 1 ? 62 : 44),
     },
     xAxis: horizontal
-      ? { type: layout.xaxis?.type === 'log' ? 'log' : 'value', name: layout.xaxis?.title, axisLine, axisLabel, splitLine }
-      : { type: isScatter ? 'value' : 'category', name: layout.xaxis?.title, data: isScatter ? undefined : categories, axisLine, axisLabel: { ...axisLabel, rotate: isScatter ? 0 : 25 }, splitLine, ...(layout.xaxis?.type === 'log' ? { type: 'log' } : {}) },
+      ? { type: layout.xaxis?.type === 'log' ? 'log' : 'value', name: layout.xaxis?.title, nameLocation: 'middle', nameGap: 34, nameTextStyle: axisName, axisLine, axisLabel, splitLine }
+      : { type: isScatter ? 'value' : 'category', name: layout.xaxis?.title, nameLocation: 'middle', nameGap: 36, nameTextStyle: axisName, data: isScatter ? undefined : categories, axisLine, axisLabel: { ...axisLabel, rotate: isScatter ? 0 : 25 }, splitLine, ...(layout.xaxis?.type === 'log' ? { type: 'log' } : {}) },
     yAxis: horizontal
-      ? { type: 'category', name: layout.yaxis?.title, data: categories, inverse: layout.yaxis?.autorange === 'reversed', axisLine, axisLabel, splitLine }
-      : { type: layout.yaxis?.type === 'log' ? 'log' : 'value', name: layout.yaxis?.title, axisLine, axisLabel, splitLine },
+      ? { type: 'category', name: layout.yaxis?.title, nameLocation: 'middle', nameGap: 72, nameTextStyle: axisName, data: categories, inverse: layout.yaxis?.autorange === 'reversed', axisLine, axisLabel, splitLine }
+      : { type: layout.yaxis?.type === 'log' ? 'log' : 'value', name: layout.yaxis?.title, nameLocation: 'middle', nameGap: 54, nameTextStyle: axisName, axisLine, axisLabel, splitLine },
     series,
   }
 }

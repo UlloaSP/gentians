@@ -13,7 +13,7 @@ export function PhaseTypeChart({ benchmark }) {
       x: phaseOrder.map(([phase]) => num(benchmark.phases?.[phase]?.[type])),
       marker: { color: colors[type] },
     })),
-    layout: { barmode: 'stack', xaxis: { title: 'segundos' }, yaxis: { autorange: 'reversed' }, margin: { l: 120, r: 18, t: 30, b: 45 } },
+    layout: { barmode: 'stack', barRadius: 0, xaxis: { title: 'segundos' }, yaxis: { autorange: 'reversed' }, margin: { l: 120, r: 18, t: 30, b: 86 } },
   }), [benchmark])
 
   return <ChartSection title="Fases por tipo"><Chart {...chart} /></ChartSection>

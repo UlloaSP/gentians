@@ -14,11 +14,14 @@ from gentians.evolution.factories import (
 from .arguments import Arguments
 from .rule_generation.hypothesis_space import build_hypothesis_space, read_task
 from .rule_generation.program import Program
+from .rule_generation.rule_space import RuleSpace
 from .evolution.program_sampler import ProgramSampler
-from .timing import export as export_timings, phase
+from .timing import export as export_timings, phase, record_metric
 
 
-def solve(program: Program, arguments: Arguments) -> None:
+def solve(
+    program: Program, arguments: Arguments, rule_space: RuleSpace | None = None
+) -> None:
     """
     Main loop.
     """
@@ -27,10 +30,19 @@ def solve(program: Program, arguments: Arguments) -> None:
 
     try:
         with phase("total_execution"):
-            rule_space = build_hypothesis_space(
-                program,
-                arguments,
-            )
+            if rule_space is None:
+                rule_space = build_hypothesis_space(
+                    program,
+                    arguments,
+                )
+            else:
+                record_metric(
+                    "candidate",
+                    {
+                        "metric": "hypothesis_space",
+                        "clauses": len(rule_space),
+                    },
+                )
 
             if len(rule_space) == 0:
                 print("\033[91m" + "Error: " + "No clauses found" + "\033[0m")
@@ -62,7 +74,7 @@ def solve(program: Program, arguments: Arguments) -> None:
         export_timings()
 
 
-def main(arguments: Arguments) -> None:
+def program_from_arguments(arguments: Arguments) -> Program:
     """
     SDK entry point.
     """
@@ -79,4 +91,13 @@ def main(arguments: Arguments) -> None:
     if arguments.predicate_invention != 0:
         program.invent_predicates(arguments.predicate_invention)
 
+    return program
+
+
+def main(arguments: Arguments) -> None:
+    """
+    SDK entry point.
+    """
+
+    program = program_from_arguments(arguments)
     solve(program, arguments)

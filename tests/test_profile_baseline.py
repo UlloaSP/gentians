@@ -299,26 +299,58 @@ def test_accounting_invariants_include_fitness_setup():
     assert by_name["fitness.setup_contains_clingo"]["right_seconds"] == 2.5
 
 
-def test_clingo_summary_uses_categories_and_mean_models_from_zero():
+def test_clingo_summary_uses_run_means_and_mean_models_from_zero():
     [summary] = clingo_summary(
         [
             {
                 "dataset": "d",
+                "run": 1,
                 "operation": "fixed_presolve",
                 "operation_category": "solving",
                 "phase_context": "mutation.fitness",
                 "seconds": 0.2,
                 "models": 2,
+                "stats_atoms": 10,
+                "stats_rules": 20,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "operation": "fixed_presolve",
+                "operation_category": "solving",
+                "phase_context": "mutation.fitness",
+                "seconds": 0.4,
+                "models": 4,
+                "stats_atoms": 30,
+                "stats_rules": 60,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "operation": "fixed_presolve",
+                "operation_category": "solving",
+                "phase_context": "mutation.fitness",
+                "seconds": 0.6,
+                "models": 6,
+                "stats_atoms": 50,
+                "stats_rules": 100,
             }
         ]
     )
 
     assert summary["operation_category"] == "solving"
-    assert summary["mean_models"] == 2
+    assert summary["calls"] == 1.5
+    assert summary["total_seconds"] == 0.6
+    assert summary["mean_seconds"] == 0.35
+    assert summary["total_models"] == 6
+    assert summary["mean_models"] == 3.5
+    assert summary["mean_atoms"] == 25
+    assert summary["mean_rules"] == 50
     assert summary["mean_models_points"][0] == [0, 0.0]
+    assert summary["mean_models_points"][1] == [1.5, 3.5]
 
 
-def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
+def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
     write_dashboard_data(
         tmp_path,
         [
@@ -334,7 +366,20 @@ def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
                 "{}",
                 "",
                 "",
-            )
+            ),
+            RunResult(
+                "d",
+                2,
+                2,
+                "run2",
+                "ok",
+                0,
+                1.0,
+                [],
+                "{}",
+                "",
+                "",
+            ),
         ],
         [],
         [],
@@ -355,6 +400,27 @@ def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
             },
             {
                 "dataset": "d",
+                "run": 2,
+                "operation": "grounding",
+                "operation_category": "grounding",
+                "phase_context": "fitness.setup",
+                "seconds": 0.7,
+                "stats_atoms": 30,
+                "stats_rules": 60,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "operation": "solving",
+                "operation_category": "solving",
+                "phase_context": "mutation.fitness",
+                "seconds": 0.2,
+                "models": 9,
+                "stats_atoms": 30,
+                "stats_rules": 60,
+            },
+            {
+                "dataset": "d",
                 "run": 1,
                 "operation": "solving",
                 "operation_category": "solving",
@@ -370,9 +436,9 @@ def test_dashboard_aggregates_clingo_by_category_and_max_ground_size(tmp_path):
     bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
     assert bench["groundCalls"] == 1
     assert bench["solveCalls"] == 1
-    assert bench["atoms"] == 10
-    assert bench["groundRules"] == 20
-    assert bench["models"] == 3
+    assert bench["atoms"] == 20
+    assert bench["groundRules"] == 40
+    assert bench["models"] == 6
 
 
 def test_dashboard_counts_best_found_runs(tmp_path):

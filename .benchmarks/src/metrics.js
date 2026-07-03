@@ -25,8 +25,7 @@ export const colors = {
   accent: '#ef4444',
 }
 
-export const dataUrl = () => new URLSearchParams(window.location.search).get('data') || 'baseline_profile/dashboard_data.json'
-export const sweepUrl = () => new URLSearchParams(window.location.search).get('sweep') || 'sweeps/latest/sweep_dashboard_data.json'
+export const dataUrl = () => new URLSearchParams(window.location.search).get('data') || 'ga_profile/dashboard_data.json'
 export const num = (value) => Number(value || 0)
 export const maybeNum = (value) => value === null || value === undefined || value === '' ? null : Number(value)
 export const sum = (values) => values.reduce((a, b) => a + num(b), 0)

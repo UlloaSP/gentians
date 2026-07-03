@@ -7,7 +7,7 @@ from clingo import ast
 Predicate = tuple[str, int]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RuleEntry:
     text: str
     heads: frozenset[Predicate]

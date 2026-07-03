@@ -193,7 +193,7 @@ def test_coverage_fixed_penalizes_literals_and_redundancy():
     assert small_score > redundant_score
 
 
-def test_cached_fitness_reuses_canonical_program_result():
+def test_cached_fitness_reuses_program_result():
     cache = {}
     calls = []
 
@@ -204,7 +204,7 @@ def test_cached_fitness_reuses_canonical_program_result():
     score, best_found = cached_fitness(cache, [1, 0, 0], compute)
 
     assert (score, best_found) == (1.0, True)
-    assert calls == [[0, 0, 1]]
+    assert calls == [[1, 0, 0]]
 
 
 def test_extract_fixed_coverage_does_not_dump_each_candidate(monkeypatch, tmp_path):

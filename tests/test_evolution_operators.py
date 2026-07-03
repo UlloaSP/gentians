@@ -177,6 +177,10 @@ def test_mutation_retries_duplicate_before_fitness(monkeypatch):
         "gentians.evolution.mutations.random_group.record_metric",
         lambda kind, row: metrics.append(row),
     )
+    monkeypatch.setattr(
+        "gentians.evolution.mutations.random_group.metric_enabled",
+        lambda kind: True,
+    )
 
     calls = []
 
@@ -382,6 +386,10 @@ def test_crossover_counts_parent_children_as_duplicates(monkeypatch):
     monkeypatch.setattr(
         "gentians.evolution.crossovers.set_mix.record_metric",
         lambda kind, row: metrics.append(row),
+    )
+    monkeypatch.setattr(
+        "gentians.evolution.crossovers.set_mix.metric_enabled",
+        lambda kind: True,
     )
 
     set_mix_crossover(

@@ -2,7 +2,7 @@ import math
 import random
 
 from ..individual import Individual
-from ...timing import profile_phase, record_metric
+from ...timing import instrumentation, metric_enabled, profile_phase, record_metric
 
 
 @profile_phase("replacement")
@@ -46,17 +46,19 @@ def replace_oldest_or_worst(
             population_signatures.discard(victim.signature)
             accepted = True
 
-    record_metric(
-        "operator",
-        {
-            "operator": "replacement",
-            "strategy": "oldest_or_worst",
-            "accepted": accepted,
-            "duplicate": reject_reason == "duplicate",
-            "reject_reason": reject_reason,
-            "candidate_score": element.score,
-            "population_size": len(population),
-        },
-    )
+    if metric_enabled("operator"):
+        with instrumentation():
+            record_metric(
+                "operator",
+                {
+                    "operator": "replacement",
+                    "strategy": "oldest_or_worst",
+                    "accepted": accepted,
+                    "duplicate": reject_reason == "duplicate",
+                    "reject_reason": reject_reason,
+                    "candidate_score": element.score,
+                    "population_size": len(population),
+                },
+            )
 
     return population

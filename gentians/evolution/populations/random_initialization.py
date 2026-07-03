@@ -37,9 +37,10 @@ def initialize_population(
                 continue
             break
         seen_signatures.add(signature)
-        current_score, best_found = evaluate_score(program)
 
-        sampled_individuals.append(Individual(program, current_score, best_found))
+        current_score, is_best = evaluate_score(program)
+        best_found = is_best
+        sampled_individuals.append(Individual(program, current_score, is_best))
         if best_found:
             return sampled_individuals, True
 

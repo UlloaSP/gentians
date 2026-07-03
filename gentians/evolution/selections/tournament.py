@@ -1,7 +1,7 @@
 import random
 
 from ..individual import Individual
-from ...timing import profile_phase, record_metric
+from ...timing import instrumentation, metric_enabled, profile_phase, record_metric
 
 
 def get_fittest(selected_individuals: "list[Individual]") -> Individual:
@@ -34,15 +34,17 @@ def tournament_selection(
         else:
             stop = True
 
-    record_metric(
-        "operator",
-        {
-            "operator": "selection",
-            "strategy": "tournament",
-            "population_size": len(population),
-            "tournament_size": tournament_size,
-            "selected_score": best_element.score,
-        },
-    )
+    if metric_enabled("operator"):
+        with instrumentation():
+            record_metric(
+                "operator",
+                {
+                    "operator": "selection",
+                    "strategy": "tournament",
+                    "population_size": len(population),
+                    "tournament_size": tournament_size,
+                    "selected_score": best_element.score,
+                },
+            )
 
     return best_element

@@ -21,6 +21,12 @@ _write_queue: "queue.Queue[tuple[str | None, dict[str, Any] | threading.Event] |
 _writer_thread: threading.Thread | None = None
 _writer_lock = threading.Lock()
 _F = TypeVar("_F", bound=Callable)
+_METRIC_ENV_PATHS = {
+    "candidate": "GENTIANS_CANDIDATE_METRICS_PATH",
+    "operator": "GENTIANS_OPERATOR_METRICS_PATH",
+    "quality": "GENTIANS_QUALITY_METRICS_PATH",
+    "clingo": "GENTIANS_CLINGO_METRICS_PATH",
+}
 
 
 def _write_json_atomic(path: str, rows: list[dict[str, object]]) -> None:
@@ -79,7 +85,7 @@ def _writer_loop() -> None:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     handle = target.open("a", encoding="utf-8")
                     handles[path] = handle
-                handle.write(json.dumps(row, sort_keys=True) + "\n")
+                handle.write(json.dumps(row) + "\n")
             finally:
                 _write_queue.task_done()
     finally:
@@ -127,6 +133,8 @@ def phase(name: str):
         "started_perf": time.perf_counter(),
         "started_wall": time.time(),
         "child_seconds": 0.0,
+        "instrumentation_seconds": 0.0,
+        "instrumenting": False,
     }
     _stack.append(event)
     start = time.perf_counter()
@@ -134,7 +142,9 @@ def phase(name: str):
         yield
     finally:
         ended = time.perf_counter()
-        seconds = ended - start
+        raw_seconds = ended - start
+        instrumentation_seconds = float(event["instrumentation_seconds"])
+        seconds = max(raw_seconds - instrumentation_seconds, 0.0)
         self_seconds = max(seconds - float(event["child_seconds"]), 0.0)
         add(name, seconds)
         add(f"{name}.self", self_seconds)
@@ -148,12 +158,15 @@ def phase(name: str):
             "started_wall": event["started_wall"],
             "ended_wall": time.time(),
             "seconds": seconds,
+            "raw_seconds": raw_seconds,
             "self_seconds": self_seconds,
+            "instrumentation_seconds": instrumentation_seconds,
         }
         _append_jsonl(os.environ.get("GENTIANS_TIMING_EVENTS_PATH"), row)
         _stack.pop()
         if _stack:
             _stack[-1]["child_seconds"] += seconds
+            _stack[-1]["instrumentation_seconds"] += instrumentation_seconds
 
 
 def profile_phase(name: str):
@@ -176,23 +189,40 @@ def current_event_id() -> int | None:
     return _stack[-1]["event_id"] if _stack else None
 
 
+@contextmanager
+def instrumentation():
+    if not _enabled or not _stack:
+        yield
+        return
+    event = _stack[-1]
+    if event["instrumenting"]:
+        yield
+        return
+    event["instrumenting"] = True
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        event["instrumentation_seconds"] += time.perf_counter() - start
+        event["instrumenting"] = False
+
+
+def metric_enabled(kind: str) -> bool:
+    return bool(os.environ.get(_METRIC_ENV_PATHS[kind]))
+
+
 def record_metric(kind: str, row: dict[str, Any]) -> None:
-    env_paths = {
-        "candidate": "GENTIANS_CANDIDATE_METRICS_PATH",
-        "operator": "GENTIANS_OPERATOR_METRICS_PATH",
-        "quality": "GENTIANS_QUALITY_METRICS_PATH",
-        "clingo": "GENTIANS_CLINGO_METRICS_PATH",
-    }
-    path = os.environ.get(env_paths[kind])
+    path = os.environ.get(_METRIC_ENV_PATHS[kind])
     if not path:
         return
-    enriched = {
-        "phase": current_phase(),
-        "event_id": current_event_id(),
-        "wall_time": time.time(),
-        **row,
-    }
-    _append_jsonl(path, enriched)
+    with instrumentation():
+        enriched = {
+            "phase": current_phase(),
+            "event_id": current_event_id(),
+            "wall_time": time.time(),
+            **row,
+        }
+        _append_jsonl(path, enriched)
 
 
 def record_ga_generation(
@@ -203,33 +233,41 @@ def record_ga_generation(
     path = os.environ.get("GENTIANS_GA_METRICS_PATH")
     if not path or not population:
         return
-    global _ga_dirty
-    scores = [float(getattr(element, "score", 0.0)) for element in population]
-    row = {
-        "generation": generation,
-        "global_generation": generation,
-        "max_fitness": max(scores),
-        "avg_fitness": sum(scores) / len(scores),
-        "best_so_far": best_so_far,
-    }
-    signatures = [getattr(element, "signature", None) for element in population]
-    valid_signatures = [signature for signature in signatures if signature is not None]
-    sizes = [len(getattr(element, "program", [])) for element in population]
-    invalid = sum(
-        1 for element in population if getattr(element, "score", 0.0) == float("-inf")
-    )
-    row.update(
-        {
-            "population_size": len(population),
-            "unique_signatures": len(set(valid_signatures)),
-            "diversity": len(set(valid_signatures)) / len(population),
-            "invalid_count": invalid,
-            "invalid_rate": invalid / len(population),
-            "mean_program_size": sum(sizes) / len(sizes) if sizes else 0.0,
-        }
-    )
-    _ga_rows.append(row)
-    _ga_dirty = True
+    with instrumentation():
+        global _ga_dirty
+        score_total = 0.0
+        max_fitness = float("-inf")
+        signatures = set()
+        invalid = 0
+        size_total = 0
+        for element in population:
+            score = float(getattr(element, "score", 0.0))
+            score_total += score
+            max_fitness = max(max_fitness, score)
+            signature = getattr(element, "signature", None)
+            if signature is not None:
+                signatures.add(signature)
+            size_total += len(getattr(element, "program", []))
+            if score == float("-inf"):
+                invalid += 1
+        population_size = len(population)
+        unique_signatures = len(signatures)
+        _ga_rows.append(
+            {
+                "generation": generation,
+                "global_generation": generation,
+                "max_fitness": max_fitness,
+                "avg_fitness": score_total / population_size,
+                "best_so_far": best_so_far,
+                "population_size": population_size,
+                "unique_signatures": unique_signatures,
+                "diversity": unique_signatures / population_size,
+                "invalid_count": invalid,
+                "invalid_rate": invalid / population_size,
+                "mean_program_size": size_total / population_size,
+            }
+        )
+        _ga_dirty = True
 
 
 def export() -> None:

@@ -8,7 +8,7 @@ from ..rule_generation.program import Program
 from ..rule_generation.rule_space import Predicate, RuleEntry, RuleSpace
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _RuleMask:
     entry: RuleEntry
     head_mask: int
@@ -18,12 +18,13 @@ class _RuleMask:
 class ProgramSampler:
     def __init__(self, program: Program, rule_space: RuleSpace) -> None:
         background_predicates = _defined_predicates(program.background)
+        example_predicates = _example_predicates(program)
         entries = _prune_uncloseable_rules(
             rule_space.entries,
             background_predicates,
         )
         self.rule_space = RuleSpace.from_entries(entries)
-        predicates = background_predicates | _example_predicates(program)
+        predicates = background_predicates | example_predicates
         for entry in self.rule_space.entries:
             predicates.update(entry.heads)
             predicates.update(entry.deps)
@@ -31,7 +32,7 @@ class ProgramSampler:
             predicate: index for index, predicate in enumerate(sorted(predicates))
         }
         self.background_mask = self._predicate_mask(background_predicates)
-        self.example_mask = self._predicate_mask(_example_predicates(program))
+        self.example_mask = self._predicate_mask(example_predicates)
         self.masks_by_rule = {
             entry.text: _RuleMask(
                 entry,
@@ -79,13 +80,18 @@ class ProgramSampler:
             closed = self._close(program, limit)
             if closed is not None and len(closed) > size_limit:
                 closed = None
+            closed_set = set(closed) if closed is not None else set()
             while closed is not None and len(closed) < size_limit:
-                rule = _random_rule_outside(self.rule_space.clauses, set(closed))
+                rule = _random_rule_outside(self.rule_space.clauses, closed_set)
                 if rule is None:
                     break
-                closed = self._close([*closed, rule], limit)
+                closed.append(rule)
+                closed_set.add(rule)
+                closed = self._close(closed, limit)
                 if closed is not None and len(closed) > size_limit:
                     closed = None
+                else:
+                    closed_set = set(closed) if closed is not None else set()
             if closed is not None and tuple(closed) not in known:
                 return closed
         return None
@@ -97,9 +103,11 @@ class ProgramSampler:
             return None if cached is None else list(cached)
         closed = sorted(dict.fromkeys(program))
         closed_set = set(closed)
+        defined, deps = self._program_masks(closed)
         while True:
-            missing = self._missing_mask(closed)
+            missing = deps & ~defined
             if not missing:
+                closed.sort()
                 self._close_cache[key] = tuple(closed)
                 if os.environ.get("GENTIANS_AUDIT_PROGRAM_SAMPLER_ASP"):
                     _assert_asp_closed_agrees(closed, self.background_mask, self.example_mask, self.masks_by_rule)
@@ -111,18 +119,15 @@ class ProgramSampler:
                 _bits(missing),
                 key=lambda bit: len(self.rules_by_head_bit.get(bit, ())),
             )
-            defined, _ = self._program_masks(closed)
             rule = self._best_repair_candidate(missing_bit, missing, defined, closed_set)
             if rule is None:
                 self._close_cache[key] = None
                 return None
             closed.append(rule)
             closed_set.add(rule)
-            closed.sort()
-
-    def _missing_mask(self, program: list[str]) -> int:
-        defined, deps = self._program_masks(program)
-        return deps & ~defined
+            mask = self.masks_by_rule[rule]
+            defined |= mask.head_mask
+            deps |= mask.dep_mask
 
     def _program_masks(self, program: list[str]) -> tuple[int, int]:
         defined = self.background_mask
@@ -183,7 +188,7 @@ def _prune_uncloseable_rules(
         providers = set(background_predicates)
         for entry in kept:
             providers.update(entry.heads)
-        next_kept = [entry for entry in kept if set(entry.deps) <= providers]
+        next_kept = [entry for entry in kept if entry.deps <= providers]
         if len(next_kept) == len(kept):
             return kept
         kept = next_kept

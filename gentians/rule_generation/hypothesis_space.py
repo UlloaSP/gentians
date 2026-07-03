@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from collections import Counter
+from functools import lru_cache
 from pathlib import Path
 import re
 import time
@@ -12,7 +13,14 @@ from clingo import ast
 from ..arguments import Arguments
 from ..asp.callbacks import wrapper_exit_callback
 from ..asp.rule_analysis import get_atoms
-from ..timing import add, current_phase, profile_phase, record_metric
+from ..timing import (
+    add,
+    current_phase,
+    instrumentation,
+    metric_enabled,
+    profile_phase,
+    record_metric,
+)
 from .parser import parse_atom, split_top_level_args
 from .program import Program
 from .rule_space import Predicate, RuleEntry, RuleSpace
@@ -22,7 +30,7 @@ LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
 HYPOTHESIS_SPACE_RULES = (LOGIC_PROGRAMS / "hypothesis_space_reified.lp").read_text()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class HypothesisMode:
     id: int
     recall_group: int
@@ -39,7 +47,7 @@ class HypothesisMode:
     arg_types: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class HypothesisCapabilities:
     has_numeric_evidence: bool
     allow_numeric_comparison: bool
@@ -50,7 +58,7 @@ class HypothesisCapabilities:
     allow_constraints: bool
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ReifiedLiteral:
     section: str
     slot: int
@@ -58,7 +66,7 @@ class ReifiedLiteral:
     variables: tuple[int, ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ReifiedClause:
     head: tuple[ReifiedLiteral, ...]
     body: tuple[ReifiedLiteral, ...]
@@ -93,8 +101,9 @@ class HypothesisSpaceGenerator:
     def __init__(self, program: Program, args: Arguments) -> None:
         self.program = program
         self.args = args
-        self.predicate_arg_types = _predicate_arg_types(program)
-        self.aggregate_specs = _valid_aggregate_specs(program, args)
+        self.fragments = _program_fragments(program)
+        self.predicate_arg_types = _predicate_arg_types(program, self.fragments)
+        self.aggregate_specs = _valid_aggregate_specs(program, args, self.fragments)
         self.capabilities = _hypothesis_capabilities(
             program, args, self.predicate_arg_types, self.aggregate_specs
         )
@@ -124,30 +133,37 @@ class HypothesisSpaceGenerator:
         ctl.ground([("base", [])])
         grounding_seconds = time.perf_counter() - start
         add(f"{current_phase()}.grounding", grounding_seconds)
-        ground_stats = _ground_stats(ctl)
-        record_metric(
-            "clingo",
-            {
-                "operation": "hypothesis_space_grounding",
-                "operation_category": "grounding",
-                "phase_context": current_phase(),
-                "seconds": grounding_seconds,
-                "program_size": 1,
-                "program_chars": len(program),
-                "stats_atoms": ground_stats["atoms"],
-                "stats_rules": ground_stats["rules"],
-                "clingo_arguments": " ".join(
-                    [str(self.args.max_candidate_clauses), *_hypothesis_space_args(self.args)]
-                ),
-            },
-        )
+        if metric_enabled("clingo"):
+            with instrumentation():
+                ground_stats = _ground_stats(ctl)
+                record_metric(
+                    "clingo",
+                    {
+                        "operation": "hypothesis_space_grounding",
+                        "operation_category": "grounding",
+                        "phase_context": current_phase(),
+                        "seconds": grounding_seconds,
+                        "program_size": 1,
+                        "program_chars": len(program),
+                        "stats_atoms": ground_stats["atoms"],
+                        "stats_rules": ground_stats["rules"],
+                        "clingo_arguments": " ".join(
+                            [
+                                str(self.args.max_candidate_clauses),
+                                *_hypothesis_space_args(self.args),
+                            ]
+                        ),
+                    },
+                )
 
         entries: list[RuleEntry] = []
         start = time.perf_counter()
         models = 0
+        collect_metrics = metric_enabled("clingo")
         with ctl.solve(yield_=True) as handle:  # type: ignore
             for model in handle:  # type: ignore
-                models += 1
+                if collect_metrics:
+                    models += 1
                 clause = _clause_from_symbols(model.symbols(shown=True))
                 rendered = clause.render(self.modes_by_id)
                 entries.append(_rule_entry_from_clause(rendered, clause, self.modes_by_id))
@@ -155,27 +171,32 @@ class HypothesisSpaceGenerator:
         seconds = time.perf_counter() - start
         phase = current_phase()
         add(f"{phase}.solving", seconds)
-        record_metric(
-            "clingo",
-            {
-                "operation": "hypothesis_space_solving",
-                "operation_category": "solving",
-                "phase_context": phase,
-                "seconds": seconds,
-                "models": models,
-                "program_size": 1,
-                "has_numeric_evidence": self.capabilities.has_numeric_evidence,
-                "allow_numeric_comparison": self.capabilities.allow_numeric_comparison,
-                "allow_equality_comparison": self.capabilities.allow_equality_comparison,
-                "allow_arithmetic": self.capabilities.allow_arithmetic,
-                "allow_aggregates": self.capabilities.allow_aggregates,
-                "allow_recursion": self.capabilities.allow_recursion,
-                "allow_constraints": self.capabilities.allow_constraints,
-                "clingo_arguments": " ".join(
-                    [str(self.args.max_candidate_clauses), *_hypothesis_space_args(self.args)]
-                ),
-            },
-        )
+        if collect_metrics:
+            with instrumentation():
+                record_metric(
+                    "clingo",
+                    {
+                        "operation": "hypothesis_space_solving",
+                        "operation_category": "solving",
+                        "phase_context": phase,
+                        "seconds": seconds,
+                        "models": models,
+                        "program_size": 1,
+                        "has_numeric_evidence": self.capabilities.has_numeric_evidence,
+                        "allow_numeric_comparison": self.capabilities.allow_numeric_comparison,
+                        "allow_equality_comparison": self.capabilities.allow_equality_comparison,
+                        "allow_arithmetic": self.capabilities.allow_arithmetic,
+                        "allow_aggregates": self.capabilities.allow_aggregates,
+                        "allow_recursion": self.capabilities.allow_recursion,
+                        "allow_constraints": self.capabilities.allow_constraints,
+                        "clingo_arguments": " ".join(
+                            [
+                                str(self.args.max_candidate_clauses),
+                                *_hypothesis_space_args(self.args),
+                            ]
+                        ),
+                    },
+                )
 
         return RuleSpace.from_entries(entries)
 
@@ -183,13 +204,15 @@ class HypothesisSpaceGenerator:
 @profile_phase("hypothesis_space")
 def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
     rule_space = HypothesisSpaceGenerator(program, arguments).generate()
-    record_metric(
-        "candidate",
-        {
-            "metric": "hypothesis_space",
-            "clauses": len(rule_space),
-        },
-    )
+    if metric_enabled("candidate"):
+        with instrumentation():
+            record_metric(
+                "candidate",
+                {
+                    "metric": "hypothesis_space",
+                    "clauses": len(rule_space),
+                },
+            )
     return rule_space
 
 
@@ -267,12 +290,14 @@ def _hypothesis_capabilities(
     )
 
 
-def _available_predicates(program: Program) -> set[tuple[str, int]]:
+def _available_predicates(
+    program: Program, fragments: list[str]
+) -> set[tuple[str, int]]:
     predicates = {
         (mode.name, mode.arity)
         for mode in [*program.language_bias_head, *program.language_bias_body]
     }
-    for fragment in _program_fragments(program):
+    for fragment in fragments:
         for atom in _atoms_in_fragment(fragment):
             parsed = _parse_normal_atom(atom)
             if parsed is None:
@@ -282,7 +307,9 @@ def _available_predicates(program: Program) -> set[tuple[str, int]]:
     return predicates
 
 
-def _predicate_arg_types(program: Program) -> dict[tuple[str, int, int], str]:
+def _predicate_arg_types(
+    program: Program, fragments: list[str]
+) -> dict[tuple[str, int, int], str]:
     positions = {
         (mode.name, mode.arity, arg)
         for mode in [*program.language_bias_head, *program.language_bias_body]
@@ -293,7 +320,7 @@ def _predicate_arg_types(program: Program) -> dict[tuple[str, int, int], str]:
     }
     positions_by_constant: dict[str, set[tuple[str, int, int]]] = {}
     variable_position_groups: list[list[tuple[str, int, int]]] = []
-    for fragment in _program_fragments(program):
+    for fragment in fragments:
         positions_by_variable: dict[str, list[tuple[str, int, int]]] = {}
         for atom in _atoms_in_fragment(fragment):
             parsed = _parse_normal_atom(atom)
@@ -381,19 +408,20 @@ def _program_fragments(program: Program) -> list[str]:
     return [fragment for fragment in fragments if fragment.strip()]
 
 
-def _atoms_in_fragment(fragment: str) -> list[str]:
+@lru_cache(maxsize=None)
+def _atoms_in_fragment(fragment: str) -> tuple[str, ...]:
     candidate = fragment.strip()
     if not candidate.endswith("."):
         candidate = f":- {candidate}."
     try:
         atoms: list[str] = []
         ast.parse_string(candidate, lambda stm: _collect_symbolic_atoms(stm, atoms))
-        return atoms
+        return tuple(atoms)
     except RuntimeError:
         try:
-            return get_atoms(candidate)
+            return tuple(get_atoms(candidate))
         except (RuntimeError, IndexError):
-            return []
+            return ()
 
 
 def _collect_symbolic_atoms(node: ast.AST, atoms: list[str]) -> None:
@@ -409,10 +437,14 @@ def _collect_symbolic_atoms(node: ast.AST, atoms: list[str]) -> None:
                     _collect_symbolic_atoms(item, atoms)
 
 
-def _valid_aggregate_specs(program: Program, args: Arguments) -> list[tuple[str, list[tuple[str, int]]]]:
+def _valid_aggregate_specs(
+    program: Program,
+    args: Arguments,
+    fragments: list[str] | None = None,
+) -> list[tuple[str, list[tuple[str, int]]]]:
     if not args.aggregates:
         return []
-    available = _available_predicates(program)
+    available = _available_predicates(program, fragments or _program_fragments(program))
     valid = []
     for spec in args.aggregates:
         function, atoms = _aggregate_spec(spec)

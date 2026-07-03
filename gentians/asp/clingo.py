@@ -5,7 +5,7 @@ from pathlib import Path
 from .callbacks import WrapperStopIfWarn
 from .coverage import Coverage, generate_clauses_for_coverage_interpretations
 from ..rule_generation.program import Example
-from ..timing import add, current_phase, record_metric
+from ..timing import add, current_phase, instrumentation, metric_enabled, record_metric
 
 LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
 COVERAGE_RULES = (LOGIC_PROGRAMS / "coverage_rules.lp").read_text()
@@ -44,25 +44,27 @@ class ClingoInterface:
         start = time.perf_counter()
         ctl.ground([("base", [])])
         seconds = time.perf_counter() - start
-        ground_stats = _ground_stats(ctl)
         phase = current_phase()
         add(f"{phase}.grounding", seconds)
-        record_metric(
-            "clingo",
-            {
-                "operation": "grounding",
-                "operation_category": "grounding",
-                "phase_context": phase,
-                "seconds": seconds,
-                "input_clauses": len(self.lines) + len(program),
-                "program_chars": len(generated_program),
-                "positive_examples": len(interpretation_pos),
-                "negative_examples": len(interpretation_neg),
-                "clingo_arguments": " ".join(self.clingo_arguments),
-                "stats_atoms": ground_stats["atoms"],
-                "stats_rules": ground_stats["rules"],
-            },
-        )
+        if metric_enabled("clingo"):
+            with instrumentation():
+                ground_stats = _ground_stats(ctl)
+                record_metric(
+                    "clingo",
+                    {
+                        "operation": "grounding",
+                        "operation_category": "grounding",
+                        "phase_context": phase,
+                        "seconds": seconds,
+                        "input_clauses": len(self.lines) + len(program),
+                        "program_chars": len(generated_program),
+                        "positive_examples": len(interpretation_pos),
+                        "negative_examples": len(interpretation_neg),
+                        "clingo_arguments": " ".join(self.clingo_arguments),
+                        "stats_atoms": ground_stats["atoms"],
+                        "stats_rules": ground_stats["rules"],
+                    },
+                )
 
         if wrp.atom_undefined:
             # the program misses some atoms, so there is no need to
@@ -75,37 +77,41 @@ class ClingoInterface:
 
         start = time.perf_counter()
         models = 0
+        collect_metrics = metric_enabled("clingo")
         with ctl.solve(yield_=True) as handle:  # type: ignore
             for m in handle:  # type: ignore
-                models += 1
-                l_cp, l_cn = _parse_coverage_symbols(m.symbols(shown=True))
-                coverage.extend(l_cp, l_cn)
+                if collect_metrics:
+                    models += 1
+                pos_mask, neg_mask = _parse_coverage_symbol_masks(m.symbols(shown=True))
+                coverage.extend_masks(pos_mask, neg_mask)
         seconds = time.perf_counter() - start
         phase = current_phase()
         add(f"{phase}.solving", seconds)
-        record_metric(
-            "clingo",
-            {
-                "operation": "solving",
-                "operation_category": "solving",
-                "phase_context": phase,
-                "seconds": seconds,
-                "models": models,
-                "covered_positive": coverage.pos_mask.bit_count(),
-                "covered_negative": coverage.neg_mask.bit_count(),
-                "program_size": len(program),
-                "clingo_arguments": " ".join(self.clingo_arguments),
-                "stats_models_enumerated": _clingo_stat(
-                    ctl.statistics, "summary", "models", "enumerated"
-                ),
-                "stats_choices": _clingo_stat(
-                    ctl.statistics, "solving", "solvers", "choices"
-                ),
-                "stats_conflicts": _clingo_stat(
-                    ctl.statistics, "solving", "solvers", "conflicts"
-                ),
-            },
-        )
+        if collect_metrics:
+            with instrumentation():
+                record_metric(
+                    "clingo",
+                    {
+                        "operation": "solving",
+                        "operation_category": "solving",
+                        "phase_context": phase,
+                        "seconds": seconds,
+                        "models": models,
+                        "covered_positive": coverage.pos_mask.bit_count(),
+                        "covered_negative": coverage.neg_mask.bit_count(),
+                        "program_size": len(program),
+                        "clingo_arguments": " ".join(self.clingo_arguments),
+                        "stats_models_enumerated": _clingo_stat(
+                            ctl.statistics, "summary", "models", "enumerated"
+                        ),
+                        "stats_choices": _clingo_stat(
+                            ctl.statistics, "solving", "solvers", "choices"
+                        ),
+                        "stats_conflicts": _clingo_stat(
+                            ctl.statistics, "solving", "solvers", "conflicts"
+                        ),
+                    },
+                )
 
         return coverage
 
@@ -154,18 +160,18 @@ def build_fixed_coverage_program(
     return static_program + "\n" + "\n".join(str(rule) for rule in program)
 
 
-def _parse_coverage_symbols(symbols) -> "tuple[list[int],list[int]]":
-    l_cp: list[int] = []
-    l_cn: list[int] = []
+def _parse_coverage_symbol_masks(symbols) -> tuple[int, int]:
+    pos_mask = 0
+    neg_mask = 0
     for symbol in symbols:
         if len(symbol.arguments) != 1:
             continue
         value = symbol.arguments[0].number
         if symbol.name == "extended_p":
-            l_cp.append(value)
+            pos_mask |= 1 << value
         elif symbol.name == "extended_n":
-            l_cn.append(value)
-    return l_cp, l_cn
+            neg_mask |= 1 << value
+    return pos_mask, neg_mask
 
 
 def _clingo_stat(stats, *path: str) -> float:

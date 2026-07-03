@@ -33,7 +33,7 @@ def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypat
 def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
     calls = 0
 
-    def aggregate_specs(program, args):
+    def aggregate_specs(program, args, fragments):
         nonlocal calls
         calls += 1
         return [("sum", [("p", 1)])]

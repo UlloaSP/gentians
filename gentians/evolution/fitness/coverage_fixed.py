@@ -1,11 +1,11 @@
 from collections.abc import Callable
+from functools import lru_cache
 import math
 import re
 from .coverage_common import (
     CachedFitnessResult,
     cached_fitness,
     FitnessResult,
-    coverage_rates,
     record_fitness_metric,
 )
 from ...asp.clingo import ClingoInterface
@@ -33,13 +33,13 @@ def coverage_fixed(
         return cached_fitness(
             cache,
             candidate_program,
-            lambda canonical_program: _evaluate_score(
-                program,
-                canonical_program,
-                normal_solver,
-                size_penalty,
-                literal_penalty,
-                redundancy_penalty,
+            lambda cached_program: _evaluate_score(
+                program=program,
+                candidate_program=cached_program,
+                normal_solver=normal_solver,
+                size_penalty=size_penalty,
+                literal_penalty=literal_penalty,
+                redundancy_penalty=redundancy_penalty,
             ),
         )
 
@@ -86,7 +86,6 @@ def _evaluate_score(
         covered_positive == len(program.positive_examples)
         and not has_negative_violation
     )
-    rates = coverage_rates(program, coverage)
     record_fitness_metric(
         "coverage_fixed",
         program,
@@ -94,7 +93,6 @@ def _evaluate_score(
         coverage,
         score,
         best_found,
-        rates,
     )
     return score, best_found
 
@@ -115,19 +113,20 @@ def _program_complexity(program: list[str]) -> _ProgramComplexity:
     return _ProgramComplexity(body_literals, redundancies)
 
 
-def _body_literals(clause: str) -> list[str]:
+@lru_cache(maxsize=None)
+def _body_literals(clause: str) -> tuple[str, ...]:
     content = clause.strip().rstrip(".")
     if ":-" not in content:
-        return []
+        return ()
     _, body = content.split(":-", 1)
-    return [_normalize_literal(literal) for literal in split_top_level_args(body)]
+    return tuple(_normalize_literal(literal) for literal in split_top_level_args(body))
 
 
 def _normalize_literal(literal: str) -> str:
     return re.sub(r"\s+", "", literal.strip())
 
 
-def _redundancy_count(literals: list[str]) -> int:
+def _redundancy_count(literals: tuple[str, ...]) -> int:
     seen: set[str] = set()
     redundancies = 0
     for literal in literals:

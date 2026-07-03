@@ -20,7 +20,7 @@ from .types import (
     SelectionFn,
 )
 from ..rule_generation.program import Program
-from ..timing import profile_phase, record_metric
+from ..timing import instrumentation, metric_enabled, profile_phase, record_metric
 
 
 def create_fitness(
@@ -203,26 +203,28 @@ def _clone_parents_without_crossover(
 ) -> tuple[Individual, Individual]:
     child_a = _clone_individual(best_a)
     child_b = _clone_individual(best_b)
-    record_metric(
-        "operator",
-        {
-            "operator": "crossover",
-            "strategy": "set_mix",
-            "applied": False,
-            "not_applied": True,
-            "probability": probability,
-            "parent_a_score": best_a.score,
-            "parent_b_score": best_b.score,
-            "child_1_score": child_a.score,
-            "child_2_score": child_b.score,
-            "children": 2,
-            "children_improved": 0,
-            "children_best": int(child_a.is_best) + int(child_b.is_best),
-            "children_same_as_parent": 0,
-            "children_duplicate_parent": 2,
-            "children_duplicate_population": 0,
-        },
-    )
+    if metric_enabled("operator"):
+        with instrumentation():
+            record_metric(
+                "operator",
+                {
+                    "operator": "crossover",
+                    "strategy": "set_mix",
+                    "applied": False,
+                    "not_applied": True,
+                    "probability": probability,
+                    "parent_a_score": best_a.score,
+                    "parent_b_score": best_b.score,
+                    "child_1_score": child_a.score,
+                    "child_2_score": child_b.score,
+                    "children": 2,
+                    "children_improved": 0,
+                    "children_best": int(child_a.is_best) + int(child_b.is_best),
+                    "children_same_as_parent": 0,
+                    "children_duplicate_parent": 2,
+                    "children_duplicate_population": 0,
+                },
+            )
     return child_a, child_b
 
 

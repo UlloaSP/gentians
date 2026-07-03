@@ -209,6 +209,24 @@ def test_phase_records_exclusive_self_time(monkeypatch):
     timing._counts.clear()
 
 
+def test_phase_subtracts_instrumentation_time(monkeypatch):
+    timing._totals.clear()
+    timing._counts.clear()
+    timing._stack.clear()
+    monkeypatch.setattr(timing, "_enabled", True)
+    values = iter([0.0, 0.0, 2.0, 5.0, 10.0])
+    monkeypatch.setattr(timing.time, "perf_counter", lambda: next(values))
+
+    with timing.phase("outer"):
+        with timing.instrumentation():
+            pass
+
+    assert timing._totals["outer"] == 7.0
+    assert timing._totals["outer.self"] == 7.0
+    timing._totals.clear()
+    timing._counts.clear()
+
+
 def test_export_closes_jsonl_writer_before_reset(monkeypatch, tmp_path):
     path = tmp_path / "timing_events.jsonl"
     timing._totals.clear()

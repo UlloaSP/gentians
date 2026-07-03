@@ -17,7 +17,13 @@ from .rule_generation.reader import read_program
 from .rule_generation.program import Program
 from .rule_generation.rule_space import RuleSpace
 from .evolution.program_sampler import ProgramSampler
-from .timing import export as export_timings, phase, record_metric
+from .timing import (
+    export as export_timings,
+    instrumentation,
+    metric_enabled,
+    phase,
+    record_metric,
+)
 
 
 def solve(
@@ -37,13 +43,15 @@ def solve(
                     arguments,
                 )
             else:
-                record_metric(
-                    "candidate",
-                    {
-                        "metric": "hypothesis_space",
-                        "clauses": len(rule_space),
-                    },
-                )
+                if metric_enabled("candidate"):
+                    with instrumentation():
+                        record_metric(
+                            "candidate",
+                            {
+                                "metric": "hypothesis_space",
+                                "clauses": len(rule_space),
+                            },
+                        )
 
             if len(rule_space) == 0:
                 print("\033[91m" + "Error: " + "No clauses found" + "\033[0m")

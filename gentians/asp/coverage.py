@@ -3,17 +3,19 @@ from ..rule_generation.parser import split_top_level_args
 
 
 class Coverage:
+    __slots__ = ("pos_mask", "neg_mask")
+
     def __init__(self, l_pos: "list[int]", l_neg: "list[int]"):
-        self.l_pos = l_pos
-        self.l_neg = l_neg
         self.pos_mask = _mask(l_pos)
         self.neg_mask = _mask(l_neg)
 
     def extend(self, l_pos: "list[int]", l_neg: "list[int]") -> None:
-        self.l_pos.extend(l_pos)
-        self.l_neg.extend(l_neg)
         self.pos_mask |= _mask(l_pos)
         self.neg_mask |= _mask(l_neg)
+
+    def extend_masks(self, pos_mask: int, neg_mask: int) -> None:
+        self.pos_mask |= pos_mask
+        self.neg_mask |= neg_mask
 
 
 def _mask(values: "list[int]") -> int:

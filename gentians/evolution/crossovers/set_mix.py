@@ -3,7 +3,7 @@ import random
 from ..individual import Individual
 from ..program_sampler import ProgramSampler
 from ..types import FitnessFn
-from ...timing import phase, profile_phase, record_metric
+from ...timing import instrumentation, metric_enabled, phase, profile_phase, record_metric
 
 
 def _child_from_parent(parent: Individual, program: list[str]) -> Individual:
@@ -95,31 +95,36 @@ def set_mix_crossover(
     i0 = _evaluate_child(best_a, best_b, program_0, evaluate_score, known_signatures)
     i1 = _evaluate_child(best_a, best_b, program_1, evaluate_score, known_signatures)
 
-    parent_best = max(best_a.score, best_b.score)
-    parent_duplicates = (
-        int(i0.signature in {best_a.signature, best_b.signature})
-        + int(i1.signature in {best_a.signature, best_b.signature})
-    )
-    duplicate_population = int(i0.score == float("-inf")) + int(i1.score == float("-inf"))
-    record_metric(
-        "operator",
-        {
-            "operator": "crossover",
-            "strategy": "set_mix",
-            "applied": True,
-            "not_applied": False,
-            "probability": probability,
-            "parent_a_score": best_a.score,
-            "parent_b_score": best_b.score,
-            "child_1_score": i0.score,
-            "child_2_score": i1.score,
-            "children": 2,
-            "children_improved": int(i0.score > parent_best) + int(i1.score > parent_best),
-            "children_best": int(i0.is_best) + int(i1.is_best),
-            "children_same_as_parent": 0,
-            "children_duplicate_parent": parent_duplicates,
-            "children_duplicate_population": duplicate_population,
-        },
-    )
+    if metric_enabled("operator"):
+        with instrumentation():
+            parent_best = max(best_a.score, best_b.score)
+            parent_duplicates = (
+                int(i0.signature in {best_a.signature, best_b.signature})
+                + int(i1.signature in {best_a.signature, best_b.signature})
+            )
+            duplicate_population = int(i0.score == float("-inf")) + int(
+                i1.score == float("-inf")
+            )
+            record_metric(
+                "operator",
+                {
+                    "operator": "crossover",
+                    "strategy": "set_mix",
+                    "applied": True,
+                    "not_applied": False,
+                    "probability": probability,
+                    "parent_a_score": best_a.score,
+                    "parent_b_score": best_b.score,
+                    "child_1_score": i0.score,
+                    "child_2_score": i1.score,
+                    "children": 2,
+                    "children_improved": int(i0.score > parent_best)
+                    + int(i1.score > parent_best),
+                    "children_best": int(i0.is_best) + int(i1.is_best),
+                    "children_same_as_parent": 0,
+                    "children_duplicate_parent": parent_duplicates,
+                    "children_duplicate_population": duplicate_population,
+                },
+            )
 
     return i0, i1

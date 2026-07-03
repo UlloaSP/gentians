@@ -17,8 +17,8 @@ class RuleEntry:
 
 class RuleSpace:
     def __init__(self, entries: list[RuleEntry]) -> None:
-        self.entries = entries
-        self.clauses = [entry.text for entry in entries]
+        self.entries = tuple(entries)
+        self.clauses = tuple(entry.text for entry in entries)
 
     @classmethod
     def from_clauses(cls, clauses: list[str]) -> "RuleSpace":

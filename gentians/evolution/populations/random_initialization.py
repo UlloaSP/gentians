@@ -31,12 +31,11 @@ def initialize_population(
                 break
             else:
                 raise RuntimeError("Could not sample a dependency-closed program")
-        signature = tuple(program)
-        if signature in seen_signatures:
+        if program in seen_signatures:
             if attempts < max_unique_attempts:
                 continue
             break
-        seen_signatures.add(signature)
+        seen_signatures.add(program)
 
         current_score, is_best = evaluate_score(program)
         best_found = is_best

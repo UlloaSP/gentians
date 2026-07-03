@@ -54,13 +54,13 @@ class ProgramSampler:
         max_program_clauses: int,
         *,
         target_size: int | None = None,
-        forced_rules: list[str] | None = None,
+        forced_rules: tuple[str, ...] | None = None,
         known_signatures: set[tuple[str, ...]] | None = None,
         extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
-    ) -> list[str] | None:
+    ) -> tuple[str, ...] | None:
         if not self.rule_space:
             return None
-        forced = sorted(dict.fromkeys(forced_rules or []))
+        forced = tuple(sorted(dict.fromkeys(forced_rules or ())))
         if any(rule not in self.masks_by_rule for rule in forced):
             return None
         limit = max(1, min(max_program_clauses, len(self.rule_space)))
@@ -68,19 +68,18 @@ class ProgramSampler:
         extra_forbidden = extra_forbidden_signatures or ()
         if forced:
             closed = self._close(forced, limit)
-            signature = tuple(closed) if closed is not None else ()
             if (
                 closed is None
                 or (target_size is not None and len(closed) > target_size)
-                or signature in known
-                or signature in extra_forbidden
+                or closed in known
+                or closed in extra_forbidden
             ):
                 return None
             return closed
 
         for _ in range(64):
             size_limit = max(1, min(target_size or random.randint(1, limit), limit))
-            program = [random.choice(self.rule_space.clauses)]
+            program = (random.choice(self.rule_space.clauses),)
             closed = self._close(program, limit)
             if closed is not None and len(closed) > size_limit:
                 closed = None
@@ -89,7 +88,7 @@ class ProgramSampler:
                 rule = _random_rule_outside(self.rule_space.clauses, closed_set)
                 if rule is None:
                     break
-                closed.append(rule)
+                closed = tuple(sorted((*closed, rule)))
                 closed_set.add(rule)
                 closed = self._close(closed, limit)
                 if closed is not None and len(closed) > size_limit:
@@ -97,27 +96,26 @@ class ProgramSampler:
                 else:
                     closed_set = set(closed) if closed is not None else set()
             if closed is not None:
-                signature = tuple(closed)
-                if signature not in known and signature not in extra_forbidden:
+                if closed not in known and closed not in extra_forbidden:
                     return closed
         return None
 
-    def _close(self, program: list[str], max_program_clauses: int) -> list[str] | None:
-        key = (tuple(sorted(dict.fromkeys(program))), max_program_clauses)
+    def _close(self, program: tuple[str, ...], max_program_clauses: int) -> tuple[str, ...] | None:
+        key = (program, max_program_clauses)
         if key in self._close_cache:
-            cached = self._close_cache[key]
-            return None if cached is None else list(cached)
-        closed = sorted(dict.fromkeys(program))
+            return self._close_cache[key]
+        closed = list(program)
         closed_set = set(closed)
         defined, deps = self._program_masks(closed)
         while True:
             missing = deps & ~defined
             if not missing:
                 closed.sort()
-                self._close_cache[key] = tuple(closed)
+                result = tuple(closed)
+                self._close_cache[key] = result
                 if os.environ.get("GENTIANS_AUDIT_PROGRAM_SAMPLER_ASP"):
                     _assert_asp_closed_agrees(closed, self.background_mask, self.example_mask, self.masks_by_rule)
-                return closed
+                return result
             if len(closed) >= max_program_clauses:
                 self._close_cache[key] = None
                 return None
@@ -135,7 +133,7 @@ class ProgramSampler:
             defined |= mask.head_mask
             deps |= mask.dep_mask
 
-    def _program_masks(self, program: list[str]) -> tuple[int, int]:
+    def _program_masks(self, program: tuple[str, ...] | list[str]) -> tuple[int, int]:
         defined = self.background_mask
         deps = self.example_mask
         for rule in program:
@@ -186,7 +184,7 @@ def _defined_predicates(lines: list[str]) -> set[Predicate]:
 
 
 def _prune_uncloseable_rules(
-    entries: list[RuleEntry],
+    entries: tuple[RuleEntry, ...],
     background_predicates: set[Predicate],
 ) -> list[RuleEntry]:
     kept = list(entries)
@@ -218,7 +216,7 @@ def _fragment_predicates(fragment: str) -> set[Predicate]:
     return set(entry.heads | entry.deps)
 
 
-def _random_rule_outside(pool: list[str], current: set[str]) -> str | None:
+def _random_rule_outside(pool: tuple[str, ...], current: set[str]) -> str | None:
     for _ in range(min(len(pool), 8)):
         rule = random.choice(pool)
         if rule not in current:

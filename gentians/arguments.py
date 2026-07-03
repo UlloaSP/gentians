@@ -117,8 +117,8 @@ class Arguments:
             "irreflexive": [],
             # Drop duplicated symmetric comparisons such as V0!=V1,V1!=V0.
             "prune_redundant_comparisons": True,
-            # Drop algebraically implied add/sub literals. Opt-in: not universal.
-            "prune_arithmetic_identities": False,
+            # Drop algebraically implied add/sub literals.
+            "prune_arithmetic_identities": True,
         }
     )
 

@@ -34,7 +34,7 @@ def test_coverage_fixed_penalizes_brave_negative_violation():
 
     score, best_found = coverage_fixed(
         program, 0, [], 0.01, 0.002, 0.01
-    )([])
+    )(())
 
     assert score == math.exp(10)
     assert best_found is False
@@ -51,7 +51,7 @@ def test_coverage_fixed_uses_brave_positive_coverage():
 
     score, best_found = coverage_fixed(
         program, 0, [], 0.01, 0.002, 0.01
-    )([])
+    )(())
 
     assert score == math.exp(15)
     assert best_found is True
@@ -67,8 +67,8 @@ def test_coverage_fixed_prefers_positive_coverage_over_clean_overconstraint():
     )
     evaluate = coverage_fixed(program, 0, [], 0.01, 0.002, 0.01)
 
-    covering_score, _ = evaluate([":- b."])
-    overconstrained_score, _ = evaluate([":- a.", ":- b."])
+    covering_score, _ = evaluate((":- b.",))
+    overconstrained_score, _ = evaluate((":- a.", ":- b."))
 
     assert covering_score > overconstrained_score
 
@@ -89,7 +89,7 @@ def test_coverage_fixed_uses_normal_fixed_coverage():
         0.01,
         0.002,
         0.01,
-    )([":- b."])
+    )((":- b.",))
 
     assert math.isclose(score, math.exp(14.94))
     assert best_found is True
@@ -134,7 +134,7 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
         0.0,
         0.0,
         0.0,
-    )([])
+    )(())
 
     assert instances[0].clingo_arguments == ["0", "--project"]
     assert calls == [
@@ -182,8 +182,8 @@ def test_coverage_fixed_penalizes_literals_and_redundancy():
     ]
     evaluate = coverage_fixed(program, 0, [], 0.01, 0.002, 0.01)
 
-    small_score, small_best = evaluate([rules[0]])
-    redundant_score, redundant_best = evaluate([rules[1]])
+    small_score, small_best = evaluate((rules[0],))
+    redundant_score, redundant_best = evaluate((rules[1],))
 
     assert small_best is True
     assert redundant_best is True
@@ -198,10 +198,10 @@ def test_cached_fitness_reuses_program_result():
         calls.append(candidate_program)
         return 1.0, True
 
-    score, best_found = cached_fitness(cache, [1, 0, 0], compute)
+    score, best_found = cached_fitness(cache, ("1", "0", "0"), compute)
 
     assert (score, best_found) == (1.0, True)
-    assert calls == [[1, 0, 0]]
+    assert calls == [("1", "0", "0")]
 
 
 def test_extract_fixed_coverage_does_not_dump_each_candidate(monkeypatch, tmp_path):
@@ -212,7 +212,7 @@ def test_extract_fixed_coverage_does_not_dump_each_candidate(monkeypatch, tmp_pa
         ["0", "--enum-mode=brave"],
         [Example(("target", ""), True)],
         [],
-    ).extract_fixed_coverage(["target :- base."])
+    ).extract_fixed_coverage(("target :- base.",))
 
     assert coverage.pos_mask == 1
     assert not (tmp_path / ".debug" / "clingo").exists()
@@ -221,7 +221,7 @@ def test_extract_fixed_coverage_does_not_dump_each_candidate(monkeypatch, tmp_pa
 def test_build_fixed_coverage_program_combines_static_program_and_rules():
     dump = build_fixed_coverage_program(
         ["base."],
-        ["target :- base."],
+        ("target :- base.",),
         [Example(("target", ""), True)],
         [],
     )

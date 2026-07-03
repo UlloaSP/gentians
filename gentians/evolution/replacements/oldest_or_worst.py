@@ -14,13 +14,13 @@ def replace_oldest_or_worst(
 ) -> list[Individual]:
     accepted = False
     reject_reason = ""
-    if element.signature in population_signatures:
+    if element.program in population_signatures:
         reject_reason = "duplicate"
     elif not math.isfinite(element.score):
         reject_reason = "non_finite"
     elif not population:
         population.append(element)
-        population_signatures.add(element.signature)
+        population_signatures.add(element.program)
         accepted = True
     else:
         replace_oldest = random.random() < prob_replacing_oldest
@@ -33,7 +33,7 @@ def replace_oldest_or_worst(
                     insert_at = index
                     break
             population.insert(insert_at, element)
-            population_signatures.add(element.signature)
+            population_signatures.add(element.program)
 
             if replace_oldest:
                 victim_index = min(
@@ -47,7 +47,7 @@ def replace_oldest_or_worst(
                 victim = population.pop(victim_index)
             else:
                 victim = population.pop()
-            population_signatures.discard(victim.signature)
+            population_signatures.discard(victim.program)
             accepted = True
 
     if metric_enabled("operator"):

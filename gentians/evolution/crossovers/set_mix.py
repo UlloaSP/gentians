@@ -6,26 +6,25 @@ from ..types import FitnessFn
 from ...timing import instrumentation, metric_enabled, phase, profile_phase, record_metric
 
 
-def _child_from_parent(parent: Individual, program: list[str]) -> Individual:
+def _child_from_parent(parent: Individual, program: tuple[str, ...]) -> Individual:
     return Individual(program, parent.score, parent.is_best)
 
 
 def _evaluate_child(
     parent_a: Individual,
     parent_b: Individual,
-    program: list[str],
+    program: tuple[str, ...],
     evaluate_score: FitnessFn,
     known_signatures: set[tuple[str, ...]],
     extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
 ) -> Individual:
-    signature = tuple(program)
-    if signature == parent_a.signature:
+    if program == parent_a.program:
         return _child_from_parent(parent_a, program)
-    if signature == parent_b.signature:
+    if program == parent_b.program:
         return _child_from_parent(parent_b, program)
-    if signature in known_signatures or (
+    if program in known_signatures or (
         extra_forbidden_signatures is not None
-        and signature in extra_forbidden_signatures
+        and program in extra_forbidden_signatures
     ):
         return Individual(program, float("-inf"), False)
     with phase("crossover.fitness"):
@@ -40,20 +39,20 @@ def _sample_child(
     max_program_clauses: int,
     sampler: ProgramSampler,
     extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
-) -> list[str]:
+) -> tuple[str, ...]:
     union = sorted(set(parent_a.program) | set(parent_b.program))
     if not union:
-        return []
+        return ()
 
     limit = max(1, min(max_program_clauses, len(union)))
     for _ in range(8):
-        selected = [rule for rule in union if random.random() < 0.5]
+        selected = tuple(rule for rule in union if random.random() < 0.5)
         if not selected:
-            selected = [random.choice(union)]
+            selected = (random.choice(union),)
         if len(selected) > limit:
-            selected = sorted(random.sample(selected, limit))
+            selected = tuple(sorted(random.sample(selected, limit)))
         else:
-            selected = sorted(selected)
+            selected = tuple(sorted(selected))
         child = sampler.closed_program(
             max_program_clauses,
             forced_rules=selected,
@@ -69,7 +68,7 @@ def _sample_child(
     )
     if sampled is not None:
         return sampled
-    return list(random.choice((parent_a, parent_b)).program)
+    return random.choice((parent_a, parent_b)).program
 
 
 @profile_phase("crossover")
@@ -90,7 +89,7 @@ def set_mix_crossover(
             max_program_clauses,
             sampler,
         )
-        extra_forbidden_signatures = {tuple(program_0)}
+        extra_forbidden_signatures = {program_0}
         program_1 = _sample_child(
             best_a,
             best_b,
@@ -113,10 +112,10 @@ def set_mix_crossover(
     if metric_enabled("operator"):
         with instrumentation():
             parent_best = max(best_a.score, best_b.score)
-            parent_signatures = {best_a.signature, best_b.signature}
+            parent_signatures = {best_a.program, best_b.program}
             parent_duplicates = (
-                int(i0.signature in parent_signatures)
-                + int(i1.signature in parent_signatures)
+                int(i0.program in parent_signatures)
+                + int(i1.program in parent_signatures)
             )
             duplicate_population = int(i0.score == float("-inf")) + int(
                 i1.score == float("-inf")

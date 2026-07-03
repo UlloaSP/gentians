@@ -28,7 +28,7 @@ def test_hypothesis_file_ignores_ga_only_arguments(tmp_path):
 
     rule_space = read_hypothesis_file(path, requested)
 
-    assert rule_space.clauses == ["rule."]
+    assert rule_space.clauses == ("rule.",)
 
 
 def test_hypothesis_file_stores_entries_to_avoid_reparse(monkeypatch, tmp_path):
@@ -51,7 +51,7 @@ def test_hypothesis_file_stores_entries_to_avoid_reparse(monkeypatch, tmp_path):
 
     rule_space = read_hypothesis_file(path, arguments)
 
-    assert rule_space.clauses == ["rule."]
+    assert rule_space.clauses == ("rule.",)
 
 
 def test_hypothesis_file_reads_legacy_clauses(tmp_path):
@@ -66,7 +66,7 @@ def test_hypothesis_file_reads_legacy_clauses(tmp_path):
 
     rule_space = read_hypothesis_file(path, arguments)
 
-    assert rule_space.clauses == ["rule."]
+    assert rule_space.clauses == ("rule.",)
 
 
 def test_hypothesis_file_rejects_generation_argument_mismatch(tmp_path):
@@ -129,7 +129,7 @@ def test_profile_ga_worker_loads_hypothesis_file(monkeypatch, tmp_path):
 
     run_profile_worker()
 
-    assert captured["clauses"] == ["rule."]
+    assert captured["clauses"] == ("rule.",)
     assert captured["arguments"].filename == "coin.txt"
     assert captured["start_total_time"] is not None
     assert timing._totals["hypothesis_load"] == 2.5

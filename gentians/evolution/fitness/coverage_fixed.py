@@ -20,7 +20,7 @@ def coverage_fixed(
     size_penalty: float,
     literal_penalty: float,
     redundancy_penalty: float,
-) -> Callable[[list[str]], tuple[float, bool]]:
+) -> Callable[[tuple[str, ...]], tuple[float, bool]]:
     cache: dict[tuple[str, ...], CachedFitnessResult] = {}
     normal_solver = ClingoInterface(
         program.background,
@@ -30,7 +30,7 @@ def coverage_fixed(
     )
 
     def evaluate_score(
-        candidate_program: list[str],
+        candidate_program: tuple[str, ...],
     ) -> tuple[float, bool]:
         return cached_fitness(
             cache,
@@ -50,7 +50,7 @@ def coverage_fixed(
 
 def _evaluate_score(
     program: Program,
-    candidate_program: list[str],
+    candidate_program: tuple[str, ...],
     normal_solver: ClingoInterface,
     size_penalty: float,
     literal_penalty: float,
@@ -95,7 +95,7 @@ def _evaluate_score(
     return score, best_found
 
 
-def _program_complexity(program: list[str]) -> tuple[int, int]:
+def _program_complexity(program: tuple[str, ...]) -> tuple[int, int]:
     body_literals = 0
     redundancies = 0
     for clause in program:

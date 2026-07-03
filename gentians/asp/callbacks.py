@@ -16,20 +16,6 @@ class RuleCallback:
             self.head = str(stm.head).replace(" ", "").split(";")
 
 
-class CheckSanityRulesCallback:
-    """
-    Wrapper to check unsafe rules
-    """
-
-    def __init__(self) -> None:
-        self.unsound_rule: bool = False
-
-    def sink(self, x, y):
-        # global for the error: info: global variable in tuple of aggregate element
-        # or because there can be more errors
-        self.unsound_rule = self.unsound_rule or (("unsafe" in y) or ("global" in y))
-
-
 def wrapper_exit_callback(x, y):
     """
     Clingo callback: exit when there is an error

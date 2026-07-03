@@ -6,24 +6,23 @@ from ...timing import current_phase, instrumentation, metric_enabled, record_met
 
 FitnessResult = tuple[float, bool]
 CachedFitnessResult = tuple[float, bool]
-FitnessCompute = Callable[[list[str]], FitnessResult]
+FitnessCompute = Callable[[tuple[str, ...]], FitnessResult]
 
 
 def cached_fitness(
     cache: dict[tuple[str, ...], CachedFitnessResult],
-    candidate_program: list[str],
+    candidate_program: tuple[str, ...],
     compute: FitnessCompute,
 ) -> FitnessResult:
-    key = tuple(candidate_program)
-    if key not in cache:
-        cache[key] = compute(candidate_program)
-    return cache[key]
+    if candidate_program not in cache:
+        cache[candidate_program] = compute(candidate_program)
+    return cache[candidate_program]
 
 
 def record_fitness_metric(
     fitness_operator: str,
     program: Program,
-    candidate_program: list[str],
+    candidate_program: tuple[str, ...],
     coverage: Coverage,
     score: float,
     best_found: bool,

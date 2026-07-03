@@ -1,7 +1,7 @@
 import random
 
 from ..individual import Individual
-from ..program_sampler import ProgramSampler
+from ..program_sampler import ProgramSampler, _random_rule_outside
 from ..types import FitnessFn
 from ...timing import instrumentation, metric_enabled, phase, profile_phase, record_metric
 
@@ -21,7 +21,7 @@ def mutate_by_random_group(
     """
     mutated_element = element
     something_changed = False
-    original_signature = element.signature
+    original_signature = element.program
     original_score = element.score
     changed_positions = 0
     operation = "none"
@@ -32,11 +32,11 @@ def mutate_by_random_group(
         if random.random() < probability:
             current_rules = set(element.program)
             rule_pool = sampler.rule_space.clauses
-            available_rules = [rule for rule in rule_pool if rule not in current_rules]
+            has_available_rule = len(current_rules) < len(rule_pool)
             operations = []
-            if element.program and available_rules:
+            if element.program and has_available_rule:
                 operations.append("replace")
-            if len(element.program) < max_program_clauses and available_rules:
+            if len(element.program) < max_program_clauses and has_available_rule:
                 operations.append("append")
             if len(element.program) > 1:
                 operations.append("delete")
@@ -46,27 +46,30 @@ def mutate_by_random_group(
                     candidate_program = list(element.program)
                     attempted_operation = random.choice(operations)
                     if attempted_operation == "replace":
-                        rule = random.choice(available_rules)
+                        rule = _random_rule_outside(rule_pool, set(candidate_program))
+                        if rule is None:
+                            continue
                         candidate_program[random.randrange(len(candidate_program))] = rule
                     elif attempted_operation == "append":
-                        rule = random.choice(available_rules)
+                        rule = _random_rule_outside(rule_pool, set(candidate_program))
+                        if rule is None:
+                            continue
                         candidate_program.append(rule)
                     else:
                         del candidate_program[random.randrange(len(candidate_program))]
 
                     closed = sampler.closed_program(
                         max_program_clauses,
-                        forced_rules=candidate_program,
+                        forced_rules=tuple(candidate_program),
                     )
                     if closed is None:
                         continue
 
-                    candidate_signature = tuple(closed)
-                    if candidate_signature == original_signature:
+                    if closed == original_signature:
                         continue
                     if (
-                        candidate_signature in known_signatures
-                        or candidate_signature in extra_forbidden
+                        closed in known_signatures
+                        or closed in extra_forbidden
                     ):
                         duplicate_attempts += 1
                         continue
@@ -101,8 +104,8 @@ def mutate_by_random_group(
                     "duplicate_population": (
                         something_changed
                         and (
-                            mutated_element.signature in known_signatures
-                            or mutated_element.signature in extra_forbidden
+                            mutated_element.program in known_signatures
+                            or mutated_element.program in extra_forbidden
                         )
                     ),
                     "duplicate_attempts": duplicate_attempts,

@@ -20,7 +20,7 @@ def genetic_solver(
     crossover: CrossoverFn,
     mutation: MutationFn,
     replacement: ReplacementFn,
-) -> tuple[list[str], float, bool]:
+) -> tuple[tuple[str, ...], float, bool]:
     """
     Genetic algorithm to find the best program
     """
@@ -36,7 +36,7 @@ def genetic_solver(
         raise RuntimeError("Could not initialize population")
 
     with phase("fitness.initialization"):
-        population_signatures = {individual.signature for individual in population}
+        population_signatures = {individual.program for individual in population}
 
     # step 1: sort in terms of decreasing fitness
     with phase("genetic.bookkeeping"):
@@ -75,7 +75,7 @@ def genetic_solver(
             for child in (new_program_1, new_program_2):
                 if child.is_best:
                     return child.program, child.score, child.is_best
-                generation_signatures.add(child.signature)
+                generation_signatures.add(child.program)
 
         # 2.3: mutation
         # https://arxiv.org/pdf/2305.01582.pdf
@@ -89,7 +89,7 @@ def genetic_solver(
         with phase("mutation"):
             if new_mutated_1.is_best:
                 return new_mutated_1.program, new_mutated_1.score, new_mutated_1.is_best
-            generation_signatures.add(new_mutated_1.signature)
+            generation_signatures.add(new_mutated_1.program)
 
         new_mutated_2 = mutation(
             new_program_2,
@@ -101,7 +101,7 @@ def genetic_solver(
         with phase("mutation"):
             if new_mutated_2.is_best:
                 return new_mutated_2.program, new_mutated_2.score, new_mutated_2.is_best
-            generation_signatures.add(new_mutated_2.signature)
+            generation_signatures.add(new_mutated_2.program)
 
         # 3: replace elements in the population
         for el in (new_mutated_1, new_mutated_2):

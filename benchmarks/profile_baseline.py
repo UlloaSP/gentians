@@ -539,7 +539,7 @@ def write_debug_clingo_program(
     lp_path.write_text(
         build_fixed_coverage_program(
             task.background,
-            [str(rule) for rule in best_program],
+            tuple(str(rule) for rule in best_program),
             task.positive_examples,
             task.negative_examples,
         ),

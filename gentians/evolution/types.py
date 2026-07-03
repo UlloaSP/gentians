@@ -5,7 +5,7 @@ from .individual import Individual
 
 
 class FitnessFn(Protocol):
-    def __call__(self, program: list[str]) -> tuple[float, bool]: ...
+    def __call__(self, program: tuple[str, ...]) -> tuple[float, bool]: ...
 
 
 PopulationInitializerFn = Callable[

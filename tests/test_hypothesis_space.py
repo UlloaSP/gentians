@@ -122,7 +122,7 @@ def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
     )
 
     assert phases == ["hypothesis_space"]
-    assert clauses.clauses == ["p."]
+    assert clauses.clauses == ("p.",)
     assert "hypothesis_space" in timing._totals
     assert "total_execution.grounding" not in timing._totals
     _reset_timing_state()
@@ -465,7 +465,7 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     program = read_program(args.filename)
     clauses = HypothesisSpaceGenerator(program, args).generate()
     random.seed(1)
-    candidate = sorted(random.sample(clauses.clauses, args.max_program_clauses))
+    candidate = tuple(sorted(random.sample(clauses.clauses, args.max_program_clauses)))
 
     ClingoInterface(
         program.background,

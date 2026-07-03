@@ -232,7 +232,7 @@ def _clone_parents_without_crossover(
 
 def _clone_individual(individual: Individual) -> Individual:
     return Individual(
-        list(individual.program),
+        individual.program,
         individual.score,
         individual.is_best,
     )
@@ -240,10 +240,10 @@ def _clone_individual(individual: Individual) -> Individual:
 def _distinct_pair(
     population: list[Individual], first: Individual, second: Individual
 ) -> tuple[Individual, Individual]:
-    if first.signature != second.signature:
+    if first.program != second.program:
         return first, second
     alternative = next(
-        (element for element in population if element.signature != first.signature),
+        (element for element in population if element.program != first.program),
         second,
     )
     return first, alternative

@@ -30,7 +30,7 @@ class ClingoInterface:
 
     def extract_fixed_coverage(
         self,
-        program: "list[str]",
+        program: tuple[str, ...],
     ) -> Coverage:
         """
         Extracts coverage for the full candidate program.
@@ -139,7 +139,7 @@ def _build_coverage_static_program(
 
 def build_fixed_coverage_program(
     background: "list[str]",
-    program: "list[str]",
+    program: tuple[str, ...],
     interpretation_pos: "list[Example]",
     interpretation_neg: "list[Example]",
 ) -> str:

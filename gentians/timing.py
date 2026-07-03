@@ -242,9 +242,9 @@ def record_ga_generation(
             score = float(getattr(element, "score", 0.0))
             score_total += score
             max_fitness = max(max_fitness, score)
-            signature = getattr(element, "signature", None)
-            if signature is not None:
-                signatures.add(signature)
+            program = getattr(element, "program", None)
+            if program is not None:
+                signatures.add(program)
             size_total += len(getattr(element, "program", []))
             if score == float("-inf"):
                 invalid += 1

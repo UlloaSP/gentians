@@ -4,7 +4,6 @@ import time
 from ..individual import Individual
 from ..program_sampler import ProgramSampler
 from ..types import FitnessFn
-from ...rule_generation.rule_space import RuleSpace
 from ...timing import phase, profile_phase, record_metric
 
 
@@ -38,12 +37,11 @@ def _has_rule_outside(rule_pool: list[str], current_rules: set[str]) -> bool:
 @profile_phase("mutation")
 def mutate_by_random_group(
     element: Individual,
-    rule_space: RuleSpace,
     max_program_clauses: int,
     probability: float,
     evaluate_score: FitnessFn,
     known_signatures: set[tuple[str, ...]],
-    sampler: ProgramSampler | None = None,
+    sampler: ProgramSampler,
 ):
     """
     Mutation of an element
@@ -60,7 +58,7 @@ def mutate_by_random_group(
         if random.random() < probability:
             for _ in range(8):
                 current_rules = set(element.program)
-                rule_pool = sampler.rule_space.clauses if sampler is not None else rule_space.clauses
+                rule_pool = sampler.rule_space.clauses
                 has_available_rule = _has_rule_outside(rule_pool, current_rules)
                 operations = []
                 if element.program and has_available_rule:
@@ -88,15 +86,13 @@ def mutate_by_random_group(
                 else:
                     del candidate.program[random.randrange(len(candidate.program))]
 
-                if sampler is not None:
-                    closed = sampler.closed_program(
-                        max_program_clauses,
-                        forced_rules=candidate.program,
-                        known_signatures=known_signatures,
-                    )
-                    if closed is None:
-                        continue
-                    candidate.program = closed
+                closed = sampler.closed_program(
+                    max_program_clauses,
+                    forced_rules=candidate.program,
+                )
+                if closed is None:
+                    continue
+                candidate.program = closed
 
                 candidate.generated_timestamp = time.time()
                 candidate.refresh_signature()

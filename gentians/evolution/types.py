@@ -2,7 +2,6 @@ from collections.abc import Callable
 from typing import Protocol
 
 from .individual import Individual
-from ..rule_generation.rule_space import RuleSpace
 
 
 class FitnessFn(Protocol):
@@ -10,7 +9,7 @@ class FitnessFn(Protocol):
 
 
 PopulationInitializerFn = Callable[
-    [int, RuleSpace, FitnessFn],
+    [int, FitnessFn],
     tuple[list[Individual], bool],
 ]
 SelectionFn = Callable[[list[Individual]], tuple[Individual, Individual]]
@@ -19,7 +18,7 @@ CrossoverFn = Callable[
     tuple[Individual, Individual],
 ]
 MutationFn = Callable[
-    [Individual, RuleSpace, int, FitnessFn, set[tuple[str, ...]]],
+    [Individual, int, FitnessFn, set[tuple[str, ...]]],
     Individual,
 ]
 ReplacementFn = Callable[

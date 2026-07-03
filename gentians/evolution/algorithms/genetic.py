@@ -8,13 +8,11 @@ from ..types import (
     ReplacementFn,
     SelectionFn,
 )
-from ...rule_generation.rule_space import RuleSpace
 from ...timing import phase, profile_phase, record_ga_generation
 
 
 @profile_phase("genetic")
 def genetic_solver(
-    rule_space: RuleSpace,
     args: Arguments,
     evaluate_score: FitnessFn,
     population_initializer: PopulationInitializerFn,
@@ -32,7 +30,6 @@ def genetic_solver(
 
     population, _ = population_initializer(
         args.max_program_clauses,
-        rule_space,
         evaluate_score,
     )
     if not population:
@@ -86,7 +83,6 @@ def genetic_solver(
         # https://arxiv.org/pdf/2305.01582.pdf
         new_mutated_1 = mutation(
             new_program_1,
-            rule_space,
             args.max_program_clauses,
             evaluate_score,
             known_signatures,
@@ -98,7 +94,6 @@ def genetic_solver(
 
         new_mutated_2 = mutation(
             new_program_2,
-            rule_space,
             args.max_program_clauses,
             evaluate_score,
             known_signatures,

@@ -50,10 +50,9 @@ def solve(
 
             with phase("fitness.setup"):
                 sampler = ProgramSampler(program, rule_space)
-                evaluate_score = create_fitness(program, arguments.fitness, rule_space)
+                evaluate_score = create_fitness(program, arguments.fitness)
 
             prg, score, best_found = genetic_solver(
-                rule_space,
                 arguments,
                 evaluate_score,
                 create_population(arguments.population, sampler),

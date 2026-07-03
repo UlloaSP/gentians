@@ -19,7 +19,7 @@ def test_genetic_solver_returns_best_candidate_without_marking_exact_solution():
         Individual(["high."], 2.0, False, []),
     ]
 
-    def initialize(max_program_clauses, rule_space, evaluate_score):
+    def initialize(max_program_clauses, evaluate_score):
         return population, False
 
     def select(population):
@@ -28,14 +28,13 @@ def test_genetic_solver_returns_best_candidate_without_marking_exact_solution():
     def crossover(parent_a, parent_b, evaluate_score, known_signatures, max_program_clauses):
         return parent_a, parent_b
 
-    def mutation(individual, rule_space, max_program_clauses, evaluate_score, known_signatures):
+    def mutation(individual, max_program_clauses, evaluate_score, known_signatures):
         return individual
 
     def replacement(population, individual, population_signatures):
         return population
 
     program, score, best_found = genetic_solver(
-        RuleSpace.from_clauses(["low.", "high."]),
         Arguments(iterations_genetic=0),
         lambda program: (0.0, False, []),
         initialize,
@@ -53,14 +52,13 @@ def test_genetic_solver_returns_best_candidate_without_marking_exact_solution():
 def test_genetic_solver_returns_single_candidate_without_evolution():
     population = [Individual(["only."], 1.0, False, [])]
 
-    def initialize(max_program_clauses, rule_space, evaluate_score):
+    def initialize(max_program_clauses, evaluate_score):
         return population, False
 
     def fail_if_called(*args, **kwargs):
         raise AssertionError("single-candidate population should return directly")
 
     program, score, best_found = genetic_solver(
-        RuleSpace.from_clauses(["only."]),
         Arguments(iterations_genetic=10),
         lambda program: (0.0, False, []),
         initialize,
@@ -111,6 +109,10 @@ def test_selection_accepts_single_individual_population():
     assert selected_b is population[0]
 
 
+def _sampler(rules: list[str]) -> ProgramSampler:
+    return ProgramSampler(Program([], [], [], [], []), RuleSpace.from_clauses(rules))
+
+
 def test_mutation_skips_fitness_when_signature_does_not_change(monkeypatch):
     individual = Individual(["a."], 1.0, False, [])
 
@@ -122,11 +124,11 @@ def test_mutation_skips_fitness_when_signature_does_not_change(monkeypatch):
 
     mutated = mutate_by_random_group(
         individual,
-        RuleSpace.from_clauses(["a."]),
         1,
         1.0,
         fail_if_called,
         {individual.signature},
+        _sampler(["a."]),
     )
 
     assert mutated is individual
@@ -149,11 +151,11 @@ def test_mutation_applies_one_unique_edit(monkeypatch):
 
     mutated = mutate_by_random_group(
         individual,
-        RuleSpace.from_clauses(["a.", "b.", "c."]),
         3,
         1.0,
         score,
         {individual.signature},
+        _sampler(["a.", "b.", "c."]),
     )
 
     assert mutated.program == ["a.", "b.", "c."]
@@ -184,11 +186,11 @@ def test_mutation_retries_duplicate_before_fitness(monkeypatch):
 
     mutated = mutate_by_random_group(
         individual,
-        RuleSpace.from_clauses(["a.", "b.", "c."]),
         1,
         1.0,
         score,
         {individual.signature, ("b.",)},
+        _sampler(["a.", "b.", "c."]),
     )
 
     assert mutated.program == ["c."]
@@ -422,9 +424,9 @@ def test_initialization_stops_when_exact_solution_found():
 
     population, best_found = initialize_population(
         1,
-        RuleSpace.from_clauses(["a."]),
         5,
         score,
+        _sampler(["a."]),
     )
 
     assert best_found is True
@@ -443,7 +445,6 @@ def test_initialization_does_not_fallback_to_raw_when_sampler_fails():
     with pytest.raises(RuntimeError, match="dependency-closed"):
         initialize_population(
             1,
-            RuleSpace.from_clauses(["a."]),
             1,
             fail_if_called,
             RejectingSampler(),
@@ -469,7 +470,6 @@ def test_initialization_accepts_partial_population_when_sampler_exhausts():
 
     population, best_found = initialize_population(
         1,
-        RuleSpace.from_clauses(["a."]),
         5,
         score,
         OneProgramSampler(),
@@ -493,7 +493,6 @@ def test_initialization_stops_retrying_duplicates_after_unique_attempts():
 
     population, best_found = initialize_population(
         1,
-        RuleSpace.from_clauses(["a."]),
         2,
         score,
         DuplicateSampler(),

@@ -20,14 +20,12 @@ from .types import (
     SelectionFn,
 )
 from ..rule_generation.program import Program
-from ..rule_generation.rule_space import RuleSpace
 from ..timing import profile_phase, record_metric
 
 
 def create_fitness(
     program: Program,
     config: dict[str, object],
-    rule_space: RuleSpace,
 ) -> FitnessFn:
     name = _str(config, "name")
     max_as = _int(config, "max_as")
@@ -111,14 +109,12 @@ def create_mutation(config: dict[str, object], sampler: ProgramSampler) -> Mutat
 
         def mutate(
             element: Individual,
-            rule_space: RuleSpace,
             max_program_clauses: int,
             evaluate_score: FitnessFn,
             known_signatures: set[tuple[str, ...]],
         ) -> Individual:
             return mutate_by_random_group(
                 element,
-                rule_space,
                 max_program_clauses,
                 probability,
                 evaluate_score,
@@ -137,11 +133,10 @@ def create_population(config: dict[str, object], sampler: ProgramSampler) -> Pop
 
         def initialize(
             max_program_clauses: int,
-            rule_space: RuleSpace,
             evaluate_score: FitnessFn,
         ) -> tuple[list[Individual], bool]:
             return initialize_population(
-                max_program_clauses, rule_space, size, evaluate_score, sampler
+                max_program_clauses, size, evaluate_score, sampler
             )
 
         return initialize

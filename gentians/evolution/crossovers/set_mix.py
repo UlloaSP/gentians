@@ -34,15 +34,13 @@ def _sample_child(
     parent_b: Individual,
     known_signatures: set[tuple[str, ...]],
     max_program_clauses: int,
-    sampler: ProgramSampler | None,
+    sampler: ProgramSampler,
 ) -> list[str]:
     union = sorted(set(parent_a.program) | set(parent_b.program))
     if not union:
         return []
 
     limit = max(1, min(max_program_clauses, len(union)))
-    if sampler is not None and len(union) <= max_program_clauses and tuple(union) not in known_signatures:
-        return union
     for _ in range(8):
         selected = [rule for rule in union if random.random() < 0.5]
         if not selected:
@@ -51,25 +49,20 @@ def _sample_child(
             selected = sorted(random.sample(selected, limit))
         else:
             selected = sorted(selected)
-        if sampler is not None:
-            child = sampler.closed_program(
-                max_program_clauses,
-                forced_rules=selected,
-                known_signatures=known_signatures,
-            )
-            if child is not None:
-                return child
-        elif tuple(selected) not in known_signatures:
-            return selected
-    if sampler is not None:
-        sampled = sampler.closed_program(
+        child = sampler.closed_program(
             max_program_clauses,
+            forced_rules=selected,
             known_signatures=known_signatures,
         )
-        if sampled is not None:
-            return sampled
-        return list(random.choice((parent_a, parent_b)).program)
-    return sorted(random.sample(union, random.randint(1, limit)))
+        if child is not None:
+            return child
+    sampled = sampler.closed_program(
+        max_program_clauses,
+        known_signatures=known_signatures,
+    )
+    if sampled is not None:
+        return sampled
+    return list(random.choice((parent_a, parent_b)).program)
 
 
 @profile_phase("crossover")
@@ -80,7 +73,7 @@ def set_mix_crossover(
     probability: float,
     known_signatures: set[tuple[str, ...]],
     max_program_clauses: int,
-    sampler: ProgramSampler | None = None,
+    sampler: ProgramSampler,
 ) -> tuple[Individual, Individual]:
     with phase("crossover.operator"):
         program_0 = _sample_child(

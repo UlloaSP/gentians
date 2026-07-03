@@ -12,7 +12,8 @@ from gentians.evolution.factories import (
 )
 
 from .arguments import Arguments
-from .rule_generation.hypothesis_space import build_hypothesis_space, read_task
+from .rule_generation.hypothesis_space import build_hypothesis_space
+from .rule_generation.reader import read_program
 from .rule_generation.program import Program
 from .rule_generation.rule_space import RuleSpace
 from .evolution.program_sampler import ProgramSampler
@@ -79,7 +80,7 @@ def program_from_arguments(arguments: Arguments) -> Program:
     """
 
     if arguments.filename:
-        program = read_task(arguments.filename)
+        program = read_program(arguments.filename)
     else:
         print("\033[91m" + "Error: " + "Specify a file with the task" + "\033[0m")
         sys.exit(-1)

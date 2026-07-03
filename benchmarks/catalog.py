@@ -207,13 +207,6 @@ CASES: dict[str, Arguments] = {
         arithmetic_operators=["add", "mul", "sub"],
         max_variables=5,
     ),
-    "subsum2prod": task(
-        "subset_sum_double_and_prod.txt",
-        max_depth=4,
-        aggregates=["sum(el/2)", "sum(el/2)"],
-        arithmetic_operators=["add", "mul", "sub"],
-        max_variables=5,
-    ),
     "subset_sum_double_and_prod_unbalanced": task(
         "subset_sum_double_and_prod.txt",
         max_depth=4,
@@ -228,7 +221,7 @@ CASES: dict[str, Arguments] = {
         aggregates=["sum(el/3)", "sum(el/3)", "sum(el/3)"],
         max_variables=4,
     ),
-    "set_partition_sum_new": task(
+    "set_partition_sum": task(
         "set_partition_sum_new.txt",
         max_depth=4,
         comparison_operators=["neq", "neq"],
@@ -237,25 +230,7 @@ CASES: dict[str, Arguments] = {
         unbalanced_aggregates=True,
         hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
-    "set_partition_sum": task(
-        "set_partition_sum.txt",
-        max_depth=4,
-        comparison_operators=["neq", "neq"],
-        max_variables=4,
-        aggregates=["sum(p/2)"],
-        unbalanced_aggregates=True,
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
-    ),
     "set_partition_sum_and_cardinality": task(
-        "set_partition_sum_and_cardinality.txt",
-        max_depth=4,
-        comparison_operators=["neq", "neq"],
-        max_variables=4,
-        aggregates=["sum(p/2)", "count(p/2)"],
-        unbalanced_aggregates=True,
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
-    ),
-    "set_partition_sum_and_cardinality_new": task(
         "set_partition_sum_and_cardinality_new.txt",
         max_depth=4,
         comparison_operators=["neq", "neq"],

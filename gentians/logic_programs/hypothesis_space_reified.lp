@@ -22,6 +22,7 @@
 #defined negative_mode/1.
 #defined recall/2.
 #defined recall_group/2.
+#defined unbounded_recall/1.
 
 var(0..Max-1):- max_vars(Max).
 head_slot(0..Max-1):- max_head(Max), Max > 0.
@@ -65,7 +66,7 @@ body_count(Count):- Count = #count{Slot : selected_slot(body,Slot)}.
 selected_count(Group,Count):-
     recall_group(_,Group),
     Count = #count{Section,Slot,Mode : selected(Section,Slot,Mode), recall_group(Mode,Group)}.
-:- selected_count(Group,Count), recall_group(Mode,Group), recall(Mode,Recall), Count > Recall.
+:- selected_count(Group,Count), recall_group(Mode,Group), recall(Mode,Recall), not unbounded_recall(Mode), Count > Recall.
 
 arg(Section,Slot,Arg):-
     selected(Section,Slot,Mode),

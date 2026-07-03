@@ -22,7 +22,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from gentians import Arguments, main as gentians_main
 from gentians.asp.clingo import build_fixed_coverage_program
-from gentians.rule_generation.hypothesis_space import read_task
+from gentians.rule_generation.reader import read_program
 from benchmarks.catalog import (
     DEFAULT_DATASETS,
     arguments_for,
@@ -584,7 +584,7 @@ def write_debug_clingo_program(
 ) -> None:
     if arguments.filename is None or not isinstance(best_program, list):
         return
-    task = read_task(arguments.filename)
+    task = read_program(arguments.filename)
     lp_path = directory / f"{safe_filename(dataset)}.lp"
     args_path = directory / f"{safe_filename(dataset)}.args.txt"
     directory.mkdir(parents=True, exist_ok=True)

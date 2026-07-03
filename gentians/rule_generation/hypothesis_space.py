@@ -15,7 +15,6 @@ from ..asp.rule_analysis import get_atoms
 from ..timing import add, current_phase, profile_phase, record_metric
 from .parser import parse_atom, split_top_level_args
 from .program import Program
-from .reader import read_program
 from .rule_space import Predicate, RuleEntry, RuleSpace
 
 
@@ -179,10 +178,6 @@ class HypothesisSpaceGenerator:
         )
 
         return RuleSpace.from_entries(entries)
-
-
-def read_task(filename: str) -> Program:
-    return read_program(filename)
 
 
 @profile_phase("hypothesis_space")
@@ -581,10 +576,11 @@ def _facts(
             if key not in predicate_ids:
                 predicate_ids[key] = len(predicate_ids)
             predicate_id = predicate_ids[key]
-        parts.append(
-            f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{mode.recall})."
-        )
-        parts.append(f"recall({mode.id},{mode.recall}).")
+        recall = max(0, mode.recall)
+        parts.append(f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{recall}).")
+        parts.append(f"recall({mode.id},{recall}).")
+        if mode.recall < 0:
+            parts.append(f"unbounded_recall({mode.id}).")
         parts.append(f"recall_group({mode.id},{mode.recall_group}).")
         for index, arg_type in enumerate(mode.arg_types):
             parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
@@ -693,9 +689,9 @@ def _render_literal(literal: ReifiedLiteral, mode: HypothesisMode) -> str:
 def _hypothesis_space_args(args: Arguments) -> list[str]:
     value = args.hypothesis_space.get("clingo_arguments", [])
     if isinstance(value, list):
-        return [str(item) for item in value if not str(item).isdigit()]
+        return [str(item) for item in value]
     if isinstance(value, str):
-        return [] if value.isdigit() else [value]
+        return [value]
     return []
 
 

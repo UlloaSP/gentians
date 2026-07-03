@@ -7,7 +7,7 @@ from gentians.asp.coverage import Coverage
 from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
 from gentians.evolution.fitness.coverage_fixed import coverage_fixed
 from gentians.evolution.fitness.coverage_common import cached_fitness
-from gentians.rule_generation.hypothesis_space import read_task
+from gentians.rule_generation.reader import read_program
 from gentians.rule_generation.program import Example, Program
 from gentians.rule_generation.rule_space import RuleSpace
 
@@ -159,7 +159,7 @@ def test_coverage_fixed_rejects_sudoku_without_row_constraint():
         ":- value(V0,V1),value(V2,V1),same_col(V0,V2).",
     ]
     args = arguments_for("sudoku")
-    program = read_task(args.filename)
+    program = read_program(args.filename)
 
     rule_space = RuleSpace.from_clauses(rules)
     _, best_found, _ = coverage_fixed(

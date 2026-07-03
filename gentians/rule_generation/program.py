@@ -32,7 +32,7 @@ class ModeDeclaration:
         self, s: "tuple[str,str,str] | tuple[str,str,str,str]", head: bool
     ) -> None:
         if s[0] == "*":
-            self.recall: int = 100
+            self.recall: int = -1
         else:
             self.recall: int = int(s[0])
         self.name: str = s[1]

@@ -7,10 +7,12 @@ from gentians.arguments import Arguments
 from gentians.asp.clingo import ClingoInterface
 from gentians import timing
 from gentians.rule_generation import hypothesis_space
-from gentians.rule_generation.parser import extract_name_arity
-from gentians.rule_generation.hypothesis_space import read_task
+from gentians.rule_generation.parser import extract_name_arity, parse_atom
 from gentians.rule_generation.reader import read_program
-from gentians.rule_generation.hypothesis_space import HypothesisSpaceGenerator
+from gentians.rule_generation.hypothesis_space import (
+    HypothesisSpaceGenerator,
+    _hypothesis_space_args,
+)
 from gentians.rule_generation.hypothesis_space import HypothesisCapabilities
 from gentians.rule_generation.program import ModeDeclaration, Program
 from gentians.rule_generation.rule_space import RuleSpace
@@ -187,6 +189,48 @@ def test_atom_parser_handles_nested_arguments():
     )
 
 
+def test_atom_parser_does_not_treat_not_prefix_as_negation():
+    assert parse_atom("notable(X)") == ("notable", ["X"])
+    assert parse_atom("not notable(X)") == ("notable", ["X"])
+
+
+def test_hypothesis_space_args_keep_numeric_strings():
+    args = Arguments(hypothesis_space={"clingo_arguments": ["0", "--project"]})
+
+    assert _hypothesis_space_args(args) == ["0", "--project"]
+
+
+def test_star_recall_is_unbounded():
+    mode = ModeDeclaration(("*", "p", "1"), True)
+    facts = hypothesis_space._facts(
+        Program([], [], [], [mode], []),
+        Arguments(max_depth=2),
+        [
+            hypothesis_space.HypothesisMode(
+                0,
+                0,
+                "head",
+                "normal",
+                "p",
+                1,
+                mode.recall,
+            )
+        ],
+        hypothesis_space.HypothesisCapabilities(
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+        ),
+        {},
+    )
+
+    assert "unbounded_recall(0)." in facts
+
+
 def test_hypothesis_space_prunes_irreflexive_modes_before_rendering():
     program = Program(
         ["edge(1,2)."],
@@ -228,7 +272,7 @@ def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering
 def test_hypothesis_space_prunes_arithmetic_identities_before_cap():
     args = copy.deepcopy(CASES["4queens"])
     args.max_candidate_clauses = 10000
-    clauses = HypothesisSpaceGenerator(read_task(args.filename), args).generate().clauses
+    clauses = HypothesisSpaceGenerator(read_program(args.filename), args).generate().clauses
 
     assert len(clauses) < args.max_candidate_clauses
     assert not any("V0+V1=V2,V2-V0=V1" in clause for clause in clauses)
@@ -327,7 +371,7 @@ def test_ast_atom_extraction_handles_choice_rules():
 def _benchmark_clauses(name: str) -> set[str]:
     args = copy.deepcopy(CASES[name])
     args.max_candidate_clauses = 0
-    return set(HypothesisSpaceGenerator(read_task(args.filename), args).generate().clauses)
+    return set(HypothesisSpaceGenerator(read_program(args.filename), args).generate().clauses)
 
 
 def test_coloring_hypothesis_space_contains_target_rules():
@@ -359,7 +403,7 @@ def test_fixed_benchmark_definitions_expose_real_target_shapes():
     euclid = _benchmark_clauses("euclid")
     subset_double = _benchmark_clauses("subset_sum_double")
     subset_sum = _benchmark_clauses("subset_sum_double_and_sum")
-    set_partition = _benchmark_clauses("set_partition_sum_new")
+    set_partition = _benchmark_clauses("set_partition_sum")
 
     assert any(clause.startswith(":- ") and clause.count("q(") == 2 and "+" in clause for clause in queens)
     assert any(clause.startswith(":- ") and clause.count("q(") == 2 and "-" in clause for clause in queens)
@@ -385,7 +429,7 @@ def test_normal_mode_recall_prevents_duplicate_head_literals():
 
 def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     args = copy.deepcopy(CASES["subset_sum_double_and_prod_unbalanced"])
-    program = read_task(args.filename)
+    program = read_program(args.filename)
     clauses = HypothesisSpaceGenerator(program, args).generate()
     random.seed(1)
     candidate = sorted(random.sample(clauses.clauses, args.max_program_clauses))

@@ -58,10 +58,6 @@ def _normal_atom_text(atom: str) -> str:
     normalized = atom.strip()
     if normalized.startswith("not "):
         normalized = normalized[4:].strip()
-    elif (
-        normalized.startswith("not") and len(normalized) > 3 and normalized[3].isalpha()
-    ):
-        normalized = normalized[3:]
     if normalized.startswith("{") and normalized.endswith("}"):
         normalized = normalized[1:-1].strip()
     return normalized

@@ -122,9 +122,6 @@ class Arguments:
         }
     )
 
-    # Enable choice-rule generation.
-    cr: bool = False
-
     # Aggregate specs, e.g. ["sum(d/2)", "count(d/2)"].
     aggregates: list[str] = field(default_factory=list)
 

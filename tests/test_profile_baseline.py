@@ -383,7 +383,6 @@ def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
                 [],
                 "{}",
                 "",
-                "",
             ),
             RunResult(
                 "d",
@@ -395,7 +394,6 @@ def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
                 1.0,
                 [],
                 "{}",
-                "",
                 "",
             ),
         ],
@@ -463,8 +461,8 @@ def test_dashboard_counts_best_found_runs(tmp_path):
     write_dashboard_data(
         tmp_path,
         [
-            RunResult("d", 1, 1, "run", "ok", 0, 1.0, [], "{}", "", ""),
-            RunResult("d", 2, 2, "run", "ok", 0, 1.0, [], "{}", "", "", success=True),
+            RunResult("d", 1, 1, "run", "ok", 0, 1.0, [], "{}", ""),
+            RunResult("d", 2, 2, "run", "ok", 0, 1.0, [], "{}", "", success=True),
         ],
         [],
         [],
@@ -492,8 +490,8 @@ def test_reset_run_outputs_removes_stale_profile_files(tmp_path):
 
 def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
     results = [
-        RunResult("d", 1, 1, "run1", "ok", 0, 1.0, [], "{}", "", ""),
-        RunResult("d", 2, 2, "run2", "ok", 0, 1.0, [], "{}", "", ""),
+        RunResult("d", 1, 1, "run1", "ok", 0, 1.0, [], "{}", ""),
+        RunResult("d", 2, 2, "run2", "ok", 0, 1.0, [], "{}", ""),
     ]
     write_dashboard_data(
         tmp_path,
@@ -562,7 +560,6 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
                 [],
                 "{}",
                 "",
-                "",
             )
         ],
         [],
@@ -595,7 +592,6 @@ def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
                 1.0,
                 [],
                 "{}",
-                "",
                 "",
             )
         ],

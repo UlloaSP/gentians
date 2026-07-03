@@ -3,7 +3,6 @@ import csv
 import json
 import math
 import os
-import pstats
 import queue
 import random
 import re
@@ -44,7 +43,6 @@ class RunResult:
     command: list[str]
     arguments_json: str
     log_path: str
-    cprofile_path: str
     total_seconds: float | None = None
     success: bool = False
     first_success_generation_observed: int | None = None
@@ -59,16 +57,6 @@ class FitnessPoint:
     generation: int
     best_current: float
     best_so_far: float
-
-
-@dataclass
-class PhaseTime:
-    dataset: str
-    run: int
-    phase: str
-    inclusive_ms: float
-    exclusive_ms: float
-    calls: int
 
 
 @dataclass
@@ -101,20 +89,6 @@ ITERATION_RE = re.compile(
     r"Iteration\s+(\d+)\s+-.*best:\s+Program:.*-\s+score:\s+([-+0-9.eE]+)"
 )
 TOTAL_RE = re.compile(r"Total time:\s+([-+0-9.eE]+)")
-
-
-PHASE_FUNCTIONS = {
-    "hypothesis_space.generation": {"generate"},
-    "hypothesis_space.total": {"generate"},
-    "hypothesis_space.clause_generation": {"generate"},
-    "genetic.total": {"genetic_solver"},
-    "genetic.selection": {"tournament", "pick_two_fittest"},
-    "genetic.crossover_inclusive": {"crossover"},
-    "genetic.mutation_inclusive": {"mutate"},
-    "genetic.replacement": {"replace_oldest_or_worst"},
-    "genetic.evaluation.total": {"evaluate_score"},
-    "coverage.extract": {"extract_fixed_coverage"},
-}
 
 
 STANDARD_TIMING_METRICS = [
@@ -210,7 +184,6 @@ def run_benchmark_suite(
         (
             results,
             fitness,
-            phases,
             timings,
             ga_metrics,
             timing_events,
@@ -220,7 +193,7 @@ def run_benchmark_suite(
             clingo_metrics,
             invariants,
         ) = read_existing_outputs(out_dir)
-        _ = (fitness, phases, timing_events, invariants)
+        _ = (fitness, timing_events, invariants)
         write_dashboard_data(
             out_dir,
             results,
@@ -236,7 +209,6 @@ def run_benchmark_suite(
 
     results: list[RunResult] = []
     fitness: list[FitnessPoint] = []
-    phases: list[PhaseTime] = []
     timings: list[TimingMetric] = []
     ga_metrics: list[GAMetric] = []
     timing_events: list[dict[str, object]] = []
@@ -259,7 +231,6 @@ def run_benchmark_suite(
             raise SystemExit(f"Invalid arguments for dataset {dataset}: {exc}") from exc
         for run in range(1, args.runs + 1):
             completed += 1
-            cprofile_path = out_dir / "runs" / f"{dataset}_run_{run}.prof"
             timings_path = out_dir / "runs" / f"{dataset}_run_{run}_timings.json"
             timing_events_path = (
                 out_dir / "runs" / f"{dataset}_run_{run}_timing_events.jsonl"
@@ -280,7 +251,6 @@ def run_benchmark_suite(
             log_path = out_dir / "runs" / f"{dataset}_run_{run}.log"
             reset_run_outputs(
                 [
-                    cprofile_path,
                     timings_path,
                     timing_events_path,
                     ga_metrics_path,
@@ -351,7 +321,6 @@ def run_benchmark_suite(
                 command=cmd,
                 arguments_json=arguments_json,
                 log_path=str(log_path),
-                cprofile_path=str(cprofile_path),
                 total_seconds=parsed["total_seconds"],
                 success=parsed["success"],
                 first_success_generation_observed=parsed[
@@ -389,7 +358,6 @@ def run_benchmark_suite(
                 out_dir,
                 results,
                 fitness,
-                phases,
                 timings,
                 ga_metrics,
                 timing_events,
@@ -615,28 +583,6 @@ def safe_filename(value: str) -> str:
     return "".join(char if char.isalnum() or char in "._-" else "_" for char in value)
 
 
-def read_phase_times(path: Path, dataset: str, run: int) -> list[PhaseTime]:
-    stats = pstats.Stats(str(path))
-    by_phase = {phase: [0.0, 0.0, 0] for phase in PHASE_FUNCTIONS}
-    for (_filename, _line, func_name), (
-        cc,
-        _nc,
-        tt,
-        ct,
-        _callers,
-    ) in stats.stats.items():
-        for phase, names in PHASE_FUNCTIONS.items():
-            if func_name in names:
-                row = by_phase[phase]
-                row[0] += ct * 1000
-                row[1] += tt * 1000
-                row[2] += cc
-    return [
-        PhaseTime(dataset, run, phase, values[0], values[1], int(values[2]))
-        for phase, values in by_phase.items()
-    ]
-
-
 def read_timings(path: Path, dataset: str, run: int) -> list[TimingMetric]:
     rows = read_json_rows(path)
     return [
@@ -780,7 +726,6 @@ def read_existing_outputs(
 ) -> tuple[
     list[RunResult],
     list[FitnessPoint],
-    list[PhaseTime],
     list[TimingMetric],
     list[GAMetric],
     list[dict[str, object]],
@@ -836,7 +781,6 @@ def read_existing_outputs(
             [],
             row.get("arguments_json", ""),
             row.get("log_path", ""),
-            row.get("cprofile_path", ""),
             to_float(row.get("total_seconds"))
             if row.get("total_seconds") not in (None, "")
             else None,
@@ -852,7 +796,6 @@ def read_existing_outputs(
     return (
         results,
         fitness,
-        [],
         timings,
         ga_metrics,
         read_csv_object_rows(out_dir / "timing_events.csv"),
@@ -879,7 +822,6 @@ def write_outputs(
     out_dir: Path,
     results: list[RunResult],
     fitness: list[FitnessPoint],
-    phases: list[PhaseTime],
     timings: list[TimingMetric],
     ga_metrics: list[GAMetric],
     timing_events: list[dict[str, object]],
@@ -937,30 +879,42 @@ def write_dashboard_data(
     quality_rows = quality_summary(quality_metrics)
     clingo_rows = clingo_summary(clingo_metrics)
     operator_rows = operator_summary(operator_metrics)
+    results_by_dataset: dict[str, list[RunResult]] = {}
+    timings_by_dataset: dict[str, list[TimingMetric]] = {}
+    ga_by_dataset: dict[str, list[GAMetric]] = {}
+    timing_events_by_dataset: dict[str, list[dict[str, object]]] = {}
+    operator_rows_by_dataset = _rows_by_dataset(operator_rows)
+    quality_metrics_by_dataset = _rows_by_dataset(quality_metrics)
+    clingo_metrics_by_dataset = _rows_by_dataset(clingo_metrics)
+    clingo_rows_by_dataset = _rows_by_dataset(clingo_rows)
+    candidate_metrics_by_dataset = _rows_by_dataset(candidate_metrics)
+    for result in results:
+        results_by_dataset.setdefault(result.dataset, []).append(result)
+    for timing in timings:
+        timings_by_dataset.setdefault(timing.dataset, []).append(timing)
+    for metric in ga_metrics:
+        ga_by_dataset.setdefault(metric.dataset, []).append(metric)
+    for row in timing_events:
+        timing_events_by_dataset.setdefault(str(row.get("dataset", "")), []).append(row)
+
     benchmarks = []
     for dataset in datasets:
-        dataset_results = [result for result in results if result.dataset == dataset]
-        dataset_timings = [timing for timing in timings if timing.dataset == dataset]
-        dataset_ga = [metric for metric in ga_metrics if metric.dataset == dataset]
-        dataset_quality = [
-            row for row in quality_metrics if row.get("dataset") == dataset
-        ]
-        dataset_clingo_summary = [
-            row for row in clingo_rows if row.get("dataset") == dataset
-        ]
+        dataset_results = results_by_dataset.get(dataset, [])
+        dataset_timings = timings_by_dataset.get(dataset, [])
+        dataset_ga = ga_by_dataset.get(dataset, [])
+        dataset_quality = quality_metrics_by_dataset.get(dataset, [])
+        dataset_clingo_summary = clingo_rows_by_dataset.get(dataset, [])
         first_timing_run = min(
             [
                 int(to_float(row.get("run")))
-                for row in timing_events
-                if row.get("dataset") == dataset
+                for row in timing_events_by_dataset.get(dataset, [])
             ],
             default=0,
         )
         dataset_timing_events = [
             row
-            for row in timing_events
-            if row.get("dataset") == dataset
-            and int(to_float(row.get("run"))) == first_timing_run
+            for row in timing_events_by_dataset.get(dataset, [])
+            if int(to_float(row.get("run"))) == first_timing_run
         ]
         candidate = first_row(candidate_rows, dataset)
         quality = first_row(quality_rows, dataset)
@@ -970,9 +924,7 @@ def write_dashboard_data(
             for timing in dataset_timings
             if timing.metric == "total_execution"
         )
-        dataset_clingo_metrics = [
-            row for row in clingo_metrics if row.get("dataset") == dataset
-        ]
+        dataset_clingo_metrics = clingo_metrics_by_dataset.get(dataset, [])
         run_ids = sorted({result.run for result in dataset_results})
         solve_calls = mean(
             _clingo_calls_for_run(dataset_clingo_metrics, run, "solving")
@@ -998,9 +950,8 @@ def write_dashboard_data(
         )
         candidates = mean(
             candidate_clause_count(row)
-            for row in candidate_metrics
-            if row.get("dataset") == dataset
-            and is_hypothesis_space_metric(row)
+            for row in candidate_metrics_by_dataset.get(dataset, [])
+            if is_hypothesis_space_metric(row)
         )
         benchmarks.append(
             {
@@ -1061,9 +1012,11 @@ def write_dashboard_data(
                 "dominant": dominant_phase(phases),
                 "phases": phases,
                 "fitnessRuns": dashboard_fitness_runs(dataset_ga),
-                "clauseRows": dashboard_clause_rows(dataset, candidate_metrics),
+                "clauseRows": dashboard_clause_rows(
+                    candidate_metrics_by_dataset.get(dataset, [])
+                ),
                 "operatorSummary": [
-                    row for row in operator_rows if row.get("dataset") == dataset
+                    row for row in operator_rows_by_dataset.get(dataset, [])
                 ],
                 "qualityRows": dashboard_quality_rows(dataset_quality),
                 "timingEvents": dashboard_timing_events(dataset_timing_events),
@@ -1176,13 +1129,11 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
     return runs
 
 
-def dashboard_clause_rows(
-    dataset: str, candidate_metrics: list[dict[str, object]]
-) -> list[dict[str, object]]:
+def dashboard_clause_rows(candidate_metrics: list[dict[str, object]]) -> list[dict[str, object]]:
     rows = [
         row
         for row in candidate_metrics
-        if row.get("dataset") == dataset and is_hypothesis_space_metric(row)
+        if is_hypothesis_space_metric(row)
     ]
     if not rows:
         return []
@@ -1239,6 +1190,13 @@ def dashboard_timing_events(rows: list[dict[str, object]]) -> list[dict[str, obj
 
 def first_row(rows: list[dict[str, object]], dataset: str) -> dict[str, object]:
     return next((row for row in rows if row.get("dataset") == dataset), {})
+
+
+def _rows_by_dataset(rows: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for row in rows:
+        grouped.setdefault(str(row.get("dataset", "")), []).append(row)
+    return grouped
 
 
 def normalize_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -1442,48 +1400,45 @@ def quality_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
 
 def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     summary: list[dict[str, object]] = []
-    runs_by_dataset = {
-        dataset: _run_ids_for_dataset(rows, dataset)
-        for dataset in {str(row.get("dataset", "")) for row in rows}
-    }
-    keys = sorted(
-        {
-            (
-                str(row.get("dataset", "")),
-                str(row.get("operation", "")),
-                str(row.get("phase_context", "")),
-            )
-            for row in rows
-            if row.get("operation")
-        }
-    )
-    for dataset, operation, phase_context in keys:
-        run_ids = runs_by_dataset.get(dataset, [])
-        selected = [
-            row
-            for row in rows
-            if row.get("dataset") == dataset
-            and row.get("operation") == operation
-            and str(row.get("phase_context", "")) == phase_context
-        ]
-        calls = mean(len(_rows_for_run(selected, run)) for run in run_ids)
+    groups: dict[tuple[str, str, str], list[dict[str, object]]] = {}
+    runs_by_dataset: dict[str, set[int]] = {}
+    for row in rows:
+        dataset = str(row.get("dataset", ""))
+        if row.get("run") not in (None, ""):
+            runs_by_dataset.setdefault(dataset, set()).add(int(to_float(row.get("run"))))
+        if row.get("operation"):
+            groups.setdefault(
+                (
+                    dataset,
+                    str(row.get("operation", "")),
+                    str(row.get("phase_context", "")),
+                ),
+                [],
+            ).append(row)
+    for dataset, operation, phase_context in sorted(groups):
+        run_ids = sorted(runs_by_dataset.get(dataset) or {0})
+        selected = groups[(dataset, operation, phase_context)]
+        selected_by_run: dict[int, list[dict[str, object]]] = {}
+        for row in selected:
+            selected_by_run.setdefault(int(to_float(row.get("run"))), []).append(row)
+        calls = mean(len(selected_by_run.get(run, [])) for run in run_ids)
         total_seconds = mean(
-            sum(to_float(row.get("seconds")) for row in _rows_for_run(selected, run))
+            sum(to_float(row.get("seconds")) for row in selected_by_run.get(run, []))
             for run in run_ids
         )
         total_models = mean(
-            sum(to_float(row.get("models")) for row in _rows_for_run(selected, run))
+            sum(to_float(row.get("models")) for row in selected_by_run.get(run, []))
             for run in run_ids
         )
         mean_seconds = mean(
             mean(to_float(row.get("seconds")) for row in run_rows)
             for run in run_ids
-            if (run_rows := _rows_for_run(selected, run))
+            if (run_rows := selected_by_run.get(run))
         )
         mean_models = mean(
             mean(to_float(row.get("models")) for row in run_rows)
             for run in run_ids
-            if (run_rows := _rows_for_run(selected, run))
+            if (run_rows := selected_by_run.get(run))
         )
         mean_atoms = mean_run_call_mean(selected, run_ids, "stats_atoms")
         mean_rules = mean_run_call_mean(selected, run_ids, "stats_rules")
@@ -1508,34 +1463,17 @@ def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     return summary
 
 
-def _run_ids_for_dataset(rows: list[dict[str, object]], dataset: str) -> list[int]:
-    run_ids = sorted(
-        {
-            int(to_float(row.get("run")))
-            for row in rows
-            if row.get("dataset") == dataset and row.get("run") not in (None, "")
-        }
-    )
-    return run_ids or [0]
-
-
-def _rows_for_run(rows: list[dict[str, object]], run: int) -> list[dict[str, object]]:
-    return [row for row in rows if int(to_float(row.get("run"))) == run]
-
-
 def mean_run_call_mean(
     rows: list[dict[str, object]], run_ids: list[int], key: str
 ) -> float:
+    rows_by_run: dict[int, list[dict[str, object]]] = {}
+    for row in rows:
+        if row.get(key) not in (None, ""):
+            rows_by_run.setdefault(int(to_float(row.get("run"))), []).append(row)
     return mean(
-        mean(to_float(row.get(key)) for row in run_rows if row.get(key) not in (None, ""))
+        mean(to_float(row.get(key)) for row in run_rows)
         for run in run_ids
-        if (
-            run_rows := [
-                row
-                for row in _rows_for_run(rows, run)
-                if row.get(key) not in (None, "")
-            ]
-        )
+        if (run_rows := rows_by_run.get(run))
     )
 
 
@@ -1581,9 +1519,16 @@ def ga_fitness_means(points: list[GAMetric]) -> list[dict[str, object]]:
 
 def timing_means(timings: list[TimingMetric]) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
-    for dataset in sorted({t.dataset for t in timings}):
-        dataset_timings = [t for t in timings if t.dataset == dataset]
+    by_dataset: dict[str, list[TimingMetric]] = {}
+    for timing in timings:
+        by_dataset.setdefault(timing.dataset, []).append(timing)
+    for dataset, dataset_timings in sorted(by_dataset.items()):
         runs = sorted({t.run for t in dataset_timings})
+        totals: dict[tuple[int, str], list[float]] = {}
+        for timing in dataset_timings:
+            bucket = totals.setdefault((timing.run, timing.metric), [0.0, 0.0])
+            bucket[0] += timing.seconds
+            bucket[1] += timing.calls
         extra_metrics = sorted(
             {
                 t.metric
@@ -1598,22 +1543,8 @@ def timing_means(timings: list[TimingMetric]) -> list[dict[str, object]]:
         )
         metrics = list(dict.fromkeys(STANDARD_TIMING_METRICS + extra_metrics))
         for metric in metrics:
-            values = [
-                sum(
-                    t.seconds
-                    for t in dataset_timings
-                    if t.run == run and t.metric == metric
-                )
-                for run in runs
-            ]
-            calls = [
-                sum(
-                    t.calls
-                    for t in dataset_timings
-                    if t.run == run and t.metric == metric
-                )
-                for run in runs
-            ]
+            values = [totals.get((run, metric), [0.0, 0.0])[0] for run in runs]
+            calls = [totals.get((run, metric), [0.0, 0.0])[1] for run in runs]
             rows.append(
                 {
                     "dataset": dataset,
@@ -1628,9 +1559,9 @@ def timing_means(timings: list[TimingMetric]) -> list[dict[str, object]]:
             for run in runs:
                 per_run.append(
                     sum(
-                        t.seconds
-                        for t in dataset_timings
-                        if t.run == run and t.metric.endswith(f".{suffix}")
+                        values[0]
+                        for (metric_run, metric), values in totals.items()
+                        if metric_run == run and metric.endswith(f".{suffix}")
                     )
                 )
             rows.append(
@@ -1643,20 +1574,10 @@ def timing_means(timings: list[TimingMetric]) -> list[dict[str, object]]:
                 }
             )
         values = [
-            sum(
-                t.seconds
-                for t in dataset_timings
-                if t.run == run and t.metric == "total_execution"
-            )
-            for run in runs
+            totals.get((run, "total_execution"), [0.0, 0.0])[0] for run in runs
         ]
         calls = [
-            sum(
-                t.calls
-                for t in dataset_timings
-                if t.run == run and t.metric == "total_execution"
-            )
-            for run in runs
+            totals.get((run, "total_execution"), [0.0, 0.0])[1] for run in runs
         ]
         rows.append(
             {

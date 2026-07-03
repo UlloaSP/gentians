@@ -45,15 +45,15 @@ def parse_atom(atom: str) -> tuple[str, list[str]] | None:
     normalized = _normal_atom_text(atom)
     if not normalized or normalized.startswith("#"):
         return None
+    match = re.match(r"^([A-Za-z_]\w*)(?:\((.*)\))?$", normalized)
+    if match:
+        args = match.group(2)
+        return match.group(1), split_top_level_args(args) if args else []
     parsed = _parse_atom_cached(normalized)
     if parsed is not None:
         name, arguments = parsed
         return name, list(arguments)
-    match = re.match(r"^([A-Za-z_]\w*)(?:\((.*)\))?$", normalized)
-    if not match:
-        return None
-    args = match.group(2)
-    return match.group(1), split_top_level_args(args) if args else []
+    return None
 
 
 def _normal_atom_text(atom: str) -> str:

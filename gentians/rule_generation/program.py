@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 import re
 import sys
 
@@ -7,69 +8,58 @@ from ..asp.callbacks import RuleCallback
 from .parser import extract_name_arity
 
 
+@dataclass(init=False, slots=True)
 class Example:
     """
     Class for examples in the input file.
     Members of the tuple, in order: included, excluded, and context.
     """
 
-    def __init__(
-        self, s: "tuple[str,str] | tuple[str,str,str]", positive: bool
-    ) -> None:
-        self.included: str = s[0]
-        self.excluded: str = s[1]
-        self.context: str = s[2] if len(s) == 3 else ""
-        self.positive: bool = positive
+    included: str
+    excluded: str
+    context: str
+    positive: bool
 
-    def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, Example)
-            and self.included == other.included
-            and self.excluded == other.excluded
-            and self.context == other.context
-            and self.positive == other.positive
-        )
+    def __init__(self, s: "tuple[str,str] | tuple[str,str,str]", positive: bool) -> None:
+        self.included = s[0]
+        self.excluded = s[1]
+        self.context = s[2] if len(s) == 3 else ""
+        self.positive = positive
 
 
+@dataclass(init=False, slots=True)
 class ModeDeclaration:
     """
     Class for mode declarations in the input file.
     Members of the tuple, in order: recall, name, arity, and positive/negative.
     """
 
-    def __init__(
-        self, s: "tuple[str,str,str] | tuple[str,str,str,str]", head: bool
-    ) -> None:
+    recall: int
+    name: str
+    arity: int
+    positive: bool
+    head: bool
+    aggregation_function: str = ""
+    aggregation_atoms: "list[tuple[str,int]]" = field(default_factory=list)
+    arithmetic_operator: str = ""
+    comparison_operator: str = ""
+
+    def __init__(self, s: "tuple[str,str,str] | tuple[str,str,str,str]", head: bool) -> None:
         if s[0] == "*":
-            self.recall: int = -1
+            self.recall = -1
         else:
-            self.recall: int = int(s[0])
-        self.name: str = s[1]
-        self.arity: int = int(s[2])
-        self.positive: bool = True
+            self.recall = int(s[0])
+        self.name = s[1]
+        self.arity = int(s[2])
+        self.positive = True
         if len(s) == 4:
             if s[3] == "negative":
                 self.positive = False
-        self.head: bool = head
-
-        self.aggregation_function: str = ""
-        self.aggregation_atoms: "list[tuple[str,int]]" = []
-        self.arithmetic_operator: str = ""
-        self.comparison_operator: str = ""
-
-    def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, ModeDeclaration)
-            and self.recall == other.recall
-            and self.name == other.name
-            and self.arity == other.arity
-            and self.positive == other.positive
-            and self.head == other.head
-            and self.aggregation_function == other.aggregation_function
-            and self.aggregation_atoms == other.aggregation_atoms
-            and self.arithmetic_operator == other.arithmetic_operator
-            and self.comparison_operator == other.comparison_operator
-        )
+        self.head = head
+        self.aggregation_function = ""
+        self.aggregation_atoms = []
+        self.arithmetic_operator = ""
+        self.comparison_operator = ""
 
     def add_aggregate(self, aggregate_str: str):
         """
@@ -113,24 +103,17 @@ class ModeDeclaration:
         )
 
 
+@dataclass(slots=True)
 class Program:
     """
     Class for input programs.
     """
 
-    def __init__(
-        self,
-        bg: "list[str]",
-        pos: "list[Example]",
-        neg: "list[Example]",
-        mode_head: "list[ModeDeclaration]",
-        mode_body: "list[ModeDeclaration]",
-    ) -> None:
-        self.background: "list[str]" = bg
-        self.positive_examples: "list[Example]" = pos
-        self.negative_examples: "list[Example]" = neg
-        self.language_bias_head: "list[ModeDeclaration]" = mode_head
-        self.language_bias_body: "list[ModeDeclaration]" = mode_body
+    background: "list[str]"
+    positive_examples: "list[Example]"
+    negative_examples: "list[Example]"
+    language_bias_head: "list[ModeDeclaration]"
+    language_bias_body: "list[ModeDeclaration]"
 
     def auto_generate_language_bias(self, recall: int) -> None:
         """
@@ -145,15 +128,13 @@ class Program:
             m for m in self.language_bias_body if m.special_mode_declaration()
         ]
 
-        name_arity_list: "list[tuple[str,int]]" = []
+        name_arity: dict[tuple[str, int], None] = {}
 
         r = RuleCallback()
         for rule in self.background:
             ast.parse_string(rule, r.process)
             for h in r.head + r.body:  # head and body
-                na = extract_name_arity(h)
-                if na not in name_arity_list:
-                    name_arity_list.append(na)
+                name_arity.setdefault(extract_name_arity(h), None)
 
         for e in self.positive_examples + self.negative_examples:
             to_consider = [e.included, e.excluded]
@@ -162,14 +143,12 @@ class Program:
                     s = ":- " + s + "."
                     ast.parse_string(s, r.process)
                     for atom in r.body:
-                        na = extract_name_arity(atom)
-                        if na not in name_arity_list:
-                            name_arity_list.append(na)
+                        name_arity.setdefault(extract_name_arity(atom), None)
 
         positive_or_negative = "positive" if recall > 0 else "negative"
         recall = abs(recall)
 
-        for na in name_arity_list:
+        for na in name_arity:
             md = ModeDeclaration((str(recall), str(na[0]), str(na[1])), True)
             if md not in self.language_bias_head:
                 self.language_bias_head.append(md)

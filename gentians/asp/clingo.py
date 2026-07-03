@@ -4,6 +4,7 @@ from pathlib import Path
 
 from .callbacks import WrapperStopIfWarn
 from .coverage import Coverage, generate_clauses_for_coverage_interpretations
+from .stats import clingo_stat, ground_stats
 from ..rule_generation.program import Example
 from ..timing import add, current_phase, instrumentation, metric_enabled, record_metric
 
@@ -12,18 +13,24 @@ COVERAGE_RULES = (LOGIC_PROGRAMS / "coverage_rules.lp").read_text()
 
 
 class ClingoInterface:
-    def __init__(self, lines: "list[str]", clingo_arguments: "list[str]") -> None:
+    def __init__(
+        self,
+        lines: "list[str]",
+        clingo_arguments: "list[str]",
+        interpretation_pos: "list[Example]",
+        interpretation_neg: "list[Example]",
+    ) -> None:
         self.lines = lines
         self.clingo_arguments = clingo_arguments
-        self._coverage_static_program_cache: dict[
-            tuple[tuple[str, ...], tuple[str, ...]], str
-        ] = {}
+        self.positive_examples = len(interpretation_pos)
+        self.negative_examples = len(interpretation_neg)
+        self.coverage_static_program = _build_coverage_static_program(
+            self.lines, interpretation_pos, interpretation_neg
+        )
 
     def extract_fixed_coverage(
         self,
         program: "list[str]",
-        interpretation_pos: "list[Example]",  # positive examples
-        interpretation_neg: "list[Example]",  # negative examples
     ) -> Coverage:
         """
         Extracts coverage for the full candidate program.
@@ -32,9 +39,7 @@ class ClingoInterface:
         # come answer set solo quelli che gli sono stati passati come
         # esempi positivi
 
-        generated_program = self._coverage_static_program(
-            interpretation_pos, interpretation_neg
-        ) + "\n" + "\n".join(program)
+        generated_program = self.coverage_static_program + "\n" + "\n".join(program)
 
         wrp = WrapperStopIfWarn()
         ctl = clingo.Control(
@@ -48,7 +53,7 @@ class ClingoInterface:
         add(f"{phase}.grounding", seconds)
         if metric_enabled("clingo"):
             with instrumentation():
-                ground_stats = _ground_stats(ctl)
+                stats = ground_stats(ctl)
                 record_metric(
                     "clingo",
                     {
@@ -58,11 +63,11 @@ class ClingoInterface:
                         "seconds": seconds,
                         "input_clauses": len(self.lines) + len(program),
                         "program_chars": len(generated_program),
-                        "positive_examples": len(interpretation_pos),
-                        "negative_examples": len(interpretation_neg),
+                        "positive_examples": self.positive_examples,
+                        "negative_examples": self.negative_examples,
                         "clingo_arguments": " ".join(self.clingo_arguments),
-                        "stats_atoms": ground_stats["atoms"],
-                        "stats_rules": ground_stats["rules"],
+                        "stats_atoms": stats["atoms"],
+                        "stats_rules": stats["rules"],
                     },
                 )
 
@@ -101,35 +106,19 @@ class ClingoInterface:
                         "covered_negative": coverage.neg_mask.bit_count(),
                         "program_size": len(program),
                         "clingo_arguments": " ".join(self.clingo_arguments),
-                        "stats_models_enumerated": _clingo_stat(
+                        "stats_models_enumerated": clingo_stat(
                             ctl.statistics, "summary", "models", "enumerated"
                         ),
-                        "stats_choices": _clingo_stat(
+                        "stats_choices": clingo_stat(
                             ctl.statistics, "solving", "solvers", "choices"
                         ),
-                        "stats_conflicts": _clingo_stat(
+                        "stats_conflicts": clingo_stat(
                             ctl.statistics, "solving", "solvers", "conflicts"
                         ),
                     },
                 )
 
         return coverage
-
-    def _coverage_static_program(
-        self,
-        interpretation_pos: "list[Example]",
-        interpretation_neg: "list[Example]",
-    ) -> str:
-        key = (
-            tuple(str(example) for example in interpretation_pos),
-            tuple(str(example) for example in interpretation_neg),
-        )
-        if key not in self._coverage_static_program_cache:
-            self._coverage_static_program_cache[key] = _build_coverage_static_program(
-                self.lines, interpretation_pos, interpretation_neg
-            )
-        return self._coverage_static_program_cache[key]
-
 
 def _build_coverage_static_program(
     background: "list[str]",
@@ -172,27 +161,3 @@ def _parse_coverage_symbol_masks(symbols) -> tuple[int, int]:
         elif symbol.name == "extended_n":
             neg_mask |= 1 << value
     return pos_mask, neg_mask
-
-
-def _clingo_stat(stats, *path: str) -> float:
-    current = stats
-    for key in path:
-        if not isinstance(current, dict) or key not in current:
-            return 0.0
-        current = current[key]
-    return float(current) if isinstance(current, (int, float)) else 0.0
-
-
-def _ground_stats(ctl) -> dict[str, float]:
-    stats = ctl.statistics
-    atoms = max(
-        _clingo_stat(stats, "problem", "lp", "atoms"),
-        _clingo_stat(stats, "problem", "lpStep", "atoms"),
-    )
-    if not atoms:
-        atoms = float(sum(1 for _ in ctl.symbolic_atoms))
-    rules = max(
-        _clingo_stat(stats, "problem", "lp", "rules"),
-        _clingo_stat(stats, "problem", "lpStep", "rules"),
-    )
-    return {"atoms": atoms, "rules": rules}

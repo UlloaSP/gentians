@@ -83,14 +83,7 @@ def replay_hypothesis_metrics(metrics: dict[str, object]) -> None:
     clingo_rows = [
         row for row in metrics.get("clingoMetrics", []) if isinstance(row, dict)
     ]
-    for row in timings:
-        metric = row.get("metric")
-        if not isinstance(metric, str):
-            continue
-        seconds = float(row.get("seconds", 0.0))
-        calls = int(row.get("calls", 0))
-        timing._totals[metric] = timing._totals.get(metric, 0.0) + seconds
-        timing._counts[metric] = timing._counts.get(metric, 0) + calls
+    timing.merge_timings(timings)
     hypothesis_seconds = float(
         next(
             (
@@ -102,13 +95,11 @@ def replay_hypothesis_metrics(metrics: dict[str, object]) -> None:
         )
     )
     if hypothesis_seconds:
-        timing._totals["total_execution"] = (
-            timing._totals.get("total_execution", 0.0) + hypothesis_seconds
+        timing.merge_timings(
+            [{"metric": "total_execution", "seconds": hypothesis_seconds, "calls": 1}]
         )
-        timing._counts["total_execution"] = timing._counts.get("total_execution", 0) + 1
-    timing._timings_dirty = True
-    append_jsonl(os.environ.get("GENTIANS_CLINGO_METRICS_PATH"), clingo_rows)
-    append_jsonl(
+    timing.append_jsonl(os.environ.get("GENTIANS_CLINGO_METRICS_PATH"), clingo_rows)
+    timing.append_jsonl(
         os.environ.get("GENTIANS_TIMING_EVENTS_PATH"),
         synthetic_hypothesis_events(timings, hypothesis_seconds),
     )
@@ -145,16 +136,6 @@ def synthetic_hypothesis_events(
             "self_seconds": self_seconds,
         }
     ]
-
-
-def append_jsonl(path: str | None, rows: list[dict[str, object]]) -> None:
-    if not path or not rows:
-        return
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with target.open("a", encoding="utf-8") as f:
-        for row in rows:
-            f.write(json.dumps(row) + "\n")
 
 
 if __name__ == "__main__":

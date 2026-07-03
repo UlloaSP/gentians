@@ -25,6 +25,8 @@ def coverage_fixed(
     normal_solver = ClingoInterface(
         program.background,
         [f"{max_as_to_generate_foreach_program}", *clingo_arguments],
+        program.positive_examples,
+        program.negative_examples,
     )
 
     def evaluate_score(
@@ -61,11 +63,7 @@ def _evaluate_score(
         + redundancies * redundancy_penalty
     )
 
-    coverage = normal_solver.extract_fixed_coverage(
-        candidate_program,
-        program.positive_examples,
-        program.negative_examples,
-    )
+    coverage = normal_solver.extract_fixed_coverage(candidate_program)
     covered_positive = coverage.pos_mask.bit_count()
     has_negative_violation = bool(coverage.neg_mask)
     positive_rate = (

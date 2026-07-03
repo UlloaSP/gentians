@@ -1,5 +1,6 @@
 import json
 import re
+import sys
 from pathlib import Path
 
 from benchmarks.profile_baseline import (
@@ -12,6 +13,7 @@ from benchmarks.profile_baseline import (
     operator_summary,
     parse_log,
     reset_run_outputs,
+    run_streamed,
     write_dashboard_data,
     write_debug_clingo_program,
 )
@@ -158,9 +160,7 @@ def test_operator_summary_counts_mutation_population_duplicates():
 
 
 def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
-    timing._totals.clear()
-    timing._counts.clear()
-    timing._stack.clear()
+    timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
     exported = {}
 
@@ -188,14 +188,11 @@ def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
 
     assert "total_execution" in exported
     assert timing._stack == []
-    timing._totals.clear()
-    timing._counts.clear()
+    timing.reset()
 
 
 def test_phase_records_exclusive_self_time(monkeypatch):
-    timing._totals.clear()
-    timing._counts.clear()
-    timing._stack.clear()
+    timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
 
     with timing.phase("outer"):
@@ -205,14 +202,11 @@ def test_phase_records_exclusive_self_time(monkeypatch):
     assert "outer.self" in timing._totals
     assert "inner.self" in timing._totals
     assert timing._totals["outer.self"] <= timing._totals["outer"]
-    timing._totals.clear()
-    timing._counts.clear()
+    timing.reset()
 
 
 def test_phase_subtracts_instrumentation_time(monkeypatch):
-    timing._totals.clear()
-    timing._counts.clear()
-    timing._stack.clear()
+    timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
     values = iter([0.0, 0.0, 2.0, 5.0, 10.0])
     monkeypatch.setattr(timing.time, "perf_counter", lambda: next(values))
@@ -223,15 +217,29 @@ def test_phase_subtracts_instrumentation_time(monkeypatch):
 
     assert timing._totals["outer"] == 7.0
     assert timing._totals["outer.self"] == 7.0
-    timing._totals.clear()
-    timing._counts.clear()
+    timing.reset()
+
+
+def test_phase_event_logging_is_parent_instrumentation(monkeypatch):
+    timing.reset()
+    monkeypatch.setattr(timing, "_enabled", True)
+    values = iter([0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 7.0, 10.0, 10.0, 12.0])
+    monkeypatch.setattr(timing.time, "perf_counter", lambda: next(values))
+    monkeypatch.setattr(timing, "_append_jsonl", lambda *_args: timing.time.perf_counter())
+
+    with timing.phase("outer"):
+        with timing.phase("inner"):
+            pass
+
+    assert timing._totals["inner"] == 1.0
+    assert timing._totals["outer"] == 2.0
+    assert timing._totals["outer.self"] == 1.0
+    timing.reset()
 
 
 def test_export_closes_jsonl_writer_before_reset(monkeypatch, tmp_path):
     path = tmp_path / "timing_events.jsonl"
-    timing._totals.clear()
-    timing._counts.clear()
-    timing._stack.clear()
+    timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
     monkeypatch.setenv("GENTIANS_TIMING_EVENTS_PATH", str(path))
 
@@ -486,6 +494,35 @@ def test_reset_run_outputs_removes_stale_profile_files(tmp_path):
     reset_run_outputs(paths)
 
     assert all(not path.exists() for path in paths)
+
+
+def test_run_streamed_sets_dataset_and_run_env(tmp_path):
+    log_path = tmp_path / "run.log"
+    code = (
+        "import os; "
+        "print(os.environ['GENTIANS_BENCHMARK_NAME']); "
+        "print(os.environ['GENTIANS_RUN_NUMBER'])"
+    )
+
+    returncode, timed_out = run_streamed(
+        [sys.executable, "-c", code],
+        "{}",
+        log_path,
+        10,
+        tmp_path / "timings.json",
+        tmp_path / "events.jsonl",
+        tmp_path / "ga.json",
+        tmp_path / "operator.jsonl",
+        tmp_path / "candidate.jsonl",
+        tmp_path / "quality.jsonl",
+        tmp_path / "clingo.jsonl",
+        "coin",
+        3,
+        99,
+    )
+
+    assert (returncode, timed_out) == (0, False)
+    assert log_path.read_text(encoding="utf-8").splitlines() == ["coin", "3"]
 
 
 def test_dashboard_uses_run_means_for_profile_counters(tmp_path):

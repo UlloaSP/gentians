@@ -1,5 +1,4 @@
 import re
-import sys
 from functools import lru_cache
 
 from clingo import ast
@@ -36,9 +35,7 @@ def extract_name_arity(atom: str) -> "tuple[str,int]":
     if parsed is not None:
         function_name, arguments = parsed
         return function_name, len(arguments)
-    print("\033[91m" + "Error: " + f"Error in extract_name_arity: {atom}" + "\033[0m")
-    sys.exit(-1)
-    return (atom, -1)
+    raise ValueError(f"Error in extract_name_arity: {atom}")
 
 
 def parse_atom(atom: str) -> tuple[str, list[str]] | None:

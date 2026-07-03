@@ -1,7 +1,5 @@
 import json
 import os
-import queue
-import threading
 import time
 from contextlib import contextmanager
 from functools import wraps
@@ -17,9 +15,6 @@ _ga_rows: list[dict[str, float]] = []
 _event_counter = 0
 _timings_dirty = False
 _ga_dirty = False
-_write_queue: "queue.Queue[tuple[str | None, dict[str, Any] | threading.Event] | None]" = queue.Queue()
-_writer_thread: threading.Thread | None = None
-_writer_lock = threading.Lock()
 _F = TypeVar("_F", bound=Callable)
 _METRIC_ENV_PATHS = {
     "candidate": "GENTIANS_CANDIDATE_METRICS_PATH",
@@ -49,68 +44,61 @@ def _write_json_atomic(path: str, rows: list[dict[str, object]]) -> None:
 def _append_jsonl(path: str | None, row: dict[str, Any]) -> None:
     if not path:
         return
-    _start_writer()
-    _write_queue.put((path, row))
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row) + "\n")
 
 
-def _start_writer() -> None:
-    global _writer_thread
-    if _writer_thread is not None:
-        return
-    with _writer_lock:
-        if _writer_thread is None:
-            _writer_thread = threading.Thread(target=_writer_loop, daemon=True)
-            _writer_thread.start()
+def append_jsonl(path: str | None, rows: list[dict[str, object]]) -> None:
+    for row in rows:
+        _append_jsonl(path, row)
 
 
-def _writer_loop() -> None:
-    handles: dict[str, Any] = {}
-    try:
-        while True:
-            item = _write_queue.get()
-            try:
-                if item is None:
-                    return
-                path, row = item
-                if path is None:
-                    for handle in handles.values():
-                        handle.flush()
-                    assert isinstance(row, threading.Event)
-                    row.set()
-                    continue
-                assert isinstance(row, dict)
-                handle = handles.get(path)
-                if handle is None:
-                    target = Path(path)
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    handle = target.open("a", encoding="utf-8")
-                    handles[path] = handle
-                handle.write(json.dumps(row) + "\n")
-            finally:
-                _write_queue.task_done()
-    finally:
-        for handle in handles.values():
-            handle.flush()
-            handle.close()
+def reset() -> None:
+    global _event_counter, _timings_dirty, _ga_dirty
+    _totals.clear()
+    _counts.clear()
+    _stack.clear()
+    _ga_rows.clear()
+    _event_counter = 0
+    _timings_dirty = False
+    _ga_dirty = False
 
 
-def _flush_async_writes() -> None:
-    global _writer_thread
-    if _writer_thread is None:
-        return
-    flushed = threading.Event()
-    _write_queue.put((None, flushed))
-    flushed.wait()
-    _write_queue.join()
-    _write_queue.put(None)
-    _write_queue.join()
-    _writer_thread.join()
-    _writer_thread = None
+def set_enabled(enabled: bool) -> None:
+    global _enabled
+    _enabled = enabled
+
+
+def merge_timings(rows: list[dict[str, object]]) -> None:
+    global _timings_dirty
+    for row in rows:
+        metric = row.get("metric")
+        if not isinstance(metric, str):
+            continue
+        _totals[metric] = _totals.get(metric, 0.0) + float(row.get("seconds", 0.0))
+        _counts[metric] = _counts.get(metric, 0) + int(row.get("calls", 0))
+        _timings_dirty = True
 
 
 def add(name: str, seconds: float) -> None:
     if not _enabled:
         return
+    if _stack and not _stack[-1]["instrumenting"]:
+        event = _stack[-1]
+        event["instrumenting"] = True
+        start = time.perf_counter()
+        try:
+            _record_total(name, seconds)
+        finally:
+            event["instrumentation_seconds"] += time.perf_counter() - start
+            event["instrumenting"] = False
+        return
+    _record_total(name, seconds)
+
+
+def _record_total(name: str, seconds: float) -> None:
     global _timings_dirty
     _totals[name] = _totals.get(name, 0.0) + seconds
     _counts[name] = _counts.get(name, 0) + 1
@@ -123,8 +111,9 @@ def phase(name: str):
         yield
         return
     global _event_counter
-    _event_counter += 1
     parent = _stack[-1] if _stack else None
+    setup_start = time.perf_counter() if parent else 0.0
+    _event_counter += 1
     event = {
         "event_id": _event_counter,
         "parent_id": parent["event_id"] if parent else None,
@@ -138,6 +127,8 @@ def phase(name: str):
     }
     _stack.append(event)
     start = time.perf_counter()
+    if parent:
+        parent["instrumentation_seconds"] += time.perf_counter() - setup_start
     try:
         yield
     finally:
@@ -146,8 +137,8 @@ def phase(name: str):
         instrumentation_seconds = float(event["instrumentation_seconds"])
         seconds = max(raw_seconds - instrumentation_seconds, 0.0)
         self_seconds = max(seconds - float(event["child_seconds"]), 0.0)
-        add(name, seconds)
-        add(f"{name}.self", self_seconds)
+        _record_total(name, seconds)
+        _record_total(f"{name}.self", self_seconds)
         row = {
             "event_id": event["event_id"],
             "parent_id": event["parent_id"],
@@ -162,11 +153,18 @@ def phase(name: str):
             "self_seconds": self_seconds,
             "instrumentation_seconds": instrumentation_seconds,
         }
+        parent_event = _stack[-2] if len(_stack) > 1 else None
+        finalize_start = time.perf_counter() if parent_event else 0.0
         _append_jsonl(os.environ.get("GENTIANS_TIMING_EVENTS_PATH"), row)
+        finalize_overhead = (
+            time.perf_counter() - finalize_start if parent_event else 0.0
+        )
         _stack.pop()
-        if _stack:
-            _stack[-1]["child_seconds"] += seconds
-            _stack[-1]["instrumentation_seconds"] += instrumentation_seconds
+        if parent_event:
+            parent_event["child_seconds"] += seconds
+            parent_event["instrumentation_seconds"] += (
+                instrumentation_seconds + finalize_overhead
+            )
 
 
 def profile_phase(name: str):
@@ -271,7 +269,6 @@ def record_ga_generation(
 
 
 def export() -> None:
-    _flush_async_writes()
     _flush_timings()
     ga_path = os.environ.get("GENTIANS_GA_METRICS_PATH")
     global _ga_dirty

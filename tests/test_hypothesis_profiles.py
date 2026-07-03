@@ -108,8 +108,7 @@ def test_profile_ga_worker_loads_hypothesis_file(monkeypatch, tmp_path):
     arguments = Arguments(filename="coin.txt")
     write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
     captured = {}
-    timing._totals.clear()
-    timing._counts.clear()
+    timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
     values = iter([1.0, 3.5])
     monkeypatch.setattr("benchmarks.profile_ga.time.perf_counter", lambda: next(values))
@@ -137,14 +136,11 @@ def test_profile_ga_worker_loads_hypothesis_file(monkeypatch, tmp_path):
     assert timing._totals["hypothesis_space"] == 2.5
     assert timing._totals["hypothesis_space.self"] == 2.5
     assert timing._totals["total_execution"] == 2.5
-    timing._totals.clear()
-    timing._counts.clear()
+    timing.reset()
 
 
 def test_profile_ga_replays_hypothesis_metrics(monkeypatch, tmp_path):
-    timing._totals.clear()
-    timing._counts.clear()
-    timing._timings_dirty = False
+    timing.reset()
     clingo_path = tmp_path / "clingo.jsonl"
     events_path = tmp_path / "events.jsonl"
     monkeypatch.setenv("GENTIANS_CLINGO_METRICS_PATH", str(clingo_path))
@@ -167,5 +163,4 @@ def test_profile_ga_replays_hypothesis_metrics(monkeypatch, tmp_path):
     assert timing._totals["total_execution"] == 2.0
     assert "hypothesis_space_grounding" in clingo_path.read_text(encoding="utf-8")
     assert "hypothesis_space" in events_path.read_text(encoding="utf-8")
-    timing._totals.clear()
-    timing._counts.clear()
+    timing.reset()

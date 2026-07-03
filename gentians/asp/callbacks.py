@@ -1,6 +1,3 @@
-import sys
-
-
 class RuleCallback:
     """
     Used while parsing the AST with clingo: process
@@ -38,9 +35,7 @@ def wrapper_exit_callback(x, y):
     Clingo callback: exit when there is an error
     """
     if "error" in y:
-        print(x)
-        print(y)
-        sys.exit()
+        raise RuntimeError(f"{x}\n{y}")
 
 
 class WrapperStopIfWarn:

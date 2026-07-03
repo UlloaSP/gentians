@@ -1,6 +1,4 @@
-from dataclasses import dataclass, field
-import re
-import sys
+from dataclasses import dataclass
 
 from clingo import ast
 
@@ -39,10 +37,6 @@ class ModeDeclaration:
     arity: int
     positive: bool
     head: bool
-    aggregation_function: str = ""
-    aggregation_atoms: "list[tuple[str,int]]" = field(default_factory=list)
-    arithmetic_operator: str = ""
-    comparison_operator: str = ""
 
     def __init__(self, s: "tuple[str,str,str] | tuple[str,str,str,str]", head: bool) -> None:
         if s[0] == "*":
@@ -56,51 +50,6 @@ class ModeDeclaration:
             if s[3] == "negative":
                 self.positive = False
         self.head = head
-        self.aggregation_function = ""
-        self.aggregation_atoms = []
-        self.arithmetic_operator = ""
-        self.comparison_operator = ""
-
-    def add_aggregate(self, aggregate_str: str):
-        """
-        Add an aggregates function to the mode declaration.
-        """
-        # aggregate_str comes from Arguments.aggregates.
-        pattern = r"(\w+)\(([^)]+)\)"
-        match = re.match(pattern, aggregate_str)
-
-        if match:
-            name = match.group(1)
-            if name not in ["count", "sum", "avg", "min", "max"]:
-                print(
-                    "\033[91m"
-                    + "Error: "
-                    + f"Error: Invalid aggregate function name: {name}"
-                    + "\033[0m"
-                )
-                sys.exit(-1)
-            self.aggregation_function = name
-            pairs = re.findall(r"(\w+)/(\d+)", match.group(2))
-            if pairs:
-                for pair in pairs:
-                    self.aggregation_atoms.append((pair[0], int(pair[1])))
-        else:
-            print(
-                "\033[91m"
-                + "Error: "
-                + f"Error: Invalid aggregate function syntax: {aggregate_str}"
-                + "\033[0m"
-            )
-            sys.exit(-1)
-
-    def special_mode_declaration(self) -> bool:
-        return any(
-            [
-                self.aggregation_function != "",
-                self.arithmetic_operator != "",
-                self.comparison_operator != "",
-            ]
-        )
 
 
 @dataclass(slots=True)
@@ -121,12 +70,8 @@ class Program:
         """
         # cleanup the existing language bias: so I can run the examples with language bias
         # and just add a flag to ignore it and generating it automatically
-        self.language_bias_head = [
-            m for m in self.language_bias_head if m.special_mode_declaration()
-        ]
-        self.language_bias_body = [
-            m for m in self.language_bias_body if m.special_mode_declaration()
-        ]
+        self.language_bias_head = []
+        self.language_bias_body = []
 
         name_arity: dict[tuple[str, int], None] = {}
 

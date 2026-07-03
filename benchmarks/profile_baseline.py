@@ -146,14 +146,7 @@ def parse_profile_args(
     )
     parser.add_argument("--list-datasets", action="store_true")
     parser.add_argument("--seed-base", type=int, default=1)
-    parser.add_argument("--no-plots", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--plots-only", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument(
-        "--live-plot-seconds",
-        type=float,
-        default=2.0,
-        help=argparse.SUPPRESS,
-    )
     if add_args is not None:
         add_args(parser)
     return parser.parse_args()
@@ -221,8 +214,6 @@ def run_benchmark_suite(
     dataset_names = list(args.datasets)
     total = len(dataset_names) * args.runs
     completed = 0
-    commands_path = out_dir / "commands.txt"
-    commands_path.write_text("", encoding="utf-8")
 
     for dataset in dataset_names:
         try:
@@ -266,10 +257,6 @@ def run_benchmark_suite(
             )
             seed = args.seed_base + completed - 1
             experiment_id = f"{dataset}_seed_{seed}"
-            with commands_path.open("a", encoding="utf-8") as f:
-                f.write(f"GENTIANS_ARGUMENTS_JSON={arguments_json} ")
-                f.write(f"GENTIANS_RANDOM_SEED={seed} ")
-                f.write(subprocess.list2cmdline(cmd) + "\n")
 
             print(
                 f"[{completed}/{total}] {dataset} run {run}/{args.runs} timeout={args.timeout_seconds}s",
@@ -288,12 +275,9 @@ def run_benchmark_suite(
                 candidate_metrics_path,
                 quality_metrics_path,
                 clingo_metrics_path,
-                out_dir,
                 dataset,
                 run,
                 seed,
-                ga_metrics,
-                timings,
                 run_env(dataset, dataset_arguments) if run_env is not None else None,
             )
             elapsed = time.perf_counter() - started
@@ -354,23 +338,23 @@ def run_benchmark_suite(
                 read_jsonl_rows(clingo_metrics_path, dataset, run, seed, experiment_id)
             )
             invariants.extend(compute_accounting_invariants(dataset, run, run_timings))
-            write_outputs(
-                out_dir,
-                results,
-                fitness,
-                timings,
-                ga_metrics,
-                timing_events,
-                operator_metrics,
-                candidate_metrics,
-                quality_metrics,
-                clingo_metrics,
-                invariants,
-            )
             print(
                 f"[{completed}/{total}] {dataset} run {run} {status} {elapsed:.2f}s\n",
                 flush=True,
             )
+    write_outputs(
+        out_dir,
+        results,
+        fitness,
+        timings,
+        ga_metrics,
+        timing_events,
+        operator_metrics,
+        candidate_metrics,
+        quality_metrics,
+        clingo_metrics,
+        invariants,
+    )
 
 
 def _default_python() -> str:
@@ -419,15 +403,11 @@ def run_streamed(
     candidate_metrics_path: Path,
     quality_metrics_path: Path,
     clingo_metrics_path: Path,
-    out_dir: Path,
     dataset: str,
     run: int,
     seed: int,
-    completed_ga_metrics: list[GAMetric],
-    completed_timings: list[TimingMetric],
     extra_env: dict[str, str] | None = None,
 ) -> tuple[int | None, bool]:
-    _ = (out_dir, dataset, run, completed_ga_metrics, completed_timings)
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
     env["GENTIANS_PROFILE_WORKER"] = "1"
@@ -831,9 +811,6 @@ def write_outputs(
     clingo_metrics: list[dict[str, object]],
     invariants: list[dict[str, object]],
 ) -> None:
-    (out_dir / "raw_results.json").write_text(
-        json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8"
-    )
     write_csv(out_dir / "runs.csv", [asdict(r) for r in results])
     write_csv(out_dir / "fitness_observed.csv", [asdict(p) for p in fitness])
     write_csv(out_dir / "timings_raw.csv", [asdict(t) for t in timings])

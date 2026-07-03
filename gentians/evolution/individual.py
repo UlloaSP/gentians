@@ -13,9 +13,6 @@ class Individual:
     def __post_init__(self) -> None:
         self.signature = tuple(self.program)
 
-    def refresh_signature(self) -> None:
-        self.signature = tuple(self.program)
-
     def __str__(self) -> str:
         return f"Program: {self.program} - score: {self.score}"
 

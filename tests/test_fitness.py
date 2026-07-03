@@ -101,22 +101,19 @@ def test_coverage_fixed_uses_one_normal_search_for_fixed_coverage(monkeypatch):
     calls = []
 
     class FakeSolver:
-        def __init__(self, lines, clingo_arguments):
+        def __init__(self, lines, clingo_arguments, interpretation_pos, interpretation_neg):
             self.clingo_arguments = clingo_arguments
+            self.has_positive_examples = bool(interpretation_pos)
+            self.has_negative_examples = bool(interpretation_neg)
             instances.append(self)
 
-        def extract_fixed_coverage(
-            self,
-            candidate_program,
-            interpretation_pos,
-            interpretation_neg,
-        ):
+        def extract_fixed_coverage(self, candidate_program):
             calls.append(
                 (
                     tuple(candidate_program),
                     tuple(self.clingo_arguments),
-                    bool(interpretation_pos),
-                    bool(interpretation_neg),
+                    self.has_positive_examples,
+                    self.has_negative_examples,
                 )
             )
             return Coverage([0], [0])
@@ -210,11 +207,12 @@ def test_cached_fitness_reuses_program_result():
 def test_extract_fixed_coverage_does_not_dump_each_candidate(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
 
-    coverage = ClingoInterface(["base."], ["0", "--enum-mode=brave"]).extract_fixed_coverage(
-        ["target :- base."],
+    coverage = ClingoInterface(
+        ["base."],
+        ["0", "--enum-mode=brave"],
         [Example(("target", ""), True)],
         [],
-    )
+    ).extract_fixed_coverage(["target :- base."])
 
     assert coverage.pos_mask == 1
     assert not (tmp_path / ".debug" / "clingo").exists()

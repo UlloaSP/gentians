@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from .parser import split_top_level_args
 from .program import Example, ModeDeclaration, Program
 
@@ -45,25 +47,19 @@ def read_program(filename: str):
     lbh: "list[ModeDeclaration]" = []
     lbb: "list[ModeDeclaration]" = []
 
-    fp = open(filename, "r")
-    lines = fp.read().splitlines()
-    fp.close()
-
-    for line in lines:
+    for line in Path(filename).read_text(encoding="utf-8").splitlines():
         lc = line.rstrip().lstrip()
 
         if lc.startswith("#modeh"):
             res = _get_mode_declaration(lc, True)
-            if len(res) > 0:
-                md = ModeDeclaration(res, True)
-                if md not in lbh:
-                    lbh.append(md)
+            md = ModeDeclaration(res, True)
+            if md not in lbh:
+                lbh.append(md)
         elif lc.startswith("#modeb"):
             res = _get_mode_declaration(lc, False)
-            if len(res) > 0:
-                md = ModeDeclaration(res, False)
-                if md not in lbb:
-                    lbb.append(md)
+            md = ModeDeclaration(res, False)
+            if md not in lbb:
+                lbb.append(md)
         elif lc.startswith("#pos"):
             res = _get_pos_neg_examples(lc)
             ex = Example(res, True)
@@ -73,7 +69,7 @@ def read_program(filename: str):
             res = _get_pos_neg_examples(lc)
             ex = Example(res, False)
             if ex not in ne:
-                ne.append(Example(res, False))
+                ne.append(ex)
         else:
             bg.append(lc)
 

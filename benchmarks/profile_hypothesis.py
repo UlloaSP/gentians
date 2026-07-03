@@ -72,8 +72,8 @@ def build_profiled_hypothesis(program, arguments):
         old_env = {key: os.environ.get(key) for key in env}
         try:
             os.environ.update(env)
-            reset_timing()
-            timing._enabled = True
+            timing.reset()
+            timing.set_enabled(True)
             rule_space = build_hypothesis_space(program, arguments)
             timing.export()
             metrics = {
@@ -89,16 +89,7 @@ def build_profiled_hypothesis(program, arguments):
                     os.environ.pop(key, None)
                 else:
                     os.environ[key] = value
-            reset_timing()
-
-
-def reset_timing() -> None:
-    timing._totals.clear()
-    timing._counts.clear()
-    timing._stack.clear()
-    timing._ga_rows.clear()
-    timing._timings_dirty = False
-    timing._ga_dirty = False
+            timing.reset()
 
 
 def read_json_rows(path: Path) -> list[dict[str, object]]:

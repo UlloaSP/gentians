@@ -1,4 +1,3 @@
-import sys
 import time
 
 from gentians.evolution.algorithms.genetic import genetic_solver
@@ -57,8 +56,7 @@ def solve(
                         )
 
             if len(rule_space) == 0:
-                print("\033[91m" + "Error: " + "No clauses found" + "\033[0m")
-                sys.exit(-1)
+                raise ValueError("No clauses found")
 
             with phase("fitness.setup"):
                 sampler = ProgramSampler(program, rule_space)
@@ -93,8 +91,7 @@ def program_from_arguments(arguments: Arguments) -> Program:
     if arguments.filename:
         program = read_program(arguments.filename)
     else:
-        print("\033[91m" + "Error: " + "Specify a file with the task" + "\033[0m")
-        sys.exit(-1)
+        raise ValueError("Specify a file with the task")
 
     if arguments.automatic_language_bias != 0:
         program.auto_generate_language_bias(arguments.automatic_language_bias)

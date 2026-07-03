@@ -97,12 +97,7 @@ def test_facts_keeps_full_body_slots_for_constraints():
 
 
 def _reset_timing_state() -> None:
-    timing._totals.clear()
-    timing._counts.clear()
-    timing._stack.clear()
-    timing._ga_rows.clear()
-    timing._timings_dirty = False
-    timing._ga_dirty = False
+    timing.reset()
 
 
 def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
@@ -472,8 +467,9 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     random.seed(1)
     candidate = sorted(random.sample(clauses.clauses, args.max_program_clauses))
 
-    ClingoInterface(program.background, args.fitness["clingo_arguments"]).extract_fixed_coverage(
-        candidate,
+    ClingoInterface(
+        program.background,
+        args.fitness["clingo_arguments"],
         program.positive_examples,
         program.negative_examples,
-    )
+    ).extract_fixed_coverage(candidate)

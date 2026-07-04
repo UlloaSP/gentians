@@ -335,5 +335,21 @@ same_mode_literal(Section0,Slot0,Section1,Slot1):-
 
 :- same_mode_literal(Section0,Slot0,Section1,Slot1).
 
-#show selected/3.
-#show var_at/4.
+code_prefix(Section,Slot,Mode,0,0):-
+    selected(Section,Slot,Mode).
+
+code_prefix(Section,Slot,Mode,NextArg,NextCode):-
+    code_prefix(Section,Slot,Mode,Arg,Code),
+    mode(Section,Mode,_,Arity,_),
+    Arg < Arity,
+    NextArg = Arg + 1,
+    max_vars(Base),
+    var_at(Section,Slot,Arg,Var),
+    NextCode = (Code * Base) + Var.
+
+lit(Section,Slot,Mode,Code):-
+    selected(Section,Slot,Mode),
+    mode(Section,Mode,_,Arity,_),
+    code_prefix(Section,Slot,Mode,Arity,Code).
+
+#show lit/4.

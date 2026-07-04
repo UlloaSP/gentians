@@ -157,7 +157,7 @@ class HypothesisSpaceGenerator:
                     },
                 )
 
-        entries: list[RuleEntry] = []
+        clauses: dict[ReifiedClause, None] = {}
         start = time.perf_counter()
         models = 0
         collect_metrics = metric_enabled("clingo")
@@ -165,9 +165,14 @@ class HypothesisSpaceGenerator:
             for model in handle:  # type: ignore
                 if collect_metrics:
                     models += 1
-                clause = _clause_from_symbols(model.symbols(shown=True))
-                rendered = clause.render(self.modes_by_id)
-                entries.append(_rule_entry_from_clause(rendered, clause, self.modes_by_id))
+                clauses.setdefault(
+                    _clause_from_symbols(
+                        model.symbols(shown=True),
+                        self.modes_by_id,
+                        self.args.max_variables,
+                    ),
+                    None,
+                )
 
         seconds = time.perf_counter() - start
         phase = current_phase()
@@ -199,7 +204,16 @@ class HypothesisSpaceGenerator:
                     },
                 )
 
-        return RuleSpace.from_entries(entries)
+        return RuleSpace(
+            [
+                _rule_entry_from_clause(
+                    clause.render(self.modes_by_id),
+                    clause,
+                    self.modes_by_id,
+                )
+                for clause in clauses
+            ]
+        )
 
 
 @profile_phase("hypothesis_space")
@@ -646,42 +660,51 @@ def _facts(
     return "\n".join(parts)
 
 
-def _clause_from_symbols(symbols: list[clingo.Symbol]) -> ReifiedClause:
-    selected: dict[tuple[str, int], int] = {}
-    vars_by_literal: dict[tuple[str, int], dict[int, int]] = {}
+def _clause_from_symbols(
+    symbols: list[clingo.Symbol],
+    modes: dict[int, HypothesisMode],
+    max_variables: int,
+) -> ReifiedClause:
+    literals: list[ReifiedLiteral] = []
     for symbol in symbols:
-        if symbol.name == "selected":
-            section = symbol.arguments[0].name
-            slot = symbol.arguments[1].number
-            mode_id = symbol.arguments[2].number
-            selected[(section, slot)] = mode_id
-        elif symbol.name == "var_at":
-            section = symbol.arguments[0].name
-            slot = symbol.arguments[1].number
-            arg = symbol.arguments[2].number
-            var = symbol.arguments[3].number
-            vars_by_literal.setdefault((section, slot), {})[arg] = var
-
-    def literal(section: str, slot: int, mode_id: int) -> ReifiedLiteral:
-        args = vars_by_literal[(section, slot)]
-        return ReifiedLiteral(
-            section,
-            slot,
-            mode_id,
-            tuple(args[index] for index in range(len(args))),
+        if symbol.name != "lit":
+            continue
+        section = symbol.arguments[0].name
+        slot = symbol.arguments[1].number
+        mode_id = symbol.arguments[2].number
+        code = symbol.arguments[3].number
+        literals.append(
+            ReifiedLiteral(
+                section,
+                slot,
+                mode_id,
+                _decode_vars(code, modes[mode_id].arity, max_variables),
+            )
         )
 
     head = tuple(
-        literal(section, slot, mode_id)
-        for (section, slot), mode_id in sorted(selected.items())
-        if section == "head"
+        literal
+        for literal in sorted(literals, key=lambda literal: literal.slot)
+        if literal.section == "head"
     )
     body = tuple(
-        literal(section, slot, mode_id)
-        for (section, slot), mode_id in sorted(selected.items())
-        if section == "body"
+        literal
+        for literal in sorted(literals, key=lambda literal: literal.slot)
+        if literal.section == "body"
     )
     return ReifiedClause(head=head, body=body)
+
+
+def _decode_vars(code: int, arity: int, max_variables: int) -> tuple[int, ...]:
+    if arity == 0:
+        return ()
+    if max_variables <= 0:
+        raise ValueError("max_variables must be positive for non-zero arity modes")
+    values = [0] * arity
+    for index in range(arity - 1, -1, -1):
+        values[index] = code % max_variables
+        code //= max_variables
+    return tuple(values)
 
 
 def _render_literal(literal: ReifiedLiteral, mode: HypothesisMode) -> str:

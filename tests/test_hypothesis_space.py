@@ -7,7 +7,7 @@ from gentians.arguments import Arguments
 from gentians.asp.clingo import ClingoInterface
 from gentians import timing
 from gentians.rule_generation import hypothesis_space
-from gentians.rule_generation.parser import extract_name_arity, parse_atom
+from gentians.rule_generation.parser import extract_name_arity, fragment_atoms, parse_atom
 from gentians.rule_generation.reader import read_program
 from gentians.rule_generation.hypothesis_space import (
     HypothesisSpaceGenerator,
@@ -174,7 +174,7 @@ def test_unbalanced_aggregate_variants_share_recall():
 
 
 def test_atom_parser_handles_nested_arguments():
-    assert hypothesis_space._parse_normal_atom("same_row((X1,Y),(X2,Y))") == (
+    assert parse_atom("same_row((X1,Y),(X2,Y))") == (
         "same_row",
         ["(X1,Y)", "(X2,Y)"],
     )
@@ -370,6 +370,8 @@ def test_reader_parses_directives_without_regex_space_loss(tmp_path):
     task.write_text(
         "\n".join(
             [
+                "",
+                "% comment",
                 "edge(1,2).",
                 "#pos({ red(1), blue(f(2,3)) }, { green(1) }, { ctx((1,2)) }).",
                 "#neg({ bad(1) }, {}).",
@@ -462,13 +464,16 @@ def test_language_bias_auto_does_not_generate_head_when_body_is_explicit():
 
 
 def test_ast_atom_extraction_handles_choice_rules():
-    atoms = hypothesis_space._atoms_in_fragment(
-        "1 { p(P,I) : partition(P) } 1 :- number(I)."
-    )
+    atoms = {
+        (name, arguments)
+        for name, arguments, _negative in fragment_atoms(
+            "1 { p(P,I) : partition(P) } 1 :- number(I)."
+        )
+    }
 
-    assert "p(P,I)" in atoms
-    assert "partition(P)" in atoms
-    assert "number(I)" in atoms
+    assert ("p", ("P", "I")) in atoms
+    assert ("partition", ("P",)) in atoms
+    assert ("number", ("I",)) in atoms
 
 
 def _benchmark_clauses(name: str) -> set[str]:

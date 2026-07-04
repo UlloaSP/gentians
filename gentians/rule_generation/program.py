@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 
-from clingo import ast
-
-from .parser import parse_atom, split_top_level_args
+from .parser import fragment_atoms
 
 
 @dataclass(init=False, slots=True)
@@ -107,51 +105,8 @@ def _collect_signatures(
     signatures: dict[Signature, bool],
     force_negative: bool = False,
 ) -> None:
-    fragment = fragment.strip()
-    if not fragment:
-        return
-    source = fragment if fragment.endswith(".") else f":- {fragment}."
-    try:
-        ast.parse_string(
-            source,
-            lambda node: _collect_ast_signatures(node, signatures, force_negative),
-        )
-    except RuntimeError:
-        for part in split_top_level_args(fragment):
-            parsed = parse_atom(part)
-            if parsed is None:
-                continue
-            name, arguments = parsed
-            _mark_signature(
-                signatures,
-                (name, len(arguments)),
-                force_negative or part.strip().startswith("not "),
-            )
-
-
-def _collect_ast_signatures(
-    node: ast.AST,
-    signatures: dict[Signature, bool],
-    force_negative: bool,
-) -> None:
-    if node.ast_type == ast.ASTType.Literal:
-        atom = node.atom
-        if atom.ast_type == ast.ASTType.SymbolicAtom:
-            symbol = atom.symbol
-            if symbol.ast_type == ast.ASTType.Function and symbol.name:
-                _mark_signature(
-                    signatures,
-                    (str(symbol.name), len(symbol.arguments)),
-                    force_negative or node.sign != ast.Sign.NoSign,
-                )
-    for key in node.child_keys:
-        child = getattr(node, key)
-        if isinstance(child, ast.AST):
-            _collect_ast_signatures(child, signatures, force_negative)
-        elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
-            for item in child:
-                if isinstance(item, ast.AST):
-                    _collect_ast_signatures(item, signatures, force_negative)
+    for name, arguments, negative in fragment_atoms(fragment):
+        _mark_signature(signatures, (name, len(arguments)), force_negative or negative)
 
 
 def _mark_signature(

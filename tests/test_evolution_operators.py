@@ -79,6 +79,49 @@ def test_genetic_solver_returns_single_candidate_without_evolution():
     assert best_found is False
 
 
+def test_genetic_solver_runs_configured_iteration_count():
+    population = [
+        Individual(("low.",), 1.0, False),
+        Individual(("high.",), 2.0, False),
+    ]
+    calls = 0
+
+    def initialize(max_program_clauses, evaluate_score):
+        return population, False
+
+    def select(population):
+        nonlocal calls
+        calls += 1
+        return population[0], population[1]
+
+    def crossover(parent_a, parent_b, evaluate_score, known_signatures, max_program_clauses):
+        return parent_a, parent_b
+
+    def mutation(
+        individual,
+        max_program_clauses,
+        evaluate_score,
+        known_signatures,
+        extra_forbidden_signatures,
+    ):
+        return individual
+
+    def replacement(population, individual, population_signatures):
+        return population
+
+    genetic_solver(
+        Arguments(iterations_genetic=3),
+        lambda program: (0.0, False),
+        initialize,
+        select,
+        crossover,
+        mutation,
+        replacement,
+    )
+
+    assert calls == 3
+
+
 def test_tournament_selection_returns_distinct_signatures_when_possible(monkeypatch):
     population = [
         Individual(("a.",), 2.0, False),

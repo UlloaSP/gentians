@@ -1,21 +1,3 @@
-class RuleCallback:
-    """
-    Used while parsing the AST with clingo: process
-    is used as callback function to store values
-    """
-
-    def __init__(self) -> None:
-        self.head = []
-        self.body = []
-
-    def process(self, stm):
-        if "body" in stm.child_keys:
-            bl = [str(lit).replace(" ", "") for lit in stm.body]
-            self.body = bl
-        if "head" in stm.child_keys:
-            self.head = str(stm.head).replace(" ", "").split(";")
-
-
 def wrapper_exit_callback(x, y):
     """
     Clingo callback: exit when there is an error

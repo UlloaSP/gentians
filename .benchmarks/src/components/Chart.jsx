@@ -1,7 +1,24 @@
 import { useEffect, useMemo, useRef } from 'react'
-import * as echarts from 'echarts'
+import { BarChart, HeatmapChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
+import { GridComponent, LegendComponent, GraphicComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
+import { init, use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
 import { chartTw } from '../chartTw'
 import { colors } from '../metrics'
+
+use([
+  BarChart,
+  HeatmapChart,
+  LineChart,
+  PieChart,
+  ScatterChart,
+  GridComponent,
+  GraphicComponent,
+  LegendComponent,
+  TooltipComponent,
+  VisualMapComponent,
+  CanvasRenderer,
+])
 
 export function Chart({ data, layout, height = 420 }) {
   const ref = useRef(null)
@@ -10,15 +27,20 @@ export function Chart({ data, layout, height = 420 }) {
 
   useEffect(() => {
     if (!ref.current) return undefined
-    chart.current ||= echarts.init(ref.current, null, { renderer: 'canvas' })
-    chart.current.setOption(option, true)
+    chart.current ||= init(ref.current, null, { renderer: 'canvas' })
     const resize = () => chart.current?.resize()
     const observer = new ResizeObserver(resize)
     observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [option])
+    return () => {
+      observer.disconnect()
+      chart.current?.dispose()
+      chart.current = null
+    }
+  }, [])
 
-  useEffect(() => () => chart.current?.dispose(), [])
+  useEffect(() => {
+    chart.current?.setOption(option, true)
+  }, [option])
 
   const size = height >= 500 ? chartTw.chartXl : height >= 400 ? chartTw.chartLg : height >= 320 ? chartTw.chartMd : chartTw.chartSm
   return <div className={size} ref={ref} />

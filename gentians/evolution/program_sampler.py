@@ -5,6 +5,7 @@ import os
 import random
 
 from ..rule_generation.program import Program
+from ..rule_generation.parser import clause_predicates
 from ..rule_generation.rule_space import Predicate, RuleEntry, RuleSpace
 
 
@@ -212,8 +213,8 @@ def _fragment_predicates(fragment: str) -> set[Predicate]:
         return set()
     if not fragment.endswith("."):
         fragment = f":- {fragment}."
-    entry = RuleSpace.from_clauses([fragment]).entries[0]
-    return set(entry.heads | entry.deps)
+    heads, deps, _ = clause_predicates(fragment)
+    return set(heads | deps)
 
 
 def _random_rule_outside(pool: tuple[str, ...], current: set[str]) -> str | None:

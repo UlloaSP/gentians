@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from clingo import ast
+from .parser import clause_predicates
 
 Predicate = tuple[str, int]
 
@@ -39,45 +39,5 @@ class RuleSpace:
 
 
 def _entry_from_clause(rule: str) -> RuleEntry:
-    heads, deps, body_literals = _rule_predicates(rule)
-    return RuleEntry(rule, frozenset(heads), frozenset(deps), body_literals)
-
-
-def _rule_predicates(rule: str) -> tuple[set[Predicate], set[Predicate], int]:
-    rule = rule.strip()
-    if not rule or rule.startswith("%"):
-        return set(), set(), 0
-    heads: set[Predicate] = set()
-    deps: set[Predicate] = set()
-    body_literals = 0
-
-    def collect(stm: ast.AST) -> None:
-        nonlocal body_literals
-        if "head" in stm.child_keys:
-            _collect_predicates(stm.head, heads)
-        if "body" in stm.child_keys:
-            body_literals = len(stm.body)
-            for literal in stm.body:
-                _collect_predicates(literal, deps)
-
-    try:
-        ast.parse_string(rule, collect)
-    except RuntimeError:
-        return set(), set(), 0
-    return heads, deps, body_literals
-
-
-def _collect_predicates(node: ast.AST, result: set[Predicate]) -> None:
-    if node.ast_type == ast.ASTType.SymbolicAtom:
-        symbol = node.symbol
-        if symbol.ast_type == ast.ASTType.Function and symbol.name:
-            result.add((str(symbol.name), len(symbol.arguments)))
-        return
-    for key in node.child_keys:
-        child = getattr(node, key)
-        if isinstance(child, ast.AST):
-            _collect_predicates(child, result)
-        elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
-            for item in child:
-                if isinstance(item, ast.AST):
-                    _collect_predicates(item, result)
+    heads, deps, body_literals = clause_predicates(rule)
+    return RuleEntry(rule, heads, deps, body_literals)

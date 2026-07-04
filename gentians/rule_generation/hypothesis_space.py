@@ -2,17 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from collections import Counter
-from functools import lru_cache
 from pathlib import Path
 import re
 import time
 
 import clingo
-from clingo import ast
 
 from ..arguments import Arguments
 from ..asp.callbacks import wrapper_exit_callback
-from ..asp.rule_analysis import get_atoms
 from ..asp.stats import ground_stats
 from ..timing import (
     add,
@@ -22,7 +19,7 @@ from ..timing import (
     profile_phase,
     record_metric,
 )
-from .parser import parse_atom, split_top_level_args
+from .parser import fragment_atoms, split_top_level_args
 from .program import Program
 from .rule_space import Predicate, RuleEntry, RuleSpace
 
@@ -313,11 +310,7 @@ def _available_predicates(
         for mode in [*program.language_bias_head, *program.language_bias_body]
     }
     for fragment in fragments:
-        for atom in _atoms_in_fragment(fragment):
-            parsed = _parse_normal_atom(atom)
-            if parsed is None:
-                continue
-            name, arguments = parsed
+        for name, arguments, _negative in fragment_atoms(fragment):
             predicates.add((name, len(arguments)))
     return predicates
 
@@ -337,11 +330,7 @@ def _predicate_arg_types(
     variable_position_groups: list[list[tuple[str, int, int]]] = []
     for fragment in fragments:
         positions_by_variable: dict[str, list[tuple[str, int, int]]] = {}
-        for atom in _atoms_in_fragment(fragment):
-            parsed = _parse_normal_atom(atom)
-            if parsed is None:
-                continue
-            name, arguments = parsed
+        for name, arguments, _negative in fragment_atoms(fragment):
             arity = len(arguments)
             for index, value in enumerate(arguments):
                 position = (name, arity, index)
@@ -398,10 +387,6 @@ def _predicate_arg_types(
     return {position: type_by_root[find(position)] for position in positions}
 
 
-def _parse_normal_atom(atom: str) -> tuple[str, list[str]] | None:
-    return parse_atom(atom)
-
-
 def _is_numeric_constant(value: str) -> bool:
     value = value.strip("()")
     bound = r"[-+]?\d+|[A-Za-z_]\w*"
@@ -421,35 +406,6 @@ def _program_fragments(program: Program) -> list[str]:
     for example in [*program.positive_examples, *program.negative_examples]:
         fragments.extend([example.included, example.excluded, example.context])
     return [fragment for fragment in fragments if fragment.strip()]
-
-
-@lru_cache(maxsize=None)
-def _atoms_in_fragment(fragment: str) -> tuple[str, ...]:
-    candidate = fragment.strip()
-    if not candidate.endswith("."):
-        candidate = f":- {candidate}."
-    try:
-        atoms: list[str] = []
-        ast.parse_string(candidate, lambda stm: _collect_symbolic_atoms(stm, atoms))
-        return tuple(atoms)
-    except RuntimeError:
-        try:
-            return tuple(get_atoms(candidate))
-        except (RuntimeError, IndexError):
-            return ()
-
-
-def _collect_symbolic_atoms(node: ast.AST, atoms: list[str]) -> None:
-    if node.ast_type == ast.ASTType.SymbolicAtom:
-        atoms.append(str(node.symbol).replace(" ", ""))
-    for key in node.child_keys:
-        child = getattr(node, key)
-        if isinstance(child, ast.AST):
-            _collect_symbolic_atoms(child, atoms)
-        elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
-            for item in child:
-                if isinstance(item, ast.AST):
-                    _collect_symbolic_atoms(item, atoms)
 
 
 def _valid_aggregate_specs(

@@ -49,6 +49,8 @@ def read_program(filename: str):
 
     for line in Path(filename).read_text(encoding="utf-8").splitlines():
         lc = line.rstrip().lstrip()
+        if not lc or lc.startswith("%"):
+            continue
 
         if lc.startswith("#modeh"):
             res = _get_mode_declaration(lc, True)

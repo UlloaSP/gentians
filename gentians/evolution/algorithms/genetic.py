@@ -49,7 +49,7 @@ def genetic_solver(
 
     # step 2: iterate trough programs
     best_score_so_far = population[0].score
-    for it in range(args.iterations_genetic + 1):
+    for it in range(args.iterations_genetic):
         with phase("genetic.bookkeeping"):
             best_score_so_far = max(best_score_so_far, population[0].score)
             generation_signatures: set[tuple[str, ...]] = set()

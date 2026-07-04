@@ -161,6 +161,7 @@ def test_profile_ga_replays_hypothesis_metrics(monkeypatch, tmp_path):
 
     assert timing._totals["hypothesis_space"] == 2.0
     assert timing._totals["total_execution"] == 2.0
+    timing.export()
     assert "hypothesis_space_grounding" in clingo_path.read_text(encoding="utf-8")
     assert "hypothesis_space" in events_path.read_text(encoding="utf-8")
     timing.reset()

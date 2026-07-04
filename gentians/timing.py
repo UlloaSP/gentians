@@ -1,4 +1,6 @@
+import atexit
 import json
+import multiprocessing as mp
 import os
 import time
 from contextlib import contextmanager
@@ -15,6 +17,8 @@ _ga_rows: list[dict[str, float]] = []
 _event_counter = 0
 _timings_dirty = False
 _ga_dirty = False
+_writer_queue: mp.Queue | None = None
+_writer_process: mp.Process | None = None
 _F = TypeVar("_F", bound=Callable)
 _METRIC_ENV_PATHS = {
     "candidate": "GENTIANS_CANDIDATE_METRICS_PATH",
@@ -24,7 +28,7 @@ _METRIC_ENV_PATHS = {
 }
 
 
-def _write_json_atomic(path: str, rows: list[dict[str, object]]) -> None:
+def _write_json_atomic_direct(path: str, rows: list[dict[str, object]]) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(f"{target.suffix}.{os.getpid()}.tmp")
@@ -41,13 +45,70 @@ def _write_json_atomic(path: str, rows: list[dict[str, object]]) -> None:
         pass
 
 
-def _append_jsonl(path: str | None, row: dict[str, Any]) -> None:
-    if not path:
-        return
+def _append_jsonl_direct(path: str, row: dict[str, Any]) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(row) + "\n")
+
+
+def _writer_loop(queue: mp.Queue) -> None:
+    while True:
+        task = queue.get()
+        if task is None:
+            return
+        kind, path, payload = task
+        if kind == "jsonl":
+            _append_jsonl_direct(path, payload)
+        elif kind == "json":
+            _write_json_atomic_direct(path, payload)
+
+
+def _writer() -> mp.Queue | None:
+    global _writer_queue, _writer_process
+    if _writer_process is not None and _writer_process.is_alive():
+        return _writer_queue
+    try:
+        queue: mp.Queue = mp.Queue()
+        process = mp.Process(target=_writer_loop, args=(queue,), daemon=True)
+        process.start()
+    except (OSError, RuntimeError):
+        return None
+    _writer_queue = queue
+    _writer_process = process
+    return queue
+
+
+def _close_writer() -> None:
+    global _writer_queue, _writer_process
+    queue = _writer_queue
+    process = _writer_process
+    if queue is not None:
+        queue.put(None)
+        queue.close()
+        queue.join_thread()
+    if process is not None:
+        process.join()
+    _writer_queue = None
+    _writer_process = None
+
+
+def _write_json_atomic(path: str, rows: list[dict[str, object]]) -> None:
+    queue = _writer()
+    if queue is None:
+        _write_json_atomic_direct(path, rows)
+        return
+    queue.put(("json", path, rows))
+
+
+def _append_jsonl(path: str | None, row: dict[str, Any]) -> None:
+    if not path:
+        return
+    queue = _writer()
+    if queue is None:
+        _append_jsonl_direct(path, row)
+        return
+    queue.put(("jsonl", path, row))
 
 
 def append_jsonl(path: str | None, rows: list[dict[str, object]]) -> None:
@@ -57,6 +118,7 @@ def append_jsonl(path: str | None, rows: list[dict[str, object]]) -> None:
 
 def reset() -> None:
     global _event_counter, _timings_dirty, _ga_dirty
+    _close_writer()
     _totals.clear()
     _counts.clear()
     _stack.clear()
@@ -275,6 +337,7 @@ def export() -> None:
     if ga_path and _ga_dirty:
         _write_json_atomic(ga_path, _ga_rows)
         _ga_dirty = False
+    _close_writer()
 
 
 def _flush_timings() -> None:
@@ -288,3 +351,6 @@ def _flush_timings() -> None:
     ]
     _write_json_atomic(path, rows)
     _timings_dirty = False
+
+
+atexit.register(_close_writer)

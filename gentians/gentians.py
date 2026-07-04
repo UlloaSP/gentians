@@ -93,11 +93,7 @@ def program_from_arguments(arguments: Arguments) -> Program:
     else:
         raise ValueError("Specify a file with the task")
 
-    if arguments.automatic_language_bias != 0:
-        program.auto_generate_language_bias(arguments.automatic_language_bias)
-
-    if arguments.predicate_invention != 0:
-        program.invent_predicates(arguments.predicate_invention)
+    program.complete_language_bias()
 
     return program
 

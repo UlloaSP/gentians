@@ -131,8 +131,3 @@ class Arguments:
     # Arithmetic operators: add, sub, mul, div, mod, abs. Repeat to increase recall.
     arithmetic_operators: list[str] = field(default_factory=list)
 
-    # Number of invented predicates. 0 disables predicate invention.
-    predicate_invention: int = 0
-
-    # Automatic language-bias recall. 0 disables it; negative recall allows negation.
-    automatic_language_bias: int = 0

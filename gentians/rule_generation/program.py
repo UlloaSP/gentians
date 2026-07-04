@@ -2,8 +2,7 @@ from dataclasses import dataclass
 
 from clingo import ast
 
-from ..asp.callbacks import RuleCallback
-from .parser import extract_name_arity
+from .parser import parse_atom, split_top_level_args
 
 
 @dataclass(init=False, slots=True)
@@ -64,60 +63,100 @@ class Program:
     language_bias_head: "list[ModeDeclaration]"
     language_bias_body: "list[ModeDeclaration]"
 
-    def auto_generate_language_bias(self, recall: int) -> None:
+    def complete_language_bias(self, recall: int = 1) -> None:
         """
-        Automatically generate the language bias.
+        Complete missing language bias from observed atoms.
         """
-        # cleanup the existing language bias: so I can run the examples with language bias
-        # and just add a flag to ignore it and generating it automatically
-        self.language_bias_head = []
-        self.language_bias_body = []
+        signatures = _observed_signatures(self)
+        if not self.language_bias_head and not self.language_bias_body:
+            for name, arity in signatures:
+                md = ModeDeclaration((str(recall), name, str(arity)), True)
+                if md not in self.language_bias_head:
+                    self.language_bias_head.append(md)
 
-        name_arity: dict[tuple[str, int], None] = {}
+        if not self.language_bias_body:
+            for (name, arity), seen_negative in signatures.items():
+                md = ModeDeclaration(
+                    (str(recall), name, str(arity), "positive"), False
+                )
+                if md not in self.language_bias_body:
+                    self.language_bias_body.append(md)
+                if seen_negative:
+                    md = ModeDeclaration(
+                        (str(recall), name, str(arity), "negative"), False
+                    )
+                    if md not in self.language_bias_body:
+                        self.language_bias_body.append(md)
 
-        r = RuleCallback()
-        for rule in self.background:
-            ast.parse_string(rule, r.process)
-            for h in r.head + r.body:  # head and body
-                name_arity.setdefault(extract_name_arity(h), None)
+Signature = tuple[str, int]
 
-        for e in self.positive_examples + self.negative_examples:
-            to_consider = [e.included, e.excluded]
-            for s in to_consider:
-                if len(s) > 0:
-                    s = ":- " + s + "."
-                    ast.parse_string(s, r.process)
-                    for atom in r.body:
-                        name_arity.setdefault(extract_name_arity(atom), None)
 
-        positive_or_negative = "positive" if recall > 0 else "negative"
-        recall = abs(recall)
+def _observed_signatures(program: Program) -> dict[Signature, bool]:
+    signatures: dict[Signature, bool] = {}
+    for rule in program.background:
+        _collect_signatures(rule, signatures)
+    for example in [*program.positive_examples, *program.negative_examples]:
+        _collect_signatures(example.included, signatures)
+        _collect_signatures(example.excluded, signatures, force_negative=True)
+        _collect_signatures(example.context, signatures)
+    return signatures
 
-        for na in name_arity:
-            md = ModeDeclaration((str(recall), str(na[0]), str(na[1])), True)
-            if md not in self.language_bias_head:
-                self.language_bias_head.append(md)
-            md = ModeDeclaration(
-                (str(recall), str(na[0]), str(na[1]), positive_or_negative), False
+
+def _collect_signatures(
+    fragment: str,
+    signatures: dict[Signature, bool],
+    force_negative: bool = False,
+) -> None:
+    fragment = fragment.strip()
+    if not fragment:
+        return
+    source = fragment if fragment.endswith(".") else f":- {fragment}."
+    try:
+        ast.parse_string(
+            source,
+            lambda node: _collect_ast_signatures(node, signatures, force_negative),
+        )
+    except RuntimeError:
+        for part in split_top_level_args(fragment):
+            parsed = parse_atom(part)
+            if parsed is None:
+                continue
+            name, arguments = parsed
+            _mark_signature(
+                signatures,
+                (name, len(arguments)),
+                force_negative or part.strip().startswith("not "),
             )
-            if md not in self.language_bias_body:
-                self.language_bias_body.append(md)
 
-    def invent_predicates(self, n_predicates: int) -> None:
-        """
-        Enables predicate invention: it adds n predicates in the
-        modeh and modeb declarations.
-        """
-        for i in range(n_predicates):
-            self.language_bias_head.append(
-                ModeDeclaration(("1", f"__inv_{i}__", "1"), True)
-            )
-            self.language_bias_head.append(
-                ModeDeclaration(("1", f"__inv_{i}__", "2"), True)
-            )
-            self.language_bias_body.append(
-                ModeDeclaration(("1", f"__inv_{i}__", "1", "positive"), False)
-            )
-            self.language_bias_body.append(
-                ModeDeclaration(("1", f"__inv_{i}__", "2", "positive"), False)
-            )
+
+def _collect_ast_signatures(
+    node: ast.AST,
+    signatures: dict[Signature, bool],
+    force_negative: bool,
+) -> None:
+    if node.ast_type == ast.ASTType.Literal:
+        atom = node.atom
+        if atom.ast_type == ast.ASTType.SymbolicAtom:
+            symbol = atom.symbol
+            if symbol.ast_type == ast.ASTType.Function and symbol.name:
+                _mark_signature(
+                    signatures,
+                    (str(symbol.name), len(symbol.arguments)),
+                    force_negative or node.sign != ast.Sign.NoSign,
+                )
+    for key in node.child_keys:
+        child = getattr(node, key)
+        if isinstance(child, ast.AST):
+            _collect_ast_signatures(child, signatures, force_negative)
+        elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
+            for item in child:
+                if isinstance(item, ast.AST):
+                    _collect_ast_signatures(item, signatures, force_negative)
+
+
+def _mark_signature(
+    signatures: dict[Signature, bool],
+    signature: Signature,
+    seen_negative: bool,
+) -> None:
+    signatures[signature] = signatures.get(signature, False) or seen_negative

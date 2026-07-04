@@ -19,8 +19,6 @@ HYPOTHESIS_FIELDS = (
     "aggregates",
     "comparison_operators",
     "arithmetic_operators",
-    "predicate_invention",
-    "automatic_language_bias",
 )
 
 

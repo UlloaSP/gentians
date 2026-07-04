@@ -114,11 +114,13 @@ Arguments(arithmetic_operators=["add", "mul", "sub"])
 ```
 
 ## Automatic Language Bias
-You can leave the solver discovering the language bias automatically.
-This scans positive and negative examples and background knowledge and extracts the signature for each atom in the examples and each head and body literal in background knowledge.
-Then, it adds each signature as mode bias for the head and for the body.
-You can activate this with `Arguments(automatic_language_bias=n)` where `n` is a number: if it is positive, indicates the recall for each literal (i.e., all literals will have the same recall); if it is negative, its absolute value indicates the recall for each literal and also states that these can be negated literals.
-Note that `automatic_language_bias` ignores the language bias defined in the program file (i.e., `#modeb` and `#modeh`).
+You can leave the solver discovering missing language bias automatically.
+This scans positive and negative examples and background knowledge and extracts the signature for each observed atom.
+If no `#modeh` and no `#modeb` are provided, it generates both head and body bias.
+If `#modeh` is provided but `#modeb` is missing, it keeps the explicit head bias and generates only body bias.
+If `#modeb` is provided, it does not generate head bias, because the task may be learning constraints.
+Generated bias assumes a closed world over the input file: a signature is generated only if it appears in background knowledge or examples.
+Generated body bias always includes the positive mode for observed atoms and includes the negative mode only when that atom appears negated or in an excluded example.
 If you also use `aggregates`, `comparison_operators`, or `arithmetic_operators`, these will be kept.
 
 Example: suppose we have in the program
@@ -126,7 +128,7 @@ Example: suppose we have in the program
 a:- b.
 #pos({f(1)},{f(1,a)}).
 ```
-`automatic_language_bias=1` translates into:
+and no explicit language bias. This translates into:
 ```
 #modeh(1, a, 0).
 #modeh(1, f, 1).
@@ -135,20 +137,26 @@ a:- b.
 #modeb(1, a, 0, positive).
 #modeb(1, f, 1, positive).
 #modeb(1, f, 2, positive).
+#modeb(1, f, 2, negative).
 #modeb(1, b, 0, positive).
 ```
-If `automatic_language_bias=-1` is used, the `#modeb` above will have `negative` instead of `positive` as fourth argument.
 
 Currently, pay attention when using this together with aggregates, since you may encounter an infinite loop while grounding the program.
 
 ## Predicate Invention
-You can enable predicate invention with `Arguments(predicate_invention=N)` where `N` is the number of predicates to invent.
-For each `i` in `{1, ..., N}` it generates a predicate `__inv_i__` with arity 1 and 2 to consider in the head and body of clauses.
+You can use predicate invention by declaring the invented predicate directly in the language bias.
+There is no separate config option for it: invented predicates are normal predicates that appear in `#modeh` and, when recursive use is needed, `#modeb`.
 
 Example:
-```python
-Arguments(predicate_invention=1)
+```prolog
+#modeh(1,target,2).
+#modeh(1,target_1,2).
+#modeb(1,father,2,positive).
+#modeb(1,mother,2,positive).
+#modeb(2,target_1,2,positive).
 ```
+
+Here `target_1/2` is invented. It can be learned in rule heads and then reused in rule bodies.
 
 ## Main Available Options
 

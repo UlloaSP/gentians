@@ -14,7 +14,7 @@ from gentians.rule_generation.hypothesis_space import (
     _hypothesis_space_args,
 )
 from gentians.rule_generation.hypothesis_space import HypothesisCapabilities
-from gentians.rule_generation.program import ModeDeclaration, Program
+from gentians.rule_generation.program import Example, ModeDeclaration, Program
 from gentians.rule_generation.rule_space import RuleSpace
 
 
@@ -389,6 +389,76 @@ def test_reader_parses_directives_without_regex_space_loss(tmp_path):
     assert program.negative_examples[0].included == "bad(1)"
     assert program.language_bias_head[0].name == "red"
     assert program.language_bias_body[0].name == "edge"
+
+
+def test_language_bias_auto_generates_head_and_closed_body_when_bias_is_missing():
+    program = Program(
+        ["a :- b, not c."],
+        [],
+        [],
+        [],
+        [],
+    )
+
+    program.complete_language_bias()
+
+    heads = {(mode.name, mode.arity) for mode in program.language_bias_head}
+    bodies = {
+        (mode.name, mode.arity, mode.positive) for mode in program.language_bias_body
+    }
+
+    assert heads == {("a", 0), ("b", 0), ("c", 0)}
+    assert bodies == {
+        ("a", 0, True),
+        ("b", 0, True),
+        ("c", 0, True),
+        ("c", 0, False),
+    }
+
+
+def test_language_bias_auto_keeps_explicit_head_and_generates_missing_body():
+    program = Program(
+        ["coin(c1)."],
+        [Example(("heads(c1)", "tails(c1)"), True)],
+        [],
+        [
+            ModeDeclaration(("1", "heads", "1"), True),
+            ModeDeclaration(("1", "tails", "1"), True),
+        ],
+        [],
+    )
+
+    program.complete_language_bias()
+
+    assert {(mode.name, mode.arity) for mode in program.language_bias_head} == {
+        ("heads", 1),
+        ("tails", 1),
+    }
+    assert {
+        (mode.name, mode.arity, mode.positive) for mode in program.language_bias_body
+    } == {
+        ("coin", 1, True),
+        ("heads", 1, True),
+        ("tails", 1, True),
+        ("tails", 1, False),
+    }
+
+
+def test_language_bias_auto_does_not_generate_head_when_body_is_explicit():
+    program = Program(
+        ["target(1)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "1", "positive"), False)],
+    )
+
+    program.complete_language_bias()
+
+    assert program.language_bias_head == []
+    assert {
+        (mode.name, mode.arity, mode.positive) for mode in program.language_bias_body
+    } == {("target", 1, True)}
 
 
 def test_ast_atom_extraction_handles_choice_rules():

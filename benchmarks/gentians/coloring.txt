@@ -1,32 +1,11 @@
-% Example: coloring
-% Source function: coloring_example
-%
-% # Original program
-% red(X) ; green(X) ; blue(X) :- node(X).
-% e(X,Y) :- edge(X,Y).
-% e(Y,X) :- edge(X,Y).
-% 
-% node(1..6).
-% 
-% edge(1, 2).
-% edge(1, 3).
-% edge(2, 5).
-% edge(2, 6).
-% edge(3, 4).
-% edge(4, 5).
-% edge(5, 6).
-% 
-% #show red/1.
-% #show green/1.
-% #show blue/1.
-% 
-% # TO LEARN
-% red(X) ; green(X) ; blue(X) :- node(X).
+% Source: graph-coloring synthetic benchmark
+% Task: Three-color graph coloring.
+% Target rules:
+% red(X);green(X);blue(X) :- node(X).
 % :- e(X,Y), red(X), red(Y).
 % :- e(X,Y), green(X), green(Y).
 % :- e(X,Y), blue(X), blue(Y).
 
-% Background knowledge
 edge(1, 2).
 edge(1, 3).
 edge(2, 5).
@@ -39,7 +18,6 @@ e(X,Y) :- edge(X,Y).
 e(Y,X) :- edge(X,Y).
 node(1..6).
 
-% Positive examples
 #pos({red(1), blue(2), blue(3), red(4), green(5), red(6)}, {}).
 #pos({red(1), blue(2), green(3), blue(4), green(5), red(6)}, {}).
 #pos({red(1), blue(2), green(3), red(4), green(5), red(6)}, {}).
@@ -47,102 +25,17 @@ node(1..6).
 #pos({green(1), blue(2), blue(3), red(4), green(5), red(6)}, {}).
 #pos({red(1), blue(2), green(3), blue(4), red(5), green(6)}, {}).
 
-% Negative examples
 #neg({red(1), red(2)}, {}).
 #neg({red(1), red(3)}, {}).
 #neg({blue(1), blue(2)}, {}).
 #neg({green(3), green(4)}, {}).
 
-% Head language bias
 #modeh(1,red,1).
 #modeh(1,green,1).
 #modeh(1,blue,1).
 
-% Body language bias
 #modeb(1,node,1,positive).
 #modeb(1,e,2,positive).
 #modeb(2,red,1,positive).
 #modeb(2,green,1,positive).
 #modeb(2,blue,1,positive).
-
-% Original Python source
-% def coloring_example() -> Program:
-%     '''
-%     # Original program
-%     red(X) ; green(X) ; blue(X) :- node(X).
-%     e(X,Y) :- edge(X,Y).
-%     e(Y,X) :- edge(X,Y).
-%
-%     node(1..6).
-%
-%     edge(1, 2).
-%     edge(1, 3).
-%     edge(2, 5).
-%     edge(2, 6).
-%     edge(3, 4).
-%     edge(4, 5).
-%     edge(5, 6).
-%
-%     #show red/1.
-%     #show green/1.
-%     #show blue/1.
-%     
-%     # TO LEARN
-%     red(X) ; green(X) ; blue(X) :- node(X).
-%     :- e(X,Y), red(X), red(Y).
-%     :- e(X,Y), green(X), green(Y).
-%     :- e(X,Y), blue(X), blue(Y).
-%     '''
-%     background : 'list[str]' = [
-%         "edge(1, 2).",
-%         "edge(1, 3).",
-%         "edge(2, 5).",
-%         "edge(2, 6).",
-%         "edge(3, 4).",
-%         "edge(4, 5).",
-%         "edge(5, 6).",
-%         "node(1..6).",
-%         "e(X,Y) :- edge(X,Y).",
-%         "e(Y,X) :- edge(X,Y).",
-%         "node(1..6)."
-%     ]
-%     
-%     # each string identifies a set of atoms that should be present in an AS.
-%     # ["odd(1) odd(3) even(2)"] means that it should exist at least one AS
-%     # where all the three are true..
-%     # If I have N positive examples, there should be at least one AS including each
-%     # example.
-%
-%     positive_examples : list[Example] = [
-%         Example(("red(1), blue(2), blue(3), red(4), green(5), red(6)", ""), True),
-%         Example(("red(1), blue(2), green(3), blue(4), green(5), red(6)", ""), True),
-%         Example(("red(1), blue(2), green(3), red(4), green(5), red(6)", ""), True),
-%         Example(("green(1), blue(2), red(3), blue(4), green(5), red(6)", ""), True),
-%         Example(("green(1), blue(2), blue(3), red(4), green(5), red(6)", ""), True),
-%         Example(("red(1), blue(2), green(3), blue(4), red(5), green(6)", ""), True)
-%     ]
-%
-%     # [ "even(3) even(1) odd(2)" ] states that there should not exist an AS
-%     # where all the three are true.
-%     negative_examples : list[Example] = [
-%         Example(("red(1), red(2)", ""), False),
-%         Example(("red(1), red(3)", ""), False),
-%         Example(("blue(1), blue(2)", ""), False),
-%         Example(("green(3), green(4)", ""), False)
-%     ]
-%
-%     language_bias_head : list[ModeDeclaration] = [
-%         ModeDeclaration(("1", 'red', "1"), True),
-%         ModeDeclaration(("1", 'green', "1"), True),
-%         ModeDeclaration(("1", 'blue', "1"), True)
-%     ]
-%
-%     language_bias_body : list[ModeDeclaration] = [
-%         ModeDeclaration(("1", 'node', "1", "positive"), False),
-%         ModeDeclaration(("1", 'e', "2", "positive"), False),
-%         ModeDeclaration(("2", 'red', "1", "positive"), False),
-%         ModeDeclaration(("2", 'green', "1", "positive"), False),
-%         ModeDeclaration(("2", 'blue', "1", "positive"), False)
-%     ]
-%     
-%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

@@ -1,31 +1,17 @@
-% Example: 4queens
-% Source function: n_4queens
-%
-% % from http://www.hakank.org/answer_set_programming/nqueens.lp
-% #const n = 4.
-% 
-% % domain
-% number(1..n).
-% 
-% % alldifferent
-% 1 { q(X,Y) : number(Y) } 1 :- number(X).
-% 1 { q(X,Y) : number(X) } 1 :- number(Y).
-% 
-% % These rules should be learned
+% Source: http://www.hakank.org/answer_set_programming/nqueens.lp
+% Task: 4-queens constraints.
+% Target rules:
 % :- q(V0,V1),q(V1,V0).
 % :- V0+V2=V1,q(V2,V1),q(V1,V0).
 
-% Background knowledge
 #const n = 4.
 number(1..n).
 1 { q(X,Y) : number(Y) } 1 :- number(X).
 1 { q(X,Y) : number(X) } 1 :- number(Y).
 
-% Positive examples
 #pos({q(1,3), q(2,1), q(3,4), q(4,2)}, {}).
 #pos({q(1,2), q(2,4), q(3,1), q(4,3)}, {}).
 
-% Negative examples
 #neg({q(4,1), q(3,2), q(2,3), q(1,4)}, {}).
 #neg({q(3,1), q(4,2), q(2,3), q(1,4)}, {}).
 #neg({q(4,1), q(2,2), q(3,3), q(1,4)}, {}).
@@ -49,74 +35,7 @@ number(1..n).
 #neg({q(1,1), q(4,2), q(2,3), q(3,4)}, {}).
 #neg({q(1,1), q(3,2), q(2,3), q(4,4)}, {}).
 
-% Head language bias
-
-% Body language bias
 #modeb(2,q,2,positive).
 #modecmp(1,lt).
 #modearith(1,add).
 #modearith(1,sub).
-
-% Original Python source
-% def n_4queens():
-%     '''
-%     % from http://www.hakank.org/answer_set_programming/nqueens.lp
-%     #const n = 4.
-%
-%     % domain
-%     number(1..n).
-%
-%     % alldifferent
-%     1 { q(X,Y) : number(Y) } 1 :- number(X).
-%     1 { q(X,Y) : number(X) } 1 :- number(Y).
-%
-%     % These rules should be learned
-%     :- q(V0,V1),q(V1,V0).
-%     :- V0+V2=V1,q(V2,V1),q(V1,V0).
-%     '''
-%     background : 'list[str]' = [
-%         "#const n = 4.", 
-%         "number(1..n).", 
-%         "1 { q(X,Y) : number(Y) } 1 :- number(X).", 
-%         "1 { q(X,Y) : number(X) } 1 :- number(Y)."
-%     ]
-%     
-%     # all the existing solutions
-%     positive_examples : 'list[Example]' = [
-%         Example(("q(1,3), q(2,1), q(3,4), q(4,2)", ""), True),
-%         Example(("q(1,2), q(2,4), q(3,1), q(4,3)", ""), True)
-%     ]
-%     
-%     # all the possible placements - all existing solutions
-%     negative_examples : 'list[Example]' = [
-%         Example(("q(4,1), q(3,2), q(2,3), q(1,4)",""), False),
-%         Example(("q(3,1), q(4,2), q(2,3), q(1,4)",""), False),
-%         Example(("q(4,1), q(2,2), q(3,3), q(1,4)",""), False),
-%         Example(("q(2,1), q(4,2), q(3,3), q(1,4)",""), False),
-%         Example(("q(3,1), q(2,2), q(4,3), q(1,4)",""), False),
-%         Example(("q(2,1), q(3,2), q(4,3), q(1,4)",""), False),
-%         Example(("q(4,1), q(1,2), q(3,3), q(2,4)",""), False),
-%         Example(("q(3,1), q(4,2), q(1,3), q(2,4)",""), False),
-%         Example(("q(4,1), q(3,2), q(1,3), q(2,4)",""), False),
-%         Example(("q(4,1), q(2,2), q(1,3), q(3,4)",""), False),
-%         Example(("q(2,1), q(1,2), q(4,3), q(3,4)",""), False),
-%         Example(("q(4,1), q(1,2), q(2,3), q(3,4)",""), False),
-%         Example(("q(3,1), q(2,2), q(1,3), q(4,4)",""), False),
-%         Example(("q(3,1), q(1,2), q(2,3), q(4,4)",""), False),
-%         Example(("q(2,1), q(3,2), q(1,3), q(4,4)",""), False),
-%         Example(("q(2,1), q(1,2), q(3,3), q(4,4)",""), False),
-%         Example(("q(1,1), q(2,2), q(4,3), q(3,4)",""), False),
-%         Example(("q(1,1), q(3,2), q(4,3), q(2,4)",""), False),
-%         Example(("q(1,1), q(2,2), q(3,3), q(4,4)",""), False),
-%         Example(("q(1,1), q(4,2), q(3,3), q(2,4)",""), False),
-%         Example(("q(1,1), q(4,2), q(2,3), q(3,4)",""), False),
-%         Example(("q(1,1), q(3,2), q(2,3), q(4,4)",""), False)
-%     ]
-%     
-%     language_bias_head : 'list[ModeDeclaration]' = []
-%     
-%     language_bias_body : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("2", "q", "2", "positive"), False)
-%     ]
-%     
-%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

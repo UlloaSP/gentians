@@ -37,6 +37,10 @@ CASES: dict[str, Arguments] = {
         "adjacent_to_red.txt",
         max_depth=4,
     ),
+    "animals_bird": task(
+        "animals_bird.txt",
+        max_depth=3,
+    ),
     "clique": task(
         "clique.txt",
         max_depth=7,
@@ -57,8 +61,31 @@ CASES: dict[str, Arguments] = {
         "grandparent.txt",
         max_program_clauses=3,
     ),
+    "knapsack": task(
+        "knapsack.txt",
+        max_depth=3,
+        max_variables=4,
+    ),
+    "latin_square": task(
+        "latin_square.txt",
+        max_depth=4,
+        max_variables=4,
+    ),
+    "magic_square_no_diag": task(
+        "magic_square_no_diag.txt",
+        max_depth=4,
+        max_variables=4,
+    ),
+    "penguin": task(
+        "penguin.txt",
+        max_depth=3,
+    ),
     "sudoku": task(
         "sudoku.txt",
+        max_depth=3,
+    ),
+    "subset_sum": task(
+        "subset_sum.txt",
         max_depth=3,
     ),
     "hamming_0": task(
@@ -125,12 +152,17 @@ CASES: dict[str, Arguments] = {
         max_variables=4,
     ),
     "set_partition_sum": task(
-        "set_partition_sum_new.txt",
+        "set_partition_sum.txt",
         max_depth=4,
         max_variables=4,
     ),
     "set_partition_sum_and_cardinality": task(
-        "set_partition_sum_and_cardinality_new.txt",
+        "set_partition_sum_and_cardinality.txt",
+        max_depth=4,
+        max_variables=4,
+    ),
+    "set_partition_sum_cardinality_and_square": task(
+        "set_partition_sum_cardinality_and_square.txt",
         max_depth=4,
         max_variables=4,
     ),

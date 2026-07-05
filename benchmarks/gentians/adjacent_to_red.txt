@@ -1,10 +1,8 @@
-% Example: adjacent_to_red
-% Source function: adjacent_to_red_example
-%
-% from https://github.com/metagol/metagol/blob/master/examples/adjacent-to-red.pl
-% goal target(A) :- edge(A,B),colour(B,C),red(C).
+% Source: https://github.com/metagol/metagol/blob/master/examples/adjacent-to-red.pl
+% Task: Nodes adjacent to a red-colored node.
+% Target rules:
+% target(A) :- edge(A,B),colour(B,C),red(C).
 
-% Background knowledge
 edge(a,b).
 edge(b,a).
 edge(c,d).
@@ -18,67 +16,17 @@ colour(e,green).
 red(red).
 green(green).
 
-% Positive examples
 #pos({target(b)}, {}).
 #pos({target(c)}, {}).
 
-% Negative examples
 #neg({target(a)}, {}).
 #neg({target(d)}, {}).
 #neg({target(e)}, {}).
 
-% Head language bias
 #modeh(1,target,1).
 
-% Body language bias
 #modeb(1,edge,2,positive).
 #modeb(1,colour,2,positive).
 #modeb(1,red,1,positive).
 #modeb(1,green,1,positive).
 #modeb(1,target,1,positive).
-
-% Original Python source
-% def adjacent_to_red_example() -> Program:
-%     """
-%     from https://github.com/metagol/metagol/blob/master/examples/adjacent-to-red.pl
-%     goal target(A) :- edge(A,B),colour(B,C),red(C).
-%     """
-%     background : 'list[str]' = [
-%         "edge(a,b).",
-%         "edge(b,a).",
-%         "edge(c,d).",
-%         "edge(c,e).",
-%         "edge(d,e).",
-%         "colour(a,red).",
-%         "colour(b,green).",
-%         "colour(c,red).",
-%         "colour(d,red).",
-%         "colour(e,green).",
-%         "red(red).",
-%         "green(green)."
-%     ]
-%     
-%     positive_examples : 'list[Example]' = [
-%         Example(("target(b)", ""), True), 
-%         Example(("target(c)", ""), True)
-%     ]
-%     
-%     negative_examples : 'list[Example]' = [
-%         Example(("target(a)", ""), False), 
-%         Example(("target(d)", ""), False), 
-%         Example(("target(e)", ""), False),
-%     ]
-%     
-%     language_bias_head : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("1", 'target', "1"), True)
-%     ]
-%
-%     language_bias_body : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("1", 'edge', "2", "positive"), False),
-%         ModeDeclaration(("1", 'colour', "2", "positive"), False),
-%         ModeDeclaration(("1", 'red', "1", "positive"), False),
-%         ModeDeclaration(("1", 'green', "1", "positive"), False),
-%         ModeDeclaration(("1", 'target', "1", "positive"), False)
-%     ]
-%     
-%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

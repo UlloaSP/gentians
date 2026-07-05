@@ -1,73 +1,22 @@
-% Example: subset_sum_triple
-% Source function: subset_sum_triple
-%
-% Sum of the terms at each position.
-% {el(1,2,3)}.
-% {el(2,3,5)}.
-% {el(3,5,1)}.
-% {el(4,1,3)}.
-% {el(5,9,4)}.
-% ok(V0):- #sum{V1,V2,V3:el(V1,V2,V3)}=V0,#sum{V2,V1,V3:el(V1,V2,V3)}=V0,#sum{V3,V1,V2:el(V1,V2,V3)}=V0.
+% Source: triple subset-sum synthetic benchmark
+% Task: Return sums that agree across all three tuple positions.
+% Target rules:
+% ok(S) :- #sum{X,Y,Z : el(X,Y,Z)} = S, #sum{Y,X,Z : el(X,Y,Z)} = S, #sum{Z,X,Y : el(X,Y,Z)} = S.
 
-% Background knowledge
 {el(1,2,3)}.
 {el(2,3,5)}.
 {el(3,5,1)}.
 {el(4,1,3)}.
 {el(5,9,4)}.
 
-% Positive examples
 #pos({ok(0)}, {}).
 #pos({ok(9)}, {}).
 
-% Negative examples
 #neg({ok(1)}, {}).
 #neg({ok(2)}, {}).
 #neg({ok(10)}, {}).
 #neg({ok(15)}, {}).
 
-% Head language bias
 #modeh(1,ok,1).
 
-% Body language bias
 #modeagg(3,sum(el/3),balanced).
-
-% Original Python source
-% def subset_sum_triple():
-%     '''
-%     Sum of the terms at each position.
-%     {el(1,2,3)}.
-%     {el(2,3,5)}.
-%     {el(3,5,1)}.
-%     {el(4,1,3)}.
-%     {el(5,9,4)}.
-%     ok(V0):- #sum{V1,V2,V3:el(V1,V2,V3)}=V0,#sum{V2,V1,V3:el(V1,V2,V3)}=V0,#sum{V3,V1,V2:el(V1,V2,V3)}=V0.
-%     '''
-%     background : 'list[str]' = [
-%         "{el(1,2,3)}.",
-%         "{el(2,3,5)}.",
-%         "{el(3,5,1)}.",
-%         "{el(4,1,3)}.",
-%         "{el(5,9,4)}."
-%     ]
-%
-%     positive_examples : 'list[Example]' = [
-%         Example(("ok(0)", ""), True),
-%         # Example(("ok(8)", ""), True),
-%         Example(("ok(9)", ""), True)
-%     ]
-%
-%     negative_examples : 'list[Example]' = [
-%         Example(("ok(1)", ""), False),
-%         Example(("ok(2)", ""), False),
-%         Example(("ok(10)", ""), False),
-%         Example(("ok(15)", ""), False)
-%     ]
-%
-%     language_bias_head : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("1", 'ok', "1"), True)
-%     ]
-%
-%     language_bias_body : 'list[ModeDeclaration]' = []
-%
-%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

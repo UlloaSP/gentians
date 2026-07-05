@@ -1,31 +1,15 @@
-% Example: hamming_0_unbalanced
-% Source function: hamming
-%
-% Hamming distance between two binary strings.
-% Given:
-% pos(0..2).
-% num(0..1).
-% hd(1). % target distance
-% % with hd(0), the constraint :- V0!=V1,v0(V1,V2),v1(V0,V2). suffices
-% 1{v0(Val,Pos) : num(Val)}1 :- pos(Pos).
-% 1{v1(Val,Pos) : num(Val)}1 :- pos(Pos).
-% % too slow if i add these two rules to learn
-% Learn if harder:
-% problem: if there are cyclic rules, the grounder loops
-% so it is not possible to compute the coverage 
-% d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
-% :- Distance = #sum{X,P : d(P,X)}, hd(D), Distance != D.
-% else only the constraint
+% Source: Hamming-distance synthetic benchmark
+% Task: Unbalanced aggregate variant; distance must equal hd/1.
+% Target rules:
+% :- hd(D), S != D, #sum{X,P : d(P,X)} = S.
 
-% Background knowledge
 pos(0..2).
 num(0..1).
-hd(0). % target distance
+hd(0).
 1{v0(Val,Pos) : num(Val)}1 :- pos(Pos).
 1{v1(Val,Pos) : num(Val)}1 :- pos(Pos).
 d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 
-% Positive examples
 #pos({v0(1,0), v1(1,0), v1(0,1), v0(0,1), v0(1,2), v1(1,2)}, {}).
 #pos({v0(1,0), v1(1,0), v1(0,1), v0(0,1), v1(0,2), v0(0,2)}, {}).
 #pos({v0(1,0), v1(1,0), v0(1,1), v1(1,1), v0(1,2), v1(1,2)}, {}).
@@ -35,7 +19,6 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 #pos({v1(0,0), v0(0,0), v1(0,1), v0(0,1), v1(0,2), v0(0,2)}, {}).
 #pos({v1(0,0), v0(0,0), v0(1,1), v1(1,1), v1(0,2), v0(0,2)}, {}).
 
-% Negative examples
 #neg({v0(1,0), v0(1,1), v0(1,2), v1(0,1), v1(1,0), v1(1,2)}, {}).
 #neg({v0(0,2), v0(1,0), v0(1,1), v1(0,1), v1(1,0), v1(1,2)}, {}).
 #neg({v0(0,1), v0(0,2), v0(1,0), v1(0,1), v1(1,0), v1(1,2)}, {}).
@@ -93,204 +76,7 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 #neg({v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(0,1), v1(1,2)}, {}).
 #neg({v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(0,1), v1(1,2)}, {}).
 
-% Head language bias
-
-% Body language bias
 #modeb(1,hd,1,positive).
 #modeagg(1,sum(d/2),unbalanced).
 #modeagg(1,count(d/2),unbalanced).
 #modecmp(1,neq).
-
-% Original Python source
-% def hamming(target_distance : int, harder : bool):
-%     '''
-%     Hamming distance between two binary strings.
-%     Given:
-%     pos(0..2).
-%     num(0..1).
-%     hd(1). % target distance
-%     % with hd(0), the constraint :- V0!=V1,v0(V1,V2),v1(V0,V2). suffices
-%     1{v0(Val,Pos) : num(Val)}1 :- pos(Pos).
-%     1{v1(Val,Pos) : num(Val)}1 :- pos(Pos).
-%     % too slow if i add these two rules to learn
-%     Learn if harder:
-%     problem: if there are cyclic rules, the grounder loops
-%     so it is not possible to compute the coverage 
-%     d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
-%     :- Distance = #sum{X,P : d(P,X)}, hd(D), Distance != D.
-%     else only the constraint
-%     '''
-%     if not (target_distance in [0,1]):
-%         import sys
-%         sys.exit('Hamming requires distance 0 or 1')
-%     
-%     background : 'list[str]' = [
-%         "pos(0..2).",
-%         "num(0..1).",
-%         f"hd({target_distance}). % target distance",
-%         "1{v0(Val,Pos) : num(Val)}1 :- pos(Pos).",
-%         "1{v1(Val,Pos) : num(Val)}1 :- pos(Pos)."
-%     ]
-%     
-%     if not harder:
-%         background.append("d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.")
-%
-%     if target_distance == 1:
-%         # all the 24 solutions for hd(1)
-%         positive_examples : 'list[Example]' = [
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,1), v1(1,0), v1(1,2)",""), True),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,1), v1(1,0), v1(1,2)",""), True),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,1), v1(0,2), v1(1,0)",""), True),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,1), v1(0,2), v1(1,0)",""), True),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(1,0), v1(1,1), v1(1,2)",""), True),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,2), v1(1,0), v1(1,1)",""), True),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(1,0), v1(1,1), v1(1,2)",""), True),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,2), v1(1,0), v1(1,1)",""), True),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(1,0), v1(1,1), v1(1,2)",""), True),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,1), v1(1,0), v1(1,2)",""), True),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,2), v1(1,0), v1(1,1)",""), True),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,1), v1(0,2), v1(1,0)",""), True),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,0), v1(0,2), v1(1,1)",""), True),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,0), v1(0,1), v1(0,2)",""), True),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,0), v1(1,1), v1(1,2)",""), True),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,0), v1(0,2), v1(1,1)",""), True),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,0), v1(1,1), v1(1,2)",""), True),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,0), v1(0,1), v1(1,2)",""), True),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,0), v1(0,1), v1(1,2)",""), True),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(0,1), v1(0,2)",""), True),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,0), v1(1,1), v1(1,2)",""), True),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,0), v1(0,1), v1(0,2)",""), True),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(0,1), v1(1,2)",""), True),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(0,2), v1(1,1)",""), True)
-%         ]
-%         # all the 64 - 24 = 40 solutions for hd(1)
-%         negative_examples : 'list[Example]' = [
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(0,1), v1(0,2)",""), False)
-%         ]
-%     else:
-%         # all the 8 solutions for hd(0)
-%         positive_examples : 'list[Example]' = [
-%             Example(("v0(1,0), v1(1,0), v1(0,1), v0(0,1), v0(1,2), v1(1,2)",""), True),
-%             Example(("v0(1,0), v1(1,0), v1(0,1), v0(0,1), v1(0,2), v0(0,2)",""), True),
-%             Example(("v0(1,0), v1(1,0), v0(1,1), v1(1,1), v0(1,2), v1(1,2)",""), True),
-%             Example(("v0(1,0), v1(1,0), v0(1,1), v1(1,1), v1(0,2), v0(0,2)",""), True),
-%             Example(("v1(0,0), v0(0,0), v1(0,1), v0(0,1), v0(1,2), v1(1,2)",""), True),
-%             Example(("v1(0,0), v0(0,0), v0(1,1), v1(1,1), v0(1,2), v1(1,2)",""), True),
-%             Example(("v1(0,0), v0(0,0), v1(0,1), v0(0,1), v1(0,2), v0(0,2)",""), True),
-%             Example(("v1(0,0), v0(0,0), v0(1,1), v1(1,1), v1(0,2), v0(0,2)",""), True)
-%         ]
-%         # all the 64 - 8 = 56 solutions for hd(0)
-%         negative_examples : 'list[Example]' = [
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,2), v1(1,0), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,1), v1(0,2), v1(1,0)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(1,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,1), v1(1,0), v1(1,2)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(0,2), v1(1,1)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(1,1), v1(1,2)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(1,2), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(1,0), v0(1,1), v0(1,2), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,1), v0(1,0), v0(1,2), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(1,1), v0(1,2), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(0,2), v0(1,0), v0(1,1), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,2), v0(1,1), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(0,1), v1(0,2)",""), False),
-%             Example(("v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(0,1), v1(1,2)",""), False),
-%             Example(("v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(0,1), v1(1,2)",""), False)
-%         ]
-%
-%     # d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
-%     # :- Distance = #sum{X,P : d(P,X)}, hd(D), Distance != D.
-%
-%     language_bias_head : 'list[ModeDeclaration]' = [
-%     ]
-%     if harder:
-%         language_bias_head.append(ModeDeclaration(("1", "d", "2"), True))
-%
-%     language_bias_body : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("1", "hd", "1", "positive"), False)
-%     ]
-%     if harder:
-%         language_bias_body.append(ModeDeclaration(("1", "v0", "2", "positive"), False))
-%         language_bias_body.append(ModeDeclaration(("1", "v1", "2", "positive"), False))
-%
-%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

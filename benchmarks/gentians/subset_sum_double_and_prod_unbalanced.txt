@@ -1,92 +1,29 @@
-% Example: subset_sum_double_and_prod_unbalanced
-% Source function: subset_sum_double_and_prod
-%
-% % Double subset sum problem.
-% {el(1,2)}.
-% {el(2,3)}.
-% {el(3,5)}.
-% {el(4,1)}.
-% {el(5,9)}.
-% 
-% % to learn
-% s0(S0):- S0 = #sum{X,Y : el(X,Y)}.
-% s1(S1):- S1 = #sum{Y,X : el(X,Y)}.
-% ok(P):- s0(S0), s1(S1), P = S0 * S1.
+% Source: double subset-sum synthetic benchmark
+% Task: Unbalanced aggregate variant returning product of coordinate sums.
+% Target rules:
+% ok(P) :- #sum{X,Y : el(X,Y)} = A, #sum{Y,X : el(X,Y)} = B, P = A * B.
 
-% Background knowledge
 {el(1,2)}.
 {el(2,3)}.
 {el(3,5)}.
 {el(4,1)}.
 {el(5,9)}.
 
-% Positive examples
 #pos({ok(209)}, {}).
 #pos({ok(144)}, {}).
 #pos({ok(170)}, {}).
 #pos({ok(252)}, {}).
 #pos({ok(221)}, {}).
 
-% Negative examples
 #neg({ok(3)}, {}).
 #neg({ok(5)}, {}).
 #neg({ok(17)}, {}).
 #neg({ok(19)}, {}).
 #neg({ok(13)}, {}).
 
-% Head language bias
 #modeh(1,ok,1).
 
-% Body language bias
 #modeagg(2,sum(el/2),unbalanced).
 #modearith(1,add).
 #modearith(1,mul).
 #modearith(1,sub).
-
-% Original Python source
-% def subset_sum_double_and_prod():
-%     '''
-%     % Double subset sum problem.
-%     {el(1,2)}.
-%     {el(2,3)}.
-%     {el(3,5)}.
-%     {el(4,1)}.
-%     {el(5,9)}.
-%     
-%     % to learn
-%     s0(S0):- S0 = #sum{X,Y : el(X,Y)}.
-%     s1(S1):- S1 = #sum{Y,X : el(X,Y)}.
-%     ok(P):- s0(S0), s1(S1), P = S0 * S1.
-%     '''
-%     background : 'list[str]' = [
-%         "{el(1,2)}.",
-%         "{el(2,3)}.",
-%         "{el(3,5)}.",
-%         "{el(4,1)}.",
-%         "{el(5,9)}."
-%     ]
-%
-%     positive_examples : 'list[Example]' = [
-%         Example(("ok(209)", ""), True),
-%         Example(("ok(144)", ""), True),
-%         Example(("ok(170)", ""), True),
-%         Example(("ok(252)", ""), True),
-%         Example(("ok(221)", ""), True)
-%     ]
-%
-%     negative_examples : 'list[Example]' = [
-%         Example(("ok(3)", ""), False), # this cuts both + and -
-%         Example(("ok(5)", ""), False),
-%         Example(("ok(17)", ""), False),
-%         Example(("ok(19)", ""), False),
-%         Example(("ok(13)", ""), False),
-%     ]
-%
-%     language_bias_head : 'list[ModeDeclaration]' = [
-%         ModeDeclaration(("1", 'ok', "1"), True)
-%
-%     ]
-%
-%     language_bias_body : 'list[ModeDeclaration]' = []
-%
-%     return Program(background, positive_examples, negative_examples, language_bias_head, language_bias_body)

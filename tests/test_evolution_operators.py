@@ -367,6 +367,20 @@ def test_program_sampler_returns_none_when_dependency_cannot_close():
     assert sampler.closed_program(1, forced_rules=tuple(rules)) is None
 
 
+def test_program_sampler_does_not_require_example_predicates_as_dependencies():
+    rules = ["tails(V0) :- coin(V0)."]
+    program = Program(
+        ["coin(c1)."],
+        [Example(("heads(c1)", "tails(c1)"), True)],
+        [],
+        [],
+        [],
+    )
+    sampler = ProgramSampler(program, RuleSpace.from_clauses(rules))
+
+    assert sampler.closed_program(1, forced_rules=tuple(rules)) == tuple(rules)
+
+
 def test_program_sampler_prunes_rules_with_unavailable_dependencies():
     rules = ["target :- base.", "target :- missing."]
     program = Program(

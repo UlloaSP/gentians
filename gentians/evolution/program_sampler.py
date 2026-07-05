@@ -5,7 +5,6 @@ import os
 import random
 
 from ..rule_generation.program import Program
-from ..rule_generation.parser import clause_predicates
 from ..rule_generation.rule_space import Predicate, RuleEntry, RuleSpace
 
 
@@ -19,13 +18,12 @@ class _RuleMask:
 class ProgramSampler:
     def __init__(self, program: Program, rule_space: RuleSpace) -> None:
         background_predicates = _defined_predicates(program.background)
-        example_predicates = _example_predicates(program)
         entries = _prune_uncloseable_rules(
             rule_space.entries,
             background_predicates,
         )
         self.rule_space = RuleSpace(entries)
-        predicates = background_predicates | example_predicates
+        predicates = set(background_predicates)
         for entry in self.rule_space.entries:
             predicates.update(entry.heads)
             predicates.update(entry.deps)
@@ -33,7 +31,6 @@ class ProgramSampler:
             predicate: index for index, predicate in enumerate(sorted(predicates))
         }
         self.background_mask = self._predicate_mask(background_predicates)
-        self.example_mask = self._predicate_mask(example_predicates)
         self.masks_by_rule = {
             entry.text: _RuleMask(
                 entry,
@@ -115,7 +112,7 @@ class ProgramSampler:
                 result = tuple(closed)
                 self._close_cache[key] = result
                 if os.environ.get("GENTIANS_AUDIT_PROGRAM_SAMPLER_ASP"):
-                    _assert_asp_closed_agrees(closed, self.background_mask, self.example_mask, self.masks_by_rule)
+                    _assert_asp_closed_agrees(closed, self.background_mask, self.masks_by_rule)
                 return result
             if len(closed) >= max_program_clauses:
                 self._close_cache[key] = None
@@ -136,7 +133,7 @@ class ProgramSampler:
 
     def _program_masks(self, program: tuple[str, ...] | list[str]) -> tuple[int, int]:
         defined = self.background_mask
-        deps = self.example_mask
+        deps = 0
         for rule in program:
             mask = self.masks_by_rule.get(rule)
             if mask is None:
@@ -199,24 +196,6 @@ def _prune_uncloseable_rules(
         kept = next_kept
 
 
-def _example_predicates(program: Program) -> set[Predicate]:
-    deps: set[Predicate] = set()
-    for example in [*program.positive_examples, *program.negative_examples]:
-        for fragment in (example.included, example.excluded, example.context):
-            deps.update(_fragment_predicates(fragment))
-    return deps
-
-
-def _fragment_predicates(fragment: str) -> set[Predicate]:
-    fragment = fragment.strip()
-    if not fragment:
-        return set()
-    if not fragment.endswith("."):
-        fragment = f":- {fragment}."
-    heads, deps, _ = clause_predicates(fragment)
-    return set(heads | deps)
-
-
 def _random_rule_outside(pool: tuple[str, ...], current: set[str]) -> str | None:
     for _ in range(min(len(pool), 8)):
         rule = random.choice(pool)
@@ -240,13 +219,12 @@ def _bits(mask: int):
 def _assert_asp_closed_agrees(
     program: list[str],
     background_mask: int,
-    example_mask: int,
     masks_by_rule: dict[str, _RuleMask],
 ) -> None:
     import clingo
 
     defined = background_mask
-    needed = example_mask
+    needed = 0
     for rule in program:
         mask = masks_by_rule[rule]
         defined |= mask.head_mask

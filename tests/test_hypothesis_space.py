@@ -237,8 +237,32 @@ def test_star_recall_uses_max_depth():
         {},
     )
 
-    assert "recall(0,2)." in facts
-    assert "unbounded_recall" not in facts
+    assert "group_recall(0,2)." in facts
+    assert "\nrecall(" not in facts
+
+
+def test_group_recall_uses_tightest_mode_recall():
+    facts = hypothesis_space._facts(
+        Program([], [], [], [], []),
+        Arguments(max_depth=5),
+        [
+            hypothesis_space.HypothesisMode(0, 7, "body", "normal", "p", 1, 3),
+            hypothesis_space.HypothesisMode(1, 7, "body", "normal", "q", 1, 1),
+        ],
+        hypothesis_space.HypothesisCapabilities(
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+        ),
+        {("p", 1): 0, ("q", 1): 1},
+    )
+
+    assert "group_recall(7,1)." in facts
+    assert "group_recall(7,3)." not in facts
 
 
 def test_reader_deduplicates_equal_directives(tmp_path):
@@ -267,7 +291,7 @@ def test_reader_deduplicates_equal_directives(tmp_path):
     assert len(program.language_bias_body) == 1
 
 
-def test_hypothesis_space_prunes_irreflexive_modes_before_rendering():
+def test_hypothesis_space_prunes_arg_distinct_modes_before_rendering():
     program = Program(
         ["edge(1,2)."],
         [],
@@ -331,6 +355,88 @@ def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering
 
     assert not any("V0!=V1,V1!=V0" in clause for clause in clauses)
     assert any("V0!=V1" in clause for clause in clauses)
+
+
+def test_hypothesis_space_prunes_comparison_redundancy_before_rendering():
+    program = Program(
+        ["p(1).", "p(2)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("2", "p", "1", "positive"), False)],
+        [],
+        [OperatorDeclaration(1, "lt"), OperatorDeclaration(1, "leq"), OperatorDeclaration(1, "neq")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=4, max_variables=2),
+    ).generate().clauses
+
+    assert not any("V0<V1,V0!=V1" in clause for clause in clauses)
+    assert not any("V0<V1,V0<=V1" in clause for clause in clauses)
+    assert not any("V0<=V1,V1<=V0" in clause for clause in clauses)
+
+
+def test_hypothesis_space_prunes_duplicate_arithmetic_inputs_before_rendering():
+    program = Program(
+        ["q(1,2)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "2"), True)],
+        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [],
+        [],
+        [OperatorDeclaration(2, "add")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=4, max_variables=4),
+    ).generate().clauses
+
+    assert not any(
+        "V0+V1=V2" in clause and "V0+V1=V3" in clause for clause in clauses
+    )
+
+
+def test_hypothesis_space_prunes_duplicate_aggregate_inputs_before_rendering():
+    program = Program(
+        ["el(1).", "el(2)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "2"), True)],
+        [],
+        [AggregateDeclaration(2, "sum", (("el", 1),), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=3, max_variables=4),
+    ).generate().clauses
+
+    assert not any(
+        "#sum{V0:el(V0)}=V1" in clause and "#sum{V0:el(V0)}=V2" in clause
+        for clause in clauses
+    )
+
+
+def test_count_aggregate_tuple_variables_are_canonicalized():
+    program = Program(
+        ["edge(a,b).", "edge(b,a)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "1"), True)],
+        [],
+        [AggregateDeclaration(1, "count", (("edge", 2),), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=4)
+    ).generate().clauses
+
+    assert clauses
+    assert not any(
+        int(left) > int(right)
+        for clause in clauses
+        for left, right in re.findall(r"#count\{V(\d+),V(\d+):", clause)
+    )
 
 
 def test_hypothesis_space_prunes_arithmetic_identities_before_cap():
@@ -452,6 +558,618 @@ def test_closed_world_properties_prune_functional_dependency():
     ).generate().clauses
 
     assert ":- parent(V0,V1),parent(V0,V2)." not in clauses
+
+
+def test_closed_world_properties_prune_projection_implication():
+    program = Program(
+        ["edge(a,b).", "edge(b,c).", "node(a).", "node(b).", "node(c)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("2", "edge", "2", "positive"), False),
+            ModeDeclaration(("1", "node", "1", "positive"), False),
+            ModeDeclaration(("1", "node", "1", "negative"), False),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert ":- edge(V0,V1),node(V0)." not in clauses
+    assert ":- edge(V0,V1),not node(V0)." not in clauses
+
+
+def test_closed_world_properties_prune_composite_functional_dependency():
+    program = Program(
+        [
+            "assign(r1,c1,v1).",
+            "assign(r1,c2,v2).",
+            "assign(r2,c1,v3).",
+        ],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("2", "assign", "3", "positive"), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=4)
+    ).generate().clauses
+
+    assert ":- assign(V0,V1,V2),assign(V0,V1,V3)." not in clauses
+
+
+def test_closed_world_properties_prune_acyclic_body_cycle():
+    program = Program(
+        ["edge(a,b).", "edge(b,c).", "edge(c,d)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("3", "edge", "2", "positive"), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=3)
+    ).generate().clauses
+
+    assert ":- edge(V0,V1),edge(V1,V2),edge(V2,V0)." not in clauses
+
+
+def test_closed_world_properties_prune_complement_negative_pair():
+    program = Program(
+        ["p(a).", "q(b).", "safe(a,a).", "safe(b,b)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "p", "1", "negative"), False),
+            ModeDeclaration(("1", "q", "1", "negative"), False),
+            ModeDeclaration(("1", "safe", "2", "positive"), False),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=2)
+    ).generate().clauses
+
+    assert ":- not p(V0),not q(V0),safe(V0,V1)." not in clauses
+
+
+def test_closed_world_properties_infer_generic_atom_relations():
+    properties = hypothesis_space._closed_world_properties(
+        [
+            "p(a).",
+            "q(a).",
+            "r(b).",
+            "color_red(a).",
+            "color_green(b).",
+            "color_blue(c).",
+            "rel(a,b,c).",
+            "rel(d,e,f).",
+            "before(a,b).",
+            "before(b,c).",
+            "before(a,c).",
+            "le(a,a).",
+            "le(a,b).",
+            "le(b,b).",
+        ]
+    )
+
+    assert (("p", 1), ("q", 1)) in properties.equivalent
+    assert (("p", 1), 0, ("rel", 3), 1) in properties.disjoint_projection
+    assert tuple(sorted((("color_red", 1), ("color_green", 1), ("color_blue", 1)))) in properties.partitions
+    assert ((("rel", 3), (0,))) in properties.keys
+    assert ("le", 2) not in properties.antisymmetric
+    assert ("before", 2) in properties.strict_order
+    assert ("le", 2) in properties.total_order
+    assert ("le", 2) not in properties.reflexive
+
+
+def test_closed_world_properties_emit_new_property_facts():
+    properties = hypothesis_space._closed_world_properties(
+        [
+            "p(a).",
+            "q(a).",
+            "r(b).",
+            "color_red(a).",
+            "color_green(b).",
+            "color_blue(c).",
+            "rel(a,b,c).",
+            "rel(d,e,f).",
+            "le(a,a).",
+            "le(a,b).",
+            "le(b,b).",
+        ]
+    )
+    ids = {
+        ("p", 1): 0,
+        ("q", 1): 1,
+        ("r", 1): 2,
+        ("color_red", 1): 3,
+        ("color_green", 1): 4,
+        ("color_blue", 1): 5,
+        ("rel", 3): 6,
+        ("le", 2): 7,
+    }
+    facts = set(hypothesis_space._closed_world_property_facts(properties, ids))
+
+    assert "equivalent_pred(0,1)." in facts
+    assert "disjoint_arg(0,0,6,1)." in facts
+    assert not any(fact.startswith("partition_size(") for fact in facts)
+    assert "key_pred(6,0)." in facts
+    assert "total_order_pred(7)." in facts
+    assert "antisymmetric_pred(7)." not in facts
+    assert "reflexive_pred(7)." not in facts
+
+
+def test_choice_rules_infer_modelwise_keys():
+    properties = hypothesis_space._closed_world_properties(
+        [
+            "#const n = 5.",
+            "number(1..n).",
+            "1 { q(X,Y) : number(Y) } 1 :- number(X).",
+            "1 { q(X,Y) : number(X) } 1 :- number(Y).",
+            "1 { x(R,C,N) : val(N) } 1 :- cell(R), cell(C).",
+            "3 { in(X) : v(X) } 3.",
+        ]
+    )
+
+    assert (("q", 2), (0,)) in properties.keys
+    assert (("q", 2), (1,)) in properties.keys
+    assert (("x", 3), (0, 1)) in properties.keys
+    assert not any(predicate == ("in", 1) for predicate, _args in properties.keys)
+    assert ("q", 2) not in properties.universal
+    assert ((("q", 2), ("number", 1), (1,))) in properties.project_implies
+    assert ((("q", 2), ("number", 1), (0,))) in properties.project_implies
+    assert ((("in", 1), 3)) in properties.cardinality_upper
+
+
+def test_closed_world_extensions_expand_numeric_ranges():
+    extensions = hypothesis_space._closed_world_extensions(
+        ["#const n = 3.", "number(1..n).", "pair(1..2,3..4)."]
+    )
+
+    assert extensions[("number", 1)] == {("1",), ("2",), ("3",)}
+    assert extensions[("pair", 2)] == {
+        ("1", "3"),
+        ("1", "4"),
+        ("2", "3"),
+        ("2", "4"),
+    }
+
+
+def test_rule_defined_square_properties_propagate_choice_key():
+    properties = hypothesis_space._closed_world_properties(
+        [
+            "part(a).",
+            "val(1).",
+            "val(2).",
+            "1 { p(P,V) : val(V) } 1 :- part(P).",
+            "sq(P,S) :- p(P,V), S = V*V.",
+        ]
+    )
+
+    assert ((("sq", 2), (0,))) in properties.keys
+    assert ((("sq", 2), 0, 1)) not in properties.functional
+
+
+def test_cardinality_upper_facts_are_emitted():
+    properties = hypothesis_space._closed_world_properties(
+        ["val(1).", "val(2).", "1 { in(X) : val(X) } 1."]
+    )
+    facts = set(
+        hypothesis_space._closed_world_property_facts(
+            properties,
+            {
+                ("in", 1): 0,
+                ("val", 1): 1,
+            },
+        )
+    )
+
+    assert "cardinality_upper_pred(0,1)." in facts
+
+
+def test_choice_rule_keys_prune_conflicting_positive_literals():
+    program = Program(
+        [
+            "number(1..5).",
+            "1 { q(X,Y) : number(Y) } 1 :- number(X).",
+            "1 { q(X,Y) : number(X) } 1 :- number(Y).",
+        ],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("2", "q", "2", "positive"), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=3)
+    ).generate().clauses
+
+    assert ":- q(V0,V1),q(V0,V2)." not in clauses
+    assert ":- q(V0,V1),q(V2,V1)." not in clauses
+
+
+def test_choice_projection_prunes_redundant_domain_literal():
+    program = Program(
+        [
+            "number(1..5).",
+            "1 { q(X,Y) : number(Y) } 1 :- number(X).",
+        ],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "q", "2", "positive"), False),
+            ModeDeclaration(("1", "number", "1", "positive"), False),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert ":- q(V0,V1),number(V1)." not in clauses
+
+
+def test_partition_prunes_all_negative_partition_literals():
+    program = Program(
+        [
+            "red(a).",
+            "green(b).",
+            "blue(c).",
+            "node(a).",
+            "node(b).",
+            "node(c).",
+        ],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "node", "1", "positive"), False),
+            ModeDeclaration(("1", "red", "1", "negative"), False),
+            ModeDeclaration(("1", "green", "1", "negative"), False),
+            ModeDeclaration(("1", "blue", "1", "negative"), False),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=4, max_variables=1)
+    ).generate().clauses
+
+    assert ":- node(V0),not red(V0),not green(V0)." in clauses
+    assert ":- node(V0),not red(V0),not green(V0),not blue(V0)." not in clauses
+
+
+def test_mutex_complement_and_partition_prune_positive_negative_redundancy():
+    program = Program(
+        ["p(a).", "q(b).", "safe(a).", "safe(b)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "safe", "1", "positive"), False),
+            ModeDeclaration(("1", "p", "1", "positive"), False),
+            ModeDeclaration(("1", "p", "1", "negative"), False),
+            ModeDeclaration(("1", "q", "1", "positive"), False),
+            ModeDeclaration(("1", "q", "1", "negative"), False),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=1)
+    ).generate().clauses
+
+    assert ":- safe(V0),q(V0),not p(V0)." not in clauses
+    assert ":- safe(V0),not p(V0),not q(V0)." not in clauses
+
+
+def test_inverse_and_transitive_negative_closure_prune():
+    inverse = Program(
+        ["p(a,b).", "q(b,a)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "p", "2", "positive"), False),
+            ModeDeclaration(("1", "q", "2", "negative"), False),
+        ],
+    )
+    transitive = Program(
+        ["p(a,b).", "p(b,c).", "p(a,c)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("2", "p", "2", "positive"), False),
+            ModeDeclaration(("1", "p", "2", "negative"), False),
+        ],
+    )
+
+    inverse_clauses = HypothesisSpaceGenerator(
+        inverse, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+    transitive_clauses = HypothesisSpaceGenerator(
+        transitive, Arguments(max_depth=3, max_variables=3)
+    ).generate().clauses
+
+    assert ":- p(V0,V1),not q(V1,V0)." not in inverse_clauses
+    assert ":- p(V0,V1),p(V1,V2),not p(V0,V2)." not in transitive_clauses
+
+
+def test_acyclic_negative_back_edge_prune():
+    program = Program(
+        ["edge(a,b).", "edge(b,c)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("2", "edge", "2", "positive"), False),
+            ModeDeclaration(("1", "edge", "2", "negative"), False),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=3)
+    ).generate().clauses
+
+    assert ":- edge(V0,V1),edge(V1,V2),not edge(V2,V0)." not in clauses
+
+
+def test_universal_empty_and_domain_disjoint_facts_are_emitted():
+    universal_program = Program(
+        ["dom(a).", "dom(b).", "p(a).", "p(b)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "dom", "1", "positive"), False),
+            ModeDeclaration(("1", "p", "1", "positive"), False),
+            ModeDeclaration(("1", "missing", "1", "positive"), False),
+        ],
+    )
+    domain_program = Program(
+        ["left(a).", "right(b)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "left", "1", "positive"), False),
+            ModeDeclaration(("1", "right", "1", "positive"), False),
+        ],
+    )
+    universal_program.complete_language_bias()
+    domain_program.complete_language_bias()
+    universal_fragments = hypothesis_space._closed_world_fragments(universal_program)
+    domain_fragments = hypothesis_space._closed_world_fragments(domain_program)
+    universal_arg_types = hypothesis_space._predicate_arg_types(
+        universal_program, universal_fragments
+    )
+    domain_arg_types = hypothesis_space._predicate_arg_types(
+        domain_program, domain_fragments
+    )
+    universal_properties = hypothesis_space._closed_world_properties(
+        universal_fragments,
+        universal_arg_types,
+        hypothesis_space._closed_body_predicates(universal_program),
+    )
+    domain_properties = hypothesis_space._closed_world_properties(
+        domain_fragments,
+        domain_arg_types,
+        hypothesis_space._closed_body_predicates(domain_program),
+    )
+    universal_ids = {
+        ("dom", 1): 0,
+        ("p", 1): 1,
+        ("missing", 1): 2,
+    }
+    domain_ids = {
+        ("left", 1): 2,
+        ("right", 1): 3,
+    }
+    facts = set(
+        hypothesis_space._closed_world_property_facts(universal_properties, universal_ids)
+    ) | set(hypothesis_space._closed_world_property_facts(domain_properties, domain_ids))
+
+    assert "universal_pred(1)." in facts
+    assert "empty_pred(2)." in facts
+    assert "complement_pred(2,3)." in facts
+    assert "domain_disjoint_arg(2,0,3,0)." not in facts
+
+
+def test_empty_predicate_prunes_positive_and_negative_literals():
+    program = Program(
+        ["safe(a)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "safe", "1", "positive"), False),
+            ModeDeclaration(("1", "missing", "1", "positive"), False),
+            ModeDeclaration(("1", "missing", "1", "negative"), False),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=1)
+    ).generate().clauses
+
+    assert not any("missing(" in clause for clause in clauses)
+
+
+def test_functional_negative_redundancy_with_inequality_prunes():
+    program = Program(
+        ["parent(a,b).", "parent(c,d).", "child(b).", "child(d)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "parent", "2", "positive"), False),
+            ModeDeclaration(("1", "parent", "2", "negative"), False),
+            ModeDeclaration(("1", "child", "1", "positive"), False),
+        ],
+        [],
+        [OperatorDeclaration(1, "neq")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=4, max_variables=3)
+    ).generate().clauses
+
+    assert not any(
+        "parent(V0,V1)" in clause
+        and "not parent(V0,V2)" in clause
+        and "child(V2)" in clause
+        and "V1!=V2" in clause
+        for clause in clauses
+    )
+
+
+def test_functional_negative_redundancy_uses_strict_comparison():
+    program = Program(
+        ["p(1,1).", "p(2,2).", "value(1).", "value(2)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "p", "2", "positive"), False),
+            ModeDeclaration(("1", "p", "2", "negative"), False),
+            ModeDeclaration(("1", "value", "1", "positive"), False),
+        ],
+        [],
+        [OperatorDeclaration(1, "lt")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=4, max_variables=3)
+    ).generate().clauses
+
+    assert not any(
+        "p(V0,V1)" in clause
+        and "not p(V0,V2)" in clause
+        and "value(V2)" in clause
+        and "V1<V2" in clause
+        for clause in clauses
+    )
+
+
+def test_cardinality_upper_prunes_pairwise_distinct_positive_tuples():
+    program = Program(
+        ["value(a).", "value(b).", "1 { in(X) : value(X) } 1."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("2", "in", "1", "positive"), False)],
+        [],
+        [OperatorDeclaration(1, "neq")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=2)
+    ).generate().clauses
+
+    assert ":- in(V0),in(V1),V0!=V1." not in clauses
+
+
+def test_empty_join_and_total_order_prune_impossible_bodies():
+    empty_join = Program(
+        ["p(a).", "q(b).", "safe(a).", "safe(b)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "safe", "1", "positive"), False),
+            ModeDeclaration(("1", "p", "1", "positive"), False),
+            ModeDeclaration(("1", "q", "1", "positive"), False),
+        ],
+    )
+    order = Program(
+        ["le(a,a).", "le(a,b).", "le(b,b).", "pair(a,b)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "pair", "2", "positive"), False),
+            ModeDeclaration(("2", "le", "2", "negative"), False),
+        ],
+    )
+
+    empty_clauses = HypothesisSpaceGenerator(
+        empty_join, Arguments(max_depth=3, max_variables=1)
+    ).generate().clauses
+    order_clauses = HypothesisSpaceGenerator(
+        order, Arguments(max_depth=3, max_variables=2)
+    ).generate().clauses
+
+    assert ":- safe(V0),p(V0),q(V0)." not in empty_clauses
+    assert ":- pair(V0,V1),not le(V0,V1),not le(V1,V0)." not in order_clauses
+
+
+def test_reflexive_key_antisymmetric_and_subsumption_prunes():
+    reflexive = Program(
+        ["le(a,a).", "le(a,b).", "le(b,b).", "node(a).", "node(b)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "node", "1", "positive"), False),
+            ModeDeclaration(("1", "le", "2", "positive"), False),
+            ModeDeclaration(("1", "le", "2", "negative"), False),
+        ],
+    )
+    key = Program(
+        ["rel(a,b,c).", "rel(d,e,f)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("2", "rel", "3", "positive"), False)],
+    )
+    subsumption = Program(
+        ["p(a,a).", "p(a,b)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("2", "p", "2", "positive"), False)],
+    )
+
+    reflexive_clauses = HypothesisSpaceGenerator(
+        reflexive, Arguments(max_depth=3, max_variables=2)
+    ).generate().clauses
+    key_clauses = HypothesisSpaceGenerator(
+        key, Arguments(max_depth=2, max_variables=5)
+    ).generate().clauses
+    subsumption_clauses = HypothesisSpaceGenerator(
+        subsumption, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert ":- node(V0),le(V0,V0)." not in reflexive_clauses
+    assert ":- node(V0),not le(V0,V0)." not in reflexive_clauses
+    assert ":- le(V0,V1),le(V1,V0)." not in reflexive_clauses
+    assert ":- rel(V0,V1,V2),rel(V0,V3,V4)." not in key_clauses
+    assert ":- p(V0,V1),p(V0,V0)." not in subsumption_clauses
+
+
+def test_equivalent_head_body_redundancy_is_pruned():
+    program = Program(
+        ["p(a).", "q(a)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "p", "1"), True)],
+        [ModeDeclaration(("1", "q", "1", "positive"), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=1)
+    ).generate().clauses
+
+    assert "p(V0) :- q(V0)." not in clauses
+
+
+def test_closed_world_properties_apply_to_aggregate_condition_atoms():
+    program = Program(
+        ["edge(a,b).", "edge(b,a)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "1"), True)],
+        [],
+        [AggregateDeclaration(1, "count", (("edge", 2),), True)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=4)
+    ).generate().clauses
+
+    for clause in clauses:
+        for left, right in re.findall(r"edge\(V(\d+),V(\d+)\)", clause):
+            assert int(left) <= int(right)
 
 
 def test_mul_and_abs_operands_are_canonicalized():
@@ -613,6 +1331,13 @@ def test_coloring_hypothesis_space_contains_target_rules():
     assert ":- e(V0,V1),red(V0),red(V1)." in clauses
     assert ":- e(V0,V1),green(V0),green(V1)." in clauses
     assert ":- e(V0,V1),blue(V0),blue(V1)." in clauses
+
+
+def test_coin_hypothesis_space_contains_target_rules():
+    clauses = _benchmark_clauses("coin")
+
+    assert "heads(V0) :- coin(V0),not tails(V0)." in clauses
+    assert "tails(V0) :- coin(V0),not heads(V0)." in clauses
 
 
 def test_even_odd_hypothesis_space_contains_mutual_recursion():

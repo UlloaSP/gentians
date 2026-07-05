@@ -17,6 +17,7 @@
 #defined greater_than_comparison_mode/1.
 #defined leq_comparison_mode/1.
 #defined geq_comparison_mode/1.
+#defined strict_comparison_available/0.
 #defined add_mode/1.
 #defined sub_mode/1.
 #defined mul_mode/1.
@@ -472,6 +473,18 @@ leq_vars(Right,Left):-
 :- lt_vars(Left,Right), leq_vars(Left,Right).
 :- leq_vars(Left,Right), leq_vars(Right,Left).
 :- lt_vars(Left,Right), neq_vars(Left,Right).
+:- strict_comparison_available, leq_vars(Left,Right), neq_vars(Left,Right).
+
+:- lt_vars(Left,Right), lt_vars(Left,Middle), lt_vars(Middle,Right).
+:- lt_vars(Left,Right), lt_vars(Left,Middle), leq_vars(Middle,Right).
+:- lt_vars(Left,Right), leq_vars(Left,Middle), lt_vars(Middle,Right).
+:- leq_vars(Left,Right), lt_vars(Left,Middle), lt_vars(Middle,Right).
+:- leq_vars(Left,Right), lt_vars(Left,Middle), leq_vars(Middle,Right).
+:- leq_vars(Left,Right), leq_vars(Left,Middle), lt_vars(Middle,Right).
+:- leq_vars(Left,Right), leq_vars(Left,Middle), leq_vars(Middle,Right).
+:- neq_vars(Left,Right), lt_vars(Left,Middle), lt_vars(Middle,Right).
+:- neq_vars(Left,Right), lt_vars(Left,Middle), leq_vars(Middle,Right).
+:- neq_vars(Left,Right), leq_vars(Left,Middle), lt_vars(Middle,Right).
 
 :- numeric_domain_nonnegative,
     selected(body,Slot,Mode),
@@ -539,6 +552,39 @@ leq_vars(Right,Left):-
     domain_constrained_var(Divisor),
     domain_constrained_var(Result),
     leq_vars(Divisor,Result).
+
+:- numeric_domain_positive,
+    selected(body,Slot,Mode),
+    mul_mode(Mode),
+    var_at(body,Slot,0,Left),
+    var_at(body,Slot,1,Right),
+    var_at(body,Slot,2,Result),
+    domain_constrained_var(Left),
+    domain_constrained_var(Right),
+    domain_constrained_var(Result),
+    lt_vars(Result,Left).
+
+:- numeric_domain_positive,
+    selected(body,Slot,Mode),
+    mul_mode(Mode),
+    var_at(body,Slot,0,Left),
+    var_at(body,Slot,1,Right),
+    var_at(body,Slot,2,Result),
+    domain_constrained_var(Left),
+    domain_constrained_var(Right),
+    domain_constrained_var(Result),
+    lt_vars(Result,Right).
+
+:- numeric_domain_positive,
+    selected(body,Slot,Mode),
+    div_mode(Mode),
+    var_at(body,Slot,0,Left),
+    var_at(body,Slot,1,Right),
+    var_at(body,Slot,2,Result),
+    domain_constrained_var(Left),
+    domain_constrained_var(Right),
+    domain_constrained_var(Result),
+    lt_vars(Left,Result).
 
 same_vars(Section0,Slot0,Section1,Slot1):-
     selected(Section0,Slot0,Mode0),

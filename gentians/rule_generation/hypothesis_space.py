@@ -1148,7 +1148,7 @@ def _hypothesis_capabilities(
         arg_type == "numeric" for arg_type in predicate_arg_types.values()
     )
     comparison_operators = {mode.operator for mode in program.comparison_modes}
-    equality_comparison = bool(comparison_operators & {"eq", "neq"})
+    equality_comparison = "neq" in comparison_operators
     numeric_comparison = numeric_evidence and bool(
         comparison_operators & {"lt", "leq", "gt", "geq"}
     )
@@ -1350,6 +1350,8 @@ def _hypothesis_modes(
 
     comparison_operators = {declaration.operator for declaration in program.comparison_modes}
     for declaration in program.comparison_modes:
+        if declaration.operator == "eq":
+            continue
         if declaration.operator == "gt" and "lt" in comparison_operators:
             continue
         if declaration.operator == "geq" and "leq" in comparison_operators:
@@ -1452,6 +1454,8 @@ def _facts(
         parts.append("numeric_domain_nonnegative.")
     if domain and all(value > 0 for value in domain):
         parts.append("numeric_domain_positive.")
+    if any(mode.kind == "comparison" and mode.operator in {"<", ">"} for mode in modes):
+        parts.append("strict_comparison_available.")
     parts.extend(_closed_world_property_facts(properties, predicate_ids))
     group_recalls: dict[int, int] = {}
     for mode in modes:

@@ -377,6 +377,75 @@ def test_hypothesis_space_prunes_comparison_redundancy_before_rendering():
     assert not any("V0<=V1,V1<=V0" in clause for clause in clauses)
 
 
+def test_hypothesis_space_does_not_generate_equality_comparison():
+    program = Program(
+        ["p(1)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "1"), True)],
+        [ModeDeclaration(("1", "p", "1", "positive"), False)],
+        [],
+        [OperatorDeclaration(1, "eq")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=3, max_variables=2),
+    ).generate().clauses
+
+    assert clauses
+    assert not any("==" in clause for clause in clauses)
+    assert "target(V0) :- p(V0)." in clauses
+
+
+def test_hypothesis_space_prunes_leq_neq_when_strict_comparison_exists():
+    program = Program(
+        ["p(1).", "p(2)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("2", "p", "1", "positive"), False)],
+        [],
+        [
+            OperatorDeclaration(1, "lt"),
+            OperatorDeclaration(1, "leq"),
+            OperatorDeclaration(1, "neq"),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=4, max_variables=2),
+    ).generate().clauses
+
+    assert not any(
+        "V0<=V1" in clause and "V0!=V1" in clause for clause in clauses
+    )
+
+
+def test_hypothesis_space_prunes_transitive_comparison_redundancy():
+    program = Program(
+        ["p(1).", "p(2).", "p(3)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("3", "p", "1", "positive"), False)],
+        [],
+        [OperatorDeclaration(3, "lt"), OperatorDeclaration(3, "neq")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=6, max_variables=3),
+    ).generate().clauses
+
+    assert not any(
+        "V0<V1" in clause and "V1<V2" in clause and "V0<V2" in clause
+        for clause in clauses
+    )
+    assert not any(
+        "V0<V1" in clause and "V1<V2" in clause and "V0!=V2" in clause
+        for clause in clauses
+    )
+
+
 def test_hypothesis_space_prunes_duplicate_arithmetic_inputs_before_rendering():
     program = Program(
         ["q(1,2)."],
@@ -395,6 +464,33 @@ def test_hypothesis_space_prunes_duplicate_arithmetic_inputs_before_rendering():
 
     assert not any(
         "V0+V1=V2" in clause and "V0+V1=V3" in clause for clause in clauses
+    )
+
+
+def test_positive_domain_prunes_impossible_mul_and_div_comparisons():
+    program = Program(
+        ["q(1,1,1).", "q(2,2,2).", "q(3,3,3)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("1", "q", "3", "positive"), False)],
+        [],
+        [OperatorDeclaration(1, "lt")],
+        [OperatorDeclaration(1, "mul"), OperatorDeclaration(1, "div")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=3, max_variables=3),
+    ).generate().clauses
+
+    assert not any(
+        "V0*V1=V2" in clause and "V2<V0" in clause for clause in clauses
+    )
+    assert not any(
+        "V0*V1=V2" in clause and "V2<V1" in clause for clause in clauses
+    )
+    assert not any(
+        "V0/V1=V2" in clause and "V0<V2" in clause for clause in clauses
     )
 
 

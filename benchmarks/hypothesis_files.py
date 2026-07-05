@@ -14,11 +14,7 @@ HYPOTHESIS_FIELDS = (
     "max_depth",
     "disjunctive_head_length",
     "max_candidate_clauses",
-    "unbalanced_aggregates",
     "hypothesis_space",
-    "aggregates",
-    "comparison_operators",
-    "arithmetic_operators",
 )
 
 

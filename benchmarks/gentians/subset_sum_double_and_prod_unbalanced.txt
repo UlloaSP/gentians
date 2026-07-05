@@ -1,4 +1,4 @@
-% Example: subset_sum_double_and_prod
+% Example: subset_sum_double_and_prod_unbalanced
 % Source function: subset_sum_double_and_prod
 %
 % % Double subset sum problem.
@@ -38,7 +38,7 @@
 #modeh(1,ok,1).
 
 % Body language bias
-#modeagg(2,sum(el/2),balanced).
+#modeagg(2,sum(el/2),unbalanced).
 #modearith(1,add).
 #modearith(1,mul).
 #modearith(1,sub).

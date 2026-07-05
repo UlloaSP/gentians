@@ -30,6 +30,7 @@
 #modeh(1,ok,1).
 
 % Body language bias
+#modeagg(3,sum(el/3),balanced).
 
 % Original Python source
 % def subset_sum_triple():

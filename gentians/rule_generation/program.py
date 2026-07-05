@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from .parser import fragment_atoms
+from .parser import Predicate, fragment_atoms
 
 
 @dataclass(init=False, slots=True)
@@ -49,6 +49,20 @@ class ModeDeclaration:
         self.head = head
 
 
+@dataclass(frozen=True, slots=True)
+class AggregateDeclaration:
+    recall: int
+    function: str
+    atoms: tuple[Predicate, ...]
+    unbalanced: bool
+
+
+@dataclass(frozen=True, slots=True)
+class OperatorDeclaration:
+    recall: int
+    operator: str
+
+
 @dataclass(slots=True)
 class Program:
     """
@@ -60,6 +74,9 @@ class Program:
     negative_examples: "list[Example]"
     language_bias_head: "list[ModeDeclaration]"
     language_bias_body: "list[ModeDeclaration]"
+    aggregate_modes: list[AggregateDeclaration] = field(default_factory=list)
+    comparison_modes: list[OperatorDeclaration] = field(default_factory=list)
+    arithmetic_modes: list[OperatorDeclaration] = field(default_factory=list)
 
     def complete_language_bias(self, recall: int = 1) -> None:
         """

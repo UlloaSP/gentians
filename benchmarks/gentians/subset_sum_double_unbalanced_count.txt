@@ -1,4 +1,4 @@
-% Example: subset_sum_double
+% Example: subset_sum_double_unbalanced_count
 % Source function: subset_sum_double
 %
 % % Double subset sum problem.
@@ -40,7 +40,8 @@
 % Body language bias
 #modeb(1,s0,1,positive).
 #modeb(1,s1,1,positive).
-#modeagg(2,sum(el/2),balanced).
+#modeagg(2,sum(el/2),unbalanced).
+#modeagg(2,count(el/2),unbalanced).
 #modearith(1,add).
 
 % Original Python source

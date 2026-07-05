@@ -75,6 +75,9 @@ number(1..n).
 
 % Body language bias
 #modeb(2,q,2,positive).
+#modecmp(1,lt).
+#modearith(1,add).
+#modearith(1,sub).
 
 % Original Python source
 % def n_5queens():

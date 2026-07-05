@@ -14,7 +14,13 @@ from gentians.rule_generation.hypothesis_space import (
     _hypothesis_space_args,
 )
 from gentians.rule_generation.hypothesis_space import HypothesisCapabilities
-from gentians.rule_generation.program import Example, ModeDeclaration, Program
+from gentians.rule_generation.program import (
+    AggregateDeclaration,
+    Example,
+    ModeDeclaration,
+    OperatorDeclaration,
+    Program,
+)
 from gentians.rule_generation.rule_space import RuleSpace
 
 
@@ -24,19 +30,16 @@ def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypat
 
     monkeypatch.setattr(hypothesis_space, "_available_predicates", fail_if_called)
 
-    assert hypothesis_space._valid_aggregate_specs(
-        Program(["p(1)."], [], [], [], []),
-        Arguments(),
-    ) == []
+    assert hypothesis_space._valid_aggregate_specs(Program(["p(1)."], [], [], [], [])) == []
 
 
 def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
     calls = 0
 
-    def aggregate_specs(program, args, fragments):
+    def aggregate_specs(program, fragments):
         nonlocal calls
         calls += 1
-        return [("sum", [("p", 1)])]
+        return [AggregateDeclaration(1, "sum", (("p", 1),), False)]
 
     monkeypatch.setattr(hypothesis_space, "_valid_aggregate_specs", aggregate_specs)
 
@@ -47,8 +50,9 @@ def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
             [],
             [ModeDeclaration(("1", "target", "1"), True)],
             [ModeDeclaration(("1", "p", "1", "positive"), False)],
+            [AggregateDeclaration(1, "sum", (("p", 1),), False)],
         ),
-        Arguments(aggregates=["sum(p/1)"]),
+        Arguments(),
     )
 
     assert calls == 1
@@ -155,6 +159,7 @@ def test_unbalanced_aggregate_variants_share_recall():
         [],
         [ModeDeclaration(("1", "ok", "1"), True)],
         [],
+        [AggregateDeclaration(1, "sum", (("el", 2),), True)],
     )
     clauses = HypothesisSpaceGenerator(
         program,
@@ -162,8 +167,6 @@ def test_unbalanced_aggregate_variants_share_recall():
             max_depth=6,
             max_variables=8,
             max_candidate_clauses=0,
-            aggregates=["sum(el/2)"],
-            unbalanced_aggregates=True,
         ),
     ).generate().clauses
 
@@ -288,13 +291,14 @@ def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering
         [],
         [],
         [ModeDeclaration(("2", "p", "1", "positive"), False)],
+        [],
+        [OperatorDeclaration(2, "neq")],
     )
     clauses = HypothesisSpaceGenerator(
         program,
         Arguments(
             max_depth=4,
             max_variables=2,
-            comparison_operators=["neq", "neq"],
         ),
     ).generate().clauses
 
@@ -318,13 +322,15 @@ def test_canonical_prune_prevents_reversed_add_operands():
         [],
         [],
         [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [],
+        [],
+        [OperatorDeclaration(1, "add")],
     )
     clauses = HypothesisSpaceGenerator(
         program_without_zero,
         Arguments(
             max_depth=4,
             max_variables=3,
-            arithmetic_operators=["add"],
             hypothesis_space={"canonical_prune": True},
         ),
     ).generate().clauses
@@ -344,6 +350,9 @@ def test_domain_arithmetic_prune_removes_impossible_zero_result_only_when_domain
         [],
         [],
         [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [],
+        [],
+        [OperatorDeclaration(1, "sub")],
     )
     program_with_zero = Program(
         ["number(0..2).", "q(0,0)."],
@@ -351,11 +360,13 @@ def test_domain_arithmetic_prune_removes_impossible_zero_result_only_when_domain
         [],
         [],
         [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [],
+        [],
+        [OperatorDeclaration(1, "sub")],
     )
     args = Arguments(
         max_depth=4,
         max_variables=3,
-        arithmetic_operators=["sub"],
         hypothesis_space={"domain_arithmetic_prune": True},
     )
     without_zero = HypothesisSpaceGenerator(program_without_zero, args).generate().clauses
@@ -377,6 +388,9 @@ def test_reader_parses_directives_without_regex_space_loss(tmp_path):
                 "#neg({ bad(1) }, {}).",
                 "#modeh(1, red, 1).",
                 "#modeb(2, edge, 2, positive).",
+                "#modeagg(1, sum(edge/2), unbalanced).",
+                "#modecmp(2, neq).",
+                "#modearith(1, add).",
             ]
         ),
         encoding="utf-8",
@@ -391,6 +405,11 @@ def test_reader_parses_directives_without_regex_space_loss(tmp_path):
     assert program.negative_examples[0].included == "bad(1)"
     assert program.language_bias_head[0].name == "red"
     assert program.language_bias_body[0].name == "edge"
+    assert program.aggregate_modes == [
+        AggregateDeclaration(1, "sum", (("edge", 2),), True)
+    ]
+    assert program.comparison_modes == [OperatorDeclaration(2, "neq")]
+    assert program.arithmetic_modes == [OperatorDeclaration(1, "add")]
 
 
 def test_language_bias_auto_generates_head_and_closed_body_when_bias_is_missing():

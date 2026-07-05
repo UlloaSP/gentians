@@ -72,6 +72,8 @@ p(1,2).
 % Body language bias
 #modeb(2,sum_partition,2,positive).
 #modeb(1,partition,1,positive).
+#modeagg(1,sum(p/2),unbalanced).
+#modecmp(2,neq).
 
 % Original Python source
 % def set_partition_new(also_count : bool):

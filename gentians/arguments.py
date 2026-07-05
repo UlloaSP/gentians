@@ -27,9 +27,6 @@ class Arguments:
     # 0 means all.
     max_candidate_clauses: int = 0
 
-    # Allow aggregate literals whose variables are not fully balanced.
-    unbalanced_aggregates: bool = False
-
     # Maximum number of clauses in one candidate program.
     max_program_clauses: int = 6
 
@@ -122,12 +119,4 @@ class Arguments:
         }
     )
 
-    # Aggregate specs, e.g. ["sum(d/2)", "count(d/2)"].
-    aggregates: list[str] = field(default_factory=list)
-
-    # Comparison operators: lt, leq, gt, geq, eq, neq. Repeat to increase recall.
-    comparison_operators: list[str] = field(default_factory=list)
-
-    # Arithmetic operators: add, sub, mul, div, mod, abs. Repeat to increase recall.
-    arithmetic_operators: list[str] = field(default_factory=list)
 

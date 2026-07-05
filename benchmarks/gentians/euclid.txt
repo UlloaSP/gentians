@@ -42,6 +42,9 @@ result(M) :- eucl(a,b,M).
 #modeb(1,eucl,3,positive).
 #modeb(1,zero,1,positive).
 #modeb(2,num,1,positive).
+#modecmp(1,lt).
+#modecmp(2,gt).
+#modearith(1,mod).
 
 % Original Python source
 % def euclid_example() -> Program:

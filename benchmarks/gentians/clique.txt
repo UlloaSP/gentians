@@ -48,6 +48,7 @@ ne(X,Y):- not e(X,Y), v(X), v(Y).
 #modeb(2,v,1,positive).
 #modeb(2,ne,2,positive).
 #modeb(2,in,1,positive).
+#modecmp(1,neq).
 
 % Original Python source
 % def clique() -> Program:

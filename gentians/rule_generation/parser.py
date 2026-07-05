@@ -30,6 +30,19 @@ def split_top_level_args(args: str) -> list[str]:
     return parts
 
 
+def parse_predicate_specs(specs: str) -> tuple[Predicate, ...]:
+    pairs: list[Predicate] = []
+    for spec in split_top_level_args(specs):
+        predicate, arity = spec.split("/", 1)
+        pairs.append((predicate.strip(), int(arity)))
+    return tuple(pairs)
+
+
+def parse_aggregate_spec(spec: str) -> tuple[str, tuple[Predicate, ...]]:
+    function, rest = spec.split("(", 1)
+    return function.strip(), parse_predicate_specs(rest.rstrip(")"))
+
+
 def extract_name_arity(atom: str) -> "tuple[str,int]":
     """
     Extracts name and arity from an atom.

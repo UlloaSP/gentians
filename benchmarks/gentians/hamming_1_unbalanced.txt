@@ -1,4 +1,4 @@
-% Example: hamming_1
+% Example: hamming_1_unbalanced
 % Source function: hamming
 %
 % Hamming distance between two binary strings.
@@ -97,7 +97,8 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 
 % Body language bias
 #modeb(1,hd,1,positive).
-#modeagg(1,sum(d/2),balanced).
+#modeagg(1,sum(d/2),unbalanced).
+#modeagg(1,count(d/2),unbalanced).
 #modecmp(1,neq).
 
 % Original Python source

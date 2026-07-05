@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from collections import Counter
 from pathlib import Path
 import re
 import time
@@ -19,8 +18,8 @@ from ..timing import (
     profile_phase,
     record_metric,
 )
-from .parser import fragment_atoms, split_top_level_args
-from .program import Program
+from .parser import fragment_atoms
+from .program import AggregateDeclaration, Program
 from .rule_space import Predicate, RuleEntry, RuleSpace
 
 
@@ -101,7 +100,7 @@ class HypothesisSpaceGenerator:
         self.args = args
         self.fragments = _program_fragments(program)
         self.predicate_arg_types = _predicate_arg_types(program, self.fragments)
-        self.aggregate_specs = _valid_aggregate_specs(program, args, self.fragments)
+        self.aggregate_specs = _valid_aggregate_specs(program, self.fragments)
         self.capabilities = _hypothesis_capabilities(
             program, args, self.predicate_arg_types, self.aggregate_specs
         )
@@ -276,12 +275,12 @@ def _hypothesis_capabilities(
     program: Program,
     args: Arguments,
     predicate_arg_types: dict[tuple[str, int, int], str],
-    aggregate_specs: list[tuple[str, list[tuple[str, int]]]],
+    aggregate_specs: list[AggregateDeclaration],
 ) -> HypothesisCapabilities:
     numeric_evidence = any(
         arg_type == "numeric" for arg_type in predicate_arg_types.values()
     )
-    comparison_operators = set(args.comparison_operators)
+    comparison_operators = {mode.operator for mode in program.comparison_modes}
     equality_comparison = bool(comparison_operators & {"eq", "neq"})
     numeric_comparison = numeric_evidence and bool(
         comparison_operators & {"lt", "leq", "gt", "geq"}
@@ -290,7 +289,7 @@ def _hypothesis_capabilities(
         has_numeric_evidence=numeric_evidence,
         allow_numeric_comparison=numeric_comparison,
         allow_equality_comparison=equality_comparison,
-        allow_arithmetic=numeric_evidence and bool(args.arithmetic_operators),
+        allow_arithmetic=numeric_evidence and bool(program.arithmetic_modes),
         allow_aggregates=bool(aggregate_specs),
         allow_recursion=bool(args.hypothesis_space.get("enable_recursion", False)),
         allow_constraints=bool(
@@ -410,17 +409,15 @@ def _program_fragments(program: Program) -> list[str]:
 
 def _valid_aggregate_specs(
     program: Program,
-    args: Arguments,
     fragments: list[str] | None = None,
-) -> list[tuple[str, list[tuple[str, int]]]]:
-    if not args.aggregates:
+) -> list[AggregateDeclaration]:
+    if not program.aggregate_modes:
         return []
     available = _available_predicates(program, fragments or _program_fragments(program))
     valid = []
-    for spec in args.aggregates:
-        function, atoms = _aggregate_spec(spec)
-        if all(atom in available for atom in atoms):
-            valid.append((function, atoms))
+    for spec in program.aggregate_modes:
+        if all(atom in available for atom in spec.atoms):
+            valid.append(spec)
     return valid
 
 
@@ -429,7 +426,7 @@ def _hypothesis_modes(
     args: Arguments,
     capabilities: HypothesisCapabilities,
     predicate_arg_types: dict[tuple[str, int, int], str],
-    aggregate_specs: list[tuple[str, list[tuple[str, int]]]],
+    aggregate_specs: list[AggregateDeclaration],
 ) -> list[HypothesisMode]:
     modes: list[HypothesisMode] = []
     next_id = 0
@@ -475,30 +472,29 @@ def _hypothesis_modes(
             )
         )
 
-    for operator, recall in Counter(args.comparison_operators).items():
-        symbol = {"lt": "<", "leq": "<=", "gt": ">", "geq": ">=", "eq": "==", "neq": "!="}.get(operator)
-        numeric_operator = operator in {"lt", "leq", "gt", "geq"}
-        equality_operator = operator in {"eq", "neq"}
+    for declaration in program.comparison_modes:
+        symbol = {"lt": "<", "leq": "<=", "gt": ">", "geq": ">=", "eq": "==", "neq": "!="}.get(declaration.operator)
+        numeric_operator = declaration.operator in {"lt", "leq", "gt", "geq"}
+        equality_operator = declaration.operator in {"eq", "neq"}
         if symbol and (
             (numeric_operator and capabilities.allow_numeric_comparison)
             or (equality_operator and capabilities.allow_equality_comparison)
         ):
             arg_types = ("numeric", "numeric") if numeric_operator else ("any", "any")
-            add(HypothesisMode(next_id, next_id, "body", "comparison", "", 2, recall, True, operator=symbol, arg_types=arg_types))
+            add(HypothesisMode(next_id, next_id, "body", "comparison", "", 2, declaration.recall, True, operator=symbol, arg_types=arg_types))
 
     if capabilities.allow_arithmetic:
-        for operator, recall in Counter(args.arithmetic_operators).items():
-            symbol = {"add": "+", "sub": "-", "mul": "*", "div": "/", "mod": "\\", "abs": "abs"}.get(operator)
+        for declaration in program.arithmetic_modes:
+            symbol = {"add": "+", "sub": "-", "mul": "*", "div": "/", "mod": "\\", "abs": "abs"}.get(declaration.operator)
             if symbol:
-                add(HypothesisMode(next_id, next_id, "body", "arithmetic", "", 3, recall, True, operator=symbol, arg_types=("numeric", "numeric", "numeric")))
+                add(HypothesisMode(next_id, next_id, "body", "arithmetic", "", 3, declaration.recall, True, operator=symbol, arg_types=("numeric", "numeric", "numeric")))
 
-    aggregate_recalls = Counter((function, tuple(atoms)) for function, atoms in aggregate_specs)
-    for (function, atoms_tuple), recall in aggregate_recalls.items():
-        atoms = list(atoms_tuple)
+    for declaration in aggregate_specs:
+        atoms = list(declaration.atoms)
         total_atom_arity = sum(arity for _, arity in atoms)
         tuple_arities = (
             range(1, total_atom_arity + 1)
-            if args.unbalanced_aggregates
+            if declaration.unbalanced
             else [total_atom_arity]
         )
         recall_group = next_id
@@ -516,9 +512,9 @@ def _hypothesis_modes(
                     kind="aggregate",
                     name="",
                     arity=tuple_arity + total_atom_arity + 1,
-                    recall=recall,
+                    recall=declaration.recall,
                     positive=True,
-                    aggregate_function=function,
+                    aggregate_function=declaration.function,
                     tuple_arity=tuple_arity,
                     aggregate_atoms=tuple(atoms),
                     arg_types=("any",) * tuple_arity + condition_types + ("numeric",),
@@ -531,16 +527,6 @@ def _normal_arg_types(
     name: str, arity: int, predicate_arg_types: dict[tuple[str, int, int], str]
 ) -> tuple[str, ...]:
     return tuple(predicate_arg_types.get((name, arity, arg), "any") for arg in range(arity))
-
-
-def _aggregate_spec(spec: str) -> tuple[str, list[tuple[str, int]]]:
-    name, rest = spec.split("(", 1)
-    atoms = rest.rstrip(")")
-    pairs: list[tuple[str, int]] = []
-    for atom in split_top_level_args(atoms):
-        predicate, arity = atom.split("/", 1)
-        pairs.append((predicate, int(arity)))
-    return name, pairs
 
 
 def _facts(

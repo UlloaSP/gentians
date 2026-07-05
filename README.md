@@ -27,13 +27,10 @@ from gentians import Arguments, main
 main(Arguments(
     filename="benchmarks/gentians/hamming_0.txt", # Task file to parse.
     max_depth=3,                                 # Max literals in each rule.
-    aggregates=["sum(d/2)", "count(d/2)"],       # Aggregates allowed in generated rules.
-    comparison_operators=["neq"],                # Comparison operators allowed in bodies.
     max_variables=4,                             # Max variables allowed in one rule.
-    unbalanced_aggregates=True,                  # Allow unbalanced aggregate variables.
 ))
 ```
-where `filename` specifies the task file, `max_depth` sets the maximum length of a clause (number of literals), `aggregates` lists the allowed aggregates, in this case `#sum` over `d/2` and `#count` over `d/2`, `comparison_operators` lists allowed comparison operators, in this case `!=` (`neq`), `max_variables` sets the maximum number of variables in a rule, and `unbalanced_aggregates` allows unbalanced aggregates.
+where `filename` specifies the task file, `max_depth` sets the maximum length of a clause (number of literals), and `max_variables` sets the maximum number of variables in a rule.
 
 If instead you prefer to define your own program and domain, keep reading.
 
@@ -76,41 +73,45 @@ Some examples are:
 ```
 
 ## Aggregates in Language Bias
-You can define aggregates in the language bias via `Arguments(aggregates=...)` (not directly in the source file, by now).
+You can define aggregates in the language bias with:
+```
+#modeagg(recall, aggregation_function(aggregation_atom), balanced).
+#modeagg(recall, aggregation_function(aggregation_atom), unbalanced).
+```
 
-For one aggregation atom you can use:
-`"aggregation_function(aggregation_atom)"`
 where `aggregation_function` is the aggregation function (`sum` or `count`, for example) and `aggregation_atom` is a term of the form `name/arity`, representing the atom aggregating on.
 If you want to aggregate over multiple atoms, you can use multiple aggregation atoms separated by commas.
-You can pass multiple aggregates.
+The `balanced` option only generates aggregates whose tuple contains all condition variables.
+The `unbalanced` option also generates smaller tuples, so it includes both balanced and unbalanced aggregate variants.
 
 Examples:
-```python
-# defines a `#sum` aggregate over `x/3`
-Arguments(aggregates=["sum(x/3)"])
-# defines a `#sum` aggregate over `x/3` and `size/1`
-Arguments(aggregates=["sum(x/3,size/1)"])
-# defines a `#sum` aggregate over `p/2` and a `#count` aggregate also over `p/2`
-Arguments(aggregates=["sum(p/2)", "count(p/2)"])
-# defines a `#sum` aggregate over `p/2` and a #count aggregate over `q/2`
-Arguments(aggregates=["sum(p/2)", "count(q/2)"])
+```prolog
+#modeagg(1, sum(x/3), balanced).
+#modeagg(1, sum(x/3,size/1), balanced).
+#modeagg(1, sum(p/2), unbalanced).
+#modeagg(1, count(p/2), unbalanced).
 ```
 
 Pay attention with aggregates since you may encounter an infinite grounding, so the program will never terminate.
 
 ## Comparison and Arithmetic Operators in Language Bias
-You can define comparison operators and arithmetic operators in the language bias via `Arguments(comparison_operators=...)` and `Arguments(arithmetic_operators=...)`, respectively (not directly in the source file, by now).
+You can define comparison operators and arithmetic operators in the language bias with:
+```
+#modecmp(recall, operator).
+#modearith(recall, operator).
+```
 
 The following comparison operators are considered: `lt` (<), `leq` (=<), `gt` (>), `geq` (>=), `eq` (=), and `neq` (!=).
-The following arithmetic operators are considered: `add` (+), `sub` (-), `mul` (*), `div` (/), and `abs` (absolute value).
-You can pass multiple comparison and arithmetic.
+The following arithmetic operators are considered: `add` (+), `sub` (-), `mul` (*), `div` (/), `mod` (`\`), and `abs` (absolute value).
+Use recall to allow more occurrences of the same operator in one rule.
 
 Examples:
-```python
-Arguments(comparison_operators=["neq"])
-Arguments(comparison_operators=["neq", "geq"])
-Arguments(arithmetic_operators=["add"])
-Arguments(arithmetic_operators=["add", "mul", "sub"])
+```prolog
+#modecmp(1, neq).
+#modecmp(2, geq).
+#modearith(1, add).
+#modearith(1, mul).
+#modearith(1, sub).
 ```
 
 ## Automatic Language Bias
@@ -121,7 +122,7 @@ If `#modeh` is provided but `#modeb` is missing, it keeps the explicit head bias
 If `#modeb` is provided, it does not generate head bias, because the task may be learning constraints.
 Generated bias assumes a closed world over the input file: a signature is generated only if it appears in background knowledge or examples.
 Generated body bias always includes the positive mode for observed atoms and includes the negative mode only when that atom appears negated or in an excluded example.
-If you also use `aggregates`, `comparison_operators`, or `arithmetic_operators`, these will be kept.
+If you also declare aggregates, comparison operators, or arithmetic operators, these will be kept.
 
 Example: suppose we have in the program
 ```
@@ -166,8 +167,4 @@ Here we list only the main ones:
 - `disjunctive_head_length`: maximum number of atoms in disjunctive head. Default 1.
 - `max_candidate_clauses`: maximum number of candidate clauses to generate. `0` means all.
 - `max_program_clauses`: maximum number of clauses in one candidate program. Default 6.
-- `unbalanced_aggregates`: enable unbalanced aggregates. Default false.
 - `filename`: task file to parse.
-- `comparison_operators`: enable comparison operators. Values: `lt`,`leq`,`gt`,`geq`,`eq`,`neq`. Repeat an operator to increase recall. Example: `["lt", "lt"]`.
-- `arithmetic_operators`: enable arithmetic operators. Values: `add`,`sub`,`mul`,`div`,`abs`. Repeat an operator to increase recall. Example: `["add", "add"]`.
-- `aggregates`: enable aggregates. Use atoms like `sum(a/1)`. Multiple atoms can be separated by a comma, such as `sum(a/1,b/1)`.

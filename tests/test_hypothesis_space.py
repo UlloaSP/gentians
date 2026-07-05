@@ -277,11 +277,38 @@ def test_hypothesis_space_prunes_irreflexive_modes_before_rendering():
     )
     clauses = HypothesisSpaceGenerator(
         program,
-        Arguments(max_depth=2, hypothesis_space={"irreflexive": ["edge/2"]}),
+        Arguments(max_depth=2),
     ).generate().clauses
 
     assert not any("edge(V0,V0)" in clause for clause in clauses)
     assert "target(V0,V1) :- edge(V0,V1)." in clauses
+
+
+def test_auto_body_bias_does_not_enable_recursion():
+    program = Program(["p(1,2)."], [], [], [], [])
+    program.complete_language_bias()
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert not any(clause.startswith("p(") and " :- p(" in clause for clause in clauses)
+
+
+def test_explicit_body_bias_enables_recursion():
+    program = Program(
+        ["p(1,2)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "p", "2"), True)],
+        [ModeDeclaration(("1", "p", "2", "positive"), False)],
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert "p(V1,V0) :- p(V0,V1)." in clauses
 
 
 def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering():
@@ -315,7 +342,7 @@ def test_hypothesis_space_prunes_arithmetic_identities_before_cap():
     assert not any("V0+V1=V2,V2-V0=V1" in clause for clause in clauses)
 
 
-def test_canonical_prune_prevents_reversed_add_operands():
+def test_canonical_prune_prevents_reversed_add_operands_by_default():
     program_without_zero = Program(
         ["#const n = 2.", "number(1..n).", "q(1,1)."],
         [],
@@ -331,7 +358,6 @@ def test_canonical_prune_prevents_reversed_add_operands():
         Arguments(
             max_depth=4,
             max_variables=3,
-            hypothesis_space={"canonical_prune": True},
         ),
     ).generate().clauses
 
@@ -343,7 +369,7 @@ def test_canonical_prune_prevents_reversed_add_operands():
     )
 
 
-def test_domain_arithmetic_prune_removes_impossible_zero_result_only_when_domain_excludes_zero():
+def test_domain_arithmetic_prune_removes_impossible_zero_result_by_default():
     program_without_zero = Program(
         ["#const n = 2.", "number(1..n).", "q(1,1)."],
         [],
@@ -367,7 +393,6 @@ def test_domain_arithmetic_prune_removes_impossible_zero_result_only_when_domain
     args = Arguments(
         max_depth=4,
         max_variables=3,
-        hypothesis_space={"domain_arithmetic_prune": True},
     )
     without_zero = HypothesisSpaceGenerator(program_without_zero, args).generate().clauses
     with_zero = HypothesisSpaceGenerator(program_with_zero, args).generate().clauses

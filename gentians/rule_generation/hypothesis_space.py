@@ -257,18 +257,16 @@ def _numeric_constants(fragments: list[str]) -> dict[str, int]:
     return constants
 
 
-def _predicate_specs(value: object) -> set[tuple[str, int]]:
-    if not isinstance(value, list):
-        return set()
-    specs = set()
-    for item in value:
-        raw = str(item)
-        if "/" not in raw:
-            continue
-        name, arity = raw.rsplit("/", 1)
-        if arity.isdigit():
-            specs.add((name, int(arity)))
-    return specs
+def _recursive_predicates(program: Program) -> set[Predicate]:
+    head_predicates = {(md.name, md.arity) for md in program.language_bias_head}
+    generated = program.generated_language_bias_body
+    return {
+        (md.name, md.arity)
+        for md in program.language_bias_body
+        if md.positive
+        and (md.name, md.arity) in head_predicates
+        and (md.name, md.arity) not in generated
+    }
 
 
 def _hypothesis_capabilities(
@@ -291,13 +289,8 @@ def _hypothesis_capabilities(
         allow_equality_comparison=equality_comparison,
         allow_arithmetic=numeric_evidence and bool(program.arithmetic_modes),
         allow_aggregates=bool(aggregate_specs),
-        allow_recursion=bool(args.hypothesis_space.get("enable_recursion", False)),
-        allow_constraints=bool(
-            args.hypothesis_space.get(
-                "allow_constraints",
-                bool(program.negative_examples) or not program.language_bias_head,
-            )
-        ),
+        allow_recursion=bool(_recursive_predicates(program)),
+        allow_constraints=bool(program.negative_examples) or not program.language_bias_head,
     )
 
 
@@ -407,6 +400,24 @@ def _program_fragments(program: Program) -> list[str]:
     return [fragment for fragment in fragments if fragment.strip()]
 
 
+def _inferred_irreflexive_predicates(fragments: list[str]) -> set[Predicate]:
+    seen: set[Predicate] = set()
+    repeated: set[Predicate] = set()
+    unknown: set[Predicate] = set()
+    for fragment in fragments:
+        for name, arguments, _negative in fragment_atoms(fragment):
+            arity = len(arguments)
+            if arity < 2:
+                continue
+            predicate = (name, arity)
+            seen.add(predicate)
+            if any(_is_variable(argument) for argument in arguments):
+                unknown.add(predicate)
+            if len(set(arguments)) < len(arguments):
+                repeated.add(predicate)
+    return seen - repeated - unknown
+
+
 def _valid_aggregate_specs(
     program: Program,
     fragments: list[str] | None = None,
@@ -431,6 +442,7 @@ def _hypothesis_modes(
     modes: list[HypothesisMode] = []
     next_id = 0
     head_predicates = {(md.name, md.arity) for md in program.language_bias_head}
+    recursive_predicates = _recursive_predicates(program)
 
     def add(mode: HypothesisMode) -> None:
         nonlocal next_id
@@ -453,9 +465,9 @@ def _hypothesis_modes(
         )
     for md in program.language_bias_body:
         if (
-            not capabilities.allow_recursion
-            and md.positive
+            md.positive
             and (md.name, md.arity) in head_predicates
+            and (md.name, md.arity) not in recursive_predicates
         ):
             continue
         add(
@@ -537,7 +549,7 @@ def _facts(
     predicate_arg_types: dict[tuple[str, int, int], str],
 ) -> str:
     max_body = args.max_depth if capabilities.allow_constraints else max(0, args.max_depth - 1)
-    irreflexive = _predicate_specs(args.hypothesis_space.get("irreflexive", []))
+    irreflexive = _inferred_irreflexive_predicates(_program_fragments(program))
     parts = [
         f"max_depth({args.max_depth}).",
         f"max_head({args.disjunctive_head_length}).",
@@ -546,16 +558,12 @@ def _facts(
     ]
     if capabilities.allow_constraints:
         parts.append("constraints_allowed.")
-    if bool(args.hypothesis_space.get("prune_redundant_comparisons", True)):
-        parts.append("prune_redundant_comparisons.")
-    if bool(args.hypothesis_space.get("prune_arithmetic_identities", False)):
-        parts.append("prune_arithmetic_identities.")
-    if bool(args.hypothesis_space.get("canonical_prune", False)):
-        parts.append("canonical_prune.")
-    if bool(args.hypothesis_space.get("domain_arithmetic_prune", False)):
-        domain = _numeric_domain_values(program)
-        if domain and 0 not in domain:
-            parts.append("zero_not_in_numeric_domain.")
+    parts.append("prune_redundant_comparisons.")
+    parts.append("prune_arithmetic_identities.")
+    parts.append("canonical_prune.")
+    domain = _numeric_domain_values(program)
+    if domain and 0 not in domain:
+        parts.append("zero_not_in_numeric_domain.")
     predicate_ids: dict[tuple[str, int], int] = {}
     for mode in modes:
         section_id = mode.section
@@ -572,8 +580,7 @@ def _facts(
         for index, arg_type in enumerate(mode.arg_types):
             parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
             if (
-                bool(args.hypothesis_space.get("domain_arithmetic_prune", False))
-                and mode.kind == "normal"
+                mode.kind == "normal"
                 and predicate_arg_types.get((mode.name, mode.arity, index)) == "numeric"
             ):
                 parts.append(f"domain_numeric_arg({predicate_id},{mode.arity},{index}).")

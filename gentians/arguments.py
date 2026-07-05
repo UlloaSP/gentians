@@ -108,14 +108,6 @@ class Arguments:
         default_factory=lambda: {
             # Extra Clingo CLI arguments used to enumerate generated clauses.
             "clingo_arguments": [],
-            # Whether sampled rules may recursively use the target predicate.
-            "enable_recursion": False,
-            # Predicate specs whose repeated variable args are invalid, e.g. ["edge/2"].
-            "irreflexive": [],
-            # Drop duplicated symmetric comparisons such as V0!=V1,V1!=V0.
-            "prune_redundant_comparisons": True,
-            # Drop algebraically implied add/sub literals.
-            "prune_arithmetic_identities": True,
         }
     )
 

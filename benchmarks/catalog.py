@@ -22,97 +22,44 @@ CASES: dict[str, Arguments] = {
         "4queens.txt",
         max_depth=5,
         max_variables=3,
-        hypothesis_space={
-            "prune_arithmetic_identities": True,
-            "canonical_prune": True,
-            "domain_arithmetic_prune": True,
-        },
     ),
     "5queens": task(
         "5queens.txt",
         max_depth=5,
         max_variables=5,
-        hypothesis_space={
-            "prune_arithmetic_identities": True,
-            "canonical_prune": True,
-            "domain_arithmetic_prune": True,
-        },
     ),
     "8queens": task(
         "8queens.txt",
         max_depth=5,
         max_variables=5,
-        hypothesis_space={
-            "prune_arithmetic_identities": True,
-            "canonical_prune": True,
-            "domain_arithmetic_prune": True,
-        },
     ),
     "adj2red": task(
         "adjacent_to_red.txt",
         max_depth=4,
-        hypothesis_space={
-            "clingo_arguments": [],
-            "enable_recursion": False,
-            "irreflexive": ["edge/2"],
-        },
     ),
     "clique": task(
         "clique.txt",
         max_depth=7,
         max_variables=2,
-        hypothesis_space={
-            "clingo_arguments": [],
-            "enable_recursion": False,
-            "irreflexive": ["ne/2"],
-        },
     ),
     "coin": task("coin.txt"),
-    "euclid": task(
-        "euclid.txt",
-        max_depth=8,
-        max_variables=5,
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
-    ),
+    "euclid": task("euclid.txt", max_depth=8, max_variables=5),
     "coloring": task(
         "coloring.txt",
         disjunctive_head_length=3,
         max_depth=4,
         max_program_clauses=4,
-        hypothesis_space={
-            "clingo_arguments": [],
-            "enable_recursion": True,
-            "canonical_prune": True,
-            "irreflexive": ["e/2"],
-        },
     ),
     "even_odd": task(
         "even_odd.txt",
-        hypothesis_space={
-            "clingo_arguments": [],
-            "enable_recursion": True,
-            "irreflexive": ["prev/2"],
-        },
     ),
     "grandparent": task(
         "grandparent.txt",
         max_program_clauses=3,
-        hypothesis_space={
-            "clingo_arguments": [],
-            "enable_recursion": True,
-            "allow_constraints": False,
-            "canonical_prune": True,
-            "irreflexive": ["father/2", "mother/2", "target/2", "target_1/2"],
-        },
     ),
     "sudoku": task(
         "sudoku.txt",
         max_depth=3,
-        hypothesis_space={
-            "clingo_arguments": [],
-            "enable_recursion": False,
-            "irreflexive": ["same_row/2", "same_col/2", "same_block/2"],
-        },
     ),
     "hamming_0": task(
         "hamming_0.txt",
@@ -146,19 +93,16 @@ CASES: dict[str, Arguments] = {
         "subset_sum_double.txt",
         max_depth=4,
         max_variables=3,
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
     "subset_sum_double_unbalanced": task(
         "subset_sum_double_unbalanced.txt",
         max_depth=4,
         max_variables=3,
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
     "subset_sum_double_unbalanced_count": task(
         "subset_sum_double_unbalanced_count.txt",
         max_depth=4,
         max_variables=3,
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
     "subset_sum_double_and_sum": task(
         "subset_sum_double_and_sum.txt",
@@ -184,13 +128,11 @@ CASES: dict[str, Arguments] = {
         "set_partition_sum_new.txt",
         max_depth=4,
         max_variables=4,
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
     "set_partition_sum_and_cardinality": task(
         "set_partition_sum_and_cardinality_new.txt",
         max_depth=4,
         max_variables=4,
-        hypothesis_space={"clingo_arguments": [], "enable_recursion": True},
     ),
 }
 

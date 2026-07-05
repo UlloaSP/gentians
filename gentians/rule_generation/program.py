@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 
 from .parser import Predicate, fragment_atoms
 
+Signature = tuple[str, int]
+
 
 @dataclass(init=False, slots=True)
 class Example:
@@ -77,6 +79,7 @@ class Program:
     aggregate_modes: list[AggregateDeclaration] = field(default_factory=list)
     comparison_modes: list[OperatorDeclaration] = field(default_factory=list)
     arithmetic_modes: list[OperatorDeclaration] = field(default_factory=list)
+    generated_language_bias_body: set[Signature] = field(default_factory=set)
 
     def complete_language_bias(self, recall: int = 1) -> None:
         """
@@ -96,15 +99,14 @@ class Program:
                 )
                 if md not in self.language_bias_body:
                     self.language_bias_body.append(md)
+                    self.generated_language_bias_body.add((name, arity))
                 if seen_negative:
                     md = ModeDeclaration(
                         (str(recall), name, str(arity), "negative"), False
                     )
                     if md not in self.language_bias_body:
                         self.language_bias_body.append(md)
-
-Signature = tuple[str, int]
-
+                        self.generated_language_bias_body.add((name, arity))
 
 def _observed_signatures(program: Program) -> dict[Signature, bool]:
     signatures: dict[Signature, bool] = {}

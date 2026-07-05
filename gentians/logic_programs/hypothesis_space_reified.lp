@@ -13,6 +13,8 @@
 #defined symmetric_comparison_mode/1.
 #defined add_mode/1.
 #defined sub_mode/1.
+#defined mul_mode/1.
+#defined abs_mode/1.
 #defined prune_redundant_comparisons/0.
 #defined prune_arithmetic_identities/0.
 #defined canonical_prune/0.
@@ -22,6 +24,14 @@
 #defined negative_mode/1.
 #defined recall/2.
 #defined recall_group/2.
+#defined symmetric_pred/1.
+#defined inverse_pred/2.
+#defined implies_pred/2.
+#defined mutex_pred/2.
+#defined arg_equal_pred/3.
+#defined arg_distinct_pred/3.
+#defined functional_pred/3.
+#defined transitive_pred/1.
 
 var(0..Max-1):- max_vars(Max).
 head_slot(0..Max-1):- max_head(Max), Max > 0.
@@ -205,6 +215,29 @@ safe_var(Var):- aggregate_result_var(_,Var).
     var_at(Section,Slot,Arg1,Var),
     Arg0 < Arg1.
 
+:- selected(Section,Slot,Mode),
+    normal_mode(Mode),
+    mode(Section,Mode,Pred,_,_),
+    arg_equal_pred(Pred,Arg0,Arg1),
+    var_at(Section,Slot,Arg0,Var0),
+    var_at(Section,Slot,Arg1,Var1),
+    Var0 != Var1.
+
+:- selected(Section,Slot,Mode),
+    normal_mode(Mode),
+    mode(Section,Mode,Pred,_,_),
+    arg_distinct_pred(Pred,Arg0,Arg1),
+    var_at(Section,Slot,Arg0,Var),
+    var_at(Section,Slot,Arg1,Var).
+
+:- selected(Section,Slot,Mode),
+    normal_mode(Mode),
+    mode(Section,Mode,Pred,2,_),
+    symmetric_pred(Pred),
+    var_at(Section,Slot,0,Left),
+    var_at(Section,Slot,1,Right),
+    Left > Right.
+
 :- prune_redundant_comparisons,
     selected(body,Slot0,Mode),
     selected(body,Slot1,Mode),
@@ -224,6 +257,20 @@ safe_var(Var):- aggregate_result_var(_,Var).
 :- canonical_prune,
     selected(body,Slot,Mode),
     add_mode(Mode),
+    var_at(body,Slot,0,Left),
+    var_at(body,Slot,1,Right),
+    Left > Right.
+
+:- canonical_prune,
+    selected(body,Slot,Mode),
+    mul_mode(Mode),
+    var_at(body,Slot,0,Left),
+    var_at(body,Slot,1,Right),
+    Left > Right.
+
+:- canonical_prune,
+    selected(body,Slot,Mode),
+    abs_mode(Mode),
     var_at(body,Slot,0,Left),
     var_at(body,Slot,1,Right),
     Left > Right.
@@ -277,6 +324,105 @@ domain_constrained_var(Var):-
     var_at(body,SubSlot,0,Result),
     var_at(body,SubSlot,1,Right),
     var_at(body,SubSlot,2,Left).
+
+same_vars(Section0,Slot0,Section1,Slot1):-
+    selected(Section0,Slot0,Mode0),
+    selected(Section1,Slot1,Mode1),
+    mode(Section0,Mode0,_,Arity,_),
+    mode(Section1,Mode1,_,Arity,_),
+    Arity = #count{Arg : var_at(Section0,Slot0,Arg,Var), var_at(Section1,Slot1,Arg,Var)}.
+
+reversed_binary_vars(Section0,Slot0,Section1,Slot1):-
+    var_at(Section0,Slot0,0,Left),
+    var_at(Section0,Slot0,1,Right),
+    var_at(Section1,Slot1,0,Right),
+    var_at(Section1,Slot1,1,Left).
+
+:- selected(body,Slot0,Mode0),
+    selected(body,Slot1,Mode1),
+    Slot0 < Slot1,
+    normal_mode(Mode0),
+    normal_mode(Mode1),
+    positive_mode(Mode0),
+    positive_mode(Mode1),
+    mode(body,Mode0,Pred0,2,_),
+    mode(body,Mode1,Pred1,2,_),
+    inverse_pred(Pred0,Pred1),
+    reversed_binary_vars(body,Slot0,body,Slot1).
+
+:- selected(body,Slot0,Mode0),
+    selected(body,Slot1,Mode1),
+    Slot0 != Slot1,
+    normal_mode(Mode0),
+    normal_mode(Mode1),
+    positive_mode(Mode0),
+    positive_mode(Mode1),
+    mode(body,Mode0,Pred0,Arity,_),
+    mode(body,Mode1,Pred1,Arity,_),
+    implies_pred(Pred0,Pred1),
+    same_vars(body,Slot0,body,Slot1).
+
+:- selected(body,Slot0,Mode0),
+    selected(body,Slot1,Mode1),
+    Slot0 != Slot1,
+    normal_mode(Mode0),
+    normal_mode(Mode1),
+    positive_mode(Mode0),
+    negative_mode(Mode1),
+    mode(body,Mode0,Pred0,Arity,_),
+    mode(body,Mode1,Pred1,Arity,_),
+    implies_pred(Pred0,Pred1),
+    same_vars(body,Slot0,body,Slot1).
+
+:- selected(body,Slot0,Mode0),
+    selected(body,Slot1,Mode1),
+    Slot0 < Slot1,
+    normal_mode(Mode0),
+    normal_mode(Mode1),
+    positive_mode(Mode0),
+    positive_mode(Mode1),
+    mode(body,Mode0,Pred0,Arity,_),
+    mode(body,Mode1,Pred1,Arity,_),
+    mutex_pred(Pred0,Pred1),
+    same_vars(body,Slot0,body,Slot1).
+
+:- selected(body,Slot0,Mode0),
+    selected(body,Slot1,Mode1),
+    Slot0 < Slot1,
+    normal_mode(Mode0),
+    normal_mode(Mode1),
+    positive_mode(Mode0),
+    positive_mode(Mode1),
+    mode(body,Mode0,Pred,_,_),
+    mode(body,Mode1,Pred,_,_),
+    functional_pred(Pred,Input,Output),
+    var_at(body,Slot0,Input,Same),
+    var_at(body,Slot1,Input,Same),
+    var_at(body,Slot0,Output,Out0),
+    var_at(body,Slot1,Output,Out1),
+    Out0 != Out1.
+
+:- selected(body,Slot0,Mode0),
+    selected(body,Slot1,Mode1),
+    selected(body,Slot2,Mode2),
+    Slot0 < Slot1,
+    Slot1 < Slot2,
+    normal_mode(Mode0),
+    normal_mode(Mode1),
+    normal_mode(Mode2),
+    positive_mode(Mode0),
+    positive_mode(Mode1),
+    positive_mode(Mode2),
+    mode(body,Mode0,Pred,2,_),
+    mode(body,Mode1,Pred,2,_),
+    mode(body,Mode2,Pred,2,_),
+    transitive_pred(Pred),
+    var_at(body,Slot0,0,X),
+    var_at(body,Slot0,1,Y),
+    var_at(body,Slot1,0,Y),
+    var_at(body,Slot1,1,Z),
+    var_at(body,Slot2,0,X),
+    var_at(body,Slot2,1,Z).
 
 :- selected(body,Slot,Mode),
     aggregate_mode(Mode,TupleArity,_),

@@ -401,6 +401,86 @@ def test_domain_arithmetic_prune_removes_impossible_zero_result_by_default():
     assert any("V0-V0=V1" in clause and "q(V0,V1)" in clause for clause in with_zero)
 
 
+def test_closed_world_properties_prune_symmetric_predicate_orientation():
+    program = Program(
+        ["edge(1,2).", "edge(2,1)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "2"), True)],
+        [ModeDeclaration(("1", "edge", "2", "positive"), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert "target(V0,V1) :- edge(V0,V1)." in clauses
+    assert "target(V0,V1) :- edge(V1,V0)." not in clauses
+
+
+def test_closed_world_properties_prune_implied_and_mutex_literals():
+    program = Program(
+        ["p(1).", "q(1).", "q(2).", "r(2)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "p", "1", "positive"), False),
+            ModeDeclaration(("1", "q", "1", "positive"), False),
+            ModeDeclaration(("1", "q", "1", "negative"), False),
+            ModeDeclaration(("1", "r", "1", "positive"), False),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=1)
+    ).generate().clauses
+
+    assert ":- p(V0),q(V0)." not in clauses
+    assert ":- p(V0),not q(V0)." not in clauses
+    assert ":- p(V0),r(V0)." not in clauses
+
+
+def test_closed_world_properties_prune_functional_dependency():
+    program = Program(
+        ["parent(a,b).", "parent(c,d)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("2", "parent", "2", "positive"), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=3)
+    ).generate().clauses
+
+    assert ":- parent(V0,V1),parent(V0,V2)." not in clauses
+
+
+def test_mul_and_abs_operands_are_canonicalized():
+    program = Program(
+        ["q(1,2)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [],
+        [],
+        [OperatorDeclaration(1, "mul"), OperatorDeclaration(1, "abs")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=3)
+    ).generate().clauses
+
+    assert not any(
+        left > right
+        for clause in clauses
+        for left, right in re.findall(r"V(\d+)\*V(\d+)=", clause)
+    )
+    assert not any(
+        left > right
+        for clause in clauses
+        for left, right in re.findall(r"\|V(\d+)-V(\d+)\|=", clause)
+    )
+
+
 def test_reader_parses_directives_without_regex_space_loss(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(

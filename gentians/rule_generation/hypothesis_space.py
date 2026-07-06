@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from itertools import combinations, permutations, product
 from pathlib import Path
 import re
@@ -1714,10 +1715,11 @@ def _clause_from_symbols(
     for symbol in symbols:
         if symbol.name != "lit":
             continue
-        section = symbol.arguments[0].name
-        slot = symbol.arguments[1].number
-        mode_id = symbol.arguments[2].number
-        code = symbol.arguments[3].number
+        arguments = symbol.arguments
+        section = arguments[0].name
+        slot = arguments[1].number
+        mode_id = arguments[2].number
+        code = arguments[3].number
         literals.append(
             ReifiedLiteral(
                 section,
@@ -1740,6 +1742,7 @@ def _clause_from_symbols(
     return ReifiedClause(head=head, body=body)
 
 
+@lru_cache(maxsize=None)
 def _decode_vars(code: int, arity: int, max_variables: int) -> tuple[int, ...]:
     if arity == 0:
         return ()

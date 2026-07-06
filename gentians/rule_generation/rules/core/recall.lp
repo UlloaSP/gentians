@@ -29,11 +29,13 @@ group_recall(Group,Recall):-
     recall_group(_,Group),
     Recall = #min{ModeRecall : recall_group(Mode,Group), mode(_,Mode,_,_,ModeRecall)}.
 
-% Rule: count selected literals per recall group.
-% Group is each group declared by group_recall. Count counts triples
-% Section/Slot/Mode whose selected Mode maps to Group via recall_group.
+% Rule: count selected literals per recall group that can still be exceeded.
+% Recall caps at or above max_depth cannot bind because total literals are
+% already bounded by max_depth.
 selected_count(Group,Count):-
-    group_recall(Group,_),
+    group_recall(Group,Recall),
+    max_depth(Max),
+    Recall < Max,
     Count = #count{Section,Slot,Mode : selected(Section,Slot,Mode), recall_group(Mode,Group)}.
 
 % Constraint: reject clauses exceeding recall.

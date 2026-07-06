@@ -24,12 +24,19 @@
 % Section0/Slot0 and Section1/Slot1 are ordered by section_order and Slot.
 % Pred/Arity must match. same_vars/4 proves both literals use the same tuple.
 same_normal_literal(Section0,Slot0,Section1,Slot1):-
-    normal_literal(Section0,Slot0,_,Pred,Arity),
-    normal_literal(Section1,Slot1,_,Pred,Arity),
+    normal_literal(Section0,Slot0,Mode0,Pred,Arity),
+    normal_literal(Section1,Slot1,Mode1,Pred,Arity),
     section_order(Section0,Order0),
     section_order(Section1,Order1),
     (Order0,Slot0) < (Order1,Slot1),
+    Mode0 != Mode1,
     same_vars(Section0,Slot0,Section1,Slot1).
+
+same_normal_literal(Section,Slot0,Section,Slot1):-
+    normal_literal(Section,Slot0,Mode,Pred,Arity),
+    normal_literal(Section,Slot1,Mode,Pred,Arity),
+    Slot1 = Slot0 + 1,
+    same_vars(Section,Slot0,Section,Slot1).
 
 % Constraint: reject duplicated normal predicate literals.
 % A clause containing the same predicate with the same variables twice has no

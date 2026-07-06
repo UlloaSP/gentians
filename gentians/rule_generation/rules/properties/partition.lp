@@ -32,6 +32,10 @@ mutex_pred(Pred0,Pred1):-
 % Part is partition id. Anchor is a negative body slot whose predicate is in
 % Part. Pred is another partition member. Slot is a negative literal for Pred
 % with same Arity and same variable tuple as Anchor.
+partition_neg_has(Part,Anchor,AnchorPred):-
+    negative_body_literal(Anchor,_,AnchorPred,_),
+    partition_pred(Part,AnchorPred).
+
 partition_neg_has(Part,Anchor,Pred):-
     negative_body_literal(Anchor,_,AnchorPred,Arity),
     negative_body_literal(Slot,_,Pred,Arity),

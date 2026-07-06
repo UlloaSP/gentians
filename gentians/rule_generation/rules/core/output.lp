@@ -22,15 +22,14 @@
 
 % Rule: detect duplicate normal predicate literals.
 % Section0/Slot0 and Section1/Slot1 are ordered by section_order and Slot.
-% Pred/Arity must match. The #count equals Arity only when every argument uses
-% the same generated variable in both literals.
+% Pred/Arity must match. same_vars/4 proves both literals use the same tuple.
 same_normal_literal(Section0,Slot0,Section1,Slot1):-
     normal_literal(Section0,Slot0,_,Pred,Arity),
     normal_literal(Section1,Slot1,_,Pred,Arity),
     section_order(Section0,Order0),
     section_order(Section1,Order1),
     (Order0,Slot0) < (Order1,Slot1),
-    Arity = #count{Arg : var_at(Section0,Slot0,Arg,Var), var_at(Section1,Slot1,Arg,Var)}.
+    same_vars(Section0,Slot0,Section1,Slot1).
 
 % Constraint: reject duplicated normal predicate literals.
 % A clause containing the same predicate with the same variables twice has no
@@ -38,19 +37,14 @@ same_normal_literal(Section0,Slot0,Section1,Slot1):-
 :- same_normal_literal(Section0,Slot0,Section1,Slot1).
 
 % Rule: detect duplicate non-normal literals with the same mode and variables.
-% This covers comparison, arithmetic, and aggregate modes. Section0/Slot0 and
-% Section1/Slot1 are ordered to avoid checking both directions. Arity comes from
-% mode. The #count equals Arity only when all variables match position by
-% position.
-same_mode_literal(Section0,Slot0,Section1,Slot1):-
-    selected(Section0,Slot0,Mode),
-    selected(Section1,Slot1,Mode),
+% Non-normal modes only occur in body slots. Mode ordering makes equal modes
+% contiguous, so adjacent checks catch every duplicate run.
+same_mode_literal(body,Slot0,body,Slot1):-
+    selected(body,Slot0,Mode),
+    selected(body,Slot1,Mode),
     not normal_mode(Mode),
-    section_order(Section0,Order0),
-    section_order(Section1,Order1),
-    (Order0,Slot0) < (Order1,Slot1),
-    mode(Section0,Mode,_,Arity,_),
-    Arity = #count{Arg : var_at(Section0,Slot0,Arg,Var), var_at(Section1,Slot1,Arg,Var)}.
+    Slot1 = Slot0 + 1,
+    same_vars(body,Slot0,body,Slot1).
 
 % Constraint: reject duplicated non-normal literals.
 % Same Mode and same variable tuple would render the same operator/arithmetic/

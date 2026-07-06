@@ -17,27 +17,26 @@
 % Python fact detail: aggregate_mode(Mode,TupleArity,AtomCount) marks aggregate modes; TupleArity is grouped tuple length, AtomCount is condition atom count.
 #defined aggregate_mode/3.
 
-% Rule: two same-mode aggregate slots differ in at least one input argument.
-% Slot0 and Slot1 use the same aggregate Mode. Arg is an internal aggregate
-% argument position. Left and Right are variables at that position. If they
-% differ, the two aggregates compute different grouped/condition inputs.
+% Rule: adjacent same-mode aggregate slots differ in at least one input arg.
+% Equal modes are contiguous; duplicate-input checks only query adjacent pairs.
 aggregate_input_differs(Slot0,Slot1):-
     selected(body,Slot0,Mode),
     selected(body,Slot1,Mode),
     aggregate_mode(Mode,_,_),
+    Slot1 = Slot0 + 1,
     aggregate_internal_arg(Slot0,Arg),
     var_at(body,Slot0,Arg,Left),
     var_at(body,Slot1,Arg,Right),
     Left != Right.
 
-% Rule: two aggregate slots have identical inputs.
-% Slot0 < Slot1 orders the pair. Both slots use the same aggregate Mode. If no
-% aggregate_input_differs fact exists, every internal argument matches.
+% Rule: adjacent aggregate slots have identical inputs.
+% Equal modes are contiguous and tuple-sorted, so equal inputs form adjacent
+% runs. If no aggregate_input_differs fact exists, every internal arg matches.
 same_aggregate_inputs(Slot0,Slot1):-
     selected(body,Slot0,Mode),
     selected(body,Slot1,Mode),
     aggregate_mode(Mode,_,_),
-    Slot0 < Slot1,
+    Slot1 = Slot0 + 1,
     not aggregate_input_differs(Slot0,Slot1).
 
 % Constraint: identical aggregate computations must bind the same result.

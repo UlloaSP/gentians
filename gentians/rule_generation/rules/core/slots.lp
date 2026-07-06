@@ -91,7 +91,8 @@ selected_slot(Section,Slot):- selected(Section,Slot,_).
 :- selected(Section,Slot0,Mode0), selected(Section,Slot1,Mode1), Slot0 < Slot1, Mode0 > Mode1.
 
 % Rule: detect same-mode tuples that are lexicographically descending.
-% Section is head/body. Slot0 and Slot1 hold the same Mode and Slot0 < Slot1.
+% Section is head/body. Slot0 and Slot1 are adjacent slots with the same Mode.
+% Mode ordering makes repeated modes contiguous, so adjacent checks are enough.
 % Arity is the mode arity. Arg is the first argument position where the two
 % variable tuples differ. Left and Right are the variables at that first
 % differing position. The #count expression proves all previous Prev positions
@@ -100,7 +101,7 @@ selected_slot(Section,Slot):- selected(Section,Slot,_).
 same_mode_tuple_gt(Section,Slot0,Slot1):-
     selected(Section,Slot0,Mode),
     selected(Section,Slot1,Mode),
-    Slot0 < Slot1,
+    Slot1 = Slot0 + 1,
     mode(Section,Mode,_,Arity,_),
     Arg = 0..Arity-1,
     var_at(Section,Slot0,Arg,Left),

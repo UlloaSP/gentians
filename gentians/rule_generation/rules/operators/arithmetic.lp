@@ -93,27 +93,26 @@ arithmetic_mode(Mode):- abs_mode(Mode).
     var_at(body,Slot,1,Right),
     Left > Right.
 
-% Rule: two same-mode arithmetic slots differ in at least one operand.
-% Slot0 and Slot1 use the same arithmetic Mode. Arg is operand 0 or 1. Left and
-% Right are variables at that operand position. Different operands mean different
-% computations.
+% Rule: adjacent same-mode arithmetic slots differ in at least one operand.
+% Equal modes are contiguous; duplicate-input checks only query adjacent pairs.
 arithmetic_input_differs(Slot0,Slot1):-
     selected(body,Slot0,Mode),
     selected(body,Slot1,Mode),
     arithmetic_mode(Mode),
+    Slot1 = Slot0 + 1,
     Arg = 0..1,
     var_at(body,Slot0,Arg,Left),
     var_at(body,Slot1,Arg,Right),
     Left != Right.
 
-% Rule: two arithmetic slots have identical inputs.
-% Slot0 < Slot1 orders the pair. Both slots use the same Mode. If no operand
-% difference is found, both arithmetic literals compute the same value.
+% Rule: adjacent arithmetic slots have identical inputs.
+% Equal modes are contiguous and tuple-sorted, so equal inputs form adjacent
+% runs. If no operand difference is found, both literals compute the same value.
 same_arithmetic_inputs(Slot0,Slot1):-
     selected(body,Slot0,Mode),
     selected(body,Slot1,Mode),
     arithmetic_mode(Mode),
-    Slot0 < Slot1,
+    Slot1 = Slot0 + 1,
     not arithmetic_input_differs(Slot0,Slot1).
 
 % Constraint: identical arithmetic computations must bind same result variable.

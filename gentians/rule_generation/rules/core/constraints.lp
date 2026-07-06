@@ -7,6 +7,7 @@
 % Shared atom shapes used here:
 % - selected_slot(Section,Slot): defined in core/slots.lp. Section is head/body;
 %   Slot is an occupied slot id.
+% - body_count(Count): defined in core/limits.lp. Count is selected body slots.
 
 % Constraint: reject empty bodies.
 % A generated clause with no selected body slot has no evidence condition and
@@ -16,4 +17,4 @@
 % Constraint: reject unary headless constraints.
 % If there is no head, require at least two body slots. This avoids constraints
 % that merely ban a single literal and usually erase all examples too broadly.
-:- not selected_slot(head,_), #count{Slot : selected_slot(body,Slot)} < 2.
+:- not selected_slot(head,_), body_count(Body), Body < 2.

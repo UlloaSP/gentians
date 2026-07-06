@@ -11,6 +11,7 @@
 % - positive_mode(Mode): Python fact. Mode renders without default negation.
 % - negative_mode(Mode): Python fact. Mode renders with "not".
 % - selected(Section,Slot,Mode): defined in core/slots.lp.
+% - same_vars(body,Slot0,body,Slot1): both body literals use same tuple.
 
 % Python fact contract:
 % - mode(Section,Mode,Pred,Arity,Recall): emitted by Python for every mode.
@@ -67,3 +68,11 @@ negative_body_literal(Slot,Mode,Pred,Arity):-
 % Arity identify the selected head literal.
 head_literal(Slot,Mode,Pred,Arity):-
     positive_normal_literal(head,Slot,Mode,Pred,Arity).
+
+% Constraint: reject direct body contradiction for the same normal literal.
+% PosSlot is positive Pred tuple. NegSlot is not Pred over the same Arity and
+% same variable tuple. same_vars proves both literals refer to the same atom, so
+% the body cannot require both the atom and its default negation.
+:- positive_body_literal(PosSlot,_,Pred,Arity),
+    negative_body_literal(NegSlot,_,Pred,Arity),
+    same_vars(body,PosSlot,body,NegSlot).

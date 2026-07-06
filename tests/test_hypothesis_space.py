@@ -58,7 +58,7 @@ def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
     assert calls == 1
 
 
-def test_facts_reduces_body_slots_when_head_is_required():
+def test_facts_keeps_full_body_slots_and_allows_constraints():
     facts = hypothesis_space._facts(
         Program([], [], [], [], []),
         Arguments(max_depth=4),
@@ -70,34 +70,12 @@ def test_facts_reduces_body_slots_when_head_is_required():
             allow_arithmetic=False,
             allow_aggregates=False,
             allow_recursion=False,
-            allow_constraints=False,
-        ),
-        {},
-    )
-
-    assert "max_body(3)." in facts
-    assert "constraints_allowed." not in facts
-
-
-def test_facts_keeps_full_body_slots_for_constraints():
-    facts = hypothesis_space._facts(
-        Program([], [], [], [], []),
-        Arguments(max_depth=4),
-        [],
-        HypothesisCapabilities(
-            has_numeric_evidence=False,
-            allow_numeric_comparison=False,
-            allow_equality_comparison=False,
-            allow_arithmetic=False,
-            allow_aggregates=False,
-            allow_recursion=False,
-            allow_constraints=True,
         ),
         {},
     )
 
     assert "max_body(4)." in facts
-    assert "constraints_allowed." in facts
+    assert "constraints_allowed." not in facts
 
 
 def _reset_timing_state() -> None:
@@ -232,7 +210,6 @@ def test_star_recall_uses_max_depth():
             False,
             False,
             False,
-            False,
         ),
         {},
     )
@@ -250,7 +227,6 @@ def test_group_recall_uses_tightest_mode_recall():
             hypothesis_space.HypothesisMode(1, 7, "body", "normal", "q", 1, 1),
         ],
         hypothesis_space.HypothesisCapabilities(
-            False,
             False,
             False,
             False,

@@ -1,19 +1,20 @@
 % Closed-world mutex predicate property.
 %
 % Python emits mutex_pred(Pred0,Pred1) when same-arity predicates cannot both be
-% true for the same tuple. Complements are also mutex. This file prunes
-% impossible positive pairs and redundant positive/negative pairs.
+% true for the same tuple. Other property files may derive mutex_pred/2 when
+% they imply mutual exclusion. This file prunes impossible positive pairs and
+% redundant positive/negative pairs.
 %
 % Shared atom shapes used here:
 % - mutex_pred(Pred0,Pred1): property fact.
-% - complement_pair(Pred0,Pred1): complement alias from complement.lp.
-% - mutex_pair(Pred0,Pred1): local symmetric/derived alias.
+% - mutex_pair(Pred0,Pred1): local symmetric alias.
 % - positive_body_literal/4 and negative_body_literal/4: selected body atoms.
 % - same_vars(body,Slot0,body,Slot1): both literals use same tuple.
 
 % Python fact contract:
 % - mutex_pred(Pred0,Pred1): emitted by Python when same-arity predicate ids
-%   Pred0 and Pred1 cannot both be true for the same tuple.
+%   Pred0 and Pred1 cannot both be true for the same tuple. Other ASP property
+%   files may also derive mutex_pred/2 when their property implies mutex.
 % Python fact detail: mutex_pred(Pred0,Pred1) marks predicates as mutually exclusive on same tuple.
 #defined mutex_pred/2.
 
@@ -24,10 +25,6 @@ mutex_pair(Pred0,Pred1):- mutex_pred(Pred0,Pred1).
 % Rule: add reverse mutex direction.
 % Mutex relation is symmetric for pruning.
 mutex_pair(Pred1,Pred0):- mutex_pred(Pred0,Pred1).
-
-% Rule: complements are mutex.
-% If Pred0 complements Pred1, they cannot both be true for same tuple.
-mutex_pair(Pred0,Pred1):- complement_pair(Pred0,Pred1).
 
 % Constraint: reject impossible positive mutex pair.
 % Slot0 and Slot1 are ordered positive body literals with same Arity. same_vars

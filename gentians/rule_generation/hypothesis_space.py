@@ -47,6 +47,8 @@ HYPOTHESIS_SPACE_RULE_MODULES = (
     "properties/arg_equal.lp",
     "properties/arg_distinct.lp",
     "properties/symmetric.lp",
+    "properties/asymmetric.lp",
+    "properties/strict_order.lp",
     "properties/equivalent.lp",
     "properties/inverse.lp",
     "properties/disjoint.lp",
@@ -101,7 +103,6 @@ class HypothesisCapabilities:
     allow_arithmetic: bool
     allow_aggregates: bool
     allow_recursion: bool
-    allow_constraints: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -268,7 +269,6 @@ class HypothesisSpaceGenerator:
                         "allow_arithmetic": self.capabilities.allow_arithmetic,
                         "allow_aggregates": self.capabilities.allow_aggregates,
                         "allow_recursion": self.capabilities.allow_recursion,
-                        "allow_constraints": self.capabilities.allow_constraints,
                         "clingo_arguments": " ".join(
                             [
                                 str(self.args.max_candidate_clauses),
@@ -1206,7 +1206,6 @@ def _hypothesis_capabilities(
         allow_arithmetic=numeric_evidence and bool(program.arithmetic_modes),
         allow_aggregates=bool(aggregate_specs),
         allow_recursion=bool(_recursive_predicates(program)),
-        allow_constraints=bool(program.negative_examples) or not program.language_bias_head,
     )
 
 
@@ -1476,7 +1475,6 @@ def _facts(
     capabilities: HypothesisCapabilities,
     predicate_arg_types: dict[tuple[str, int, int], str],
 ) -> str:
-    max_body = args.max_depth if capabilities.allow_constraints else max(0, args.max_depth - 1)
     fragments = _closed_world_fragments(program)
     properties = _closed_world_properties(
         fragments,
@@ -1487,11 +1485,9 @@ def _facts(
     parts = [
         f"max_depth({args.max_depth}).",
         f"max_head({args.disjunctive_head_length}).",
-        f"max_body({max_body}).",
+        f"max_body({args.max_depth}).",
         f"max_vars({args.max_variables}).",
     ]
-    if capabilities.allow_constraints:
-        parts.append("constraints_allowed.")
     parts.append("prune_arithmetic_identities.")
     parts.append("canonical_prune.")
     domain = _numeric_domain_values(program)

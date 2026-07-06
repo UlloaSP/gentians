@@ -2,14 +2,15 @@
 %
 % Python emits partition_pred(Part,Pred) for each predicate Pred in a partition
 % Part where exactly one member predicate is true for a tuple. This file prunes
-% sets of negated partition members that deny the whole partition and prunes
-% positive/negative contradictions inside the same partition.
+% sets of negated partition members that deny the whole partition. Different
+% members of one partition are mutex, so this file exports mutex_pred/2 instead
+% of duplicating mutex pruning here.
 %
 % Shared atom shapes used here:
 % - partition_pred(Part,Pred): property fact. Part is partition id; Pred is one
 %   member predicate id.
+% - mutex_pred(Pred0,Pred1): derived property atom consumed by mutex.lp.
 % - negative_body_literal(Slot,Mode,Pred,Arity): selected negated body atom.
-% - positive_body_literal(Slot,Mode,Pred,Arity): selected positive body atom.
 % - same_vars(body,Slot0,body,Slot1): same tuple variables.
 
 % Python fact contract:
@@ -17,6 +18,15 @@
 %   closed-world partition id Part, where exactly one member is true per tuple.
 % Python fact detail: partition_pred(Part,Pred) lists predicate id Pred as member of partition Part.
 #defined partition_pred/2.
+
+% Rule: distinct members of one partition are mutex.
+% Part is the partition id. Pred0 and Pred1 are different predicate ids in that
+% partition. Pred0 < Pred1 emits one canonical direction; mutex.lp adds the
+% reverse direction and owns the positive/negative mutex constraints.
+mutex_pred(Pred0,Pred1):-
+    partition_pred(Part,Pred0),
+    partition_pred(Part,Pred1),
+    Pred0 < Pred1.
 
 % Rule: Anchor negative literal has a matching negative literal for Pred in Part.
 % Part is partition id. Anchor is a negative body slot whose predicate is in
@@ -46,13 +56,3 @@ partition_neg_missing(Part,Anchor):-
 :- negative_body_literal(Anchor,_,AnchorPred,_),
     partition_pred(Part,AnchorPred),
     not partition_neg_missing(Part,Anchor).
-
-% Constraint: reject positive member plus negative member of same partition tuple.
-% PosSlot is positive PosPred tuple. NegSlot is not NegPred same tuple. If both
-% predicates are in Part, the positive member already excludes other members and
-% makes the negative redundant or contradictory depending on member identity.
-:- positive_body_literal(PosSlot,_,PosPred,Arity),
-    negative_body_literal(NegSlot,_,NegPred,Arity),
-    partition_pred(Part,PosPred),
-    partition_pred(Part,NegPred),
-    same_vars(body,PosSlot,body,NegSlot).

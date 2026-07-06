@@ -7,6 +7,8 @@
 %
 % Shared atom shapes used here:
 % - acyclic_pred(Pred): property fact for binary predicate id.
+% - irreflexive_pred(Pred): derived property atom consumed by irreflexive.lp.
+% - antisymmetric_pred(Pred): derived property atom consumed by antisymmetric.lp.
 % - positive_body_literal(Slot,Mode,Pred,2): selected positive binary body atom.
 % - negative_body_literal(Slot,Mode,Pred,2): selected negative binary body atom.
 % - var_at(body,Slot,0,X): source variable of binary atom.
@@ -17,6 +19,16 @@
 %   binary predicate id Pred has no directed cycles in observed facts.
 % Python fact detail: acyclic_pred(Pred) marks binary predicate id Pred as acyclic in closed-world evidence.
 #defined acyclic_pred/1.
+
+% Rule: acyclic predicates are irreflexive.
+% Pred is the predicate id. A self-pair Pred(Var,Var) is a one-edge cycle, so
+% irreflexive.lp owns the actual self-pair constraint.
+irreflexive_pred(Pred):- acyclic_pred(Pred).
+
+% Rule: acyclic predicates are antisymmetric.
+% Pred is the predicate id. A reversed pair Pred(X,Y), Pred(Y,X) for X != Y is
+% a two-edge cycle, so antisymmetric.lp owns that constraint.
+antisymmetric_pred(Pred):- acyclic_pred(Pred).
 
 % Constraint: reject positive three-cycle X->Y->Z->X.
 % Slot0, Slot1, Slot2 are ordered positive body literals over same Pred. The

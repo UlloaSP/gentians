@@ -1,13 +1,15 @@
 % Closed-world equivalent predicate property.
 %
 % Python emits equivalent_pred(Pred0,Pred1) when two predicates with same arity
-% have identical truth values for same argument tuple. This file rejects clauses
-% that contain both equivalent literals with identical variables in same section.
+% have identical truth values for same argument tuple. Equivalence is
+% implication in both directions, so this file exports implies_pred/2 and keeps
+% the equivalent-specific duplicate-literal pruning.
 %
 % Shared atom shapes used here:
 % - equivalent_pred(Pred0,Pred1): property fact. Pred0 implies Pred1 and Pred1
 %   implies Pred0.
 % - equivalent_pair(Pred0,Pred1): local symmetric alias.
+% - implies_pred(Pred0,Pred1): derived property atom consumed by implies.lp.
 % - normal_literal(Section,Slot,Mode,Pred,Arity): selected normal literal.
 % - same_vars(Section,Slot0,Section,Slot1): both literals use same tuple.
 
@@ -26,6 +28,15 @@ equivalent_pair(Pred0,Pred1):- equivalent_pred(Pred0,Pred1).
 % equivalent_pair(Pred0,Pred1) or equivalent_pair(Pred1,Pred0).
 equivalent_pair(Pred1,Pred0):- equivalent_pred(Pred0,Pred1).
 
+% Rule: equivalence implies the declared direction.
+% Pred0 and Pred1 are predicate ids. implies.lp owns implication pruning.
+implies_pred(Pred0,Pred1):- equivalent_pred(Pred0,Pred1).
+
+% Rule: equivalence implies the reverse direction.
+% Pred1 and Pred0 are predicate ids. The reverse implication is explicit so
+% implies.lp does not need to know about equivalent_pred/2.
+implies_pred(Pred1,Pred0):- equivalent_pred(Pred0,Pred1).
+
 % Constraint: reject duplicate equivalent literals in same section.
 % Section is head or body. Slot0 and Slot1 are ordered selected normal literals
 % with same Arity. Pred0 and Pred1 are equivalent. same_vars proves both
@@ -33,5 +44,5 @@ equivalent_pair(Pred1,Pred0):- equivalent_pred(Pred0,Pred1).
 :- normal_literal(Section,Slot0,_,Pred0,Arity),
     normal_literal(Section,Slot1,_,Pred1,Arity),
     Slot0 < Slot1,
-    equivalent_pred(Pred0,Pred1),
+    equivalent_pair(Pred0,Pred1),
     same_vars(Section,Slot0,Section,Slot1).

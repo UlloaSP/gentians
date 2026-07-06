@@ -1,41 +1,21 @@
-% Closed-world transitive-like predicate property.
+% Closed-world transitive predicate property.
 %
-% Python emits transitive_pred/1, strict_order_pred/1, and total_order_pred/1
-% for binary predicates where X->Y and Y->Z imply X->Z. This file rejects
-% explicit transitive-closure redundancies and negative literals contradicting
-% such closure.
+% This file owns transitive pruning: reject explicit transitive-closure
+% redundancies and negative literals contradicting such closure. Stronger
+% properties such as strict_order and total_order derive transitive_pred(Pred)
+% in their own files.
 %
 % Shared atom shapes used here:
-% - transitive_pred(Pred): explicit transitive predicate id.
-% - strict_order_pred(Pred): strict order predicate id, also transitive.
-% - total_order_pred(Pred): total order predicate id, also transitive.
-% - transitive_like_pred(Pred): local union alias.
+% - transitive_pred(Pred): property atom for binary predicate id Pred.
 % - positive_body_literal/4 and negative_body_literal/4: selected body atoms.
 % - var_at(body,Slot,0,X), var_at(body,Slot,1,Y): binary edge variables.
 
 % Python fact contract:
 % - transitive_pred(Pred): emitted by Python when binary predicate id Pred is
-%   transitive in closed-world evidence.
-% - strict_order_pred(Pred): emitted by Python when Pred behaves as strict order.
-% - total_order_pred(Pred): emitted by Python when Pred behaves as total order.
+%   directly transitive in closed-world evidence. Other ASP property files may
+%   also derive transitive_pred(Pred) when their stronger property implies it.
 % Python fact detail: transitive_pred(Pred) marks binary predicate id Pred as transitive.
 #defined transitive_pred/1.
-% Python fact detail: strict_order_pred(Pred) marks binary predicate id Pred as strict order.
-#defined strict_order_pred/1.
-% Python fact detail: total_order_pred(Pred) marks binary predicate id Pred as total order.
-#defined total_order_pred/1.
-
-% Rule: explicit transitive predicates are transitive-like.
-% Pred is predicate id.
-transitive_like_pred(Pred):- transitive_pred(Pred).
-
-% Rule: strict orders are transitive-like.
-% Pred is predicate id.
-transitive_like_pred(Pred):- strict_order_pred(Pred).
-
-% Rule: total orders are transitive-like.
-% Pred is predicate id.
-transitive_like_pred(Pred):- total_order_pred(Pred).
 
 % Constraint: reject explicit positive transitive closure literal.
 % Slot0 is Pred(X,Y), Slot1 is Pred(Y,Z), Slot2 is Pred(X,Z). Slot order avoids
@@ -45,7 +25,7 @@ transitive_like_pred(Pred):- total_order_pred(Pred).
     positive_body_literal(Slot2,_,Pred,2),
     Slot0 < Slot1,
     Slot1 < Slot2,
-    transitive_like_pred(Pred),
+    transitive_pred(Pred),
     var_at(body,Slot0,0,X),
     var_at(body,Slot0,1,Y),
     var_at(body,Slot1,0,Y),
@@ -59,7 +39,7 @@ transitive_like_pred(Pred):- total_order_pred(Pred).
 :- positive_body_literal(Slot0,_,Pred,2),
     positive_body_literal(Slot1,_,Pred,2),
     negative_body_literal(Slot2,_,Pred,2),
-    transitive_like_pred(Pred),
+    transitive_pred(Pred),
     var_at(body,Slot0,0,X),
     var_at(body,Slot0,1,Y),
     var_at(body,Slot1,0,Y),

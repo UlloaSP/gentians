@@ -1713,10 +1713,8 @@ def _clause_from_symbols(
 ) -> ReifiedClause:
     literals: list[ReifiedLiteral] = []
     for symbol in symbols:
-        if symbol.name != "lit":
-            continue
         arguments = symbol.arguments
-        section = arguments[0].name
+        section = "head" if arguments[0].number == 0 else "body"
         slot = arguments[1].number
         mode_id = arguments[2].number
         code = arguments[3].number

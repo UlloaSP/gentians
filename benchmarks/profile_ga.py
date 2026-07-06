@@ -66,9 +66,6 @@ def run_profile_worker() -> None:
     rule_space = rule_space_from_payload(payload, path)
     load_seconds = time.perf_counter() - started
     timing.add("hypothesis_load", load_seconds)
-    timing.add("hypothesis_space", load_seconds)
-    timing.add("hypothesis_space.self", load_seconds)
-    timing.add("total_execution", load_seconds)
     replay_hypothesis_metrics(metrics_from_payload(payload))
     solve(
         program_from_arguments(arguments),

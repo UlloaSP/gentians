@@ -21,6 +21,7 @@ from .timing import (
     instrumentation,
     metric_enabled,
     phase,
+    recorded_seconds,
     record_metric,
 )
 
@@ -36,6 +37,10 @@ def solve(
     """
 
     start_total_time = time.time() if start_total_time is None else start_total_time
+
+    prg: tuple[str, ...] | list[str]
+    score: float
+    best_found: bool
 
     try:
         with phase("total_execution"):
@@ -78,7 +83,10 @@ def solve(
                 print(f"--- Best candidate program with score {score} ---")
             print(*prg, sep="\n")
             print("--------------------------")
-            print(f"Total time: {time.time() - start_total_time}")
+        total_seconds = recorded_seconds("total_execution")
+        if total_seconds is None:
+            total_seconds = time.time() - start_total_time
+        print(f"Total time: {total_seconds}")
     finally:
         export_timings()
 

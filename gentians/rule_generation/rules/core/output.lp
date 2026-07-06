@@ -20,6 +20,9 @@
 % Python fact detail: max_vars(Max) comes from args.max_variables; Max is count of available generated variables V0..V(Max-1).
 #defined max_vars/1.
 
+section_id(head,0).
+section_id(body,1).
+
 % Rule: detect duplicate normal predicate literals.
 % Section0/Slot0 and Section1/Slot1 are ordered by section_order and Slot.
 % Pred/Arity must match. same_vars/4 proves both literals use the same tuple.
@@ -78,11 +81,12 @@ code_prefix(Section,Slot,Mode,NextArg,NextCode):-
     NextCode = (Code * Base) + Var.
 
 % Rule: emit one shown literal atom after all arguments are encoded.
-% Section is head/body. Slot is occupied slot id. Mode is selected mode id.
-% Code is the base-max_vars encoding of the full variable tuple. Python decodes
-% Code back into the tuple using the mode arity and max_vars.
-lit(Section,Slot,Mode,Code):-
+% SectionId is 0=head and 1=body. Slot is occupied slot id. Mode is selected
+% mode id. Code is the base-max_vars encoding of the full variable tuple.
+% Python decodes Code back into the tuple using the mode arity and max_vars.
+lit(SectionId,Slot,Mode,Code):-
     selected(Section,Slot,Mode),
+    section_id(Section,SectionId),
     mode(Section,Mode,_,Arity,_),
     code_prefix(Section,Slot,Mode,Arity,Code).
 

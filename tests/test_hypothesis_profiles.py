@@ -133,9 +133,9 @@ def test_profile_ga_worker_loads_hypothesis_file(monkeypatch, tmp_path):
     assert captured["arguments"].filename == "coin.txt"
     assert captured["start_total_time"] is not None
     assert timing._totals["hypothesis_load"] == 2.5
-    assert timing._totals["hypothesis_space"] == 2.5
-    assert timing._totals["hypothesis_space.self"] == 2.5
-    assert timing._totals["total_execution"] == 2.5
+    assert "hypothesis_space" not in timing._totals
+    assert "hypothesis_space.self" not in timing._totals
+    assert "total_execution" not in timing._totals
     timing.reset()
 
 

@@ -209,6 +209,10 @@ def current_event_id() -> int | None:
     return _stack[-1]["event_id"] if _stack else None
 
 
+def recorded_seconds(name: str) -> float | None:
+    return _totals.get(name)
+
+
 @contextmanager
 def instrumentation():
     if not _enabled or not _stack:

@@ -93,6 +93,7 @@ class ClingoInterface:
         add(f"{phase}.solving", seconds)
         if collect_metrics:
             with instrumentation():
+                stats = ctl.statistics
                 record_metric(
                     "clingo",
                     {
@@ -106,13 +107,13 @@ class ClingoInterface:
                         "program_size": len(program),
                         "clingo_arguments": " ".join(self.clingo_arguments),
                         "stats_models_enumerated": clingo_stat(
-                            ctl.statistics, "summary", "models", "enumerated"
+                            stats, "summary", "models", "enumerated"
                         ),
                         "stats_choices": clingo_stat(
-                            ctl.statistics, "solving", "solvers", "choices"
+                            stats, "solving", "solvers", "choices"
                         ),
                         "stats_conflicts": clingo_stat(
-                            ctl.statistics, "solving", "solvers", "conflicts"
+                            stats, "solving", "solvers", "conflicts"
                         ),
                     },
                 )

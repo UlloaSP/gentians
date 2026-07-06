@@ -11,8 +11,16 @@
 % - var_at(body,Slot,Arg,Var): arithmetic argument assignment. Args 0 and 1 are
 %   operands; Arg 2 is result.
 
+% Python fact contract:
+% - prune_arithmetic_identities: emitted by Python when algebraic identity
+%   pruning is enabled.
+% - add_mode(Mode): emitted by Python for addition modes.
+% - sub_mode(Mode): emitted by Python for subtraction modes.
+% Python fact detail: prune_arithmetic_identities enables algebraic identity pruning for arithmetic literals.
 #defined prune_arithmetic_identities/0.
+% Python fact detail: add_mode(Mode) marks arithmetic modes rendered as addition.
 #defined add_mode/1.
+% Python fact detail: sub_mode(Mode) marks arithmetic modes rendered as subtraction.
 #defined sub_mode/1.
 
 % Constraint: reject duplicated addition with swapped operands and same result.

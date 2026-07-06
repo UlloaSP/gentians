@@ -13,10 +13,21 @@
 % - var_at(body,Slot,Arg,Var): arithmetic argument assignment. Args 0 and 1 are
 %   operands; Arg 2 is the result variable.
 
+% Python fact contract:
+% - arithmetic_mode(Mode): emitted by Python when Mode renders as arithmetic.
+% - add_mode(Mode): emitted by Python for addition modes.
+% - mul_mode(Mode): emitted by Python for multiplication modes.
+% - abs_mode(Mode): emitted by Python for absolute-distance modes.
+% - canonical_prune: emitted by Python when optional canonical pruning is on.
+% Python fact detail: arithmetic_mode(Mode) marks modes rendered as arithmetic expressions.
 #defined arithmetic_mode/1.
+% Python fact detail: add_mode(Mode) marks arithmetic modes rendered as addition.
 #defined add_mode/1.
+% Python fact detail: mul_mode(Mode) marks arithmetic modes rendered as multiplication.
 #defined mul_mode/1.
+% Python fact detail: abs_mode(Mode) marks arithmetic modes rendered as absolute distance.
 #defined abs_mode/1.
+% Python fact detail: canonical_prune is emitted when optional canonical duplicate pruning is enabled.
 #defined canonical_prune/0.
 
 % Constraint: arithmetic result must not be one of its own operands.

@@ -11,7 +11,13 @@
 % - var_at(body,Slot,Arg,Var): variable at predicate argument Arg.
 % - known_distinct_vars(Out0,Out1): comparison module proves variables differ.
 
+% Python fact contract:
+% - key_pred(Pred,Key): emitted by Python when predicate id Pred has key id Key.
+% - key_arg(Key,Arg): emitted by Python for every zero-based argument Arg that
+%   participates in key Key.
+% Python fact detail: key_pred(Pred,Key) assigns key id Key to predicate id Pred.
 #defined key_pred/2.
+% Python fact detail: key_arg(Key,Arg) lists one zero-based argument Arg participating in key Key.
 #defined key_arg/2.
 
 % Rule: two literals differ on at least one key argument.

@@ -14,8 +14,16 @@
 %   two binary literals.
 % - var_at(body,Slot,Arg,Var): binary argument assignment.
 
+% Python fact contract:
+% - asymmetric_pred(Pred): emitted by Python when binary predicate id Pred is
+%   asymmetric in closed-world evidence.
+% - strict_order_pred(Pred): emitted by Python when Pred behaves as strict order.
+% - acyclic_pred(Pred): emitted by Python when Pred is acyclic.
+% Python fact detail: asymmetric_pred(Pred) marks binary predicate id Pred as asymmetric.
 #defined asymmetric_pred/1.
+% Python fact detail: strict_order_pred(Pred) marks binary predicate id Pred as strict order.
 #defined strict_order_pred/1.
+% Python fact detail: acyclic_pred(Pred) marks binary predicate id Pred as acyclic in closed-world evidence.
 #defined acyclic_pred/1.
 
 % Rule: asymmetric predicates are irreflexive.

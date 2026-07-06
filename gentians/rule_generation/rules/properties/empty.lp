@@ -9,6 +9,10 @@
 % - positive_body_literal(Slot,Mode,Pred,Arity): selected positive body atom.
 % - negative_body_literal(Slot,Mode,Pred,Arity): selected negated body atom.
 
+% Python fact contract:
+% - empty_pred(Pred): emitted by Python when closed-world extension of predicate
+%   id Pred has no true tuples.
+% Python fact detail: empty_pred(Pred) marks predicate id Pred as having empty closed-world extension.
 #defined empty_pred/1.
 
 % Constraint: reject positive use of an empty predicate.

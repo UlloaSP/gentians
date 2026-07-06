@@ -12,7 +12,15 @@
 % - var_at(...,0,Left) and var_at(...,1,Right): binary argument variables.
 % - aggregate_condition_arg(Slot,Pred,LocalArg,Var): aggregate condition arg.
 
+% Python fact contract:
+% - symmetric_pred(Pred): emitted by Python when binary predicate id Pred is
+%   symmetric in closed-world evidence.
+% - aggregate_condition_atom(Mode,AtomIndex,Pred,Offset,Arity): emitted by
+%   Python for aggregate condition atoms so symmetric pruning also applies
+%   inside aggregate conditions.
+% Python fact detail: symmetric_pred(Pred) marks binary predicate id Pred as symmetric.
 #defined symmetric_pred/1.
+% Python fact detail: aggregate_condition_atom(Mode,AtomIndex,Pred,Offset,Arity) describes one aggregate condition atom; Offset is flattened arg offset.
 #defined aggregate_condition_atom/5.
 
 % Constraint: normal symmetric literals use nondecreasing variable order.

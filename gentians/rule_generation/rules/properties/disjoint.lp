@@ -11,7 +11,14 @@
 % - positive_body_literal(Slot,Mode,Pred,Arity): selected positive body atom.
 % - var_at(body,Slot,Arg,Var): variable at predicate argument Arg.
 
+% Python fact contract:
+% - disjoint_arg(Pred0,Arg0,Pred1,Arg1): emitted by Python when observed values
+%   at Pred0 argument Arg0 and Pred1 argument Arg1 never overlap.
+% - domain_disjoint_arg(Pred0,Arg0,Pred1,Arg1): emitted by Python when declared
+%   type domains for those argument positions are disjoint.
+% Python fact detail: disjoint_arg(Pred0,Arg0,Pred1,Arg1) marks two predicate argument domains as non-overlapping.
 #defined disjoint_arg/4.
+% Python fact detail: domain_disjoint_arg(Pred0,Arg0,Pred1,Arg1) marks two typed argument domains as disjoint.
 #defined domain_disjoint_arg/4.
 
 % Rule: explicit disjointness participates in join pruning.

@@ -12,9 +12,20 @@
 % - negative_mode(Mode): Python fact. Mode renders with "not".
 % - selected(Section,Slot,Mode): defined in core/slots.lp.
 
+% Python fact contract:
+% - mode(Section,Mode,Pred,Arity,Recall): emitted by Python for every mode.
+%   Pred/Arity identify rendered normal predicate literals.
+% - normal_mode(Mode): emitted by Python when Mode renders as predicate atom.
+% - positive_mode(Mode): emitted by Python when Mode renders without "not".
+% - negative_mode(Mode): emitted by Python when Mode renders with default
+%   negation in the body.
+% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
 #defined mode/5.
+% Python fact detail: normal_mode(Mode) marks modes rendered as normal predicate atoms.
 #defined normal_mode/1.
+% Python fact detail: positive_mode(Mode) marks modes rendered without default negation.
 #defined positive_mode/1.
+% Python fact detail: negative_mode(Mode) marks modes rendered with default negation in body.
 #defined negative_mode/1.
 
 % Rule: selected normal literal with predicate identity.

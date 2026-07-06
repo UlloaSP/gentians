@@ -11,6 +11,10 @@
 % - var_at(body,Slot,Arg,Var): binary argument variables.
 % - positive_body_var_outside_slot(Slot,Var): Var is grounded elsewhere.
 
+% Python fact contract:
+% - total_order_pred(Pred): emitted by Python when binary predicate id Pred
+%   behaves as total order over observed typed domain.
+% Python fact detail: total_order_pred(Pred) marks binary predicate id Pred as total order.
 #defined total_order_pred/1.
 
 % Constraint: reject redundant positive total-order self-pair.

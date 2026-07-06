@@ -10,7 +10,15 @@
 % - normal_literal/5, aggregate_condition_atom/5, aggregate_condition_arg/4,
 %   and var_at/4 have same meaning as in arg_equal.lp.
 
+% Python fact contract:
+% - arg_distinct_pred(Pred,Arg0,Arg1): emitted by Python when predicate id Pred
+%   always has different values at zero-based argument positions Arg0 and Arg1.
+% - aggregate_condition_atom(Mode,AtomIndex,Pred,Offset,Arity): emitted by
+%   Python for aggregate condition atoms so the same property can prune inside
+%   aggregates.
+% Python fact detail: arg_distinct_pred(Pred,Arg0,Arg1) means arguments Arg0 and Arg1 of Pred must be different.
 #defined arg_distinct_pred/3.
+% Python fact detail: aggregate_condition_atom(Mode,AtomIndex,Pred,Offset,Arity) describes one aggregate condition atom; Offset is flattened arg offset.
 #defined aggregate_condition_atom/5.
 
 % Constraint: normal literal must not reuse one variable in distinct positions.

@@ -11,6 +11,10 @@
 % - var_at(body,Slot,Arg,Var): variable at tuple argument Arg.
 % - known_distinct_vars(Left,Right): comparison module proves variables differ.
 
+% Python fact contract:
+% - cardinality_upper_pred(Pred,Upper): emitted by Python when closed-world
+%   evidence shows predicate id Pred can have at most Upper true tuples.
+% Python fact detail: cardinality_upper_pred(Pred,Upper) gives closed-world upper bound Upper for true tuples of Pred.
 #defined cardinality_upper_pred/2.
 
 % Rule: two positive Pred literals differ at a known-distinct argument.

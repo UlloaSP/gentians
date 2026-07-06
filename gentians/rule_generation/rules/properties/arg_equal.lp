@@ -14,7 +14,15 @@
 %   argument LocalArg for predicate Pred inside aggregate Slot.
 % - var_at(Section,Slot,Arg,Var): variable at normal literal argument Arg.
 
+% Python fact contract:
+% - arg_equal_pred(Pred,Arg0,Arg1): emitted by Python when predicate id Pred
+%   always has equal values at zero-based argument positions Arg0 and Arg1.
+% - aggregate_condition_atom(Mode,AtomIndex,Pred,Offset,Arity): emitted by
+%   Python for aggregate condition atoms so the same property can prune inside
+%   aggregates.
+% Python fact detail: arg_equal_pred(Pred,Arg0,Arg1) means arguments Arg0 and Arg1 of Pred must be equal.
 #defined arg_equal_pred/3.
+% Python fact detail: aggregate_condition_atom(Mode,AtomIndex,Pred,Offset,Arity) describes one aggregate condition atom; Offset is flattened arg offset.
 #defined aggregate_condition_atom/5.
 
 % Constraint: normal literal must respect known equal argument positions.

@@ -11,6 +11,10 @@
 % - positive_body_literal/4 and negative_body_literal/4: selected body atoms.
 % - same_vars(body,Slot0,body,Slot1): both literals use same tuple.
 
+% Python fact contract:
+% - mutex_pred(Pred0,Pred1): emitted by Python when same-arity predicate ids
+%   Pred0 and Pred1 cannot both be true for the same tuple.
+% Python fact detail: mutex_pred(Pred0,Pred1) marks predicates as mutually exclusive on same tuple.
 #defined mutex_pred/2.
 
 % Rule: preserve declared mutex direction.

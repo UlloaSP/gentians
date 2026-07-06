@@ -12,8 +12,16 @@
 % - mode(body,Mode,Pred,Arity,Recall): flattened arity for aggregate Mode.
 % - var_at(body,Slot,Arg,Var): variable assignment.
 
+% Python fact contract:
+% - aggregate_mode(Mode,TupleArity,AtomCount): emitted by Python for aggregate
+%   modes. TupleArity splits tuple args from condition args.
+% - count_aggregate_mode(Mode): emitted by Python when Mode renders as #count.
+% - canonical_prune: emitted by Python when optional canonical pruning is on.
+% Python fact detail: aggregate_mode(Mode,TupleArity,AtomCount) marks aggregate modes; TupleArity is grouped tuple length, AtomCount is condition atom count.
 #defined aggregate_mode/3.
+% Python fact detail: count_aggregate_mode(Mode) marks aggregate modes rendered as #count.
 #defined count_aggregate_mode/1.
+% Python fact detail: canonical_prune is emitted when optional canonical duplicate pruning is enabled.
 #defined canonical_prune/0.
 
 % Constraint: tuple/grouping variables inside one aggregate must be distinct.

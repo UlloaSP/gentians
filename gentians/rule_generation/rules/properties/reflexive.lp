@@ -12,6 +12,10 @@
 % - positive_body_var_outside_slot(Slot,Var): Var is grounded by another
 %   positive body literal.
 
+% Python fact contract:
+% - reflexive_pred(Pred): emitted by Python when binary predicate id Pred
+%   contains all observed self-pairs.
+% Python fact detail: reflexive_pred(Pred) marks binary predicate id Pred as reflexive over observed domain.
 #defined reflexive_pred/1.
 
 % Constraint: reject redundant positive reflexive self-pair.

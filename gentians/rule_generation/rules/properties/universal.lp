@@ -12,6 +12,10 @@
 % - positive_body_var_outside_slot(Slot,Var): Var is grounded by another
 %   positive body literal outside Slot.
 
+% Python fact contract:
+% - universal_pred(Pred): emitted by Python when predicate id Pred is true for
+%   every tuple in its observed typed domain.
+% Python fact detail: universal_pred(Pred) marks predicate id Pred as true for every tuple in observed typed domain.
 #defined universal_pred/1.
 
 % Rule: detect a universal positive literal with at least one unguarded variable.

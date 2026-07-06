@@ -12,6 +12,10 @@
 % - reversed_binary_vars(body,Slot0,body,Slot1): Slot0 uses X,Y and Slot1 uses
 %   Y,X.
 
+% Python fact contract:
+% - inverse_pred(Pred0,Pred1): emitted by Python when binary predicate id Pred0
+%   is inverse of binary predicate id Pred1.
+% Python fact detail: inverse_pred(Pred0,Pred1) marks binary predicates as inverses.
 #defined inverse_pred/2.
 
 % Rule: preserve declared inverse direction.

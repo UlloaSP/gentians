@@ -13,6 +13,10 @@
 %   literal aliases.
 % - same_vars(Section0,Slot0,Section1,Slot1): both literals use same tuple.
 
+% Python fact contract:
+% - implies_pred(Pred0,Pred1): emitted by Python when same-arity predicate id
+%   Pred0 implies predicate id Pred1 for every observed tuple.
+% Python fact detail: implies_pred(Pred0,Pred1) says Pred0 tuple truth implies Pred1 tuple truth.
 #defined implies_pred/2.
 
 % Rule: explicit implication participates in implication pruning.

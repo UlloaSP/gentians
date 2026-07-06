@@ -12,6 +12,10 @@
 % - positive_body_literal(Slot,Mode,Pred,Arity): selected positive body atom.
 % - same_vars(body,Slot0,body,Slot1): same tuple variables.
 
+% Python fact contract:
+% - partition_pred(Part,Pred): emitted by Python for every predicate id Pred in
+%   closed-world partition id Part, where exactly one member is true per tuple.
+% Python fact detail: partition_pred(Part,Pred) lists predicate id Pred as member of partition Part.
 #defined partition_pred/2.
 
 % Rule: Anchor negative literal has a matching negative literal for Pred in Part.

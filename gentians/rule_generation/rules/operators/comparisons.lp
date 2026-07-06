@@ -19,15 +19,37 @@
 % - var_at(body,Slot,Arg,Var): comparison argument assignment; Arg 0 is left
 %   operand and Arg 1 is right operand.
 
+% Python fact contract:
+% - comparison_mode(Mode): emitted by Python for every comparison mode.
+% - symmetric_comparison_mode(Mode): emitted by Python for == and != modes.
+% - neq_comparison_mode(Mode): emitted by Python for != modes.
+% - strict_comparison_mode(Mode): emitted by Python for < and > modes.
+% - less_than_comparison_mode(Mode): emitted by Python for < modes.
+% - greater_than_comparison_mode(Mode): emitted by Python for > modes.
+% - leq_comparison_mode(Mode): emitted by Python for <= modes.
+% - geq_comparison_mode(Mode): emitted by Python for >= modes.
+% - strict_comparison_available: emitted by Python when any strict comparison
+%   mode exists in the search space.
+% - canonical_prune: emitted by Python when optional canonical pruning is on.
+% Python fact detail: comparison_mode(Mode) marks modes rendered as comparison operators.
 #defined comparison_mode/1.
+% Python fact detail: symmetric_comparison_mode(Mode) marks == and != modes where argument order is redundant.
 #defined symmetric_comparison_mode/1.
+% Python fact detail: neq_comparison_mode(Mode) marks != comparison modes.
 #defined neq_comparison_mode/1.
+% Python fact detail: strict_comparison_mode(Mode) marks < and > comparison modes.
 #defined strict_comparison_mode/1.
+% Python fact detail: less_than_comparison_mode(Mode) marks < comparison modes.
 #defined less_than_comparison_mode/1.
+% Python fact detail: greater_than_comparison_mode(Mode) marks > comparison modes.
 #defined greater_than_comparison_mode/1.
+% Python fact detail: leq_comparison_mode(Mode) marks <= comparison modes.
 #defined leq_comparison_mode/1.
+% Python fact detail: geq_comparison_mode(Mode) marks >= comparison modes.
 #defined geq_comparison_mode/1.
+% Python fact detail: strict_comparison_available is emitted when any < or > mode exists.
 #defined strict_comparison_available/0.
+% Python fact detail: canonical_prune is emitted when optional canonical duplicate pruning is enabled.
 #defined canonical_prune/0.
 
 % Constraint: reject comparing a variable with itself.

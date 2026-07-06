@@ -11,6 +11,10 @@
 % - aggregate_result_var(Slot,Var): result variable of aggregate Slot.
 % - var_at(body,Slot,Arg,Var): concrete aggregate argument assignment.
 
+% Python fact contract:
+% - aggregate_mode(Mode,TupleArity,AtomCount): emitted by Python for aggregate
+%   modes. This file needs only Mode identity to compare same aggregate kind.
+% Python fact detail: aggregate_mode(Mode,TupleArity,AtomCount) marks aggregate modes; TupleArity is grouped tuple length, AtomCount is condition atom count.
 #defined aggregate_mode/3.
 
 % Rule: two same-mode aggregate slots differ in at least one input argument.

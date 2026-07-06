@@ -12,7 +12,14 @@
 % - var_at(Section,Slot,Arg,Var): defined in core/arguments.lp.
 % - section_order(Section,Order): defined in core/slots.lp.
 
+% Python fact contract:
+% - normal_mode(Mode): emitted by Python for predicate-atom modes. Used here to
+%   distinguish normal duplicate pruning from operator duplicate pruning.
+% - max_vars(Base): emitted by Python from args.max_variables. Base is radix for
+%   encoding variable tuple into lit/4 Code.
+% Python fact detail: normal_mode(Mode) marks modes rendered as normal predicate atoms.
 #defined normal_mode/1.
+% Python fact detail: max_vars(Max) comes from args.max_variables; Max is count of available generated variables V0..V(Max-1).
 #defined max_vars/1.
 
 % Rule: detect duplicate normal predicate literals.

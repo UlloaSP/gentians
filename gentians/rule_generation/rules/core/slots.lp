@@ -18,10 +18,26 @@
 % - var_at(Section,Slot,Arg,Var): defined in core/arguments.lp. It means
 %   argument Arg of selected literal Section/Slot uses generated variable Var.
 
+% Python fact contract:
+% - max_vars(Max): emitted once by Python from args.max_variables. Max is count
+%   of generated variable ids; this module creates var(0)..var(Max-1).
+% - max_head(Max): emitted once by Python from disjunctive_head_length. Max is
+%   number of available head slots.
+% - max_body(Max): emitted once by Python from max_depth/capabilities. Max is
+%   number of available body slots.
+% - mode(Section,Mode,Pred,Arity,Recall): emitted by Python for every available
+%   hypothesis mode. Section is head/body; Mode is unique mode id; Pred is
+%   predicate id for normal modes; Arity is rendered arity; Recall is mode cap.
+% - canonical_prune: emitted by Python when canonical pruning is enabled.
+% Python fact detail: max_vars(Max) comes from args.max_variables; Max is count of available generated variables V0..V(Max-1).
 #defined max_vars/1.
+% Python fact detail: max_head(Max) comes from disjunctive_head_length; Max is number of optional head slots.
 #defined max_head/1.
+% Python fact detail: max_body(Max) comes from max_depth/capabilities; Max is number of optional body slots.
 #defined max_body/1.
+% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
 #defined mode/5.
+% Python fact detail: canonical_prune is emitted when optional canonical duplicate pruning is enabled.
 #defined canonical_prune/0.
 
 % Rule: create all variable ids allowed in candidate clauses.

@@ -11,6 +11,10 @@
 % - normal_literal(Section,Slot,Mode,Pred,Arity): selected normal literal.
 % - same_vars(Section,Slot0,Section,Slot1): both literals use same tuple.
 
+% Python fact contract:
+% - equivalent_pred(Pred0,Pred1): emitted by Python when same-arity predicate ids
+%   Pred0 and Pred1 have identical closed-world truth sets.
+% Python fact detail: equivalent_pred(Pred0,Pred1) marks same-arity predicates as having identical truth sets.
 #defined equivalent_pred/2.
 
 % Rule: preserve declared equivalent direction.

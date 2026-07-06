@@ -12,7 +12,14 @@
 % - selected(Section,Slot,Mode): defined in core/slots.lp. Section is head/body;
 %   Slot is occupied slot id; Mode is selected generator mode id.
 
+% Python fact contract:
+% - recall_group(Mode,Group): emitted by Python for every mode. Mode is mode id;
+%   Group is shared recall bucket id, used when variants come from same bias.
+% - group_recall(Group,Recall): emitted by Python after grouping modes. Recall
+%   is max selections allowed from that Group in one clause.
+% Python fact detail: recall_group(Mode,Group) maps a mode id to the recall bucket counted for language-bias recall.
 #defined recall_group/2.
+% Python fact detail: group_recall(Group,Recall) gives max selected literals allowed from recall bucket Group.
 #defined group_recall/2.
 
 % Rule: count selected literals per recall group.

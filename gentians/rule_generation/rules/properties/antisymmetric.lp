@@ -16,9 +16,20 @@
 % - positive_body_literal(Slot,Mode,Pred,2): selected positive binary body atom.
 % - var_at(body,Slot,Arg,Var): Arg 0 is left variable; Arg 1 is right variable.
 
+% Python fact contract:
+% - antisymmetric_pred(Pred): emitted by Python when binary predicate id Pred is
+%   antisymmetric in observed facts.
+% - strict_order_pred(Pred): emitted by Python when Pred behaves as strict order.
+% - total_order_pred(Pred): emitted by Python when Pred behaves as total order.
+% - acyclic_pred(Pred): emitted by Python when Pred is acyclic; used here
+%   because reversed positive pairs create a cycle.
+% Python fact detail: antisymmetric_pred(Pred) marks binary predicate id Pred as antisymmetric.
 #defined antisymmetric_pred/1.
+% Python fact detail: strict_order_pred(Pred) marks binary predicate id Pred as strict order.
 #defined strict_order_pred/1.
+% Python fact detail: total_order_pred(Pred) marks binary predicate id Pred as total order.
 #defined total_order_pred/1.
+% Python fact detail: acyclic_pred(Pred) marks binary predicate id Pred as acyclic in closed-world evidence.
 #defined acyclic_pred/1.
 
 % Rule: explicit antisymmetric predicates are antisymmetric-like.

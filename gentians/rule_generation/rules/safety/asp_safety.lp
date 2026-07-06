@@ -12,7 +12,14 @@
 % - var_at(Section,Slot,Arg,Var): concrete variable assignment.
 % - body_slot(Slot): body slot domain.
 
+% Python fact contract:
+% - comparison_mode(Mode): emitted by Python when Mode renders as comparison.
+%   Comparison variables must be safe before comparison use.
+% - arithmetic_mode(Mode): emitted by Python when Mode renders as arithmetic.
+%   Operand variables must be safe; result safety is derived here.
+% Python fact detail: comparison_mode(Mode) marks modes rendered as comparison operators.
 #defined comparison_mode/1.
+% Python fact detail: arithmetic_mode(Mode) marks modes rendered as arithmetic expressions.
 #defined arithmetic_mode/1.
 
 % Rule: variables in positive normal body literals are safe.

@@ -13,8 +13,16 @@
 % - positive_body_literal/4 and negative_body_literal/4: selected body atoms.
 % - var_at(body,Slot,0,X), var_at(body,Slot,1,Y): binary edge variables.
 
+% Python fact contract:
+% - transitive_pred(Pred): emitted by Python when binary predicate id Pred is
+%   transitive in closed-world evidence.
+% - strict_order_pred(Pred): emitted by Python when Pred behaves as strict order.
+% - total_order_pred(Pred): emitted by Python when Pred behaves as total order.
+% Python fact detail: transitive_pred(Pred) marks binary predicate id Pred as transitive.
 #defined transitive_pred/1.
+% Python fact detail: strict_order_pred(Pred) marks binary predicate id Pred as strict order.
 #defined strict_order_pred/1.
+% Python fact detail: total_order_pred(Pred) marks binary predicate id Pred as total order.
 #defined total_order_pred/1.
 
 % Rule: explicit transitive predicates are transitive-like.

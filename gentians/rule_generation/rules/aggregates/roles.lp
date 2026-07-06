@@ -18,7 +18,17 @@
 % - mode(body,Mode,Pred,Arity,Recall): Arity is flattened aggregate arity.
 % - var_at(body,Slot,Arg,Var): variable assignment for aggregate argument Arg.
 
+% Python fact contract:
+% - aggregate_mode(Mode,TupleArity,AtomCount): emitted by Python for aggregate
+%   modes. TupleArity is number of grouped variables before condition vars;
+%   AtomCount is number of condition atoms.
+% - aggregate_condition_atom(Mode,AtomIndex,Pred,Offset,Arity): emitted by
+%   Python for each condition atom inside aggregate Mode. AtomIndex is ordinal;
+%   Pred is predicate id; Offset is start in flattened condition args; Arity is
+%   condition predicate arity.
+% Python fact detail: aggregate_mode(Mode,TupleArity,AtomCount) marks aggregate modes; TupleArity is grouped tuple length, AtomCount is condition atom count.
 #defined aggregate_mode/3.
+% Python fact detail: aggregate_condition_atom(Mode,AtomIndex,Pred,Offset,Arity) describes one aggregate condition atom; Offset is flattened arg offset.
 #defined aggregate_condition_atom/5.
 
 % Rule: variables in aggregate tuple/grouping positions.

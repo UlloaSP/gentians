@@ -17,14 +17,35 @@
 % - selected(Section,Slot,Mode), mode(...), var_at(...): selected literal data.
 % - lt_vars/2 and leq_vars/2: normalized comparison helpers.
 
+% Python fact contract:
+% - domain_numeric_arg(Pred,Arity,Arg): emitted by Python for normal predicate
+%   positions known numeric from language/evidence. Pred is predicate id, Arity
+%   predicate arity, Arg zero-based argument index.
+% - zero_not_in_numeric_domain: emitted by Python when observed numeric domain
+%   does not contain 0.
+% - numeric_domain_nonnegative: emitted by Python when observed numeric domain
+%   contains only values >= 0.
+% - numeric_domain_positive: emitted by Python when observed numeric domain
+%   contains only values > 0.
+% - add_mode/sub_mode/mul_mode/div_mode/mod_mode: emitted by Python for the
+%   corresponding arithmetic operator mode ids.
+% Python fact detail: domain_numeric_arg(Pred,Arity,Arg) marks predicate argument Arg as numeric/domain-constrained.
 #defined domain_numeric_arg/3.
+% Python fact detail: zero_not_in_numeric_domain is emitted when observed numeric domain excludes 0.
 #defined zero_not_in_numeric_domain/0.
+% Python fact detail: numeric_domain_nonnegative is emitted when observed numeric values are all >= 0.
 #defined numeric_domain_nonnegative/0.
+% Python fact detail: numeric_domain_positive is emitted when observed numeric values are all > 0.
 #defined numeric_domain_positive/0.
+% Python fact detail: add_mode(Mode) marks arithmetic modes rendered as addition.
 #defined add_mode/1.
+% Python fact detail: sub_mode(Mode) marks arithmetic modes rendered as subtraction.
 #defined sub_mode/1.
+% Python fact detail: mul_mode(Mode) marks arithmetic modes rendered as multiplication.
 #defined mul_mode/1.
+% Python fact detail: div_mode(Mode) marks arithmetic modes rendered as division.
 #defined div_mode/1.
+% Python fact detail: mod_mode(Mode) marks arithmetic modes rendered as modulo.
 #defined mod_mode/1.
 
 % Rule: mark variables that are used in numeric domain-constrained predicate args.

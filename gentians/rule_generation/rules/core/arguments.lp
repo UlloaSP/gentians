@@ -12,7 +12,14 @@
 %   Slot is occupied slot id; Mode is selected generator mode id.
 % - var(Var): defined in core/slots.lp. Var is an allowed generated variable id.
 
+% Python fact contract:
+% - mode(Section,Mode,Pred,Arity,Recall): emitted by Python for every mode.
+%   Arity defines how many Arg positions are created for selected literals.
+% - mode_arg_type(Mode,Arg,Type): emitted by Python for every mode argument.
+%   Type is any/numeric/etc. and is later enforced by safety/typing.lp.
+% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
 #defined mode/5.
+% Python fact detail: mode_arg_type(Mode,Arg,Type) gives declared type for zero-based argument Arg of mode Mode.
 #defined mode_arg_type/3.
 
 % Rule: derive every argument position for every selected literal.

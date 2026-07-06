@@ -11,7 +11,14 @@
 % - positive_body_literal(Slot,Mode,Pred,Arity): selected positive body atom.
 % - var_at(body,Slot,Arg,Var): variable assignment at predicate argument Arg.
 
+% Python fact contract:
+% - functional_set_pred(Pred,Fd,Output): emitted by Python when composite
+%   dependency id Fd for predicate id Pred determines zero-based Output arg.
+% - functional_set_arg(Fd,Input): emitted by Python for every zero-based input
+%   argument participating in composite dependency Fd.
+% Python fact detail: functional_set_pred(Pred,Fd,Output) says composite dependency Fd determines Output for Pred.
 #defined functional_set_pred/3.
+% Python fact detail: functional_set_arg(Fd,Input) lists one determinant argument Input for dependency Fd.
 #defined functional_set_arg/2.
 
 % Rule: two candidate literals differ on at least one determinant input.

@@ -9,6 +9,10 @@
 % - selected_slot(Section,Slot): defined in core/slots.lp. Section is head/body;
 %   Slot is an occupied slot id.
 
+% Python fact contract:
+% - max_depth(Max): emitted once by Python from args.max_depth. Max is maximum
+%   total selected head plus body literals allowed in one candidate clause.
+% Python fact detail: max_depth(Max) comes from args.max_depth; Max bounds total selected head plus body literals.
 #defined max_depth/1.
 
 % Rule: count selected head slots.

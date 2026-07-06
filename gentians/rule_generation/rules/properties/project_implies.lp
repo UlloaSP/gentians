@@ -14,7 +14,16 @@
 % - positive_body_literal/4, negative_body_literal/4, head_literal/4: aliases.
 % - var_at(Section,Slot,Arg,Var): variable assignment.
 
+% Python fact contract:
+% - project_implies_pred(Pred0,Pred1,Projection): emitted by Python when
+%   predicate id Pred0 implies predicate id Pred1 after argument projection id
+%   Projection.
+% - project_arg(Projection,TargetArg,SourceArg): emitted by Python for each
+%   mapped argument. TargetArg is zero-based arg of Pred1; SourceArg is
+%   zero-based arg of Pred0.
+% Python fact detail: project_implies_pred(Pred0,Pred1,Projection) says Pred0 implies Pred1 through projection id Projection.
 #defined project_implies_pred/3.
+% Python fact detail: project_arg(Projection,TargetArg,SourceArg) maps target argument of implied predicate to source argument.
 #defined project_arg/3.
 
 % Rule: projected variables differ at one mapped argument.

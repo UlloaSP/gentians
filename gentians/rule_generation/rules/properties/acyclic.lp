@@ -12,6 +12,10 @@
 % - var_at(body,Slot,0,X): source variable of binary atom.
 % - var_at(body,Slot,1,Y): target variable of binary atom.
 
+% Python fact contract:
+% - acyclic_pred(Pred): emitted by Python when closed-world analysis finds
+%   binary predicate id Pred has no directed cycles in observed facts.
+% Python fact detail: acyclic_pred(Pred) marks binary predicate id Pred as acyclic in closed-world evidence.
 #defined acyclic_pred/1.
 
 % Constraint: reject positive three-cycle X->Y->Z->X.

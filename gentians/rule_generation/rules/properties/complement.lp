@@ -11,6 +11,10 @@
 % - negative_body_literal(Slot,Mode,Pred,Arity): selected negated body literal.
 % - same_vars(body,Slot0,body,Slot1): both literals use same tuple.
 
+% Python fact contract:
+% - complement_pred(Pred0,Pred1): emitted by Python when same-arity predicate ids
+%   Pred0 and Pred1 are logical complements in closed-world evidence.
+% Python fact detail: complement_pred(Pred0,Pred1) marks same-arity predicates Pred0 and Pred1 as complements.
 #defined complement_pred/2.
 
 % Rule: preserve declared complement direction.

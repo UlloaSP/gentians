@@ -10,6 +10,10 @@
 % - selected_slot(Section,Slot): defined in core/slots.lp. Section is head/body;
 %   Slot is an occupied slot id.
 
+% Python fact contract:
+% - constraints_allowed: emitted by Python only when capability analysis allows
+%   generated headless ASP constraints.
+% Python fact detail: constraints_allowed is emitted only when generated headless ASP constraints are allowed.
 #defined constraints_allowed/0.
 
 % Constraint: reject empty bodies.

@@ -11,6 +11,10 @@
 % - var_at(body,Slot,Arg,Var): variable at predicate argument Arg.
 % - known_distinct_vars(Out0,Out1): outputs are proven different.
 
+% Python fact contract:
+% - functional_pred(Pred,Input,Output): emitted by Python when predicate id Pred
+%   functionally maps zero-based argument Input to zero-based argument Output.
+% Python fact detail: functional_pred(Pred,Input,Output) says argument Input functionally determines Output for Pred.
 #defined functional_pred/3.
 
 % Constraint: reject two positive facts with same input and different outputs.

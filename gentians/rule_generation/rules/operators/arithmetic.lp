@@ -5,30 +5,57 @@
 % and rejects duplicate computations that bind different result variables.
 %
 % Shared atom shapes used here:
-% - arithmetic_mode(Mode): Python fact. Mode renders as arithmetic expression.
-% - add_mode(Mode), mul_mode(Mode), abs_mode(Mode): Python facts for operator
-%   families with symmetric inputs in this representation.
-% - canonical_prune: Python fact enabling optional canonical pruning.
+% - arithmetic_mode(Mode): derived atom. Mode renders as arithmetic expression.
+% - add_mode(Mode), sub_mode(Mode), mul_mode(Mode), div_mode(Mode),
+%   mod_mode(Mode), abs_mode(Mode): Python facts for arithmetic operator
+%   families.
 % - selected(body,Slot,Mode): selected body arithmetic literal.
 % - var_at(body,Slot,Arg,Var): arithmetic argument assignment. Args 0 and 1 are
 %   operands; Arg 2 is the result variable.
 
 % Python fact contract:
-% - arithmetic_mode(Mode): emitted by Python when Mode renders as arithmetic.
 % - add_mode(Mode): emitted by Python for addition modes.
+% - sub_mode(Mode): emitted by Python for subtraction modes.
 % - mul_mode(Mode): emitted by Python for multiplication modes.
+% - div_mode(Mode): emitted by Python for division modes.
+% - mod_mode(Mode): emitted by Python for modulo modes.
 % - abs_mode(Mode): emitted by Python for absolute-distance modes.
-% - canonical_prune: emitted by Python when optional canonical pruning is on.
-% Python fact detail: arithmetic_mode(Mode) marks modes rendered as arithmetic expressions.
-#defined arithmetic_mode/1.
 % Python fact detail: add_mode(Mode) marks arithmetic modes rendered as addition.
 #defined add_mode/1.
+% Python fact detail: sub_mode(Mode) marks arithmetic modes rendered as subtraction.
+#defined sub_mode/1.
 % Python fact detail: mul_mode(Mode) marks arithmetic modes rendered as multiplication.
 #defined mul_mode/1.
+% Python fact detail: div_mode(Mode) marks arithmetic modes rendered as division.
+#defined div_mode/1.
+% Python fact detail: mod_mode(Mode) marks arithmetic modes rendered as modulo.
+#defined mod_mode/1.
 % Python fact detail: abs_mode(Mode) marks arithmetic modes rendered as absolute distance.
 #defined abs_mode/1.
-% Python fact detail: canonical_prune is emitted when optional canonical duplicate pruning is enabled.
-#defined canonical_prune/0.
+
+% Rule: addition modes are arithmetic modes.
+% Mode is the Python id for an arithmetic body literal rendered with +.
+arithmetic_mode(Mode):- add_mode(Mode).
+
+% Rule: subtraction modes are arithmetic modes.
+% Mode is the Python id for an arithmetic body literal rendered with -.
+arithmetic_mode(Mode):- sub_mode(Mode).
+
+% Rule: multiplication modes are arithmetic modes.
+% Mode is the Python id for an arithmetic body literal rendered with *.
+arithmetic_mode(Mode):- mul_mode(Mode).
+
+% Rule: division modes are arithmetic modes.
+% Mode is the Python id for an arithmetic body literal rendered with /.
+arithmetic_mode(Mode):- div_mode(Mode).
+
+% Rule: modulo modes are arithmetic modes.
+% Mode is the Python id for an arithmetic body literal rendered with \.
+arithmetic_mode(Mode):- mod_mode(Mode).
+
+% Rule: absolute-distance modes are arithmetic modes.
+% Mode is the Python id for an arithmetic body literal rendered as |X-Y|=Z.
+arithmetic_mode(Mode):- abs_mode(Mode).
 
 % Constraint: arithmetic result must not be one of its own operands.
 % Slot is arithmetic body slot. Operand ranges over 0 and 1. Var appears both
@@ -41,9 +68,8 @@
 
 % Constraint: canonicalize addition operands.
 % Addition is commutative. Left and Right are operand variables at arguments 0
-% and 1. Descending variable order is rejected when canonical_prune is enabled.
-:- canonical_prune,
-    selected(body,Slot,Mode),
+% and 1. Descending variable order is rejected.
+:- selected(body,Slot,Mode),
     add_mode(Mode),
     var_at(body,Slot,0,Left),
     var_at(body,Slot,1,Right),
@@ -52,8 +78,7 @@
 % Constraint: canonicalize multiplication operands.
 % Multiplication is commutative. Left and Right are operand variables at
 % arguments 0 and 1. Descending variable order is redundant.
-:- canonical_prune,
-    selected(body,Slot,Mode),
+:- selected(body,Slot,Mode),
     mul_mode(Mode),
     var_at(body,Slot,0,Left),
     var_at(body,Slot,1,Right),
@@ -62,8 +87,7 @@
 % Constraint: canonicalize abs-distance operands.
 % The rendered abs mode represents |Left-Right|=Result, symmetric in Left and
 % Right. Descending variable order is redundant.
-:- canonical_prune,
-    selected(body,Slot,Mode),
+:- selected(body,Slot,Mode),
     abs_mode(Mode),
     var_at(body,Slot,0,Left),
     var_at(body,Slot,1,Right),

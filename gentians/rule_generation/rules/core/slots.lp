@@ -8,8 +8,9 @@
 % Shared atom shapes used here:
 % - max_vars(Max): Python fact. Max is the configured number of generated
 %   variables, encoded as ids 0..Max-1.
+% - max_depth(Max): Python fact. Max is maximum total literals, also the number
+%   of optional body slots needed before total-depth pruning.
 % - max_head(Max): Python fact. Max is the maximum number of head literals.
-% - max_body(Max): Python fact. Max is the maximum number of body literals.
 % - mode(Section,Mode,Pred,Arity,Recall): Python fact. Section is head/body;
 %   Mode is the generator mode id; Pred is the predicate id for normal modes;
 %   Arity is number of arguments; Recall is the per-mode recall cap.
@@ -21,24 +22,21 @@
 % Python fact contract:
 % - max_vars(Max): emitted once by Python from args.max_variables. Max is count
 %   of generated variable ids; this module creates var(0)..var(Max-1).
+% - max_depth(Max): emitted once by Python from args.max_depth. This module uses
+%   it as body slot count; core/limits.lp uses it as total literal cap.
 % - max_head(Max): emitted once by Python from disjunctive_head_length. Max is
 %   number of available head slots.
-% - max_body(Max): emitted once by Python from max_depth/capabilities. Max is
-%   number of available body slots.
 % - mode(Section,Mode,Pred,Arity,Recall): emitted by Python for every available
 %   hypothesis mode. Section is head/body; Mode is unique mode id; Pred is
 %   predicate id for normal modes; Arity is rendered arity; Recall is mode cap.
-% - canonical_prune: emitted by Python when canonical pruning is enabled.
 % Python fact detail: max_vars(Max) comes from args.max_variables; Max is count of available generated variables V0..V(Max-1).
 #defined max_vars/1.
+% Python fact detail: max_depth(Max) comes from args.max_depth; this file uses Max for body slot count.
+#defined max_depth/1.
 % Python fact detail: max_head(Max) comes from disjunctive_head_length; Max is number of optional head slots.
 #defined max_head/1.
-% Python fact detail: max_body(Max) comes from max_depth/capabilities; Max is number of optional body slots.
-#defined max_body/1.
 % Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
 #defined mode/5.
-% Python fact detail: canonical_prune is emitted when optional canonical duplicate pruning is enabled.
-#defined canonical_prune/0.
 
 % Rule: create all variable ids allowed in candidate clauses.
 % Max comes from max_vars(Max). Var ranges from 0 to Max-1.
@@ -51,9 +49,9 @@ var(0..Max-1):- max_vars(Max).
 head_slot(0..Max-1):- max_head(Max), Max > 0.
 
 % Rule: create all possible body slot ids.
-% Max comes from max_body(Max). Slot ranges from 0 to Max-1.
+% Max comes from max_depth(Max). Slot ranges from 0 to Max-1.
 % The Max > 0 guard avoids an invalid 0..-1 interval.
-body_slot(0..Max-1):- max_body(Max), Max > 0.
+body_slot(0..Max-1):- max_depth(Max), Max > 0.
 
 % Fact: section_order(head,0) gives head literals lower structural order.
 % Used when comparing literals across sections for duplicate pruning.
@@ -100,7 +98,6 @@ selected_slot(Section,Slot):- selected(Section,Slot,_).
 % use the same variable in both slots. If Left > Right, Slot0's tuple should
 % have appeared after Slot1, so same_mode_tuple_gt marks a canonical duplicate.
 same_mode_tuple_gt(Section,Slot0,Slot1):-
-    canonical_prune,
     selected(Section,Slot0,Mode),
     selected(Section,Slot1,Mode),
     Slot0 < Slot1,

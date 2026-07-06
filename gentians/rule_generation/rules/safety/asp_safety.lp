@@ -5,22 +5,19 @@
 % must be supported by a positive body literal or by safe arithmetic results.
 %
 % Shared atom shapes used here:
-% - comparison_mode(Mode): Python fact for comparison operator modes.
-% - arithmetic_mode(Mode): Python fact for arithmetic operator modes.
+% - comparison_mode(Mode): derived atom for comparison operator modes.
+% - arithmetic_mode(Mode): derived atom for arithmetic operator modes.
 % - positive_body_literal/4 and negative_body_literal/4: core/literals.lp.
 % - selected(body,Slot,Mode): selected body literal.
 % - var_at(Section,Slot,Arg,Var): concrete variable assignment.
 % - body_slot(Slot): body slot domain.
 
-% Python fact contract:
-% - comparison_mode(Mode): emitted by Python when Mode renders as comparison.
-%   Comparison variables must be safe before comparison use.
-% - arithmetic_mode(Mode): emitted by Python when Mode renders as arithmetic.
-%   Operand variables must be safe; result safety is derived here.
-% Python fact detail: comparison_mode(Mode) marks modes rendered as comparison operators.
-#defined comparison_mode/1.
-% Python fact detail: arithmetic_mode(Mode) marks modes rendered as arithmetic expressions.
-#defined arithmetic_mode/1.
+% Cross-module contract:
+% - comparison_mode(Mode): derived by operators/comparisons.lp from concrete
+%   comparison mode facts. Comparison variables must be safe before use.
+% - arithmetic_mode(Mode): derived by operators/arithmetic.lp from concrete
+%   arithmetic mode facts. Operand variables must be safe; result safety is
+%   derived here.
 
 % Rule: variables in positive normal body literals are safe.
 % Slot is a positive body predicate literal. Mode/Pred/Arity identify it, but
@@ -89,14 +86,6 @@ var_used_outside_body_slot(Slot,Var):-
     body_slot(Slot),
     var_at(body,OtherSlot,_,Var),
     OtherSlot != Slot.
-
-% Constraint: arithmetic result variables must be consumed elsewhere.
-% Slot is an arithmetic literal. Var is argument 2, the result variable. If Var
-% appears only in that arithmetic literal, the expression has no effect.
-:- selected(body,Slot,Mode),
-    arithmetic_mode(Mode),
-    var_at(body,Slot,2,Var),
-    not var_used_outside_body_slot(Slot,Var).
 
 % Constraint: every head variable must be safe.
 % Var appears in the head and must be grounded by a positive body source.

@@ -1,7 +1,9 @@
 import copy
+from pathlib import Path
 import random
 import re
 
+import clingo
 from benchmarks.catalog import CASES
 from gentians.arguments import Arguments
 from gentians.asp.clingo import ClingoInterface
@@ -58,7 +60,7 @@ def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
     assert calls == 1
 
 
-def test_facts_keeps_full_body_slots_and_allows_constraints():
+def test_facts_do_not_emit_redundant_control_flags():
     facts = hypothesis_space._facts(
         Program([], [], [], [], []),
         Arguments(max_depth=4),
@@ -74,8 +76,151 @@ def test_facts_keeps_full_body_slots_and_allows_constraints():
         {},
     )
 
-    assert "max_body(4)." in facts
+    assert "max_depth(4)." in facts
+    assert "max_body(4)." not in facts
     assert "constraints_allowed." not in facts
+    assert "canonical_prune." not in facts
+    assert "prune_arithmetic_identities." not in facts
+    assert "normal_mode(0)." not in facts
+
+
+def test_facts_do_not_emit_redundant_strict_comparison_mode():
+    program = Program(
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [OperatorDeclaration(1, "lt")],
+    )
+    modes = [
+        hypothesis_space.HypothesisMode(
+            0,
+            0,
+            "body",
+            "comparison",
+            "",
+            2,
+            1,
+            True,
+            operator="<",
+            arg_types=("numeric", "numeric"),
+        )
+    ]
+    facts = hypothesis_space._facts(
+        program,
+        Arguments(),
+        modes,
+        HypothesisCapabilities(
+            has_numeric_evidence=True,
+            allow_numeric_comparison=True,
+            allow_equality_comparison=False,
+            allow_arithmetic=False,
+            allow_aggregates=False,
+            allow_recursion=False,
+        ),
+        {},
+    )
+
+    fact_lines = set(facts.splitlines())
+
+    assert "less_than_comparison_mode(0)." in fact_lines
+    assert "comparison_mode(0)." not in fact_lines
+    assert "symmetric_comparison_mode(0)." not in fact_lines
+    assert "strict_comparison_mode(0)." not in fact_lines
+    assert "strict_comparison_available." not in fact_lines
+
+
+def test_facts_do_not_emit_redundant_arithmetic_mode():
+    modes = [
+        hypothesis_space.HypothesisMode(
+            0,
+            0,
+            "body",
+            "arithmetic",
+            "",
+            3,
+            1,
+            True,
+            operator="+",
+            arg_types=("numeric", "numeric", "numeric"),
+        )
+    ]
+    facts = hypothesis_space._facts(
+        Program([], [], [], [], [], [], [], [OperatorDeclaration(1, "add")]),
+        Arguments(),
+        modes,
+        HypothesisCapabilities(
+            has_numeric_evidence=True,
+            allow_numeric_comparison=False,
+            allow_equality_comparison=False,
+            allow_arithmetic=True,
+            allow_aggregates=False,
+            allow_recursion=False,
+        ),
+        {},
+    )
+
+    fact_lines = set(facts.splitlines())
+
+    assert "add_mode(0)." in fact_lines
+    assert "arithmetic_mode(0)." not in fact_lines
+
+
+def test_facts_do_not_emit_derived_numeric_domain_args():
+    facts = hypothesis_space._facts(
+        Program([], [], [], [], []),
+        Arguments(),
+        [
+            hypothesis_space.HypothesisMode(
+                0,
+                0,
+                "body",
+                "normal",
+                "p",
+                2,
+                1,
+                arg_types=("numeric", "any"),
+            )
+        ],
+        HypothesisCapabilities(
+            has_numeric_evidence=True,
+            allow_numeric_comparison=False,
+            allow_equality_comparison=False,
+            allow_arithmetic=False,
+            allow_aggregates=False,
+            allow_recursion=False,
+        ),
+        {("p", 2, 0): "numeric"},
+    )
+
+    fact_lines = set(facts.splitlines())
+
+    assert "mode_arg_type(0,0,numeric)." in fact_lines
+    assert "mode_arg_type(0,1,any)." not in fact_lines
+    assert "domain_numeric_arg(0,2,0)." not in fact_lines
+
+
+def test_facts_emit_only_strong_positive_numeric_domain_property():
+    facts = hypothesis_space._facts(
+        Program(["p(1).", "p(2)."], [], [], [], []),
+        Arguments(),
+        [],
+        HypothesisCapabilities(
+            has_numeric_evidence=True,
+            allow_numeric_comparison=False,
+            allow_equality_comparison=False,
+            allow_arithmetic=False,
+            allow_aggregates=False,
+            allow_recursion=False,
+        ),
+        {},
+    )
+
+    assert "numeric_domain_positive." in facts
+    assert "numeric_domain_nonnegative." not in facts
+    assert "zero_not_in_numeric_domain." not in facts
 
 
 def _reset_timing_state() -> None:
@@ -214,8 +359,11 @@ def test_star_recall_uses_max_depth():
         {},
     )
 
-    assert "group_recall(0,2)." in facts
+    assert "mode(head,0,0,1,2)." in facts
+    assert "group_recall(0,2)." not in facts
     assert "\nrecall(" not in facts
+    assert "positive_mode(0)." not in facts
+    assert "normal_mode(0)." not in facts
 
 
 def test_group_recall_uses_tightest_mode_recall():
@@ -237,7 +385,9 @@ def test_group_recall_uses_tightest_mode_recall():
         {("p", 1): 0, ("q", 1): 1},
     )
 
-    assert "group_recall(7,1)." in facts
+    assert "mode(body,0,0,1,3)." in facts
+    assert "mode(body,1,1,1,1)." in facts
+    assert "group_recall(7,1)." not in facts
     assert "group_recall(7,3)." not in facts
 
 
@@ -282,6 +432,25 @@ def test_hypothesis_space_prunes_arg_distinct_modes_before_rendering():
 
     assert not any("edge(V0,V0)" in clause for clause in clauses)
     assert "target(V0,V1) :- edge(V0,V1)." in clauses
+
+
+def test_arg_distinct_still_prunes_body_self_pair_without_irreflexive_property():
+    program = Program(
+        ["p(a,b).", "p(b,a).", "guard(a).", "guard(b)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("2", "p", "2", "positive"), False),
+            ModeDeclaration(("2", "guard", "1", "positive"), False),
+        ],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=2, max_variables=2),
+    ).generate().clauses
+
+    assert not any("p(V0,V0)" in clause or "p(V1,V1)" in clause for clause in clauses)
 
 
 def test_auto_body_bias_does_not_enable_recursion():
@@ -520,7 +689,7 @@ def test_hypothesis_space_prunes_arithmetic_identities_before_cap():
     assert not any("V0+V1=V2,V2-V0=V1" in clause for clause in clauses)
 
 
-def test_canonical_prune_prevents_reversed_add_operands_by_default():
+def test_canonicalization_prevents_reversed_add_operands_by_default():
     program_without_zero = Program(
         ["#const n = 2.", "number(1..n).", "q(1,1)."],
         [],
@@ -731,6 +900,7 @@ def test_closed_world_properties_infer_generic_atom_relations():
     assert ((("rel", 3), (0,))) in properties.keys
     assert ("le", 2) not in properties.antisymmetric
     assert ("before", 2) in properties.strict_order
+    assert (("before", 2), 0, 1) not in properties.arg_distinct
     assert ("le", 2) in properties.total_order
     assert ("le", 2) not in properties.reflexive
 
@@ -770,6 +940,53 @@ def test_closed_world_properties_emit_new_property_facts():
     assert "total_order_pred(7)." in facts
     assert "antisymmetric_pred(7)." not in facts
     assert "reflexive_pred(7)." not in facts
+
+
+def test_partition_subsumes_pairwise_mutex_facts():
+    program = Program(
+        ["a(1).", "b(2).", "c(3)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("1", "a", "1", "positive"), False),
+            ModeDeclaration(("1", "b", "1", "positive"), False),
+            ModeDeclaration(("1", "c", "1", "positive"), False),
+        ],
+    )
+    program.complete_language_bias()
+    fragments = hypothesis_space._closed_world_fragments(program)
+    arg_types = hypothesis_space._predicate_arg_types(program, fragments)
+    properties = hypothesis_space._closed_world_properties(
+        fragments,
+        arg_types,
+        hypothesis_space._closed_body_predicates(program),
+    )
+
+    assert properties.partitions == frozenset({(("a", 1), ("b", 1), ("c", 1))})
+    assert properties.mutex == frozenset()
+
+
+def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
+    program = Program(
+        ["r(1,a,x,z).", "r(1,a,y,z).", "r(1,b,q,z).", "r(2,a,x,w)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("1", "r", "4", "positive"), False)],
+    )
+    program.complete_language_bias()
+    fragments = hypothesis_space._closed_world_fragments(program)
+    arg_types = hypothesis_space._predicate_arg_types(program, fragments)
+    properties = hypothesis_space._closed_world_properties(
+        fragments,
+        arg_types,
+        hypothesis_space._closed_body_predicates(program),
+    )
+
+    assert (("r", 4), 0, 3) in properties.functional
+    assert (("r", 4), (0, 1), 3) not in properties.functional_set
+    assert (("r", 4), (1, 3), 0) not in properties.functional_set
 
 
 def test_choice_rules_infer_modelwise_keys():
@@ -982,7 +1199,7 @@ def test_acyclic_negative_back_edge_prune():
     assert ":- edge(V0,V1),edge(V1,V2),not edge(V2,V0)." not in clauses
 
 
-def test_universal_empty_and_domain_disjoint_facts_are_emitted():
+def test_universal_empty_and_complement_facts_are_emitted():
     universal_program = Program(
         ["dom(a).", "dom(b).", "p(a).", "p(b)."],
         [],
@@ -1040,7 +1257,23 @@ def test_universal_empty_and_domain_disjoint_facts_are_emitted():
     assert "universal_pred(1)." in facts
     assert "empty_pred(2)." in facts
     assert "complement_pred(2,3)." in facts
-    assert "domain_disjoint_arg(2,0,3,0)." not in facts
+
+
+def test_universal_binary_predicate_derives_reflexive_property():
+    rule_dir = Path(hypothesis_space.__file__).with_name("rules")
+    rules = (rule_dir / "properties" / "universal.lp").read_text() + """
+universal_pred(1).
+mode(body,0,1,2,1).
+#show reflexive_pred/1.
+"""
+    ctl = clingo.Control(["--warn=none"])
+    ctl.add("base", [], rules)
+    ctl.ground([("base", [])])
+
+    with ctl.solve(yield_=True) as handle:
+        symbols = {str(symbol) for model in handle for symbol in model.symbols(shown=True)}
+
+    assert "reflexive_pred(1)" in symbols
 
 
 def test_empty_predicate_prunes_positive_and_negative_literals():

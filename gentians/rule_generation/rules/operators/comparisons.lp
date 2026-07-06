@@ -6,39 +6,25 @@
 % and known-distinct variable derivation.
 %
 % Shared atom shapes used here:
-% - comparison_mode(Mode): Python fact. Mode renders as a comparison operator.
-% - symmetric_comparison_mode(Mode): Python fact for == and != comparisons.
+% - comparison_mode(Mode): derived atom. Mode renders as a comparison operator.
 % - neq_comparison_mode(Mode): Python fact for != comparisons.
-% - strict_comparison_mode(Mode): Python fact for < and > comparisons.
 % - less_than_comparison_mode(Mode): Python fact for <.
 % - greater_than_comparison_mode(Mode): Python fact for >.
 % - leq_comparison_mode(Mode): Python fact for <=.
 % - geq_comparison_mode(Mode): Python fact for >=.
-% - strict_comparison_available: Python fact when < or > exists in mode space.
+% - strict_comparison_available: derived atom when < or > exists in mode space.
 % - selected(body,Slot,Mode): selected body comparison literal.
 % - var_at(body,Slot,Arg,Var): comparison argument assignment; Arg 0 is left
 %   operand and Arg 1 is right operand.
 
 % Python fact contract:
-% - comparison_mode(Mode): emitted by Python for every comparison mode.
-% - symmetric_comparison_mode(Mode): emitted by Python for == and != modes.
 % - neq_comparison_mode(Mode): emitted by Python for != modes.
-% - strict_comparison_mode(Mode): emitted by Python for < and > modes.
 % - less_than_comparison_mode(Mode): emitted by Python for < modes.
 % - greater_than_comparison_mode(Mode): emitted by Python for > modes.
 % - leq_comparison_mode(Mode): emitted by Python for <= modes.
 % - geq_comparison_mode(Mode): emitted by Python for >= modes.
-% - strict_comparison_available: emitted by Python when any strict comparison
-%   mode exists in the search space.
-% - canonical_prune: emitted by Python when optional canonical pruning is on.
-% Python fact detail: comparison_mode(Mode) marks modes rendered as comparison operators.
-#defined comparison_mode/1.
-% Python fact detail: symmetric_comparison_mode(Mode) marks == and != modes where argument order is redundant.
-#defined symmetric_comparison_mode/1.
 % Python fact detail: neq_comparison_mode(Mode) marks != comparison modes.
 #defined neq_comparison_mode/1.
-% Python fact detail: strict_comparison_mode(Mode) marks < and > comparison modes.
-#defined strict_comparison_mode/1.
 % Python fact detail: less_than_comparison_mode(Mode) marks < comparison modes.
 #defined less_than_comparison_mode/1.
 % Python fact detail: greater_than_comparison_mode(Mode) marks > comparison modes.
@@ -47,10 +33,36 @@
 #defined leq_comparison_mode/1.
 % Python fact detail: geq_comparison_mode(Mode) marks >= comparison modes.
 #defined geq_comparison_mode/1.
-% Python fact detail: strict_comparison_available is emitted when any < or > mode exists.
-#defined strict_comparison_available/0.
-% Python fact detail: canonical_prune is emitted when optional canonical duplicate pruning is enabled.
-#defined canonical_prune/0.
+
+% Rule: != modes are comparison modes.
+% Mode is the Python id for a body operator rendered as !=.
+comparison_mode(Mode):- neq_comparison_mode(Mode).
+
+% Rule: < modes are comparison modes.
+% Mode is the Python id for a body operator rendered as <.
+comparison_mode(Mode):- less_than_comparison_mode(Mode).
+
+% Rule: > modes are comparison modes.
+% Mode is the Python id for a body operator rendered as >.
+comparison_mode(Mode):- greater_than_comparison_mode(Mode).
+
+% Rule: <= modes are comparison modes.
+% Mode is the Python id for a body operator rendered as <=.
+comparison_mode(Mode):- leq_comparison_mode(Mode).
+
+% Rule: >= modes are comparison modes.
+% Mode is the Python id for a body operator rendered as >=.
+comparison_mode(Mode):- geq_comparison_mode(Mode).
+
+% Rule: strict comparison modes are available when < exists.
+% Mode is a comparison mode rendered as <. The derived atom lets the leq+neq
+% pruning rule prefer a direct strict comparison without Python emitting a flag.
+strict_comparison_available:- less_than_comparison_mode(_).
+
+% Rule: strict comparison modes are available when > exists.
+% Mode is a comparison mode rendered as >. > is normalized to lt_vars/2 below,
+% so it is also enough to replace <= plus !=.
+strict_comparison_available:- greater_than_comparison_mode(_).
 
 % Constraint: reject comparing a variable with itself.
 % Slot is comparison body slot. Mode is comparison mode. Var appears in both
@@ -61,13 +73,11 @@
     var_at(body,Slot,0,Var),
     var_at(body,Slot,1,Var).
 
-% Constraint: canonicalize symmetric comparisons.
-% Mode is symmetric, currently == or !=. Left and Right are argument variables.
-% Since Left != Right has same meaning as Right != Left, descending variable
-% order is rejected when canonical_prune is enabled.
-:- canonical_prune,
-    selected(body,Slot,Mode),
-    symmetric_comparison_mode(Mode),
+% Constraint: canonicalize != comparisons.
+% Mode renders as !=. Left and Right are argument variables. Since Left != Right
+% has same meaning as Right != Left, descending variable order is rejected.
+:- selected(body,Slot,Mode),
+    neq_comparison_mode(Mode),
     var_at(body,Slot,0,Left),
     var_at(body,Slot,1,Right),
     Left > Right.
@@ -187,22 +197,14 @@ neq_vars(Left,Right):-
 % If Left != Right, Right != Left is also true for downstream pruning.
 neq_vars(Right,Left):- neq_vars(Left,Right).
 
-% Rule: derive variables related by a strict comparison.
-% Left and Right are the rendered argument order for either < or >. This helper
-% is used only to derive known distinctness, not ordering direction.
-strict_comparison_vars(Left,Right):-
-    selected(body,Slot,Mode),
-    strict_comparison_mode(Mode),
-    var_at(body,Slot,0,Left),
-    var_at(body,Slot,1,Right).
-
 % Rule: explicit != proves two variables are known distinct.
 % Left and Right are variables in neq_vars/2.
 known_distinct_vars(Left,Right):- neq_vars(Left,Right).
 
 % Rule: any strict comparison proves two variables are known distinct.
-% Left and Right are variables participating in < or >.
-known_distinct_vars(Left,Right):- strict_comparison_vars(Left,Right).
+% lt_vars already normalizes both rendered < and rendered > comparisons, so no
+% second strict-comparison helper is needed.
+known_distinct_vars(Left,Right):- lt_vars(Left,Right).
 
 % Rule: known distinctness is symmetric.
 % Downstream modules may query either direction.

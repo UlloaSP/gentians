@@ -25,13 +25,10 @@ complement_pair(Pred0,Pred1):- complement_pred(Pred0,Pred1).
 % Complement relation is symmetric for pruning queries.
 complement_pair(Pred1,Pred0):- complement_pred(Pred0,Pred1).
 
-% Rule: complements are mutex in the declared direction.
-% Pred0 and Pred1 are predicate ids. mutex.lp owns positive mutex pruning.
+% Rule: complements are mutex.
+% Pred0 and Pred1 are predicate ids. mutex.lp owns positive mutex pruning and
+% adds the reverse direction through mutex_pair/2.
 mutex_pred(Pred0,Pred1):- complement_pred(Pred0,Pred1).
-
-% Rule: complements are mutex in the reverse direction.
-% The reverse derived atom makes complement-derived mutex facts explicit.
-mutex_pred(Pred1,Pred0):- complement_pred(Pred0,Pred1).
 
 % Constraint: reject pair of negated complements with same variables.
 % Slot0 and Slot1 are ordered negative body literals with same Arity. Pred0 and

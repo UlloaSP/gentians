@@ -138,7 +138,6 @@ class ClosedWorldProperties:
     equivalent: frozenset[tuple[Predicate, Predicate]]
     project_implies: frozenset[tuple[Predicate, Predicate, tuple[int, ...]]]
     disjoint_projection: frozenset[tuple[Predicate, int, Predicate, int]]
-    domain_disjoint: frozenset[tuple[Predicate, int, Predicate, int]]
     mutex: frozenset[tuple[Predicate, Predicate]]
     complement: frozenset[tuple[Predicate, Predicate]]
     partitions: frozenset[tuple[Predicate, ...]]
@@ -468,27 +467,6 @@ def _unary_type_domains(
     return domains
 
 
-def _domain_disjoint_arguments(
-    predicate_arg_types: dict[tuple[str, int, int], str],
-    type_domains: dict[str, set[str]],
-) -> set[tuple[Predicate, int, Predicate, int]]:
-    disjoint: set[tuple[Predicate, int, Predicate, int]] = set()
-    positions = sorted(predicate_arg_types)
-    for left, right in combinations(positions, 2):
-        left_type = predicate_arg_types[left]
-        right_type = predicate_arg_types[right]
-        if left_type == "any" or right_type == "any":
-            continue
-        left_domain = type_domains.get(left_type, set())
-        right_domain = type_domains.get(right_type, set())
-        if left_domain and right_domain and left_domain.isdisjoint(right_domain):
-            left_pred = (left[0], left[1])
-            right_pred = (right[0], right[1])
-            disjoint.add((left_pred, left[2], right_pred, right[2]))
-            disjoint.add((right_pred, right[2], left_pred, left[2]))
-    return disjoint
-
-
 def _closed_world_properties(
     fragments: list[str],
     predicate_arg_types: dict[tuple[str, int, int], str] | None = None,
@@ -507,7 +485,6 @@ def _closed_world_properties(
     equivalent: set[tuple[Predicate, Predicate]] = set()
     project_implies: set[tuple[Predicate, Predicate, tuple[int, ...]]] = set()
     disjoint_projection: set[tuple[Predicate, int, Predicate, int]] = set()
-    domain_disjoint: set[tuple[Predicate, int, Predicate, int]] = set()
     mutex: set[tuple[Predicate, Predicate]] = set()
     complement: set[tuple[Predicate, Predicate]] = set()
     partitions: set[tuple[Predicate, ...]] = set()
@@ -595,9 +572,6 @@ def _closed_world_properties(
                 unary_type_domains,
             )
         )
-        domain_disjoint.update(
-            _domain_disjoint_arguments(predicate_arg_types, type_domains)
-        )
     if closed_body_predicates:
         empty.update(
             predicate
@@ -607,15 +581,17 @@ def _closed_world_properties(
     asymmetric -= acyclic | strict_order | total_order
     acyclic -= strict_order
     antisymmetric -= acyclic | strict_order | total_order
-    reflexive -= total_order
+    reflexive -= total_order | universal
     transitive -= strict_order | total_order
     mutex -= complement
-    domain_disjoint -= disjoint_projection
-    domain_disjoint = _without_unary_mutex_domain_disjoint(
-        domain_disjoint, mutex | complement
+    arg_distinct = _without_irreflexive_subsumed_arg_distinct(
+        arg_distinct,
+        asymmetric | acyclic | strict_order,
     )
+    mutex = _without_partition_subsumed_mutex(mutex, partitions)
     functional = _without_key_subsumed_functional(functional, keys)
     functional_set = _without_key_subsumed_functional_set(functional_set, keys)
+    functional_set = _without_subsumed_functional_set(functional_set, functional)
 
     return ClosedWorldProperties(
         frozenset(symmetric),
@@ -630,7 +606,6 @@ def _closed_world_properties(
         frozenset(equivalent),
         frozenset(project_implies),
         frozenset(disjoint_projection),
-        frozenset(domain_disjoint),
         frozenset(mutex),
         frozenset(complement),
         frozenset(partitions),
@@ -644,20 +619,6 @@ def _closed_world_properties(
         frozenset(cardinality_upper),
         frozenset(transitive),
     )
-
-
-def _without_unary_mutex_domain_disjoint(
-    domain_disjoint: set[tuple[Predicate, int, Predicate, int]],
-    mutex_like: set[tuple[Predicate, Predicate]],
-) -> set[tuple[Predicate, int, Predicate, int]]:
-    return {
-        fact
-        for fact in domain_disjoint
-        if not (
-            fact[0][1] == fact[2][1] == 1
-            and tuple(sorted((fact[0], fact[2]))) in mutex_like
-        )
-    }
 
 
 def _choice_rule_properties(
@@ -1024,6 +985,71 @@ def _without_key_subsumed_functional_set(
         for predicate, input_args, output_arg in functional_set
         if not any(key <= set(input_args) for key in key_sets.get(predicate, ()))
     }
+
+
+def _without_subsumed_functional_set(
+    functional_set: set[tuple[Predicate, tuple[int, ...], int]],
+    functional: set[tuple[Predicate, int, int]],
+) -> set[tuple[Predicate, tuple[int, ...], int]]:
+    single_inputs: dict[tuple[Predicate, int], set[int]] = {}
+    for predicate, input_arg, output_arg in functional:
+        single_inputs.setdefault((predicate, output_arg), set()).add(input_arg)
+
+    composite_inputs: dict[tuple[Predicate, int], list[set[int]]] = {}
+    for predicate, input_args, output_arg in functional_set:
+        composite_inputs.setdefault((predicate, output_arg), []).append(set(input_args))
+
+    return {
+        (predicate, input_args, output_arg)
+        for predicate, input_args, output_arg in functional_set
+        if not _functional_set_is_subsumed(
+            predicate,
+            set(input_args),
+            output_arg,
+            single_inputs,
+            composite_inputs,
+        )
+    }
+
+
+def _functional_set_is_subsumed(
+    predicate: Predicate,
+    input_args: set[int],
+    output_arg: int,
+    single_inputs: dict[tuple[Predicate, int], set[int]],
+    composite_inputs: dict[tuple[Predicate, int], list[set[int]]],
+) -> bool:
+    key = (predicate, output_arg)
+    if input_args & single_inputs.get(key, set()):
+        return True
+    return any(other < input_args for other in composite_inputs.get(key, ()))
+
+
+def _without_irreflexive_subsumed_arg_distinct(
+    arg_distinct: set[tuple[Predicate, int, int]],
+    irreflexive_sources: set[Predicate],
+) -> set[tuple[Predicate, int, int]]:
+    return {
+        (predicate, left, right)
+        for predicate, left, right in arg_distinct
+        if not (
+            predicate in irreflexive_sources
+            and predicate[1] == 2
+            and {left, right} == {0, 1}
+        )
+    }
+
+
+def _without_partition_subsumed_mutex(
+    mutex: set[tuple[Predicate, Predicate]],
+    partitions: set[tuple[Predicate, ...]],
+) -> set[tuple[Predicate, Predicate]]:
+    partition_pairs = {
+        tuple(sorted((left, right)))
+        for group in partitions
+        for left, right in combinations(group, 2)
+    }
+    return {pair for pair in mutex if tuple(sorted(pair)) not in partition_pairs}
 
 
 def _key_sets_by_predicate(
@@ -1485,22 +1511,17 @@ def _facts(
     parts = [
         f"max_depth({args.max_depth}).",
         f"max_head({args.disjunctive_head_length}).",
-        f"max_body({args.max_depth}).",
         f"max_vars({args.max_variables}).",
     ]
-    parts.append("prune_arithmetic_identities.")
-    parts.append("canonical_prune.")
     domain = _numeric_domain_values(program)
-    if domain and 0 not in domain:
+    all_positive = bool(domain) and all(value > 0 for value in domain)
+    if domain and 0 not in domain and not all_positive:
         parts.append("zero_not_in_numeric_domain.")
-    if domain and all(value >= 0 for value in domain):
+    if domain and all(value >= 0 for value in domain) and not all_positive:
         parts.append("numeric_domain_nonnegative.")
-    if domain and all(value > 0 for value in domain):
+    if all_positive:
         parts.append("numeric_domain_positive.")
-    if any(mode.kind == "comparison" and mode.operator in {"<", ">"} for mode in modes):
-        parts.append("strict_comparison_available.")
     parts.extend(_closed_world_property_facts(properties, predicate_ids))
-    group_recalls: dict[int, int] = {}
     for mode in modes:
         section_id = mode.section
         predicate_id = mode.id
@@ -1508,32 +1529,16 @@ def _facts(
             key = (mode.name, mode.arity)
             predicate_id = predicate_ids[key]
         recall = args.max_depth if mode.recall < 0 else mode.recall
-        previous_recall = group_recalls.get(mode.recall_group)
-        if previous_recall is None or recall < previous_recall:
-            group_recalls[mode.recall_group] = recall
         parts.append(f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{recall}).")
         parts.append(f"recall_group({mode.id},{mode.recall_group}).")
         for index, arg_type in enumerate(mode.arg_types):
-            parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
-            if (
-                mode.kind == "normal"
-                and predicate_arg_types.get((mode.name, mode.arity, index)) == "numeric"
-            ):
-                parts.append(f"domain_numeric_arg({predicate_id},{mode.arity},{index}).")
-        if mode.positive:
-            parts.append(f"positive_mode({mode.id}).")
-        else:
+            if arg_type != "any":
+                parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
+        if not mode.positive:
             parts.append(f"negative_mode({mode.id}).")
-        if mode.kind == "normal":
-            parts.append(f"normal_mode({mode.id}).")
-        elif mode.kind == "comparison":
-            parts.append(f"comparison_mode({mode.id}).")
-            if mode.operator in {"==", "!="}:
-                parts.append(f"symmetric_comparison_mode({mode.id}).")
+        if mode.kind == "comparison":
             if mode.operator == "!=":
                 parts.append(f"neq_comparison_mode({mode.id}).")
-            if mode.operator in {"<", ">"}:
-                parts.append(f"strict_comparison_mode({mode.id}).")
             if mode.operator == "<":
                 parts.append(f"less_than_comparison_mode({mode.id}).")
             elif mode.operator == ">":
@@ -1543,7 +1548,6 @@ def _facts(
             elif mode.operator == ">=":
                 parts.append(f"geq_comparison_mode({mode.id}).")
         elif mode.kind == "arithmetic":
-            parts.append(f"arithmetic_mode({mode.id}).")
             if mode.operator == "+":
                 parts.append(f"add_mode({mode.id}).")
             elif mode.operator == "-":
@@ -1569,8 +1573,6 @@ def _facts(
                     f"aggregate_condition_atom({mode.id},{atom_index},{predicate_ids[atom]},{offset},{arity})."
                 )
                 offset += arity
-    for group, recall in sorted(group_recalls.items()):
-        parts.append(f"group_recall({group},{recall}).")
     return "\n".join(parts)
 
 
@@ -1651,11 +1653,6 @@ def _closed_world_property_facts(
         right_id = pred_id(right)
         if left_id is not None and right_id is not None:
             parts.append(f"disjoint_arg({left_id},{left_arg},{right_id},{right_arg}).")
-    for left, left_arg, right, right_arg in sorted(properties.domain_disjoint):
-        left_id = pred_id(left)
-        right_id = pred_id(right)
-        if left_id is not None and right_id is not None:
-            parts.append(f"domain_disjoint_arg({left_id},{left_arg},{right_id},{right_arg}).")
     for left, right in sorted(properties.mutex):
         left_id = pred_id(left)
         right_id = pred_id(right)

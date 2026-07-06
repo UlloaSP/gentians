@@ -6,31 +6,31 @@
 % that would force results outside known numeric argument domains.
 %
 % Shared atom shapes used here:
-% - domain_numeric_arg(Pred,Arity,Arg): Python fact. Normal predicate argument
+% - domain_numeric_arg(Pred,Arity,Arg): derived atom. Normal predicate argument
 %   Arg is numeric and domain-constrained by observed facts.
-% - zero_not_in_numeric_domain: Python fact. Observed numeric domain has no 0.
+% - zero_not_in_numeric_domain: Python fact or derived atom. Observed numeric domain has no 0.
 % - numeric_domain_nonnegative: Python fact. Observed numeric domain values are
-%   all >= 0.
+%   all >= 0, or derived from numeric_domain_positive.
 % - numeric_domain_positive: Python fact. Observed numeric domain values are all
 %   > 0.
 % - add_mode/sub_mode/mul_mode/div_mode/mod_mode: Python arithmetic facts.
 % - selected(Section,Slot,Mode), mode(...), var_at(...): selected literal data.
+% - normal_mode(Mode): derived by core/literals.lp for normal predicate modes.
+% - mode_arg_type(Mode,Arg,Type): Python fact with non-any declared argument type.
 % - lt_vars/2 and leq_vars/2: normalized comparison helpers.
 
 % Python fact contract:
-% - domain_numeric_arg(Pred,Arity,Arg): emitted by Python for normal predicate
-%   positions known numeric from language/evidence. Pred is predicate id, Arity
-%   predicate arity, Arg zero-based argument index.
+% - mode_arg_type(Mode,Arg,Type): emitted by Python for non-any mode arguments.
+%   This file derives domain_numeric_arg/3 for normal predicate numeric args.
 % - zero_not_in_numeric_domain: emitted by Python when observed numeric domain
 %   does not contain 0.
 % - numeric_domain_nonnegative: emitted by Python when observed numeric domain
 %   contains only values >= 0.
 % - numeric_domain_positive: emitted by Python when observed numeric domain
-%   contains only values > 0.
+%   contains only values > 0. This file derives the weaker nonnegative and
+%   zero-excluded atoms from it, so Python does not need to emit them too.
 % - add_mode/sub_mode/mul_mode/div_mode/mod_mode: emitted by Python for the
 %   corresponding arithmetic operator mode ids.
-% Python fact detail: domain_numeric_arg(Pred,Arity,Arg) marks predicate argument Arg as numeric/domain-constrained.
-#defined domain_numeric_arg/3.
 % Python fact detail: zero_not_in_numeric_domain is emitted when observed numeric domain excludes 0.
 #defined zero_not_in_numeric_domain/0.
 % Python fact detail: numeric_domain_nonnegative is emitted when observed numeric values are all >= 0.
@@ -47,6 +47,24 @@
 #defined div_mode/1.
 % Python fact detail: mod_mode(Mode) marks arithmetic modes rendered as modulo.
 #defined mod_mode/1.
+
+% Rule: normal numeric mode args are numeric-domain predicate args.
+% Section/Mode/Pred/Arity identify a normal predicate mode. Arg is a zero-based
+% argument declared numeric by mode_arg_type/3. Operators are excluded by
+% normal_mode(Mode), so only predicate arguments become domain-constrained.
+domain_numeric_arg(Pred,Arity,Arg):-
+    mode(_,Mode,Pred,Arity,_),
+    normal_mode(Mode),
+    mode_arg_type(Mode,Arg,numeric).
+
+% Rule: positive numeric domains are nonnegative.
+% A domain where every value is > 0 also satisfies every >= 0 pruning rule.
+numeric_domain_nonnegative:- numeric_domain_positive.
+
+% Rule: positive numeric domains exclude zero.
+% A domain where every value is > 0 cannot contain 0, so zero-specific pruning
+% can consume the weaker zero_not_in_numeric_domain atom.
+zero_not_in_numeric_domain:- numeric_domain_positive.
 
 % Rule: mark variables that are used in numeric domain-constrained predicate args.
 % Section/Slot/Mode identify any selected literal. Pred/Arity/Arg identify a

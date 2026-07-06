@@ -4,7 +4,7 @@
 % lit/4 is the only shown predicate consumed by HypothesisSpaceGenerator.
 %
 % Shared atom shapes used here:
-% - normal_mode(Mode): Python fact. Mode is a normal predicate mode.
+% - normal_mode(Mode): derived atom. Mode is a normal predicate mode.
 % - max_vars(Base): Python fact. Base is used for positional integer encoding.
 % - selected(Section,Slot,Mode): defined in core/slots.lp.
 % - normal_literal(Section,Slot,Mode,Pred,Arity): core/literals.lp alias.
@@ -12,13 +12,11 @@
 % - var_at(Section,Slot,Arg,Var): defined in core/arguments.lp.
 % - section_order(Section,Order): defined in core/slots.lp.
 
-% Python fact contract:
-% - normal_mode(Mode): emitted by Python for predicate-atom modes. Used here to
-%   distinguish normal duplicate pruning from operator duplicate pruning.
+% Cross-module contract:
+% - normal_mode(Mode): derived by core/literals.lp. Used here to distinguish
+%   normal duplicate pruning from operator duplicate pruning.
 % - max_vars(Base): emitted by Python from args.max_variables. Base is radix for
 %   encoding variable tuple into lit/4 Code.
-% Python fact detail: normal_mode(Mode) marks modes rendered as normal predicate atoms.
-#defined normal_mode/1.
 % Python fact detail: max_vars(Max) comes from args.max_variables; Max is count of available generated variables V0..V(Max-1).
 #defined max_vars/1.
 

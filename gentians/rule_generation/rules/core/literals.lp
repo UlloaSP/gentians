@@ -7,27 +7,48 @@
 % Shared atom shapes used here:
 % - mode(Section,Mode,Pred,Arity,Recall): Python fact. Pred is predicate id and
 %   Arity is predicate arity for normal modes.
-% - normal_mode(Mode): Python fact. Mode renders as a normal predicate atom.
-% - positive_mode(Mode): Python fact. Mode renders without default negation.
+% - normal_mode(Mode): derived atom. Mode renders as a normal predicate atom.
+% - positive_mode(Mode): derived atom. Mode renders without default negation.
 % - negative_mode(Mode): Python fact. Mode renders with "not".
+% - comparison_mode/arithmetic_mode/aggregate_mode: operator and aggregate
+%   classifiers used to exclude non-normal modes.
 % - selected(Section,Slot,Mode): defined in core/slots.lp.
-% - same_vars(body,Slot0,body,Slot1): both body literals use same tuple.
 
 % Python fact contract:
 % - mode(Section,Mode,Pred,Arity,Recall): emitted by Python for every mode.
 %   Pred/Arity identify rendered normal predicate literals.
-% - normal_mode(Mode): emitted by Python when Mode renders as predicate atom.
-% - positive_mode(Mode): emitted by Python when Mode renders without "not".
 % - negative_mode(Mode): emitted by Python when Mode renders with default
 %   negation in the body.
 % Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
 #defined mode/5.
-% Python fact detail: normal_mode(Mode) marks modes rendered as normal predicate atoms.
-#defined normal_mode/1.
-% Python fact detail: positive_mode(Mode) marks modes rendered without default negation.
-#defined positive_mode/1.
 % Python fact detail: negative_mode(Mode) marks modes rendered with default negation in body.
 #defined negative_mode/1.
+
+% Rule: every mode not declared negative is positive.
+% Mode is a generator mode id. Python emits negative_mode only for default-
+% negated body predicate modes; all other modes render positively.
+positive_mode(Mode):-
+    mode(_,Mode,_,_,_),
+    not negative_mode(Mode).
+
+% Rule: comparison modes are not normal predicate modes.
+% Mode is classified by operators/comparisons.lp.
+non_normal_mode(Mode):- comparison_mode(Mode).
+
+% Rule: arithmetic modes are not normal predicate modes.
+% Mode is classified by operators/arithmetic.lp.
+non_normal_mode(Mode):- arithmetic_mode(Mode).
+
+% Rule: aggregate modes are not normal predicate modes.
+% Mode is declared by Python through aggregate_mode/3.
+non_normal_mode(Mode):- aggregate_mode(Mode,_,_).
+
+% Rule: any selected mode not classified as operator/aggregate is normal.
+% Section/Mode come from mode/5. The negated non_normal_mode check keeps normal
+% predicate atoms separate from comparisons, arithmetic, and aggregates.
+normal_mode(Mode):-
+    mode(_,Mode,_,_,_),
+    not non_normal_mode(Mode).
 
 % Rule: selected normal literal with predicate identity.
 % Section is head/body. Slot is occupied slot id. Mode is selected mode id.
@@ -68,11 +89,3 @@ negative_body_literal(Slot,Mode,Pred,Arity):-
 % Arity identify the selected head literal.
 head_literal(Slot,Mode,Pred,Arity):-
     positive_normal_literal(head,Slot,Mode,Pred,Arity).
-
-% Constraint: reject direct body contradiction for the same normal literal.
-% PosSlot is positive Pred tuple. NegSlot is not Pred over the same Arity and
-% same variable tuple. same_vars proves both literals refer to the same atom, so
-% the body cannot require both the atom and its default negation.
-:- positive_body_literal(PosSlot,_,Pred,Arity),
-    negative_body_literal(NegSlot,_,Pred,Arity),
-    same_vars(body,PosSlot,body,NegSlot).

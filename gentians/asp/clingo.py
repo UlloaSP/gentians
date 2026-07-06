@@ -8,8 +8,7 @@ from .stats import clingo_stat, ground_stats
 from ..rule_generation.program import Example
 from ..timing import add, current_phase, instrumentation, metric_enabled, record_metric
 
-LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
-COVERAGE_RULES = (LOGIC_PROGRAMS / "coverage_rules.lp").read_text()
+COVERAGE_RULES = (Path(__file__).with_name("rules") / "coverage.lp").read_text()
 
 
 class ClingoInterface:

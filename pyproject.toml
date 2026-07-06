@@ -37,7 +37,8 @@ dev = [
 include = ["gentians*"]
 
 [tool.setuptools.package-data]
-gentians = ["logic_programs/*.lp"]
+"gentians.asp" = ["rules/*.lp"]
+"gentians.rule_generation" = ["rules/*/*.lp"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

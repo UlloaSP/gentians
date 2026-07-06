@@ -25,8 +25,55 @@ from .program import AggregateDeclaration, Program
 from .rule_space import Predicate, RuleEntry, RuleSpace
 
 
-LOGIC_PROGRAMS = Path(__file__).parents[1] / "logic_programs"
-HYPOTHESIS_SPACE_RULES = (LOGIC_PROGRAMS / "hypothesis_space_reified.lp").read_text()
+HYPOTHESIS_SPACE_RULE_MODULES = (
+    "core/slots.lp",
+    "core/limits.lp",
+    "core/constraints.lp",
+    "core/recall.lp",
+    "core/arguments.lp",
+    "core/literals.lp",
+    "core/tuple_helpers.lp",
+    "aggregates/roles.lp",
+    "safety/typing.lp",
+    "safety/variables.lp",
+    "safety/asp_safety.lp",
+    "operators/comparisons.lp",
+    "operators/arithmetic.lp",
+    "operators/arithmetic_domain.lp",
+    "operators/arithmetic_identities.lp",
+    "aggregates/canonicalization.lp",
+    "aggregates/safety.lp",
+    "aggregates/duplicates.lp",
+    "properties/arg_equal.lp",
+    "properties/arg_distinct.lp",
+    "properties/symmetric.lp",
+    "properties/equivalent.lp",
+    "properties/inverse.lp",
+    "properties/disjoint.lp",
+    "properties/universal.lp",
+    "properties/empty.lp",
+    "properties/partition.lp",
+    "properties/key.lp",
+    "properties/reflexive.lp",
+    "properties/total_order.lp",
+    "properties/subsumption.lp",
+    "properties/irreflexive.lp",
+    "properties/antisymmetric.lp",
+    "properties/implies.lp",
+    "properties/project_implies.lp",
+    "properties/complement.lp",
+    "properties/mutex.lp",
+    "properties/functional.lp",
+    "properties/functional_set.lp",
+    "properties/cardinality_upper.lp",
+    "properties/transitive.lp",
+    "properties/acyclic.lp",
+    "core/output.lp",
+)
+HYPOTHESIS_SPACE_RULES = "\n".join(
+    (Path(__file__).with_name("rules") / module).read_text()
+    for module in HYPOTHESIS_SPACE_RULE_MODULES
+)
 
 
 @dataclass(frozen=True, slots=True)

@@ -59,7 +59,7 @@ class Arguments:
             # Number of candidates sampled for each tournament.
             "tournament_size": 25,
             # Probability of picking the fittest candidate in the tournament.
-            "prob_selecting_fittest": 0.9,
+            "prob_selecting_fittest": 1,
         }
     )
 
@@ -69,7 +69,7 @@ class Arguments:
             # Crossover implementation.
             "name": "set_mix",
             # Probability of applying crossover to selected parents.
-            "probability": 0.7,
+            "probability": 0.6,
         }
     )
 
@@ -79,7 +79,7 @@ class Arguments:
             # Mutation implementation.
             "name": "random_group",
             # Probability of mutating an offspring.
-            "probability": 0.2,
+            "probability": 0.05,
         }
     )
 
@@ -110,5 +110,3 @@ class Arguments:
             "clingo_arguments": [],
         }
     )
-
-

@@ -22,7 +22,7 @@ export function OperatorScoreDeltaChart({ benchmark }) {
 
   return (
     <ChartSection title="Impacto score operadores">
-      {rows.length ? <Chart {...chart} height={300} /> : <p className={chartTw.note}>Sin delta de score para operadores de generación</p>}
+      {rows.length ? <Chart {...chart} height={300} /> : <p className={chartTw.note}>Sin delta de score para operadores</p>}
     </ChartSection>
   )
 }

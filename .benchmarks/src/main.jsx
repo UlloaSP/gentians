@@ -7,7 +7,7 @@ import { ClingoCallsChart } from './charts/ClingoCallsChart'
 import { ClingoCostChart } from './charts/ClingoCostChart'
 import { ClingoModelsChart } from './charts/ClingoModelsChart'
 import { FitnessChart } from './charts/FitnessChart'
-import { OperatorHealthChart } from './charts/OperatorHealthChart'
+import { OperatorImprovementChart } from './charts/OperatorImprovementChart'
 import { OperatorScoreDeltaChart } from './charts/OperatorScoreDeltaChart'
 import { OperatorsChart } from './charts/OperatorsChart'
 import { PhaseTypeChart } from './charts/PhaseTypeChart'
@@ -160,7 +160,7 @@ function Detail({ benchmark }) {
         <TypeSplitChart benchmark={benchmark} />
         <FitnessChart benchmark={benchmark} />
         <OperatorsChart benchmark={benchmark} />
-        <OperatorHealthChart benchmark={benchmark} />
+        <OperatorImprovementChart benchmark={benchmark} />
         <OperatorScoreDeltaChart benchmark={benchmark} />
         <QualityChart benchmark={benchmark} />
         <QualityProgramChart benchmark={benchmark} />

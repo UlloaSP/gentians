@@ -1,4 +1,5 @@
 import random
+import math
 
 from ..individual import Individual
 from ..program_sampler import ProgramSampler, _random_rule_outside
@@ -27,9 +28,11 @@ def mutate_by_random_group(
     operation = "none"
     duplicate_attempts = 0
     extra_forbidden = extra_forbidden_signatures or ()
+    applied = False
 
     with phase("mutation.operator"):
         if random.random() < probability:
+            applied = True
             current_rules = set(element.program)
             rule_pool = sampler.rule_space.clauses
             has_available_rule = len(current_rules) < len(rule_pool)
@@ -80,11 +83,18 @@ def mutate_by_random_group(
                     changed_positions = 1
                     break
 
+    valid_new = something_changed and math.isfinite(mutated_element.score)
+    invalid = something_changed and not math.isfinite(mutated_element.score)
+    duplicate = applied and not something_changed and duplicate_attempts > 0
+    failed = applied and not something_changed and duplicate_attempts == 0
+
     if something_changed:
         with phase("mutation.fitness"):
             mutated_element.score, mutated_element.is_best = evaluate_score(
                 mutated_element.program
             )
+        valid_new = math.isfinite(mutated_element.score)
+        invalid = not valid_new
 
     if metric_enabled("operator"):
         with instrumentation():
@@ -93,13 +103,20 @@ def mutate_by_random_group(
                 {
                     "operator": "mutation",
                     "strategy": "random_group",
+                    "applied": applied,
+                    "skipped": not applied,
+                    "slots": 1,
                     "changed": something_changed,
+                    "valid_new": valid_new,
+                    "invalid": invalid,
+                    "duplicate": duplicate,
+                    "failed": failed,
                     "changed_positions": changed_positions,
                     "mutation_operation": operation,
                     "probability": probability,
                     "original_score": original_score,
                     "new_score": mutated_element.score,
-                    "improved": mutated_element.score > original_score,
+                    "improved": valid_new and mutated_element.score > original_score,
                     "is_best": mutated_element.is_best,
                     "duplicate_population": (
                         something_changed

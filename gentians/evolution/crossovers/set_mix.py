@@ -1,4 +1,5 @@
 import random
+import math
 
 from ..individual import Individual
 from ..program_sampler import ProgramSampler
@@ -120,19 +121,32 @@ def set_mix_crossover(
             duplicate_population = int(i0.score == float("-inf")) + int(
                 i1.score == float("-inf")
             )
+            invalid = sum(
+                int(
+                    not math.isfinite(child.score)
+                    and child.program not in parent_signatures
+                    and child.score != float("-inf")
+                )
+                for child in (i0, i1)
+            )
+            valid_new = 2 - parent_duplicates - duplicate_population - invalid
             record_metric(
                 "operator",
                 {
                     "operator": "crossover",
                     "strategy": "set_mix",
                     "applied": True,
+                    "skipped": False,
                     "not_applied": False,
                     "probability": probability,
                     "parent_a_score": best_a.score,
                     "parent_b_score": best_b.score,
                     "child_1_score": i0.score,
                     "child_2_score": i1.score,
+                    "slots": 2,
                     "children": 2,
+                    "children_valid_new": valid_new,
+                    "children_invalid": invalid,
                     "children_improved": int(i0.score > parent_best)
                     + int(i1.score > parent_best),
                     "children_best": int(i0.is_best) + int(i1.is_best),

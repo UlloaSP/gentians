@@ -1211,18 +1211,25 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             and row.get("operator") == operator
             and row.get("strategy") == strategy
         ]
-        children = sum(to_float(row.get("children")) for row in selected)
-        children_improved = sum(
-            to_float(row.get("children_improved")) for row in selected
+        events = len(selected)
+        slots = sum(operator_slots(row, operator) for row in selected)
+        applied_events = sum(1 for row in selected if operator_applied(row, operator))
+        skipped_slots = sum(
+            operator_slots(row, operator)
+            for row in selected
+            if operator_skipped(row)
         )
-        children_duplicate_parent = sum(
-            to_float(row.get("children_duplicate_parent", row.get("children_same_as_parent")))
+        valid_new_count = operator_valid_new_count(selected, operator)
+        duplicate_count = operator_duplicate_count(selected, operator)
+        invalid_count = operator_invalid_count(selected, operator)
+        accepted_count = sum(to_float(row.get("accepted")) for row in selected)
+        not_competitive_count = sum(
+            to_float(row.get("not_competitive"))
+            or float(row.get("reject_reason") == "not_competitive")
             for row in selected
         )
-        children_duplicate_population = sum(
-            to_float(row.get("children_duplicate_population")) for row in selected
-        )
-        children_duplicate = children_duplicate_parent + children_duplicate_population
+        improved_count = operator_improved_count(selected, operator)
+        best_count = operator_best_count(selected, operator)
         crossover_deltas = []
         for row in selected:
             if not all(
@@ -1244,71 +1251,173 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 to_float(row.get("parent_b_score")),
             )
             crossover_deltas.extend(score - parent_best for score in child_scores)
-        duplicate_rate = (
-            children_duplicate / children
-            if children
-            else mean_bool(selected, "duplicate_population")
-        )
-        replacement_rejects = [row for row in selected if row.get("operator") == "replacement"]
-        generation_operator = operator in {"crossover", "mutation"}
         replacement_operator = operator == "replacement"
-        produced_rate = None
-        if operator == "crossover" and children:
-            produced_rate = max(
-                (children - children_duplicate)
-                / children,
-                0.0,
-            )
+        improvement_denominator = (
+            accepted_count + not_competitive_count
+            if replacement_operator
+            else valid_new_count
+        )
+        worse_or_equal_count = max(improvement_denominator - improved_count, 0.0)
+        mutation_deltas = [
+            to_float(row.get("new_score")) - to_float(row.get("original_score"))
+            for row in selected
+            if row.get("valid_new") is True
+            and row.get("new_score") not in (None, "")
+            and row.get("original_score") not in (None, "")
+        ]
+        replacement_deltas = [
+            to_float(row.get("candidate_score")) - to_float(row.get("victim_score"))
+            for row in selected
+            if row.get("accepted") is True and row.get("victim_score") not in (None, "")
+        ]
+        if operator == "crossover" and crossover_deltas:
+            mean_score_delta = mean(crossover_deltas)
         elif operator == "mutation":
-            produced_rate = mean_bool(selected, "changed")
-        improvement_rate = (
-            children_improved / children
-            if operator == "crossover" and children
-            else mean_bool(selected, "improved") if operator == "mutation" else None
-        )
-        acceptance_rate = mean_bool(selected, "accepted") if replacement_operator else None
-        reject_duplicate_rate = (
-            mean_bool(replacement_rejects, "duplicate") if replacement_operator else None
-        )
-        reject_non_finite_rate = (
-            mean_match(replacement_rejects, "reject_reason", "non_finite")
-            if replacement_operator
-            else None
-        )
-        reject_not_competitive_rate = (
-            mean_match(replacement_rejects, "reject_reason", "not_competitive")
-            if replacement_operator
-            else None
-        )
+            mean_score_delta = mean(mutation_deltas)
+        elif replacement_operator:
+            mean_score_delta = mean(replacement_deltas)
+        else:
+            mean_score_delta = None
         summary.append(
             {
                 "dataset": dataset,
                 "operator": operator,
                 "strategy": strategy,
-                "events": len(selected),
-                "not_applied_rate": mean_bool(selected, "not_applied"),
-                "produced_rate": produced_rate,
-                "improvement_rate": improvement_rate,
-                "acceptance_rate": acceptance_rate,
-                "duplicate_rate": duplicate_rate
-                if generation_operator
-                else reject_duplicate_rate if replacement_operator else None,
-                "reject_duplicate_rate": reject_duplicate_rate,
-                "reject_non_finite_rate": reject_non_finite_rate,
-                "reject_not_competitive_rate": reject_not_competitive_rate,
-                "same_as_parent_rate": None,
-                "changed_rate": mean_bool(selected, "changed") if operator == "mutation" else None,
-                "mean_score_delta": mean(crossover_deltas)
-                if operator == "crossover" and crossover_deltas
-                else mean(
-                    to_float(row.get("new_score")) - to_float(row.get("original_score"))
-                    for row in selected
-                    if row.get("new_score") not in (None, "")
-                    and row.get("original_score") not in (None, "")
-                ) if operator == "mutation" else None,
+                "events": events,
+                "slots": slots,
+                "applied_rate": applied_events / events if events else 0.0,
+                "skipped_rate": skipped_slots / slots if slots else 0.0,
+                "valid_rate": (
+                    (accepted_count if replacement_operator else valid_new_count)
+                    / slots
+                    if operator in {"crossover", "mutation", "replacement"} and slots
+                    else None
+                ),
+                "duplicate_rate": duplicate_count / slots if slots else None,
+                "invalid_rate": invalid_count / slots if slots else None,
+                "improvement_rate": (
+                    improved_count / improvement_denominator
+                    if improvement_denominator
+                    else 0.0
+                ),
+                "worse_or_equal_rate": (
+                    worse_or_equal_count / improvement_denominator
+                    if improvement_denominator
+                    else 0.0
+                ),
+                "best_rate": best_count / slots if slots else 0.0,
+                "changed_rate": (
+                    mean_bool(selected, "changed") if operator == "mutation" else None
+                ),
+                "mean_score_delta": mean_score_delta,
             }
         )
     return summary
+
+
+def operator_slots(row: dict[str, object], operator: str) -> float:
+    if row.get("slots") not in (None, ""):
+        return to_float(row.get("slots"))
+    if operator == "crossover":
+        children = to_float(row.get("children"))
+        return children if children else 2.0
+    return 1.0
+
+
+def operator_applied(row: dict[str, object], operator: str) -> bool:
+    if row.get("applied") not in (None, ""):
+        return bool(to_float(row.get("applied")))
+    if operator == "crossover":
+        return not bool(to_float(row.get("not_applied")))
+    if operator == "mutation":
+        return bool(to_float(row.get("changed")))
+    return True
+
+
+def operator_skipped(row: dict[str, object]) -> bool:
+    if row.get("skipped") not in (None, ""):
+        return bool(to_float(row.get("skipped")))
+    return bool(to_float(row.get("not_applied")))
+
+
+def operator_valid_new_count(
+    rows: list[dict[str, object]], operator: str
+) -> float:
+    if operator == "crossover":
+        return sum(
+            to_float(
+                row.get(
+                    "children_valid_new",
+                    max(
+                        to_float(row.get("children"))
+                        - to_float(
+                            row.get(
+                                "children_duplicate_parent",
+                                row.get("children_same_as_parent"),
+                            )
+                        )
+                        - to_float(row.get("children_duplicate_population")),
+                        0.0,
+                    ),
+                )
+            )
+            for row in rows
+        )
+    if operator == "mutation":
+        return sum(
+            to_float(row.get("valid_new", row.get("changed")))
+            for row in rows
+        )
+    return 0.0
+
+
+def operator_duplicate_count(
+    rows: list[dict[str, object]], operator: str
+) -> float:
+    if operator == "crossover":
+        return sum(
+            to_float(
+                row.get("children_duplicate_parent", row.get("children_same_as_parent"))
+            )
+            + to_float(row.get("children_duplicate_population"))
+            for row in rows
+        )
+    return sum(
+        to_float(row.get("duplicate", row.get("duplicate_population")))
+        for row in rows
+    )
+
+
+def operator_invalid_count(
+    rows: list[dict[str, object]], operator: str
+) -> float:
+    if operator == "crossover":
+        return sum(to_float(row.get("children_invalid")) for row in rows)
+    if operator == "mutation":
+        return sum(
+            to_float(row.get("invalid")) + to_float(row.get("failed"))
+            for row in rows
+        )
+    return sum(to_float(row.get("invalid")) for row in rows)
+
+
+def operator_improved_count(
+    rows: list[dict[str, object]], operator: str
+) -> float:
+    if operator == "crossover":
+        return sum(to_float(row.get("children_improved")) for row in rows)
+    if operator == "replacement":
+        return sum(
+            to_float(row.get("improved_victim", row.get("improved")))
+            for row in rows
+        )
+    return sum(to_float(row.get("improved")) for row in rows)
+
+
+def operator_best_count(rows: list[dict[str, object]], operator: str) -> float:
+    if operator == "crossover":
+        return sum(to_float(row.get("children_best")) for row in rows)
+    return sum(to_float(row.get("is_best")) for row in rows)
 
 
 def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:

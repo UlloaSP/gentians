@@ -15,7 +15,7 @@ PopulationInitializerFn = Callable[
 SelectionFn = Callable[[list[Individual]], tuple[Individual, Individual]]
 CrossoverFn = Callable[
     [Individual, Individual, FitnessFn, set[tuple[str, ...]], int],
-    tuple[Individual, Individual],
+    tuple[Individual, Individual] | None,
 ]
 MutationFn = Callable[
     [Individual, int, FitnessFn, set[tuple[str, ...]], set[tuple[str, ...]]],

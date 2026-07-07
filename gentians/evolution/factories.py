@@ -20,7 +20,7 @@ from .types import (
     SelectionFn,
 )
 from ..rule_generation.program import Program
-from ..timing import instrumentation, metric_enabled, profile_phase, record_metric
+from ..timing import instrumentation, metric_enabled, record_metric
 
 
 def create_fitness(
@@ -85,7 +85,7 @@ def create_crossover(config: dict[str, object], sampler: ProgramSampler) -> Cros
             evaluate_score: FitnessFn,
             known_signatures: set[tuple[str, ...]],
             max_program_clauses: int,
-        ) -> tuple[Individual, Individual]:
+        ) -> tuple[Individual, Individual] | None:
             if random.random() < probability:
                 return set_mix_crossover(
                     best_a,
@@ -96,7 +96,8 @@ def create_crossover(config: dict[str, object], sampler: ProgramSampler) -> Cros
                     max_program_clauses,
                     sampler,
                 )
-            return _clone_parents_without_crossover(best_a, best_b, probability)
+            _record_skipped_crossover(best_a, best_b, probability)
+            return None
 
         return crossover
     raise ValueError(f"Unknown crossover operator: {name}")
@@ -199,12 +200,9 @@ def _str_list(config: dict[str, object], key: str) -> list[str]:
     raise ValueError(f"Operator config key must be a list[str] or str: {key}")
 
 
-@profile_phase("crossover")
-def _clone_parents_without_crossover(
+def _record_skipped_crossover(
     best_a: Individual, best_b: Individual, probability: float
-) -> tuple[Individual, Individual]:
-    child_a = _clone_individual(best_a)
-    child_b = _clone_individual(best_b)
+) -> None:
     if metric_enabled("operator"):
         with instrumentation():
             record_metric(
@@ -213,29 +211,24 @@ def _clone_parents_without_crossover(
                     "operator": "crossover",
                     "strategy": "set_mix",
                     "applied": False,
+                    "skipped": True,
                     "not_applied": True,
                     "probability": probability,
                     "parent_a_score": best_a.score,
                     "parent_b_score": best_b.score,
-                    "child_1_score": child_a.score,
-                    "child_2_score": child_b.score,
-                    "children": 2,
+                    "child_1_score": "",
+                    "child_2_score": "",
+                    "slots": 2,
+                    "children": 0,
+                    "children_valid_new": 0,
+                    "children_invalid": 0,
                     "children_improved": 0,
-                    "children_best": int(child_a.is_best) + int(child_b.is_best),
+                    "children_best": 0,
                     "children_same_as_parent": 0,
-                    "children_duplicate_parent": 2,
+                    "children_duplicate_parent": 0,
                     "children_duplicate_population": 0,
                 },
             )
-    return child_a, child_b
-
-
-def _clone_individual(individual: Individual) -> Individual:
-    return Individual(
-        individual.program,
-        individual.score,
-        individual.is_best,
-    )
 
 def _distinct_pair(
     population: list[Individual], first: Individual, second: Individual

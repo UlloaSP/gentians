@@ -14,6 +14,9 @@ def replace_oldest_or_worst(
 ) -> list[Individual]:
     accepted = False
     reject_reason = ""
+    old_best_score = population[0].score if population else float("-inf")
+    old_worst_score = population[-1].score if population else float("-inf")
+    victim_score = ""
     if element.program in population_signatures:
         reject_reason = "duplicate"
     elif not math.isfinite(element.score):
@@ -47,6 +50,7 @@ def replace_oldest_or_worst(
                 victim = population.pop(victim_index)
             else:
                 victim = population.pop()
+            victim_score = victim.score
             population_signatures.discard(victim.program)
             accepted = True
 
@@ -57,10 +61,22 @@ def replace_oldest_or_worst(
                 {
                     "operator": "replacement",
                     "strategy": "oldest_or_worst",
+                    "slots": 1,
                     "accepted": accepted,
                     "duplicate": reject_reason == "duplicate",
+                    "invalid": reject_reason == "non_finite",
+                    "not_competitive": reject_reason == "not_competitive",
+                    "improved": accepted and element.score > old_best_score,
+                    "improved_victim": (
+                        accepted
+                        and victim_score != ""
+                        and element.score > float(victim_score)
+                    ),
                     "reject_reason": reject_reason,
                     "candidate_score": element.score,
+                    "old_best_score": old_best_score,
+                    "old_worst_score": old_worst_score,
+                    "victim_score": victim_score,
                     "population_size": len(population),
                 },
             )

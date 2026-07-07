@@ -64,13 +64,16 @@ def genetic_solver(
         # either do crossover or mutation seems to be not effective
 
         # 2.2: crossover
-        new_program_1, new_program_2 = crossover(
+        crossed = crossover(
             best_a,
             best_b,
             evaluate_score,
             population_signatures,
             args.max_program_clauses,
         )
+        if crossed is None:
+            continue
+        new_program_1, new_program_2 = crossed
         with phase("crossover"):
             for child in (new_program_1, new_program_2):
                 if child.is_best:

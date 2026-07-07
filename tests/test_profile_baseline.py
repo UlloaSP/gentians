@@ -85,7 +85,7 @@ def test_profile_baseline_writes_debug_clingo_program(tmp_path):
     assert "python -m clingo 0 --enum-mode=brave" in args
 
 
-def test_operator_summary_sanitizes_non_finite_scores():
+def test_operator_summary_counts_non_finite_mutation_as_invalid():
     rows = [
         {
             "dataset": "coin",
@@ -93,13 +93,15 @@ def test_operator_summary_sanitizes_non_finite_scores():
             "strategy": "x",
             "new_score": "nan",
             "original_score": "1",
-            "children": 1,
+            "slots": 1,
+            "invalid": True,
         }
     ]
 
     [summary] = operator_summary(rows)
 
-    assert summary["mean_score_delta"] == -1.0
+    assert summary["invalid_rate"] == 1.0
+    assert summary["mean_score_delta"] == 0.0
 
 
 def test_operator_summary_counts_crossover_parent_duplicates_as_duplicates():
@@ -136,11 +138,13 @@ def test_operator_summary_counts_crossover_parent_duplicates_as_duplicates():
 
     [summary] = operator_summary(rows)
 
-    assert summary["not_applied_rate"] == 0.5
-    assert summary["same_as_parent_rate"] is None
+    assert summary["applied_rate"] == 0.5
+    assert summary["skipped_rate"] == 0.5
+    assert summary["valid_rate"] == 0.0
     assert summary["duplicate_rate"] == 1.0
-    assert summary["produced_rate"] == 0.0
-    assert summary["improvement_rate"] == 0.25
+    assert summary["invalid_rate"] == 0.0
+    assert summary["improvement_rate"] == 0.0
+    assert summary["worse_or_equal_rate"] == 0.0
     assert summary["mean_score_delta"] == -0.25
 
 

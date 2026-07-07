@@ -46,9 +46,11 @@ export const topPhase = (benchmark) => phaseTotals(benchmark).reduce((best, row)
 export const dominantLabel = (value) => value === 'overhead' ? 'python' : value
 
 export const operatorLabel = (row) => `${row.operator}:${row.strategy}`
-export const candidateOperatorRows = (benchmark) => (benchmark.operatorSummary || [])
-  .filter((row) => ['crossover', 'mutation'].includes(row.operator))
-export const replacementOperatorRows = (benchmark) => (benchmark.operatorSummary || [])
-  .filter((row) => row.operator === 'replacement')
-export const scoreDeltaRows = (benchmark) => candidateOperatorRows(benchmark)
+export const operatorRows = (benchmark) => benchmark.operatorSummary || []
+export const outcomeOperatorRows = (benchmark) => operatorRows(benchmark)
+  .filter((row) => ['crossover', 'mutation', 'replacement'].includes(row.operator))
+export const improvementOperatorRows = (benchmark) => operatorRows(benchmark)
+  .filter((row) => ['crossover', 'mutation', 'replacement'].includes(row.operator))
+  .filter((row) => maybeNum(row.improvement_rate) !== null || maybeNum(row.worse_or_equal_rate) !== null)
+export const scoreDeltaRows = (benchmark) => operatorRows(benchmark)
   .filter((row) => maybeNum(row.mean_score_delta) !== null)

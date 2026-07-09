@@ -12,6 +12,7 @@ from benchmarks.profile_baseline import (
     dashboard_phases,
     operator_summary,
     parse_log,
+    quality_summary,
     reset_run_outputs,
     run_streamed,
     write_dashboard_data,
@@ -163,6 +164,90 @@ def test_operator_summary_counts_mutation_population_duplicates():
     assert summary["duplicate_rate"] == 1.0
 
 
+def test_operator_summary_uses_run_means():
+    [summary] = operator_summary(
+        [
+            {
+                "dataset": "d",
+                "run": 1,
+                "operator": "mutation",
+                "strategy": "random_group",
+                "changed": True,
+                "valid_new": True,
+                "improved": True,
+                "new_score": 3,
+                "original_score": 1,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "operator": "mutation",
+                "strategy": "random_group",
+                "changed": False,
+                "valid_new": False,
+                "improved": False,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "operator": "mutation",
+                "strategy": "random_group",
+                "changed": False,
+                "valid_new": False,
+                "improved": False,
+            },
+        ]
+    )
+
+    assert summary["events"] == 1.5
+    assert summary["changed_rate"] == 0.5
+    assert summary["valid_rate"] == 0.5
+    assert summary["improvement_rate"] == 0.5
+    assert summary["mean_score_delta"] == 1.0
+
+
+def test_quality_summary_uses_run_means():
+    [summary] = quality_summary(
+        [
+            {
+                "dataset": "d",
+                "run": 1,
+                "score": 10,
+                "program_size": 2,
+                "covered_positive": 4,
+                "covered_negative": 0,
+                "best_found": True,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "score": 0,
+                "program_size": 4,
+                "covered_positive": 2,
+                "covered_negative": 2,
+                "best_found": False,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "score": 0,
+                "program_size": 6,
+                "covered_positive": 0,
+                "covered_negative": 4,
+                "best_found": False,
+            },
+        ]
+    )
+
+    assert summary["evaluations"] == 1.5
+    assert summary["mean_score"] == 5.0
+    assert summary["best_score"] == 5.0
+    assert summary["best_found_rate"] == 0.5
+    assert summary["mean_program_size"] == 3.5
+    assert summary["mean_covered_positive"] == 2.5
+    assert summary["mean_covered_negative"] == 1.5
+
+
 def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
     timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
@@ -297,6 +382,19 @@ def test_dashboard_has_fitness_setup_phase():
 
     assert phases["fitnessSetup"]["grounding"] == 3.0
     assert phases["fitnessSetup"]["self"] == 1.0
+
+
+def test_dashboard_phases_use_run_means():
+    phases = dashboard_phases(
+        [
+            TimingMetric("d", 1, "total_execution", 10.0, 1),
+            TimingMetric("d", 1, "genetic.self", 2.0, 1),
+            TimingMetric("d", 2, "total_execution", 30.0, 1),
+            TimingMetric("d", 2, "genetic.self", 6.0, 1),
+        ]
+    )
+
+    assert phases["gaPython"]["self"] == 20.0
 
 
 def test_frontend_phase_order_matches_dashboard_phases():

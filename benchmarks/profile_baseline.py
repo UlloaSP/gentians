@@ -1030,7 +1030,15 @@ def _clingo_stat_sum_for_run(
 
 
 def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]:
-    values = {timing.metric: timing.seconds for timing in timings}
+    runs = sorted({timing.run for timing in timings})
+    totals: dict[tuple[int, str], float] = {}
+    for timing in timings:
+        key = (timing.run, timing.metric)
+        totals[key] = totals.get(key, 0.0) + timing.seconds
+    values = {
+        metric: mean(totals.get((run, metric), 0.0) for run in runs)
+        for metric in sorted({timing.metric for timing in timings})
+    }
 
     def phase(name: str, source: str) -> dict[str, float]:
         total = values.get(source, 0.0)
@@ -1176,6 +1184,13 @@ def _rows_by_dataset(rows: list[dict[str, object]]) -> dict[str, list[dict[str, 
     return grouped
 
 
+def _rows_by_run_number(rows: list[dict[str, object]]) -> dict[int, list[dict[str, object]]]:
+    grouped: dict[int, list[dict[str, object]]] = {}
+    for row in rows:
+        grouped.setdefault(int(to_float(row.get("run"))), []).append(row)
+    return grouped
+
+
 def normalize_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     normalized: list[dict[str, object]] = []
     for row in rows:
@@ -1211,108 +1226,144 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             and row.get("operator") == operator
             and row.get("strategy") == strategy
         ]
-        events = len(selected)
-        slots = sum(operator_slots(row, operator) for row in selected)
-        applied_events = sum(1 for row in selected if operator_applied(row, operator))
-        skipped_slots = sum(
-            operator_slots(row, operator)
-            for row in selected
-            if operator_skipped(row)
-        )
-        valid_new_count = operator_valid_new_count(selected, operator)
-        duplicate_count = operator_duplicate_count(selected, operator)
-        invalid_count = operator_invalid_count(selected, operator)
-        accepted_count = sum(to_float(row.get("accepted")) for row in selected)
-        not_competitive_count = sum(
-            to_float(row.get("not_competitive"))
-            or float(row.get("reject_reason") == "not_competitive")
-            for row in selected
-        )
-        improved_count = operator_improved_count(selected, operator)
-        best_count = operator_best_count(selected, operator)
-        crossover_deltas = []
-        for row in selected:
-            if not all(
-                row.get(key) not in (None, "")
-                for key in (
-                    "child_1_score",
-                    "child_2_score",
-                    "parent_a_score",
-                    "parent_b_score",
-                )
-            ):
-                continue
-            child_scores = [
-                to_float(row.get("child_1_score")),
-                to_float(row.get("child_2_score")),
-            ]
-            parent_best = max(
-                to_float(row.get("parent_a_score")),
-                to_float(row.get("parent_b_score")),
-            )
-            crossover_deltas.extend(score - parent_best for score in child_scores)
-        replacement_operator = operator == "replacement"
-        improvement_denominator = (
-            accepted_count + not_competitive_count
-            if replacement_operator
-            else valid_new_count
-        )
-        worse_or_equal_count = max(improvement_denominator - improved_count, 0.0)
-        mutation_deltas = [
-            to_float(row.get("new_score")) - to_float(row.get("original_score"))
-            for row in selected
-            if row.get("valid_new") is True
-            and row.get("new_score") not in (None, "")
-            and row.get("original_score") not in (None, "")
+        run_summaries = [
+            operator_run_summary(operator, run_rows)
+            for run_rows in _rows_by_run_number(selected).values()
         ]
-        replacement_deltas = [
-            to_float(row.get("candidate_score")) - to_float(row.get("victim_score"))
-            for row in selected
-            if row.get("accepted") is True and row.get("victim_score") not in (None, "")
-        ]
-        if operator == "crossover" and crossover_deltas:
-            mean_score_delta = mean(crossover_deltas)
-        elif operator == "mutation":
-            mean_score_delta = mean(mutation_deltas)
-        elif replacement_operator:
-            mean_score_delta = mean(replacement_deltas)
-        else:
-            mean_score_delta = None
         summary.append(
             {
                 "dataset": dataset,
                 "operator": operator,
                 "strategy": strategy,
-                "events": events,
-                "slots": slots,
-                "applied_rate": applied_events / events if events else 0.0,
-                "skipped_rate": skipped_slots / slots if slots else 0.0,
-                "valid_rate": (
-                    (accepted_count if replacement_operator else valid_new_count)
-                    / slots
-                    if operator in {"crossover", "mutation", "replacement"} and slots
+                "events": mean(row["events"] for row in run_summaries),
+                "slots": mean(row["slots"] for row in run_summaries),
+                "applied_rate": mean(row["applied_rate"] for row in run_summaries),
+                "skipped_rate": mean(row["skipped_rate"] for row in run_summaries),
+                "valid_rate": mean_optional(row["valid_rate"] for row in run_summaries),
+                "duplicate_rate": mean_optional(
+                    row["duplicate_rate"] for row in run_summaries
+                ),
+                "invalid_rate": mean_optional(
+                    row["invalid_rate"] for row in run_summaries
+                ),
+                "improvement_rate": mean(
+                    row["improvement_rate"] for row in run_summaries
+                ),
+                "worse_or_equal_rate": mean(
+                    row["worse_or_equal_rate"] for row in run_summaries
+                ),
+                "best_rate": mean(row["best_rate"] for row in run_summaries),
+                "changed_rate": (
+                    mean_optional(row["changed_rate"] for row in run_summaries)
+                    if operator == "mutation"
                     else None
                 ),
-                "duplicate_rate": duplicate_count / slots if slots else None,
-                "invalid_rate": invalid_count / slots if slots else None,
-                "improvement_rate": (
-                    improved_count / improvement_denominator
-                    if improvement_denominator
-                    else 0.0
+                "mean_score_delta": mean_optional(
+                    row["mean_score_delta"] for row in run_summaries
                 ),
-                "worse_or_equal_rate": (
-                    worse_or_equal_count / improvement_denominator
-                    if improvement_denominator
-                    else 0.0
-                ),
-                "best_rate": best_count / slots if slots else 0.0,
-                "changed_rate": (
-                    mean_bool(selected, "changed") if operator == "mutation" else None
-                ),
-                "mean_score_delta": mean_score_delta,
             }
         )
     return summary
+
+
+def operator_run_summary(
+    operator: str, selected: list[dict[str, object]]
+) -> dict[str, float | None]:
+    events = len(selected)
+    slots = sum(operator_slots(row, operator) for row in selected)
+    applied_events = sum(1 for row in selected if operator_applied(row, operator))
+    skipped_slots = sum(
+        operator_slots(row, operator)
+        for row in selected
+        if operator_skipped(row)
+    )
+    valid_new_count = operator_valid_new_count(selected, operator)
+    duplicate_count = operator_duplicate_count(selected, operator)
+    invalid_count = operator_invalid_count(selected, operator)
+    accepted_count = sum(to_float(row.get("accepted")) for row in selected)
+    not_competitive_count = sum(
+        to_float(row.get("not_competitive"))
+        or float(row.get("reject_reason") == "not_competitive")
+        for row in selected
+    )
+    improved_count = operator_improved_count(selected, operator)
+    best_count = operator_best_count(selected, operator)
+    crossover_deltas = []
+    for row in selected:
+        if not all(
+            row.get(key) not in (None, "")
+            for key in (
+                "child_1_score",
+                "child_2_score",
+                "parent_a_score",
+                "parent_b_score",
+            )
+        ):
+            continue
+        child_scores = [
+            to_float(row.get("child_1_score")),
+            to_float(row.get("child_2_score")),
+        ]
+        parent_best = max(
+            to_float(row.get("parent_a_score")),
+            to_float(row.get("parent_b_score")),
+        )
+        crossover_deltas.extend(score - parent_best for score in child_scores)
+    replacement_operator = operator == "replacement"
+    improvement_denominator = (
+        accepted_count + not_competitive_count
+        if replacement_operator
+        else valid_new_count
+    )
+    worse_or_equal_count = max(improvement_denominator - improved_count, 0.0)
+    mutation_deltas = [
+        to_float(row.get("new_score")) - to_float(row.get("original_score"))
+        for row in selected
+        if row.get("valid_new") is True
+        and row.get("new_score") not in (None, "")
+        and row.get("original_score") not in (None, "")
+    ]
+    replacement_deltas = [
+        to_float(row.get("candidate_score")) - to_float(row.get("victim_score"))
+        for row in selected
+        if row.get("accepted") is True and row.get("victim_score") not in (None, "")
+    ]
+    if operator == "crossover" and crossover_deltas:
+        mean_score_delta = mean(crossover_deltas)
+    elif operator == "mutation":
+        mean_score_delta = mean(mutation_deltas)
+    elif replacement_operator:
+        mean_score_delta = mean(replacement_deltas)
+    else:
+        mean_score_delta = None
+    return {
+        "events": float(events),
+        "slots": slots,
+        "applied_rate": applied_events / events if events else 0.0,
+        "skipped_rate": skipped_slots / slots if slots else 0.0,
+        "valid_rate": (
+            (accepted_count if replacement_operator else valid_new_count) / slots
+            if operator in {"crossover", "mutation", "replacement"} and slots
+            else None
+        ),
+        "duplicate_rate": duplicate_count / slots if slots else None,
+        "invalid_rate": invalid_count / slots if slots else None,
+        "improvement_rate": (
+            improved_count / improvement_denominator
+            if improvement_denominator
+            else 0.0
+        ),
+        "worse_or_equal_rate": (
+            worse_or_equal_count / improvement_denominator
+            if improvement_denominator
+            else 0.0
+        ),
+        "best_rate": best_count / slots if slots else 0.0,
+        "changed_rate": mean_bool(selected, "changed")
+        if operator == "mutation"
+        else None,
+        "mean_score_delta": mean_score_delta,
+    }
 
 
 def operator_slots(row: dict[str, object], operator: str) -> float:
@@ -1461,27 +1512,47 @@ def quality_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     summary: list[dict[str, object]] = []
     for dataset in sorted({str(row.get("dataset", "")) for row in rows}):
         selected = [row for row in rows if row.get("dataset") == dataset]
+        run_summaries = [
+            quality_run_summary(run_rows)
+            for run_rows in _rows_by_run_number(selected).values()
+        ]
         summary.append(
             {
                 "dataset": dataset,
-                "evaluations": len(selected),
-                "mean_score": mean(to_float(row.get("score")) for row in selected),
-                "best_score": max(
-                    [to_float(row.get("score")) for row in selected], default=0.0
+                "evaluations": mean(row["evaluations"] for row in run_summaries),
+                "mean_score": mean(row["mean_score"] for row in run_summaries),
+                "best_score": mean(row["best_score"] for row in run_summaries),
+                "best_found_rate": mean(
+                    row["best_found_rate"] for row in run_summaries
                 ),
-                "best_found_rate": mean_bool(selected, "best_found"),
                 "mean_program_size": mean(
-                    to_float(row.get("program_size")) for row in selected
+                    row["mean_program_size"] for row in run_summaries
                 ),
                 "mean_covered_positive": mean(
-                    to_float(row.get("covered_positive")) for row in selected
+                    row["mean_covered_positive"] for row in run_summaries
                 ),
                 "mean_covered_negative": mean(
-                    to_float(row.get("covered_negative")) for row in selected
+                    row["mean_covered_negative"] for row in run_summaries
                 ),
             }
         )
     return summary
+
+
+def quality_run_summary(rows: list[dict[str, object]]) -> dict[str, float]:
+    return {
+        "evaluations": float(len(rows)),
+        "mean_score": mean(to_float(row.get("score")) for row in rows),
+        "best_score": max([to_float(row.get("score")) for row in rows], default=0.0),
+        "best_found_rate": mean_bool(rows, "best_found"),
+        "mean_program_size": mean(to_float(row.get("program_size")) for row in rows),
+        "mean_covered_positive": mean(
+            to_float(row.get("covered_positive")) for row in rows
+        ),
+        "mean_covered_negative": mean(
+            to_float(row.get("covered_negative")) for row in rows
+        ),
+    }
 
 
 def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -1700,6 +1771,11 @@ def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
 def mean(values: Iterable[float]) -> float:
     values = list(values)
     return sum(values) / len(values) if values else 0.0
+
+
+def mean_optional(values: Iterable[float | None]) -> float | None:
+    values = [value for value in values if value is not None]
+    return mean(values) if values else None
 
 
 def to_float(value: object) -> float:

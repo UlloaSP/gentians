@@ -3,7 +3,7 @@ import pytest
 from gentians.arguments import Arguments
 from gentians.evolution.algorithms.genetic import genetic_solver
 from gentians.evolution.crossovers.set_mix import set_mix_crossover
-from gentians.evolution.factories import create_selection
+from gentians.evolution.factories import create_replacement, create_selection
 from gentians.evolution.individual import Individual
 from gentians.evolution.mutations.random_group import mutate_by_random_group
 from gentians.evolution.populations.random_initialization import initialize_population
@@ -156,6 +156,23 @@ def test_selection_accepts_single_individual_population():
 
     assert selected_a is population[0]
     assert selected_b is population[0]
+
+
+def test_default_replacement_uses_oldest_or_worst():
+    population = [
+        Individual(("a.",), 2.0, False),
+        Individual(("b.",), 1.0, False),
+    ]
+    signatures = {individual.program for individual in population}
+
+    replacement = create_replacement(Arguments().replacement)
+    updated = replacement(
+        population,
+        Individual(("c.",), 1.5, False),
+        signatures,
+    )
+
+    assert [individual.program for individual in updated] == [("a.",), ("c.",)]
 
 
 def _sampler(rules: list[str]) -> ProgramSampler:
@@ -313,6 +330,57 @@ def test_replacement_keeps_population_sorted_when_replacing_oldest(monkeypatch):
     )
 
     assert [individual.score for individual in updated] == [3.0, 2.5, 1.0]
+    assert signatures == {updated[0].program, updated[1].program, updated[2].program}
+
+
+def test_replacement_rejects_worse_than_worst_before_oldest_choice(monkeypatch):
+    population = [
+        Individual(("a.",), 3.0, False),
+        Individual(("b.",), 2.0, False),
+        Individual(("c.",), 1.0, False),
+    ]
+    signatures = {individual.program for individual in population}
+
+    def fail_random():
+        raise AssertionError("oldest choice should not run for uncompetitive candidates")
+
+    monkeypatch.setattr(
+        "gentians.evolution.replacements.oldest_or_worst.random.random",
+        fail_random,
+    )
+
+    updated = replace_oldest_or_worst(
+        population,
+        Individual(("d.",), 0.5, False),
+        signatures,
+        1.0,
+    )
+
+    assert updated is population
+    assert [individual.program for individual in updated] == [("a.",), ("b.",), ("c.",)]
+    assert signatures == {individual.program for individual in population}
+
+
+def test_replacement_falls_back_to_worst_when_oldest_would_degrade(monkeypatch):
+    population = [
+        Individual(("a.",), 3.0, False),
+        Individual(("b.",), 2.0, False),
+        Individual(("c.",), 1.0, False),
+    ]
+    population[0].generated_timestamp = 0.0
+    population[1].generated_timestamp = 1.0
+    population[2].generated_timestamp = 2.0
+    signatures = {individual.program for individual in population}
+    monkeypatch.setattr("gentians.evolution.replacements.oldest_or_worst.random.random", lambda: 0.0)
+
+    updated = replace_oldest_or_worst(
+        population,
+        Individual(("d.",), 2.5, False),
+        signatures,
+        1.0,
+    )
+
+    assert [individual.program for individual in updated] == [("a.",), ("d.",), ("b.",)]
     assert signatures == {updated[0].program, updated[1].program, updated[2].program}
 
 

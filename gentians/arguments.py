@@ -57,7 +57,7 @@ class Arguments:
             # Parent selection implementation.
             "name": "tournament",
             # Number of candidates sampled for each tournament.
-            "tournament_size": 25,
+            "tournament_size": 3,
             # Probability of picking the fittest candidate in the tournament.
             "prob_selecting_fittest": 1,
         }
@@ -99,7 +99,7 @@ class Arguments:
             # Replacement implementation.
             "name": "oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
-            "prob_replacing_oldest": 0.5,
+            "prob_replacing_oldest": 0.75,
         }
     )
 

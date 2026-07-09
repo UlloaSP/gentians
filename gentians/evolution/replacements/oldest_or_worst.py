@@ -25,34 +25,29 @@ def replace_oldest_or_worst(
         population.append(element)
         population_signatures.add(element.program)
         accepted = True
+    elif element.score < population[-1].score:
+        reject_reason = "not_competitive"
     else:
-        replace_oldest = random.random() < prob_replacing_oldest
-        if not replace_oldest and element.score < population[-1].score:
-            reject_reason = "not_competitive"
-        else:
-            insert_at = len(population)
-            for index, current in enumerate(population):
-                if element.score >= current.score:
-                    insert_at = index
-                    break
-            population.insert(insert_at, element)
-            population_signatures.add(element.program)
+        victim_index = len(population) - 1
+        if random.random() < prob_replacing_oldest:
+            oldest_index = min(
+                range(len(population)),
+                key=lambda index: population[index].generated_timestamp,
+            )
+            if element.score >= population[oldest_index].score:
+                victim_index = oldest_index
 
-            if replace_oldest:
-                victim_index = min(
-                    (
-                        index
-                        for index, current in enumerate(population)
-                        if current is not element
-                    ),
-                    key=lambda index: population[index].generated_timestamp,
-                )
-                victim = population.pop(victim_index)
-            else:
-                victim = population.pop()
-            victim_score = victim.score
-            population_signatures.discard(victim.program)
-            accepted = True
+        victim = population.pop(victim_index)
+        population_signatures.discard(victim.program)
+        insert_at = len(population)
+        for index, current in enumerate(population):
+            if element.score >= current.score:
+                insert_at = index
+                break
+        population.insert(insert_at, element)
+        population_signatures.add(element.program)
+        victim_score = victim.score
+        accepted = True
 
     if metric_enabled("operator"):
         with instrumentation():

@@ -170,15 +170,15 @@ CASES: dict[str, Arguments] = {
 
 
 DEFAULT_DATASETS = [
-    "coin",
-    "adj2red",
-    "clique",
-    "4queens",
-    "8queens",
+    # "coin",
+    # "adj2red",
+    # "clique",
+    # "4queens",
+    # "8queens",
     "5queens",
-    "even_odd",
+    # "even_odd",
     "grandparent",
-    "sudoku",
+    # "sudoku",
     "coloring",
     # "knapsack",
     # "latin_square",

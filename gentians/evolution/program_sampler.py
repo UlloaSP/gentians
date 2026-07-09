@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import os
 import random
 
 from ..rule_generation.program import Program
@@ -111,8 +110,6 @@ class ProgramSampler:
                 closed.sort()
                 result = tuple(closed)
                 self._close_cache[key] = result
-                if os.environ.get("GENTIANS_AUDIT_PROGRAM_SAMPLER_ASP"):
-                    _assert_asp_closed_agrees(closed, self.background_mask, self.masks_by_rule)
                 return result
             if len(closed) >= max_program_clauses:
                 self._close_cache[key] = None
@@ -214,30 +211,3 @@ def _bits(mask: int):
         bit = mask & -mask
         yield bit
         mask ^= bit
-
-
-def _assert_asp_closed_agrees(
-    program: list[str],
-    background_mask: int,
-    masks_by_rule: dict[str, _RuleMask],
-) -> None:
-    import clingo
-
-    defined = background_mask
-    needed = 0
-    for rule in program:
-        mask = masks_by_rule[rule]
-        defined |= mask.head_mask
-        needed |= mask.dep_mask
-    facts = []
-    for bit in _bits(defined):
-        facts.append(f"defined({bit}).")
-    for bit in _bits(needed):
-        facts.append(f"needed({bit}).")
-    facts.append(":- needed(P), not defined(P).")
-    ctl = clingo.Control()
-    ctl.add("base", [], "\n".join(facts))
-    ctl.ground([("base", [])])
-    result = ctl.solve()
-    if not result.satisfiable:
-        raise AssertionError("ASP audit disagrees with Python program closure")

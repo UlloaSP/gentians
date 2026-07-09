@@ -39,17 +39,31 @@ def _sample_child(
     known_signatures: set[tuple[str, ...]],
     max_program_clauses: int,
     sampler: ProgramSampler,
+    parent_a_probability: float,
+    parent_b_probability: float,
     extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
 ) -> tuple[str, ...]:
-    union = sorted(set(parent_a.program) | set(parent_b.program))
-    if not union:
+    rules_a = set(parent_a.program)
+    rules_b = set(parent_b.program)
+    common = rules_a & rules_b
+    only_a = rules_a - rules_b
+    only_b = rules_b - rules_a
+    pool = sorted(rules_a | rules_b)
+    if not pool:
         return ()
 
-    limit = max(1, min(max_program_clauses, len(union)))
+    limit = max(1, min(max_program_clauses, len(pool)))
     for _ in range(8):
-        selected = tuple(rule for rule in union if random.random() < 0.5)
+        selected_set = set(common)
+        selected_set.update(
+            rule for rule in sorted(only_a) if random.random() < parent_a_probability
+        )
+        selected_set.update(
+            rule for rule in sorted(only_b) if random.random() < parent_b_probability
+        )
+        selected = tuple(sorted(selected_set))
         if not selected:
-            selected = (random.choice(union),)
+            selected = (random.choice(pool),)
         if len(selected) > limit:
             selected = tuple(sorted(random.sample(selected, limit)))
         else:
@@ -89,6 +103,8 @@ def set_mix_crossover(
             known_signatures,
             max_program_clauses,
             sampler,
+            0.7,
+            0.3,
         )
         extra_forbidden_signatures = {program_0}
         program_1 = _sample_child(
@@ -97,6 +113,8 @@ def set_mix_crossover(
             known_signatures,
             max_program_clauses,
             sampler,
+            0.3,
+            0.7,
             extra_forbidden_signatures,
         )
 

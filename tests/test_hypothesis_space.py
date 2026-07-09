@@ -295,7 +295,7 @@ def test_unbalanced_aggregate_variants_share_recall():
 
     assert not any("#sum{V0:el(V0,V0)}" in clause for clause in clauses)
     assert any("#sum{V0:el(V0,V1)}" in clause for clause in clauses)
-    assert any("#sum{V0,V1:el(V0,V1)}" in clause for clause in clauses)
+    assert not any("#sum{V0,V1:el(V0,V1)}" in clause for clause in clauses)
     assert not any(clause.count("#sum{") > 1 for clause in clauses)
 
 
@@ -308,6 +308,18 @@ def test_atom_parser_handles_nested_arguments():
         "same_row",
         2,
     )
+
+
+def test_closed_world_extensions_ignore_compound_variable_terms():
+    extensions = hypothesis_space._closed_world_extensions(
+        [
+            "cell((1..4,1..4)).",
+            "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)).",
+        ]
+    )
+
+    assert ("cell", 1) not in extensions
+    assert ("same_row", 2) not in extensions
 
 
 def test_atom_parser_does_not_treat_not_prefix_as_negation():
@@ -478,6 +490,27 @@ def test_explicit_body_bias_enables_recursion():
     ).generate().clauses
 
     assert "p(V1,V0) :- p(V0,V1)." in clauses
+
+
+def test_hypothesis_space_prunes_unobserved_body_modes():
+    program = Program(
+        ["base(a)."],
+        [Example(("target(a)", ""), True)],
+        [],
+        [ModeDeclaration(("1", "target", "1"), True)],
+        [
+            ModeDeclaration(("1", "base", "1", "positive"), False),
+            ModeDeclaration(("1", "ghost", "1", "positive"), False),
+            ModeDeclaration(("1", "ghost", "1", "negative"), False),
+        ],
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=1)
+    ).generate().clauses
+
+    assert "target(V0) :- base(V0)." in clauses
+    assert not any("ghost(" in clause for clause in clauses)
 
 
 def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering():
@@ -748,6 +781,46 @@ def test_domain_arithmetic_prune_removes_impossible_zero_result_by_default():
     assert any("V0-V0=V1" in clause and "q(V0,V1)" in clause for clause in with_zero)
 
 
+def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
+    program = Program(
+        ["#const n = 2.", "number(1..n).", "q(1,1)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [],
+        [OperatorDeclaration(1, "lt")],
+        [OperatorDeclaration(1, "add"), OperatorDeclaration(1, "sub")],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program,
+        Arguments(max_depth=4, max_variables=3),
+    ).generate().clauses
+
+    assert ":- q(V0,V0),V1<V2,V0+V0=V1,V0-V0=V2." not in clauses
+    assert ":- q(V0,V0),V1+V1=V0,V0-V0=V1." not in clauses
+    assert ":- q(V0,V0),V1<V0,V0-V0=V1." not in clauses
+    assert ":- q(V0,V1),V1+V2=V0,V1-V1=V2." not in clauses
+    assert ":- q(V0,V0),V1<V2,V0+V0=V2,V2-V1=V0." not in clauses
+    assert ":- q(V0,V0),V1<V0,V0+V0=V1." not in clauses
+    assert ":- q(V0,V1),V1<V2,V1-V0=V2." not in clauses
+    assert ":- q(V0,V1),V1<V2,V2+V2=V1,V1-V0=V2." not in clauses
+    assert ":- q(V0,V1),V1<V0,V1+V1=V0." not in clauses
+    assert ":- q(V0,V1),V2<V0,V0-V1=V2." not in clauses
+    assert ":- q(V0,V1),V0+V1=V2,V0-V1=V2." not in clauses
+    assert ":- q(V0,V1),V0+V1=V2,V1-V0=V2." not in clauses
+    assert ":- q(V0,V1),V0+V1=V2,V0-V2=V1." not in clauses
+    assert ":- q(V0,V1),V0+V1=V2,V1-V2=V0." not in clauses
+    assert ":- q(V0,V1),V1<V0,V1+V1=V2,V2-V1=V0." not in clauses
+    assert ":- q(V0,V1),V0<V1,V0+V2=V1,V0-V1=V2." not in clauses
+    assert ":- q(V0,V1),V0<V1,V1+V1=V2,V0-V1=V2." not in clauses
+    assert ":- q(V0,V1),V0+V0=V2,V2-V0=V1." not in clauses
+    assert ":- q(V0,V1),V1<V0,V1+V1=V2,V2-V0=V1." not in clauses
+    assert ":- q(V0,V1),V0<V1,V2+V2=V1,V0-V1=V2." not in clauses
+    assert ":- q(V0,V1),V1<V2,V0+V3=V2,V1-V0=V3." not in clauses
+    assert ":- q(V0,V1),q(V2,V3),V1<V2,V3+V3=V1,V3-V0=V2." not in clauses
+
+
 def test_closed_world_properties_prune_symmetric_predicate_orientation():
     program = Program(
         ["edge(1,2).", "edge(2,1)."],
@@ -819,6 +892,120 @@ def test_closed_world_properties_prune_projection_implication():
 
     assert ":- edge(V0,V1),node(V0)." not in clauses
     assert ":- edge(V0,V1),not node(V0)." not in clauses
+
+
+def test_closed_world_properties_prune_tuple_mutex_permutation():
+    program = Program(
+        ["father(a,b).", "mother(c,a)."],
+        [],
+        [],
+        [],
+        [
+            ModeDeclaration(("2", "father", "2", "positive"), False),
+            ModeDeclaration(("2", "mother", "2", "positive"), False),
+        ],
+    )
+    fragments = hypothesis_space._closed_world_fragments(program)
+    properties = hypothesis_space._closed_world_properties(
+        fragments,
+        hypothesis_space._predicate_arg_types(program, fragments),
+        hypothesis_space._closed_body_predicates(program),
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert ((("father", 2), ("mother", 2), (1, 0))) in properties.tuple_mutex
+    assert ":- father(V0,V1),mother(V1,V0)." not in clauses
+
+
+def test_count_aggregate_full_local_condition_is_canonical():
+    program = Program(
+        ["p(a,b).", "p(a,c).", "p(d,b).", "p(d,c)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "out", "1"), True)],
+        [],
+        [AggregateDeclaration(1, "count", (("p", 2),), True)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=3)
+    ).generate().clauses
+
+    assert "out(V2) :- #count{V0,V1:p(V0,V1)}=V2." in clauses
+    assert "out(V2) :- #count{V0,V1:p(V1,V0)}=V2." not in clauses
+
+
+def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
+    program = Program(
+        [
+            "p(1,3,5).",
+            "p(1,3,6).",
+            "p(1,4,5).",
+            "p(1,4,6).",
+            "p(2,3,5).",
+            "p(2,3,6).",
+            "p(2,4,5).",
+            "p(2,4,6).",
+        ],
+        [],
+        [],
+        [ModeDeclaration(("1", "out", "1"), True)],
+        [],
+        [AggregateDeclaration(1, "sum", (("p", 3),), True)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=4)
+    ).generate().clauses
+
+    assert "out(V3) :- #sum{V0,V1,V2:p(V0,V1,V2)}=V3." in clauses
+    assert "out(V3) :- #sum{V0,V1,V2:p(V0,V2,V1)}=V3." not in clauses
+    assert "out(V3) :- #sum{V0,V1,V2:p(V1,V0,V2)}=V3." in clauses
+
+
+def test_unbalanced_aggregate_prunes_key_determined_discriminator():
+    program = Program(
+        [
+            "val(1).",
+            "val(2).",
+            "part(a).",
+            "part(b).",
+            "1 { p(P,V) : part(P) } 1 :- val(V).",
+        ],
+        [],
+        [],
+        [ModeDeclaration(("1", "out", "1"), True)],
+        [],
+        [AggregateDeclaration(1, "sum", (("p", 2),), True)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=3)
+    ).generate().clauses
+
+    assert "out(V2) :- #sum{V0:p(V1,V0)}=V2." in clauses
+    assert "out(V2) :- #sum{V0,V1:p(V1,V0)}=V2." not in clauses
+
+
+def test_balanced_aggregate_keeps_key_determined_discriminator():
+    program = Program(
+        [
+            "val(1).",
+            "val(2).",
+            "part(a).",
+            "part(b).",
+            "1 { p(P,V) : part(P) } 1 :- val(V).",
+        ],
+        [],
+        [],
+        [ModeDeclaration(("1", "out", "1"), True)],
+        [],
+        [AggregateDeclaration(1, "sum", (("p", 2),), False)],
+    )
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=3)
+    ).generate().clauses
+
+    assert "out(V2) :- #sum{V0,V1:p(V1,V0)}=V2." in clauses
 
 
 def test_closed_world_properties_prune_composite_functional_dependency():
@@ -905,21 +1092,79 @@ def test_closed_world_properties_infer_generic_atom_relations():
     assert ("le", 2) not in properties.reflexive
 
 
-def test_closed_world_properties_emit_new_property_facts():
+def test_closed_world_extensions_derive_simple_alias_rules():
     properties = hypothesis_space._closed_world_properties(
         [
-            "p(a).",
-            "q(a).",
-            "r(b).",
-            "color_red(a).",
-            "color_green(b).",
-            "color_blue(c).",
-            "rel(a,b,c).",
-            "rel(d,e,f).",
-            "le(a,a).",
-            "le(a,b).",
-            "le(b,b).",
+            "edge(a,b).",
+            "node(a).",
+            "node(b).",
+            "e(X,Y) :- edge(X,Y).",
+            "e(Y,X) :- edge(X,Y).",
         ]
+    )
+
+    assert ("e", 2) in properties.symmetric
+    assert (("e", 2), 0, 1) in properties.arg_distinct
+
+
+def test_closed_world_extensions_derive_finite_complement_rules():
+    properties = hypothesis_space._closed_world_properties(
+        [
+            "v(a).",
+            "v(b).",
+            "e(a,b).",
+            "e(b,a).",
+            "ne(X,Y) :- not e(X,Y), v(X), v(Y).",
+        ]
+    )
+
+    assert ("ne", 2) in properties.reflexive
+    assert ((("ne", 2), ("v", 1), (0,))) in properties.project_implies
+    assert ((("ne", 2), ("v", 1), (1,))) in properties.project_implies
+
+
+def test_closed_world_extensions_do_not_assume_unknown_negative_empty():
+    extensions = hypothesis_space._closed_world_extensions(
+        ["v(a).", "p(X) :- not q(X), v(X)."]
+    )
+
+    assert ("p", 1) not in extensions
+
+
+def test_rule_defined_inequality_derives_arg_distinct():
+    properties = hypothesis_space._closed_world_properties(
+        [
+            "same_block(C1,C2) :- block(C1,B), block(C2,B), C1 != C2.",
+            "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)), X1 != X2.",
+            "parent_child(P,C) :- parent(P,C).",
+        ]
+    )
+
+    assert (("same_block", 2), 0, 1) in properties.arg_distinct
+    assert (("same_row", 2), 0, 1) in properties.arg_distinct
+    assert ("same_block", 2) in properties.symmetric
+    assert ("same_row", 2) in properties.symmetric
+    assert ("parent_child", 2) not in properties.symmetric
+
+
+def test_closed_world_properties_emit_new_property_facts():
+    fragments = [
+        "p(a).",
+        "q(a).",
+        "r(b).",
+        "color_red(a).",
+        "color_green(b).",
+        "color_blue(c).",
+        "rel(a,b,c).",
+        "rel(d,e,f).",
+        "other(a,b,c).",
+        "le(a,a).",
+        "le(a,b).",
+        "le(b,b).",
+    ]
+    properties = hypothesis_space._closed_world_properties(
+        fragments,
+        closed_body_predicates={("rel", 3), ("other", 3)},
     )
     ids = {
         ("p", 1): 0,
@@ -929,17 +1174,19 @@ def test_closed_world_properties_emit_new_property_facts():
         ("color_green", 1): 4,
         ("color_blue", 1): 5,
         ("rel", 3): 6,
-        ("le", 2): 7,
+        ("other", 3): 7,
+        ("le", 2): 8,
     }
     facts = set(hypothesis_space._closed_world_property_facts(properties, ids))
 
     assert "equivalent_pred(0,1)." in facts
     assert "disjoint_arg(0,0,6,1)." in facts
+    assert any(fact.startswith("tuple_mutex_pred(6,7,") for fact in facts)
     assert not any(fact.startswith("partition_size(") for fact in facts)
     assert "key_pred(6,0)." in facts
-    assert "total_order_pred(7)." in facts
-    assert "antisymmetric_pred(7)." not in facts
-    assert "reflexive_pred(7)." not in facts
+    assert "total_order_pred(8)." in facts
+    assert "antisymmetric_pred(8)." not in facts
+    assert "reflexive_pred(8)." not in facts
 
 
 def test_partition_subsumes_pairwise_mutex_facts():
@@ -1008,6 +1255,7 @@ def test_choice_rules_infer_modelwise_keys():
     assert ("q", 2) not in properties.universal
     assert ((("q", 2), ("number", 1), (1,))) in properties.project_implies
     assert ((("q", 2), ("number", 1), (0,))) in properties.project_implies
+    assert ((("in", 1), ("v", 1), (0,))) in properties.project_implies
     assert ((("in", 1), 3)) in properties.cardinality_upper
 
 

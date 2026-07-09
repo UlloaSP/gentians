@@ -505,6 +505,41 @@ def test_crossover_does_not_evaluate_unrepaired_sampler_child():
     assert child_b.program in {parent_a.program, parent_b.program}
 
 
+def test_crossover_keeps_common_rules_and_biases_children(monkeypatch):
+    parent_a = Individual(("a1.", "a2.", "shared."), 1.0, False)
+    parent_b = Individual(("b1.", "b2.", "shared."), 2.0, False)
+    random_values = iter([0.0, 0.69, 0.29, 0.31, 0.29, 0.31, 0.69, 0.0])
+
+    class RecordingSampler:
+        def __init__(self):
+            self.forced = []
+
+        def closed_program(self, *args, **kwargs):
+            forced = kwargs["forced_rules"]
+            self.forced.append(forced)
+            return forced
+
+    sampler = RecordingSampler()
+    monkeypatch.setattr(
+        "gentians.evolution.crossovers.set_mix.random.random",
+        lambda: next(random_values),
+    )
+
+    child_a, child_b = set_mix_crossover(
+        parent_a,
+        parent_b,
+        lambda program: (3.0, False),
+        1.0,
+        set(),
+        4,
+        sampler,
+    )
+
+    assert child_a.program == ("a1.", "a2.", "b1.", "shared.")
+    assert child_b.program == ("a1.", "b1.", "b2.", "shared.")
+    assert sampler.forced == [child_a.program, child_b.program]
+
+
 def test_crossover_counts_parent_children_as_duplicates(monkeypatch):
     parent_a = Individual(("a.",), 1.0, False)
     parent_b = Individual(("b.",), 2.0, False)

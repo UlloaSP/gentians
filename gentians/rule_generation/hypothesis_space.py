@@ -139,6 +139,7 @@ class ClosedWorldProperties:
     equivalent: frozenset[tuple[Predicate, Predicate]]
     project_implies: frozenset[tuple[Predicate, Predicate, tuple[int, ...]]]
     disjoint_projection: frozenset[tuple[Predicate, int, Predicate, int]]
+    tuple_mutex: frozenset[tuple[Predicate, Predicate, tuple[int, ...]]]
     mutex: frozenset[tuple[Predicate, Predicate]]
     complement: frozenset[tuple[Predicate, Predicate]]
     partitions: frozenset[tuple[Predicate, ...]]
@@ -184,7 +185,12 @@ class HypothesisSpaceGenerator:
             program, args, self.predicate_arg_types, self.aggregate_specs
         )
         self.modes = _hypothesis_modes(
-            program, args, self.capabilities, self.predicate_arg_types, self.aggregate_specs
+            program,
+            args,
+            self.capabilities,
+            self.predicate_arg_types,
+            self.aggregate_specs,
+            _observed_predicates(self.fragments),
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
 
@@ -340,12 +346,148 @@ def _closed_world_extensions(fragments: list[str]) -> dict[Predicate, set[tuple[
     constants = _numeric_constants(fragments)
     for fragment in fragments:
         for name, arguments, _negative in fragment_atoms(fragment):
-            if any(_is_variable(argument) for argument in arguments):
+            if any(_has_variable(argument) for argument in arguments):
                 continue
             key = (name, len(arguments))
             for values in _expand_ground_arguments(arguments, constants):
                 extensions.setdefault(key, set()).add(values)
+    _derive_closed_world_extensions(fragments, extensions)
     return extensions
+
+
+def _derive_closed_world_extensions(
+    fragments: list[str],
+    extensions: dict[Predicate, set[tuple[str, ...]]],
+    limit: int = 10000,
+) -> None:
+    changed = True
+    while changed:
+        changed = False
+        for fragment in fragments:
+            derived = _derive_closed_world_rule(fragment, extensions, limit)
+            for predicate, tuples in derived.items():
+                current = extensions.setdefault(predicate, set())
+                if len(current) + len(tuples - current) > limit:
+                    continue
+                before = len(current)
+                current.update(tuples)
+                changed |= len(current) != before
+
+
+def _derive_closed_world_rule(
+    fragment: str,
+    extensions: dict[Predicate, set[tuple[str, ...]]],
+    limit: int,
+) -> dict[Predicate, set[tuple[str, ...]]]:
+    text = fragment.strip()
+    if not text.endswith(".") or ":-" not in text or text.startswith("#"):
+        return {}
+    head_text, body_text = text[:-1].split(":-", 1)
+    head = _simple_atom(head_text.strip())
+    if head is None or any(not _is_variable(argument) for argument in head[1]):
+        return {}
+    positive: list[tuple[str, tuple[str, ...]]] = []
+    negative: list[tuple[str, tuple[str, ...]]] = []
+    for literal in _split_top_level(body_text):
+        if literal.startswith("not "):
+            atom = _simple_atom(literal[4:].strip())
+            if atom is None:
+                return {}
+            negative.append(atom)
+        else:
+            atom = _simple_atom(literal)
+            if atom is None:
+                return {}
+            positive.append(atom)
+    if not positive or len(negative) > 1:
+        return {}
+    if negative and (negative[0][0], len(negative[0][1])) not in extensions:
+        return {}
+    assignments = [{}]
+    for name, arguments in positive:
+        tuples = extensions.get((name, len(arguments)))
+        if tuples is None:
+            return {}
+        next_assignments = []
+        for assignment in assignments:
+            for values in tuples:
+                merged = _merge_assignment(assignment, arguments, values)
+                if merged is not None:
+                    next_assignments.append(merged)
+                    if len(next_assignments) > limit:
+                        return {}
+        assignments = next_assignments
+    tuples: set[tuple[str, ...]] = set()
+    for assignment in assignments:
+        if negative and _negative_atom_holds(negative[0], assignment, extensions):
+            continue
+        try:
+            tuples.add(tuple(assignment[argument] for argument in head[1]))
+        except KeyError:
+            return {}
+    return {(head[0], len(head[1])): tuples}
+
+
+def _split_top_level(text: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for char in text:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        if char == "," and depth == 0:
+            part = "".join(current).strip()
+            if part:
+                parts.append(part)
+            current = []
+        else:
+            current.append(char)
+    part = "".join(current).strip()
+    if part:
+        parts.append(part)
+    return parts
+
+
+def _simple_atom(text: str) -> tuple[str, tuple[str, ...]] | None:
+    match = re.fullmatch(r"([a-z][A-Za-z0-9_]*)\((.*)\)", text)
+    if not match:
+        return None
+    return match.group(1), tuple(part.strip() for part in _split_top_level(match.group(2)))
+
+
+def _merge_assignment(
+    assignment: dict[str, str],
+    arguments: tuple[str, ...],
+    values: tuple[str, ...],
+) -> dict[str, str] | None:
+    merged = dict(assignment)
+    for argument, value in zip(arguments, values):
+        if _is_variable(argument):
+            if argument in merged and merged[argument] != value:
+                return None
+            merged[argument] = value
+        elif argument != value:
+            return None
+    return merged
+
+
+def _negative_atom_holds(
+    atom: tuple[str, tuple[str, ...]],
+    assignment: dict[str, str],
+    extensions: dict[Predicate, set[tuple[str, ...]]],
+) -> bool:
+    name, arguments = atom
+    values: list[str] = []
+    for argument in arguments:
+        if _is_variable(argument):
+            if argument not in assignment:
+                return False
+            values.append(assignment[argument])
+        else:
+            values.append(argument)
+    return tuple(values) in extensions.get((name, len(arguments)), set())
 
 
 def _expand_ground_arguments(
@@ -372,6 +514,8 @@ def _expand_ground_argument(argument: str, constants: dict[str, int]) -> list[st
         text = text[1:-1]
     match = re.fullmatch(r"(-?\d+)\.\.([A-Za-z_]\w*|-?\d+)", text)
     if not match:
+        if ".." in text:
+            return None
         return [argument]
     start = int(match.group(1))
     end_text = match.group(2)
@@ -405,7 +549,7 @@ def _type_domains(
     constants = _numeric_constants(fragments)
     for fragment in fragments:
         for name, arguments, _negative in fragment_atoms(fragment):
-            if any(_is_variable(argument) for argument in arguments):
+            if any(_has_variable(argument) for argument in arguments):
                 continue
             arity = len(arguments)
             for values in _expand_ground_arguments(arguments, constants):
@@ -459,7 +603,7 @@ def _unary_type_domains(
             if len(arguments) != 1:
                 continue
             value = arguments[0]
-            if _is_variable(value):
+            if _has_variable(value):
                 continue
             arg_type = predicate_arg_types.get((name, 1, 0), "any")
             values = _expand_ground_argument(value, constants)
@@ -486,6 +630,7 @@ def _closed_world_properties(
     equivalent: set[tuple[Predicate, Predicate]] = set()
     project_implies: set[tuple[Predicate, Predicate, tuple[int, ...]]] = set()
     disjoint_projection: set[tuple[Predicate, int, Predicate, int]] = set()
+    tuple_mutex: set[tuple[Predicate, Predicate, tuple[int, ...]]] = set()
     mutex: set[tuple[Predicate, Predicate]] = set()
     complement: set[tuple[Predicate, Predicate]] = set()
     partitions: set[tuple[Predicate, ...]] = set()
@@ -555,12 +700,21 @@ def _closed_world_properties(
         _collect_disjoint_projections(left, left_tuples, right, right_tuples, disjoint_projection)
         _collect_projection_implications(left, left_tuples, right, right_tuples, project_implies)
         _collect_projection_implications(right, right_tuples, left, left_tuples, project_implies)
+    if closed_body_predicates:
+        _collect_tuple_mutex(extensions, closed_body_predicates, tuple_mutex)
     functional.update(choice_functional)
     functional_set.update(choice_functional_set)
     keys.update(choice_keys)
     project_implies.update(choice_project_implies)
     cardinality_upper.update(choice_cardinality_upper)
-    _collect_rule_defined_properties(fragments, keys, functional, functional_set)
+    _collect_rule_defined_properties(
+        fragments,
+        keys,
+        functional,
+        functional_set,
+        arg_distinct,
+        symmetric,
+    )
     partitions.update(_partition_properties(extensions, tuple_universe_by_arity))
     if predicate_arg_types:
         type_domains = _type_domains(fragments, predicate_arg_types)
@@ -607,6 +761,7 @@ def _closed_world_properties(
         frozenset(equivalent),
         frozenset(project_implies),
         frozenset(disjoint_projection),
+        frozenset(tuple_mutex),
         frozenset(mutex),
         frozenset(complement),
         frozenset(partitions),
@@ -647,6 +802,9 @@ def _choice_rule_properties(
             predicate = _choice_predicate(head.elements)
             if predicate is not None:
                 cardinality_upper[predicate] = cardinality_upper.get(predicate, 0) + upper
+        predicate = _choice_predicate(head.elements)
+        if predicate is not None:
+            project_implies.update(_choice_project_implies(predicate, head.elements, node.body))
         if not _aggregate_upper_at_most_one(head):
             return
         result = _choice_key(node.body, head.elements)
@@ -659,7 +817,6 @@ def _choice_rule_properties(
                 functional.add((predicate, inputs[0], output))
             else:
                 functional_set.add((predicate, inputs, output))
-        project_implies.update(_choice_project_implies(predicate, head.elements, node.body))
 
     for fragment in fragments:
         if fragment.lstrip().startswith("#"):
@@ -789,6 +946,8 @@ def _collect_rule_defined_properties(
     keys: set[tuple[Predicate, tuple[int, ...]]],
     functional: set[tuple[Predicate, int, int]],
     functional_set: set[tuple[Predicate, tuple[int, ...], int]],
+    arg_distinct: set[tuple[Predicate, int, int]],
+    symmetric: set[Predicate],
 ) -> None:
     key_by_predicate = _key_sets_by_predicate(keys)
     rules_by_head: dict[Predicate, list[ast.AST]] = {}
@@ -826,6 +985,106 @@ def _collect_rule_defined_properties(
         for body_atom in body_atoms:
             for key in key_by_predicate.get((body_atom[0], len(body_atom[1])), ()):
                 _propagate_key_through_rule(head, body_atom, key, equalities, functional, functional_set, keys)
+
+    for predicate, rules in rules_by_head.items():
+        if predicate[1] == 2 and all(_rule_head_args_distinct(rule) for rule in rules):
+            arg_distinct.add((predicate, 0, 1))
+        if predicate[1] == 2 and all(_rule_head_args_symmetric(rule) for rule in rules):
+            symmetric.add(predicate)
+
+
+def _rule_head_args_distinct(node: ast.AST) -> bool:
+    head = _positive_symbolic_atom(node.head)
+    if head is None or len(head[1]) != 2:
+        return False
+    inequalities = {
+        inequality
+        for literal in node.body
+        if (inequality := _inequality_terms(literal)) is not None
+    }
+    if not inequalities:
+        return False
+    left = _term_text(head[1][0])
+    right = _term_text(head[1][1])
+    return _terms_known_distinct(left, right, inequalities)
+
+
+def _inequality_terms(literal: ast.AST) -> tuple[str, str] | None:
+    match = re.fullmatch(r"(.+)!=(.+)", _term_text(literal))
+    if not match:
+        return None
+    return match.group(1), match.group(2)
+
+
+def _terms_known_distinct(
+    left: str,
+    right: str,
+    inequalities: set[tuple[str, str]],
+) -> bool:
+    if (left, right) in inequalities or (right, left) in inequalities:
+        return True
+    left_parts = _tuple_parts(left)
+    right_parts = _tuple_parts(right)
+    return (
+        left_parts is not None
+        and right_parts is not None
+        and len(left_parts) == len(right_parts)
+        and any(_terms_known_distinct(a, b, inequalities) for a, b in zip(left_parts, right_parts))
+    )
+
+
+def _tuple_parts(text: str) -> list[str] | None:
+    if not text.startswith("(") or not text.endswith(")"):
+        return None
+    parts = _split_top_level(text[1:-1])
+    return parts if len(parts) > 1 else None
+
+
+def _rule_head_args_symmetric(node: ast.AST) -> bool:
+    head = _positive_symbolic_atom(node.head)
+    if head is None or len(head[1]) != 2:
+        return False
+    mapping = _term_pair_mapping(_term_text(head[1][0]), _term_text(head[1][1]))
+    if mapping is None:
+        return False
+    body = sorted(_canonical_literal_text(_term_text(literal)) for literal in node.body)
+    swapped = sorted(
+        _canonical_literal_text(_substitute_variables(_term_text(literal), mapping))
+        for literal in node.body
+    )
+    return body == swapped
+
+
+def _term_pair_mapping(left: str, right: str) -> dict[str, str] | None:
+    if left == right:
+        return {}
+    if _is_variable(left) and _is_variable(right):
+        return {left: right, right: left}
+    left_parts = _tuple_parts(left)
+    right_parts = _tuple_parts(right)
+    if left_parts is None or right_parts is None or len(left_parts) != len(right_parts):
+        return None
+    mapping: dict[str, str] = {}
+    for left_part, right_part in zip(left_parts, right_parts):
+        part_mapping = _term_pair_mapping(left_part, right_part)
+        if part_mapping is None:
+            return None
+        for source, target in part_mapping.items():
+            if source in mapping and mapping[source] != target:
+                return None
+            mapping[source] = target
+    return mapping
+
+
+def _substitute_variables(text: str, mapping: dict[str, str]) -> str:
+    return re.sub(r"\b[A-Z]\w*\b", lambda match: mapping.get(match.group(0), match.group(0)), text)
+
+
+def _canonical_literal_text(text: str) -> str:
+    match = re.fullmatch(r"(.+)!=(.+)", text)
+    if match:
+        return "!=".join(sorted((match.group(1), match.group(2))))
+    return text
 
 
 def _square_equality(literal: ast.AST) -> tuple[str, str] | None:
@@ -1131,6 +1390,28 @@ def _partition_properties(
     }
 
 
+def _collect_tuple_mutex(
+    extensions: dict[Predicate, set[tuple[str, ...]]],
+    closed_body_predicates: set[Predicate],
+    tuple_mutex: set[tuple[Predicate, Predicate, tuple[int, ...]]],
+) -> None:
+    closed_extensions = {
+        predicate: tuples
+        for predicate, tuples in extensions.items()
+        if predicate in closed_body_predicates and predicate[1] > 1
+    }
+    for left, left_tuples in closed_extensions.items():
+        for right, right_tuples in closed_extensions.items():
+            if left[1] != right[1]:
+                continue
+            for projection in permutations(range(left[1])):
+                if projection == tuple(range(left[1])):
+                    continue
+                projected = {tuple(values[arg] for arg in projection) for values in left_tuples}
+                if projected.isdisjoint(right_tuples):
+                    tuple_mutex.add((left, right, projection))
+
+
 def _collect_projection_implications(
     source: Predicate,
     source_tuples: set[tuple[str, ...]],
@@ -1249,6 +1530,14 @@ def _available_predicates(
     return predicates
 
 
+def _observed_predicates(fragments: list[str]) -> set[Predicate]:
+    predicates: set[Predicate] = set()
+    for fragment in fragments:
+        for name, arguments, _negative in fragment_atoms(fragment):
+            predicates.add((name, len(arguments)))
+    return predicates
+
+
 def _predicate_arg_types(
     program: Program, fragments: list[str]
 ) -> dict[tuple[str, int, int], str]:
@@ -1271,6 +1560,8 @@ def _predicate_arg_types(
                 positions.add(position)
                 if _is_variable(value):
                     positions_by_variable.setdefault(value, []).append(position)
+                elif _has_variable(value):
+                    continue
                 else:
                     constants_by_position.setdefault(position, set()).add(value)
                     positions_by_constant.setdefault(value, set()).add(position)
@@ -1331,6 +1622,10 @@ def _is_variable(value: str) -> bool:
     return bool(re.fullmatch(r"_|[A-Z]\w*", value))
 
 
+def _has_variable(value: str) -> bool:
+    return bool(re.search(r"\b[A-Z]\w*\b|_", value))
+
+
 def _program_fragments(program: Program) -> list[str]:
     fragments = [
         line
@@ -1375,6 +1670,7 @@ def _hypothesis_modes(
     capabilities: HypothesisCapabilities,
     predicate_arg_types: dict[tuple[str, int, int], str],
     aggregate_specs: list[AggregateDeclaration],
+    observed_predicates: set[Predicate],
 ) -> list[HypothesisMode]:
     modes: list[HypothesisMode] = []
     next_id = 0
@@ -1401,6 +1697,8 @@ def _hypothesis_modes(
             )
         )
     for md in program.language_bias_body:
+        if (md.name, md.arity) not in observed_predicates | head_predicates:
+            continue
         if (
             md.positive
             and (md.name, md.arity) in head_predicates
@@ -1509,6 +1807,17 @@ def _facts(
         _closed_body_predicates(program),
     )
     predicate_ids = _predicate_ids(modes)
+    aggregate_modes = [mode for mode in modes if mode.kind == "aggregate"]
+    aggregate_has_shorter_mode = {
+        mode.id
+        for mode in aggregate_modes
+        if any(
+            other.aggregate_function == mode.aggregate_function
+            and other.aggregate_atoms == mode.aggregate_atoms
+            and other.tuple_arity == mode.tuple_arity - 1
+            for other in aggregate_modes
+        )
+    }
     parts = [
         f"max_depth({args.max_depth}).",
         f"max_head({args.disjunctive_head_length}).",
@@ -1565,8 +1874,12 @@ def _facts(
             parts.append(
                 f"aggregate_mode({mode.id},{mode.tuple_arity},{len(mode.aggregate_atoms)})."
             )
+            if mode.id in aggregate_has_shorter_mode:
+                parts.append(f"aggregate_has_shorter_mode({mode.id}).")
             if mode.aggregate_function == "count":
                 parts.append(f"count_aggregate_mode({mode.id}).")
+            elif mode.aggregate_function == "sum":
+                parts.append(f"sum_aggregate_mode({mode.id}).")
             offset = 0
             for atom_index, atom in enumerate(mode.aggregate_atoms):
                 arity = atom[1]
@@ -1654,6 +1967,16 @@ def _closed_world_property_facts(
         right_id = pred_id(right)
         if left_id is not None and right_id is not None:
             parts.append(f"disjoint_arg({left_id},{left_arg},{right_id},{right_arg}).")
+    tuple_mutex_id = 0
+    for left, right, projection in sorted(properties.tuple_mutex):
+        left_id = pred_id(left)
+        right_id = pred_id(right)
+        if left_id is None or right_id is None:
+            continue
+        parts.append(f"tuple_mutex_pred({left_id},{right_id},{tuple_mutex_id}).")
+        for right_arg, left_arg in enumerate(projection):
+            parts.append(f"tuple_mutex_arg({tuple_mutex_id},{right_arg},{left_arg}).")
+        tuple_mutex_id += 1
     for left, right in sorted(properties.mutex):
         left_id = pred_id(left)
         right_id = pred_id(right)

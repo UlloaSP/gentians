@@ -1,4 +1,4 @@
-from ..individual import Individual
+from ..individual import Individual, individual_from_fitness
 from ..program_sampler import ProgramSampler
 from ..types import FitnessFn
 from ...timing import profile_phase
@@ -37,9 +37,9 @@ def initialize_population(
             break
         seen_signatures.add(program)
 
-        current_score, is_best = evaluate_score(program)
-        best_found = is_best
-        sampled_individuals.append(Individual(program, current_score, is_best))
+        individual = individual_from_fitness(program, evaluate_score(program))
+        best_found = individual.is_best
+        sampled_individuals.append(individual)
         if best_found:
             return sampled_individuals, True
 

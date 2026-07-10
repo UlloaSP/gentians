@@ -2,6 +2,7 @@ import pytest
 
 from gentians.arguments import Arguments
 from gentians.evolution.algorithms.genetic import genetic_solver
+from gentians.evolution.algorithms.original_rounds import original_rounds_solver
 from gentians.evolution.crossovers.set_mix import set_mix_crossover
 from gentians.evolution.factories import create_replacement, create_selection
 from gentians.evolution.individual import Individual
@@ -122,6 +123,27 @@ def test_genetic_solver_runs_configured_iteration_count():
     assert calls == 3
 
 
+def test_original_rounds_returns_best_subset_from_hypothesis_space():
+    def score(program):
+        return 1.0, True, ("good.",)
+
+    program, fitness, best_found = original_rounds_solver(
+        Arguments(
+            iterations=1,
+            iterations_genetic=0,
+            max_program_clauses=2,
+            sample=0,
+            population={"name": "original_random", "size": 1},
+        ),
+        RuleSpace.from_clauses(["bad.", "good."]),
+        score,
+    )
+
+    assert program == ("good.",)
+    assert fitness == 1.0
+    assert best_found is True
+
+
 def test_tournament_selection_returns_distinct_signatures_when_possible(monkeypatch):
     population = [
         Individual(("a.",), 2.0, False),
@@ -158,12 +180,35 @@ def test_selection_accepts_single_individual_population():
     assert selected_b is population[0]
 
 
-def test_default_replacement_uses_oldest_or_worst():
+def test_oldest_or_worst_replacement_factory_uses_configured_strategy():
     population = [
         Individual(("a.",), 2.0, False),
         Individual(("b.",), 1.0, False),
     ]
     signatures = {individual.program for individual in population}
+
+    replacement = create_replacement(
+        {"name": "oldest_or_worst", "prob_replacing_oldest": 0.75}
+    )
+    updated = replacement(
+        population,
+        Individual(("c.",), 1.5, False),
+        signatures,
+    )
+
+    assert [individual.program for individual in updated] == [("a.",), ("c.",)]
+
+
+def test_default_replacement_uses_original_oldest_or_worst(monkeypatch):
+    population = [
+        Individual(("a.",), 2.0, False),
+        Individual(("b.",), 1.0, False),
+    ]
+    signatures = {individual.program for individual in population}
+    monkeypatch.setattr(
+        "gentians.evolution.replacements.original_oldest_or_worst.random.random",
+        lambda: 0.0,
+    )
 
     replacement = create_replacement(Arguments().replacement)
     updated = replacement(
@@ -172,7 +217,7 @@ def test_default_replacement_uses_oldest_or_worst():
         signatures,
     )
 
-    assert [individual.program for individual in updated] == [("a.",), ("c.",)]
+    assert [individual.program for individual in updated] == [("c.",), ("b.",)]
 
 
 def _sampler(rules: list[str]) -> ProgramSampler:

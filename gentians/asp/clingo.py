@@ -120,6 +120,102 @@ class ClingoInterface:
 
         return coverage
 
+    def extract_subset_coverage(
+        self,
+        program: tuple[str, ...],
+    ) -> dict[tuple[int, ...], Coverage] | None:
+        """
+        Extracts coverage for every selected subset of candidate clauses.
+        """
+        generated_program = (
+            self.coverage_static_program
+            + "\n"
+            + "\n".join(_clause_with_switch(index, rule) for index, rule in enumerate(program))
+            + "\n"
+            + "\n".join(f"{{r({index})}}." for index in range(len(program)))
+            + "\n#show r/1."
+        )
+
+        wrp = WrapperStopIfWarn()
+        ctl = clingo.Control(
+            self.clingo_arguments, logger=wrp.wrapper_warn_undefined_callback
+        )  # type: ignore
+        ctl.add("base", [], generated_program)
+        start = time.perf_counter()
+        ctl.ground([("base", [])])
+        seconds = time.perf_counter() - start
+        phase = current_phase()
+        add(f"{phase}.grounding", seconds)
+        if metric_enabled("clingo"):
+            with instrumentation():
+                stats = ground_stats(ctl)
+                record_metric(
+                    "clingo",
+                    {
+                        "operation": "subset_coverage_grounding",
+                        "operation_category": "grounding",
+                        "phase_context": phase,
+                        "seconds": seconds,
+                        "input_clauses": len(self.lines) + len(program),
+                        "program_chars": len(generated_program),
+                        "positive_examples": self.positive_examples,
+                        "negative_examples": self.negative_examples,
+                        "clingo_arguments": " ".join(self.clingo_arguments),
+                        "stats_atoms": stats["atoms"],
+                        "stats_rules": stats["rules"],
+                    },
+                )
+
+        if wrp.atom_undefined:
+            return None
+
+        coverages: dict[tuple[int, ...], Coverage] = {}
+        start = time.perf_counter()
+        models = 0
+        collect_metrics = metric_enabled("clingo")
+        with ctl.solve(yield_=True) as handle:  # type: ignore
+            for model in handle:  # type: ignore
+                if collect_metrics:
+                    models += 1
+                symbols = model.symbols(shown=True)
+                pos_mask, neg_mask = _parse_coverage_symbol_masks(symbols)
+                selected = _parse_selected_rule_tuple(symbols)
+                coverage = coverages.setdefault(selected, Coverage([], []))
+                coverage.extend_masks(pos_mask, neg_mask)
+        seconds = time.perf_counter() - start
+        phase = current_phase()
+        add(f"{phase}.solving", seconds)
+        if collect_metrics:
+            with instrumentation():
+                stats = ctl.statistics
+                merged = Coverage([], [])
+                for coverage in coverages.values():
+                    merged.extend_masks(coverage.pos_mask, coverage.neg_mask)
+                record_metric(
+                    "clingo",
+                    {
+                        "operation": "subset_coverage_solving",
+                        "operation_category": "solving",
+                        "phase_context": phase,
+                        "seconds": seconds,
+                        "models": models,
+                        "covered_positive": merged.pos_mask.bit_count(),
+                        "covered_negative": merged.neg_mask.bit_count(),
+                        "program_size": len(program),
+                        "clingo_arguments": " ".join(self.clingo_arguments),
+                        "stats_models_enumerated": clingo_stat(
+                            stats, "summary", "models", "enumerated"
+                        ),
+                        "stats_choices": clingo_stat(
+                            stats, "solving", "solvers", "choices"
+                        ),
+                        "stats_conflicts": clingo_stat(
+                            stats, "solving", "solvers", "conflicts"
+                        ),
+                    },
+                )
+        return coverages
+
 def _build_coverage_static_program(
     background: "list[str]",
     interpretation_pos: "list[Example]",
@@ -161,3 +257,22 @@ def _parse_coverage_symbol_masks(symbols) -> tuple[int, int]:
         elif symbol.name == "extended_n":
             neg_mask |= 1 << value
     return pos_mask, neg_mask
+
+
+def _parse_selected_rule_tuple(symbols) -> tuple[int, ...]:
+    return tuple(
+        sorted(
+            symbol.arguments[0].number
+            for symbol in symbols
+            if symbol.name == "r" and len(symbol.arguments) == 1
+        )
+    )
+
+
+def _clause_with_switch(index: int, clause: str) -> str:
+    selected = f"r({index})"
+    content = clause.strip().rstrip(".")
+    if ":-" in content:
+        head, body = content.split(":-", 1)
+        return f"{head.strip()} :- {body.strip()}, {selected}."
+    return f"{content} :- {selected}."

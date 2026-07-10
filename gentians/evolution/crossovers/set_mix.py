@@ -1,14 +1,14 @@
 import random
 import math
 
-from ..individual import Individual
+from ..individual import Individual, individual_from_fitness
 from ..program_sampler import ProgramSampler
 from ..types import FitnessFn
 from ...timing import instrumentation, metric_enabled, phase, profile_phase, record_metric
 
 
 def _child_from_parent(parent: Individual, program: tuple[str, ...]) -> Individual:
-    return Individual(program, parent.score, parent.is_best)
+    return Individual(program, parent.score, parent.is_best, parent.best_program)
 
 
 def _evaluate_child(
@@ -29,8 +29,7 @@ def _evaluate_child(
     ):
         return Individual(program, float("-inf"), False)
     with phase("crossover.fitness"):
-        current_score, is_best = evaluate_score(program)
-    return Individual(program, current_score, is_best)
+        return individual_from_fitness(program, evaluate_score(program))
 
 
 def _sample_child(

@@ -4,8 +4,8 @@ from ...asp.coverage import Coverage
 from ...rule_generation.program import Program
 from ...timing import current_phase, instrumentation, metric_enabled, record_metric
 
-FitnessResult = tuple[float, bool]
-CachedFitnessResult = tuple[float, bool]
+FitnessResult = tuple[float, bool] | tuple[float, bool, tuple[str, ...] | None]
+CachedFitnessResult = FitnessResult
 FitnessCompute = Callable[[tuple[str, ...]], FitnessResult]
 
 

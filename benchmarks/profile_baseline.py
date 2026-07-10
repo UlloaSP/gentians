@@ -556,6 +556,8 @@ def fitness_clingo_arguments(arguments: Arguments) -> list[str]:
     clingo_args = fitness.get("clingo_arguments", [])
     if isinstance(clingo_args, str):
         clingo_args = [clingo_args]
+    if fitness.get("name") == "coverage_original" and "--project" not in clingo_args:
+        clingo_args = [*clingo_args, "--project"]
     return [str(fitness.get("max_as", 0)), *[str(arg) for arg in clingo_args]]
 
 

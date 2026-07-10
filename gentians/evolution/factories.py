@@ -3,12 +3,17 @@ from __future__ import annotations
 import random
 
 from .crossovers.set_mix import set_mix_crossover
+from .crossovers.original_one_point import original_one_point_crossover
+from .fitness.coverage_original import coverage_original
 from .fitness.coverage_fixed import coverage_fixed
 from .individual import Individual
 from .program_sampler import ProgramSampler
 from .mutations.random_group import mutate_by_random_group
+from .mutations.original_random_clause import mutate_by_original_random_clause
 from .populations.random_initialization import initialize_population
+from .populations.original_random import initialize_original_population
 from .replacements.oldest_or_worst import replace_oldest_or_worst
+from .replacements.original_oldest_or_worst import replace_original_oldest_or_worst
 from .selections.fittest import pick_two_fittest
 from .selections.tournament import tournament_selection
 from .types import (
@@ -41,6 +46,12 @@ def create_fitness(
             size_penalty,
             literal_penalty,
             redundancy_penalty,
+        )
+    if name == "coverage_original":
+        return coverage_original(
+            program,
+            max_as,
+            clingo_arguments,
         )
     raise ValueError(f"Unknown fitness operator: {name}")
 
@@ -100,6 +111,26 @@ def create_crossover(config: dict[str, object], sampler: ProgramSampler) -> Cros
             return None
 
         return crossover
+    if name == "original_one_point":
+        probability = _float(config, "probability")
+
+        def crossover(
+            best_a: Individual,
+            best_b: Individual,
+            evaluate_score: FitnessFn,
+            known_signatures: set[tuple[str, ...]],
+            max_program_clauses: int,
+        ) -> tuple[Individual, Individual] | None:
+            return original_one_point_crossover(
+                best_a,
+                best_b,
+                evaluate_score,
+                probability,
+                known_signatures,
+                max_program_clauses,
+            )
+
+        return crossover
     raise ValueError(f"Unknown crossover operator: {name}")
 
 
@@ -126,6 +157,27 @@ def create_mutation(config: dict[str, object], sampler: ProgramSampler) -> Mutat
             )
 
         return mutate
+    if name == "original_random_clause":
+        probability = _float(config, "probability")
+
+        def mutate(
+            element: Individual,
+            max_program_clauses: int,
+            evaluate_score: FitnessFn,
+            known_signatures: set[tuple[str, ...]],
+            extra_forbidden_signatures: set[tuple[str, ...]],
+        ) -> Individual:
+            return mutate_by_original_random_clause(
+                element,
+                max_program_clauses,
+                probability,
+                evaluate_score,
+                known_signatures,
+                sampler.rule_space,
+                extra_forbidden_signatures,
+            )
+
+        return mutate
     raise ValueError(f"Unknown mutation operator: {name}")
 
 
@@ -143,6 +195,18 @@ def create_population(config: dict[str, object], sampler: ProgramSampler) -> Pop
             )
 
         return initialize
+    if name == "original_random":
+        size = _int(config, "size")
+
+        def initialize(
+            max_program_clauses: int,
+            evaluate_score: FitnessFn,
+        ) -> tuple[list[Individual], bool]:
+            return initialize_original_population(
+                max_program_clauses, size, evaluate_score, sampler.rule_space
+            )
+
+        return initialize
     raise ValueError(f"Unknown population operator: {name}")
 
 
@@ -157,6 +221,19 @@ def create_replacement(config: dict[str, object]) -> ReplacementFn:
             population_signatures: set[tuple[str, ...]],
         ) -> list[Individual]:
             return replace_oldest_or_worst(
+                population, element, population_signatures, prob_replacing_oldest
+            )
+
+        return replace
+    if name == "original_oldest_or_worst":
+        prob_replacing_oldest = _float(config, "prob_replacing_oldest")
+
+        def replace(
+            population: list[Individual],
+            element: Individual,
+            population_signatures: set[tuple[str, ...]],
+        ) -> list[Individual]:
+            return replace_original_oldest_or_worst(
                 population, element, population_signatures, prob_replacing_oldest
             )
 

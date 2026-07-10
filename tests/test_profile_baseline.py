@@ -83,7 +83,7 @@ def test_profile_baseline_writes_debug_clingo_program(tmp_path):
     assert "base." in dump
     assert "pos_exs(0..0)." in dump
     assert "target." in dump
-    assert "python -m clingo 0 --enum-mode=brave" in args
+    assert "python -m clingo 5000 --project" in args
 
 
 def test_operator_summary_counts_non_finite_mutation_as_invalid():
@@ -273,7 +273,10 @@ def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
 
     monkeypatch.setattr("gentians.gentians.export_timings", export)
 
-    solve(Program([], [], [], [], []), Arguments())
+    solve(
+        Program([], [], [], [], []),
+        Arguments(population={"name": "random", "size": 1}),
+    )
 
     assert "total_execution" in exported
     assert timing._stack == []

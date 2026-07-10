@@ -86,7 +86,7 @@ def test_build_command_accepts_profile_script_path():
     cmd, payload = build_command("python", Arguments(), Path("benchmarks/profile_ga.py"))
 
     assert cmd == ["python", str(Path("benchmarks/profile_ga.py"))]
-    assert json.loads(payload)["iterations_genetic"] == 1000
+    assert json.loads(payload)["iterations_genetic"] == 2000
 
 
 def test_profile_ga_parent_validates_without_loading_rule_space(monkeypatch, tmp_path):

@@ -6,6 +6,7 @@ from gentians.asp.clingo import ClingoInterface, build_fixed_coverage_program
 from gentians.asp.coverage import Coverage
 from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
 from gentians.evolution.fitness.coverage_fixed import coverage_fixed
+from gentians.evolution.fitness.coverage_original import coverage_original
 from gentians.evolution.fitness.coverage_common import cached_fitness
 from gentians.rule_generation.reader import read_program
 from gentians.rule_generation.program import Example, Program
@@ -188,6 +189,23 @@ def test_coverage_fixed_penalizes_literals_and_redundancy():
     assert small_best is True
     assert redundant_best is True
     assert small_score > redundant_score
+
+
+def test_coverage_original_returns_shortest_best_subset():
+    program = Program(
+        [],
+        [Example(("target(p)", ""), True)],
+        [Example(("target(n)", ""), False)],
+        [],
+        [],
+    )
+    evaluate = coverage_original(program, 0, [])
+
+    score, best_found, best_program = evaluate(("target(p).", "target(n)."))
+
+    assert score > 0
+    assert best_found is True
+    assert best_program == ("target(p).",)
 
 
 def test_cached_fitness_reuses_program_result():

@@ -1,7 +1,7 @@
 import random
 import math
 
-from ..individual import Individual
+from ..individual import Individual, individual_from_fitness
 from ..program_sampler import ProgramSampler, _random_rule_outside
 from ..types import FitnessFn
 from ...timing import instrumentation, metric_enabled, phase, profile_phase, record_metric
@@ -77,7 +77,9 @@ def mutate_by_random_group(
                         duplicate_attempts += 1
                         continue
 
-                    mutated_element = Individual(closed, element.score, element.is_best)
+                    mutated_element = Individual(
+                        closed, element.score, element.is_best, element.best_program
+                    )
                     operation = attempted_operation
                     something_changed = True
                     changed_positions = 1
@@ -90,8 +92,8 @@ def mutate_by_random_group(
 
     if something_changed:
         with phase("mutation.fitness"):
-            mutated_element.score, mutated_element.is_best = evaluate_score(
-                mutated_element.program
+            mutated_element = individual_from_fitness(
+                mutated_element.program, evaluate_score(mutated_element.program)
             )
         valid_new = math.isfinite(mutated_element.score)
         invalid = not valid_new

@@ -1,5 +1,5 @@
 from ...arguments import Arguments
-from ..individual import Individual
+from ..individual import Individual, winning_program
 from ..types import (
     CrossoverFn,
     FitnessFn,
@@ -43,7 +43,7 @@ def genetic_solver(
         population.sort(key=lambda x: x.score, reverse=True)
     best = next((individual for individual in population if individual.is_best), None)
     if best is not None:
-        return best.program, best.score, best.is_best
+        return winning_program(best), best.score, best.is_best
     if len(population) == 1:
         return population[0].program, population[0].score, population[0].is_best
 
@@ -77,7 +77,7 @@ def genetic_solver(
         with phase("crossover"):
             for child in (new_program_1, new_program_2):
                 if child.is_best:
-                    return child.program, child.score, child.is_best
+                    return winning_program(child), child.score, child.is_best
                 generation_signatures.add(child.program)
 
         # 2.3: mutation
@@ -91,7 +91,7 @@ def genetic_solver(
         )
         with phase("mutation"):
             if new_mutated_1.is_best:
-                return new_mutated_1.program, new_mutated_1.score, new_mutated_1.is_best
+                return winning_program(new_mutated_1), new_mutated_1.score, new_mutated_1.is_best
             generation_signatures.add(new_mutated_1.program)
 
         new_mutated_2 = mutation(
@@ -103,7 +103,7 @@ def genetic_solver(
         )
         with phase("mutation"):
             if new_mutated_2.is_best:
-                return new_mutated_2.program, new_mutated_2.score, new_mutated_2.is_best
+                return winning_program(new_mutated_2), new_mutated_2.score, new_mutated_2.is_best
             generation_signatures.add(new_mutated_2.program)
 
         # 3: replace elements in the population

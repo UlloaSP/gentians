@@ -30,18 +30,27 @@ class Arguments:
     # Maximum number of clauses in one candidate program.
     max_program_clauses: int = 6
 
+    # Original outer sampling/evolution rounds.
+    iterations: int = 100
+
+    # Number of hypothesis-space clauses sampled as stubs per outer round.
+    sample: int = 1000
+
+    # Number of frequent rules carried into the next original round.
+    k_best_for_next_round: int = 5
+
     # Genetic algorithm iterations.
-    iterations_genetic: int = 1000
+    iterations_genetic: int = 2000
 
     # Fitness operator config.
     fitness: dict[str, object] = field(
         default_factory=lambda: {
             # Fitness function implementation.
-            "name": "coverage_fixed",
+            "name": "coverage_original",
             # Maximum answer sets requested from Clingo per coverage check. 0 means all.
-            "max_as": 0,
+            "max_as": 5000,
             # Clingo CLI arguments used by the fitness evaluator.
-            "clingo_arguments": ["--enum-mode=brave"],
+            "clingo_arguments": [],
             # Fixed-program score penalty per selected rule.
             "size_penalty": 0.01,
             # Fixed-program score penalty per body literal.
@@ -57,9 +66,9 @@ class Arguments:
             # Parent selection implementation.
             "name": "tournament",
             # Number of candidates sampled for each tournament.
-            "tournament_size": 3,
+            "tournament_size": 12,
             # Probability of picking the fittest candidate in the tournament.
-            "prob_selecting_fittest": 1,
+            "prob_selecting_fittest": 0.9,
         }
     )
 
@@ -67,9 +76,9 @@ class Arguments:
     crossover: dict[str, object] = field(
         default_factory=lambda: {
             # Crossover implementation.
-            "name": "set_mix",
+            "name": "original_one_point",
             # Probability of applying crossover to selected parents.
-            "probability": 0.6,
+            "probability": 1.0,
         }
     )
 
@@ -77,9 +86,9 @@ class Arguments:
     mutation: dict[str, object] = field(
         default_factory=lambda: {
             # Mutation implementation.
-            "name": "random_group",
+            "name": "original_random_clause",
             # Probability of mutating an offspring.
-            "probability": 0.05,
+            "probability": 0.2,
         }
     )
 
@@ -87,9 +96,9 @@ class Arguments:
     population: dict[str, object] = field(
         default_factory=lambda: {
             # Population initialization implementation.
-            "name": "random",
+            "name": "original_random",
             # Number of individuals kept in the population.
-            "size": 100,
+            "size": 50,
         }
     )
 
@@ -97,9 +106,9 @@ class Arguments:
     replacement: dict[str, object] = field(
         default_factory=lambda: {
             # Replacement implementation.
-            "name": "oldest_or_worst",
+            "name": "original_oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
-            "prob_replacing_oldest": 0.75,
+            "prob_replacing_oldest": 0.5,
         }
     )
 

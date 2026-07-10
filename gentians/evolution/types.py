@@ -3,9 +3,11 @@ from typing import Protocol
 
 from .individual import Individual
 
+FitnessResult = tuple[float, bool] | tuple[float, bool, tuple[str, ...] | None]
+
 
 class FitnessFn(Protocol):
-    def __call__(self, program: tuple[str, ...]) -> tuple[float, bool]: ...
+    def __call__(self, program: tuple[str, ...]) -> FitnessResult: ...
 
 
 PopulationInitializerFn = Callable[

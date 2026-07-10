@@ -1,6 +1,7 @@
 import time
 
 from gentians.evolution.algorithms.genetic import genetic_solver
+from gentians.evolution.algorithms.original_rounds import original_rounds_solver
 from gentians.evolution.factories import (
     create_crossover,
     create_fitness,
@@ -64,18 +65,28 @@ def solve(
                 raise ValueError("No clauses found")
 
             with phase("fitness.setup"):
-                sampler = ProgramSampler(program, rule_space)
                 evaluate_score = create_fitness(program, arguments.fitness)
+                sampler = (
+                    None
+                    if arguments.population.get("name") == "original_random"
+                    else ProgramSampler(program, rule_space)
+                )
 
-            prg, score, best_found = genetic_solver(
-                arguments,
-                evaluate_score,
-                create_population(arguments.population, sampler),
-                create_selection(arguments.selection),
-                create_crossover(arguments.crossover, sampler),
-                create_mutation(arguments.mutation, sampler),
-                create_replacement(arguments.replacement),
-            )
+            if arguments.population.get("name") == "original_random":
+                prg, score, best_found = original_rounds_solver(
+                    arguments, rule_space, evaluate_score
+                )
+            else:
+                assert sampler is not None
+                prg, score, best_found = genetic_solver(
+                    arguments,
+                    evaluate_score,
+                    create_population(arguments.population, sampler),
+                    create_selection(arguments.selection),
+                    create_crossover(arguments.crossover, sampler),
+                    create_mutation(arguments.mutation, sampler),
+                    create_replacement(arguments.replacement),
+                )
 
             if best_found:
                 print(f"--- Found best program with score {score} ---")

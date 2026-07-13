@@ -1,6 +1,6 @@
 % Example coverage projection.
 %
-% This file is loaded by gentians.asp.clingo when evaluating whether a candidate
+% Loaded by the coverage solvers when evaluating whether a candidate
 % hypothesis extends examples. It derives the shown atoms consumed by Python from
 % lower-level coverage facts already produced by the surrounding ASP program.
 %

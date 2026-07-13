@@ -32,6 +32,52 @@ main(Arguments(
 ```
 where `filename` specifies the task file, `max_depth` sets the maximum length of a clause (number of literals), and `max_variables` sets the maximum number of variables in a rule.
 
+### Search configuration
+
+GENTIANS always searches the generated hypothesis space. Coverage and dependency
+closure are the configurable search policies.
+
+```python
+arguments = Arguments(
+    filename="benchmarks/gentians/coin.txt",
+    iterations_genetic=2000,
+    fitness={
+        "name": "cov_subprograms_mean",
+        "grounding": "externals",
+        "max_as": 0,
+        "clingo_arguments": [],
+    },
+    closure={"name": "dependency"},
+)
+main(arguments)
+```
+
+`fitness.name` is one of `cov_subprograms_mean`, `cov_subprograms_max`, or
+`cov_program`. Subprogram fitness keeps every evolutionary individual at the fixed
+size `min(max_program_clauses, hypothesis_space_size)` and evaluates its possible
+subprograms. Program fitness evaluates the whole individual and permits variable
+sizes. `fitness.grounding` is `normal`, `externals`, or `assumptions`.
+
+Benchmark output records hypothesis generation, genetic generations, elapsed
+search time, fitness evaluations, operator metrics, and Clingo phases.
+`benchmarks/profile_baseline.py --cprofile` also writes one `.prof` per run.
+
+### Reproducible experiment profiles
+
+Edit `benchmarks/experiments.toml` to define datasets, run count, timeout, common
+overrides, and named experiments. Results are isolated in `.benchmarks/<id>` and
+indexed by `.benchmarks/experiments.json` for multi-experiment comparison.
+
+```powershell
+uv run python benchmarks/run_experiments.py --list
+uv run python benchmarks/run_experiments.py cov_subprograms_mean_normal
+uv run python benchmarks/run_experiments.py cov_subprograms_mean_normal --force
+uv run python benchmarks/run_experiments.py  # all configured experiments
+```
+
+An existing matching experiment is skipped. A changed config is marked stale and
+requires `--force`, preventing accidental comparison with obsolete results.
+
 If instead you prefer to define your own program and domain, keep reading.
 
 ## Language Bias Definition
@@ -168,3 +214,12 @@ Here we list only the main ones:
 - `max_candidate_clauses`: maximum number of candidate clauses to generate. `0` means all.
 - `max_program_clauses`: maximum number of clauses in one candidate program. Default 6.
 - `filename`: task file to parse.
+- `iterations_genetic`: number of genetic generations. Default 2000.
+- `fitness.name`: `cov_subprograms_mean`, `cov_subprograms_max`, or `cov_program`.
+- `fitness.grounding`: `normal`, `externals`, or `assumptions`.
+- `closure`: `none` or `dependency`; applied centrally to every proposal.
+- `admission`: `reject_duplicates` or `allow_duplicates`.
+
+Pregrounded fitness builds and grounds the guarded hypothesis space once. Each
+candidate is then selected through externals or assumptions without grounding a
+new Clingo control.

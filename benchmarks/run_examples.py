@@ -19,7 +19,7 @@ def main_cli() -> None:
         action="append",
         default=[],
         metavar="PATH=JSON",
-        help="Override Arguments field, e.g. --set iterations_genetic=1000 --set fitness.name=coverage_fixed",
+        help="Override Arguments field, e.g. --set iterations_genetic=1000 --set fitness.name=cov_program",
     )
     parser.add_argument("--list", action="store_true")
     args = parser.parse_args()

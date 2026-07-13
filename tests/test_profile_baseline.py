@@ -14,6 +14,7 @@ from benchmarks.profile_baseline import (
     parse_log,
     quality_summary,
     reset_run_outputs,
+    run_profile_worker,
     run_streamed,
     write_dashboard_data,
     write_debug_clingo_program,
@@ -23,6 +24,20 @@ from gentians.arguments import Arguments
 from gentians.gentians import solve
 from gentians.rule_generation.program import Program
 from gentians.rule_generation.rule_space import RuleSpace
+
+
+def test_profile_worker_applies_seed_to_arguments(monkeypatch):
+    captured = {}
+    monkeypatch.setenv("GENTIANS_ARGUMENTS_JSON", json.dumps(Arguments().__dict__))
+    monkeypatch.setenv("GENTIANS_RANDOM_SEED", "17")
+    monkeypatch.setattr(
+        "benchmarks.profile_baseline.gentians_main",
+        lambda arguments: captured.setdefault("arguments", arguments),
+    )
+
+    run_profile_worker()
+
+    assert captured["arguments"].random_seed == 17
 
 
 def test_parse_log_marks_only_found_best_as_success(tmp_path):
@@ -83,7 +98,26 @@ def test_profile_baseline_writes_debug_clingo_program(tmp_path):
     assert "base." in dump
     assert "pos_exs(0..0)." in dump
     assert "target." in dump
-    assert "python -m clingo 5000 --project" in args
+    assert "python -m clingo 0 " in args
+    assert "--enum-mode=brave" not in args
+
+
+def test_profile_baseline_uses_strategy_fitness_for_debug_dump(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text("#pos({target},{}).\n#modeh(1,target,0).\n", encoding="utf-8")
+    arguments = Arguments(filename=str(task))
+    arguments.fitness = {
+        "name": "cov_subprograms_mean",
+        "grounding": "normal",
+        "max_as": 10000,
+        "clingo_arguments": [],
+    }
+
+    write_debug_clingo_program(tmp_path, "original", arguments, ["target."])
+
+    assert "python -m clingo 10000 --project" in (
+        tmp_path / "original.args.txt"
+    ).read_text(encoding="utf-8")
 
 
 def test_operator_summary_counts_non_finite_mutation_as_invalid():
@@ -102,7 +136,31 @@ def test_operator_summary_counts_non_finite_mutation_as_invalid():
     [summary] = operator_summary(rows)
 
     assert summary["invalid_rate"] == 1.0
-    assert summary["mean_score_delta"] == 0.0
+
+
+def test_operator_summary_accepts_engine_generic_schema():
+    rows = [
+        {
+            "dataset": "coin",
+            "run": 1,
+            "operator": "mutation",
+            "strategy": "random_group",
+            "slots": 1,
+            "applied": True,
+            "valid_new": True,
+            "changed": True,
+            "original_score": 1.0,
+            "new_score": 2.0,
+            "improved": True,
+            "is_best": False,
+        }
+    ]
+
+    [summary] = operator_summary(rows)
+
+    assert summary["valid_rate"] == 1.0
+    assert summary["improvement_rate"] == 1.0
+    assert summary["mean_score_delta"] == 1.0
 
 
 def test_operator_summary_counts_crossover_parent_duplicates_as_duplicates():
@@ -254,19 +312,9 @@ def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
     exported = {}
 
     monkeypatch.setattr(
-        "gentians.gentians.build_hypothesis_space",
-        lambda program, arguments: RuleSpace.from_clauses(["rule."]),
+        "gentians.gentians.search_solver",
+        lambda *args, **kwargs: (("rule.",), 1.0, True),
     )
-    monkeypatch.setattr(
-        "gentians.gentians.genetic_solver",
-        lambda *args, **kwargs: ([0], 1.0, True),
-    )
-    monkeypatch.setattr("gentians.gentians.create_fitness", lambda *args: object())
-    monkeypatch.setattr("gentians.gentians.create_population", lambda *args: object())
-    monkeypatch.setattr("gentians.gentians.create_selection", lambda *args: object())
-    monkeypatch.setattr("gentians.gentians.create_crossover", lambda *args: object())
-    monkeypatch.setattr("gentians.gentians.create_mutation", lambda *args: object())
-    monkeypatch.setattr("gentians.gentians.create_replacement", lambda *args: object())
 
     def export():
         exported.update(timing._totals)
@@ -344,24 +392,11 @@ def test_export_closes_jsonl_writer_before_reset(monkeypatch, tmp_path):
     assert not path.exists()
 
 
-def test_dashboard_attributes_nested_python_to_phase_self_time():
-    phases = dashboard_phases(
-        [
-            TimingMetric("d", 1, "hypothesis_space", 10.0, 1),
-            TimingMetric("d", 1, "hypothesis_space.self", 2.0, 1),
-            TimingMetric("d", 1, "hypothesis_space.grounding", 3.0, 1),
-            TimingMetric("d", 1, "hypothesis_space.solving", 4.0, 1),
-        ]
-    )
-
-    assert phases["hypothesisSpace"]["self"] == 3.0
-
-
 def test_dashboard_attributes_genetic_self_to_ga_python():
     phases = dashboard_phases(
         [
             TimingMetric("d", 1, "total_execution", 10.0, 1),
-            TimingMetric("d", 1, "genetic.self", 3.0, 1),
+            TimingMetric("d", 1, "search.self", 3.0, 1),
             TimingMetric("d", 1, "selection", 2.0, 1),
             TimingMetric("d", 1, "selection.self", 2.0, 1),
             TimingMetric("d", 1, "replacement", 5.0, 1),
@@ -387,13 +422,42 @@ def test_dashboard_has_fitness_setup_phase():
     assert phases["fitnessSetup"]["self"] == 1.0
 
 
+def test_dashboard_separates_hypothesis_and_fitness_clingo_from_python():
+    phases = dashboard_phases(
+        [
+            TimingMetric("d", 1, "total_execution", 20.0, 1),
+            TimingMetric("d", 1, "hypothesis_space.self", 5.0, 1),
+            TimingMetric("d", 1, "hypothesis_space.grounding", 1.0, 1),
+            TimingMetric("d", 1, "hypothesis_space.solving", 2.0, 1),
+            TimingMetric("d", 1, "fitness.self", 10.0, 2),
+            TimingMetric("d", 1, "fitness.grounding", 3.0, 2),
+            TimingMetric("d", 1, "fitness.solving", 4.0, 2),
+            TimingMetric("d", 1, "search.self", 5.0, 1),
+        ]
+    )
+
+    assert phases["hypothesisSpace"] == {
+        "self": 5.0,
+        "grounding": 1.0,
+        "solving": 2.0,
+        "other": 0.0,
+    }
+    assert phases["fitnessEvaluation"] == {
+        "self": 10.0,
+        "grounding": 3.0,
+        "solving": 4.0,
+        "other": 0.0,
+    }
+    assert phases["gaPython"]["self"] == 5.0
+
+
 def test_dashboard_phases_use_run_means():
     phases = dashboard_phases(
         [
             TimingMetric("d", 1, "total_execution", 10.0, 1),
-            TimingMetric("d", 1, "genetic.self", 2.0, 1),
+            TimingMetric("d", 1, "search.self", 2.0, 1),
             TimingMetric("d", 2, "total_execution", 30.0, 1),
-            TimingMetric("d", 2, "genetic.self", 6.0, 1),
+            TimingMetric("d", 2, "search.self", 6.0, 1),
         ]
     )
 
@@ -402,16 +466,20 @@ def test_dashboard_phases_use_run_means():
 
 def test_frontend_phase_order_matches_dashboard_phases():
     metrics_js = Path(".benchmarks/src/metrics.js").read_text(encoding="utf-8")
-    match = re.search(r"phaseOrder = \[(.*?)\]\n\nexport const typeOrder", metrics_js, re.S)
+    match = re.search(
+        r"phaseOrder\s*=\s*\[(.*?)\]\s*;?\s*\n\s*export const typeOrder",
+        metrics_js,
+        re.S,
+    )
     assert match is not None
-    frontend_phases = re.findall(r"\['([^']+)'", match.group(1))
+    frontend_phases = re.findall(r"\[['\"]([^'\"]+)['\"]", match.group(1))
 
     backend_phases = dashboard_phases([]).keys()
 
     assert set(frontend_phases) == set(backend_phases)
 
 
-def test_accounting_invariants_include_fitness_setup():
+def test_accounting_invariants_match_current_search_phases():
     rows = compute_accounting_invariants(
         "d",
         1,
@@ -420,7 +488,7 @@ def test_accounting_invariants_include_fitness_setup():
             TimingMetric("d", 1, "hypothesis_space", 2.0, 1),
             TimingMetric("d", 1, "fitness.setup", 3.0, 1),
             TimingMetric("d", 1, "fitness.setup.grounding", 2.5, 1),
-            TimingMetric("d", 1, "genetic", 5.0, 1),
+            TimingMetric("d", 1, "search", 10.0, 1),
         ],
     )
 
@@ -682,9 +750,12 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
 
     bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
     assert bench["candidates"] == 200
-    assert bench["groundCalls"] == 0.5
+    assert bench["groundCalls"] == 1
     assert bench["solveCalls"] == 1.5
     assert bench["models"] == 7
+    assert bench["clingoRuns"] == 2
+    assert bench["groundRuns"] == 1
+    assert bench["solveRuns"] == 2
 
 
 def test_dashboard_uses_real_ga_diversity(tmp_path):
@@ -718,6 +789,63 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
     ][0]
     assert run["diversity"] == [[0, 0.5]]
     assert run["invalid"] == [[0, 0.25]]
+
+
+def test_dashboard_runtime_includes_timeout_and_reports_instrumentation_coverage(tmp_path):
+    write_dashboard_data(
+        tmp_path,
+        [
+            RunResult("d", 1, 1, "run", "ok", 0, 4.0, [], "{}", ""),
+            RunResult("d", 2, 2, "run", "timeout", None, 10.0, [], "{}", ""),
+        ],
+        [TimingMetric("d", 1, "total_execution", 3.0, 1)],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
+
+    payload = json.loads((tmp_path / "dashboard_data.json").read_text())
+    benchmark = payload["benchmarks"][0]
+    assert payload["schemaVersion"] == 4
+    assert benchmark["total"] == 7.0
+    assert benchmark["instrumentedTotal"] == 3.0
+    assert benchmark["instrumentedRuns"] == 1
+    assert benchmark["timeouts"] == 1
+
+
+def test_ga_progress_exposes_round_time_and_evaluations(tmp_path):
+    write_dashboard_data(
+        tmp_path,
+        [RunResult("d", 1, 1, "run", "ok", 0, 1.0, [], "{}", "")],
+        [],
+        [
+            GAMetric(
+                "d",
+                1,
+                2,
+                12,
+                3.0,
+                2.0,
+                3.0,
+                elapsed_seconds=4.5,
+                fitness_evaluations=27,
+            )
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
+
+    run = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0][
+        "fitnessRuns"
+    ][0]
+    assert run["elapsedBestArr"] == [[4.5, 3.0]]
+    assert run["evaluationBestArr"] == [[27, 3.0]]
 
 
 def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):

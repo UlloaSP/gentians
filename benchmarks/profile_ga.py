@@ -44,7 +44,7 @@ def add_hypothesis_dir_arg(parser: argparse.ArgumentParser) -> None:
 
 
 def hypothesis_env(directory: Path):
-    def env(dataset: str, arguments: Arguments) -> dict[str, str]:
+    def env(dataset: str, _arguments: Arguments) -> dict[str, str]:
         path = hypothesis_path(directory, dataset)
         if not path.exists():
             raise FileNotFoundError(f"Hypothesis space not found: {path}")
@@ -59,6 +59,7 @@ def run_profile_worker() -> None:
     seed = os.environ.get("GENTIANS_RANDOM_SEED")
     if seed is not None:
         random.seed(int(seed))
+        arguments.random_seed = int(seed)
     path = Path(os.environ["GENTIANS_HYPOTHESIS_SPACE_PATH"])
     worker_started = time.time()
     started = time.perf_counter()

@@ -1,124 +1,100 @@
-import { useMemo } from 'react'
-import { chartTw } from '../chartTw'
-import { Chart } from '../components/Chart'
-import { ChartSection } from '../components/Layout'
-import { colors, runCount } from '../metrics'
+import { useMemo, useState } from "react";
+import { chartTw } from "../chartTw";
+import { Chart } from "../components/Chart";
+import { ChartSection } from "../components/Layout";
+import { aggregateSeries, colors } from "../metrics";
 
+const AXES = {
+  globalGeneration: "generación global",
+  fitnessEvaluations: "evaluaciones de fitness",
+  elapsedSeconds: "segundos",
+};
 const SERIES = [
-  ['max', 'max', 'globalMaxArr', 'maxArr', colors.self, 'rgba(76,120,168,.16)'],
-  ['best', 'best', 'globalBestArr', 'bestArr', colors.accent, 'rgba(239,68,68,.14)'],
-  ['avg', 'avg', 'globalAvgArr', 'avgArr', colors.other, 'rgba(242,185,75,.18)'],
-]
-const VISIBLE_SERIES = ['max', 'best', 'avg']
+  ["max", "max", colors.self],
+  ["best", "best", colors.accent],
+  ["avg", "avg", colors.other],
+];
 
 export function FitnessChart({ benchmark }) {
-  const chart = useMemo(() => {
-    const data = SERIES.flatMap(([key, label, globalKey, localKey, color, bandColor]) => {
-      const rows = aggregateSeries(benchmark.fitnessRuns || [], globalKey, localKey)
-      return [
-        {
-          type: 'scatter',
-          mode: 'lines',
-          name: label,
-          x: rows.map((row) => row.generation),
-          y: rows.map((row) => row.mean - row.std),
-          line: { color: 'transparent', width: 0 },
-          legend: false,
-          silent: true,
-          tooltip: false,
-          stack: `${key}-std`,
-        },
-        {
-          type: 'scatter',
-          mode: 'lines',
-          name: label,
-          x: rows.map((row) => row.generation),
-          y: rows.map((row) => row.std * 2),
-          line: { color: 'transparent', width: 0 },
-          areaStyle: { color: bandColor },
-          legend: false,
-          silent: true,
-          tooltip: false,
-          stack: `${key}-std`,
-        },
-        {
-          type: 'scatter',
-          mode: 'lines',
-          name: label,
-          x: rows.map((row) => row.generation),
-          y: rows.map((row) => row.mean),
-          line: { color, width: key === 'best' ? 3 : 2, dash: key === 'avg' ? 'dot' : undefined },
-          showSymbol: false,
-        },
-      ]
-    })
-    return {
-      data,
-      layout: {
-        xaxis: { title: 'generación global' },
-        yaxis: { title: 'fitness' },
-        tooltip: { trigger: 'axis', axisPointer: { type: 'line' }, formatter: formatFitnessTooltip },
-        margin: { l: 80, r: 20, t: 30, b: 96 },
-      },
-    }
-  }, [benchmark])
+  const [axis, setAxis] = useState("fitnessEvaluations");
+  const series = useMemo(
+    () =>
+      SERIES.flatMap(([metric, name, color]) => {
+        const rows = aggregateSeries(benchmark.fitnessRuns || [], axis, metric);
+        return rows.length
+          ? [
+              {
+                type: "line",
+                stack: `band-${metric}`,
+                data: rows.map((row) => [row.position, row.mean - row.std]),
+                showSymbol: false,
+                silent: true,
+                lineStyle: { opacity: 0 },
+                areaStyle: { opacity: 0 },
+                tooltip: { show: false },
+              },
+              {
+                type: "line",
+                stack: `band-${metric}`,
+                data: rows.map((row) => [row.position, row.std * 2]),
+                showSymbol: false,
+                silent: true,
+                lineStyle: { opacity: 0 },
+                areaStyle: { color, opacity: 0.12 },
+                tooltip: { show: false },
+              },
+              {
+                type: "line",
+                name,
+                data: rows.map((row) => [row.position, row.mean]),
+                lineStyle: {
+                  color,
+                  width: metric === "best" ? 3 : 2,
+                  type: metric === "avg" ? "dotted" : "solid",
+                },
+                showSymbol: false,
+              },
+            ]
+          : [];
+      }),
+    [axis, benchmark],
+  );
+  const option = useMemo(
+    () => ({
+      tooltip: { trigger: "axis", axisPointer: { type: "line" } },
+      legend: { bottom: 0 },
+      grid: { left: 80, right: 20, top: 30, bottom: 82 },
+      xAxis: { type: "value", name: AXES[axis], nameLocation: "middle", nameGap: 36 },
+      yAxis: { type: "value", name: "fitness", nameLocation: "middle", nameGap: 54 },
+      series,
+    }),
+    [axis, series],
+  );
 
   return (
-    <ChartSection title="Fitness agregado">
-      {runCount(benchmark) ? <Chart {...chart} height={390} /> : <p className={chartTw.note}>Sin fitnessRuns en dashboard_data.json</p>}
+    <ChartSection title="Progreso de búsqueda">
+      <div className="mb-3 flex items-center justify-end gap-2">
+        <label className={chartTw.controlLabel} htmlFor="fitness-axis">
+          comparar por
+        </label>
+        <select
+          className={chartTw.select}
+          id="fitness-axis"
+          value={axis}
+          onChange={(event) => setAxis(event.target.value)}
+        >
+          {Object.entries(AXES).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {series.length ? (
+        <Chart option={option} height={390} />
+      ) : (
+        <p className={chartTw.note}>Sin progreso instrumentado.</p>
+      )}
     </ChartSection>
-  )
-}
-
-function formatFitnessTooltip(params) {
-  const items = (Array.isArray(params) ? params : [params])
-    .filter((item) => VISIBLE_SERIES.includes(item.seriesName))
-  const byName = new Map(items.map((item) => [item.seriesName, item]))
-  const generation = items[0]?.value?.[0]
-  return [
-    `<strong>Generación ${formatFitnessValue(generation)}</strong>`,
-    ...VISIBLE_SERIES.map((name) => {
-      const item = byName.get(name)
-      return item ? `${item.marker}${name}: ${formatFitnessValue(item.value?.[1])}` : null
-    }).filter(Boolean),
-  ].join('<br/>')
-}
-
-function formatFitnessValue(value) {
-  return Number(value).toLocaleString('es-ES', { maximumFractionDigits: 10 })
-}
-
-function aggregateSeries(runs, globalKey, localKey) {
-  const runPoints = runs.map((run) => (run[globalKey] || run[localKey] || [])
-    .map(([generation, value]) => [Number(generation), Number(value)])
-    .filter(([generation, value]) => Number.isFinite(generation) && Number.isFinite(value))
-    .sort(([left], [right]) => left - right))
-    .filter((points) => points.length)
-  const generations = [...new Set(runPoints.flatMap((points) => points.map(([generation]) => generation)))]
-    .sort((left, right) => left - right)
-  const carriedByRun = runPoints.map((points) => {
-    let index = 0
-    let best = null
-    return generations.map((generation) => {
-      while (index < points.length && points[index][0] <= generation) {
-        best = best === null ? points[index][1] : Math.max(best, points[index][1])
-        index += 1
-      }
-      return best
-    })
-  })
-
-  return generations
-    .map((generation, generationIndex) => [
-      generation,
-      carriedByRun.map((values) => values[generationIndex]).filter((value) => value !== null),
-    ])
-    .filter(([, values]) => values.length)
-    .map(([generation, values]) => {
-      const mean = values.reduce((sum, value) => sum + value, 0) / values.length
-      const variance = values.length > 1
-        ? values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1)
-        : 0
-      return { generation, mean, std: Math.sqrt(variance) }
-    })
+  );
 }

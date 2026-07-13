@@ -14,7 +14,7 @@ class WrapperStopIfWarn:
     def __init__(self) -> None:
         self.atom_undefined = False
 
-    def wrapper_warn_undefined_callback(self, x, y):
+    def wrapper_warn_undefined_callback(self, _code, y):
         """
         Clingo callback: exit when there is an atom undefined.
         Used when check coverage: if there is an atom undefined, clearly

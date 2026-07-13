@@ -54,21 +54,6 @@ def test_hypothesis_file_stores_entries_to_avoid_reparse(monkeypatch, tmp_path):
     assert rule_space.clauses == ("rule.",)
 
 
-def test_hypothesis_file_reads_legacy_clauses(tmp_path):
-    path = tmp_path / "coin.json"
-    arguments = Arguments(filename="coin.txt")
-    write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    payload["schemaVersion"] = 1
-    payload["clauses"] = ["rule."]
-    payload.pop("entries")
-    path.write_text(json.dumps(payload), encoding="utf-8")
-
-    rule_space = read_hypothesis_file(path, arguments)
-
-    assert rule_space.clauses == ("rule.",)
-
-
 def test_hypothesis_file_rejects_generation_argument_mismatch(tmp_path):
     path = tmp_path / "coin.json"
     write_hypothesis_file(
@@ -86,7 +71,7 @@ def test_build_command_accepts_profile_script_path():
     cmd, payload = build_command("python", Arguments(), Path("benchmarks/profile_ga.py"))
 
     assert cmd == ["python", str(Path("benchmarks/profile_ga.py"))]
-    assert json.loads(payload)["iterations_genetic"] == 2000
+    assert json.loads(payload)["iterations_genetic"] == Arguments().iterations_genetic
 
 
 def test_profile_ga_parent_validates_without_loading_rule_space(monkeypatch, tmp_path):

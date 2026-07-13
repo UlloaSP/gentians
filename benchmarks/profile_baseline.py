@@ -20,7 +20,7 @@ PROFILE_BASELINE_PATH = Path(__file__).resolve()
 sys.path.insert(0, str(REPO_ROOT))
 
 from gentians import Arguments, main as gentians_main
-from gentians.asp.clingo import build_fixed_coverage_program
+from gentians.asp.coverage_program import build_fixed_coverage_program
 from gentians.rule_generation.reader import read_program
 from benchmarks.catalog import (
     DEFAULT_DATASETS,
@@ -46,8 +46,9 @@ class RunResult:
     total_seconds: float | None = None
     success: bool = False
     first_success_generation_observed: int | None = None
-    fitness_operator: str = "coverage_fixed"
+    fitness_operator: str = "cov_subprograms_mean"
     genetic_iterations: int = 0
+    cprofile_path: str = ""
 
 
 @dataclass
@@ -83,6 +84,8 @@ class GAMetric:
     invalid_count: float = 0.0
     invalid_rate: float = 0.0
     mean_program_size: float = 0.0
+    elapsed_seconds: float = 0.0
+    fitness_evaluations: int = 0
 
 
 ITERATION_RE = re.compile(
@@ -111,12 +114,12 @@ STANDARD_TIMING_METRICS = [
     "mutation.fitness",
     "crossover.grounding",
     "crossover.solving",
-    "fitness.initialization.grounding",
-    "fitness.initialization.solving",
+    "population.grounding",
+    "population.solving",
     "mutation",
     "crossover",
-    "genetic",
-    "fitness.initialization",
+    "search",
+    "population",
 ]
 
 
@@ -138,7 +141,7 @@ def parse_profile_args(
         action="append",
         default=[],
         metavar="PATH=JSON",
-        help="Override Arguments field, e.g. --set iterations_genetic=1000 --set fitness.name=coverage_fixed",
+        help="Override Arguments field, e.g. --set iterations_genetic=1000 --set fitness.name=cov_program",
     )
     parser.add_argument(
         "--arguments-json",
@@ -147,6 +150,11 @@ def parse_profile_args(
     parser.add_argument("--list-datasets", action="store_true")
     parser.add_argument("--seed-base", type=int, default=1)
     parser.add_argument("--plots-only", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--cprofile",
+        action="store_true",
+        help="Write one Python .prof file per run.",
+    )
     if add_args is not None:
         add_args(parser)
     return parser.parse_args()
@@ -240,6 +248,7 @@ def run_benchmark_suite(
                 out_dir / "runs" / f"{dataset}_run_{run}_clingo_metrics.jsonl"
             )
             log_path = out_dir / "runs" / f"{dataset}_run_{run}.log"
+            cprofile_path = out_dir / "runs" / f"{dataset}_run_{run}.prof"
             reset_run_outputs(
                 [
                     timings_path,
@@ -250,11 +259,21 @@ def run_benchmark_suite(
                     quality_metrics_path,
                     clingo_metrics_path,
                     log_path,
+                    cprofile_path,
                 ]
             )
             cmd, arguments_json = build_command(
                 args.python, dataset_arguments, profile_path
             )
+            if args.cprofile:
+                cmd = [
+                    args.python,
+                    "-m",
+                    "cProfile",
+                    "-o",
+                    str(cprofile_path.resolve()),
+                    *cmd[1:],
+                ]
             seed = args.seed_base + completed - 1
             experiment_id = f"{dataset}_seed_{seed}"
 
@@ -310,8 +329,11 @@ def run_benchmark_suite(
                 first_success_generation_observed=parsed[
                     "first_success_generation_observed"
                 ],
-                fitness_operator=str(fitness_config.get("name", "coverage_fixed")),
+                fitness_operator=str(
+                    fitness_config.get("name", "cov_subprograms_mean")
+                ),
                 genetic_iterations=int(run_arguments.get("iterations_genetic", 0)),
+                cprofile_path=str(cprofile_path) if args.cprofile else "",
             )
             results.append(run_result)
             fitness.extend(parsed["fitness"])
@@ -385,10 +407,12 @@ def build_command(
 
 def run_profile_worker() -> None:
     payload = os.environ["GENTIANS_ARGUMENTS_JSON"]
+    arguments = Arguments(**json.loads(payload))
     seed = os.environ.get("GENTIANS_RANDOM_SEED")
     if seed is not None:
         random.seed(int(seed))
-    gentians_main(Arguments(**json.loads(payload)))
+        arguments.random_seed = int(seed)
+    gentians_main(arguments)
 
 
 def run_streamed(
@@ -553,10 +577,15 @@ def write_debug_clingo_program(
 
 def fitness_clingo_arguments(arguments: Arguments) -> list[str]:
     fitness = arguments.fitness
+    if not isinstance(fitness, dict):
+        fitness = {}
     clingo_args = fitness.get("clingo_arguments", [])
     if isinstance(clingo_args, str):
         clingo_args = [clingo_args]
-    if fitness.get("name") == "coverage_original" and "--project" not in clingo_args:
+    if (
+        fitness.get("name") in {"cov_subprograms_mean", "cov_subprograms_max"}
+        and "--project" not in clingo_args
+    ):
         clingo_args = [*clingo_args, "--project"]
     return [str(fitness.get("max_as", 0)), *[str(arg) for arg in clingo_args]]
 
@@ -592,6 +621,8 @@ def read_ga_metrics(path: Path, dataset: str, run: int) -> list[GAMetric]:
             to_float(row.get("invalid_count")),
             to_float(row.get("invalid_rate")),
             to_float(row.get("mean_program_size")),
+            to_float(row.get("elapsed_seconds")),
+            int(to_float(row.get("fitness_evaluations"))),
         )
         for row in rows
     ]
@@ -635,11 +666,7 @@ def compute_accounting_invariants(
 ) -> list[dict[str, object]]:
     values = {t.metric: t.seconds for t in timings}
     total = values.get("total_execution", 0.0)
-    top_level = [
-        "hypothesis_space",
-        "fitness.setup",
-        "genetic",
-    ]
+    top_level = ["search"]
     attributed = sum(values.get(metric, 0.0) for metric in top_level)
     clingo_grounding = sum(
         value for metric, value in values.items() if metric.endswith(".grounding")
@@ -678,9 +705,12 @@ def compute_accounting_invariants(
     for phase in [
         "hypothesis_space",
         "fitness.setup",
-        "fitness.initialization",
+        "population",
+        "fitness",
+        "selection",
         "crossover",
         "mutation",
+        "replacement",
     ]:
         phase_total = values.get(phase, 0.0)
         clingo_total = sum_nested_metric(
@@ -736,6 +766,14 @@ def read_existing_outputs(
             float(row["max_fitness"]),
             float(row["avg_fitness"]),
             float(row["best_so_far"]),
+            to_float(row.get("population_size")),
+            to_float(row.get("unique_signatures")),
+            to_float(row.get("diversity")),
+            to_float(row.get("invalid_count")),
+            to_float(row.get("invalid_rate")),
+            to_float(row.get("mean_program_size")),
+            to_float(row.get("elapsed_seconds")),
+            int(to_float(row.get("fitness_evaluations"))),
         )
         for row in read_csv_dicts(out_dir / "ga_fitness.csv")
     ]
@@ -770,8 +808,9 @@ def read_existing_outputs(
             int(to_float(row.get("first_success_generation_observed")))
             if row.get("first_success_generation_observed") not in (None, "")
             else None,
-            row.get("fitness_operator", "coverage_fixed"),
+            row.get("fitness_operator", "cov_subprograms_mean"),
             int(to_float(row.get("genetic_iterations"))),
+            row.get("cprofile_path", ""),
         )
         for row in read_csv_dicts(out_dir / "runs.csv")
     ]
@@ -898,34 +937,45 @@ def write_dashboard_data(
         candidate = first_row(candidate_rows, dataset)
         quality = first_row(quality_rows, dataset)
         phases = dashboard_phases(dataset_timings)
-        total = mean(
+        instrumented_total = mean(
             timing.seconds
             for timing in dataset_timings
             if timing.metric == "total_execution"
         )
+        instrumented_runs = len(
+            {
+                timing.run
+                for timing in dataset_timings
+                if timing.metric == "total_execution"
+            }
+        )
         dataset_clingo_metrics = clingo_metrics_by_dataset.get(dataset, [])
-        run_ids = sorted({result.run for result in dataset_results})
+        clingo_run_ids = sorted(
+            {int(to_float(row.get("run"))) for row in dataset_clingo_metrics}
+        )
+        solve_run_ids = _clingo_run_ids(dataset_clingo_metrics, "solving")
+        ground_run_ids = _clingo_run_ids(dataset_clingo_metrics, "grounding")
         solve_calls = mean(
             _clingo_calls_for_run(dataset_clingo_metrics, run, "solving")
-            for run in run_ids
+            for run in solve_run_ids
         )
         ground_calls = mean(
             _clingo_calls_for_run(dataset_clingo_metrics, run, "grounding")
-            for run in run_ids
+            for run in ground_run_ids
         )
-        atoms = mean_run_call_mean(dataset_clingo_metrics, run_ids, "stats_atoms")
-        ground_rules = mean_run_call_mean(dataset_clingo_metrics, run_ids, "stats_rules")
+        atoms = mean_run_call_mean(dataset_clingo_metrics, clingo_run_ids, "stats_atoms")
+        ground_rules = mean_run_call_mean(dataset_clingo_metrics, clingo_run_ids, "stats_rules")
         choices = mean(
             _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "stats_choices")
-            for run in run_ids
+            for run in solve_run_ids
         )
         conflicts = mean(
             _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "stats_conflicts")
-            for run in run_ids
+            for run in solve_run_ids
         )
         models = mean(
             _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "models")
-            for run in run_ids
+            for run in solve_run_ids
         )
         candidates = mean(
             candidate_clause_count(row)
@@ -953,7 +1003,12 @@ def write_dashboard_data(
                 "arithmetic": 0,
                 "recursion": 0,
                 "contextAtoms": 0,
-                "total": total,
+                "total": mean(result.elapsed_seconds for result in dataset_results),
+                "instrumentedTotal": instrumented_total,
+                "instrumentedRuns": instrumented_runs,
+                "clingoRuns": len(clingo_run_ids),
+                "solveRuns": len(solve_run_ids),
+                "groundRuns": len(ground_run_ids),
                 "runCount": len(dataset_results),
                 "bestFoundRuns": sum(1 for result in dataset_results if result.success),
                 "successRate": mean_bool(
@@ -1002,7 +1057,7 @@ def write_dashboard_data(
                 "clingoSummary": dataset_clingo_summary,
             }
         )
-    payload = {"schemaVersion": 2, "benchmarks": benchmarks}
+    payload = {"schemaVersion": 4, "benchmarks": benchmarks}
     (out_dir / "dashboard_data.json").write_text(
         json.dumps(json_safe(payload), indent=2, allow_nan=False),
         encoding="utf-8",
@@ -1017,6 +1072,16 @@ def _clingo_calls_for_run(
         for row in rows
         if int(to_float(row.get("run"))) == run
         and clingo_operation_category(row) == category
+    )
+
+
+def _clingo_run_ids(rows: list[dict[str, object]], category: str) -> list[int]:
+    return sorted(
+        {
+            int(to_float(row.get("run")))
+            for row in rows
+            if clingo_operation_category(row) == category
+        }
     )
 
 
@@ -1042,31 +1107,32 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
         for metric in sorted({timing.metric for timing in timings})
     }
 
-    def phase(name: str, source: str) -> dict[str, float]:
-        total = values.get(source, 0.0)
+    def phase(source: str) -> dict[str, float]:
         grounding = sum_nested_metric(values, source, "grounding")
         solving = sum_nested_metric(values, source, "solving")
+        self_metric = f"{source}.self"
+        self_time = (
+            values[self_metric]
+            if self_metric in values
+            else max(values.get(source, 0.0) - grounding - solving, 0.0)
+        )
         return {
-            "self": max(total - grounding - solving, 0.0),
+            "self": self_time,
             "grounding": grounding,
             "solving": solving,
             "other": 0.0,
         }
 
     phases = {
-        "hypothesisSpace": phase("hypothesisSpace", "hypothesis_space"),
-        "fitnessSetup": phase("fitnessSetup", "fitness.setup"),
-        "initialization": phase("initialization", "fitness.initialization"),
-        "selection": phase("selection", "selection"),
-        "crossover": phase("crossover", "crossover"),
-        "mutation": phase("mutation", "mutation"),
-        "replacement": phase("replacement", "replacement"),
-        "gaPython": {
-            "self": values.get("genetic.self", 0.0),
-            "grounding": 0.0,
-            "solving": 0.0,
-            "other": 0.0,
-        },
+        "hypothesisSpace": phase("hypothesis_space"),
+        "fitnessSetup": phase("fitness.setup"),
+        "initialization": phase("population"),
+        "fitnessEvaluation": phase("fitness"),
+        "selection": phase("selection"),
+        "crossover": phase("crossover"),
+        "mutation": phase("mutation"),
+        "replacement": phase("replacement"),
+        "gaPython": phase("search"),
     }
     total = values.get("total_execution", 0.0)
     measured = sum(sum(type_values.values()) for type_values in phases.values())
@@ -1111,6 +1177,24 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
                 "globalBestArr": global_best,
                 "diversity": [[point.generation, point.diversity] for point in points],
                 "invalid": [[point.generation, point.invalid_rate] for point in points],
+                "elapsedBestArr": [
+                    [point.elapsed_seconds, point.best_so_far] for point in points
+                ],
+                "elapsedMaxArr": [
+                    [point.elapsed_seconds, point.max_fitness] for point in points
+                ],
+                "elapsedAvgArr": [
+                    [point.elapsed_seconds, point.avg_fitness] for point in points
+                ],
+                "evaluationBestArr": [
+                    [point.fitness_evaluations, point.best_so_far] for point in points
+                ],
+                "evaluationMaxArr": [
+                    [point.fitness_evaluations, point.max_fitness] for point in points
+                ],
+                "evaluationAvgArr": [
+                    [point.fitness_evaluations, point.avg_fitness] for point in points
+                ],
             }
         )
     return runs
@@ -1122,10 +1206,10 @@ def dashboard_clause_rows(candidate_metrics: list[dict[str, object]]) -> list[di
         for row in candidate_metrics
         if is_hypothesis_space_metric(row)
     ]
-    if not rows:
-        return []
-    clauses = int(mean(candidate_clause_count(row) for row in rows))
-    return [
+    result = []
+    if rows:
+        clauses = int(mean(candidate_clause_count(row) for row in rows))
+        result.append(
         {
             "clause": "hypothesis_space",
             "origin": "hypothesis_space",
@@ -1139,7 +1223,8 @@ def dashboard_clause_rows(candidate_metrics: list[dict[str, object]]) -> list[di
             "maxScore": 0.0,
             "evalSeconds": mean(to_float(row.get("seconds")) for row in rows),
         }
-    ]
+        )
+    return result
 
 
 def dashboard_quality_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -1292,6 +1377,11 @@ def operator_run_summary(
     best_count = operator_best_count(selected, operator)
     crossover_deltas = []
     for row in selected:
+        if operator == "crossover" and row.get("child_score") not in (None, ""):
+            crossover_deltas.append(
+                to_float(row.get("child_score")) - to_float(row.get("parent_score"))
+            )
+            continue
         if not all(
             row.get(key) not in (None, "")
             for key in (
@@ -1401,7 +1491,7 @@ def operator_valid_new_count(
             to_float(
                 row.get(
                     "children_valid_new",
-                    max(
+                    row.get("valid_new", max(
                         to_float(row.get("children"))
                         - to_float(
                             row.get(
@@ -1411,7 +1501,7 @@ def operator_valid_new_count(
                         )
                         - to_float(row.get("children_duplicate_population")),
                         0.0,
-                    ),
+                    )),
                 )
             )
             for row in rows
@@ -1429,7 +1519,9 @@ def operator_duplicate_count(
 ) -> float:
     if operator == "crossover":
         return sum(
-            to_float(
+            to_float(row.get("duplicate"))
+            if row.get("duplicate") not in (None, "")
+            else to_float(
                 row.get("children_duplicate_parent", row.get("children_same_as_parent"))
             )
             + to_float(row.get("children_duplicate_population"))
@@ -1458,7 +1550,7 @@ def operator_improved_count(
     rows: list[dict[str, object]], operator: str
 ) -> float:
     if operator == "crossover":
-        return sum(to_float(row.get("children_improved")) for row in rows)
+        return sum(to_float(row.get("children_improved", row.get("improved"))) for row in rows)
     if operator == "replacement":
         return sum(
             to_float(row.get("improved_victim", row.get("improved")))
@@ -1469,7 +1561,7 @@ def operator_improved_count(
 
 def operator_best_count(rows: list[dict[str, object]], operator: str) -> float:
     if operator == "crossover":
-        return sum(to_float(row.get("children_best")) for row in rows)
+        return sum(to_float(row.get("children_best", row.get("is_best"))) for row in rows)
     return sum(to_float(row.get("is_best")) for row in rows)
 
 
@@ -1478,17 +1570,14 @@ def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     datasets = sorted({str(row.get("dataset", "")) for row in rows})
     for dataset in datasets:
         selected = [row for row in rows if row.get("dataset") == dataset]
-        placements = [
-            row
-            for row in selected
-            if is_hypothesis_space_metric(row)
-        ]
+        placements = [row for row in selected if is_hypothesis_space_metric(row)]
         summary.append(
             {
                 "dataset": dataset,
                 "placement_rows": len(placements),
                 "mean_seconds_per_clause": mean(
-                    to_float(row.get("seconds")) for row in placements
+                    to_float(row.get("seconds", row.get("elapsed_seconds")))
+                    for row in placements
                 ),
                 "mean_clauses": mean(candidate_clause_count(row) for row in placements),
             }
@@ -1497,17 +1586,11 @@ def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
 
 
 def is_hypothesis_space_metric(row: dict[str, object]) -> bool:
-    return row.get("metric") in {"hypothesis_space", "build_reified_hypothesis_space"}
+    return row.get("metric") == "hypothesis_space"
 
 
 def candidate_clause_count(row: dict[str, object]) -> float:
-    return to_float(
-        row.get("clauses")
-        if row.get("clauses") is not None
-        else row.get("candidate_rules")
-        if row.get("candidate_rules") is not None
-        else row.get("generated_clauses")
-    )
+    return to_float(row.get("clauses"))
 
 
 def quality_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -1670,6 +1753,12 @@ def ga_fitness_means(points: list[GAMetric]) -> list[dict[str, object]]:
                 "diversity_mean": mean(p.diversity for p in generation_points),
                 "invalid_rate_mean": mean(p.invalid_rate for p in generation_points),
                 "mean_program_size": mean(p.mean_program_size for p in generation_points),
+                "elapsed_seconds_mean": mean(
+                    p.elapsed_seconds for p in generation_points
+                ),
+                "fitness_evaluations_mean": mean(
+                    p.fitness_evaluations for p in generation_points
+                ),
                 "runs": len(generation_points),
             }
         )
@@ -1818,10 +1907,6 @@ def mean_bool(rows: list[dict[str, object]], key: str) -> float:
         if key in row and row.get(key) not in (None, "")
     ]
     return mean(values)
-
-
-def mean_match(rows: list[dict[str, object]], key: str, value: object) -> float:
-    return mean(1.0 if row.get(key) == value else 0.0 for row in rows)
 
 
 def stddev(values: Iterable[float]) -> float:

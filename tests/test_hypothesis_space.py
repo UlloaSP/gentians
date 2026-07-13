@@ -6,7 +6,7 @@ import re
 import clingo
 from benchmarks.catalog import CASES
 from gentians.arguments import Arguments
-from gentians.asp.clingo import ClingoInterface
+from gentians.asp.normal_coverage_solver import NormalCoverageSolver
 from gentians import timing
 from gentians.rule_generation import hypothesis_space
 from gentians.rule_generation.parser import extract_name_arity, fragment_atoms, parse_atom
@@ -15,14 +15,13 @@ from gentians.rule_generation.hypothesis_space import (
     HypothesisSpaceGenerator,
     _hypothesis_space_args,
 )
-from gentians.rule_generation.hypothesis_space import HypothesisCapabilities
-from gentians.rule_generation.program import (
-    AggregateDeclaration,
-    Example,
-    ModeDeclaration,
-    OperatorDeclaration,
-    Program,
-)
+from gentians.rule_generation.hypothesis_capabilities import HypothesisCapabilities
+from gentians.rule_generation.hypothesis_mode import HypothesisMode
+from gentians.rule_generation.aggregate_declaration import AggregateDeclaration
+from gentians.rule_generation.example import Example
+from gentians.rule_generation.mode_declaration import ModeDeclaration
+from gentians.rule_generation.operator_declaration import OperatorDeclaration
+from gentians.rule_generation.program import Program
 from gentians.rule_generation.rule_space import RuleSpace
 
 
@@ -65,14 +64,6 @@ def test_facts_do_not_emit_redundant_control_flags():
         Program([], [], [], [], []),
         Arguments(max_depth=4),
         [],
-        HypothesisCapabilities(
-            has_numeric_evidence=False,
-            allow_numeric_comparison=False,
-            allow_equality_comparison=False,
-            allow_arithmetic=False,
-            allow_aggregates=False,
-            allow_recursion=False,
-        ),
         {},
     )
 
@@ -95,7 +86,7 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
         [OperatorDeclaration(1, "lt")],
     )
     modes = [
-        hypothesis_space.HypothesisMode(
+        HypothesisMode(
             0,
             0,
             "body",
@@ -112,14 +103,6 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
         program,
         Arguments(),
         modes,
-        HypothesisCapabilities(
-            has_numeric_evidence=True,
-            allow_numeric_comparison=True,
-            allow_equality_comparison=False,
-            allow_arithmetic=False,
-            allow_aggregates=False,
-            allow_recursion=False,
-        ),
         {},
     )
 
@@ -134,7 +117,7 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
 
 def test_facts_do_not_emit_redundant_arithmetic_mode():
     modes = [
-        hypothesis_space.HypothesisMode(
+        HypothesisMode(
             0,
             0,
             "body",
@@ -151,14 +134,6 @@ def test_facts_do_not_emit_redundant_arithmetic_mode():
         Program([], [], [], [], [], [], [], [OperatorDeclaration(1, "add")]),
         Arguments(),
         modes,
-        HypothesisCapabilities(
-            has_numeric_evidence=True,
-            allow_numeric_comparison=False,
-            allow_equality_comparison=False,
-            allow_arithmetic=True,
-            allow_aggregates=False,
-            allow_recursion=False,
-        ),
         {},
     )
 
@@ -173,7 +148,7 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
         Program([], [], [], [], []),
         Arguments(),
         [
-            hypothesis_space.HypothesisMode(
+        HypothesisMode(
                 0,
                 0,
                 "body",
@@ -184,14 +159,6 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
                 arg_types=("numeric", "any"),
             )
         ],
-        HypothesisCapabilities(
-            has_numeric_evidence=True,
-            allow_numeric_comparison=False,
-            allow_equality_comparison=False,
-            allow_arithmetic=False,
-            allow_aggregates=False,
-            allow_recursion=False,
-        ),
         {("p", 2, 0): "numeric"},
     )
 
@@ -207,14 +174,6 @@ def test_facts_emit_only_strong_positive_numeric_domain_property():
         Program(["p(1).", "p(2)."], [], [], [], []),
         Arguments(),
         [],
-        HypothesisCapabilities(
-            has_numeric_evidence=True,
-            allow_numeric_comparison=False,
-            allow_equality_comparison=False,
-            allow_arithmetic=False,
-            allow_aggregates=False,
-            allow_recursion=False,
-        ),
         {},
     )
 
@@ -350,7 +309,7 @@ def test_star_recall_uses_max_depth():
         Program([], [], [], [mode], []),
         Arguments(max_depth=2),
         [
-            hypothesis_space.HypothesisMode(
+        HypothesisMode(
                 0,
                 0,
                 "head",
@@ -360,14 +319,6 @@ def test_star_recall_uses_max_depth():
                 mode.recall,
             )
         ],
-        hypothesis_space.HypothesisCapabilities(
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-        ),
         {},
     )
 
@@ -383,17 +334,9 @@ def test_group_recall_uses_tightest_mode_recall():
         Program([], [], [], [], []),
         Arguments(max_depth=5),
         [
-            hypothesis_space.HypothesisMode(0, 7, "body", "normal", "p", 1, 3),
-            hypothesis_space.HypothesisMode(1, 7, "body", "normal", "q", 1, 1),
+            HypothesisMode(0, 7, "body", "normal", "p", 1, 3),
+            HypothesisMode(1, 7, "body", "normal", "q", 1, 1),
         ],
-        hypothesis_space.HypothesisCapabilities(
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-        ),
         {("p", 1): 0, ("q", 1): 1},
     )
 
@@ -1944,7 +1887,7 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     random.seed(1)
     candidate = tuple(sorted(random.sample(clauses.clauses, args.max_program_clauses)))
 
-    ClingoInterface(
+    NormalCoverageSolver(
         program.background,
         args.fitness["clingo_arguments"],
         program.positive_examples,

@@ -1,18 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from .parser import clause_predicates
-
-Predicate = tuple[str, int]
-
-
-@dataclass(frozen=True, slots=True)
-class RuleEntry:
-    text: str
-    heads: frozenset[Predicate]
-    deps: frozenset[Predicate]
-    body_literals: int
+from .rule_entry import RuleEntry
 
 
 class RuleSpace:
@@ -21,11 +10,11 @@ class RuleSpace:
         self.clauses = tuple(entry.text for entry in entries)
 
     @classmethod
-    def from_clauses(cls, clauses: list[str]) -> "RuleSpace":
+    def from_clauses(cls, clauses: list[str]) -> RuleSpace:
         return cls.from_entries(_entry_from_clause(clause) for clause in clauses)
 
     @classmethod
-    def from_entries(cls, entries) -> "RuleSpace":
+    def from_entries(cls, entries: list[RuleEntry]) -> RuleSpace:
         unique: dict[str, RuleEntry] = {}
         for entry in entries:
             unique.setdefault(entry.text, entry)

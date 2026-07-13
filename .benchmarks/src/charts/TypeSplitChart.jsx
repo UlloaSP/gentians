@@ -1,56 +1,86 @@
-import { useMemo } from 'react'
-import { Chart } from '../components/Chart'
-import { ChartSection } from '../components/Layout'
-import { colors, measuredTotal, num, phaseOrder, typeOrder } from '../metrics'
+import { useMemo } from "react";
+import { Chart } from "../components/Chart";
+import { ChartSection } from "../components/Layout";
+import { colors, measuredTotal, phaseTypeTotal, typeOrder } from "../metrics";
+
+const BLOCKS = [
+  ["Search setup", ["hypothesisSpace", "fitnessSetup"]],
+  [
+    "Evolution",
+    [
+      "initialization",
+      "fitnessEvaluation",
+      "selection",
+      "crossover",
+      "mutation",
+      "replacement",
+      "gaPython",
+    ],
+  ],
+];
 
 export function TypeSplitChart({ benchmark }) {
   const charts = useMemo(() => {
-    const gaPhases = phaseOrder.map(([phase]) => phase).filter((phase) => phase !== 'hypothesisSpace')
-    const total = measuredTotal(benchmark)
-    return [
-      ['GA', gaPhases],
-      ['Hypothesis', ['hypothesisSpace']],
-    ].map(([title, phases]) => typeChart(benchmark, title, phases, total))
-  }, [benchmark])
+    const total = measuredTotal(benchmark);
+    return BLOCKS.map(([title, phases]) => typeChart(benchmark, title, phases, total));
+  }, [benchmark]);
 
   return (
     <ChartSection title="Porcentajes de tiempo por tipo">
       <div className="grid gap-6 md:grid-cols-2">
         {charts.map((chart) => (
-          <div key={chart.data[0].centerText} className="min-w-0">
-            <Chart {...chart} height={320} />
+          <div key={chart.title} className="min-w-0">
+            <Chart option={chart.option} height={320} />
           </div>
         ))}
       </div>
     </ChartSection>
-  )
+  );
 }
 
 function typeChart(benchmark, title, phases, total) {
-  const seconds = phases.reduce((sum, phase) => sum + typeOrder.reduce((phaseSum, [type]) => phaseSum + num(benchmark.phases?.[phase]?.[type]), 0), 0)
-  const values = typeOrder.map(([type]) => phases.reduce((sum, phase) => sum + num(benchmark.phases?.[phase]?.[type]), 0))
+  const values = typeOrder.map(([type]) =>
+    phases.reduce((seconds, phase) => seconds + phaseTypeTotal(benchmark, phase, type), 0),
+  );
+  const seconds = values.reduce((sum, value) => sum + value, 0);
   return {
-    data: [{
-      type: 'pie',
-      name: 'tipo',
-      hole: true,
-      labels: typeOrder.map(([, label]) => label),
-      values,
-      valueLabel: 'tiempo',
-      valueFormatter: formatSeconds,
-      percentLabel: 'del bloque',
-      customdata: values.map((value) => `del total: ${formatPercent(total ? value / total : 0)}`),
-      centerText: `${title}\n${formatPercent(total ? seconds / total : 0)}`,
-      marker: { colors: typeOrder.map(([type]) => colors[type]) },
-    }],
-    layout: { margin: { l: 10, r: 10, t: 10, b: 10 }, showlegend: false },
-  }
+    title,
+    option: {
+      tooltip: {
+        trigger: "item",
+        formatter: ({ marker, name, value, percent, data }) =>
+          `${marker}${name}: ${percent}% del bloque<br/>tiempo: ${formatSeconds(value)}<br/>del total: ${data.totalPercent}`,
+      },
+      graphic: {
+        type: "text",
+        left: "center",
+        top: "middle",
+        style: {
+          text: `${title}\n${formatPercent(total ? seconds / total : 0)}`,
+          textAlign: "center",
+          fontSize: 16,
+          fontWeight: 700,
+          lineHeight: 22,
+        },
+      },
+      series: [
+        {
+          type: "pie",
+          name: "tipo",
+          radius: ["48%", "72%"],
+          data: typeOrder.map(([type, label], index) => ({
+            name: label,
+            value: values[index],
+            totalPercent: formatPercent(total ? values[index] / total : 0),
+            itemStyle: { color: colors[type] },
+          })),
+          label: { formatter: "{b}\n{d}%" },
+        },
+      ],
+    },
+  };
 }
-
-function formatPercent(value) {
-  return value.toLocaleString('es-ES', { style: 'percent', maximumFractionDigits: 1 })
-}
-
-function formatSeconds(value) {
-  return `${Number(value || 0).toLocaleString('es-ES', { maximumFractionDigits: 3 })}s`
-}
+const formatPercent = (value) =>
+  value.toLocaleString("es-ES", { style: "percent", maximumFractionDigits: 1 });
+const formatSeconds = (value) =>
+  `${Number(value || 0).toLocaleString("es-ES", { maximumFractionDigits: 3 })}s`;

@@ -1,7 +1,11 @@
 from pathlib import Path
 
 from .parser import parse_aggregate_spec, split_top_level_args
-from .program import AggregateDeclaration, Example, ModeDeclaration, OperatorDeclaration, Program
+from .aggregate_declaration import AggregateDeclaration
+from .example import Example
+from .mode_declaration import ModeDeclaration
+from .operator_declaration import OperatorDeclaration
+from .program import Program
 
 
 def _get_mode_declaration(

@@ -1,68 +1,12 @@
 from dataclasses import dataclass, field
 
-from .parser import Predicate, fragment_atoms
+from .aggregate_declaration import AggregateDeclaration
+from .example import Example
+from .mode_declaration import ModeDeclaration
+from .operator_declaration import OperatorDeclaration
+from .parser import fragment_atoms
 
 Signature = tuple[str, int]
-
-
-@dataclass(init=False, slots=True)
-class Example:
-    """
-    Class for examples in the input file.
-    Members of the tuple, in order: included, excluded, and context.
-    """
-
-    included: str
-    excluded: str
-    context: str
-    positive: bool
-
-    def __init__(self, s: "tuple[str,str] | tuple[str,str,str]", positive: bool) -> None:
-        self.included = s[0]
-        self.excluded = s[1]
-        self.context = s[2] if len(s) == 3 else ""
-        self.positive = positive
-
-
-@dataclass(init=False, slots=True)
-class ModeDeclaration:
-    """
-    Class for mode declarations in the input file.
-    Members of the tuple, in order: recall, name, arity, and positive/negative.
-    """
-
-    recall: int
-    name: str
-    arity: int
-    positive: bool
-    head: bool
-
-    def __init__(self, s: "tuple[str,str,str] | tuple[str,str,str,str]", head: bool) -> None:
-        if s[0] == "*":
-            self.recall = -1
-        else:
-            self.recall = int(s[0])
-        self.name = s[1]
-        self.arity = int(s[2])
-        self.positive = True
-        if len(s) == 4:
-            if s[3] == "negative":
-                self.positive = False
-        self.head = head
-
-
-@dataclass(frozen=True, slots=True)
-class AggregateDeclaration:
-    recall: int
-    function: str
-    atoms: tuple[Predicate, ...]
-    unbalanced: bool
-
-
-@dataclass(frozen=True, slots=True)
-class OperatorDeclaration:
-    recall: int
-    operator: str
 
 
 @dataclass(slots=True)
@@ -72,10 +16,10 @@ class Program:
     """
 
     background: "list[str]"
-    positive_examples: "list[Example]"
-    negative_examples: "list[Example]"
-    language_bias_head: "list[ModeDeclaration]"
-    language_bias_body: "list[ModeDeclaration]"
+    positive_examples: list[Example]
+    negative_examples: list[Example]
+    language_bias_head: list[ModeDeclaration]
+    language_bias_body: list[ModeDeclaration]
     aggregate_modes: list[AggregateDeclaration] = field(default_factory=list)
     comparison_modes: list[OperatorDeclaration] = field(default_factory=list)
     arithmetic_modes: list[OperatorDeclaration] = field(default_factory=list)
@@ -107,6 +51,7 @@ class Program:
                     if md not in self.language_bias_body:
                         self.language_bias_body.append(md)
                         self.generated_language_bias_body.add((name, arity))
+
 
 def _observed_signatures(program: Program) -> dict[Signature, bool]:
     signatures: dict[Signature, bool] = {}

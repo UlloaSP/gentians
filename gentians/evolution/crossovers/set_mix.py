@@ -1,176 +1,46 @@
-import random
-import math
+from __future__ import annotations
 
-from ..individual import Individual, individual_from_fitness
-from ..program_sampler import ProgramSampler
-from ..types import FitnessFn
-from ...timing import instrumentation, metric_enabled, phase, profile_phase, record_metric
+from ..evolution_context import EvolutionContext
+from ..types import Genome
 
 
-def _child_from_parent(parent: Individual, program: tuple[str, ...]) -> Individual:
-    return Individual(program, parent.score, parent.is_best, parent.best_program)
+class SetMixCrossover:
+    def __init__(self, probability: float) -> None:
+        self.probability = probability
 
-
-def _evaluate_child(
-    parent_a: Individual,
-    parent_b: Individual,
-    program: tuple[str, ...],
-    evaluate_score: FitnessFn,
-    known_signatures: set[tuple[str, ...]],
-    extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
-) -> Individual:
-    if program == parent_a.program:
-        return _child_from_parent(parent_a, program)
-    if program == parent_b.program:
-        return _child_from_parent(parent_b, program)
-    if program in known_signatures or (
-        extra_forbidden_signatures is not None
-        and program in extra_forbidden_signatures
-    ):
-        return Individual(program, float("-inf"), False)
-    with phase("crossover.fitness"):
-        return individual_from_fitness(program, evaluate_score(program))
-
-
-def _sample_child(
-    parent_a: Individual,
-    parent_b: Individual,
-    known_signatures: set[tuple[str, ...]],
-    max_program_clauses: int,
-    sampler: ProgramSampler,
-    parent_a_probability: float,
-    parent_b_probability: float,
-    extra_forbidden_signatures: set[tuple[str, ...]] | None = None,
-) -> tuple[str, ...]:
-    rules_a = set(parent_a.program)
-    rules_b = set(parent_b.program)
-    common = rules_a & rules_b
-    only_a = rules_a - rules_b
-    only_b = rules_b - rules_a
-    pool = sorted(rules_a | rules_b)
-    if not pool:
-        return ()
-
-    limit = max(1, min(max_program_clauses, len(pool)))
-    for _ in range(8):
-        selected_set = set(common)
-        selected_set.update(
-            rule for rule in sorted(only_a) if random.random() < parent_a_probability
+    def __call__(
+        self, first: Genome, second: Genome, context: EvolutionContext
+    ) -> tuple[Genome, ...]:
+        if context.rng.random() >= self.probability:
+            return ()
+        common = set(first) & set(second)
+        only_first = set(first) - set(second)
+        only_second = set(second) - set(first)
+        return (
+            self._child(common, only_first, only_second, 0.7, 0.3, context),
+            self._child(common, only_first, only_second, 0.3, 0.7, context),
         )
-        selected_set.update(
-            rule for rule in sorted(only_b) if random.random() < parent_b_probability
+
+    @staticmethod
+    def _child(
+        common: set[str],
+        only_first: set[str],
+        only_second: set[str],
+        first_probability: float,
+        second_probability: float,
+        context: EvolutionContext,
+    ) -> Genome:
+        selected = set(common)
+        selected.update(
+            rule for rule in only_first if context.rng.random() < first_probability
         )
-        selected = tuple(sorted(selected_set))
+        selected.update(
+            rule for rule in only_second if context.rng.random() < second_probability
+        )
         if not selected:
-            selected = (random.choice(pool),)
-        if len(selected) > limit:
-            selected = tuple(sorted(random.sample(selected, limit)))
-        else:
-            selected = tuple(sorted(selected))
-        child = sampler.closed_program(
-            max_program_clauses,
-            forced_rules=selected,
-            known_signatures=known_signatures,
-            extra_forbidden_signatures=extra_forbidden_signatures,
-        )
-        if child is not None:
-            return child
-    sampled = sampler.closed_program(
-        max_program_clauses,
-        known_signatures=known_signatures,
-        extra_forbidden_signatures=extra_forbidden_signatures,
-    )
-    if sampled is not None:
-        return sampled
-    return random.choice((parent_a, parent_b)).program
-
-
-@profile_phase("crossover")
-def set_mix_crossover(
-    best_a: Individual,
-    best_b: Individual,
-    evaluate_score: FitnessFn,
-    probability: float,
-    known_signatures: set[tuple[str, ...]],
-    max_program_clauses: int,
-    sampler: ProgramSampler,
-) -> tuple[Individual, Individual]:
-    with phase("crossover.operator"):
-        program_0 = _sample_child(
-            best_a,
-            best_b,
-            known_signatures,
-            max_program_clauses,
-            sampler,
-            0.7,
-            0.3,
-        )
-        extra_forbidden_signatures = {program_0}
-        program_1 = _sample_child(
-            best_a,
-            best_b,
-            known_signatures,
-            max_program_clauses,
-            sampler,
-            0.3,
-            0.7,
-            extra_forbidden_signatures,
-        )
-
-    i0 = _evaluate_child(best_a, best_b, program_0, evaluate_score, known_signatures)
-    i1 = _evaluate_child(
-        best_a,
-        best_b,
-        program_1,
-        evaluate_score,
-        known_signatures,
-        extra_forbidden_signatures,
-    )
-
-    if metric_enabled("operator"):
-        with instrumentation():
-            parent_best = max(best_a.score, best_b.score)
-            parent_signatures = {best_a.program, best_b.program}
-            parent_duplicates = (
-                int(i0.program in parent_signatures)
-                + int(i1.program in parent_signatures)
+            selected.add(context.rng.choice(tuple(only_first | only_second)))
+        if len(selected) > context.max_program_clauses:
+            selected = set(
+                context.rng.sample(tuple(selected), context.max_program_clauses)
             )
-            duplicate_population = int(i0.score == float("-inf")) + int(
-                i1.score == float("-inf")
-            )
-            invalid = sum(
-                int(
-                    not math.isfinite(child.score)
-                    and child.program not in parent_signatures
-                    and child.score != float("-inf")
-                )
-                for child in (i0, i1)
-            )
-            valid_new = 2 - parent_duplicates - duplicate_population - invalid
-            record_metric(
-                "operator",
-                {
-                    "operator": "crossover",
-                    "strategy": "set_mix",
-                    "applied": True,
-                    "skipped": False,
-                    "not_applied": False,
-                    "probability": probability,
-                    "parent_a_score": best_a.score,
-                    "parent_b_score": best_b.score,
-                    "child_1_score": i0.score,
-                    "child_2_score": i1.score,
-                    "slots": 2,
-                    "children": 2,
-                    "children_valid_new": valid_new,
-                    "children_invalid": invalid,
-                    "children_improved": int(i0.score > parent_best)
-                    + int(i1.score > parent_best),
-                    "children_best": int(i0.is_best) + int(i1.is_best),
-                    "children_same_as_parent": 0,
-                    "children_duplicate_parent": parent_duplicates,
-                    "children_duplicate_population": duplicate_population,
-                },
-            )
-
-    return i0, i1
+        return tuple(sorted(selected))

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from functools import lru_cache
 from itertools import combinations, permutations, product
 from pathlib import Path
@@ -21,9 +20,16 @@ from ..timing import (
     profile_phase,
     record_metric,
 )
-from .parser import fragment_atoms
-from .program import AggregateDeclaration, Program
-from .rule_space import Predicate, RuleEntry, RuleSpace
+from .aggregate_declaration import AggregateDeclaration
+from .closed_world_properties import ClosedWorldProperties
+from .hypothesis_capabilities import HypothesisCapabilities
+from .hypothesis_mode import HypothesisMode
+from .parser import Predicate, fragment_atoms
+from .program import Program
+from .reified_clause import ReifiedClause
+from .reified_literal import ReifiedLiteral
+from .rule_entry import RuleEntry
+from .rule_space import RuleSpace
 
 
 HYPOTHESIS_SPACE_RULE_MODULES = (
@@ -79,81 +85,6 @@ HYPOTHESIS_SPACE_RULES = "\n".join(
 )
 
 
-@dataclass(frozen=True, slots=True)
-class HypothesisMode:
-    id: int
-    recall_group: int
-    section: str
-    kind: str
-    name: str
-    arity: int
-    recall: int
-    positive: bool = True
-    operator: str = ""
-    aggregate_function: str = ""
-    tuple_arity: int = 0
-    aggregate_atoms: tuple[tuple[str, int], ...] = ()
-    arg_types: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class HypothesisCapabilities:
-    has_numeric_evidence: bool
-    allow_numeric_comparison: bool
-    allow_equality_comparison: bool
-    allow_arithmetic: bool
-    allow_aggregates: bool
-    allow_recursion: bool
-
-
-@dataclass(frozen=True, slots=True)
-class ReifiedLiteral:
-    section: str
-    slot: int
-    mode_id: int
-    variables: tuple[int, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class ReifiedClause:
-    head: tuple[ReifiedLiteral, ...]
-    body: tuple[ReifiedLiteral, ...]
-
-    def render(self, modes: dict[int, HypothesisMode]) -> str:
-        head = ";".join(_render_literal(literal, modes[literal.mode_id]) for literal in self.head)
-        body = ",".join(_render_literal(literal, modes[literal.mode_id]) for literal in self.body)
-        return f"{head} :- {body}." if head else f":- {body}."
-
-
-@dataclass(frozen=True, slots=True)
-class ClosedWorldProperties:
-    symmetric: frozenset[Predicate]
-    asymmetric: frozenset[Predicate]
-    antisymmetric: frozenset[Predicate]
-    acyclic: frozenset[Predicate]
-    reflexive: frozenset[Predicate]
-    strict_order: frozenset[Predicate]
-    total_order: frozenset[Predicate]
-    inverse: frozenset[tuple[Predicate, Predicate]]
-    implies: frozenset[tuple[Predicate, Predicate]]
-    equivalent: frozenset[tuple[Predicate, Predicate]]
-    project_implies: frozenset[tuple[Predicate, Predicate, tuple[int, ...]]]
-    disjoint_projection: frozenset[tuple[Predicate, int, Predicate, int]]
-    tuple_mutex: frozenset[tuple[Predicate, Predicate, tuple[int, ...]]]
-    mutex: frozenset[tuple[Predicate, Predicate]]
-    complement: frozenset[tuple[Predicate, Predicate]]
-    partitions: frozenset[tuple[Predicate, ...]]
-    universal: frozenset[Predicate]
-    empty: frozenset[Predicate]
-    arg_equal: frozenset[tuple[Predicate, int, int]]
-    arg_distinct: frozenset[tuple[Predicate, int, int]]
-    functional: frozenset[tuple[Predicate, int, int]]
-    functional_set: frozenset[tuple[Predicate, tuple[int, ...], int]]
-    keys: frozenset[tuple[Predicate, tuple[int, ...]]]
-    cardinality_upper: frozenset[tuple[Predicate, int]]
-    transitive: frozenset[Predicate]
-
-
 def _rule_entry_from_clause(
     rendered: str,
     clause: ReifiedClause,
@@ -182,11 +113,10 @@ class HypothesisSpaceGenerator:
         self.predicate_arg_types = _predicate_arg_types(program, self.fragments)
         self.aggregate_specs = _valid_aggregate_specs(program, self.fragments)
         self.capabilities = _hypothesis_capabilities(
-            program, args, self.predicate_arg_types, self.aggregate_specs
+            program, self.predicate_arg_types, self.aggregate_specs
         )
         self.modes = _hypothesis_modes(
             program,
-            args,
             self.capabilities,
             self.predicate_arg_types,
             self.aggregate_specs,
@@ -200,7 +130,6 @@ class HypothesisSpaceGenerator:
                 self.program,
                 self.args,
                 self.modes,
-                self.capabilities,
                 self.predicate_arg_types,
             )
             + "\n"
@@ -1495,7 +1424,6 @@ def _recursive_predicates(program: Program) -> set[Predicate]:
 
 def _hypothesis_capabilities(
     program: Program,
-    args: Arguments,
     predicate_arg_types: dict[tuple[str, int, int], str],
     aggregate_specs: list[AggregateDeclaration],
 ) -> HypothesisCapabilities:
@@ -1666,7 +1594,6 @@ def _valid_aggregate_specs(
 
 def _hypothesis_modes(
     program: Program,
-    args: Arguments,
     capabilities: HypothesisCapabilities,
     predicate_arg_types: dict[tuple[str, int, int], str],
     aggregate_specs: list[AggregateDeclaration],
@@ -1797,7 +1724,6 @@ def _facts(
     program: Program,
     args: Arguments,
     modes: list[HypothesisMode],
-    capabilities: HypothesisCapabilities,
     predicate_arg_types: dict[tuple[str, int, int], str],
 ) -> str:
     fragments = _closed_world_fragments(program)
@@ -2074,39 +2000,6 @@ def _decode_vars(code: int, arity: int, max_variables: int) -> tuple[int, ...]:
         values[index] = code % max_variables
         code //= max_variables
     return tuple(values)
-
-
-def _render_literal(literal: ReifiedLiteral, mode: HypothesisMode) -> str:
-    variables = [f"V{var}" for var in literal.variables]
-    if mode.kind == "normal":
-        atom = f"{mode.name}({','.join(variables)})" if variables else mode.name
-        return atom if mode.positive else f"not {atom}"
-    if mode.kind == "comparison":
-        return f"{variables[0]}{mode.operator}{variables[1]}"
-    if mode.kind == "arithmetic":
-        if mode.operator == "abs":
-            return f"|{variables[0]}-{variables[1]}|={variables[2]}"
-        return f"{variables[0]}{mode.operator}{variables[1]}={variables[2]}"
-    if mode.kind == "aggregate":
-        tuple_vars = variables[: mode.tuple_arity]
-        atom_vars = variables[mode.tuple_arity : -1]
-        result = variables[-1]
-        atoms = []
-        offset = 0
-        for name, arity in mode.aggregate_atoms:
-            args = atom_vars[offset : offset + arity]
-            atoms.append(f"{name}({','.join(args)})")
-            offset += arity
-        return (
-            f"#{mode.aggregate_function}"
-            + "{"
-            + ",".join(tuple_vars)
-            + ":"
-            + ",".join(atoms)
-            + "}="
-            + result
-        )
-    raise ValueError(f"Unknown hypothesis mode kind: {mode.kind}")
 
 
 def _hypothesis_space_args(args: Arguments) -> list[str]:

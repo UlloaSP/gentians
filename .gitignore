@@ -3,7 +3,10 @@
 .debug/
 sweeps/
 .benchmarks/baseline_profile/
+.benchmarks/cov*/
 .benchmarks/ga_profile/
+.benchmarks/experiments.json
+.benchmarks/profile_*/
 .benchmarks/node_modules/
 .benchmarks/dist/
 .benchmarks/.vite-dev*.log

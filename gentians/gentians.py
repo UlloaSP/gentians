@@ -1,29 +1,15 @@
 import time
 
-from gentians.evolution.algorithms.genetic import genetic_solver
-from gentians.evolution.algorithms.original_rounds import original_rounds_solver
-from gentians.evolution.factories import (
-    create_crossover,
-    create_fitness,
-    create_mutation,
-    create_population,
-    create_replacement,
-    create_selection,
-)
+from gentians.evolution.algorithms.search import search_solver
 
 from .arguments import Arguments
-from .rule_generation.hypothesis_space import build_hypothesis_space
 from .rule_generation.reader import read_program
 from .rule_generation.program import Program
 from .rule_generation.rule_space import RuleSpace
-from .evolution.program_sampler import ProgramSampler
 from .timing import (
     export as export_timings,
-    instrumentation,
-    metric_enabled,
     phase,
     recorded_seconds,
-    record_metric,
 )
 
 
@@ -45,48 +31,7 @@ def solve(
 
     try:
         with phase("total_execution"):
-            if rule_space is None:
-                rule_space = build_hypothesis_space(
-                    program,
-                    arguments,
-                )
-            else:
-                if metric_enabled("candidate"):
-                    with instrumentation():
-                        record_metric(
-                            "candidate",
-                            {
-                                "metric": "hypothesis_space",
-                                "clauses": len(rule_space),
-                            },
-                        )
-
-            if len(rule_space) == 0:
-                raise ValueError("No clauses found")
-
-            with phase("fitness.setup"):
-                evaluate_score = create_fitness(program, arguments.fitness)
-                sampler = (
-                    None
-                    if arguments.population.get("name") == "original_random"
-                    else ProgramSampler(program, rule_space)
-                )
-
-            if arguments.population.get("name") == "original_random":
-                prg, score, best_found = original_rounds_solver(
-                    arguments, rule_space, evaluate_score
-                )
-            else:
-                assert sampler is not None
-                prg, score, best_found = genetic_solver(
-                    arguments,
-                    evaluate_score,
-                    create_population(arguments.population, sampler),
-                    create_selection(arguments.selection),
-                    create_crossover(arguments.crossover, sampler),
-                    create_mutation(arguments.mutation, sampler),
-                    create_replacement(arguments.replacement),
-                )
+            prg, score, best_found = search_solver(arguments, program, rule_space)
 
             if best_found:
                 print(f"--- Found best program with score {score} ---")

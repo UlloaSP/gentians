@@ -5,7 +5,8 @@ from dataclasses import asdict
 from pathlib import Path
 
 from gentians import Arguments
-from gentians.rule_generation.rule_space import RuleEntry, RuleSpace
+from gentians.rule_generation.rule_entry import RuleEntry
+from gentians.rule_generation.rule_space import RuleSpace
 
 
 HYPOTHESIS_FIELDS = (
@@ -48,17 +49,9 @@ def read_hypothesis_file(path: Path, arguments: Arguments) -> RuleSpace:
 
 def rule_space_from_payload(payload: dict[str, object], path: Path) -> RuleSpace:
     entries = payload.get("entries")
-    if isinstance(entries, list):
-        return RuleSpace([_entry_from_payload(entry) for entry in entries])
-    clauses = payload.get("clauses")
-    if not isinstance(clauses, list) or not all(isinstance(c, str) for c in clauses):
+    if not isinstance(entries, list):
         raise ValueError(f"Invalid hypothesis space file: {path}")
-    return RuleSpace.from_clauses(clauses)
-
-
-def read_hypothesis_metrics(path: Path, arguments: Arguments) -> dict[str, object]:
-    payload = read_hypothesis_payload(path, arguments)
-    return metrics_from_payload(payload)
+    return RuleSpace([_entry_from_payload(entry) for entry in entries])
 
 
 def metrics_from_payload(payload: dict[str, object]) -> dict[str, object]:
@@ -72,6 +65,8 @@ def read_hypothesis_payload(path: Path, arguments: Arguments) -> dict[str, objec
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError(f"Invalid hypothesis space file: {path}")
+    if payload.get("schemaVersion") != 2:
+        raise ValueError(f"Unsupported hypothesis space schema: {path}")
     expected = hypothesis_key(arguments)
     actual = payload.get("hypothesisKey")
     if actual != expected:

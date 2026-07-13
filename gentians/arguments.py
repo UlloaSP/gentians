@@ -30,33 +30,23 @@ class Arguments:
     # Maximum number of clauses in one candidate program.
     max_program_clauses: int = 6
 
-    # Original outer sampling/evolution rounds.
-    iterations: int = 100
+    # Seed used by evolutionary operators.
+    random_seed: int | None = None
 
-    # Number of hypothesis-space clauses sampled as stubs per outer round.
-    sample: int = 1000
-
-    # Number of frequent rules carried into the next original round.
-    k_best_for_next_round: int = 5
-
-    # Genetic algorithm iterations.
-    iterations_genetic: int = 2000
+    # Number of genetic generations.
+    iterations_genetic: int = 1000
 
     # Fitness operator config.
     fitness: dict[str, object] = field(
         default_factory=lambda: {
-            # Fitness function implementation.
-            "name": "coverage_original",
+            # cov_subprograms_mean, cov_subprograms_max, or cov_program.
+            "name": "cov_subprograms_mean",
+            # normal, externals, or assumptions.
+            "grounding": "normal",
             # Maximum answer sets requested from Clingo per coverage check. 0 means all.
-            "max_as": 5000,
+            "max_as": 0,
             # Clingo CLI arguments used by the fitness evaluator.
             "clingo_arguments": [],
-            # Fixed-program score penalty per selected rule.
-            "size_penalty": 0.01,
-            # Fixed-program score penalty per body literal.
-            "literal_penalty": 0.002,
-            # Fixed-program score penalty per cheap syntactic redundancy.
-            "redundancy_penalty": 0.01,
         }
     )
 
@@ -66,9 +56,9 @@ class Arguments:
             # Parent selection implementation.
             "name": "tournament",
             # Number of candidates sampled for each tournament.
-            "tournament_size": 12,
+            "tournament_size": 3,
             # Probability of picking the fittest candidate in the tournament.
-            "prob_selecting_fittest": 0.9,
+            "prob_selecting_fittest": 1.0,
         }
     )
 
@@ -76,9 +66,9 @@ class Arguments:
     crossover: dict[str, object] = field(
         default_factory=lambda: {
             # Crossover implementation.
-            "name": "original_one_point",
+            "name": "set_mix",
             # Probability of applying crossover to selected parents.
-            "probability": 1.0,
+            "probability": 0.6,
         }
     )
 
@@ -86,9 +76,9 @@ class Arguments:
     mutation: dict[str, object] = field(
         default_factory=lambda: {
             # Mutation implementation.
-            "name": "original_random_clause",
+            "name": "random_group",
             # Probability of mutating an offspring.
-            "probability": 0.2,
+            "probability": 0.05,
         }
     )
 
@@ -96,9 +86,9 @@ class Arguments:
     population: dict[str, object] = field(
         default_factory=lambda: {
             # Population initialization implementation.
-            "name": "original_random",
+            "name": "random",
             # Number of individuals kept in the population.
-            "size": 50,
+            "size": 100,
         }
     )
 
@@ -106,13 +96,16 @@ class Arguments:
     replacement: dict[str, object] = field(
         default_factory=lambda: {
             # Replacement implementation.
-            "name": "original_oldest_or_worst",
+            "name": "oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
-            "prob_replacing_oldest": 0.5,
+            "prob_replacing_oldest": 0.75,
         }
     )
 
-    # Hypothesis-space solver config.
+    # Program dependency policy applied to every proposal.
+    closure: dict[str, object] = field(default_factory=lambda: {"name": "dependency"})
+
+    # Hypothesis-space candidate-source details.
     hypothesis_space: dict[str, object] = field(
         default_factory=lambda: {
             # Extra Clingo CLI arguments used to enumerate generated clauses.

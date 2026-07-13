@@ -1,4 +1,4 @@
-from ..rule_generation.program import Example
+from ..rule_generation.example import Example
 from ..rule_generation.parser import split_top_level_args
 
 

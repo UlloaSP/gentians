@@ -1,19 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Chart } from "./components/Chart";
-import { ChartSection } from "./components/Layout";
 import { chartTw } from "./chartTw";
+import { ComparisonCharts } from "./charts/ComparisonCharts";
 import {
-  aggregateSeries,
   bestRunRatio,
-  clingoSeconds,
   fmt,
   fmtInt,
-  phaseOrder,
-  phaseTotal,
+  groundingSeconds,
   pythonSeconds,
   runCount,
+  solvingSeconds,
   totalSeconds,
-  wallSeconds,
 } from "./metrics";
 
 const COLORS = [
@@ -27,12 +23,6 @@ const COLORS = [
   "#65a30d",
   "#ea580c",
 ];
-const AXES = {
-  generation: "generación",
-  fitnessEvaluations: "evaluaciones de fitness",
-  elapsedSeconds: "segundos",
-};
-
 export function ExperimentCompare() {
   const [experiments, setExperiments] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -53,7 +43,7 @@ export function ExperimentCompare() {
           throw new Error("experiments.json necesita al menos 2 experimentos");
         const items = index.experiments.map((experiment, index) => ({
           ...experiment,
-          color: COLORS[index % COLORS.length],
+          color: COLORS[index] || `hsl(${(index * 137.5) % 360} 68% 42%)`,
         }));
         const available = items.filter((experiment) => experiment.has_dashboard);
         if (available.length < 2) {
@@ -219,19 +209,25 @@ function ComparisonTable({ rows, baseline }) {
               <th>experimento</th>
               <th>runs medidos/total</th>
               <th>timeouts</th>
-              <th>wall</th>
-              <th>Δ wall</th>
-              <th>instrumentado</th>
-              <th>clingo</th>
+              <th>total_execution</th>
+              <th>Δ total</th>
+              <th>grounding</th>
+              <th>Δ grounding</th>
+              <th>solving</th>
+              <th>Δ solving</th>
               <th>python</th>
+              <th>Δ python</th>
               <th>best</th>
               <th>candidatas</th>
+              <th>ground calls</th>
               <th>solve calls</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ experiment, benchmark, loading }) =>
-              benchmark ? (
+            {rows.map(({ experiment, benchmark, loading }) => {
+              const measured = benchmark?.instrumentedRuns > 0;
+              const comparable = measured && baseline?.instrumentedRuns > 0;
+              return benchmark ? (
                 <tr key={experiment.id}>
                   <th>
                     <i style={{ background: experiment.color }} />
@@ -241,17 +237,55 @@ function ComparisonTable({ rows, baseline }) {
                     {fmtInt(benchmark.instrumentedRuns)}/{fmtInt(runCount(benchmark))}
                   </td>
                   <td>{fmtInt(benchmark.timeouts)}</td>
-                  <td>{fmt(wallSeconds(benchmark), 3)}s</td>
-                  <td className={deltaClass(wallSeconds(benchmark), wallSeconds(baseline))}>
-                    {formatDelta(wallSeconds(benchmark), wallSeconds(baseline))}
+                  <td>{measured ? `${fmt(totalSeconds(benchmark), 3)}s` : "—"}</td>
+                  <td
+                    className={
+                      comparable ? deltaClass(totalSeconds(benchmark), totalSeconds(baseline)) : ""
+                    }
+                  >
+                    {comparable
+                      ? formatDelta(totalSeconds(benchmark), totalSeconds(baseline))
+                      : "—"}
                   </td>
-                  <td>
-                    {benchmark.instrumentedRuns ? `${fmt(totalSeconds(benchmark), 3)}s` : "—"}
+                  <td>{measured ? `${fmt(groundingSeconds(benchmark), 3)}s` : "—"}</td>
+                  <td
+                    className={
+                      comparable
+                        ? deltaClass(groundingSeconds(benchmark), groundingSeconds(baseline))
+                        : ""
+                    }
+                  >
+                    {comparable
+                      ? formatDelta(groundingSeconds(benchmark), groundingSeconds(baseline))
+                      : "—"}
                   </td>
-                  <td>{fmt(clingoSeconds(benchmark), 3)}s</td>
-                  <td>{fmt(pythonSeconds(benchmark), 3)}s</td>
+                  <td>{measured ? `${fmt(solvingSeconds(benchmark), 3)}s` : "—"}</td>
+                  <td
+                    className={
+                      comparable
+                        ? deltaClass(solvingSeconds(benchmark), solvingSeconds(baseline))
+                        : ""
+                    }
+                  >
+                    {comparable
+                      ? formatDelta(solvingSeconds(benchmark), solvingSeconds(baseline))
+                      : "—"}
+                  </td>
+                  <td>{measured ? `${fmt(pythonSeconds(benchmark), 3)}s` : "—"}</td>
+                  <td
+                    className={
+                      comparable
+                        ? deltaClass(pythonSeconds(benchmark), pythonSeconds(baseline))
+                        : ""
+                    }
+                  >
+                    {comparable
+                      ? formatDelta(pythonSeconds(benchmark), pythonSeconds(baseline))
+                      : "—"}
+                  </td>
                   <td>{bestRunRatio(benchmark)}</td>
                   <td>{fmtInt(benchmark.candidates)}</td>
+                  <td>{fmtInt(benchmark.groundCalls)}</td>
                   <td>{fmtInt(benchmark.solveCalls)}</td>
                 </tr>
               ) : (
@@ -260,12 +294,12 @@ function ComparisonTable({ rows, baseline }) {
                     <i style={{ background: experiment.color }} />
                     {experiment.label}
                   </th>
-                  <td colSpan="10" className="missing-data">
+                  <td colSpan="14" className="missing-data">
                     {loading ? "cargando…" : "benchmark no disponible"}
                   </td>
                 </tr>
-              ),
-            )}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -273,101 +307,6 @@ function ComparisonTable({ rows, baseline }) {
   );
 }
 
-function ComparisonCharts({ rows, axis, setAxis }) {
-  const available = rows.filter((row) => row.benchmark);
-  const runtime = {
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    legend: { bottom: 0 },
-    grid: { left: 70, right: 20, top: 24, bottom: 70 },
-    xAxis: { type: "value", name: "segundos" },
-    yAxis: { type: "category", data: ["total"] },
-    series: available.map(({ experiment, benchmark }) => ({
-      type: "bar",
-      name: experiment.label,
-      data: [totalSeconds(benchmark)],
-      itemStyle: { color: experiment.color },
-    })),
-  };
-  const phases = {
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    legend: { bottom: 0 },
-    grid: { left: 140, right: 20, top: 24, bottom: 72 },
-    xAxis: { type: "value", name: "segundos" },
-    yAxis: { type: "category", data: phaseOrder.map(([, label]) => label) },
-    series: available.map(({ experiment, benchmark }) => ({
-      type: "bar",
-      name: experiment.label,
-      data: phaseOrder.map(([phase]) => phaseTotal(benchmark, phase)),
-      itemStyle: { color: experiment.color },
-    })),
-  };
-  const axisLabel = AXES[axis];
-  const fitness = available.flatMap(({ experiment, benchmark }) => {
-    const points = aggregateSeries(benchmark.fitnessRuns || [], axis, "best");
-    return points.length
-      ? [
-          {
-            type: "line",
-            name: experiment.label,
-            data: points.map((point) => [point.position, point.mean]),
-            lineStyle: { color: experiment.color, width: 3 },
-            showSymbol: false,
-          },
-        ]
-      : [];
-  });
-  return (
-    <section>
-      <div className="comparison-charts">
-        <ChartSection title="Tiempo total_execution">
-          <Chart option={runtime} height={320} />
-        </ChartSection>
-        <ChartSection title="Desglose por fase">
-          <Chart option={phases} height={520} />
-        </ChartSection>
-        <ChartSection title="Fitness · best medio">
-          <ChartControl
-            id="compare-axis"
-            label="eje"
-            value={axis}
-            setValue={setAxis}
-            options={Object.entries(AXES)}
-          />
-          {fitness.length ? (
-            <Chart
-              option={{
-                tooltip: { trigger: "axis", axisPointer: { type: "line" } },
-                legend: { bottom: 0 },
-                grid: { left: 70, right: 20, top: 24, bottom: 64 },
-                xAxis: { type: "value", name: axisLabel },
-                yAxis: { type: "value", name: "fitness" },
-                series: fitness,
-              }}
-              height={420}
-            />
-          ) : (
-            <p className={chartTw.note}>Sin serie de fitness común.</p>
-          )}
-        </ChartSection>
-      </div>
-    </section>
-  );
-}
-
-function ChartControl({ id, label, value, setValue, options }) {
-  return (
-    <div className="chart-control">
-      <label htmlFor={id}>{label}</label>
-      <select id={id} value={value} onChange={(event) => setValue(event.target.value)}>
-        {options.map(([v, label]) => (
-          <option key={v} value={v}>
-            {label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
 function LoadState({ error }) {
   return (
     <main className="compare-page">

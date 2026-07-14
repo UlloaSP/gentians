@@ -17,3 +17,6 @@ No cambies estas gráficas salvo petición explícita:
 - `pregrounding` solo mide creación y grounding del solver pregenerado; ejecución normal no inventa esa fase.
 - Modelos solve por etapa: usa fases reales; `hypothesis_space` se muestra como `hypothesis`. No agrupa fases conocidas como `search setup`, `fitness search` ni `other`.
 - Los títulos de charts identifican la métrica y son funcionales. No añadas títulos de página, hero copy ni texto ornamental.
+- Comparación conserva todas las gráficas y divisiones de la vista individual. Cada experimento añade sus líneas, grupos, stacks o anillos; no se reemplazan por resúmenes distintos.
+- En comparación, el color identifica siempre al experimento; métricas y divisiones usan líneas, símbolos, opacidad o trama. Las leyendas no multiplican `experimento × división` y todo debe distinguirse sin hover.
+- Tabla de comparación: no muestra wall-clock. Usa `total_execution` y su delta; `grounding`, `solving` y `python` con sus deltas; `ground calls` y `solve calls`.

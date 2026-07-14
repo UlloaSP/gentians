@@ -59,13 +59,11 @@ export const measuredTotal = (benchmark) =>
   sum(phaseOrder.map(([phase]) => phaseTotal(benchmark, phase)));
 export const totalSeconds = (benchmark) => num(benchmark.total);
 export const wallSeconds = (benchmark) => num(benchmark.wall);
-export const clingoSeconds = (benchmark) =>
-  sum(
-    phaseOrder.flatMap(([phase]) => [
-      benchmark.phases?.[phase]?.grounding,
-      benchmark.phases?.[phase]?.solving,
-    ]),
-  );
+export const groundingSeconds = (benchmark) =>
+  sum(phaseOrder.map(([phase]) => benchmark.phases?.[phase]?.grounding));
+export const solvingSeconds = (benchmark) =>
+  sum(phaseOrder.map(([phase]) => benchmark.phases?.[phase]?.solving));
+export const clingoSeconds = (benchmark) => groundingSeconds(benchmark) + solvingSeconds(benchmark);
 export const pythonSeconds = (benchmark) =>
   sum(phaseOrder.map(([phase]) => benchmark.phases?.[phase]?.python));
 export const evolutionarySeconds = (benchmark) =>

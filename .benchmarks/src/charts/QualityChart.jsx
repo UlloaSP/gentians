@@ -30,7 +30,7 @@ export function QualityChart({ benchmark }) {
           yAxisIndex: 1,
           data: rows.map((r, i) => [i, num(r.coveredPositive)]),
           showSymbol: false,
-          lineStyle: { color: colors.self, width: 1 },
+          lineStyle: { color: colors.python, width: 1 },
         },
         {
           type: "line",

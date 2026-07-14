@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import random
+import time
 
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
 from .common import prepare_space
+from ...timing import add, current_phase
 
 
 class NoClosure:
@@ -32,7 +34,10 @@ class NoClosure:
             if self.fixed_size
             else max(1, min(target_size or self.rng.randint(1, limit), limit))
         )
-        return self.normalize(tuple(self.rng.sample(self.space.clauses, size)))
+        started = time.perf_counter()
+        normalized = self.normalize(tuple(self.rng.sample(self.space.clauses, size)))
+        add(f"{current_phase()}.closure", time.perf_counter() - started)
+        return normalized
 
     def normalize(self, proposal: tuple[str, ...]) -> tuple[str, ...] | None:
         candidate = tuple(sorted(dict.fromkeys(proposal)))

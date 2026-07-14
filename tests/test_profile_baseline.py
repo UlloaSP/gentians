@@ -2,6 +2,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 from benchmarks.profile_baseline import (
     GAMetric,
@@ -392,6 +393,22 @@ def test_export_closes_jsonl_writer_before_reset(monkeypatch, tmp_path):
     assert not path.exists()
 
 
+def test_ga_metrics_have_one_generation_coordinate(monkeypatch):
+    timing.reset()
+    monkeypatch.setenv("GENTIANS_GA_METRICS_PATH", "metrics.json")
+
+    timing.record_ga_generation(
+        0,
+        1.0,
+        [SimpleNamespace(score=1.0, program=("rule.",))],
+    )
+
+    assert timing._ga_rows[0]["generation"] == 0
+    assert "epoch" not in timing._ga_rows[0]
+    assert "global_generation" not in timing._ga_rows[0]
+    timing.reset()
+
+
 def test_dashboard_attributes_genetic_self_to_ga_python():
     phases = dashboard_phases(
         [
@@ -404,51 +421,53 @@ def test_dashboard_attributes_genetic_self_to_ga_python():
         ]
     )
 
-    assert phases["gaPython"]["self"] == 3.0
-    assert phases["replacement"]["self"] == 5.0
-    assert "other" not in phases
+    assert phases["gaPython"]["python"] == 3.0
+    assert phases["replacement"]["python"] == 5.0
+    assert "other" not in phases["replacement"]
 
 
-def test_dashboard_has_fitness_setup_phase():
+def test_dashboard_has_pregrounding_phase():
     phases = dashboard_phases(
         [
             TimingMetric("d", 1, "total_execution", 10.0, 1),
-            TimingMetric("d", 1, "fitness.setup", 4.0, 1),
-            TimingMetric("d", 1, "fitness.setup.grounding", 3.0, 1),
+            TimingMetric("d", 1, "pregrounding", 4.0, 1),
+            TimingMetric("d", 1, "pregrounding.self", 4.0, 1),
+            TimingMetric("d", 1, "pregrounding.grounding", 3.0, 1),
         ]
     )
 
-    assert phases["fitnessSetup"]["grounding"] == 3.0
-    assert phases["fitnessSetup"]["self"] == 1.0
+    assert phases["pregrounding"]["grounding"] == 3.0
+    assert phases["pregrounding"]["python"] == 1.0
 
 
-def test_dashboard_separates_hypothesis_and_fitness_clingo_from_python():
+def test_dashboard_attributes_fitness_cost_to_operator_phase():
     phases = dashboard_phases(
         [
             TimingMetric("d", 1, "total_execution", 20.0, 1),
             TimingMetric("d", 1, "hypothesis_space.self", 5.0, 1),
             TimingMetric("d", 1, "hypothesis_space.grounding", 1.0, 1),
             TimingMetric("d", 1, "hypothesis_space.solving", 2.0, 1),
-            TimingMetric("d", 1, "fitness.self", 10.0, 2),
-            TimingMetric("d", 1, "fitness.grounding", 3.0, 2),
-            TimingMetric("d", 1, "fitness.solving", 4.0, 2),
+            TimingMetric("d", 1, "population.self", 10.0, 2),
+            TimingMetric("d", 1, "population.grounding", 3.0, 2),
+            TimingMetric("d", 1, "population.solving", 4.0, 2),
+            TimingMetric("d", 1, "population.closure", 1.0, 2),
             TimingMetric("d", 1, "search.self", 5.0, 1),
         ]
     )
 
     assert phases["hypothesisSpace"] == {
-        "self": 5.0,
+        "python": 2.0,
         "grounding": 1.0,
         "solving": 2.0,
-        "other": 0.0,
+        "closure": 0.0,
     }
-    assert phases["fitnessEvaluation"] == {
-        "self": 10.0,
+    assert phases["initialization"] == {
+        "python": 2.0,
         "grounding": 3.0,
         "solving": 4.0,
-        "other": 0.0,
+        "closure": 1.0,
     }
-    assert phases["gaPython"]["self"] == 5.0
+    assert phases["gaPython"]["python"] == 5.0
 
 
 def test_dashboard_phases_use_run_means():
@@ -461,7 +480,7 @@ def test_dashboard_phases_use_run_means():
         ]
     )
 
-    assert phases["gaPython"]["self"] == 20.0
+    assert phases["gaPython"]["python"] == 20.0
 
 
 def test_frontend_phase_order_matches_dashboard_phases():
@@ -776,7 +795,7 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
             )
         ],
         [],
-        [GAMetric("d", 1, 0, 0, 1.0, 0.5, 1.0, 4, 2, 0.5, 1, 0.25, 2.0)],
+        [GAMetric("d", 1, 0, 1.0, 0.5, 1.0, 4, 2, 0.5, 1, 0.25, 2.0)],
         [],
         [],
         [],
@@ -789,6 +808,11 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
     ][0]
     assert run["diversity"] == [[0, 0.5]]
     assert run["invalid"] == [[0, 0.25]]
+    assert run["bestArr"][0][0] == 0
+    assert "globalBestArr" not in run
+    assert 'useState("generation")' in Path(
+        ".benchmarks/src/charts/FitnessChart.jsx"
+    ).read_text(encoding="utf-8")
 
 
 def test_dashboard_runtime_includes_timeout_and_reports_instrumentation_coverage(tmp_path):
@@ -809,9 +833,9 @@ def test_dashboard_runtime_includes_timeout_and_reports_instrumentation_coverage
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 4
-    assert benchmark["total"] == 7.0
-    assert benchmark["instrumentedTotal"] == 3.0
+    assert payload["schemaVersion"] == 6
+    assert benchmark["total"] == 3.0
+    assert benchmark["wall"] == 7.0
     assert benchmark["instrumentedRuns"] == 1
     assert benchmark["timeouts"] == 1
 
@@ -826,7 +850,6 @@ def test_ga_progress_exposes_round_time_and_evaluations(tmp_path):
                 "d",
                 1,
                 2,
-                12,
                 3.0,
                 2.0,
                 3.0,
@@ -866,7 +889,7 @@ def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
             )
         ],
         [],
-        [GAMetric("even_odd", 1, 332, 332, -0.02, float("-inf"), -0.02)],
+        [GAMetric("even_odd", 1, 332, -0.02, float("-inf"), -0.02)],
         [],
         [],
         [],

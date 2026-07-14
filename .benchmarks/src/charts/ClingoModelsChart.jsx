@@ -61,7 +61,7 @@ export function ClingoModelsChart({ benchmark }) {
                   ? colors.grounding
                   : group.key === "search"
                     ? colors.solving
-                    : colors.other,
+                    : colors.closure,
             },
           })),
         },

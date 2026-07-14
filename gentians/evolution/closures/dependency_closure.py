@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import random
+import time
 
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
 from .common import bits, defined_predicates, prepare_space
+from ...timing import add, current_phase
 
 
 class DependencyClosure:
@@ -55,7 +57,9 @@ class DependencyClosure:
         )
         for _ in range(64):
             selected = tuple(self.rng.sample(self.space.clauses, size))
+            started = time.perf_counter()
             normalized = self.normalize(selected)
+            add(f"{current_phase()}.closure", time.perf_counter() - started)
             if normalized is not None and (
                 self.fixed_size or len(normalized) <= size
             ):

@@ -74,7 +74,6 @@ class GAMetric:
     dataset: str
     run: int
     generation: int
-    global_generation: int
     max_fitness: float
     avg_fitness: float
     best_so_far: float
@@ -98,9 +97,9 @@ STANDARD_TIMING_METRICS = [
     "hypothesis_space",
     "hypothesis_space.grounding",
     "hypothesis_space.solving",
-    "fitness.setup",
-    "fitness.setup.grounding",
-    "fitness.setup.solving",
+    "pregrounding",
+    "pregrounding.grounding",
+    "pregrounding.solving",
     "selection",
     "replacement",
     "replacement.self",
@@ -611,7 +610,6 @@ def read_ga_metrics(path: Path, dataset: str, run: int) -> list[GAMetric]:
             dataset,
             run,
             int(row["generation"]),
-            int(row.get("global_generation", row["generation"])),
             float(row["max_fitness"]),
             float(row["avg_fitness"]),
             float(row["best_so_far"]),
@@ -762,7 +760,6 @@ def read_existing_outputs(
             row["dataset"],
             int(row["run"]),
             int(row["generation"]),
-            int(to_float(row.get("global_generation") or row.get("generation"))),
             float(row["max_fitness"]),
             float(row["avg_fitness"]),
             float(row["best_so_far"]),
@@ -1003,8 +1000,8 @@ def write_dashboard_data(
                 "arithmetic": 0,
                 "recursion": 0,
                 "contextAtoms": 0,
-                "total": mean(result.elapsed_seconds for result in dataset_results),
-                "instrumentedTotal": instrumented_total,
+                "total": instrumented_total,
+                "wall": mean(result.elapsed_seconds for result in dataset_results),
                 "instrumentedRuns": instrumented_runs,
                 "clingoRuns": len(clingo_run_ids),
                 "solveRuns": len(solve_run_ids),
@@ -1057,7 +1054,7 @@ def write_dashboard_data(
                 "clingoSummary": dataset_clingo_summary,
             }
         )
-    payload = {"schemaVersion": 4, "benchmarks": benchmarks}
+    payload = {"schemaVersion": 6, "benchmarks": benchmarks}
     (out_dir / "dashboard_data.json").write_text(
         json.dumps(json_safe(payload), indent=2, allow_nan=False),
         encoding="utf-8",
@@ -1110,24 +1107,24 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
     def phase(source: str) -> dict[str, float]:
         grounding = sum_nested_metric(values, source, "grounding")
         solving = sum_nested_metric(values, source, "solving")
+        closure = sum_nested_metric(values, source, "closure")
         self_metric = f"{source}.self"
-        self_time = (
+        inclusive_python = (
             values[self_metric]
             if self_metric in values
-            else max(values.get(source, 0.0) - grounding - solving, 0.0)
+            else values.get(source, 0.0)
         )
         return {
-            "self": self_time,
+            "python": max(inclusive_python - grounding - solving - closure, 0.0),
             "grounding": grounding,
             "solving": solving,
-            "other": 0.0,
+            "closure": closure,
         }
 
     phases = {
         "hypothesisSpace": phase("hypothesis_space"),
-        "fitnessSetup": phase("fitness.setup"),
+        "pregrounding": phase("pregrounding"),
         "initialization": phase("population"),
-        "fitnessEvaluation": phase("fitness"),
         "selection": phase("selection"),
         "crossover": phase("crossover"),
         "mutation": phase("mutation"),
@@ -1136,19 +1133,16 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
     }
     total = values.get("total_execution", 0.0)
     measured = sum(sum(type_values.values()) for type_values in phases.values())
-    phases["gaPython"]["self"] += max(total - measured, 0.0)
+    phases["gaPython"]["python"] += max(total - measured, 0.0)
     return phases
 
 
 def dominant_phase(phases: dict[str, dict[str, float]]) -> str:
-    grounding = sum(row.get("grounding", 0.0) for row in phases.values())
-    solving = sum(row.get("solving", 0.0) for row in phases.values())
-    self_time = sum(row.get("self", 0.0) for row in phases.values())
-    if grounding >= solving and grounding >= self_time:
-        return "grounding"
-    if solving >= self_time:
-        return "solving"
-    return "python"
+    totals = {
+        kind: sum(row.get(kind, 0.0) for row in phases.values())
+        for kind in ("python", "grounding", "solving", "closure")
+    }
+    return max(totals, key=totals.get)
 
 
 def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
@@ -1156,25 +1150,13 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
     for run in sorted({metric.run for metric in metrics}):
         points = sorted(
             [metric for metric in metrics if metric.run == run],
-            key=lambda metric: metric.global_generation,
+            key=lambda metric: metric.generation,
         )
-        global_best = []
-        best_value = float("-inf")
-        for point in points:
-            best_value = max(best_value, point.best_so_far)
-            global_best.append([point.global_generation, best_value])
         runs.append(
             {
                 "maxArr": [[point.generation, point.max_fitness] for point in points],
                 "avgArr": [[point.generation, point.avg_fitness] for point in points],
                 "bestArr": [[point.generation, point.best_so_far] for point in points],
-                "globalMaxArr": [
-                    [point.global_generation, point.max_fitness] for point in points
-                ],
-                "globalAvgArr": [
-                    [point.global_generation, point.avg_fitness] for point in points
-                ],
-                "globalBestArr": global_best,
                 "diversity": [[point.generation, point.diversity] for point in points],
                 "invalid": [[point.generation, point.invalid_rate] for point in points],
                 "elapsedBestArr": [
@@ -1735,15 +1717,12 @@ def ga_fitness_means(points: list[GAMetric]) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for dataset in sorted({p.dataset for p in points}):
         dataset_points = [p for p in points if p.dataset == dataset]
-        for generation in sorted({p.global_generation for p in dataset_points}):
-            generation_points = [
-                p for p in dataset_points if p.global_generation == generation
-            ]
+        for generation in sorted({p.generation for p in dataset_points}):
+            generation_points = [p for p in dataset_points if p.generation == generation]
             rows.append(
                 {
                     "dataset": dataset,
                     "generation": generation,
-                    "global_generation": generation,
                     "max_mean": mean(p.max_fitness for p in generation_points),
                     "max_std": stddev(p.max_fitness for p in generation_points),
                     "avg_mean": mean(p.avg_fitness for p in generation_points),

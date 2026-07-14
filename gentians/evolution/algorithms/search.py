@@ -8,6 +8,8 @@ from ...rule_generation.hypothesis_space import build_hypothesis_space
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
 from ...timing import (
+    add,
+    current_phase,
     instrumentation,
     metric_enabled,
     phase,
@@ -66,27 +68,28 @@ def search_solver(
         raise ValueError("No clauses satisfy the closure policy")
     context = EvolutionContext(space, policy, args.max_program_clauses, rng)
 
-    with phase("fitness.setup"):
+    if str(args.fitness.get("grounding", "normal")) == "normal":
         evaluate_score = create_fitness(
             program, args.fitness, args.max_program_clauses, space.clauses
         )
+    else:
+        with phase("pregrounding"):
+            evaluate_score = create_fitness(
+                program, args.fitness, args.max_program_clauses, space.clauses
+            )
 
     known: set[tuple[str, ...]] = set()
     evaluations = 0
     started = time.perf_counter()
 
-    def admit(proposal: tuple[str, ...], previous: Individual | None = None):
+    def admit(normalized: tuple[str, ...], previous: Individual | None = None):
         nonlocal evaluations
-        normalized = policy.normalize(proposal)
-        if normalized is None:
-            return None
         if previous is not None and normalized == previous.program:
             return previous
         if normalized in known:
             return None
         evaluations += 1
-        with phase("fitness"):
-            score = evaluate_score(normalized)
+        score = evaluate_score(normalized)
         individual = individual_from_fitness(normalized, score)
         known.add(normalized)
         return individual
@@ -112,8 +115,6 @@ def search_solver(
             generation,
             best_overall.score,
             population,
-            epoch=0,
-            global_generation=generation,
             elapsed_seconds=time.perf_counter() - started,
             fitness_evaluations=evaluations,
         )
@@ -131,39 +132,44 @@ def search_solver(
             )
         with phase("crossover"):
             proposals = crossover(first.program, second.program, context)
-        if not proposals:
-            record_metric(
-                "operator",
-                {
-                    "operator": "crossover",
-                    "strategy": str(args.crossover["name"]),
-                    "applied": False,
-                    "skipped": True,
-                    "children": 0,
-                    "population_size": len(population),
-                },
-            )
-            continue
-        for proposal in proposals:
-            normalized = policy.normalize(proposal)
-            existing = next(
-                (item for item in population if item.program == normalized), None
-            )
-            child = admit(proposal, existing)
-            if child is None:
+            if not proposals:
+                record_metric(
+                    "operator",
+                    {
+                        "operator": "crossover",
+                        "strategy": str(args.crossover["name"]),
+                        "applied": False,
+                        "skipped": True,
+                        "children": 0,
+                        "population_size": len(population),
+                    },
+                )
                 continue
+            children = []
+            for proposal in proposals:
+                normalized = _normalize(policy, proposal)
+                if normalized is None:
+                    continue
+                existing = next(
+                    (item for item in population if item.program == normalized), None
+                )
+                child = admit(normalized, existing)
+                if child is not None:
+                    children.append((child, existing is not None))
+        for child, duplicate in children:
             _operator_metric(
                 "crossover",
                 args.crossover,
                 first if first.score >= second.score else second,
                 child,
-                duplicate=existing is not None,
+                duplicate=duplicate,
             )
             if child.is_best:
                 return winning_program(child), child.score, True
             with phase("mutation"):
                 mutated_proposal = mutation(child.program, context)
-            mutated = admit(mutated_proposal, child)
+                normalized = _normalize(policy, mutated_proposal)
+                mutated = admit(normalized, child) if normalized is not None else None
             if mutated is None:
                 continue
             _operator_metric(
@@ -217,6 +223,13 @@ def search_solver(
 
 def _better(current: Individual | None, candidate: Individual) -> Individual:
     return candidate if current is None or candidate.score > current.score else current
+
+
+def _normalize(policy, proposal: tuple[str, ...]) -> tuple[str, ...] | None:
+    started = time.perf_counter()
+    normalized = policy.normalize(proposal)
+    add(f"{current_phase()}.closure", time.perf_counter() - started)
+    return normalized
 
 
 def _operator_metric(

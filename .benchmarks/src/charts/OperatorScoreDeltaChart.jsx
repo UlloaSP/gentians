@@ -19,7 +19,7 @@ export function OperatorScoreDeltaChart({ benchmark }) {
           name: "score delta",
           data: values,
           itemStyle: {
-            color: ({ dataIndex }) => (values[dataIndex] >= 0 ? colors.self : colors.accent),
+            color: ({ dataIndex }) => (values[dataIndex] >= 0 ? colors.python : colors.accent),
           },
         },
       ],

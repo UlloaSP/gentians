@@ -18,7 +18,7 @@ export function OperatorImprovementChart({ benchmark }) {
           type: "bar",
           name: "improved",
           data: rows.map((r) => maybeNum(r.improvement_rate)),
-          itemStyle: { color: colors.self },
+          itemStyle: { color: colors.python },
         },
         {
           type: "bar",

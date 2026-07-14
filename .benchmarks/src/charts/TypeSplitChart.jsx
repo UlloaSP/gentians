@@ -4,18 +4,10 @@ import { ChartSection } from "../components/Layout";
 import { colors, measuredTotal, phaseTypeTotal, typeOrder } from "../metrics";
 
 const BLOCKS = [
-  ["Search setup", ["hypothesisSpace", "fitnessSetup"]],
+  ["Search setup", ["hypothesisSpace", "pregrounding"]],
   [
     "Evolution",
-    [
-      "initialization",
-      "fitnessEvaluation",
-      "selection",
-      "crossover",
-      "mutation",
-      "replacement",
-      "gaPython",
-    ],
+    ["initialization", "selection", "crossover", "mutation", "replacement", "gaPython"],
   ],
 ];
 

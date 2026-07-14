@@ -5,18 +5,18 @@ import { ChartSection } from "../components/Layout";
 import { aggregateSeries, colors } from "../metrics";
 
 const AXES = {
-  globalGeneration: "generación global",
+  generation: "generación",
   fitnessEvaluations: "evaluaciones de fitness",
   elapsedSeconds: "segundos",
 };
 const SERIES = [
-  ["max", "max", colors.self],
+  ["max", "max", colors.python],
   ["best", "best", colors.accent],
-  ["avg", "avg", colors.other],
+  ["avg", "avg", colors.closure],
 ];
 
 export function FitnessChart({ benchmark }) {
-  const [axis, setAxis] = useState("fitnessEvaluations");
+  const [axis, setAxis] = useState("generation");
   const series = useMemo(
     () =>
       SERIES.flatMap(([metric, name, color]) => {

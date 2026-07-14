@@ -1,11 +1,10 @@
 import { chartTw } from "../chartTw";
 
-export function PageLayout({ title = "GENTIANS profiling", actions, children, error }) {
+export function PageLayout({ actions, children, error }) {
   if (error) {
     return (
       <main className={chartTw.page}>
         <div className={chartTw.shell}>
-          <h1 className="text-4xl font-semibold tracking-tight">GENTIANS profiling</h1>
           <p className={chartTw.note}>{error}</p>
         </div>
       </main>
@@ -15,15 +14,7 @@ export function PageLayout({ title = "GENTIANS profiling", actions, children, er
   return (
     <main className={chartTw.page}>
       <div className={chartTw.shell}>
-        <header className="relative border-b border-neutral-200 pb-5 pr-0 md:pr-64">
-          <div>
-            <span className="text-xs font-medium uppercase tracking-[.24em] text-blue-600">
-              GENTIANS profiling
-            </span>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight">{title}</h1>
-          </div>
-          {actions && <div className={chartTw.floatingSelect}>{actions}</div>}
-        </header>
+        {actions && <nav className="detail-nav">{actions}</nav>}
         {children}
       </div>
     </main>

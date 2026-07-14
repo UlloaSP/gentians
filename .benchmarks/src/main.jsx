@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { chartTw } from "./chartTw";
 import { ExperimentCompare } from "./ExperimentCompare";
@@ -25,6 +25,7 @@ import {
   evolutionarySeconds,
   fmt,
   fmtInt,
+  phaseTotal,
   pythonSeconds,
   runCount,
   topPhase,
@@ -44,6 +45,10 @@ export function DetailApp() {
         return response.json();
       })
       .then((payload) => {
+        if (payload.schemaVersion !== 6)
+          throw new Error(
+            `schema ${payload.schemaVersion ?? "ausente"}; vuelve a ejecutar el experimento`,
+          );
         if (!Array.isArray(payload.benchmarks) || !payload.benchmarks.length)
           throw new Error("dashboard_data.json sin benchmarks");
         setBenchmarks(payload.benchmarks);
@@ -63,7 +68,6 @@ export function DetailApp() {
 
   return (
     <PageLayout
-      title={current.name}
       actions={
         <BenchmarkMenu benchmarks={benchmarks} benchmark={current} setSelected={setSelected} />
       }
@@ -74,102 +78,63 @@ export function DetailApp() {
 }
 
 function BenchmarkMenu({ benchmarks, benchmark, setSelected }) {
-  const [open, setOpen] = useState(false);
-  const altUsed = useRef(false);
-
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      if (!event.altKey) return;
-      if (/^[1-9]$/.test(event.key)) {
-        const next = benchmarks[Number(event.key) - 1];
-        if (next) {
-          event.preventDefault();
-          setSelected(next.name);
-          setOpen(false);
-          altUsed.current = true;
-        }
-        return;
-      }
-      if (event.key !== "Alt") altUsed.current = true;
-    };
-    const onKeyUp = (event) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-        return;
-      }
-      if (event.key === "Alt") {
-        if (!altUsed.current) setOpen((value) => !value);
-        altUsed.current = false;
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-    };
-  }, [benchmarks, setSelected]);
-
-  const choose = (name) => {
-    setSelected(name);
-    setOpen(false);
-  };
-
   return (
     <>
-      <button
-        aria-controls="benchmark-menu"
-        aria-expanded={open}
-        aria-label={`Elegir benchmark, actual ${benchmark.name}`}
-        className={chartTw.floatingButton}
-        type="button"
-        onClick={() => setOpen((value) => !value)}
+      <a href="./">←</a>
+      <select
+        aria-label="Benchmark"
+        value={benchmark.name}
+        onChange={(event) => setSelected(event.target.value)}
       >
-        <span />
-        <span />
-        <span />
-      </button>
-      {open && (
-        <div className={chartTw.modalBackdrop} onClick={() => setOpen(false)}>
-          <section
-            aria-modal="true"
-            id="benchmark-menu"
-            role="dialog"
-            className={chartTw.benchmarkDialog}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-3 border-b border-neutral-200 pb-3">
-              <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                Benchmark
-              </span>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-950">
-                {benchmark.name}
-              </h2>
-            </div>
-            <div className="grid max-h-[70vh] gap-1 overflow-auto">
-              {benchmarks.map((item, index) => (
-                <button
-                  key={item.name}
-                  className={
-                    item.name === benchmark.name
-                      ? chartTw.benchmarkOptionActive
-                      : chartTw.benchmarkOption
-                  }
-                  type="button"
-                  autoFocus={item.name === benchmark.name}
-                  onClick={() => choose(item.name)}
-                >
-                  <span className="w-6 text-right text-xs font-semibold text-neutral-400">
-                    {index < 9 ? index + 1 : ""}
-                  </span>
-                  <span className="truncate">{item.name}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-        </div>
-      )}
+        {benchmarks.map((item) => (
+          <option key={item.name}>{item.name}</option>
+        ))}
+      </select>
+      <a href="?compare">comparar</a>
     </>
+  );
+}
+
+function ExperimentIndex() {
+  const [experiments, setExperiments] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("experiments.json", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((payload) => setExperiments(payload.experiments || []))
+      .catch((reason) => setError(String(reason.message || reason)));
+  }, []);
+
+  return (
+    <main className="experiment-index">
+      <nav>
+        <a href="?compare">comparar</a>
+      </nav>
+      {error && <p className={chartTw.note}>{error}</p>}
+      <div className="experiment-list">
+        {experiments.map((experiment) =>
+          experiment.has_dashboard ? (
+            <a key={experiment.id} href={`?data=${encodeURIComponent(experiment.dashboard_path)}`}>
+              <strong>{experiment.label}</strong>
+              <span>{experiment.description}</span>
+              <small>
+                {experiment.datasets?.length || 0} benchmarks · {experiment.runs} runs ·{" "}
+                {experiment.status}
+              </small>
+            </a>
+          ) : (
+            <div className="is-disabled" key={experiment.id}>
+              <strong>{experiment.label}</strong>
+              <small>{experiment.status}</small>
+            </div>
+          ),
+        )}
+      </div>
+    </main>
   );
 }
 
@@ -179,6 +144,8 @@ function Detail({ benchmark }) {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
         <Stat label="runs" value={runCount(benchmark)} />
         <Stat label="total" value={`${fmt(totalSeconds(benchmark), 2)}s`} />
+        <Stat label="hypothesis" value={`${fmt(phaseTotal(benchmark, "hypothesisSpace"), 2)}s`} />
+        <Stat label="tiempo evolutivo" value={`${fmt(evolutionarySeconds(benchmark), 2)}s`} />
         <Stat label="clingo" value={`${fmt(clingoSeconds(benchmark), 2)}s`} />
         <Stat label="python" value={`${fmt(pythonSeconds(benchmark), 2)}s`} />
         <Stat label="solve calls" value={fmtInt(benchmark.solveCalls)} />
@@ -189,7 +156,6 @@ function Detail({ benchmark }) {
           value={dominantLabel(benchmark.dominant || topPhase(benchmark).label)}
         />
         <Stat label="is best" value={bestRunRatio(benchmark)} />
-        <Stat label="tiempo evolutivo" value={`${fmt(evolutionarySeconds(benchmark), 2)}s`} />
       </div>
       <SectionGrid>
         <PhaseTypeChart benchmark={benchmark} />
@@ -212,11 +178,10 @@ function Detail({ benchmark }) {
 }
 
 function Root() {
-  return new URLSearchParams(window.location.search).has("data") ? (
-    <DetailApp />
-  ) : (
-    <ExperimentCompare />
-  );
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("data")) return <DetailApp />;
+  if (params.has("compare")) return <ExperimentCompare />;
+  return <ExperimentIndex />;
 }
 
 createRoot(document.getElementById("root")).render(<Root />);

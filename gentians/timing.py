@@ -254,8 +254,6 @@ def record_ga_generation(
     best_so_far: float,
     population: list[object],
     *,
-    epoch: int = 0,
-    global_generation: int | None = None,
     elapsed_seconds: float = 0.0,
     fitness_evaluations: int = 0,
 ) -> None:
@@ -284,10 +282,6 @@ def record_ga_generation(
         _ga_rows.append(
             {
                 "generation": generation,
-                "epoch": epoch,
-                "global_generation": (
-                    generation if global_generation is None else global_generation
-                ),
                 "elapsed_seconds": elapsed_seconds,
                 "fitness_evaluations": fitness_evaluations,
                 "max_fitness": max_fitness,

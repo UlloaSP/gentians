@@ -1,8 +1,7 @@
 export const phaseOrder = [
   ["hypothesisSpace", "hypothesis space"],
-  ["fitnessSetup", "fitness setup"],
+  ["pregrounding", "pregrounding"],
   ["initialization", "initialization"],
-  ["fitnessEvaluation", "fitness evaluation"],
   ["selection", "selection"],
   ["crossover", "crossover"],
   ["mutation", "mutation"],
@@ -11,29 +10,29 @@ export const phaseOrder = [
 ];
 
 export const typeOrder = [
-  ["self", "python"],
+  ["python", "python"],
   ["grounding", "grounding"],
   ["solving", "solving"],
-  ["other", "other"],
+  ["closure", "closure"],
 ];
 
 export const colors = {
-  self: "#4C78A8",
+  python: "#4C78A8",
   grounding: "#8E63BE",
   solving: "#B55245",
-  other: "#F2B94B",
+  closure: "#F2B94B",
   total: "#30343b",
   accent: "#ef4444",
 };
 
 const SERIES_KEYS = {
+  generation: { best: "bestArr", max: "maxArr", avg: "avgArr" },
   fitnessEvaluations: {
     best: "evaluationBestArr",
     max: "evaluationMaxArr",
     avg: "evaluationAvgArr",
   },
   elapsedSeconds: { best: "elapsedBestArr", max: "elapsedMaxArr", avg: "elapsedAvgArr" },
-  globalGeneration: { best: "globalBestArr", max: "globalMaxArr", avg: "globalAvgArr" },
 };
 
 export const dataUrl = () =>
@@ -59,7 +58,7 @@ export const phaseTotal = (benchmark, phase) =>
 export const measuredTotal = (benchmark) =>
   sum(phaseOrder.map(([phase]) => phaseTotal(benchmark, phase)));
 export const totalSeconds = (benchmark) => num(benchmark.total);
-export const instrumentedSeconds = (benchmark) => num(benchmark.instrumentedTotal);
+export const wallSeconds = (benchmark) => num(benchmark.wall);
 export const clingoSeconds = (benchmark) =>
   sum(
     phaseOrder.flatMap(([phase]) => [
@@ -68,23 +67,12 @@ export const clingoSeconds = (benchmark) =>
     ]),
   );
 export const pythonSeconds = (benchmark) =>
-  sum(
-    phaseOrder.flatMap(([phase]) => [
-      benchmark.phases?.[phase]?.self,
-      benchmark.phases?.[phase]?.other,
-    ]),
-  );
+  sum(phaseOrder.map(([phase]) => benchmark.phases?.[phase]?.python));
 export const evolutionarySeconds = (benchmark) =>
   sum(
-    [
-      "initialization",
-      "fitnessEvaluation",
-      "selection",
-      "crossover",
-      "mutation",
-      "replacement",
-      "gaPython",
-    ].map((phase) => phaseTotal(benchmark, phase)),
+    ["initialization", "selection", "crossover", "mutation", "replacement", "gaPython"].map(
+      (phase) => phaseTotal(benchmark, phase),
+    ),
   );
 const phaseTotals = (benchmark) =>
   phaseOrder.map(([phase, label]) => ({ phase, label, seconds: phaseTotal(benchmark, phase) }));
@@ -95,13 +83,13 @@ export const topPhase = (benchmark) =>
   });
 export const dominantLabel = (value) => (value === "overhead" ? "python" : value);
 
-const progressPoints = (run, axis = "fitnessEvaluations", metric = "best") =>
+const progressPoints = (run, axis = "generation", metric = "best") =>
   (run[SERIES_KEYS[axis]?.[metric]] || [])
     .map(([position, value]) => [Number(position), Number(value)])
     .filter(([position, value]) => Number.isFinite(position) && Number.isFinite(value))
     .sort(([left], [right]) => left - right);
 
-export function aggregateSeries(runs, axis = "fitnessEvaluations", metric = "best") {
+export function aggregateSeries(runs, axis = "generation", metric = "best") {
   const runPoints = runs
     .map((run) => progressPoints(run, axis, metric))
     .filter((points) => points.length);

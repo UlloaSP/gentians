@@ -8,12 +8,12 @@ import {
   clingoSeconds,
   fmt,
   fmtInt,
-  instrumentedSeconds,
   phaseOrder,
   phaseTotal,
   pythonSeconds,
   runCount,
   totalSeconds,
+  wallSeconds,
 } from "./metrics";
 
 const COLORS = [
@@ -28,6 +28,7 @@ const COLORS = [
   "#ea580c",
 ];
 const AXES = {
+  generation: "generación",
   fitnessEvaluations: "evaluaciones de fitness",
   elapsedSeconds: "segundos",
 };
@@ -38,7 +39,7 @@ export function ExperimentCompare() {
   const [dashboards, setDashboards] = useState({});
   const [benchmarkName, setBenchmarkName] = useState("");
   const [baselineId, setBaselineId] = useState("");
-  const [axis, setAxis] = useState("fitnessEvaluations");
+  const [axis, setAxis] = useState("generation");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -84,6 +85,10 @@ export function ExperimentCompare() {
         const response = await fetch(experiment.dashboard_path, { cache: "no-store" });
         if (!response.ok) throw new Error(`${experiment.id}: HTTP ${response.status}`);
         const dashboard = await response.json();
+        if (dashboard.schemaVersion !== 6)
+          throw new Error(
+            `${experiment.id}: schema ${dashboard.schemaVersion ?? "ausente"}; vuelve a ejecutar el experimento`,
+          );
         if (!Array.isArray(dashboard.benchmarks))
           throw new Error(`${experiment.id}: dashboard inválido`);
         return [experiment.id, dashboard];
@@ -120,22 +125,8 @@ export function ExperimentCompare() {
   return (
     <main className="compare-page">
       <div className="compare-shell">
-        <header className="compare-hero">
-          <div>
-            <span className="compare-kicker">GENTIANS · experiment matrix</span>
-            <h1>Comparar sin perder contexto.</h1>
-            <p>
-              Mismo benchmark, estrategias en paralelo. Colores estables, baseline explícito, datos
-              usando el mismo contrato de estrategias.
-            </p>
-          </div>
-          <div className="compare-count">
-            <strong>{selected.length}</strong>
-            <span>experimentos activos</span>
-          </div>
-        </header>
-
         <section className="compare-controls" aria-label="Controles de comparación">
+          <a href="./">←</a>
           <label>
             <span>benchmark</span>
             <select
@@ -199,15 +190,10 @@ export function ExperimentCompare() {
             );
           })}
         </section>
-        <p className="compare-rule">
-          Mínimo 2. Dashboards cargados bajo demanda; “seleccionar todos” carga matriz completa.
-        </p>
-
         <ComparisonTable rows={rows} baseline={baseline} />
         <ComparisonCharts rows={rows} axis={axis} setAxis={setAxis} />
 
-        <section className="individual-links">
-          <span>dashboard individual</span>
+        <nav className="individual-links">
           {selected.map((experiment) => (
             <a
               key={experiment.id}
@@ -217,7 +203,7 @@ export function ExperimentCompare() {
               {experiment.label} ↗
             </a>
           ))}
-        </section>
+        </nav>
       </div>
     </main>
   );
@@ -226,11 +212,6 @@ export function ExperimentCompare() {
 function ComparisonTable({ rows, baseline }) {
   return (
     <section className="comparison-table-wrap">
-      <SectionHeading
-        number="01"
-        title="Lectura directa"
-        note="Wall incluye arranque, profiler y timeouts; instrumentado cubre solo runs que volcaron métricas."
-      />
       <div className="comparison-table-scroll">
         <table className="comparison-table">
           <thead>
@@ -260,14 +241,12 @@ function ComparisonTable({ rows, baseline }) {
                     {fmtInt(benchmark.instrumentedRuns)}/{fmtInt(runCount(benchmark))}
                   </td>
                   <td>{fmtInt(benchmark.timeouts)}</td>
-                  <td>{fmt(totalSeconds(benchmark), 3)}s</td>
-                  <td className={deltaClass(totalSeconds(benchmark), totalSeconds(baseline))}>
-                    {formatDelta(totalSeconds(benchmark), totalSeconds(baseline))}
+                  <td>{fmt(wallSeconds(benchmark), 3)}s</td>
+                  <td className={deltaClass(wallSeconds(benchmark), wallSeconds(baseline))}>
+                    {formatDelta(wallSeconds(benchmark), wallSeconds(baseline))}
                   </td>
                   <td>
-                    {benchmark.instrumentedRuns
-                      ? `${fmt(instrumentedSeconds(benchmark), 3)}s`
-                      : "—"}
+                    {benchmark.instrumentedRuns ? `${fmt(totalSeconds(benchmark), 3)}s` : "—"}
                   </td>
                   <td>{fmt(clingoSeconds(benchmark), 3)}s</td>
                   <td>{fmt(pythonSeconds(benchmark), 3)}s</td>
@@ -339,13 +318,8 @@ function ComparisonCharts({ rows, axis, setAxis }) {
   });
   return (
     <section>
-      <SectionHeading
-        number="02"
-        title="Forma del coste"
-        note="Tiempo, fases y búsqueda sobre escalas compartidas."
-      />
       <div className="comparison-charts">
-        <ChartSection title="Tiempo wall (incluye profiler y timeout)">
+        <ChartSection title="Tiempo total_execution">
           <Chart option={runtime} height={320} />
         </ChartSection>
         <ChartSection title="Desglose por fase">
@@ -380,17 +354,6 @@ function ComparisonCharts({ rows, axis, setAxis }) {
   );
 }
 
-function SectionHeading({ number, title, note }) {
-  return (
-    <div className="section-heading">
-      <span>{number}</span>
-      <div>
-        <h2>{title}</h2>
-        <p>{note}</p>
-      </div>
-    </div>
-  );
-}
 function ChartControl({ id, label, value, setValue, options }) {
   return (
     <div className="chart-control">
@@ -409,9 +372,7 @@ function LoadState({ error }) {
   return (
     <main className="compare-page">
       <div className="compare-shell">
-        <span className="compare-kicker">GENTIANS · experiment matrix</span>
-        <h1>{error ? "Índice no disponible." : "Cargando experimentos…"}</h1>
-        {error && <p className={chartTw.note}>{error}</p>}
+        <p className={error ? chartTw.note : ""}>{error || "cargando…"}</p>
       </div>
     </main>
   );

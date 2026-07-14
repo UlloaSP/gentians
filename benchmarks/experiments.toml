@@ -5,8 +5,8 @@
 [suite]
 output_root = ".benchmarks"
 datasets = ["5queens", "grandparent", "coloring"]
-runs = 10
-timeout_seconds = 100
+runs = 3
+timeout_seconds = 50
 seed_base = 1
 # Deterministic cProfile changes runtime in proportion to Python call count and
 # would bias strategy comparisons. Enable it in a separate profiling config.
@@ -17,9 +17,30 @@ cprofile = false
 [suite.overrides]
 
 [[experiment]]
+id = "cov_subprograms_mean_normal_no_closure"
+label = "Subprograms mean · normal no closure"
+description = "Mean score over fixed-size subprograms with per-candidate grounding."
+[experiment.overrides]
+"closure.name" = "none"
+
+[[experiment]]
 id = "cov_subprograms_mean_normal"
 label = "Subprograms mean · normal"
 description = "Mean score over fixed-size subprograms with per-candidate grounding."
+
+[[experiment]]
+id = "cov_subprograms_max_normal"
+label = "Subprograms max · normal"
+description = "Maximum score over fixed-size subprograms with per-candidate grounding."
+[experiment.overrides]
+"fitness.name" = "cov_subprograms_max"
+
+[[experiment]]
+id = "cov_program_normal"
+label = "Whole program · normal"
+description = "Score the individual as one whole program with per-candidate grounding."
+[experiment.overrides]
+"fitness.name" = "cov_program"
 
 [[experiment]]
 id = "cov_subprograms_mean_externals"
@@ -33,50 +54,4 @@ id = "cov_subprograms_mean_assumptions"
 label = "Subprograms mean · assumptions"
 description = "Mean score over fixed-size subprograms with pre-grounded assumptions."
 [experiment.overrides]
-"fitness.grounding" = "assumptions"
-
-[[experiment]]
-id = "cov_subprograms_max_normal"
-label = "Subprograms max · normal"
-description = "Maximum score over fixed-size subprograms with per-candidate grounding."
-[experiment.overrides]
-"fitness.name" = "cov_subprograms_max"
-
-[[experiment]]
-id = "cov_subprograms_max_externals"
-label = "Subprograms max · externals"
-description = "Maximum score over fixed-size subprograms with pre-grounded externals."
-[experiment.overrides]
-"fitness.name" = "cov_subprograms_max"
-"fitness.grounding" = "externals"
-
-[[experiment]]
-id = "cov_subprograms_max_assumptions"
-label = "Subprograms max · assumptions"
-description = "Maximum score over fixed-size subprograms with pre-grounded assumptions."
-[experiment.overrides]
-"fitness.name" = "cov_subprograms_max"
-"fitness.grounding" = "assumptions"
-
-[[experiment]]
-id = "cov_program_normal"
-label = "Whole program · normal"
-description = "Score the individual as one whole program with per-candidate grounding."
-[experiment.overrides]
-"fitness.name" = "cov_program"
-
-[[experiment]]
-id = "cov_program_externals"
-label = "Whole program · externals"
-description = "Score the individual as one whole program with pre-grounded externals."
-[experiment.overrides]
-"fitness.name" = "cov_program"
-"fitness.grounding" = "externals"
-
-[[experiment]]
-id = "cov_program_assumptions"
-label = "Whole program · assumptions"
-description = "Score the individual as one whole program with pre-grounded assumptions."
-[experiment.overrides]
-"fitness.name" = "cov_program"
 "fitness.grounding" = "assumptions"

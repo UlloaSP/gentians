@@ -19,14 +19,14 @@ export function OperatorsChart({ benchmark }) {
           stack: "outcome",
           name: "valid",
           data: rows.map((r) => maybeNum(r.valid_rate)),
-          itemStyle: { color: colors.self },
+          itemStyle: { color: colors.python },
         },
         {
           type: "bar",
           stack: "outcome",
           name: "duplicate",
           data: rows.map((r) => maybeNum(r.duplicate_rate)),
-          itemStyle: { color: colors.other },
+          itemStyle: { color: colors.closure },
         },
         {
           type: "bar",

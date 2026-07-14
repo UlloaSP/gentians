@@ -4,7 +4,9 @@ import pytest
 
 from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
 from gentians.asp.coverage_program import build_fixed_coverage_program
+from gentians.asp.external_activation import ExternalActivation
 from gentians.asp.normal_coverage_solver import NormalCoverageSolver
+from gentians.asp.pregrounded_coverage_solver import PregroundedCoverageSolver
 from gentians.evolution.fitness.cov_program import CovProgram
 from gentians.evolution.fitness.cov_subprograms_max import CovSubprogramsMax
 from gentians.evolution.fitness.cov_subprograms_mean import CovSubprogramsMean
@@ -98,14 +100,95 @@ def test_removed_scope_and_aggregation_options_are_rejected(name):
     "name", ["cov_subprograms_mean", "cov_subprograms_max", "cov_program"]
 )
 @pytest.mark.parametrize("grounding", ["externals", "assumptions"])
-def test_pregrounding_matches_normal(name, grounding):
+@pytest.mark.parametrize(
+    "candidate", [("target(p).", "target(n)."), ("target(n).",)]
+)
+def test_pregrounding_matches_normal(name, grounding, candidate):
     rule_space = ("target(p).", "target(n).")
-    candidate = ("target(p).", "target(p).", "target(n).")
 
     expected = _fitness(name)(candidate)
     actual = _fitness(name, grounding, rule_space)(candidate)
 
     assert actual == expected
+
+
+def test_pregrounding_guards_each_rule_once_not_once_per_slot(monkeypatch):
+    captured = {}
+
+    class Control:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def add(self, _name, _parameters, program):
+            captured["program"] = program
+
+        def ground(self, _parts):
+            pass
+
+    monkeypatch.setattr(
+        "gentians.asp.pregrounded_coverage_solver.clingo.Control", Control
+    )
+    monkeypatch.setattr(
+        "gentians.asp.pregrounded_coverage_solver.metric_enabled", lambda _name: False
+    )
+
+    PregroundedCoverageSolver(
+        [], [], [], [], ("left.", "right."), ExternalActivation(), 8
+    )
+
+    generated = captured["program"]
+    assert generated.count("left :- gentians_internal_selected(0).") == 1
+    assert generated.count("right :- gentians_internal_selected(1).") == 1
+    assert "#external gentians_internal_active(0..1)." in generated
+    assert "active(0..7," not in generated
+
+
+def test_pregrounding_rejects_duplicate_candidate_rules():
+    evaluate = _fitness(
+        "cov_program", "externals", ("target(p).", "target(n).")
+    )
+
+    with pytest.raises(ValueError, match="must not contain duplicate rules"):
+        evaluate(("target(p).", "target(p)."))
+
+
+@pytest.mark.parametrize(
+    "name", ["cov_subprograms_mean", "cov_subprograms_max", "cov_program"]
+)
+@pytest.mark.parametrize("grounding", ["externals", "assumptions"])
+def test_pregrounding_internal_selection_does_not_collide_with_user_program(
+    name, grounding,
+):
+    program = Program(
+        ["selected(0).", "r(0)."],
+        [Example(("target(p)", ""), True)],
+        [Example(("target(n)", ""), False)],
+        [],
+        [],
+    )
+    rule_space = ("target(p).", "target(n).")
+    normal = create_fitness(
+        program, {"name": name, "max_as": 0}, 2, rule_space
+    )
+    pregrounded = create_fitness(
+        program,
+        {
+            "name": name,
+            "grounding": grounding,
+            "max_as": 0,
+            "clingo_arguments": [],
+        },
+        2,
+        rule_space,
+    )
+
+    assert pregrounded(("target(n).",)) == normal(("target(n).",))
+
+
+def test_coverage_undefined_atoms_are_false_without_log_noise(capsys):
+    _fitness("cov_subprograms_mean")(("target(n).",))
+
+    assert capsys.readouterr().err == ""
 
 
 @pytest.mark.parametrize("grounding", ["externals", "assumptions"])

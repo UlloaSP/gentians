@@ -2,10 +2,18 @@ import { useMemo } from "react";
 import { chartTw } from "../chartTw";
 import { Chart } from "../components/Chart";
 import { ChartSection } from "../components/Layout";
-import { colors, fmt, fmtInt, num } from "../metrics";
+import { fmt, fmtInt, num } from "../metrics";
 
-const SEARCH_PHASES = new Set(["fitness"]);
-const SETUP_PHASES = new Set(["hypothesis_space", "fitness.setup"]);
+const PHASES = {
+  hypothesis_space: { label: "hypothesis", color: "#8E63BE", order: 0 },
+  pregrounding: { label: "pregrounding", color: "#6D4AA5", order: 1 },
+  population: { label: "initialization", color: "#4C78A8", order: 2 },
+  selection: { label: "selection", color: "#72B7B2", order: 3 },
+  crossover: { label: "crossover", color: "#F28E2B", order: 4 },
+  mutation: { label: "mutation", color: "#E15759", order: 5 },
+  replacement: { label: "replacement", color: "#59A14F", order: 6 },
+  search: { label: "search orchestration", color: "#30343B", order: 7 },
+};
 
 const emptyGroup = (key, label) => ({ key, label, calls: 0, models: 0 });
 function add(group, row) {
@@ -15,26 +23,28 @@ function add(group, row) {
 const modelsPerSolve = (group) => (group.calls ? group.models / group.calls : 0);
 
 function solveGroups(rows) {
-  const groups = {
-    all: emptyGroup("all", "all"),
-    setup: emptyGroup("setup", "search setup"),
-    search: emptyGroup("search", "fitness search"),
-    other: emptyGroup("other", "other"),
-  };
+  const all = emptyGroup("all", "all");
+  const groups = new Map();
   for (const row of rows) {
     if (row.operation_category !== "solving") continue;
-    add(groups.all, row);
-    if (SETUP_PHASES.has(row.phase_context)) add(groups.setup, row);
-    else if (SEARCH_PHASES.has(row.phase_context)) add(groups.search, row);
-    else add(groups.other, row);
+    add(all, row);
+    const key = row.phase_context || "unattributed";
+    const phase = PHASES[key] || { label: key, color: "#9CA3AF", order: 99 };
+    if (!groups.has(key)) groups.set(key, { ...emptyGroup(key, phase.label), ...phase });
+    add(groups.get(key), row);
   }
-  return groups;
+  return {
+    all,
+    slices: [...groups.values()]
+      .filter((group) => group.models > 0)
+      .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label)),
+  };
 }
 
 export function ClingoModelsChart({ benchmark }) {
   const rows = benchmark.clingoSummary || [];
   const groups = useMemo(() => solveGroups(rows), [rows]);
-  const slices = [groups.setup, groups.search, groups.other].filter((group) => group.models > 0);
+  const slices = groups.slices;
   const option = useMemo(
     () => ({
       tooltip: {
@@ -55,14 +65,7 @@ export function ClingoModelsChart({ benchmark }) {
             value: group.models,
             calls: group.calls,
             modelsPerSolve: modelsPerSolve(group),
-            itemStyle: {
-              color:
-                group.key === "setup"
-                  ? colors.grounding
-                  : group.key === "search"
-                    ? colors.solving
-                    : colors.closure,
-            },
+            itemStyle: { color: group.color },
           })),
         },
       ],

@@ -2,7 +2,7 @@ import time
 
 import clingo
 
-from .callbacks import WrapperStopIfWarn
+from .callbacks import coverage_logger
 from .coverage import Coverage
 from .coverage_program import (
     build_coverage_static_program,
@@ -32,9 +32,7 @@ class NormalCoverageSolver:
 
     def extract_fixed_coverage(self, program: tuple[str, ...]) -> Coverage:
         generated_program = self.coverage_static_program + "\n" + "\n".join(program)
-        ctl, undefined, seconds = self._ground(generated_program, "grounding", program)
-        if undefined:
-            return Coverage([], [])
+        ctl, seconds = self._ground(generated_program, "grounding", program)
 
         coverage = Coverage([], [])
         start = time.perf_counter()
@@ -60,11 +58,9 @@ class NormalCoverageSolver:
         generated_program = build_subset_coverage_program(
             self.coverage_static_program, program
         )
-        ctl, undefined, _ = self._ground(
+        ctl, _ = self._ground(
             generated_program, "subset_coverage_grounding", program
         )
-        if undefined:
-            return None
 
         coverages: dict[tuple[int, ...], Coverage] = {}
         start = time.perf_counter()
@@ -97,10 +93,7 @@ class NormalCoverageSolver:
         return coverages
 
     def _ground(self, generated_program: str, operation: str, program):
-        wrapper = WrapperStopIfWarn()
-        ctl = clingo.Control(
-            self.clingo_arguments, logger=wrapper.wrapper_warn_undefined_callback
-        )  # type: ignore
+        ctl = clingo.Control(self.clingo_arguments, logger=coverage_logger)  # type: ignore
         ctl.add("base", [], generated_program)
         start = time.perf_counter()
         ctl.ground([("base", [])])
@@ -126,7 +119,7 @@ class NormalCoverageSolver:
                         "stats_rules": stats["rules"],
                     },
                 )
-        return ctl, wrapper.atom_undefined, seconds
+        return ctl, seconds
 
     def _record_solving(
         self,

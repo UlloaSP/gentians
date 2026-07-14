@@ -1,26 +1,22 @@
-from .coverage_symbols import active_symbol
+from .coverage_symbols import ACTIVE_PREDICATE, active_symbol
 
 
 class AssumptionActivation:
     name = "assumptions"
 
     @staticmethod
-    def declaration(max_program_clauses: int, rule_count: int) -> str:
-        if not rule_count or not max_program_clauses:
+    def declaration(rule_count: int) -> str:
+        if not rule_count:
             return ""
-        return (
-            f"{{active(0..{max_program_clauses - 1},"
-            f"0..{rule_count - 1})}}."
-        )
+        return f"{{{ACTIVE_PREDICATE}(0..{rule_count - 1})}}."
 
     @staticmethod
-    def activate(_control, active_pairs, max_program_clauses, rule_ids):
+    def activate(_control, active_rule_ids, rule_ids):
         return [
-            (active_symbol(slot, rule_id), (slot, rule_id) in active_pairs)
-            for slot in range(max_program_clauses)
+            (active_symbol(rule_id), rule_id in active_rule_ids)
             for rule_id in rule_ids
         ]
 
     @staticmethod
-    def deactivate(_control, _active_pairs) -> None:
+    def deactivate(_control, _active_rule_ids) -> None:
         return None

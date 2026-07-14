@@ -1,5 +1,8 @@
 import clingo
 
+ACTIVE_PREDICATE = "gentians_internal_active"
+SELECTED_PREDICATE = "gentians_internal_selected"
+
 
 def parse_coverage_symbol_masks(symbols) -> tuple[int, int]:
     pos_mask = 0
@@ -20,14 +23,14 @@ def parse_selected_rule_tuple(symbols) -> tuple[int, ...]:
         sorted(
             symbol.arguments[0].number
             for symbol in symbols
-            if symbol.name == "r" and len(symbol.arguments) == 1
+            if symbol.name == SELECTED_PREDICATE and len(symbol.arguments) == 1
         )
     )
 
 
-def active_symbol(slot: int, rule_id: int):
-    return clingo.Function("active", [clingo.Number(slot), clingo.Number(rule_id)])
+def active_symbol(rule_id: int):
+    return clingo.Function(ACTIVE_PREDICATE, [clingo.Number(rule_id)])
 
 
 def selected_symbol(index: int):
-    return clingo.Function("selected", [clingo.Number(index)])
+    return clingo.Function(SELECTED_PREDICATE, [clingo.Number(index)])

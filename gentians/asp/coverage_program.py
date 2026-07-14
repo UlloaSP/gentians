@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from .coverage import generate_clauses_for_coverage_interpretations
+from .coverage_symbols import SELECTED_PREDICATE
 from ..rule_generation.example import Example
 
 
@@ -46,12 +47,15 @@ def build_subset_coverage_program(
         coverage_static_program
         + "\n"
         + "\n".join(
-            clause_with_atom(rule, f"r({index})")
+            clause_with_atom(rule, f"{SELECTED_PREDICATE}({index})")
             for index, rule in enumerate(program)
         )
         + "\n"
-        + "\n".join(f"{{r({index})}}." for index in range(len(program)))
-        + "\n#show r/1."
+        + "\n".join(
+            f"{{{SELECTED_PREDICATE}({index})}}."
+            for index in range(len(program))
+        )
+        + f"\n#show {SELECTED_PREDICATE}/1."
     )
 
 

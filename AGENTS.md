@@ -15,4 +15,5 @@ No cambies estas gráficas salvo petición explícita:
 - Fases: `hypothesis space`, `pregrounding`, `initialization`, `selection`, `crossover`, `mutation`, `replacement` y `search orchestration`. No existe fase separada `fitness evaluation`: su coste pertenece a la fase que solicitó la evaluación.
 - Tipos horizontales de tiempo: exactamente `python`, `grounding`, `solving` y `closure`.
 - `pregrounding` solo mide creación y grounding del solver pregenerado; ejecución normal no inventa esa fase.
+- Modelos solve por etapa: usa fases reales; `hypothesis_space` se muestra como `hypothesis`. No agrupa fases conocidas como `search setup`, `fitness search` ni `other`.
 - Los títulos de charts identifican la métrica y son funcionales. No añadas títulos de página, hero copy ni texto ornamental.

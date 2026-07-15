@@ -5,8 +5,8 @@
 [suite]
 output_root = ".benchmarks"
 datasets = ["5queens", "grandparent", "coloring"]
-runs = 3
-timeout_seconds = 50
+runs = 10
+timeout_seconds = 100
 seed_base = 1
 # Deterministic cProfile changes runtime in proportion to Python call count and
 # would bias strategy comparisons. Enable it in a separate profiling config.
@@ -55,3 +55,35 @@ label = "Subprograms mean · assumptions"
 description = "Mean score over fixed-size subprograms with pre-grounded assumptions."
 [experiment.overrides]
 "fitness.grounding" = "assumptions"
+
+[[experiment]]
+id = "cov_subprograms_mean_parallel_hypothesis_space"
+label = "Subprograms mean · parallel hypothesis space"
+description = "Mean score over fixed-size subprograms with parallel hypothesis space."
+[experiment.overrides]
+"hypothesis_space.clingo_arguments" = ["--parallel-mode=4"]
+
+[[experiment]]
+id = "cov_program_parallel_hypothesis_space"
+label = "Whole program · parallel hypothesis space"
+description = "Score the individual as one whole program with parallel hypothesis space."
+[experiment.overrides]
+"fitness.name" = "cov_program"
+"hypothesis_space.clingo_arguments" = ["--parallel-mode=4"]
+
+[[experiment]]
+id = "cov_program_no_closure"
+label = "Whole program · no closure"
+description = "Score the individual as one whole program with no closure."
+[experiment.overrides]
+"fitness.name" = "cov_program"
+"closure.name" = "none"
+
+[[experiment]]
+id = "cov_program_parallel_hypothesis_space_no_closure"
+label = "Whole program · parallel hypothesis space · no closure"
+description = "Score the individual as one whole program with parallel hypothesis space and no closure."
+[experiment.overrides]
+"fitness.name" = "cov_program"
+"hypothesis_space.clingo_arguments" = ["--parallel-mode=4"]
+"closure.name" = "none"

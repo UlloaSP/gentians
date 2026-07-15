@@ -34,7 +34,7 @@ class Arguments:
     random_seed: int | None = None
 
     # Number of genetic generations.
-    iterations_genetic: int = 1000
+    iterations_genetic: int = 2000
 
     # Fitness operator config.
     fitness: dict[str, object] = field(

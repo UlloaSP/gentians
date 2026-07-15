@@ -26,6 +26,7 @@
   .experiment-index nav,
   .detail-nav {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     align-items: center;
     gap: 0.75rem;
@@ -71,16 +72,14 @@
     color: #1c1917;
     background:
       linear-gradient(rgba(37, 99, 235, 0.055) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px),
-      radial-gradient(circle at 12% 0%, #dbeafe 0, #fafaf9 36rem);
+      linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px), #fafaf9;
     background-size:
       32px 32px,
-      32px 32px,
-      auto;
-    padding: 2rem;
+      32px 32px;
+    padding: 1rem;
   }
   .compare-shell {
-    width: min(100%, 112rem);
+    width: 100%;
     margin: 0 auto;
     display: grid;
     gap: 1rem;
@@ -92,8 +91,10 @@
     min-width: 0;
   }
   .compare-controls {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     align-items: end;
     gap: 0.75rem;
   }
@@ -113,6 +114,7 @@
   }
   .compare-controls select,
   .compare-controls button,
+  .compare-home,
   .chart-control select {
     min-height: 2.6rem;
     border: 1px solid #a8a29e;
@@ -121,12 +123,64 @@
     color: #1c1917;
     padding: 0.55rem 0.8rem;
   }
+  .compare-home {
+    display: inline-flex;
+    align-items: center;
+  }
   .compare-controls button {
     cursor: pointer;
     color: #1d4ed8;
   }
-  .compare-controls button:hover {
+  .compare-controls button:hover,
+  .compare-home:hover {
     border-color: #2563eb;
+  }
+  .compare-filters {
+    position: static;
+  }
+  .compare-filters summary {
+    min-height: 2.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid #a8a29e;
+    border-radius: 0.25rem;
+    background: rgba(255, 255, 255, 0.92);
+    color: #1d4ed8;
+    padding: 0.55rem 0.8rem;
+    cursor: pointer;
+    list-style: none;
+  }
+  .compare-filters summary::-webkit-details-marker {
+    display: none;
+  }
+  .compare-filters summary span {
+    display: grid;
+    place-items: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 99rem;
+    background: #dbeafe;
+    font-size: 0.7rem;
+  }
+  .filter-panel {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    left: 0;
+    max-height: calc(100vh - 6rem);
+    overflow: auto;
+    display: grid;
+    gap: 0.75rem;
+    border: 1px solid #a8a29e;
+    border-radius: 0.3rem;
+    background: #fafaf9;
+    box-shadow: 0 24px 70px rgba(28, 25, 23, 0.2);
+    padding: 0.75rem;
+  }
+  .filter-panel > button {
+    justify-self: end;
   }
   .experiment-matrix {
     display: grid;
@@ -225,11 +279,19 @@
     border-radius: 50%;
     margin-right: 0.6rem;
   }
+  .call-pair span {
+    display: inline-block;
+    min-width: 3.2rem;
+  }
   .delta-good {
-    color: #34d399;
+    color: #065f46;
+    background: #ecfdf5;
+    font-weight: 700;
   }
   .delta-bad {
-    color: #fb7185;
+    color: #9f1239;
+    background: #fff1f2;
+    font-weight: 700;
   }
   .missing-data {
     color: #78716c;

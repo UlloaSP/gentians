@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { chartTw } from "./chartTw";
-import { ComparisonCharts } from "./charts/ComparisonCharts";
 import {
   bestRunRatio,
+  bestRunCount,
+  evolutionarySeconds,
   fmt,
   fmtInt,
   groundingSeconds,
+  phaseTotal,
   pythonSeconds,
   runCount,
   solvingSeconds,
@@ -23,13 +25,21 @@ const COLORS = [
   "#65a30d",
   "#ea580c",
 ];
+const METRICS = [
+  ["total_execution", totalSeconds],
+  ["hypothesis", (benchmark) => phaseTotal(benchmark, "hypothesisSpace")],
+  ["tiempo evolutivo", evolutionarySeconds],
+  ["grounding", groundingSeconds],
+  ["solving", solvingSeconds],
+  ["python", pythonSeconds],
+];
 export function ExperimentCompare() {
   const [experiments, setExperiments] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [dashboards, setDashboards] = useState({});
   const [benchmarkName, setBenchmarkName] = useState("");
   const [baselineId, setBaselineId] = useState("");
-  const [axis, setAxis] = useState("generation");
+  const [view, setView] = useState("values");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -116,7 +126,9 @@ export function ExperimentCompare() {
     <main className="compare-page">
       <div className="compare-shell">
         <section className="compare-controls" aria-label="Controles de comparación">
-          <a href="./">←</a>
+          <a className="compare-home" href="./">
+            Experimentos
+          </a>
           <label>
             <span>benchmark</span>
             <select
@@ -130,76 +142,79 @@ export function ExperimentCompare() {
             </select>
           </label>
           <label>
-            <span>baseline para Δ</span>
-            <select value={baselineId} onChange={(event) => setBaselineId(event.target.value)}>
-              {selected.map((experiment) => (
-                <option key={experiment.id} value={experiment.id}>
-                  {experiment.label}
-                </option>
-              ))}
+            <span>vista</span>
+            <select value={view} onChange={(event) => setView(event.target.value)}>
+              <option value="values">valores</option>
+              <option value="deltas">deltas</option>
             </select>
           </label>
-          <button
-            type="button"
-            onClick={() =>
-              setSelectedIds(
-                experiments
-                  .filter((experiment) => experiment.has_dashboard)
-                  .map((experiment) => experiment.id),
-              )
-            }
-          >
-            seleccionar todos
-          </button>
-        </section>
-
-        <section className="experiment-matrix" aria-label="Experimentos">
-          {experiments.map((experiment) => {
-            const active = selectedIds.includes(experiment.id);
-            return (
-              <label
-                className={`experiment-card ${active ? "is-active" : ""} ${experiment.has_dashboard ? "" : "is-disabled"}`}
-                key={experiment.id}
-                style={{ "--experiment": experiment.color }}
+          {view === "deltas" && (
+            <label>
+              <span>baseline para Δ</span>
+              <select value={baselineId} onChange={(event) => setBaselineId(event.target.value)}>
+                {selected.map((experiment) => (
+                  <option key={experiment.id} value={experiment.id}>
+                    {experiment.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <details className="compare-filters">
+            <summary>
+              filtros <span>{selected.length}</span>
+            </summary>
+            <div className="filter-panel">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedIds(
+                    experiments
+                      .filter((experiment) => experiment.has_dashboard)
+                      .map((experiment) => experiment.id),
+                  )
+                }
               >
-                <input
-                  type="checkbox"
-                  checked={active}
-                  disabled={!experiment.has_dashboard}
-                  onChange={() => toggle(experiment.id)}
-                />
-                <span className="experiment-swatch" />
-                <span>
-                  <strong>{experiment.label}</strong>
-                  <small>
-                    {experiment.description || experiment.id} · {experiment.status || "unknown"}
-                  </small>
-                  <code>{configSummary(experiment)}</code>
-                </span>
-              </label>
-            );
-          })}
+                seleccionar todos
+              </button>
+              <section className="experiment-matrix" aria-label="Experimentos">
+                {experiments.map((experiment) => {
+                  const active = selectedIds.includes(experiment.id);
+                  return (
+                    <label
+                      className={`experiment-card ${active ? "is-active" : ""} ${experiment.has_dashboard ? "" : "is-disabled"}`}
+                      key={experiment.id}
+                      style={{ "--experiment": experiment.color }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        disabled={!experiment.has_dashboard}
+                        onChange={() => toggle(experiment.id)}
+                      />
+                      <span className="experiment-swatch" />
+                      <span>
+                        <strong>{experiment.label}</strong>
+                        <small>
+                          {experiment.description || experiment.id} ·{" "}
+                          {experiment.status || "unknown"}
+                        </small>
+                        <code>{configSummary(experiment)}</code>
+                      </span>
+                    </label>
+                  );
+                })}
+              </section>
+            </div>
+          </details>
         </section>
-        <ComparisonTable rows={rows} baseline={baseline} />
-        <ComparisonCharts rows={rows} axis={axis} setAxis={setAxis} />
-
-        <nav className="individual-links">
-          {selected.map((experiment) => (
-            <a
-              key={experiment.id}
-              href={`?data=${encodeURIComponent(experiment.dashboard_path)}`}
-              style={{ "--experiment": experiment.color }}
-            >
-              {experiment.label} ↗
-            </a>
-          ))}
-        </nav>
+        <ComparisonTable rows={rows} baseline={baseline} view={view} />
       </div>
     </main>
   );
 }
 
-function ComparisonTable({ rows, baseline }) {
+function ComparisonTable({ rows, baseline, view }) {
   return (
     <section className="comparison-table-wrap">
       <div className="comparison-table-scroll">
@@ -207,20 +222,13 @@ function ComparisonTable({ rows, baseline }) {
           <thead>
             <tr>
               <th>experimento</th>
-              <th>runs medidos/total</th>
-              <th>timeouts</th>
-              <th>total_execution</th>
-              <th>Δ total</th>
-              <th>grounding</th>
-              <th>Δ grounding</th>
-              <th>solving</th>
-              <th>Δ solving</th>
-              <th>python</th>
-              <th>Δ python</th>
-              <th>best</th>
+              <th>{view === "deltas" ? "% runs medidos" : "runs medidos/total"}</th>
+              {METRICS.map(([label]) => (
+                <th key={label}>{view === "deltas" ? `Δ ${label}` : label}</th>
+              ))}
+              <th>{view === "deltas" ? "% best medidos" : "best"}</th>
               <th>candidatas</th>
-              <th>ground calls</th>
-              <th>solve calls</th>
+              <th>{view === "deltas" ? "Δ calls ground/solve" : "calls ground/solve"}</th>
             </tr>
           </thead>
           <tbody>
@@ -234,59 +242,41 @@ function ComparisonTable({ rows, baseline }) {
                     {experiment.label}
                   </th>
                   <td>
-                    {fmtInt(benchmark.instrumentedRuns)}/{fmtInt(runCount(benchmark))}
+                    {view === "deltas"
+                      ? formatRatio(benchmark.instrumentedRuns, runCount(benchmark))
+                      : `${fmtInt(benchmark.instrumentedRuns)}/${fmtInt(runCount(benchmark))}`}
                   </td>
-                  <td>{fmtInt(benchmark.timeouts)}</td>
-                  <td>{measured ? `${fmt(totalSeconds(benchmark), 3)}s` : "—"}</td>
-                  <td
-                    className={
-                      comparable ? deltaClass(totalSeconds(benchmark), totalSeconds(baseline)) : ""
-                    }
-                  >
-                    {comparable
-                      ? formatDelta(totalSeconds(benchmark), totalSeconds(baseline))
-                      : "—"}
+                  {METRICS.map(([label, value]) => (
+                    <MetricCell
+                      key={label}
+                      value={value(benchmark)}
+                      baseline={baseline ? value(baseline) : 0}
+                      measured={measured}
+                      comparable={comparable}
+                      view={view}
+                    />
+                  ))}
+                  <td>
+                    {view === "deltas"
+                      ? formatRatio(bestRunCount(benchmark), benchmark.instrumentedRuns)
+                      : bestRunRatio(benchmark)}
                   </td>
-                  <td>{measured ? `${fmt(groundingSeconds(benchmark), 3)}s` : "—"}</td>
-                  <td
-                    className={
-                      comparable
-                        ? deltaClass(groundingSeconds(benchmark), groundingSeconds(baseline))
-                        : ""
-                    }
-                  >
-                    {comparable
-                      ? formatDelta(groundingSeconds(benchmark), groundingSeconds(baseline))
-                      : "—"}
-                  </td>
-                  <td>{measured ? `${fmt(solvingSeconds(benchmark), 3)}s` : "—"}</td>
-                  <td
-                    className={
-                      comparable
-                        ? deltaClass(solvingSeconds(benchmark), solvingSeconds(baseline))
-                        : ""
-                    }
-                  >
-                    {comparable
-                      ? formatDelta(solvingSeconds(benchmark), solvingSeconds(baseline))
-                      : "—"}
-                  </td>
-                  <td>{measured ? `${fmt(pythonSeconds(benchmark), 3)}s` : "—"}</td>
-                  <td
-                    className={
-                      comparable
-                        ? deltaClass(pythonSeconds(benchmark), pythonSeconds(baseline))
-                        : ""
-                    }
-                  >
-                    {comparable
-                      ? formatDelta(pythonSeconds(benchmark), pythonSeconds(baseline))
-                      : "—"}
-                  </td>
-                  <td>{bestRunRatio(benchmark)}</td>
                   <td>{fmtInt(benchmark.candidates)}</td>
-                  <td>{fmtInt(benchmark.groundCalls)}</td>
-                  <td>{fmtInt(benchmark.solveCalls)}</td>
+                  <td className="call-pair">
+                    <CallCount
+                      value={benchmark.groundCalls}
+                      baseline={baseline?.groundCalls}
+                      comparable={comparable}
+                      view={view}
+                    />
+                    /
+                    <CallCount
+                      value={benchmark.solveCalls}
+                      baseline={baseline?.solveCalls}
+                      comparable={comparable}
+                      view={view}
+                    />
+                  </td>
                 </tr>
               ) : (
                 <tr key={experiment.id}>
@@ -294,7 +284,7 @@ function ComparisonTable({ rows, baseline }) {
                     <i style={{ background: experiment.color }} />
                     {experiment.label}
                   </th>
-                  <td colSpan="14" className="missing-data">
+                  <td colSpan="10" className="missing-data">
                     {loading ? "cargando…" : "benchmark no disponible"}
                   </td>
                 </tr>
@@ -304,6 +294,35 @@ function ComparisonTable({ rows, baseline }) {
         </table>
       </div>
     </section>
+  );
+}
+
+function MetricCell({ value, baseline, measured, comparable, view }) {
+  const deltas = view === "deltas";
+  return (
+    <td className={deltas && comparable ? deltaClass(value, baseline) : ""}>
+      {deltas
+        ? comparable
+          ? formatDelta(value, baseline)
+          : "—"
+        : measured
+          ? `${fmt(value, 3)}s`
+          : "—"}
+    </td>
+  );
+}
+
+function CallCount({ value, baseline, comparable, view }) {
+  if (view === "values") return <span>{fmtInt(value)}</span>;
+  if (!comparable) return <span>—</span>;
+  const delta = value - baseline;
+  const direction = delta === 0 ? "→" : delta < 0 ? "↓" : "↑";
+  return (
+    <span className={deltaClass(value, baseline)}>
+      {delta > 0 ? "+" : ""}
+      {fmtInt(delta)}
+      {direction}
+    </span>
   );
 }
 
@@ -348,6 +367,9 @@ function formatDelta(value, baseline) {
   if (!baseline) return "—";
   const delta = (value / baseline - 1) * 100;
   return `${delta > 0 ? "+" : ""}${fmt(delta, 1)}%`;
+}
+function formatRatio(value, total) {
+  return total ? `${fmt((value / total) * 100, 1)}%` : "—";
 }
 function deltaClass(value, baseline) {
   if (!baseline || value === baseline) return "";

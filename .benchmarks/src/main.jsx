@@ -35,6 +35,7 @@ import "./styles.css";
 
 export function DetailApp() {
   const [benchmarks, setBenchmarks] = useState([]);
+  const [experiments, setExperiments] = useState([]);
   const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
 
@@ -55,6 +56,12 @@ export function DetailApp() {
         setSelected(payload.benchmarks[0].name);
       })
       .catch((err) => setError(String(err.message || err)));
+
+    fetch("experiments.json", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload) =>
+        setExperiments(payload.experiments?.filter((item) => item.has_dashboard) || []),
+      );
   }, []);
 
   const current = benchmarks.find((benchmark) => benchmark.name === selected) || benchmarks[0];
@@ -69,7 +76,12 @@ export function DetailApp() {
   return (
     <PageLayout
       actions={
-        <BenchmarkMenu benchmarks={benchmarks} benchmark={current} setSelected={setSelected} />
+        <BenchmarkMenu
+          experiments={experiments}
+          benchmarks={benchmarks}
+          benchmark={current}
+          setSelected={setSelected}
+        />
       }
     >
       <Detail benchmark={current} />
@@ -77,10 +89,23 @@ export function DetailApp() {
   );
 }
 
-function BenchmarkMenu({ benchmarks, benchmark, setSelected }) {
+function BenchmarkMenu({ experiments, benchmarks, benchmark, setSelected }) {
   return (
     <>
       <a href="./">←</a>
+      <select
+        aria-label="Experimento"
+        value={dataUrl()}
+        onChange={(event) => {
+          window.location.href = `?data=${encodeURIComponent(event.target.value)}`;
+        }}
+      >
+        {experiments.map((experiment) => (
+          <option key={experiment.id} value={experiment.dashboard_path}>
+            {experiment.label}
+          </option>
+        ))}
+      </select>
       <select
         aria-label="Benchmark"
         value={benchmark.name}

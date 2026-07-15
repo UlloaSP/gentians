@@ -49,8 +49,10 @@ export const fmt = (value, digits = 2) =>
 export const fmtInt = (value) => Math.round(num(value)).toLocaleString("es-ES");
 export const runCount = (benchmark) =>
   num(benchmark.runCount) || benchmark.fitnessRuns?.length || 0;
+export const bestRunCount = (benchmark) =>
+  benchmark.bestFoundRuns ?? Math.round(num(benchmark.exactSolved) * runCount(benchmark));
 export const bestRunRatio = (benchmark) =>
-  `${fmtInt(benchmark.bestFoundRuns ?? Math.round(num(benchmark.exactSolved) * runCount(benchmark)))}/${fmtInt(runCount(benchmark))}`;
+  `${fmtInt(bestRunCount(benchmark))}/${fmtInt(runCount(benchmark))}`;
 
 export const phaseTypeTotal = (benchmark, phase, type) => num(benchmark.phases?.[phase]?.[type]);
 export const phaseTotal = (benchmark, phase) =>
@@ -68,9 +70,15 @@ export const pythonSeconds = (benchmark) =>
   sum(phaseOrder.map(([phase]) => benchmark.phases?.[phase]?.python));
 export const evolutionarySeconds = (benchmark) =>
   sum(
-    ["initialization", "selection", "crossover", "mutation", "replacement", "gaPython"].map(
-      (phase) => phaseTotal(benchmark, phase),
-    ),
+    [
+      "pregrounding",
+      "initialization",
+      "selection",
+      "crossover",
+      "mutation",
+      "replacement",
+      "gaPython",
+    ].map((phase) => phaseTotal(benchmark, phase)),
   );
 const phaseTotals = (benchmark) =>
   phaseOrder.map(([phase, label]) => ({ phase, label, seconds: phaseTotal(benchmark, phase) }));

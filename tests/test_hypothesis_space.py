@@ -4,6 +4,7 @@ import random
 import re
 
 import clingo
+import pytest
 from benchmarks.catalog import CASES
 from gentians.arguments import Arguments
 from gentians.asp.normal_coverage_solver import NormalCoverageSolver
@@ -370,6 +371,118 @@ def test_reader_deduplicates_equal_directives(tmp_path):
     assert len(program.negative_examples) == 1
     assert len(program.language_bias_head) == 1
     assert len(program.language_bias_body) == 1
+
+
+def test_invent_replaces_head_and_body_modes(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "#invent(2,helper,2).\n",
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+
+    assert program.invented_predicates == (("helper", 2),)
+    assert [
+        (mode.recall, mode.name, mode.arity)
+        for mode in program.language_bias_head
+    ] == [(1, "helper", 2)]
+    assert [
+        (mode.recall, mode.name, mode.arity, mode.positive)
+        for mode in program.language_bias_body
+    ] == [(2, "helper", 2, True)]
+
+
+def test_invent_rejects_duplicate_explicit_modes(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "#invent(2,helper,2).\n#modeh(1,helper,2).\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="must not also use"):
+        read_program(str(task))
+
+
+def test_invent_rejects_duplicate_signature(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "#invent(1,helper,2).\n#invent(2,helper,2).\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="duplicate #invent"):
+        read_program(str(task))
+
+
+def test_invent_rejects_observed_predicate(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "helper(a).\n#invent(1,helper,1).\n",
+        encoding="utf-8",
+    )
+    program = read_program(str(task))
+
+    with pytest.raises(ValueError, match="must not be observed"):
+        HypothesisSpaceGenerator(program, Arguments()).generate()
+
+
+def test_invented_predicates_are_stratified_and_excluded_from_constraints(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "\n".join(
+            [
+                "base(a).",
+                "#pos({target(a)},{}).",
+                "#modeh(1,target,1).",
+                "#modeb(1,base,1,positive).",
+                "#modeb(1,target,1,positive).",
+                "#invent(1,early,1).",
+                "#invent(1,late,1).",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    program = read_program(str(task))
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=1)
+    ).generate().clauses
+
+    assert "late(V0) :- early(V0)." in clauses
+    assert "early(V0) :- late(V0)." not in clauses
+    assert "early(V0) :- early(V0)." not in clauses
+    assert "early(V0) :- target(V0)." not in clauses
+    assert "late(V0) :- target(V0)." not in clauses
+    assert not any(
+        clause.startswith(":-") and ("early(" in clause or "late(" in clause)
+        for clause in clauses
+    )
+
+
+def test_invented_definition_cannot_call_target_through_aggregate(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "\n".join(
+            [
+                "target(a).",
+                "#modeh(1,target,1).",
+                "#modeagg(1,count(target/1),balanced).",
+                "#invent(1,helper,1).",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    program = read_program(str(task))
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=2)
+    ).generate().clauses
+
+    assert not any(
+        clause.startswith("helper(") and ":target(" in clause
+        for clause in clauses
+    )
 
 
 def test_hypothesis_space_prunes_arg_distinct_modes_before_rendering():
@@ -1844,11 +1957,19 @@ def test_even_odd_hypothesis_space_contains_mutual_recursion():
 
 
 def test_grandparent_hypothesis_space_contains_invented_predicate_solution():
-    clauses = _benchmark_clauses("grandparent")
+    args = copy.deepcopy(CASES["grandparent"])
+    program = read_program(args.filename)
+    clauses = set(HypothesisSpaceGenerator(program, args).generate().clauses)
 
+    assert program.invented_predicates == (("target_1", 2),)
+    assert len(program.positive_examples) == 7
     assert "target(V0,V2) :- target_1(V0,V1),target_1(V1,V2)." in clauses
     assert "target_1(V0,V1) :- mother(V0,V1)." in clauses
     assert "target_1(V0,V1) :- father(V0,V1)." in clauses
+    assert not any(
+        clause.startswith("target_1(") and "target_1(" in clause.split(" :- ", 1)[1]
+        for clause in clauses
+    )
 
 
 def test_fixed_benchmark_definitions_expose_real_target_shapes():

@@ -110,6 +110,7 @@ class HypothesisSpaceGenerator:
         self.program = program
         self.args = args
         self.fragments = _program_fragments(program)
+        _validate_invented_predicates(program, self.fragments)
         self.predicate_arg_types = _predicate_arg_types(program, self.fragments)
         self.aggregate_specs = _valid_aggregate_specs(program, self.fragments)
         self.capabilities = _hypothesis_capabilities(
@@ -244,12 +245,24 @@ def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
         with instrumentation():
             record_metric(
                 "candidate",
-                {
-                    "metric": "hypothesis_space",
-                    "clauses": len(rule_space),
-                },
+                hypothesis_space_metrics(program, rule_space),
             )
     return rule_space
+
+
+def hypothesis_space_metrics(program: Program, rule_space: RuleSpace) -> dict[str, object]:
+    invented = set(program.invented_predicates)
+    return {
+        "metric": "hypothesis_space",
+        "clauses": len(rule_space),
+        "invented_predicates": len(invented),
+        "invented_definition_clauses": sum(
+            bool(entry.heads & invented) for entry in rule_space.entries
+        ),
+        "invented_consumer_clauses": sum(
+            bool(entry.deps & invented) for entry in rule_space.entries
+        ),
+    }
 
 
 def _numeric_domain_values(program: Program) -> set[int]:
@@ -1434,6 +1447,26 @@ def _recursive_predicates(program: Program) -> set[Predicate]:
     }
 
 
+def _validate_invented_predicates(program: Program, fragments: list[str]) -> None:
+    invented = set(program.invented_predicates)
+    if len(invented) != len(program.invented_predicates):
+        raise ValueError("duplicate invented predicate")
+    heads = {(mode.name, mode.arity) for mode in program.language_bias_head}
+    positive_bodies = {
+        (mode.name, mode.arity)
+        for mode in program.language_bias_body
+        if mode.positive
+    }
+    missing = invented - (heads & positive_bodies)
+    if missing:
+        raise ValueError(
+            f"invented predicates require generated head and positive body modes: {sorted(missing)}"
+        )
+    observed = invented & _observed_predicates(fragments)
+    if observed:
+        raise ValueError(f"invented predicates must not be observed: {sorted(observed)}")
+
+
 def _hypothesis_capabilities(
     program: Program,
     predicate_arg_types: dict[tuple[str, int, int], str],
@@ -1770,6 +1803,8 @@ def _facts(
     if all_positive:
         parts.append("numeric_domain_positive.")
     parts.extend(_closed_world_property_facts(properties, predicate_ids))
+    for layer, predicate in enumerate(program.invented_predicates):
+        parts.append(f"invented_pred({predicate_ids[predicate]},{layer}).")
     for mode in modes:
         section_id = mode.section
         predicate_id = mode.id

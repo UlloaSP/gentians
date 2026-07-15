@@ -19,10 +19,17 @@ from gentians.rule_generation.program import Program
 from gentians.rule_generation.rule_space import RuleSpace
 
 
+def _arguments(tmp_path, **kwargs):
+    task = tmp_path / "coin.txt"
+    if not task.exists():
+        task.write_text("coin(c1).\n", encoding="utf-8")
+    return Arguments(filename=str(task), **kwargs)
+
+
 def test_hypothesis_file_ignores_ga_only_arguments(tmp_path):
     path = tmp_path / "coin.json"
-    generated = Arguments(filename="coin.txt", iterations_genetic=1)
-    requested = Arguments(filename="coin.txt", iterations_genetic=999)
+    generated = _arguments(tmp_path, iterations_genetic=1)
+    requested = _arguments(tmp_path, iterations_genetic=999)
 
     write_hypothesis_file(path, "coin", generated, RuleSpace.from_clauses(["rule."]))
 
@@ -33,7 +40,7 @@ def test_hypothesis_file_ignores_ga_only_arguments(tmp_path):
 
 def test_hypothesis_file_stores_entries_to_avoid_reparse(monkeypatch, tmp_path):
     path = tmp_path / "coin.json"
-    arguments = Arguments(filename="coin.txt")
+    arguments = _arguments(tmp_path)
     write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
     payload = json.loads(path.read_text(encoding="utf-8"))
 
@@ -59,12 +66,23 @@ def test_hypothesis_file_rejects_generation_argument_mismatch(tmp_path):
     write_hypothesis_file(
         path,
         "coin",
-        Arguments(filename="coin.txt", max_depth=3),
+        _arguments(tmp_path, max_depth=3),
         RuleSpace.from_clauses(["rule."]),
     )
 
     with pytest.raises(ValueError, match="does not match"):
-        read_hypothesis_file(path, Arguments(filename="coin.txt", max_depth=4))
+        read_hypothesis_file(path, _arguments(tmp_path, max_depth=4))
+
+
+def test_hypothesis_file_rejects_changed_task_content(tmp_path):
+    path = tmp_path / "coin.json"
+    arguments = _arguments(tmp_path)
+    write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
+
+    Path(arguments.filename).write_text("coin(c2).\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="does not match"):
+        read_hypothesis_file(path, arguments)
 
 
 def test_build_command_accepts_profile_script_path():
@@ -76,7 +94,7 @@ def test_build_command_accepts_profile_script_path():
 
 def test_profile_ga_parent_validates_without_loading_rule_space(monkeypatch, tmp_path):
     path = tmp_path / "coin.json"
-    arguments = Arguments(filename="coin.txt")
+    arguments = _arguments(tmp_path)
     write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
     monkeypatch.setattr(
         "benchmarks.profile_ga.read_hypothesis_payload",
@@ -90,7 +108,7 @@ def test_profile_ga_parent_validates_without_loading_rule_space(monkeypatch, tmp
 
 def test_profile_ga_worker_loads_hypothesis_file(monkeypatch, tmp_path):
     path = tmp_path / "coin.json"
-    arguments = Arguments(filename="coin.txt")
+    arguments = _arguments(tmp_path)
     write_hypothesis_file(path, "coin", arguments, RuleSpace.from_clauses(["rule."]))
     captured = {}
     timing.reset()
@@ -115,7 +133,7 @@ def test_profile_ga_worker_loads_hypothesis_file(monkeypatch, tmp_path):
     run_profile_worker()
 
     assert captured["clauses"] == ("rule.",)
-    assert captured["arguments"].filename == "coin.txt"
+    assert captured["arguments"].filename == str(tmp_path / "coin.txt")
     assert captured["start_total_time"] is not None
     assert timing._totals["hypothesis_load"] == 2.5
     assert "hypothesis_space" not in timing._totals

@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 from .parser import parse_aggregate_spec, split_top_level_args
 from .aggregate_declaration import AggregateDeclaration
@@ -50,6 +51,18 @@ def _get_operator_declaration(s: str, name: str) -> OperatorDeclaration:
     return OperatorDeclaration(_parse_recall(parts[0]), parts[1].strip())
 
 
+def _get_invented_declaration(s: str) -> tuple[int, str, int]:
+    parts = split_top_level_args(_directive_args(s, "#invent"))
+    if len(parts) != 3:
+        raise ValueError(f"invalid #invent declaration: {s}")
+    recall = _parse_recall(parts[0])
+    name = parts[1].strip()
+    arity = int(parts[2])
+    if recall < 1 or arity < 0 or not re.fullmatch(r"[a-z][A-Za-z0-9_]*", name):
+        raise ValueError(f"invalid #invent declaration: {s}")
+    return recall, name, arity
+
+
 def _directive_args(line: str, name: str) -> str:
     line = line.strip()
     if not line.startswith(f"{name}(") or not line.endswith(")."):
@@ -81,6 +94,7 @@ def read_program(filename: str):
     aggregates: list[AggregateDeclaration] = []
     comparisons: list[OperatorDeclaration] = []
     arithmetic: list[OperatorDeclaration] = []
+    inventions: list[tuple[int, str, int]] = []
 
     for line in Path(filename).read_text(encoding="utf-8").splitlines():
         lc = line.rstrip().lstrip()
@@ -119,7 +133,35 @@ def read_program(filename: str):
             operator = _get_operator_declaration(lc, "#modearith")
             if operator not in arithmetic:
                 arithmetic.append(operator)
+        elif lc.startswith("#invent"):
+            invention = _get_invented_declaration(lc)
+            if any(existing[1:] == invention[1:] for existing in inventions):
+                raise ValueError(f"duplicate #invent declaration: {lc}")
+            inventions.append(invention)
         else:
             bg.append(lc)
 
-    return Program(bg, pe, ne, lbh, lbb, aggregates, comparisons, arithmetic)
+    invented_predicates = tuple((name, arity) for _recall, name, arity in inventions)
+    explicit = {
+        (mode.name, mode.arity)
+        for mode in [*lbh, *lbb]
+    }
+    overlap = explicit.intersection(invented_predicates)
+    if overlap:
+        raise ValueError(
+            f"invented predicates must not also use #modeh/#modeb: {sorted(overlap)}"
+        )
+    for recall, name, arity in inventions:
+        lbh.append(ModeDeclaration(("1", name, str(arity)), True))
+        lbb.append(ModeDeclaration((str(recall), name, str(arity), "positive"), False))
+    return Program(
+        bg,
+        pe,
+        ne,
+        lbh,
+        lbb,
+        aggregates,
+        comparisons,
+        arithmetic,
+        invented_predicates=invented_predicates,
+    )

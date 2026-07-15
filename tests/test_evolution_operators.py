@@ -8,6 +8,7 @@ from gentians.evolution.mutations import create_mutation
 from gentians.evolution.selections import create_selection
 from gentians.evolution.evolution_context import EvolutionContext
 from gentians.rule_generation.program import Program
+from gentians.rule_generation.example import Example
 from gentians.rule_generation.rule_space import RuleSpace
 
 
@@ -62,6 +63,31 @@ def test_dependency_policy_closes_every_proposal():
     space = RuleSpace.from_clauses(list(rules))
     policy = create_closure("dependency", program, space, 2, random.Random(1))
     assert policy.normalize((rules[0],)) == tuple(sorted(rules))
+
+
+def test_dependency_policy_builds_invented_definition_module():
+    consumer = "target(V0,V2) :- helper(V0,V1),helper(V1,V2)."
+    mother = "helper(V0,V1) :- mother(V0,V1)."
+    father = "helper(V0,V1) :- father(V0,V1)."
+    recursive = "helper(V1,V0) :- helper(V0,V1)."
+    constraint = ":- helper(V0,V1),bad(V0)."
+    program = Program(
+        ["mother(a,b).", "father(b,c).", "bad(d)."],
+        [Example(("target(a,c)", ""), True)],
+        [],
+        [],
+        [],
+        invented_predicates=(("helper", 2),),
+    )
+    space = RuleSpace.from_clauses(
+        [consumer, mother, father, recursive, constraint]
+    )
+    policy = create_closure(
+        "dependency", program, space, 3, random.Random(1), fixed_size=True
+    )
+
+    assert policy.normalize((consumer,)) == tuple(sorted((consumer, mother, father)))
+    assert consumer in policy.sample()
 
 
 def test_no_closure_keeps_valid_proposal_without_repair():

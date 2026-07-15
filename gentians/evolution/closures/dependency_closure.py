@@ -4,6 +4,7 @@ import random
 import time
 
 from ...rule_generation.program import Program
+from ...rule_generation.parser import fragment_atoms
 from ...rule_generation.rule_space import RuleSpace
 from .common import bits, defined_predicates, prepare_space
 from ...timing import add, current_phase
@@ -33,6 +34,14 @@ class DependencyClosure:
             for index, predicate in enumerate(sorted(predicates))
         }
         self.background_mask = self._predicate_mask(background)
+        self.invented_mask = self._predicate_mask(set(program.invented_predicates))
+        target_predicates = {
+            (name, len(arguments))
+            for example in [*program.positive_examples, *program.negative_examples]
+            for fragment in (example.included, example.excluded)
+            for name, arguments, _negative in fragment_atoms(fragment)
+        }
+        self.target_mask = self._predicate_mask(target_predicates)
         self.masks = {
             entry.text: (
                 self._predicate_mask(entry.heads),
@@ -56,7 +65,7 @@ class DependencyClosure:
             else max(1, min(target_size or self.rng.randint(1, limit), limit))
         )
         for _ in range(64):
-            selected = tuple(self.rng.sample(self.space.clauses, size))
+            selected = self._sample_rules(size)
             started = time.perf_counter()
             normalized = self.normalize(selected)
             add(f"{current_phase()}.closure", time.perf_counter() - started)
@@ -65,6 +74,27 @@ class DependencyClosure:
             ):
                 return normalized
         return None
+
+    def _sample_rules(self, size: int) -> tuple[str, ...]:
+        target_rules = [
+            rule
+            for rule, (heads, _deps, _body) in self.masks.items()
+            if heads & self.target_mask
+        ]
+        if not self.invented_mask or not target_rules:
+            return tuple(self.rng.sample(self.space.clauses, size))
+        invented_consumers = [
+            rule
+            for rule in target_rules
+            if self.masks[rule][1] & self.invented_mask
+        ]
+        if invented_consumers:
+            target_rules = invented_consumers
+        seed = self.rng.choice(target_rules)
+        if self.fixed_size:
+            return (seed,)
+        available = [rule for rule in self.space.clauses if rule != seed]
+        return (seed, *self.rng.sample(available, min(size - 1, len(available))))
 
     def normalize(self, proposal: tuple[str, ...]) -> tuple[str, ...] | None:
         candidate = tuple(sorted(dict.fromkeys(proposal)))
@@ -109,15 +139,25 @@ class DependencyClosure:
 
     def _fill(self, closed: list[str]) -> list[str] | None:
         while len(closed) < self.target_size:
-            added = False
+            candidates = []
+            defined, active_deps = self._program_masks(closed)
             for rule in sorted(set(self.space.clauses) - set(closed)):
                 expanded = self._close([*closed, rule])
                 if expanded is not None and len(expanded) <= self.target_size:
-                    closed = expanded
-                    added = True
-                    break
-            if not added:
+                    heads, deps, body = self.masks[rule]
+                    score = (
+                        (heads & active_deps & self.invented_mask).bit_count(),
+                        int(bool(heads)),
+                        -(deps & ~(defined | heads)).bit_count(),
+                        -body,
+                    )
+                    candidates.append((score, expanded))
+            if not candidates:
                 return None
+            best_score = max(score for score, _expanded in candidates)
+            closed = self.rng.choice(
+                [expanded for score, expanded in candidates if score == best_score]
+            )
         return closed
 
     def _provider(
@@ -132,17 +172,32 @@ class DependencyClosure:
             if rule in closed:
                 continue
             heads, deps, body = self.masks[rule]
+            if missing_bit & self.invented_mask and missing_bit & deps:
+                continue
             score = (
                 (heads & missing).bit_count(),
                 -(deps & ~(defined | heads)).bit_count(),
                 -body,
-                rule,
             )
             choices.append((score, rule))
-        return max(choices)[1] if choices else None
+        if not choices:
+            return None
+        best_score = max(score for score, _rule in choices)
+        return self.rng.choice([rule for score, rule in choices if score == best_score])
+
+    def _program_masks(self, rules: list[str]) -> tuple[int, int]:
+        defined = self.background_mask
+        deps = 0
+        for rule in rules:
+            heads, required, _body = self.masks[rule]
+            defined |= heads
+            deps |= required
+        return defined, deps
 
     def _predicate_mask(self, predicates) -> int:
         mask = 0
         for predicate in predicates:
-            mask |= 1 << self.predicate_ids[predicate]
+            identifier = self.predicate_ids.get(predicate)
+            if identifier is not None:
+                mask |= 1 << identifier
         return mask

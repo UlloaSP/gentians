@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -32,7 +33,7 @@ def write_hypothesis_file(
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "dataset": dataset,
         "hypothesisKey": hypothesis_key(arguments),
         "arguments": asdict(arguments),
@@ -65,7 +66,7 @@ def read_hypothesis_payload(path: Path, arguments: Arguments) -> dict[str, objec
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError(f"Invalid hypothesis space file: {path}")
-    if payload.get("schemaVersion") != 2:
+    if payload.get("schemaVersion") != 3:
         raise ValueError(f"Unsupported hypothesis space schema: {path}")
     expected = hypothesis_key(arguments)
     actual = payload.get("hypothesisKey")
@@ -76,7 +77,13 @@ def read_hypothesis_payload(path: Path, arguments: Arguments) -> dict[str, objec
 
 def hypothesis_key(arguments: Arguments) -> dict[str, object]:
     values = asdict(arguments)
-    return {field: values[field] for field in HYPOTHESIS_FIELDS}
+    key = {field: values[field] for field in HYPOTHESIS_FIELDS}
+    key["task_sha256"] = (
+        hashlib.sha256(Path(arguments.filename).read_bytes()).hexdigest()
+        if arguments.filename
+        else None
+    )
+    return key
 
 
 def _entry_payload(entry: RuleEntry) -> dict[str, object]:

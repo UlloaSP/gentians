@@ -191,19 +191,20 @@ and no explicit language bias. This translates into:
 Currently, pay attention when using this together with aggregates, since you may encounter an infinite loop while grounding the program.
 
 ## Predicate Invention
-You can use predicate invention by declaring the invented predicate directly in the language bias.
-There is no separate config option for it: invented predicates are normal predicates that appear in `#modeh` and, when recursive use is needed, `#modeb`.
+Declare an invented predicate once with `#invent(BODY_RECALL, NAME, ARITY)`.
+It is generated in rule heads with recall 1 and in positive rule bodies with the
+declared recall. Invented definitions are ordered by declaration and may depend
+only on earlier invented predicates, preventing recursive invention cycles.
 
 Example:
 ```prolog
 #modeh(1,target,2).
-#modeh(1,target_1,2).
 #modeb(1,father,2,positive).
 #modeb(1,mother,2,positive).
-#modeb(2,target_1,2,positive).
+#invent(2,target_1,2).
 ```
 
-Here `target_1/2` is invented. It can be learned in rule heads and then reused in rule bodies.
+Here `target_1/2` is learned in rule heads and may occur twice in rule bodies.
 
 ## Main Available Options
 

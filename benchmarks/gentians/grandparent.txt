@@ -14,7 +14,13 @@ father(a,c).
 father(b,d).
 father(b,e).
 
-#pos({target(i,b), target(i,c), target(a,d), target(a,e), target(a,f), target(a,g), target(c,h)}, {}).
+#pos({target(i,b)}, {}).
+#pos({target(i,c)}, {}).
+#pos({target(a,d)}, {}).
+#pos({target(a,e)}, {}).
+#pos({target(a,f)}, {}).
+#pos({target(a,g)}, {}).
+#pos({target(c,h)}, {}).
 
 #neg({target(a,b)}, {}).
 #neg({target(b,c)}, {}).
@@ -26,8 +32,7 @@ father(b,e).
 #neg({target(h,i)}, {}).
 
 #modeh(1,target,2).
-#modeh(1,target_1,2).
 
 #modeb(1,father,2,positive).
 #modeb(1,mother,2,positive).
-#modeb(2,target_1,2,positive).
+#invent(2,target_1,2).

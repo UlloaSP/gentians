@@ -801,8 +801,24 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
         [],
         [],
         [
-            {"dataset": "d", "run": 1, "metric": "hypothesis_space", "clauses": 100},
-            {"dataset": "d", "run": 2, "metric": "hypothesis_space", "clauses": 300},
+            {
+                "dataset": "d",
+                "run": 1,
+                "metric": "hypothesis_space",
+                "clauses": 100,
+                "invented_predicates": 1,
+                "invented_definition_clauses": 20,
+                "invented_consumer_clauses": 30,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "metric": "hypothesis_space",
+                "clauses": 300,
+                "invented_predicates": 1,
+                "invented_definition_clauses": 40,
+                "invented_consumer_clauses": 50,
+            },
         ],
         [],
         [
@@ -840,6 +856,9 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
 
     bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
     assert bench["candidates"] == 200
+    assert bench["inventedPredicates"] == 1
+    assert bench["inventedDefinitions"] == 30
+    assert bench["inventedConsumers"] == 40
     assert bench["groundCalls"] == 1
     assert bench["solveCalls"] == 1.5
     assert bench["models"] == 7

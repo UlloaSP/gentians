@@ -990,6 +990,15 @@ def write_dashboard_data(
                 ),
                 "candidates": int(candidates),
                 "clauses": int(candidates),
+                "inventedPredicates": to_float(
+                    candidate.get("mean_invented_predicates")
+                ),
+                "inventedDefinitions": to_float(
+                    candidate.get("mean_invented_definition_clauses")
+                ),
+                "inventedConsumers": to_float(
+                    candidate.get("mean_invented_consumer_clauses")
+                ),
                 "variables": 0,
                 "predicates": 0,
                 "avgArity": 0,
@@ -1562,6 +1571,17 @@ def candidate_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                     for row in placements
                 ),
                 "mean_clauses": mean(candidate_clause_count(row) for row in placements),
+                "mean_invented_predicates": mean(
+                    to_float(row.get("invented_predicates")) for row in placements
+                ),
+                "mean_invented_definition_clauses": mean(
+                    to_float(row.get("invented_definition_clauses"))
+                    for row in placements
+                ),
+                "mean_invented_consumer_clauses": mean(
+                    to_float(row.get("invented_consumer_clauses"))
+                    for row in placements
+                ),
             }
         )
     return summary

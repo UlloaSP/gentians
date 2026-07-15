@@ -24,6 +24,7 @@ class Program:
     comparison_modes: list[OperatorDeclaration] = field(default_factory=list)
     arithmetic_modes: list[OperatorDeclaration] = field(default_factory=list)
     generated_language_bias_body: set[Signature] = field(default_factory=set)
+    invented_predicates: tuple[Signature, ...] = ()
 
     def complete_language_bias(self, recall: int = 1) -> None:
         """

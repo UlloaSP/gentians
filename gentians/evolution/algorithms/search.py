@@ -4,7 +4,10 @@ import random
 import time
 
 from ...arguments import Arguments
-from ...rule_generation.hypothesis_space import build_hypothesis_space
+from ...rule_generation.hypothesis_space import (
+    build_hypothesis_space,
+    hypothesis_space_metrics,
+)
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
 from ...timing import (
@@ -52,7 +55,7 @@ def search_solver(
         with instrumentation():
             record_metric(
                 "candidate",
-                {"metric": "hypothesis_space", "clauses": len(space)},
+                hypothesis_space_metrics(program, space),
             )
     if not space:
         raise ValueError("No clauses found")

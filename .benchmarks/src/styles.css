@@ -82,6 +82,7 @@
     width: 100%;
     margin: 0 auto;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 1rem;
   }
   .compare-shell > * {
@@ -296,6 +297,45 @@
   .missing-data {
     color: #78716c;
     text-align: left !important;
+  }
+  .pareto-panel {
+    border: 1px solid #d6d3d1;
+    background: rgba(255, 255, 255, 0.88);
+    padding: 0.75rem 1rem 1rem;
+  }
+  .pareto-chart {
+    min-width: 0;
+    width: 100%;
+  }
+  .pareto-chart h2 {
+    margin: 1rem 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .pareto-subtitle {
+    margin: 0.15rem 0 0.5rem;
+    color: #57534e;
+    font-size: 0.74rem;
+    text-align: center;
+  }
+  .pareto-key {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.45rem 1rem;
+    margin-top: 0.75rem;
+    color: #44403c;
+    font-size: 0.72rem;
+  }
+  .pareto-key span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .pareto-key i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
   }
   .comparison-charts {
     display: grid;

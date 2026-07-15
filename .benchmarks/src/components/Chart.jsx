@@ -3,6 +3,7 @@ import { BarChart, HeatmapChart, LineChart, PieChart, ScatterChart } from "echar
 import {
   GridComponent,
   LegendComponent,
+  MarkLineComponent,
   GraphicComponent,
   TooltipComponent,
   VisualMapComponent,
@@ -20,6 +21,7 @@ use([
   GridComponent,
   GraphicComponent,
   LegendComponent,
+  MarkLineComponent,
   TooltipComponent,
   VisualMapComponent,
   CanvasRenderer,

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { chartTw } from "./chartTw";
+import { ParetoChart } from "./charts/ParetoChart";
 import {
   bestRunRatio,
   bestRunCount,
@@ -148,18 +149,16 @@ export function ExperimentCompare() {
               <option value="deltas">deltas</option>
             </select>
           </label>
-          {view === "deltas" && (
-            <label>
-              <span>baseline para Δ</span>
-              <select value={baselineId} onChange={(event) => setBaselineId(event.target.value)}>
-                {selected.map((experiment) => (
-                  <option key={experiment.id} value={experiment.id}>
-                    {experiment.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <label>
+            <span>baseline</span>
+            <select value={baselineId} onChange={(event) => setBaselineId(event.target.value)}>
+              {selected.map((experiment) => (
+                <option key={experiment.id} value={experiment.id}>
+                  {experiment.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <details className="compare-filters">
             <summary>
               filtros <span>{selected.length}</span>
@@ -209,6 +208,7 @@ export function ExperimentCompare() {
           </details>
         </section>
         <ComparisonTable rows={rows} baseline={baseline} view={view} />
+        <ParetoChart rows={rows} baselineId={baselineId} />
       </div>
     </main>
   );

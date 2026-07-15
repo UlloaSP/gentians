@@ -14,6 +14,7 @@ _counts: dict[str, int] = {}
 _stack: list[dict[str, Any]] = []
 _ga_rows: list[dict[str, float]] = []
 _event_counter = 0
+_instrumentation_total = 0.0
 _timings_dirty = False
 _ga_dirty = False
 _jsonl_rows: dict[str, list[dict[str, Any]]] = {}
@@ -77,13 +78,14 @@ def append_jsonl(path: str | None, rows: list[dict[str, object]]) -> None:
 
 
 def reset() -> None:
-    global _event_counter, _timings_dirty, _ga_dirty
+    global _event_counter, _instrumentation_total, _timings_dirty, _ga_dirty
     _close_writer()
     _totals.clear()
     _counts.clear()
     _stack.clear()
     _ga_rows.clear()
     _event_counter = 0
+    _instrumentation_total = 0.0
     _timings_dirty = False
     _ga_dirty = False
 
@@ -114,7 +116,7 @@ def add(name: str, seconds: float) -> None:
         try:
             _record_total(name, seconds)
         finally:
-            event["instrumentation_seconds"] += time.perf_counter() - start
+            _exclude(event, time.perf_counter() - start)
             event["instrumenting"] = False
         return
     _record_total(name, seconds)
@@ -127,12 +129,26 @@ def _record_total(name: str, seconds: float) -> None:
     _timings_dirty = True
 
 
+def _exclude(
+    event: dict[str, Any], seconds: float, *, global_total: bool = True
+) -> None:
+    event["instrumentation_seconds"] += seconds
+    if global_total:
+        global _instrumentation_total
+        _instrumentation_total += seconds
+
+
+def net_time() -> float:
+    """Monotonic elapsed clock with profiling, metrics and logging removed."""
+    return time.perf_counter() - _instrumentation_total
+
+
 @contextmanager
 def phase(name: str):
     if not _enabled:
         yield
         return
-    global _event_counter
+    global _event_counter, _instrumentation_total
     parent = _stack[-1] if _stack else None
     setup_start = time.perf_counter() if parent else 0.0
     _event_counter += 1
@@ -150,7 +166,7 @@ def phase(name: str):
     _stack.append(event)
     start = time.perf_counter()
     if parent:
-        parent["instrumentation_seconds"] += time.perf_counter() - setup_start
+        _exclude(parent, time.perf_counter() - setup_start)
     try:
         yield
     finally:
@@ -159,6 +175,8 @@ def phase(name: str):
         instrumentation_seconds = float(event["instrumentation_seconds"])
         seconds = max(raw_seconds - instrumentation_seconds, 0.0)
         self_seconds = max(seconds - float(event["child_seconds"]), 0.0)
+        parent_event = _stack[-2] if len(_stack) > 1 else None
+        finalize_start = ended
         _record_total(name, seconds)
         _record_total(f"{name}.self", self_seconds)
         row = {
@@ -175,18 +193,18 @@ def phase(name: str):
             "self_seconds": self_seconds,
             "instrumentation_seconds": instrumentation_seconds,
         }
-        parent_event = _stack[-2] if len(_stack) > 1 else None
-        finalize_start = time.perf_counter() if parent_event else 0.0
         _append_jsonl(os.environ.get("GENTIANS_TIMING_EVENTS_PATH"), row)
-        finalize_overhead = (
-            time.perf_counter() - finalize_start if parent_event else 0.0
-        )
         _stack.pop()
+        finalize_overhead = time.perf_counter() - finalize_start
+        _instrumentation_total += finalize_overhead
         if parent_event:
             parent_event["child_seconds"] += seconds
-            parent_event["instrumentation_seconds"] += (
-                instrumentation_seconds + finalize_overhead
+            _exclude(
+                parent_event,
+                instrumentation_seconds,
+                global_total=False,
             )
+            _exclude(parent_event, finalize_overhead, global_total=False)
 
 
 def profile_phase(name: str):
@@ -227,7 +245,7 @@ def instrumentation():
     try:
         yield
     finally:
-        event["instrumentation_seconds"] += time.perf_counter() - start
+        _exclude(event, time.perf_counter() - start)
         event["instrumenting"] = False
 
 

@@ -34,8 +34,9 @@ class NoClosure:
             if self.fixed_size
             else max(1, min(target_size or self.rng.randint(1, limit), limit))
         )
+        proposal = tuple(self.rng.sample(self.space.clauses, size))
         started = time.perf_counter()
-        normalized = self.normalize(tuple(self.rng.sample(self.space.clauses, size)))
+        normalized = self.normalize(proposal)
         add(f"{current_phase()}.closure", time.perf_counter() - started)
         return normalized
 

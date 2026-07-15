@@ -32,16 +32,15 @@ def solve(
     try:
         with phase("total_execution"):
             prg, score, best_found = search_solver(arguments, program, rule_space)
-
-            if best_found:
-                print(f"--- Found best program with score {score} ---")
-            else:
-                print(f"--- Best candidate program with score {score} ---")
-            print(*prg, sep="\n")
-            print("--------------------------")
         total_seconds = recorded_seconds("total_execution")
         if total_seconds is None:
             total_seconds = time.time() - start_total_time
+        if best_found:
+            print(f"--- Found best program with score {score} ---")
+        else:
+            print(f"--- Best candidate program with score {score} ---")
+        print(*prg, sep="\n")
+        print("--------------------------")
         print(f"Total time: {total_seconds}")
     finally:
         export_timings()

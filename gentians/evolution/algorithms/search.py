@@ -12,6 +12,7 @@ from ...timing import (
     current_phase,
     instrumentation,
     metric_enabled,
+    net_time,
     phase,
     profile_phase,
     record_ga_generation,
@@ -80,7 +81,7 @@ def search_solver(
 
     known: set[tuple[str, ...]] = set()
     evaluations = 0
-    started = time.perf_counter()
+    started = net_time()
 
     def admit(normalized: tuple[str, ...], previous: Individual | None = None):
         nonlocal evaluations
@@ -115,35 +116,37 @@ def search_solver(
             generation,
             best_overall.score,
             population,
-            elapsed_seconds=time.perf_counter() - started,
+            elapsed_seconds=net_time() - started,
             fitness_evaluations=evaluations,
         )
         with phase("selection"):
             first, second = selection(population, rng)
-            record_metric(
-                "operator",
-                {
-                    "operator": "selection",
-                    "strategy": str(args.selection["name"]),
-                    "parent_a_score": first.score,
-                    "parent_b_score": second.score,
-                    "population_size": len(population),
-                },
-            )
-        with phase("crossover"):
-            proposals = crossover(first.program, second.program, context)
-            if not proposals:
+            with instrumentation():
                 record_metric(
                     "operator",
                     {
-                        "operator": "crossover",
-                        "strategy": str(args.crossover["name"]),
-                        "applied": False,
-                        "skipped": True,
-                        "children": 0,
+                        "operator": "selection",
+                        "strategy": str(args.selection["name"]),
+                        "parent_a_score": first.score,
+                        "parent_b_score": second.score,
                         "population_size": len(population),
                     },
                 )
+        with phase("crossover"):
+            proposals = crossover(first.program, second.program, context)
+            if not proposals:
+                with instrumentation():
+                    record_metric(
+                        "operator",
+                        {
+                            "operator": "crossover",
+                            "strategy": str(args.crossover["name"]),
+                            "applied": False,
+                            "skipped": True,
+                            "children": 0,
+                            "population_size": len(population),
+                        },
+                    )
                 continue
             children = []
             for proposal in proposals:
@@ -190,30 +193,33 @@ def search_solver(
                 ),
                 None,
             )
-            record_metric(
-                "operator",
-                {
-                    "operator": "replacement",
-                    "strategy": str(args.replacement["name"]),
-                    "candidate_score": mutated.score,
-                    "accepted": accepted,
-                    "duplicate": duplicate,
-                    "invalid": False,
-                    "not_competitive": not accepted and not duplicate,
-                    "reject_reason": (
-                        ""
-                        if accepted
-                        else "duplicate"
-                        if duplicate
-                        else "not_competitive"
-                    ),
-                    "victim_score": victim.score if victim is not None else "",
-                    "improved_victim": (
-                        accepted and victim is not None and mutated.score > victim.score
-                    ),
-                    "population_size": len(population),
-                },
-            )
+            with instrumentation():
+                record_metric(
+                    "operator",
+                    {
+                        "operator": "replacement",
+                        "strategy": str(args.replacement["name"]),
+                        "candidate_score": mutated.score,
+                        "accepted": accepted,
+                        "duplicate": duplicate,
+                        "invalid": False,
+                        "not_competitive": not accepted and not duplicate,
+                        "reject_reason": (
+                            ""
+                            if accepted
+                            else "duplicate"
+                            if duplicate
+                            else "not_competitive"
+                        ),
+                        "victim_score": victim.score if victim is not None else "",
+                        "improved_victim": (
+                            accepted
+                            and victim is not None
+                            and mutated.score > victim.score
+                        ),
+                        "population_size": len(population),
+                    },
+                )
             known = {item.program for item in population}
 
     population.sort(key=lambda item: item.score, reverse=True)
@@ -240,24 +246,25 @@ def _operator_metric(
     *,
     duplicate: bool,
 ) -> None:
-    changed = child.program != parent.program
-    record_metric(
-        "operator",
-        {
-            "operator": operator,
-            "strategy": str(config["name"]),
-            "applied": changed,
-            "slots": 1,
-            "valid_new": changed and not duplicate,
-            "duplicate": duplicate,
-            "duplicate_population": duplicate,
-            "changed": changed,
-            "parent_score": parent.score,
-            "child_score": child.score,
-            "original_score": parent.score,
-            "new_score": child.score,
-            "improved": child.score > parent.score,
-            "best": child.is_best,
-            "is_best": child.is_best,
-        },
-    )
+    with instrumentation():
+        changed = child.program != parent.program
+        record_metric(
+            "operator",
+            {
+                "operator": operator,
+                "strategy": str(config["name"]),
+                "applied": changed,
+                "slots": 1,
+                "valid_new": changed and not duplicate,
+                "duplicate": duplicate,
+                "duplicate_population": duplicate,
+                "changed": changed,
+                "parent_score": parent.score,
+                "child_score": child.score,
+                "original_score": parent.score,
+                "new_score": child.score,
+                "improved": child.score > parent.score,
+                "best": child.is_best,
+                "is_best": child.is_best,
+            },
+        )

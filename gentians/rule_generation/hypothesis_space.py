@@ -4,19 +4,19 @@ from functools import lru_cache
 from itertools import combinations, permutations, product
 from pathlib import Path
 import re
-import time
 
 import clingo
 from clingo import ast
 
 from ..arguments import Arguments
 from ..asp.callbacks import wrapper_exit_callback
-from ..asp.stats import ground_stats
+from ..asp.stats import clingo_stat, ground_stats
 from ..timing import (
     add,
     current_phase,
     instrumentation,
     metric_enabled,
+    net_time,
     profile_phase,
     record_metric,
 )
@@ -140,41 +140,27 @@ class HypothesisSpaceGenerator:
             logger=wrapper_exit_callback,
         )
         ctl.add("base", [], program)
-        start = time.perf_counter()
+        start = net_time()
         ctl.ground([("base", [])])
-        grounding_seconds = time.perf_counter() - start
-        add(f"{current_phase()}.grounding", grounding_seconds)
-        if metric_enabled("clingo"):
-            with instrumentation():
-                stats = ground_stats(ctl)
-                record_metric(
-                    "clingo",
-                    {
-                        "operation": "hypothesis_space_grounding",
-                        "operation_category": "grounding",
-                        "phase_context": current_phase(),
-                        "seconds": grounding_seconds,
-                        "program_size": 1,
-                        "program_chars": len(program),
-                        "stats_atoms": stats["atoms"],
-                        "stats_rules": stats["rules"],
-                        "clingo_arguments": " ".join(
-                            [
-                                str(self.args.max_candidate_clauses),
-                                *_hypothesis_space_args(self.args),
-                            ]
-                        ),
-                    },
-                )
+        grounding_seconds = net_time() - start
+        phase = current_phase()
+        add(f"{phase}.grounding", grounding_seconds)
 
         clauses: dict[ReifiedClause, None] = {}
-        start = time.perf_counter()
-        models = 0
+        seconds = 0.0
         collect_metrics = metric_enabled("clingo")
+        start = net_time()
         with ctl.solve(yield_=True) as handle:  # type: ignore
-            for model in handle:  # type: ignore
-                if collect_metrics:
-                    models += 1
+            seconds += net_time() - start
+            iterator = iter(handle)
+            while True:
+                start = net_time()
+                try:
+                    model = next(iterator)
+                except StopIteration:
+                    seconds += net_time() - start
+                    break
+                seconds += net_time() - start
                 clauses.setdefault(
                     _clause_from_symbols(
                         model.symbols(shown=True),
@@ -183,12 +169,34 @@ class HypothesisSpaceGenerator:
                     ),
                     None,
                 )
-
-        seconds = time.perf_counter() - start
-        phase = current_phase()
+            start = net_time()
+        seconds += net_time() - start
         add(f"{phase}.solving", seconds)
         if collect_metrics:
             with instrumentation():
+                stats = ctl.statistics
+                models = clingo_stat(stats, "summary", "models", "enumerated")
+                grounded = ground_stats(stats)
+                clingo_arguments = " ".join(
+                    [
+                        str(self.args.max_candidate_clauses),
+                        *_hypothesis_space_args(self.args),
+                    ]
+                )
+                record_metric(
+                    "clingo",
+                    {
+                        "operation": "hypothesis_space_grounding",
+                        "operation_category": "grounding",
+                        "phase_context": phase,
+                        "seconds": grounding_seconds,
+                        "program_size": 1,
+                        "program_chars": len(program),
+                        "stats_atoms": grounded["atoms"],
+                        "stats_rules": grounded["rules"],
+                        "clingo_arguments": clingo_arguments,
+                    },
+                )
                 record_metric(
                     "clingo",
                     {
@@ -204,11 +212,15 @@ class HypothesisSpaceGenerator:
                         "allow_arithmetic": self.capabilities.allow_arithmetic,
                         "allow_aggregates": self.capabilities.allow_aggregates,
                         "allow_recursion": self.capabilities.allow_recursion,
-                        "clingo_arguments": " ".join(
-                            [
-                                str(self.args.max_candidate_clauses),
-                                *_hypothesis_space_args(self.args),
-                            ]
+                        "clingo_arguments": clingo_arguments,
+                        "stats_models_enumerated": clingo_stat(
+                            stats, "summary", "models", "enumerated"
+                        ),
+                        "stats_choices": clingo_stat(
+                            stats, "solving", "solvers", "choices"
+                        ),
+                        "stats_conflicts": clingo_stat(
+                            stats, "solving", "solvers", "conflicts"
                         ),
                     },
                 )

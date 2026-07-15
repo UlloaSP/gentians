@@ -1,5 +1,3 @@
-import time
-
 import clingo
 
 from .callbacks import coverage_logger
@@ -16,7 +14,14 @@ from .coverage_symbols import (
 )
 from .stats import clingo_stat, ground_stats
 from ..rule_generation.example import Example
-from ..timing import add, current_phase, instrumentation, metric_enabled, record_metric
+from ..timing import (
+    add,
+    current_phase,
+    instrumentation,
+    metric_enabled,
+    net_time,
+    record_metric,
+)
 
 
 class PregroundedCoverageSolver:
@@ -61,16 +66,17 @@ class PregroundedCoverageSolver:
         )
         self.ctl = clingo.Control(clingo_arguments, logger=coverage_logger)  # type: ignore
         self.ctl.add("base", [], generated_program)
-        start = time.perf_counter()
+        start = net_time()
         self.ctl.ground([("base", [])])
-        seconds = time.perf_counter() - start
+        seconds = net_time() - start
         phase = current_phase()
         add(f"{phase}.grounding", seconds)
         self.max_program_clauses = max_program_clauses
-        self._record_grounding(
+        self._pending_grounding = (
             seconds,
             len(lines) + len(rule_space),
             len(generated_program),
+            phase,
         )
 
     def extract_subset_coverage(
@@ -109,14 +115,24 @@ class PregroundedCoverageSolver:
             rule_id: index for index, rule_id in enumerate(candidate_ids)
         }
         coverages: dict[tuple[int, ...], Coverage] = {}
-        start = time.perf_counter()
-        models = 0
+        seconds = 0.0
+        stats = None
+        collect_metrics = metric_enabled("clingo")
         try:
+            start = net_time()
             with self.ctl.solve(
                 yield_=True, assumptions=assumptions
             ) as handle:  # type: ignore
-                for model in handle:  # type: ignore
-                    models += 1
+                seconds += net_time() - start
+                iterator = iter(handle)
+                while True:
+                    start = net_time()
+                    try:
+                        model = next(iterator)
+                    except StopIteration:
+                        seconds += net_time() - start
+                        break
+                    seconds += net_time() - start
                     symbols = model.symbols(shown=True)
                     pos_mask, neg_mask = parse_coverage_symbol_masks(symbols)
                     selected = (
@@ -133,57 +149,65 @@ class PregroundedCoverageSolver:
                     )
                     coverage = coverages.setdefault(selected, Coverage([], []))
                     coverage.extend_masks(pos_mask, neg_mask)
+                start = net_time()
+            seconds += net_time() - start
+            if collect_metrics:
+                with instrumentation():
+                    stats = self.ctl.statistics
         finally:
             self.activation.deactivate(self.ctl, active_rule_ids)
-        seconds = time.perf_counter() - start
         phase = current_phase()
         add(f"{phase}.solving", seconds)
-        self._record_solving(seconds, models, len(program), len(coverages), subsets)
+        self._record_solving(
+            stats, seconds, len(program), len(coverages), subsets, phase
+        )
         return coverages
 
-    def _record_grounding(
-        self, seconds: float, input_clauses: int, program_chars: int
-    ) -> None:
-        if not metric_enabled("clingo"):
+    def _record_grounding(self, stats) -> None:
+        if self._pending_grounding is None:
             return
+        seconds, input_clauses, program_chars, phase = self._pending_grounding
+        self._pending_grounding = None
         with instrumentation():
-            stats = ground_stats(self.ctl)
+            grounded = ground_stats(stats)
             record_metric(
                 "clingo",
                 {
                     "operation": f"preground_{self.activation.name}",
                     "operation_category": "grounding",
-                    "phase_context": current_phase(),
+                    "phase_context": phase,
                     "seconds": seconds,
                     "input_clauses": input_clauses,
                     "program_chars": program_chars,
                     "positive_examples": self.positive_examples,
                     "negative_examples": self.negative_examples,
                     "clingo_arguments": " ".join(self.clingo_arguments),
-                    "stats_atoms": stats["atoms"],
-                    "stats_rules": stats["rules"],
+                    "stats_atoms": grounded["atoms"],
+                    "stats_rules": grounded["rules"],
                 },
             )
 
     def _record_solving(
         self,
+        stats,
         seconds: float,
-        models: int,
         program_size: int,
         coverage_count: int,
         subsets: bool,
+        phase: str,
     ) -> None:
-        if not metric_enabled("clingo"):
+        if stats is None:
             return
         with instrumentation():
-            stats = self.ctl.statistics
+            self._record_grounding(stats)
+            models = clingo_stat(stats, "summary", "models", "enumerated")
             operation = "subset" if subsets else "fixed"
             record_metric(
                 "clingo",
                 {
                     "operation": f"{operation}_presolve_{self.activation.name}",
                     "operation_category": "solving",
-                    "phase_context": current_phase(),
+                    "phase_context": phase,
                     "seconds": seconds,
                     "models": models,
                     "coverage_subsets": coverage_count,

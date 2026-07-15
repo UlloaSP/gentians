@@ -1,6 +1,7 @@
 import json
 import re
 import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -332,6 +333,70 @@ def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
     timing.reset()
 
 
+def test_total_execution_excludes_result_output(monkeypatch):
+    timing.reset()
+    monkeypatch.setattr(timing, "_enabled", True)
+    monkeypatch.setattr(
+        "gentians.gentians.search_solver",
+        lambda *args, **kwargs: (("rule.",), 1.0, True),
+    )
+    monkeypatch.setattr("gentians.gentians.export_timings", lambda: None)
+    monkeypatch.setattr("builtins.print", lambda *args, **kwargs: time.sleep(0.02))
+
+    solve(
+        Program([], [], [], [], []),
+        Arguments(population={"name": "random", "size": 1}),
+    )
+
+    assert timing._totals["total_execution"] < 0.02
+    timing.reset()
+
+
+def test_fallback_total_excludes_result_output(monkeypatch):
+    timing.reset()
+    monkeypatch.setattr(timing, "_enabled", False)
+    clock = [10.0]
+    output = []
+
+    def search(*_args, **_kwargs):
+        clock[0] += 5.0
+        return ("rule.",), 1.0, True
+
+    def print_result(*args, **_kwargs):
+        output.append(args)
+        clock[0] += 20.0
+
+    monkeypatch.setattr("gentians.gentians.search_solver", search)
+    monkeypatch.setattr("gentians.gentians.export_timings", lambda: None)
+    monkeypatch.setattr("gentians.gentians.time.time", lambda: clock[0])
+    monkeypatch.setattr("builtins.print", print_result)
+
+    solve(
+        Program([], [], [], [], []),
+        Arguments(population={"name": "random", "size": 1}),
+        start_total_time=10.0,
+    )
+
+    assert output[-1] == ("Total time: 5.0",)
+
+
+def test_net_time_excludes_instrumentation(monkeypatch):
+    timing.reset()
+    monkeypatch.setattr(timing, "_enabled", True)
+    timing._stack.append(
+        {"instrumenting": False, "instrumentation_seconds": 0.0}
+    )
+    values = iter([10.0, 11.0, 16.0, 20.0])
+    monkeypatch.setattr(timing.time, "perf_counter", lambda: next(values))
+
+    started = timing.net_time()
+    with timing.instrumentation():
+        pass
+
+    assert timing.net_time() - started == 5.0
+    timing.reset()
+
+
 def test_phase_records_exclusive_self_time(monkeypatch):
     timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
@@ -349,7 +414,7 @@ def test_phase_records_exclusive_self_time(monkeypatch):
 def test_phase_subtracts_instrumentation_time(monkeypatch):
     timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
-    values = iter([0.0, 0.0, 2.0, 5.0, 10.0])
+    values = iter([0.0, 0.0, 2.0, 5.0, 10.0, 10.0])
     monkeypatch.setattr(timing.time, "perf_counter", lambda: next(values))
 
     with timing.phase("outer"):
@@ -364,17 +429,23 @@ def test_phase_subtracts_instrumentation_time(monkeypatch):
 def test_phase_event_logging_is_parent_instrumentation(monkeypatch):
     timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
-    values = iter([0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 7.0, 10.0, 10.0, 12.0])
-    monkeypatch.setattr(timing.time, "perf_counter", lambda: next(values))
-    monkeypatch.setattr(timing, "_append_jsonl", lambda *_args: timing.time.perf_counter())
+    clock = [0.0]
+    monkeypatch.setattr(timing.time, "perf_counter", lambda: clock[0])
+
+    def append(*_args):
+        clock[0] += 5.0
+
+    monkeypatch.setattr(timing, "_append_jsonl", append)
 
     with timing.phase("outer"):
+        clock[0] += 1.0
         with timing.phase("inner"):
-            pass
+            clock[0] += 1.0
+        clock[0] += 1.0
 
     assert timing._totals["inner"] == 1.0
-    assert timing._totals["outer"] == 2.0
-    assert timing._totals["outer.self"] == 1.0
+    assert timing._totals["outer"] == 3.0
+    assert timing._totals["outer.self"] == 2.0
     timing.reset()
 
 

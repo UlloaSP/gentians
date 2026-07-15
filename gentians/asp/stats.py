@@ -7,14 +7,11 @@ def clingo_stat(stats, *path: str) -> float:
     return float(current) if isinstance(current, (int, float)) else 0.0
 
 
-def ground_stats(ctl) -> dict[str, float]:
-    stats = ctl.statistics
+def ground_stats(stats: dict) -> dict[str, float]:
     atoms = max(
         clingo_stat(stats, "problem", "lp", "atoms"),
         clingo_stat(stats, "problem", "lpStep", "atoms"),
     )
-    if not atoms:
-        atoms = float(sum(1 for _ in ctl.symbolic_atoms))
     rules = max(
         clingo_stat(stats, "problem", "lp", "rules"),
         clingo_stat(stats, "problem", "lpStep", "rules"),

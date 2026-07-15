@@ -1,8 +1,9 @@
 import math
+import time
 
 import pytest
 
-from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
+from gentians.asp.coverage import Coverage, generate_clauses_for_coverage_interpretations
 from gentians.asp.coverage_program import build_fixed_coverage_program
 from gentians.asp.external_activation import ExternalActivation
 from gentians.asp.normal_coverage_solver import NormalCoverageSolver
@@ -13,6 +14,7 @@ from gentians.evolution.fitness.cov_subprograms_mean import CovSubprogramsMean
 from gentians.evolution.fitness import create_fitness
 from gentians.rule_generation.example import Example
 from gentians.rule_generation.program import Program
+from gentians import timing
 
 
 def _program() -> Program:
@@ -23,6 +25,117 @@ def _program() -> Program:
         [],
         [],
     )
+
+
+def test_normal_solver_solving_excludes_python_and_metrics(monkeypatch, tmp_path):
+    class Model:
+        @staticmethod
+        def symbols(shown=True):
+            time.sleep(0.02)
+            return []
+
+    class Handle:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def __iter__(self):
+            return iter((Model(),))
+
+    class Control:
+        statistics = {
+            "problem": {"lp": {"atoms": 1, "rules": 1}},
+            "summary": {"models": {"enumerated": 1}},
+        }
+
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def add(self, *_args):
+            pass
+
+        def ground(self, *_args):
+            pass
+
+        def solve(self, **_kwargs):
+            return Handle()
+
+    timing.reset()
+    monkeypatch.setattr(timing, "_enabled", True)
+    monkeypatch.setenv(
+        "GENTIANS_CLINGO_METRICS_PATH", str(tmp_path / "clingo.jsonl")
+    )
+    monkeypatch.setattr("gentians.asp.normal_coverage_solver.clingo.Control", Control)
+    extend_masks = Coverage.extend_masks
+    calls = 0
+
+    def measured_extend(self, pos_mask, neg_mask):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            time.sleep(0.02)
+        return extend_masks(self, pos_mask, neg_mask)
+
+    monkeypatch.setattr(Coverage, "extend_masks", measured_extend)
+
+    with timing.phase("population"):
+        NormalCoverageSolver([], [], [], []).extract_subset_coverage(())
+
+    assert timing._totals["population.solving"] < 0.01
+    assert timing._totals["population.self"] >= 0.02
+    assert timing._totals["population.self"] < 0.035
+    timing.reset()
+
+
+def test_normal_solver_records_fresh_solve_statistics(monkeypatch):
+    rows = []
+    monkeypatch.setattr(
+        "gentians.asp.normal_coverage_solver.metric_enabled", lambda _name: True
+    )
+    monkeypatch.setattr(
+        "gentians.asp.normal_coverage_solver.record_metric",
+        lambda _name, row: rows.append(row),
+    )
+
+    NormalCoverageSolver(
+        ["{base}."],
+        ["0"],
+        [Example(("target", ""), True)],
+        [],
+    ).extract_fixed_coverage(("target :- base.",))
+
+    grounding = next(row for row in rows if row["operation_category"] == "grounding")
+    solving = next(row for row in rows if row["operation_category"] == "solving")
+    assert grounding["stats_atoms"] > 0
+    assert grounding["stats_rules"] > 0
+    assert solving["models"] == 2
+    assert solving["stats_models_enumerated"] == 2
+    assert solving["stats_choices"] > 0
+
+
+def test_pregrounded_solver_refreshes_statistics_between_solves(monkeypatch):
+    rows = []
+    monkeypatch.setattr(
+        "gentians.asp.pregrounded_coverage_solver.metric_enabled", lambda _name: True
+    )
+    monkeypatch.setattr(
+        "gentians.asp.pregrounded_coverage_solver.record_metric",
+        lambda _name, row: rows.append(row),
+    )
+    solver = PregroundedCoverageSolver(
+        ["{base}."], ["0"], [], [], ("{extra}.",), ExternalActivation(), 1
+    )
+
+    solver.extract_fixed_coverage(("{extra}.",))
+    solver.extract_fixed_coverage(())
+
+    grounding = [row for row in rows if row["operation_category"] == "grounding"]
+    solving = [row for row in rows if row["operation_category"] == "solving"]
+    assert len(grounding) == 1
+    assert [row["models"] for row in solving] == [4, 2]
+    assert [row["stats_models_enumerated"] for row in solving] == [4, 2]
 
 
 def _fitness(

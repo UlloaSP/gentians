@@ -2,6 +2,8 @@ import sys
 
 import clingo
 
+from ..timing import instrumentation
+
 
 def wrapper_exit_callback(code, message):
     if "error" in message:
@@ -9,5 +11,6 @@ def wrapper_exit_callback(code, message):
 
 
 def coverage_logger(code, message):
-    if code != clingo.MessageCode.AtomUndefined:
-        print(message, file=sys.stderr, end="" if message.endswith("\n") else "\n")
+    with instrumentation():
+        if code != clingo.MessageCode.AtomUndefined:
+            print(message, file=sys.stderr, end="" if message.endswith("\n") else "\n")

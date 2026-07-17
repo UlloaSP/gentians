@@ -78,7 +78,7 @@ class Arguments:
             # Mutation implementation.
             "name": "random_group",
             # Probability of mutating an offspring.
-            "probability": 0.05,
+            "probability": 0.9,
         }
     )
 
@@ -88,7 +88,7 @@ class Arguments:
             # Population initialization implementation.
             "name": "random",
             # Number of individuals kept in the population.
-            "size": 100,
+            "size": 10,
         }
     )
 
@@ -98,17 +98,14 @@ class Arguments:
             # Replacement implementation.
             "name": "oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
-            "prob_replacing_oldest": 0.75,
+            "prob_replacing_oldest": 0.1,
         }
     )
-
-    # Program dependency policy applied to every proposal.
-    closure: dict[str, object] = field(default_factory=lambda: {"name": "dependency"})
 
     # Hypothesis-space candidate-source details.
     hypothesis_space: dict[str, object] = field(
         default_factory=lambda: {
             # Extra Clingo CLI arguments used to enumerate generated clauses.
-            "clingo_arguments": [],
+            "clingo_arguments": ["--parallel-mode=4"],
         }
     )

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-import time
 
 from ...arguments import Arguments
 from ...rule_generation.hypothesis_space import (
@@ -11,8 +10,6 @@ from ...rule_generation.hypothesis_space import (
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
 from ...timing import (
-    add,
-    current_phase,
     instrumentation,
     metric_enabled,
     net_time,
@@ -22,12 +19,13 @@ from ...timing import (
     record_metric,
 )
 from ..crossovers import create_crossover
-from ..closures import create_closure
 from ..evolution_context import EvolutionContext
 from ..fitness import create_fitness
 from ..individual import Individual, individual_from_fitness, winning_program
 from ..mutations import create_mutation
+from ..operator_types import MutationProposal
 from ..populations import create_population
+from ..program_generators import ProgramGenerator
 from ..replacements import create_replacement
 from ..selections import create_selection
 
@@ -42,7 +40,6 @@ def search_solver(
     population_strategy = create_population(args.population)
     selection = create_selection(args.selection)
     crossover = create_crossover(args.crossover)
-    mutation = create_mutation(args.mutation)
     replacement = create_replacement(args.replacement)
     generations = args.iterations_genetic
 
@@ -59,18 +56,17 @@ def search_solver(
             )
     if not space:
         raise ValueError("No clauses found")
-    policy = create_closure(
-        str(args.closure["name"]),
+    generator = ProgramGenerator(
         program,
         space,
         args.max_program_clauses,
         rng,
         str(args.fitness["name"]).startswith("cov_subprograms_"),
     )
-    space = policy.space
+    space = generator.space
     if not space:
-        raise ValueError("No clauses satisfy the closure policy")
-    context = EvolutionContext(space, policy, args.max_program_clauses, rng)
+        raise ValueError("No clauses satisfy the program generator")
+    context = EvolutionContext(space, generator, args.max_program_clauses, rng)
 
     if str(args.fitness.get("grounding", "normal")) == "normal":
         evaluate_score = create_fitness(
@@ -82,23 +78,22 @@ def search_solver(
                 program, args.fitness, args.max_program_clauses, space.clauses
             )
 
-    known: set[tuple[str, ...]] = set()
+    evaluated: dict[tuple[str, ...], Individual] = {}
     evaluations = 0
     started = net_time()
 
-    def admit(normalized: tuple[str, ...], previous: Individual | None = None):
+    def admit(candidate: tuple[str, ...]):
         nonlocal evaluations
-        if previous is not None and normalized == previous.program:
-            return previous
-        if normalized in known:
+        if candidate in evaluated:
             return None
         evaluations += 1
-        score = evaluate_score(normalized)
-        individual = individual_from_fitness(normalized, score)
-        known.add(normalized)
+        score = evaluate_score(candidate)
+        individual = individual_from_fitness(candidate, score)
+        evaluated[candidate] = individual
         return individual
 
     with phase("population"):
+        mutation = create_mutation(args.mutation, context)
         population = [
             individual
             for proposal in population_strategy(context)
@@ -150,37 +145,46 @@ def search_solver(
                             "population_size": len(population),
                         },
                     )
-                continue
-            children = []
-            for proposal in proposals:
-                normalized = _normalize(policy, proposal)
-                if normalized is None:
-                    continue
-                existing = next(
-                    (item for item in population if item.program == normalized), None
+                children = [(first, False, False), (second, False, False)]
+            else:
+                children = []
+                for proposal in proposals:
+                    existing = evaluated.get(proposal)
+                    child = existing or admit(proposal)
+                    if child is not None:
+                        children.append((child, existing is None, True))
+        for child, base_is_new, crossed in children:
+            if crossed:
+                _operator_metric(
+                    "crossover",
+                    args.crossover,
+                    first if first.score >= second.score else second,
+                    child,
+                    duplicate=not base_is_new,
                 )
-                child = admit(normalized, existing)
-                if child is not None:
-                    children.append((child, existing is not None))
-        for child, duplicate in children:
-            _operator_metric(
-                "crossover",
-                args.crossover,
-                first if first.score >= second.score else second,
-                child,
-                duplicate=duplicate,
-            )
             if child.is_best:
                 return winning_program(child), child.score, True
             with phase("mutation"):
-                mutated_proposal = mutation(child.program, context)
-                normalized = _normalize(policy, mutated_proposal)
-                mutated = admit(normalized, child) if normalized is not None else None
+                proposal = mutation(child.program, context)
+                duplicate = proposal.program in evaluated
+                unchanged = proposal.program == child.program
+                if unchanged:
+                    mutated = child
+                elif duplicate:
+                    mutated = None
+                else:
+                    mutated = admit(proposal.program)
+            _mutation_metric(
+                args.mutation,
+                child,
+                mutated,
+                proposal,
+                duplicate=duplicate,
+            )
             if mutated is None:
                 continue
-            _operator_metric(
-                "mutation", args.mutation, child, mutated, duplicate=mutated is child
-            )
+            if unchanged and not base_is_new:
+                continue
             if mutated.is_best:
                 return winning_program(mutated), mutated.score, True
             with phase("replacement"):
@@ -223,8 +227,6 @@ def search_solver(
                         "population_size": len(population),
                     },
                 )
-            known = {item.program for item in population}
-
     population.sort(key=lambda item: item.score, reverse=True)
     best_overall = _better(best_overall, population[0])
     return winning_program(best_overall), best_overall.score, best_overall.is_best
@@ -232,13 +234,6 @@ def search_solver(
 
 def _better(current: Individual | None, candidate: Individual) -> Individual:
     return candidate if current is None or candidate.score > current.score else current
-
-
-def _normalize(policy, proposal: tuple[str, ...]) -> tuple[str, ...] | None:
-    started = time.perf_counter()
-    normalized = policy.normalize(proposal)
-    add(f"{current_phase()}.closure", time.perf_counter() - started)
-    return normalized
 
 
 def _operator_metric(
@@ -271,3 +266,55 @@ def _operator_metric(
                 "is_best": child.is_best,
             },
         )
+
+
+def _mutation_metric(
+    config: dict[str, object],
+    parent: Individual,
+    child: Individual | None,
+    proposal: MutationProposal,
+    *,
+    duplicate: bool,
+) -> None:
+    with instrumentation():
+        changed = proposal.program != parent.program
+        record_metric(
+            "operator",
+            {
+                "operator": "mutation",
+                "strategy": str(config["name"]),
+                "operation": proposal.operation or "",
+                "local": proposal.local if proposal.local is not None else "",
+                "structural_distance": (
+                    proposal.structural_distance
+                    if proposal.structural_distance is not None
+                    else ""
+                ),
+                "candidate_pool_size": proposal.candidate_pool_size,
+                "program_distance": _program_distance(
+                    parent.program, proposal.program
+                ),
+                "changed_rules": len(
+                    set(parent.program) ^ set(proposal.program)
+                ),
+                "applied": changed,
+                "slots": 1,
+                "valid_new": changed and not duplicate,
+                "duplicate": duplicate,
+                "duplicate_population": duplicate,
+                "changed": changed,
+                "invalid": False,
+                "parent_score": parent.score,
+                "child_score": child.score if child is not None else "",
+                "original_score": parent.score,
+                "new_score": child.score if child is not None else "",
+                "improved": child is not None and child.score > parent.score,
+                "best": child.is_best if child is not None else False,
+                "is_best": child.is_best if child is not None else False,
+            },
+        )
+
+
+def _program_distance(first: tuple[str, ...], second: tuple[str, ...]) -> float:
+    left, right = set(first), set(second)
+    return 1.0 - len(left & right) / len(left | right)

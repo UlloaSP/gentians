@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 import random
 
-from .closures.contract import Closure
+from .program_generators import ProgramGenerator
 from ..rule_generation.rule_space import RuleSpace
 
 
 @dataclass(frozen=True, slots=True)
 class EvolutionContext:
     space: RuleSpace
-    policy: Closure
+    generator: ProgramGenerator
     max_program_clauses: int
     rng: random.Random

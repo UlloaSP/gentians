@@ -30,14 +30,12 @@ def test_default_config_defines_comparable_experiment_matrix():
     assert all(experiment["cprofile"] is False for experiment in experiments)
     control = experiments[0]["overrides"]
     assert control["iterations_genetic"] > 0
-    assert control["closure.name"] == "dependency"
     assert control["selection.name"] == "tournament"
     assert control["crossover.name"] == "set_mix"
     assert control["mutation.name"] == "random_group"
 
     assert set(control) == {
         "iterations_genetic",
-        "closure.name",
         "fitness.name",
         "fitness.grounding",
         "fitness.max_as",
@@ -104,7 +102,7 @@ def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):
     config.write_text(
         '[suite]\noutput_root = ".benchmarks"\ndatasets = ["coin"]\nruns = 10\n'
         '[[experiment]]\nid = "subprogram_mean"\n'
-        'overrides = { "closure.name" = "dependency", "fitness.name" = "cov_subprograms_mean" }\n',
+        'overrides = { "fitness.name" = "cov_subprograms_mean" }\n',
         encoding="utf-8",
     )
 
@@ -114,7 +112,6 @@ def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):
     assert output_root.name == ".benchmarks"
     assert experiment["runs"] == 10
     assert command[command.index("--datasets") + 1] == "coin"
-    assert "closure.name=\"dependency\"" in command
     assert "fitness.name=\"cov_subprograms_mean\"" in command
 
 

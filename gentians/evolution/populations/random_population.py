@@ -12,5 +12,5 @@ class RandomPopulation:
         return [
             genome
             for _ in range(self.size)
-            if (genome := context.policy.sample()) is not None
+            if (genome := context.generator.create()) is not None
         ]

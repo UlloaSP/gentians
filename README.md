@@ -34,8 +34,9 @@ where `filename` specifies the task file, `max_depth` sets the maximum length of
 
 ### Search configuration
 
-GENTIANS always searches the generated hypothesis space. Coverage and dependency
-closure are the configurable search policies.
+GENTIANS always searches the generated hypothesis space. The mandatory
+`ProgramGenerator` constructs every initial, mutated, and crossed program while preserving its
+size, membership, and dependency invariants.
 
 ```python
 arguments = Arguments(
@@ -47,7 +48,6 @@ arguments = Arguments(
         "max_as": 0,
         "clingo_arguments": [],
     },
-    closure={"name": "dependency"},
 )
 main(arguments)
 ```
@@ -57,6 +57,23 @@ main(arguments)
 size `min(max_program_clauses, hypothesis_space_size)` and evaluates its possible
 subprograms. Program fitness evaluates the whole individual and permits variable
 sizes. `fitness.grounding` is `normal`, `externals`, or `assumptions`.
+
+Mutation defaults to `random_group`. To prefer replacements with the same exact
+head and the closest alpha-normalized body structure, use:
+
+```python
+mutation={
+    "name": "structural_neighbor",
+    "probability": 0.05,
+    "random_jump_probability": 0.1,
+    "sample_size": 64,
+}
+```
+
+`random_jump_probability` preserves global exploration. `sample_size` bounds the
+number of structural distances calculated per replacement; no all-pairs distance
+matrix is built. Structural mutation supports up to six variables per candidate
+rule, matching the bundled benchmark catalog.
 
 Benchmark output records hypothesis generation, genetic generations, elapsed
 search time, fitness evaluations, operator metrics, and Clingo phases.
@@ -218,7 +235,8 @@ Here we list only the main ones:
 - `iterations_genetic`: number of genetic generations. Default 2000.
 - `fitness.name`: `cov_subprograms_mean`, `cov_subprograms_max`, or `cov_program`.
 - `fitness.grounding`: `normal`, `externals`, or `assumptions`.
-- `closure`: `none` or `dependency`; applied centrally to every proposal.
+- `ProgramGenerator` is mandatory infrastructure: every initialization,
+  mutation, and crossover returns an already dependency-closed valid program.
 - `admission`: `reject_duplicates` or `allow_duplicates`.
 
 Pregrounded fitness builds and grounds the guarded hypothesis space once. Each

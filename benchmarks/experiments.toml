@@ -17,13 +17,6 @@ cprofile = false
 [suite.overrides]
 
 [[experiment]]
-id = "cov_subprograms_mean_normal_no_closure"
-label = "Subprograms mean · normal no closure"
-description = "Mean score over fixed-size subprograms with per-candidate grounding."
-[experiment.overrides]
-"closure.name" = "none"
-
-[[experiment]]
 id = "cov_subprograms_mean_normal"
 label = "Subprograms mean · normal"
 description = "Mean score over fixed-size subprograms with per-candidate grounding."
@@ -57,33 +50,21 @@ description = "Mean score over fixed-size subprograms with pre-grounded assumpti
 "fitness.grounding" = "assumptions"
 
 [[experiment]]
-id = "cov_subprograms_mean_parallel_hypothesis_space"
-label = "Subprograms mean · parallel hypothesis space"
-description = "Mean score over fixed-size subprograms with parallel hypothesis space."
-[experiment.overrides]
-"hypothesis_space.clingo_arguments" = ["--parallel-mode=4"]
-
-[[experiment]]
-id = "cov_program_parallel_hypothesis_space"
-label = "Whole program · parallel hypothesis space"
-description = "Score the individual as one whole program with parallel hypothesis space."
+id = "cov_whole_program_random_group_mutation"
+label = "Whole program · random mutation"
+description = "Whole-program fitness using the original random-group mutation."
 [experiment.overrides]
 "fitness.name" = "cov_program"
-"hypothesis_space.clingo_arguments" = ["--parallel-mode=4"]
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
 
 [[experiment]]
-id = "cov_program_no_closure"
-label = "Whole program · no closure"
-description = "Score the individual as one whole program with no closure."
+id = "cov_whole_program_structural_neighbor_mutation"
+label = "Whole program · structural mutation"
+description = "Whole-program fitness using structural-neighbor mutation."
 [experiment.overrides]
 "fitness.name" = "cov_program"
-"closure.name" = "none"
-
-[[experiment]]
-id = "cov_program_parallel_hypothesis_space_no_closure"
-label = "Whole program · parallel hypothesis space · no closure"
-description = "Score the individual as one whole program with parallel hypothesis space and no closure."
-[experiment.overrides]
-"fitness.name" = "cov_program"
-"hypothesis_space.clingo_arguments" = ["--parallel-mode=4"]
-"closure.name" = "none"
+"mutation.name" = "structural_neighbor"
+"mutation.probability" = 0.9
+"mutation.random_jump_probability" = 0.1
+"mutation.sample_size" = 64

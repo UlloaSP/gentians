@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+from ..evolution_context import EvolutionContext
 from ..operator_types import MutationFn
 from .random_group import RandomGroupMutation
+from .structural_neighbor import StructuralNeighborMutation
 
 
-def create_mutation(config: dict[str, object]) -> MutationFn:
+def create_mutation(
+    config: dict[str, object], context: EvolutionContext
+) -> MutationFn:
     name = str(config["name"])
-    strategies = {"random_group": RandomGroupMutation}
-    try:
-        strategy = strategies[name]
-    except KeyError:
-        raise ValueError(f"Unknown mutation strategy: {name}") from None
-    return strategy(float(config["probability"]))
+    probability = float(config["probability"])
+    if name == "random_group":
+        return RandomGroupMutation(probability)
+    if name == "structural_neighbor":
+        return StructuralNeighborMutation(
+            probability,
+            context,
+            float(config.get("random_jump_probability", 0.1)),
+            int(config.get("sample_size", 64)),
+        )
+    raise ValueError(f"Unknown mutation strategy: {name}")

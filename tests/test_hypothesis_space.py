@@ -187,9 +187,10 @@ def _reset_timing_state() -> None:
     timing.reset()
 
 
-def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
+def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch, tmp_path):
     _reset_timing_state()
     monkeypatch.setattr(timing, "_enabled", True)
+    monkeypatch.setenv("GENTIANS_CACHE_DIR", str(tmp_path))
     phases = []
 
     class FakeHypothesisSpaceGenerator:
@@ -213,6 +214,30 @@ def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
     assert "hypothesis_space" in timing._totals
     assert "total_execution.grounding" not in timing._totals
     _reset_timing_state()
+
+
+def test_hypothesis_space_cache_skips_second_generation(monkeypatch, tmp_path):
+    monkeypatch.setenv("GENTIANS_CACHE_DIR", str(tmp_path))
+    generated = []
+
+    class FakeHypothesisSpaceGenerator:
+        def __init__(self, program, args):
+            pass
+
+        def generate(self):
+            generated.append(True)
+            return RuleSpace.from_clauses(["p."])
+
+    monkeypatch.setattr(
+        hypothesis_space, "HypothesisSpaceGenerator", FakeHypothesisSpaceGenerator
+    )
+    program = Program([], [], [], [], [])
+
+    first = hypothesis_space.build_hypothesis_space(program, Arguments())
+    second = hypothesis_space.build_hypothesis_space(program, Arguments())
+
+    assert first.clauses == second.clauses == ("p.",)
+    assert generated == [True]
 
 
 def test_hypothesis_space_clingo_times_use_current_phase(monkeypatch):

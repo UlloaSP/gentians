@@ -69,15 +69,10 @@ def search_solver(
         raise ValueError("No clauses satisfy the program generator")
     context = EvolutionContext(space, generator, args.max_program_clauses, rng)
 
-    if str(args.fitness.get("grounding", "normal")) == "normal":
+    with phase("initialization"):
         evaluate_score = create_fitness(
-            program, args.fitness, args.max_program_clauses, space.clauses
+            program, args.fitness, args.max_program_clauses, space
         )
-    else:
-        with phase("pregrounding"):
-            evaluate_score = create_fitness(
-                program, args.fitness, args.max_program_clauses, space.clauses
-            )
 
     evaluated: dict[Genome, Individual] = {}
     evaluations = 0
@@ -161,10 +156,15 @@ def search_solver(
                     args.crossover,
                     first if first.score >= second.score else second,
                     child,
+                    child.program,
                     duplicate=not base_is_new,
                 )
             if child.is_best:
-                return winning_program(child, generator.render(child.program)), child.score, True
+                return (
+                    winning_program(child, generator.render(child.program)),
+                    child.score,
+                    True,
+                )
             with phase("mutation"):
                 proposal = mutation(child.program, context)
                 duplicate = proposal.program in evaluated
@@ -177,6 +177,7 @@ def search_solver(
                     mutated = admit(proposal.program)
             _mutation_metric(
                 args.mutation,
+                child.program,
                 child,
                 mutated,
                 proposal,
@@ -249,12 +250,13 @@ def _operator_metric(
     operator: str,
     config: dict[str, object],
     parent: Individual,
-    child: Individual,
+    child: Individual | None,
+    child_program: Genome,
     *,
     duplicate: bool,
 ) -> None:
     with instrumentation():
-        changed = child.program != parent.program
+        changed = child_program != parent.program
         record_metric(
             "operator",
             {
@@ -267,26 +269,27 @@ def _operator_metric(
                 "duplicate_population": duplicate,
                 "changed": changed,
                 "parent_score": parent.score,
-                "child_score": child.score,
+                "child_score": child.score if child is not None else "",
                 "original_score": parent.score,
-                "new_score": child.score,
-                "improved": child.score > parent.score,
-                "best": child.is_best,
-                "is_best": child.is_best,
+                "new_score": child.score if child is not None else "",
+                "improved": child is not None and child.score > parent.score,
+                "best": child.is_best if child is not None else False,
+                "is_best": child.is_best if child is not None else False,
             },
         )
 
 
 def _mutation_metric(
     config: dict[str, object],
-    parent: Individual,
+    parent_program: Genome,
+    parent: Individual | None,
     child: Individual | None,
     proposal: MutationProposal,
     *,
     duplicate: bool,
 ) -> None:
     with instrumentation():
-        changed = proposal.program != parent.program
+        changed = proposal.program != parent_program
         record_metric(
             "operator",
             {
@@ -301,9 +304,9 @@ def _mutation_metric(
                 ),
                 "candidate_pool_size": proposal.candidate_pool_size,
                 "program_distance": _program_distance(
-                    parent.program, proposal.program
+                    parent_program, proposal.program
                 ),
-                "changed_rules": (parent.program ^ proposal.program).bit_count(),
+                "changed_rules": (parent_program ^ proposal.program).bit_count(),
                 "applied": changed,
                 "slots": 1,
                 "valid_new": changed and not duplicate,
@@ -311,11 +314,15 @@ def _mutation_metric(
                 "duplicate_population": duplicate,
                 "changed": changed,
                 "invalid": False,
-                "parent_score": parent.score,
+                "parent_score": parent.score if parent is not None else "",
                 "child_score": child.score if child is not None else "",
-                "original_score": parent.score,
+                "original_score": parent.score if parent is not None else "",
                 "new_score": child.score if child is not None else "",
-                "improved": child is not None and child.score > parent.score,
+                "improved": (
+                    child is not None
+                    and parent is not None
+                    and child.score > parent.score
+                ),
                 "best": child.is_best if child is not None else False,
                 "is_best": child.is_best if child is not None else False,
             },

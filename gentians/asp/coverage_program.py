@@ -52,8 +52,7 @@ def build_subset_coverage_program(
         )
         + "\n"
         + "\n".join(
-            f"{{{SELECTED_PREDICATE}({index})}}."
-            for index in range(len(program))
+            f"{{{SELECTED_PREDICATE}({index})}}." for index in range(len(program))
         )
         + f"\n#show {SELECTED_PREDICATE}/1."
     )

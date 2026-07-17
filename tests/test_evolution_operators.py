@@ -13,6 +13,7 @@ from gentians.evolution.evolution_context import EvolutionContext
 from gentians.evolution.individual import Individual
 from gentians.evolution.operator_types import MutationProposal
 from gentians.evolution.program_generators import ProgramGenerator
+from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.rule_generation.program import Program
 from gentians.rule_generation.example import Example
 from gentians.rule_generation.rule_space import RuleSpace
@@ -53,70 +54,7 @@ def test_all_mutations_share_genome_contract():
     assert set(_render(context, result.program)) <= set(context.space.clauses)
 
 
-def test_structural_mutation_keeps_constraints_in_constraint_bucket():
-    constraint = ":- q(V0)."
-    neighbor = ":- q(V0),not blocked(V0)."
-    context = _context(
-        [constraint, neighbor, "target(V0) :- q(V0)."], max_clauses=1
-    )
-    mutation = create_mutation(
-        {
-            "name": "structural_neighbor",
-            "probability": 1.0,
-            "random_jump_probability": 0.0,
-            "sample_size": 64,
-        },
-        context,
-    )
-
-    result = mutation(_encode(context, constraint), context)
-
-    assert _render(context, result.program) == (neighbor,)
-    assert result.local is True
-    assert result.structural_distance == pytest.approx(0.5)
-
-
-def test_structural_mutation_keeps_exact_rule_head():
-    source = "target(V0) :- parent(V0)."
-    same_head = "target(V0) :- mother(V0)."
-    context = _context(
-        [source, same_head, "other(V0) :- parent(V0)."], max_clauses=1
-    )
-    mutation = create_mutation(
-        {
-            "name": "structural_neighbor",
-            "probability": 1.0,
-            "random_jump_probability": 0.0,
-        },
-        context,
-    )
-
-    assert _render(context, mutation(_encode(context, source), context).program) == (
-        same_head,
-    )
-
-
-def test_structural_head_bucket_includes_argument_topology():
-    source = "target(V0,V0) :- parent(V0)."
-    same_head = "target(V1,V1) :- mother(V1)."
-    context = _context(
-        [source, same_head, "target(V0,V1) :- parent(V0)."], max_clauses=1
-    )
-    mutation = create_mutation(
-        {
-            "name": "structural_neighbor",
-            "probability": 1.0,
-            "random_jump_probability": 0.0,
-        },
-        context,
-    )
-
-    assert _render(context, mutation(_encode(context, source), context).program) == (
-        same_head,
-    )
-
-
-def test_structural_body_shape_stays_attached_to_canonical_head_variables():
+def test_structural_neighbor_prefers_same_head_and_nearest_body():
     source = "target(X,Y) :- parent(X)."
     close = "target(A,B) :- parent(A)."
     far = "target(A,B) :- parent(B)."
@@ -134,115 +72,8 @@ def test_structural_body_shape_stays_attached_to_canonical_head_variables():
     result = mutation(_encode(context, source), context)
 
     assert _render(context, result.program) == (close,)
+    assert result.local is True
     assert result.structural_distance == 0.0
-    assert result.candidate_pool_size == 2
-
-
-def test_structural_mutation_chooses_nearest_body_shape():
-    source = ":- q(V0,V1),q(V2,V1),V0<V2."
-    close = ":- q(V0,V1),q(V2,V1),V0>V2."
-    far = ":- q(V0,V1),q(V2,V3),V1+V3=V2."
-    context = _context([source, far, close], max_clauses=1)
-    mutation = create_mutation(
-        {
-            "name": "structural_neighbor",
-            "probability": 1.0,
-            "random_jump_probability": 0.0,
-            "sample_size": 64,
-        },
-        context,
-    )
-
-    result = mutation(_encode(context, source), context)
-
-    assert _render(context, result.program) == (close,)
-    assert result.structural_distance == pytest.approx(0.5)
-    assert result.candidate_pool_size == 2
-
-
-def test_structural_distance_is_invariant_to_variable_names():
-    source = "target(X) :- parent(X,Y),parent(Y,Z)."
-    renamed = "target(A) :- parent(B,C),parent(A,B)."
-    context = _context([source, renamed], max_clauses=1)
-    mutation = create_mutation(
-        {
-            "name": "structural_neighbor",
-            "probability": 1.0,
-            "random_jump_probability": 0.0,
-        },
-        context,
-    )
-
-    result = mutation(_encode(context, source), context)
-
-    assert _render(context, result.program) == (renamed,)
-    assert result.structural_distance == 0.0
-
-
-def test_structural_distance_normalizes_named_underscore_variables():
-    source = "target(_X) :- parent(_X)."
-    renamed = "target(_Y) :- parent(_Y)."
-    context = _context([source, renamed], max_clauses=1)
-    mutation = create_mutation(
-        {
-            "name": "structural_neighbor",
-            "probability": 1.0,
-            "random_jump_probability": 0.0,
-        },
-        context,
-    )
-
-    assert mutation(_encode(context, source), context).structural_distance == 0.0
-
-
-def test_structural_mutation_global_jump_can_change_head_class():
-    source = "target(V0) :- parent(V0)."
-    other = ":- parent(V0)."
-    context = _context([source, other], max_clauses=1)
-    mutation = create_mutation(
-        {
-            "name": "structural_neighbor",
-            "probability": 1.0,
-            "random_jump_probability": 1.0,
-        },
-        context,
-    )
-
-    result = mutation(_encode(context, source), context)
-
-    assert _render(context, result.program) == (other,)
-    assert result.local is False
-
-
-@pytest.mark.parametrize(
-    ("key", "value", "message"),
-    [
-        ("random_jump_probability", 1.1, "between 0 and 1"),
-        ("sample_size", 0, "at least 1"),
-    ],
-)
-def test_structural_mutation_validates_config(key, value, message):
-    context = _context(["a.", "b."], max_clauses=1)
-    config = {"name": "structural_neighbor", "probability": 1.0, key: value}
-
-    with pytest.raises(ValueError, match=message):
-        create_mutation(config, context)
-
-
-def test_structural_mutation_rejects_rules_above_supported_variable_bound():
-    context = _context(
-        [
-            "target(V0) :- rel(V0,V1,V2,V3,V4,V5,V6).",
-            "target(V0) :- other(V0).",
-        ],
-        max_clauses=1,
-    )
-
-    mutation = create_mutation(
-        {"name": "structural_neighbor", "probability": 1.0}, context
-    )
-    with pytest.raises(ValueError, match="at most 6 variables"):
-        mutation(_encode(context, context.space.clauses[0]), context)
 
 
 def test_mutation_metrics_include_structural_and_program_distances(monkeypatch):
@@ -260,6 +91,7 @@ def test_mutation_metrics_include_structural_and_program_distances(monkeypatch):
 
     search._mutation_metric(
         {"name": "structural_neighbor"},
+        parent.program,
         parent,
         child,
         proposal,
@@ -450,11 +282,18 @@ def test_program_generator_does_not_cache_bounded_search_failures(monkeypatch):
         random.Random(1),
     )
     proposal = generator.encode(("a.",))
-    results = iter((None, proposal))
-    monkeypatch.setattr(generator, "_complete", lambda _proposal, _forbidden: next(results))
+    calls = 0
+
+    def fail(_proposal, _forbidden):
+        nonlocal calls
+        calls += 1
+        return None
+
+    monkeypatch.setattr(generator, "_complete", fail)
 
     assert generator._build(proposal, 0) is None
-    assert generator._build(proposal, 0) == proposal
+    assert generator._build(proposal, 0) is None
+    assert calls == 2
 
 
 def test_program_generator_records_one_closure_per_public_transition(monkeypatch):
@@ -495,12 +334,6 @@ def test_generation_consumers_make_one_high_level_generator_call():
             self.calls.append(("random", program))
             return MutationProposal(program)
 
-        def mutate_structural(self, program, jump_probability, sample_size):
-            self.calls.append(
-                ("structural", program, jump_probability, sample_size)
-            )
-            return MutationProposal(program)
-
         def mix(self, first, second, probabilities):
             self.calls.append(("crossover", first, second, probabilities))
             return ()
@@ -514,15 +347,6 @@ def test_generation_consumers_make_one_high_level_generator_call():
     create_mutation({"name": "random_group", "probability": 1.0}, context)(
         genome, context
     )
-    create_mutation(
-        {
-            "name": "structural_neighbor",
-            "probability": 1.0,
-            "random_jump_probability": 0.2,
-            "sample_size": 5,
-        },
-        context,
-    )(genome, context)
     create_crossover({"name": "set_mix", "probability": 1.0})(
         genome, 2, context
     )
@@ -530,7 +354,6 @@ def test_generation_consumers_make_one_high_level_generator_call():
     assert [call[0] for call in generator.calls] == [
         "population",
         "random",
-        "structural",
         "crossover",
     ]
 
@@ -602,6 +425,59 @@ def test_mutation_runs_when_crossover_is_skipped(monkeypatch):
     assert best is True
 
 
+def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
+    mutation_calls = []
+    args = Arguments(
+        max_program_clauses=1,
+        random_seed=3,
+        iterations_genetic=1,
+        population={"name": "random", "size": 1},
+    )
+    monkeypatch.setattr(
+        search,
+        "create_population",
+        lambda config: lambda context: [context.generator.encode(("start.",))],
+    )
+    monkeypatch.setattr(
+        search,
+        "create_crossover",
+        lambda config: lambda first, second, context: (
+            context.generator.encode(("win.",)),
+        ),
+    )
+
+    def destructive_mutation(genome, context):
+        mutation_calls.append(genome)
+        return MutationProposal(context.generator.encode(("loss.",)))
+
+    monkeypatch.setattr(
+        search,
+        "create_mutation",
+        lambda config, context: destructive_mutation,
+    )
+    monkeypatch.setattr(
+        search,
+        "create_fitness",
+        lambda program, config, max_program_clauses, rule_space: (
+            lambda candidate: (
+                1.0 if candidate == ("win.",) else 0.0,
+                candidate == ("win.",),
+            )
+        ),
+    )
+
+    result, score, best = search_solver(
+        args,
+        Program([], [], [], [], []),
+        RuleSpace.from_clauses(["start.", "win.", "loss."]),
+    )
+
+    assert result == ("win.",)
+    assert score == 1.0
+    assert best is True
+    assert mutation_calls == []
+
+
 def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     rows = []
     args = Arguments(
@@ -641,3 +517,16 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
 
     crossover_rows = [row for row in rows if row["operator"] == "crossover"]
     assert [row["duplicate"] for row in crossover_rows] == [False, True]
+
+
+def test_equal_novel_candidate_replaces_an_existing_individual():
+    population = [
+        Individual(1, 0.0, False, generated_timestamp=1.0),
+        Individual(2, 0.0, False, generated_timestamp=2.0),
+    ]
+    candidate = Individual(4, 0.0, False, generated_timestamp=3.0)
+
+    result = OldestOrWorstReplacement(0.0)(population, candidate, random.Random(1))
+
+    assert candidate in result
+    assert len(result) == len(population)

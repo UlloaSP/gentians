@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-import math
-
-from .coverage_common import cached_fitness, record_fitness_metric
-from ...asp.coverage import Coverage
-from ...asp import create_coverage_solver
+from .coverage_common import coverage_score, record_fitness_metric
+from ...asp.normal_coverage_solver import NormalCoverageSolver
 from ...rule_generation.program import Program
+from ...rule_generation.rule_space import RuleSpace
 
 
 class CovProgram:
-    def __init__(self, program: Program, solver, grounding: str) -> None:
+    def __init__(self, program: Program, solver) -> None:
         self.program = program
         self.solver = solver
-        self.grounding = grounding
-        self.cache = {}
 
     @classmethod
     def from_config(
@@ -21,49 +17,44 @@ class CovProgram:
         program: Program,
         config: dict[str, object],
         max_program_clauses: int,
-        rule_space: tuple[str, ...] | None,
+        rule_space: RuleSpace,
     ) -> "CovProgram":
-        obsolete = {"scope", "aggregation"}.intersection(config)
+        obsolete = {"scope", "aggregation", "grounding"}.intersection(config)
         if obsolete:
             raise ValueError(
                 f"Obsolete fitness options for cov_program: {sorted(obsolete)}"
             )
-        grounding = str(config.get("grounding", "normal"))
         max_as = int(config.get("max_as", 0))
-        if grounding not in {"normal", "externals", "assumptions"}:
-            raise ValueError(f"Unknown coverage grounding: {grounding}")
-        if grounding != "normal" and max_as != 0:
-            raise ValueError("Pre-grounded coverage requires max_as=0")
-        arguments = [
-            str(max_as),
-            *[
-                str(value)
-                for value in config.get("clingo_arguments", ["--enum-mode=brave"])
-            ],
+        if max_as != 0:
+            raise ValueError("cov_program requires max_as=0")
+        extra = [
+            str(value)
+            for value in config.get("clingo_arguments", [])
+            if not str(value).startswith("--enum-mode")
         ]
-        solver = create_coverage_solver(
-            grounding,
+        arguments = [
+            "0",
+            "--enum-mode=brave",
+            *extra,
+        ]
+        solver = NormalCoverageSolver(
             program.background,
             arguments,
             program.positive_examples,
             program.negative_examples,
-            rule_space=rule_space,
-            max_program_clauses=max_program_clauses,
         )
-        return cls(program, solver, grounding)
+        return cls(program, solver)
 
     def __call__(
         self, candidate: tuple[str, ...]
     ) -> tuple[float, bool, tuple[str, ...]]:
-        return cached_fitness(
-            self.cache, candidate, lambda value: self._evaluate(value)
-        )
+        return self._evaluate(candidate)
 
     def _evaluate(
         self, candidate: tuple[str, ...]
     ) -> tuple[float, bool, tuple[str, ...]]:
         coverage = self.solver.extract_fixed_coverage(candidate)
-        score = self._score(coverage)
+        score = coverage_score(self.program, coverage)
         best_found = (
             coverage.pos_mask.bit_count() == len(self.program.positive_examples)
             and coverage.neg_mask == 0
@@ -76,22 +67,8 @@ class CovProgram:
             score,
             best_found,
             {
-                "grounding": self.grounding,
                 "evaluated_subprograms": 1,
                 "candidate_rules": len(candidate),
             },
         )
         return score, best_found, candidate
-
-    def _score(self, coverage: Coverage) -> float:
-        positive_rate = (
-            coverage.pos_mask.bit_count() / len(self.program.positive_examples)
-            if self.program.positive_examples
-            else 0.0
-        )
-        negative_rate = (
-            coverage.neg_mask.bit_count() / len(self.program.negative_examples)
-            if self.program.negative_examples
-            else 0.0
-        )
-        return math.exp((positive_rate - negative_rate) * 10)

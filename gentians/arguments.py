@@ -41,8 +41,6 @@ class Arguments:
         default_factory=lambda: {
             # cov_subprograms_mean, cov_subprograms_max, or cov_program.
             "name": "cov_subprograms_mean",
-            # normal, externals, or assumptions.
-            "grounding": "normal",
             # Maximum answer sets requested from Clingo per coverage check. 0 means all.
             "max_as": 0,
             # Clingo CLI arguments used by the fitness evaluator.
@@ -75,7 +73,7 @@ class Arguments:
     # Mutation operator config.
     mutation: dict[str, object] = field(
         default_factory=lambda: {
-            # Mutation implementation.
+            # random_group or structural_neighbor.
             "name": "random_group",
             # Probability of mutating an offspring.
             "probability": 0.9,

@@ -1,6 +1,3 @@
-import clingo
-
-ACTIVE_PREDICATE = "gentians_internal_active"
 SELECTED_PREDICATE = "gentians_internal_selected"
 
 
@@ -26,11 +23,3 @@ def parse_selected_rule_tuple(symbols) -> tuple[int, ...]:
             if symbol.name == SELECTED_PREDICATE and len(symbol.arguments) == 1
         )
     )
-
-
-def active_symbol(rule_id: int):
-    return clingo.Function(ACTIVE_PREDICATE, [clingo.Number(rule_id)])
-
-
-def selected_symbol(index: int):
-    return clingo.Function(SELECTED_PREDICATE, [clingo.Number(index)])

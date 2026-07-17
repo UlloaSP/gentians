@@ -44,7 +44,6 @@ arguments = Arguments(
     iterations_genetic=2000,
     fitness={
         "name": "cov_subprograms_mean",
-        "grounding": "externals",
         "max_as": 0,
         "clingo_arguments": [],
     },
@@ -56,15 +55,16 @@ main(arguments)
 `cov_program`. Subprogram fitness keeps every evolutionary individual at the fixed
 size `min(max_program_clauses, hypothesis_space_size)` and evaluates its possible
 subprograms. Program fitness evaluates the whole individual and permits variable
-sizes. `fitness.grounding` is `normal`, `externals`, or `assumptions`.
+sizes. Every fitness evaluation creates a fresh Clingo control, grounds its
+candidate program, then solves it. Whole-program fitness uses brave consequences.
 
-Mutation defaults to `random_group`. To prefer replacements with the same exact
-head and the closest alpha-normalized body structure, use:
+Mutation defaults to `random_group`. `structural_neighbor` remains available as
+an alternative that prefers rules with the same normalized head and nearest body:
 
 ```python
 mutation={
     "name": "structural_neighbor",
-    "probability": 0.05,
+    "probability": 0.9,
     "random_jump_probability": 0.1,
     "sample_size": 64,
 }
@@ -87,8 +87,8 @@ indexed by `.benchmarks/experiments.json` for multi-experiment comparison.
 
 ```powershell
 uv run python benchmarks/run_experiments.py --list
-uv run python benchmarks/run_experiments.py cov_subprograms_mean_normal
-uv run python benchmarks/run_experiments.py cov_subprograms_mean_normal --force
+uv run python benchmarks/run_experiments.py cov_subprograms_mean
+uv run python benchmarks/run_experiments.py cov_subprograms_mean --force
 uv run python benchmarks/run_experiments.py  # all configured experiments
 ```
 
@@ -234,11 +234,7 @@ Here we list only the main ones:
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. Default 2000.
 - `fitness.name`: `cov_subprograms_mean`, `cov_subprograms_max`, or `cov_program`.
-- `fitness.grounding`: `normal`, `externals`, or `assumptions`.
 - `ProgramGenerator` is mandatory infrastructure: every initialization,
   mutation, and crossover returns an already dependency-closed valid program.
 - `admission`: `reject_duplicates` or `allow_duplicates`.
 
-Pregrounded fitness builds and grounds the guarded hypothesis space once. Each
-candidate is then selected through externals or assumptions without grounding a
-new Clingo control.

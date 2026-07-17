@@ -17,84 +17,31 @@ def test_default_config_defines_comparable_experiment_matrix():
 
     assert output_root.name == ".benchmarks"
     assert {experiment["id"] for experiment in experiments} == {
-        f"{coverage}_{grounding}"
-        for coverage in (
-            "cov_subprograms_mean",
-            "cov_subprograms_max",
-            "cov_program",
-        )
-        for grounding in ("normal", "externals", "assumptions")
+        "cov_subprograms_mean",
+        "cov_subprograms_max",
+        "cov_program",
+        "cov_whole_program_random_group_mutation",
+        "cov_whole_program_structural_neighbor_mutation",
     }
     assert all(experiment["runs"] == 10 for experiment in experiments)
     assert all(experiment["timeout_seconds"] == 100 for experiment in experiments)
     assert all(experiment["cprofile"] is False for experiment in experiments)
-    control = experiments[0]["overrides"]
-    assert control["iterations_genetic"] > 0
-    assert control["selection.name"] == "tournament"
-    assert control["crossover.name"] == "set_mix"
-    assert control["mutation.name"] == "random_group"
-
-    assert set(control) == {
-        "iterations_genetic",
-        "fitness.name",
-        "fitness.grounding",
-        "fitness.max_as",
-        "fitness.clingo_arguments",
-        "population.name",
-        "population.size",
-        "selection.name",
-        "selection.tournament_size",
-        "selection.prob_selecting_fittest",
-        "crossover.name",
-        "crossover.probability",
-        "mutation.name",
-        "mutation.probability",
-        "replacement.name",
-        "replacement.prob_replacing_oldest",
-    }
+    assert all("fitness.grounding" not in experiment["overrides"] for experiment in experiments)
 
 
-def test_pregrounded_experiments_enumerate_all_models():
+def test_default_experiments_have_no_pregrounding_strategy_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
-    pregrounded = [
-        experiment["overrides"]
-        for experiment in experiments
-        if experiment["overrides"]["fitness.grounding"] != "normal"
-    ]
-
-    assert all(overrides["fitness.max_as"] == 0 for overrides in pregrounded)
+    assert all("fitness.grounding" not in item["overrides"] for item in experiments)
+    assert len(experiments) == 5
 
 
-def test_default_experiments_form_coverage_by_grounding_matrix():
+def test_default_experiments_cover_all_fitness_operators():
     _, experiments = load_config(DEFAULT_CONFIG)
-    matrix = {
-        (
-            experiment["overrides"]["fitness.name"],
-            experiment["overrides"]["fitness.grounding"],
-        )
+    names = {
+        experiment["overrides"].get("fitness.name", "cov_subprograms_mean")
         for experiment in experiments
     }
-    assert matrix == {
-        (coverage, grounding)
-        for coverage in (
-            "cov_subprograms_mean",
-            "cov_subprograms_max",
-            "cov_program",
-        )
-        for grounding in ("normal", "externals", "assumptions")
-    }
-
-    controlled_keys = set(experiments[0]["overrides"]) - {
-        "fitness.name",
-        "fitness.grounding",
-    }
-    for experiment in experiments[1:]:
-        overrides = experiment["overrides"]
-        assert set(overrides) - {"fitness.name", "fitness.grounding"} == controlled_keys
-        assert all(
-            overrides[key] == experiments[0]["overrides"][key]
-            for key in controlled_keys
-        )
+    assert names == {"cov_subprograms_mean", "cov_subprograms_max", "cov_program"}
 
 
 def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):
@@ -128,7 +75,7 @@ def test_load_config_rejects_path_like_and_duplicate_ids(tmp_path):
         load_config(config)
 
 
-def test_index_points_to_each_dashboard_for_lazy_comparison(tmp_path):
+def test_index_points_to_each_dashboard_for_comparison(tmp_path):
     experiment = {
         "id": "subprogram_mean",
         "label": "Subprogram mean",
@@ -182,7 +129,7 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
         "description": "current",
         "datasets": ["coin"],
         "runs": 2,
-        "overrides": {"fitness.grounding": "normal"},
+        "overrides": {"fitness.name": "cov_subprograms_mean"},
     }
     out_dir = tmp_path / experiment["id"]
     out_dir.mkdir()
@@ -190,7 +137,7 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
     experiment.update(
         runs=10,
         label="New label",
-        overrides={"fitness.grounding": "externals"},
+        overrides={"fitness.name": "cov_program"},
     )
 
     write_index(tmp_path, [experiment])
@@ -199,4 +146,4 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
     assert indexed["status"] == "stale"
     assert indexed["runs"] == 10
     assert indexed["label"] == "New label"
-    assert indexed["overrides"] == {"fitness.grounding": "externals"}
+    assert indexed["overrides"] == {"fitness.name": "cov_program"}

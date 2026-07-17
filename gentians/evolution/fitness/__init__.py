@@ -2,6 +2,7 @@ from .cov_program import CovProgram
 from .cov_subprograms_max import CovSubprogramsMax
 from .cov_subprograms_mean import CovSubprogramsMean
 from ...rule_generation.program import Program
+from ...rule_generation.rule_space import RuleSpace
 
 
 FITNESS_STRATEGIES = {
@@ -15,7 +16,7 @@ def create_fitness(
     program: Program,
     config: dict[str, object],
     max_program_clauses: int,
-    rule_space: tuple[str, ...] | None = None,
+    rule_space: RuleSpace,
 ):
     name = str(config["name"])
     try:

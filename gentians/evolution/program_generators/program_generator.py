@@ -17,6 +17,7 @@ _VARIABLE = re.compile(
 )
 _MAX_STRUCTURAL_VARIABLES = 6
 _CACHE_SIZE = 65536
+_MISSING = object()
 
 
 class ProgramGenerator:
@@ -86,7 +87,7 @@ class ProgramGenerator:
         self._structural_index = None
         self._render_cache: dict[Genome, ProgramText] = {}
         self._summary_cache: dict[Genome, tuple[int, int]] = {}
-        self._build_cache: dict[tuple[Genome, Genome], Genome] = {}
+        self._build_cache: dict[tuple[Genome, Genome], Genome | None] = {}
         self._distance_cache: dict[tuple[int, int], float] = {}
 
     def encode(self, program: ProgramText) -> Genome:
@@ -100,7 +101,7 @@ class ProgramGenerator:
             self._remember(
                 self._render_cache,
                 genome,
-                tuple(sorted(self.rules[rule_id] for rule_id in self._ids(genome))),
+                tuple(self.rules[rule_id] for rule_id in self._ids(genome)),
             )
         return self._render_cache[genome]
 
@@ -332,14 +333,16 @@ class ProgramGenerator:
 
     def _build(self, proposal: Genome, forbidden: Genome) -> Genome | None:
         key = proposal, forbidden
-        if cached := self._build_cache.get(key):
+        cached = self._build_cache.get(key, _MISSING)
+        if cached is not _MISSING:
             return cached
-        if (
+        invalid = (
             not proposal
             or proposal.bit_count() > self.max_clauses
             or proposal & forbidden
             or proposal & ~self.all_rules
-        ):
+        )
+        if invalid:
             result = None
         else:
             completed = self._complete(proposal, forbidden)
@@ -348,7 +351,7 @@ class ProgramGenerator:
                 if completed is not None and self.fixed_size
                 else completed
             )
-        if result is not None:
+        if result is not None or invalid:
             self._remember(self._build_cache, key, result)
         return result
 

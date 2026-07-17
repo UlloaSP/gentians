@@ -23,9 +23,7 @@ class OldestOrWorstReplacement:
             and candidate.score < population[-1].score
         ):
             return population
-        ranked = sorted(
-            (*population, candidate), key=lambda item: item.score, reverse=True
-        )
+        ranked = sorted(population, key=lambda item: item.score, reverse=True)
         victim = (
             min(ranked, key=lambda item: item.generated_timestamp)
             if rng.random() < self.probability
@@ -34,4 +32,5 @@ class OldestOrWorstReplacement:
         if victim.score > candidate.score:
             victim = ranked[-1]
         ranked.remove(victim)
-        return ranked
+        ranked.append(candidate)
+        return sorted(ranked, key=lambda item: item.score, reverse=True)

@@ -1,22 +1,22 @@
-from collections.abc import Callable
+import math
 
 from ...asp.coverage import Coverage
 from ...rule_generation.program import Program
 from ...timing import current_phase, instrumentation, metric_enabled, record_metric
 
-FitnessResult = tuple[float, bool] | tuple[float, bool, tuple[str, ...] | None]
-CachedFitnessResult = FitnessResult
-FitnessCompute = Callable[[tuple[str, ...]], FitnessResult]
 
-
-def cached_fitness(
-    cache: dict[tuple[str, ...], CachedFitnessResult],
-    candidate_program: tuple[str, ...],
-    compute: FitnessCompute,
-) -> FitnessResult:
-    if candidate_program not in cache:
-        cache[candidate_program] = compute(candidate_program)
-    return cache[candidate_program]
+def coverage_score(program: Program, coverage: Coverage) -> float:
+    positive_rate = (
+        coverage.pos_mask.bit_count() / len(program.positive_examples)
+        if program.positive_examples
+        else 0.0
+    )
+    negative_rate = (
+        coverage.neg_mask.bit_count() / len(program.negative_examples)
+        if program.negative_examples
+        else 0.0
+    )
+    return math.exp((positive_rate - negative_rate) * 10)
 
 
 def record_fitness_metric(

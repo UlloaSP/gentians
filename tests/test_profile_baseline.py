@@ -110,7 +110,6 @@ def test_profile_baseline_uses_strategy_fitness_for_debug_dump(tmp_path):
     arguments = Arguments(filename=str(task))
     arguments.fitness = {
         "name": "cov_subprograms_mean",
-        "grounding": "normal",
         "max_as": 10000,
         "clingo_arguments": [],
     }

@@ -7,6 +7,7 @@ from gentians.evolution.algorithms import search
 from gentians.evolution.algorithms.search import search_solver
 from gentians.evolution.crossovers import create_crossover
 from gentians.evolution.mutations import create_mutation
+from gentians.evolution.populations import create_population
 from gentians.evolution.selections import create_selection
 from gentians.evolution.evolution_context import EvolutionContext
 from gentians.evolution.individual import Individual
@@ -32,16 +33,24 @@ def _context(rules, *, max_clauses=3):
     )
 
 
+def _encode(context, *rules):
+    return context.generator.encode(tuple(rules))
+
+
+def _render(context, genome):
+    return context.generator.render(genome)
+
+
 def test_all_mutations_share_genome_contract():
     context = _context(["a.", "b.", "c."])
-    genome = ("a.", "b.")
+    genome = _encode(context, "a.", "b.")
     result = create_mutation(
         {"name": "random_group", "probability": 1.0}, context
     )(
         genome, context
     )
-    assert isinstance(result.program, tuple)
-    assert set(result.program) <= set(context.space.clauses)
+    assert isinstance(result.program, int)
+    assert set(_render(context, result.program)) <= set(context.space.clauses)
 
 
 def test_structural_mutation_keeps_constraints_in_constraint_bucket():
@@ -60,9 +69,9 @@ def test_structural_mutation_keeps_constraints_in_constraint_bucket():
         context,
     )
 
-    result = mutation((constraint,), context)
+    result = mutation(_encode(context, constraint), context)
 
-    assert result.program == (neighbor,)
+    assert _render(context, result.program) == (neighbor,)
     assert result.local is True
     assert result.structural_distance == pytest.approx(0.5)
 
@@ -82,7 +91,9 @@ def test_structural_mutation_keeps_exact_rule_head():
         context,
     )
 
-    assert mutation((source,), context).program == (same_head,)
+    assert _render(context, mutation(_encode(context, source), context).program) == (
+        same_head,
+    )
 
 
 def test_structural_head_bucket_includes_argument_topology():
@@ -100,7 +111,9 @@ def test_structural_head_bucket_includes_argument_topology():
         context,
     )
 
-    assert mutation((source,), context).program == (same_head,)
+    assert _render(context, mutation(_encode(context, source), context).program) == (
+        same_head,
+    )
 
 
 def test_structural_body_shape_stays_attached_to_canonical_head_variables():
@@ -118,9 +131,9 @@ def test_structural_body_shape_stays_attached_to_canonical_head_variables():
         context,
     )
 
-    result = mutation((source,), context)
+    result = mutation(_encode(context, source), context)
 
-    assert result.program == (close,)
+    assert _render(context, result.program) == (close,)
     assert result.structural_distance == 0.0
     assert result.candidate_pool_size == 2
 
@@ -140,9 +153,9 @@ def test_structural_mutation_chooses_nearest_body_shape():
         context,
     )
 
-    result = mutation((source,), context)
+    result = mutation(_encode(context, source), context)
 
-    assert result.program == (close,)
+    assert _render(context, result.program) == (close,)
     assert result.structural_distance == pytest.approx(0.5)
     assert result.candidate_pool_size == 2
 
@@ -160,9 +173,9 @@ def test_structural_distance_is_invariant_to_variable_names():
         context,
     )
 
-    result = mutation((source,), context)
+    result = mutation(_encode(context, source), context)
 
-    assert result.program == (renamed,)
+    assert _render(context, result.program) == (renamed,)
     assert result.structural_distance == 0.0
 
 
@@ -179,7 +192,7 @@ def test_structural_distance_normalizes_named_underscore_variables():
         context,
     )
 
-    assert mutation((source,), context).structural_distance == 0.0
+    assert mutation(_encode(context, source), context).structural_distance == 0.0
 
 
 def test_structural_mutation_global_jump_can_change_head_class():
@@ -195,9 +208,9 @@ def test_structural_mutation_global_jump_can_change_head_class():
         context,
     )
 
-    result = mutation((source,), context)
+    result = mutation(_encode(context, source), context)
 
-    assert result.program == (other,)
+    assert _render(context, result.program) == (other,)
     assert result.local is False
 
 
@@ -225,17 +238,18 @@ def test_structural_mutation_rejects_rules_above_supported_variable_bound():
         max_clauses=1,
     )
 
+    mutation = create_mutation(
+        {"name": "structural_neighbor", "probability": 1.0}, context
+    )
     with pytest.raises(ValueError, match="at most 6 variables"):
-        create_mutation(
-            {"name": "structural_neighbor", "probability": 1.0}, context
-        )
+        mutation(_encode(context, context.space.clauses[0]), context)
 
 
 def test_mutation_metrics_include_structural_and_program_distances(monkeypatch):
     rows = []
     monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
-    parent = Individual(("a.", "b."), 1.0, False)
-    child = Individual(("a.", "c."), 2.0, False)
+    parent = Individual(0b011, 1.0, False)
+    child = Individual(0b101, 2.0, False)
     proposal = MutationProposal(
         child.program,
         operation="replace",
@@ -265,10 +279,10 @@ def test_mutation_metrics_include_structural_and_program_distances(monkeypatch):
 def test_all_crossovers_share_genome_contract():
     context = _context(["a.", "b.", "c."])
     children = create_crossover({"name": "set_mix", "probability": 1.0})(
-        ("a.", "b."), ("b.", "c."), context
+        _encode(context, "a.", "b."), _encode(context, "b.", "c."), context
     )
     assert isinstance(children, tuple)
-    assert all(isinstance(child, tuple) for child in children)
+    assert all(isinstance(child, int) for child in children)
 
 
 def test_crossover_generates_closed_programs_directly():
@@ -284,17 +298,18 @@ def test_crossover_generates_closed_programs_directly():
     context = EvolutionContext(generator.space, generator, 2, rng)
 
     children = create_crossover({"name": "set_mix", "probability": 1.0})(
-        tuple(sorted((consumer, first_provider))),
-        tuple(sorted((consumer, second_provider))),
+        generator.encode(tuple(sorted((consumer, first_provider)))),
+        generator.encode(tuple(sorted((consumer, second_provider)))),
         context,
     )
 
     assert children
-    assert all(consumer in child for child in children)
+    rendered = [generator.render(child) for child in children]
+    assert all(consumer in child for child in rendered)
     assert all(
-        first_provider in child or second_provider in child for child in children
+        first_provider in child or second_provider in child for child in rendered
     )
-    assert all(len(child) == 2 for child in children)
+    assert all(child.bit_count() == 2 for child in children)
 
 
 def test_tournament_has_one_canonical_strategy_name():
@@ -319,9 +334,13 @@ def test_program_generator_creates_only_closed_programs():
     )
     program = Program(["coin(c1)."], [], [], [], [])
     space = RuleSpace.from_clauses(list(rules))
-    generator = ProgramGenerator(program, space, 2, random.Random(1))
+    generator = ProgramGenerator(
+        program, space, 2, random.Random(1), fixed_size=True
+    )
 
-    assert generator.create(2) == tuple(sorted(rules))
+    assert [generator.render(genome) for genome in generator.create_population(1)] == [
+        tuple(sorted(rules))
+    ]
 
 
 def test_program_generator_builds_invented_definition_module():
@@ -345,15 +364,16 @@ def test_program_generator_builds_invented_definition_module():
         program, space, 3, random.Random(1), fixed_size=True
     )
 
-    generated = generator.create()
+    [generated] = generator.create_population(1)
 
     assert generated is not None
-    assert len(generated) == 3
-    assert consumer in generated
-    assert mother in generated or father in generated
+    rendered = generator.render(generated)
+    assert generated.bit_count() == 3
+    assert consumer in rendered
+    assert mother in rendered or father in rendered
 
 
-def test_program_generator_applies_edits_atomically():
+def test_program_generator_applies_mutation_atomically():
     seed = "seed(V0) :- coin(V0)."
     consumer = "heads(V0) :- coin(V0),not tails(V0)."
     provider = "tails(V0) :- coin(V0)."
@@ -366,12 +386,11 @@ def test_program_generator_applies_edits_atomically():
         random.Random(1),
     )
 
-    appended = generator.append((seed,), consumer)
+    result = generator.mutate_random(generator.encode((seed, consumer, provider)))
 
-    assert appended == tuple(sorted((seed, consumer, provider)))
-    expected_alternative = tuple(sorted((seed, consumer, alternative)))
-    assert generator.remove(appended, provider) == expected_alternative
-    assert generator.replace(appended, provider, alternative) == expected_alternative
+    rendered = generator.render(result.program)
+    assert rendered != tuple(sorted((seed, consumer, provider)))
+    assert consumer not in rendered or provider in rendered or alternative in rendered
 
 
 def test_generator_prunes_uncloseable_rules():
@@ -380,7 +399,9 @@ def test_generator_prunes_uncloseable_rules():
     generator = ProgramGenerator(program, space, 2, random.Random(1))
 
     assert generator.space.clauses == ("base.",)
-    assert generator.append(("base.",), "target :- missing.") is None
+    assert [generator.render(genome) for genome in generator.create_population(2)] == [
+        ("base.",)
+    ]
 
 
 def test_fixed_size_generator_keeps_every_transition_at_target_size():
@@ -389,21 +410,129 @@ def test_fixed_size_generator_keeps_every_transition_at_target_size():
     generator = ProgramGenerator(
         program, space, 3, random.Random(1), fixed_size=True
     )
-    generated = generator.create()
+    [generated] = generator.create_population(1)
 
     assert generated is not None
-    assert len(generated) == 3
-    assert len(generator.remove(generated, generated[0])) == 3
-    replacement = next(rule for rule in space.clauses if rule not in generated)
-    assert len(generator.replace(generated, generated[0], replacement)) == 3
+    assert generated.bit_count() == 3
+    assert generator.mutate_random(generated).program.bit_count() == 3
 
 
-def test_variable_size_generator_creates_requested_size():
+def test_program_generator_creates_requested_population_size():
     program = Program([], [], [], [], [])
     space = RuleSpace.from_clauses(["a.", "b.", "c."])
     generator = ProgramGenerator(program, space, 3, random.Random(1))
 
-    assert len(generator.create(1)) == 1
+    assert len(generator.create_population(3)) == 3
+
+
+def test_program_generator_uses_canonical_bitset_genomes():
+    generator = ProgramGenerator(
+        Program([], [], [], [], []),
+        RuleSpace.from_clauses(["a.", "b.", "c.", "d."]),
+        3,
+        random.Random(1),
+    )
+
+    genome = generator.encode(("c.", "a.", "c."))
+    available = list(generator._random_available(genome))
+
+    assert isinstance(genome, int)
+    assert genome.bit_count() == 2
+    assert generator.render(genome) == ("a.", "c.")
+    assert sorted(available) == [generator.rule_ids["b."], generator.rule_ids["d."]]
+
+
+def test_program_generator_does_not_cache_bounded_search_failures(monkeypatch):
+    generator = ProgramGenerator(
+        Program([], [], [], [], []),
+        RuleSpace.from_clauses(["a."]),
+        1,
+        random.Random(1),
+    )
+    proposal = generator.encode(("a.",))
+    results = iter((None, proposal))
+    monkeypatch.setattr(generator, "_complete", lambda _proposal, _forbidden: next(results))
+
+    assert generator._build(proposal, 0) is None
+    assert generator._build(proposal, 0) == proposal
+
+
+def test_program_generator_records_one_closure_per_public_transition(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "gentians.evolution.program_generators.common.add",
+        lambda name, seconds: calls.append((name, seconds)),
+    )
+    generator = ProgramGenerator(
+        Program([], [], [], [], []),
+        RuleSpace.from_clauses(["a.", "b.", "c."]),
+        2,
+        random.Random(1),
+    )
+
+    generator.create_population(2)
+    generator.mutate_random(generator.encode(("a.",)))
+    generator.mix(
+        generator.encode(("a.",)),
+        generator.encode(("b.",)),
+        ((0.7, 0.3), (0.3, 0.7)),
+    )
+
+    assert len(calls) == 3
+    assert all(name.endswith(".closure") for name, _seconds in calls)
+
+
+def test_generation_consumers_make_one_high_level_generator_call():
+    class GeneratorSpy:
+        def __init__(self):
+            self.calls = []
+
+        def create_population(self, size):
+            self.calls.append(("population", size))
+            return []
+
+        def mutate_random(self, program):
+            self.calls.append(("random", program))
+            return MutationProposal(program)
+
+        def mutate_structural(self, program, jump_probability, sample_size):
+            self.calls.append(
+                ("structural", program, jump_probability, sample_size)
+            )
+            return MutationProposal(program)
+
+        def mix(self, first, second, probabilities):
+            self.calls.append(("crossover", first, second, probabilities))
+            return ()
+
+    generator = GeneratorSpy()
+    space = RuleSpace.from_clauses(["a.", "b."])
+    context = EvolutionContext(space, generator, 2, random.Random(1))
+    genome = 1
+
+    create_population({"name": "random", "size": 3})(context)
+    create_mutation({"name": "random_group", "probability": 1.0}, context)(
+        genome, context
+    )
+    create_mutation(
+        {
+            "name": "structural_neighbor",
+            "probability": 1.0,
+            "random_jump_probability": 0.2,
+            "sample_size": 5,
+        },
+        context,
+    )(genome, context)
+    create_crossover({"name": "set_mix", "probability": 1.0})(
+        genome, 2, context
+    )
+
+    assert [call[0] for call in generator.calls] == [
+        "population",
+        "random",
+        "structural",
+        "crossover",
+    ]
 
 
 def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
@@ -442,12 +571,14 @@ def test_mutation_runs_when_crossover_is_skipped(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [("start.",)],
+        lambda config: lambda context: [context.generator.encode(("start.",))],
     )
     monkeypatch.setattr(
         search,
         "create_mutation",
-        lambda config, context: lambda genome, context: MutationProposal(("win.",)),
+        lambda config, context: lambda genome, context: MutationProposal(
+            context.generator.encode(("win.",))
+        ),
     )
     monkeypatch.setattr(
         search,
@@ -483,12 +614,15 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [("start.",)],
+        lambda config: lambda context: [context.generator.encode(("start.",))],
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
-        lambda config: lambda first, second, context: (("cross.",), ("cross.",)),
+        lambda config: lambda first, second, context: (
+            context.generator.encode(("cross.",)),
+            context.generator.encode(("cross.",)),
+        ),
     )
     monkeypatch.setattr(
         search,

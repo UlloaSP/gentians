@@ -16,7 +16,6 @@ def create_mutation(
     if name == "structural_neighbor":
         return StructuralNeighborMutation(
             probability,
-            context,
             float(config.get("random_jump_probability", 0.1)),
             int(config.get("sample_size", 64)),
         )

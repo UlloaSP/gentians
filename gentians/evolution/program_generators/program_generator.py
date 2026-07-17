@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+from itertools import permutations, product
 import random
+import re
 
-from ...rule_generation.parser import fragment_atoms
+from ...rule_generation.parser import fragment_atoms, split_top_level_args
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
-from ..types import Genome
-from .common import (
-    bits,
-    defined_predicates,
-    mixed_rules,
-    prepare_space,
-    record_generation_time,
+from ..operator_types import MutationProposal
+from ..types import Genome, ProgramText
+from .common import bits, defined_predicates, prepare_space, record_generation_time
+
+
+_VARIABLE = re.compile(
+    r"(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9_]*|_[A-Za-z0-9_]+)(?![A-Za-z0-9_])"
 )
+_MAX_STRUCTURAL_VARIABLES = 6
+_CACHE_SIZE = 65536
 
 
 class ProgramGenerator:
@@ -28,15 +32,19 @@ class ProgramGenerator:
         self.rng = rng
         self.space = prepare_space(program, space)
         self.fixed_size = fixed_size
-        self.target_size = min(max_clauses, len(self.space))
+        self.rules = self.space.clauses
+        self.rule_count = len(self.rules)
+        self.target_size = min(max_clauses, self.rule_count)
+        self.all_rules = (1 << self.rule_count) - 1
+        self.rule_ids = {rule: index for index, rule in enumerate(self.rules)}
+
         background = defined_predicates(program.background)
         predicates = set(background)
         for entry in self.space.entries:
             predicates.update(entry.heads)
             predicates.update(entry.deps)
         self.predicate_ids = {
-            predicate: index
-            for index, predicate in enumerate(sorted(predicates))
+            predicate: index for index, predicate in enumerate(sorted(predicates))
         }
         self.background_mask = self._predicate_mask(background)
         self.invented_mask = self._predicate_mask(set(program.invented_predicates))
@@ -47,223 +55,473 @@ class ProgramGenerator:
             for name, arguments, _negative in fragment_atoms(fragment)
         }
         self.target_mask = self._predicate_mask(target_predicates)
-        self.masks = {
-            entry.text: (
-                self._predicate_mask(entry.heads),
-                self._predicate_mask(entry.deps),
-                entry.body_literals,
-            )
-            for entry in self.space.entries
-        }
-        self.rules_by_head: dict[int, list[str]] = {}
-        for rule, (heads, _deps, _body) in self.masks.items():
-            for bit in bits(heads):
-                self.rules_by_head.setdefault(bit, []).append(rule)
-
-    @record_generation_time
-    def create(self, target_size: int | None = None) -> Genome | None:
-        if not self.space:
-            return None
-        limit = min(self.max_clauses, len(self.space))
-        size = (
-            limit
-            if self.fixed_size
-            else max(1, min(target_size or self.rng.randint(1, limit), limit))
+        self.head_masks = tuple(
+            self._predicate_mask(entry.heads) for entry in self.space.entries
         )
-        for _ in range(64):
-            candidate = self._build(self._sample_rules(size))
-            if candidate is not None and (self.fixed_size or len(candidate) <= size):
-                return candidate
-        return None
-
-    @record_generation_time
-    def append(self, program: Genome, rule: str) -> Genome | None:
-        if rule in program or rule not in self.masks or self.fixed_size:
-            return None
-        candidate = self._build((*program, rule))
-        return candidate if candidate != program else None
-
-    @record_generation_time
-    def remove(self, program: Genome, rule: str) -> Genome | None:
-        if rule not in program or len(program) == 1:
-            return None
-        candidate = self._build(
-            tuple(item for item in program if item != rule), forbidden={rule}
+        self.dep_masks = tuple(
+            self._predicate_mask(entry.deps) for entry in self.space.entries
         )
-        return candidate if candidate != program else None
-
-    @record_generation_time
-    def replace(
-        self, program: Genome, source: str, replacement: str
-    ) -> Genome | None:
-        if (
-            source not in program
-            or replacement not in self.masks
-            or replacement in program
+        self.body_sizes = tuple(entry.body_literals for entry in self.space.entries)
+        self.target_rules = sum(
+            1 << rule_id
+            for rule_id, heads in enumerate(self.head_masks)
+            if heads & self.target_mask
+        )
+        self.rules_by_head: dict[int, int] = {}
+        signature_masks: dict[tuple[int, int, int], int] = {}
+        for rule_id, (heads, deps, body) in enumerate(
+            zip(self.head_masks, self.dep_masks, self.body_sizes, strict=True)
         ):
-            return None
-        proposal = tuple(
-            replacement if rule == source else rule for rule in program
+            rule_bit = 1 << rule_id
+            for predicate_bit in bits(heads):
+                self.rules_by_head[predicate_bit] = (
+                    self.rules_by_head.get(predicate_bit, 0) | rule_bit
+                )
+            signature = (heads, deps, body)
+            signature_masks[signature] = signature_masks.get(signature, 0) | rule_bit
+        self.signatures = tuple(
+            (*signature, rule_mask)
+            for signature, rule_mask in signature_masks.items()
         )
-        candidate = self._build(proposal, forbidden={source})
-        return candidate if candidate != program else None
+        self._structural_index = None
+        self._render_cache: dict[Genome, ProgramText] = {}
+        self._summary_cache: dict[Genome, tuple[int, int]] = {}
+        self._build_cache: dict[tuple[Genome, Genome], Genome] = {}
+        self._distance_cache: dict[tuple[int, int], float] = {}
+
+    def encode(self, program: ProgramText) -> Genome:
+        genome = 0
+        for rule in program:
+            genome |= 1 << self.rule_ids[rule]
+        return genome
+
+    def render(self, genome: Genome) -> ProgramText:
+        if genome not in self._render_cache:
+            self._remember(
+                self._render_cache,
+                genome,
+                tuple(sorted(self.rules[rule_id] for rule_id in self._ids(genome))),
+            )
+        return self._render_cache[genome]
+
+    @record_generation_time
+    def create_population(self, size: int) -> list[Genome]:
+        population: list[Genome] = []
+        seen: set[Genome] = set()
+        failed_attempts = 0
+        while len(population) < size and failed_attempts < 64:
+            candidate = self._create()
+            if candidate is not None and candidate not in seen:
+                population.append(candidate)
+                seen.add(candidate)
+                failed_attempts = 0
+            else:
+                failed_attempts += 1
+        return population
+
+    def _create(self) -> Genome | None:
+        if not self.rule_count:
+            return None
+        limit = min(self.max_clauses, self.rule_count)
+        size = limit if self.fixed_size else self.rng.randint(1, limit)
+        candidate = self._build(self._sample_rules(size), 0)
+        return candidate if candidate is not None and candidate.bit_count() <= size else None
+
+    @record_generation_time
+    def mutate_random(self, program: Genome) -> MutationProposal:
+        operations = self._possible_operations(program)
+        self.rng.shuffle(operations)
+        for operation in operations:
+            if candidate := self._apply_random_operation(program, operation):
+                return MutationProposal(candidate, operation=operation, local=False)
+        return MutationProposal(program)
+
+    @record_generation_time
+    def mutate_structural(
+        self,
+        program: Genome,
+        random_jump_probability: float,
+        sample_size: int,
+    ) -> MutationProposal:
+        self._get_structural_index()
+        operations = self._possible_operations(program)
+        self.rng.shuffle(operations)
+        for operation in operations:
+            if operation == "replace":
+                if result := self._structural_replacement(
+                    program, random_jump_probability, sample_size
+                ):
+                    return result
+            elif candidate := self._apply_random_operation(program, operation):
+                return MutationProposal(candidate, operation=operation, local=False)
+        return MutationProposal(program)
 
     @record_generation_time
     def mix(
         self,
         first: Genome,
         second: Genome,
+        probabilities: tuple[tuple[float, float], ...],
+    ) -> tuple[Genome, ...]:
+        return tuple(
+            child
+            for first_probability, second_probability in probabilities
+            if (
+                child := self._mix_one(
+                    first, second, first_probability, second_probability
+                )
+            )
+            is not None
+        )
+
+    def _mix_one(
+        self,
+        first: Genome,
+        second: Genome,
         first_probability: float,
         second_probability: float,
     ) -> Genome | None:
-        preferred = mixed_rules(
-            first,
-            second,
-            first_probability,
-            second_probability,
-            self.rng,
-        )
-        selected: tuple[str, ...] = ()
+        preferred = first & second
+        for rule_id in self._ids(first & ~second):
+            if self.rng.random() < first_probability:
+                preferred |= 1 << rule_id
+        for rule_id in self._ids(second & ~first):
+            if self.rng.random() < second_probability:
+                preferred |= 1 << rule_id
+        if not preferred:
+            preferred = self._random_rule(first | second)
+        selected = 0
         limit = self.target_size if self.fixed_size else self.max_clauses
-        for rule in preferred:
-            if rule in selected:
-                continue
-            expanded = self._complete([*selected, rule], set())
-            if expanded is not None and len(expanded) <= limit:
-                selected = tuple(sorted(expanded))
+        for rule_id in self._ids(preferred):
+            expanded = self._complete(selected | (1 << rule_id), 0)
+            if expanded is not None and expanded.bit_count() <= limit:
+                selected = expanded
         if not selected:
             return None
-        return self._fill(list(selected), set()) if self.fixed_size else selected
+        return self._fill(selected, 0) if self.fixed_size else selected
 
-    def _sample_rules(self, size: int) -> tuple[str, ...]:
-        target_rules = [
-            rule
-            for rule, (heads, _deps, _body) in self.masks.items()
-            if heads & self.target_mask
-        ]
-        if not self.invented_mask or not target_rules:
-            return tuple(self.rng.sample(self.space.clauses, size))
-        invented_consumers = [
-            rule
-            for rule in target_rules
-            if self.masks[rule][1] & self.invented_mask
-        ]
-        if invented_consumers:
-            target_rules = invented_consumers
-        seed = self.rng.choice(target_rules)
+    def _possible_operations(self, program: Genome) -> list[str]:
+        size = program.bit_count()
+        operations = []
+        if not self.fixed_size and size < self.max_clauses:
+            operations.append("append")
+        if size > 1:
+            operations.append("remove")
+        if program and self.all_rules & ~program:
+            operations.append("replace")
+        return operations
+
+    def _apply_random_operation(self, program: Genome, operation: str) -> Genome | None:
+        if operation == "append":
+            for rule_id in self._random_available(program):
+                if candidate := self._build(program | (1 << rule_id), 0):
+                    return candidate
+            return None
+        if operation == "remove":
+            for rule_id in self._random_ids(program):
+                rule_bit = 1 << rule_id
+                if candidate := self._build(program ^ rule_bit, rule_bit):
+                    return candidate
+            return None
+        for source_id in self._random_ids(program):
+            source_bit = 1 << source_id
+            base = program ^ source_bit
+            for replacement_id in self._random_available(program):
+                if candidate := self._build(
+                    base | (1 << replacement_id), source_bit
+                ):
+                    return candidate
+        return None
+
+    def _structural_replacement(
+        self,
+        program: Genome,
+        random_jump_probability: float,
+        sample_size: int,
+    ) -> MutationProposal | None:
+        shapes, rules_by_head = self._get_structural_index()
+        available = self.all_rules & ~program
+        for source_id in self._random_ids(program):
+            source_head, _source_shape = shapes[source_id]
+            local = self.rng.random() >= random_jump_probability
+            pool = (rules_by_head[source_head] if local else self.all_rules) & available
+            if not pool:
+                pool = available
+                local = False
+            pool_size = pool.bit_count()
+            source_bit = 1 << source_id
+            base = program ^ source_bit
+            if not local:
+                for replacement_id in self._random_available(program):
+                    if candidate := self._build(
+                        base | (1 << replacement_id), source_bit
+                    ):
+                        return MutationProposal(
+                            candidate,
+                            "replace",
+                            False,
+                            self._structural_distance(source_id, replacement_id),
+                            pool_size,
+                        )
+                continue
+            sampled = self._sample_ids(pool, sample_size)
+            distances = [
+                (self._structural_distance(source_id, replacement_id), replacement_id)
+                for replacement_id in sampled
+            ]
+            self.rng.shuffle(distances)
+            distances.sort(key=lambda item: item[0])
+            for distance, replacement_id in distances:
+                if candidate := self._build(
+                    base | (1 << replacement_id), source_bit
+                ):
+                    return MutationProposal(
+                        candidate, "replace", local, distance, pool_size
+                    )
+            global_size = available.bit_count()
+            for replacement_id in self._random_available(program):
+                if candidate := self._build(
+                    base | (1 << replacement_id), source_bit
+                ):
+                    return MutationProposal(
+                        candidate,
+                        "replace",
+                        False,
+                        self._structural_distance(source_id, replacement_id),
+                        global_size,
+                    )
+        return None
+
+    def _get_structural_index(self):
+        if self._structural_index is None:
+            shapes = tuple(_rule_shape(rule) for rule in self.rules)
+            buckets: dict[tuple[str, ...], int] = {}
+            for rule_id, (head, _body) in enumerate(shapes):
+                buckets[head] = buckets.get(head, 0) | (1 << rule_id)
+            self._structural_index = shapes, buckets
+        return self._structural_index
+
+    def _structural_distance(self, source_id: int, candidate_id: int) -> float:
+        key = source_id, candidate_id
+        if key not in self._distance_cache:
+            shapes, _buckets = self._get_structural_index()
+            self._remember(
+                self._distance_cache,
+                key,
+                _multiset_jaccard_distance(
+                    shapes[source_id][1], shapes[candidate_id][1]
+                ),
+            )
+        return self._distance_cache[key]
+
+    def _sample_rules(self, size: int) -> Genome:
+        if not self.invented_mask or not self.target_rules:
+            return sum(1 << rule_id for rule_id in self.rng.sample(range(self.rule_count), size))
+        invented_consumers = sum(
+            1 << rule_id
+            for rule_id in self._ids(self.target_rules)
+            if self.dep_masks[rule_id] & self.invented_mask
+        )
+        seeds = invented_consumers or self.target_rules
+        seed = self._random_rule(seeds)
         if self.fixed_size:
-            return (seed,)
-        available = [rule for rule in self.space.clauses if rule != seed]
-        return (seed, *self.rng.sample(available, min(size - 1, len(available))))
+            return seed
+        remaining = size - 1
+        others = self._sample_ids(self.all_rules & ~seed, remaining)
+        return seed | sum(1 << rule_id for rule_id in others)
 
-    def _build(
-        self, proposal: tuple[str, ...], forbidden: set[str] | None = None
-    ) -> Genome | None:
-        blocked = forbidden or set()
-        candidate = tuple(sorted(dict.fromkeys(proposal)))
+    def _build(self, proposal: Genome, forbidden: Genome) -> Genome | None:
+        key = proposal, forbidden
+        if cached := self._build_cache.get(key):
+            return cached
         if (
-            not candidate
-            or len(candidate) > self.max_clauses
-            or any(rule not in self.masks or rule in blocked for rule in candidate)
+            not proposal
+            or proposal.bit_count() > self.max_clauses
+            or proposal & forbidden
+            or proposal & ~self.all_rules
         ):
-            return None
-        completed = self._complete(list(candidate), blocked)
-        if completed is None:
-            return None
-        if self.fixed_size:
-            return self._fill(completed, blocked)
-        return tuple(sorted(completed))
-
-    def _complete(
-        self, candidate: list[str], forbidden: set[str]
-    ) -> list[str] | None:
-        completed = list(candidate)
-        completed_set = set(completed)
-        defined = self.background_mask
-        deps = 0
-        for rule in completed:
-            heads, required, _body = self.masks[rule]
-            defined |= heads
-            deps |= required
-        while missing := deps & ~defined:
-            if len(completed) >= self.max_clauses:
-                return None
-            missing_bit = min(
-                bits(missing),
-                key=lambda bit: len(self.rules_by_head.get(bit, ())),
+            result = None
+        else:
+            completed = self._complete(proposal, forbidden)
+            result = (
+                self._fill(completed, forbidden)
+                if completed is not None and self.fixed_size
+                else completed
             )
-            provider = self._provider(
-                missing_bit, missing, defined, completed_set, forbidden
-            )
-            if provider is None:
-                return None
-            completed.append(provider)
-            completed_set.add(provider)
-            heads, required, _body = self.masks[provider]
-            defined |= heads
-            deps |= required
-        return completed
+        if result is not None:
+            self._remember(self._build_cache, key, result)
+        return result
 
-    def _fill(self, completed: list[str] | Genome, forbidden: set[str]) -> Genome | None:
-        candidate = list(completed)
-        if len(candidate) > self.target_size:
-            return None
-        while len(candidate) < self.target_size:
-            choices = []
-            defined, active_deps = self._program_masks(candidate)
-            for rule in sorted(set(self.space.clauses) - set(candidate) - forbidden):
-                expanded = self._complete([*candidate, rule], forbidden)
-                if expanded is not None and len(expanded) <= self.target_size:
-                    heads, deps, body = self.masks[rule]
+    def _complete(self, candidate: Genome, forbidden: Genome) -> Genome | None:
+        failed: set[Genome] = set()
+        remaining = max(64, self.rule_count)
+
+        def search(completed: Genome) -> Genome | None:
+            nonlocal remaining
+            if completed in failed or remaining == 0:
+                return None
+            remaining -= 1
+            heads, deps = self._summary(completed)
+            missing = deps & ~(self.background_mask | heads)
+            if not missing:
+                return completed
+            if completed.bit_count() < self.max_clauses:
+                missing_bit = min(
+                    bits(missing),
+                    key=lambda bit: (
+                        self.rules_by_head.get(bit, 0) & ~completed & ~forbidden
+                    ).bit_count(),
+                )
+                providers = self.rules_by_head.get(missing_bit, 0) & ~completed & ~forbidden
+                score_groups: dict[tuple[int, int, int], int] = {}
+                for rule_id in self._ids(providers):
+                    rule_heads = self.head_masks[rule_id]
+                    rule_deps = self.dep_masks[rule_id]
+                    if missing_bit & self.invented_mask and missing_bit & rule_deps:
+                        continue
                     score = (
-                        (heads & active_deps & self.invented_mask).bit_count(),
-                        int(bool(heads)),
-                        -(deps & ~(defined | heads)).bit_count(),
+                        (rule_heads & missing).bit_count(),
+                        -(rule_deps & ~(self.background_mask | heads | rule_heads)).bit_count(),
+                        -self.body_sizes[rule_id],
+                    )
+                    score_groups[score] = score_groups.get(score, 0) | (1 << rule_id)
+                for score in sorted(score_groups, reverse=True):
+                    for rule_id in self._random_ids(score_groups[score]):
+                        if result := search(completed | (1 << rule_id)):
+                            return result
+            failed.add(completed)
+            return None
+
+        return search(candidate)
+
+    def _fill(self, candidate: Genome, forbidden: Genome) -> Genome | None:
+        if candidate.bit_count() > self.target_size:
+            return None
+        while candidate.bit_count() < self.target_size:
+            available = self.all_rules & ~candidate & ~forbidden
+            gap = self.target_size - candidate.bit_count()
+            heads, deps = self._summary(candidate)
+            choices: list[tuple[tuple[int, int, int, int], Genome, int]] = []
+            if gap == 1:
+                best_score = None
+                best_rules = 0
+                for rule_heads, rule_deps, body, signature_rules in self.signatures:
+                    concrete = signature_rules & available
+                    if not concrete:
+                        continue
+                    if (deps | rule_deps) & ~(
+                        self.background_mask | heads | rule_heads
+                    ):
+                        continue
+                    score = (
+                        (rule_heads & deps & self.invented_mask).bit_count(),
+                        int(bool(rule_heads)),
+                        -(rule_deps & ~(
+                            self.background_mask | heads | rule_heads
+                        )).bit_count(),
                         -body,
                     )
-                    choices.append((score, expanded))
+                    if best_score is None or score > best_score:
+                        best_score = score
+                        best_rules = concrete
+                    elif score == best_score:
+                        best_rules |= concrete
+                if not best_rules:
+                    return None
+                candidate |= self._random_rule(best_rules)
+                continue
+            else:
+                for _sig_heads, _sig_deps, _sig_body, signature_rules in self.signatures:
+                    concrete = signature_rules & available
+                    if not concrete:
+                        continue
+                    rule_bit = self._random_rule(concrete)
+                    expanded = self._complete(candidate | rule_bit, forbidden)
+                    if expanded is not None and expanded.bit_count() <= self.target_size:
+                        choices.append(
+                            (
+                                self._fill_score(
+                                    rule_bit.bit_length() - 1, heads, deps
+                                ),
+                                expanded ^ candidate,
+                                concrete.bit_count(),
+                            )
+                        )
             if not choices:
                 return None
-            best_score = max(score for score, _expanded in choices)
-            candidate = self.rng.choice(
-                [expanded for score, expanded in choices if score == best_score]
-            )
-        return tuple(sorted(candidate))
+            best_score = max(score for score, _addition, _weight in choices)
+            best = [choice for choice in choices if choice[0] == best_score]
+            candidate |= self.rng.choices(
+                [addition for _score, addition, _weight in best],
+                weights=[weight for _score, _addition, weight in best],
+                k=1,
+            )[0]
+        return candidate
 
-    def _provider(
-        self,
-        missing_bit: int,
-        missing: int,
-        defined: int,
-        present: set[str],
-        forbidden: set[str],
-    ) -> str | None:
-        choices = []
-        for rule in self.rules_by_head.get(missing_bit, ()):
-            if rule in present or rule in forbidden:
-                continue
-            heads, deps, body = self.masks[rule]
-            if missing_bit & self.invented_mask and missing_bit & deps:
-                continue
-            score = (
-                (heads & missing).bit_count(),
-                -(deps & ~(defined | heads)).bit_count(),
-                -body,
-            )
-            choices.append((score, rule))
-        if not choices:
-            return None
-        best_score = max(score for score, _rule in choices)
-        return self.rng.choice([rule for score, rule in choices if score == best_score])
+    def _fill_score(
+        self, rule_id: int, defined: int, active_deps: int
+    ) -> tuple[int, int, int, int]:
+        heads = self.head_masks[rule_id]
+        deps = self.dep_masks[rule_id]
+        return (
+            (heads & active_deps & self.invented_mask).bit_count(),
+            int(bool(heads)),
+            -(deps & ~(self.background_mask | defined | heads)).bit_count(),
+            -self.body_sizes[rule_id],
+        )
 
-    def _program_masks(self, rules: list[str]) -> tuple[int, int]:
-        defined = self.background_mask
-        deps = 0
-        for rule in rules:
-            heads, required, _body = self.masks[rule]
-            defined |= heads
-            deps |= required
-        return defined, deps
+    def _summary(self, genome: Genome) -> tuple[int, int]:
+        if genome not in self._summary_cache:
+            heads = 0
+            deps = 0
+            for rule_id in self._ids(genome):
+                heads |= self.head_masks[rule_id]
+                deps |= self.dep_masks[rule_id]
+            self._remember(self._summary_cache, genome, (heads, deps))
+        return self._summary_cache[genome]
+
+    def _random_rule(self, mask: int) -> int:
+        return 1 << self.rng.choice(tuple(self._ids(mask)))
+
+    def _random_ids(self, mask: int):
+        rule_ids = list(self._ids(mask))
+        while rule_ids:
+            index = self.rng.randrange(len(rule_ids))
+            rule_ids[index], rule_ids[-1] = rule_ids[-1], rule_ids[index]
+            yield rule_ids.pop()
+
+    def _random_available(self, excluded: Genome):
+        excluded_ids = tuple(self._ids(excluded))
+        remaining = self.rule_count - len(excluded_ids)
+        swaps: dict[int, int] = {}
+        while remaining:
+            compressed = self.rng.randrange(remaining)
+            selected = swaps.get(compressed, compressed)
+            remaining -= 1
+            swaps[compressed] = swaps.get(remaining, remaining)
+            rule_id = selected
+            for excluded_id in excluded_ids:
+                if excluded_id > rule_id:
+                    break
+                rule_id += 1
+            yield rule_id
+
+    def _sample_ids(self, mask: int, size: int) -> list[int]:
+        available = tuple(self._ids(mask))
+        return self.rng.sample(available, min(size, len(available)))
+
+    @staticmethod
+    def _ids(mask: int):
+        while mask:
+            bit = mask & -mask
+            yield bit.bit_length() - 1
+            mask ^= bit
+
+    @staticmethod
+    def _remember(cache: dict, key, value) -> None:
+        if len(cache) >= _CACHE_SIZE:
+            cache.pop(next(iter(cache)))
+        cache[key] = value
 
     def _predicate_mask(self, predicates) -> int:
         mask = 0
@@ -272,3 +530,132 @@ class ProgramGenerator:
             if identifier is not None:
                 mask |= 1 << identifier
         return mask
+
+
+def _rule_shape(rule: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    head, separator, body = rule.strip().removesuffix(".").partition(":-")
+    literals = split_top_level_args(body) if separator else []
+    head_literals = _split_top_level(head, ";") if head.strip() else []
+    variables = tuple(
+        dict.fromkeys(
+            match.group(1)
+            for fragment in [*head_literals, *literals]
+            for match in _VARIABLE.finditer(fragment)
+        )
+    )
+    if len(variables) > _MAX_STRUCTURAL_VARIABLES:
+        raise ValueError(
+            "structural_neighbor supports rules with at most "
+            f"{_MAX_STRUCTURAL_VARIABLES} variables"
+        )
+    head_variables = tuple(
+        variable
+        for variable in variables
+        if any(variable in _VARIABLE.findall(literal) for literal in head_literals)
+    )
+    body_variables = tuple(
+        variable for variable in variables if variable not in set(head_variables)
+    )
+    best: tuple[tuple[str, ...], tuple[str, ...]] | None = None
+    for head_names in _canonical_assignments(head_variables, head_literals):
+        for body_names in _canonical_assignments(
+            body_variables, literals, fixed=head_names, offset=len(head_variables)
+        ):
+            names = {**head_names, **body_names}
+
+            def normalize(fragment: str) -> str:
+                return _VARIABLE.sub(
+                    lambda match: f"V{names[match.group(1)]}", fragment
+                ).replace(" ", "")
+
+            shape = (
+                tuple(sorted(normalize(literal) for literal in head_literals)),
+                tuple(sorted(normalize(literal) for literal in literals)),
+            )
+            if best is None or shape < best:
+                best = shape
+    return best if best is not None else ((), ())
+
+
+def _canonical_assignments(
+    variables: tuple[str, ...],
+    fragments: list[str],
+    *,
+    fixed: dict[str, int] | None = None,
+    offset: int = 0,
+):
+    fixed = fixed or {}
+    grouped: dict[tuple[str, ...], list[str]] = {}
+    for variable in variables:
+        signature = tuple(
+            sorted(
+                _variable_role(fragment, variable, fixed)
+                for fragment in fragments
+                if variable in _VARIABLE.findall(fragment)
+            )
+        )
+        grouped.setdefault(signature, []).append(variable)
+    groups = []
+    next_label = offset
+    for signature in sorted(grouped):
+        names = tuple(grouped[signature])
+        labels = tuple(range(next_label, next_label + len(names)))
+        groups.append((names, labels))
+        next_label += len(names)
+    for assignment in product(*(permutations(labels) for _names, labels in groups)):
+        yield {
+            variable: label
+            for (group_names, _labels), group_assignment in zip(
+                groups, assignment, strict=True
+            )
+            for variable, label in zip(group_names, group_assignment, strict=True)
+        }
+
+
+def _variable_role(fragment: str, variable: str, fixed: dict[str, int]) -> str:
+    return _VARIABLE.sub(
+        lambda match: (
+            "$SELF"
+            if match.group(1) == variable
+            else f"V{fixed[match.group(1)]}"
+            if match.group(1) in fixed
+            else "$VAR"
+        ),
+        fragment,
+    ).replace(" ", "")
+
+
+def _split_top_level(fragment: str, separator: str) -> list[str]:
+    parts: list[str] = []
+    start = 0
+    stack: list[str] = []
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    for index, char in enumerate(fragment):
+        if char in pairs:
+            stack.append(pairs[char])
+        elif stack and char == stack[-1]:
+            stack.pop()
+        elif char == separator and not stack:
+            parts.append(fragment[start:index].strip())
+            start = index + 1
+    tail = fragment[start:].strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def _multiset_jaccard_distance(
+    left: tuple[str, ...], right: tuple[str, ...]
+) -> float:
+    left_index = right_index = intersection = 0
+    while left_index < len(left) and right_index < len(right):
+        if left[left_index] == right[right_index]:
+            intersection += 1
+            left_index += 1
+            right_index += 1
+        elif left[left_index] < right[right_index]:
+            left_index += 1
+        else:
+            right_index += 1
+    union = len(left) + len(right) - intersection
+    return 0.0 if union == 0 else 1.0 - intersection / union

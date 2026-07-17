@@ -1,6 +1,5 @@
 from collections.abc import Callable
 from functools import wraps
-import random
 import time
 
 from ...rule_generation.parser import Predicate, clause_predicates
@@ -8,7 +7,6 @@ from ...rule_generation.program import Program
 from ...rule_generation.rule_entry import RuleEntry
 from ...rule_generation.rule_space import RuleSpace
 from ...timing import add, current_phase
-from ..types import Genome
 
 
 def record_generation_time(method: Callable) -> Callable:
@@ -21,32 +19,6 @@ def record_generation_time(method: Callable) -> Callable:
         return result
 
     return measured
-
-
-def mixed_rules(
-    first: Genome,
-    second: Genome,
-    first_probability: float,
-    second_probability: float,
-    rng: random.Random,
-) -> list[str]:
-    common = sorted(set(first) & set(second))
-    selected = [
-        *common,
-        *(
-            rule
-            for rule in sorted(set(first) - set(second))
-            if rng.random() < first_probability
-        ),
-        *(
-            rule
-            for rule in sorted(set(second) - set(first))
-            if rng.random() < second_probability
-        ),
-    ]
-    if not selected:
-        selected.append(rng.choice(sorted(set(first) | set(second))))
-    return selected
 
 
 def prepare_space(program: Program, space: RuleSpace) -> RuleSpace:

@@ -292,7 +292,7 @@ def record_ga_generation(
             program = getattr(element, "program", None)
             if program is not None:
                 signatures.add(program)
-            size_total += len(getattr(element, "program", []))
+            size_total += element.program.bit_count()
             if score == float("-inf"):
                 invalid += 1
         population_size = len(population)

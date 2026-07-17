@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 import random
+from typing import TYPE_CHECKING
 
-from .program_generators import ProgramGenerator
 from ..rule_generation.rule_space import RuleSpace
+
+if TYPE_CHECKING:
+    from .program_generators import ProgramGenerator
 
 
 @dataclass(frozen=True, slots=True)

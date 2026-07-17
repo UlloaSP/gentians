@@ -13,8 +13,8 @@ class SetMixCrossover:
     ) -> tuple[Genome, ...]:
         if context.rng.random() >= self.probability:
             return ()
-        children = (
-            context.generator.mix(first, second, 0.7, 0.3),
-            context.generator.mix(first, second, 0.3, 0.7),
+        return context.generator.mix(
+            first,
+            second,
+            ((0.7, 0.3), (0.3, 0.7)),
         )
-        return tuple(child for child in children if child is not None)

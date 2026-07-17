@@ -9,8 +9,4 @@ class RandomPopulation:
         self.size = size
 
     def __call__(self, context: EvolutionContext) -> list[Genome]:
-        return [
-            genome
-            for _ in range(self.size)
-            if (genome := context.generator.create()) is not None
-        ]
+        return context.generator.create_population(self.size)

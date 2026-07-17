@@ -28,6 +28,7 @@ from ..populations import create_population
 from ..program_generators import ProgramGenerator
 from ..replacements import create_replacement
 from ..selections import create_selection
+from ..types import Genome
 
 
 @profile_phase("search")
@@ -78,16 +79,16 @@ def search_solver(
                 program, args.fitness, args.max_program_clauses, space.clauses
             )
 
-    evaluated: dict[tuple[str, ...], Individual] = {}
+    evaluated: dict[Genome, Individual] = {}
     evaluations = 0
     started = net_time()
 
-    def admit(candidate: tuple[str, ...]):
+    def admit(candidate: Genome):
         nonlocal evaluations
         if candidate in evaluated:
             return None
         evaluations += 1
-        score = evaluate_score(candidate)
+        score = evaluate_score(generator.render(candidate))
         individual = individual_from_fitness(candidate, score)
         evaluated[candidate] = individual
         return individual
@@ -104,7 +105,7 @@ def search_solver(
     population.sort(key=lambda item: item.score, reverse=True)
     winner = next((item for item in population if item.is_best), None)
     if winner is not None:
-        return winning_program(winner), winner.score, True
+        return winning_program(winner, generator.render(winner.program)), winner.score, True
 
     best_overall = population[0]
     for generation in range(generations):
@@ -163,7 +164,7 @@ def search_solver(
                     duplicate=not base_is_new,
                 )
             if child.is_best:
-                return winning_program(child), child.score, True
+                return winning_program(child, generator.render(child.program)), child.score, True
             with phase("mutation"):
                 proposal = mutation(child.program, context)
                 duplicate = proposal.program in evaluated
@@ -186,7 +187,11 @@ def search_solver(
             if unchanged and not base_is_new:
                 continue
             if mutated.is_best:
-                return winning_program(mutated), mutated.score, True
+                return (
+                    winning_program(mutated, generator.render(mutated.program)),
+                    mutated.score,
+                    True,
+                )
             with phase("replacement"):
                 before = list(population)
                 population = replacement(population, mutated, rng)
@@ -229,7 +234,11 @@ def search_solver(
                 )
     population.sort(key=lambda item: item.score, reverse=True)
     best_overall = _better(best_overall, population[0])
-    return winning_program(best_overall), best_overall.score, best_overall.is_best
+    return (
+        winning_program(best_overall, generator.render(best_overall.program)),
+        best_overall.score,
+        best_overall.is_best,
+    )
 
 
 def _better(current: Individual | None, candidate: Individual) -> Individual:
@@ -294,9 +303,7 @@ def _mutation_metric(
                 "program_distance": _program_distance(
                     parent.program, proposal.program
                 ),
-                "changed_rules": len(
-                    set(parent.program) ^ set(proposal.program)
-                ),
+                "changed_rules": (parent.program ^ proposal.program).bit_count(),
                 "applied": changed,
                 "slots": 1,
                 "valid_new": changed and not duplicate,
@@ -315,6 +322,6 @@ def _mutation_metric(
         )
 
 
-def _program_distance(first: tuple[str, ...], second: tuple[str, ...]) -> float:
-    left, right = set(first), set(second)
-    return 1.0 - len(left & right) / len(left | right)
+def _program_distance(first: Genome, second: Genome) -> float:
+    union = (first | second).bit_count()
+    return 0.0 if not union else 1.0 - (first & second).bit_count() / union

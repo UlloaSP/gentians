@@ -17,6 +17,5 @@ def create_mutation(
         return StructuralNeighborMutation(
             probability,
             float(config.get("random_jump_probability", 0.1)),
-            int(config.get("sample_size", 64)),
         )
     raise ValueError(f"Unknown mutation strategy: {name}")

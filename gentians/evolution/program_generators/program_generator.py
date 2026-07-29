@@ -1,21 +1,14 @@
 from __future__ import annotations
 
-from itertools import permutations, product
 import random
-import re
 
-from ...rule_generation.parser import fragment_atoms, split_top_level_args
+from ...rule_generation.parser import fragment_atoms
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
 from ..operator_types import MutationProposal
 from ..types import Genome, ProgramText
 from .common import bits, defined_predicates, prepare_space, record_generation_time
 
-
-_VARIABLE = re.compile(
-    r"(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9_]*|_[A-Za-z0-9_]+)(?![A-Za-z0-9_])"
-)
-_MAX_STRUCTURAL_VARIABLES = 6
 _CACHE_SIZE = 65536
 _MISSING = object()
 
@@ -83,11 +76,9 @@ class ProgramGenerator:
         self.signatures = tuple(
             (*signature, rule_mask) for signature, rule_mask in signature_masks.items()
         )
-        self._structural_index = None
         self._render_cache: dict[Genome, ProgramText] = {}
         self._summary_cache: dict[Genome, tuple[int, int]] = {}
         self._build_cache: dict[tuple[Genome, Genome], Genome | None] = {}
-        self._distance_cache: dict[tuple[int, int], float] = {}
 
     def encode(self, program: ProgramText) -> Genome:
         genome = 0
@@ -145,15 +136,13 @@ class ProgramGenerator:
         self,
         program: Genome,
         random_jump_probability: float,
-        sample_size: int,
     ) -> MutationProposal:
-        self._get_structural_index()
         operations = self._possible_operations(program)
         self.rng.shuffle(operations)
         for operation in operations:
             if operation == "replace":
                 if result := self._structural_replacement(
-                    program, random_jump_probability, sample_size
+                    program, random_jump_probability
                 ):
                     return result
             elif candidate := self._apply_random_operation(program, operation):
@@ -258,111 +247,24 @@ class ProgramGenerator:
         self,
         program: Genome,
         random_jump_probability: float,
-        sample_size: int,
     ) -> MutationProposal | None:
-        """
-        Genera una propuesta de mutación de tipo "replace" usando información estructural.
-
-        La función sigue este proceso:
-
-        1. Obtiene el índice estructural de las reglas mediante ``_get_structural_index()``,
-            que devuelve la forma de cada regla y un mapa de reglas agrupadas por cabeza.
-        2. Calcula ``available`` como el conjunto de reglas que no están presentes en
-            ``program``.
-        3. Recorre las reglas actuales del programa en orden aleatorio usando
-            ``_random_ids(program)`` para seleccionar una regla fuente ``source_id``.
-        4. Para esa regla fuente, decide si la sustitución será local o global:
-            - Local: con probabilidad ``1 - random_jump_probability`` intenta reemplazar
-               la regla por otra con la misma cabeza.
-            - Global: con probabilidad ``random_jump_probability`` permite cualquier regla
-               disponible como candidata.
-        5. Si la búsqueda local no encuentra candidatos, se cae automáticamente a la
-            búsqueda global usando todo ``available``.
-        6. Cuando la búsqueda es local, toma una muestra de tamaño ``sample_size`` del
-            conjunto candidato, calcula la distancia estructural entre la regla fuente y
-            cada candidata, mezcla y ordena esas distancias para priorizar las más
-            cercanas, y prueba cada sustitución con ``_build``.
-        7. Si ninguna candidata muestreada funciona, realiza un último intento global
-            con todas las reglas disponibles restantes.
-        8. Cada vez que ``_build`` devuelve un candidato válido, se construye y devuelve
-            una ``MutationProposal`` con:
-            - el programa resultante,
-            - la operación ``"replace"``,
-            - si la sustitución fue local o no,
-            - la distancia estructural entre la regla eliminada y la sustituida,
-            - y el tamaño del conjunto de búsqueda usado.
-        9. Si ninguna regla fuente produce una sustitución válida, devuelve ``None``.
-        """
-        shapes, rules_by_head = self._get_structural_index()
-        available = self.all_rules & ~program
         for source_id in self._random_ids(program):
-            source_head, _source_shape = shapes[source_id]
-            local = self.rng.random() >= random_jump_probability
-            pool = (rules_by_head[source_head] if local else self.all_rules) & available
-            if not pool:
-                pool = available
-                local = False
-            pool_size = pool.bit_count()
+            random_jump = self.rng.random() < random_jump_probability
             source_bit = 1 << source_id
             base = program ^ source_bit
-            if not local:
-                for replacement_id in self._random_available(program):
-                    if candidate := self._build(
-                        base | (1 << replacement_id), source_bit
-                    ):
-                        return MutationProposal(
-                            candidate,
-                            "replace",
-                            False,
-                            self._structural_distance(source_id, replacement_id),
-                            pool_size,
-                        )
-                continue
-            sampled = self._sample_ids(pool, sample_size)
-            distances = [
-                (self._structural_distance(source_id, replacement_id), replacement_id)
-                for replacement_id in sampled
-            ]
-            self.rng.shuffle(distances)
-            distances.sort(key=lambda item: item[0])
-            for distance, replacement_id in distances:
-                if candidate := self._build(base | (1 << replacement_id), source_bit):
-                    return MutationProposal(
-                        candidate, "replace", local, distance, pool_size
-                    )
-            global_size = available.bit_count()
-            for replacement_id in self._random_available(program):
-                if candidate := self._build(base | (1 << replacement_id), source_bit):
-                    return MutationProposal(
-                        candidate,
-                        "replace",
-                        False,
-                        self._structural_distance(source_id, replacement_id),
-                        global_size,
-                    )
-        return None
-
-    def _get_structural_index(self):
-        if self._structural_index is None:
-            shapes = tuple(_rule_shape(rule) for rule in self.rules)
-            buckets: dict[tuple[str, ...], int] = {}
-            for rule_id, (head, _body) in enumerate(shapes):
-                buckets[head] = buckets.get(head, 0) | (1 << rule_id)
-            self._structural_index = shapes, buckets
-        return self._structural_index
-
-    def _structural_distance(self, source_id: int, candidate_id: int) -> float:
-        key = source_id, candidate_id
-        if key not in self._distance_cache:
-            shapes, _buckets = self._get_structural_index()
-            self._remember(
-                self._distance_cache,
-                key,
-                _multiset_jaccard_distance(
-                    shapes[source_id][1], shapes[candidate_id][1]
-                ),
+            replacements = (
+                self._random_available(program)
+                if random_jump
+                else (
+                    rule_id
+                    for rule_id in self._random_available(program)
+                    if self.head_masks[rule_id] == self.head_masks[source_id]
+                )
             )
-        return self._distance_cache[key]
+            for replacement_id in replacements:
+                if candidate := self._build(base | (1 << replacement_id), source_bit):
+                    return MutationProposal(candidate, "replace", not random_jump)
+        return None
 
     def _sample_rules(self, size: int) -> Genome:
         if not self.invented_mask or not self.target_rules:
@@ -597,130 +499,3 @@ class ProgramGenerator:
             if identifier is not None:
                 mask |= 1 << identifier
         return mask
-
-
-def _rule_shape(rule: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    head, separator, body = rule.strip().removesuffix(".").partition(":-")
-    literals = split_top_level_args(body) if separator else []
-    head_literals = _split_top_level(head, ";") if head.strip() else []
-    variables = tuple(
-        dict.fromkeys(
-            match.group(1)
-            for fragment in [*head_literals, *literals]
-            for match in _VARIABLE.finditer(fragment)
-        )
-    )
-    if len(variables) > _MAX_STRUCTURAL_VARIABLES:
-        raise ValueError(
-            "structural_neighbor supports rules with at most "
-            f"{_MAX_STRUCTURAL_VARIABLES} variables"
-        )
-    head_variables = tuple(
-        variable
-        for variable in variables
-        if any(variable in _VARIABLE.findall(literal) for literal in head_literals)
-    )
-    body_variables = tuple(
-        variable for variable in variables if variable not in set(head_variables)
-    )
-    best: tuple[tuple[str, ...], tuple[str, ...]] | None = None
-    for head_names in _canonical_assignments(head_variables, head_literals):
-        for body_names in _canonical_assignments(
-            body_variables, literals, fixed=head_names, offset=len(head_variables)
-        ):
-            names = {**head_names, **body_names}
-
-            def normalize(fragment: str) -> str:
-                return _VARIABLE.sub(
-                    lambda match: f"V{names[match.group(1)]}", fragment
-                ).replace(" ", "")
-
-            shape = (
-                tuple(sorted(normalize(literal) for literal in head_literals)),
-                tuple(sorted(normalize(literal) for literal in literals)),
-            )
-            if best is None or shape < best:
-                best = shape
-    return best if best is not None else ((), ())
-
-
-def _canonical_assignments(
-    variables: tuple[str, ...],
-    fragments: list[str],
-    *,
-    fixed: dict[str, int] | None = None,
-    offset: int = 0,
-):
-    fixed = fixed or {}
-    grouped: dict[tuple[str, ...], list[str]] = {}
-    for variable in variables:
-        signature = tuple(
-            sorted(
-                _variable_role(fragment, variable, fixed)
-                for fragment in fragments
-                if variable in _VARIABLE.findall(fragment)
-            )
-        )
-        grouped.setdefault(signature, []).append(variable)
-    groups = []
-    next_label = offset
-    for signature in sorted(grouped):
-        names = tuple(grouped[signature])
-        labels = tuple(range(next_label, next_label + len(names)))
-        groups.append((names, labels))
-        next_label += len(names)
-    for assignment in product(*(permutations(labels) for _names, labels in groups)):
-        yield {
-            variable: label
-            for (group_names, _labels), group_assignment in zip(
-                groups, assignment, strict=True
-            )
-            for variable, label in zip(group_names, group_assignment, strict=True)
-        }
-
-
-def _variable_role(fragment: str, variable: str, fixed: dict[str, int]) -> str:
-    return _VARIABLE.sub(
-        lambda match: (
-            "$SELF"
-            if match.group(1) == variable
-            else f"V{fixed[match.group(1)]}"
-            if match.group(1) in fixed
-            else "$VAR"
-        ),
-        fragment,
-    ).replace(" ", "")
-
-
-def _split_top_level(fragment: str, separator: str) -> list[str]:
-    parts: list[str] = []
-    start = 0
-    stack: list[str] = []
-    pairs = {"(": ")", "[": "]", "{": "}"}
-    for index, char in enumerate(fragment):
-        if char in pairs:
-            stack.append(pairs[char])
-        elif stack and char == stack[-1]:
-            stack.pop()
-        elif char == separator and not stack:
-            parts.append(fragment[start:index].strip())
-            start = index + 1
-    tail = fragment[start:].strip()
-    if tail:
-        parts.append(tail)
-    return parts
-
-
-def _multiset_jaccard_distance(left: tuple[str, ...], right: tuple[str, ...]) -> float:
-    left_index = right_index = intersection = 0
-    while left_index < len(left) and right_index < len(right):
-        if left[left_index] == right[right_index]:
-            intersection += 1
-            left_index += 1
-            right_index += 1
-        elif left[left_index] < right[right_index]:
-            left_index += 1
-        else:
-            right_index += 1
-    union = len(left) + len(right) - intersection
-    return 0.0 if union == 0 else 1.0 - intersection / union

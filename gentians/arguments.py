@@ -79,8 +79,6 @@ class Arguments:
             "probability": 0.9,
             # Probability of ignoring structural neighbors and jumping randomly.
             "random_jump_probability": 0.0,
-            # Maximum structural neighbors sampled when choosing a mutation.
-            "sample_size": 64,
         }
     )
 

@@ -297,12 +297,6 @@ def _mutation_metric(
                 "strategy": str(config["name"]),
                 "operation": proposal.operation or "",
                 "local": proposal.local if proposal.local is not None else "",
-                "structural_distance": (
-                    proposal.structural_distance
-                    if proposal.structural_distance is not None
-                    else ""
-                ),
-                "candidate_pool_size": proposal.candidate_pool_size,
                 "program_distance": _program_distance(
                     parent_program, proposal.program
                 ),

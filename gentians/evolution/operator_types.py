@@ -12,8 +12,6 @@ class MutationProposal:
     program: Genome
     operation: str | None = None
     local: bool | None = None
-    structural_distance: float | None = None
-    candidate_pool_size: int = 0
 
 
 PopulationInitializerFn = Callable[[EvolutionContext], list[Genome]]

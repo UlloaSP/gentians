@@ -59,21 +59,18 @@ sizes. Every fitness evaluation creates a fresh Clingo control, grounds its
 candidate program, then solves it. Whole-program fitness uses brave consequences.
 
 Mutation defaults to `random_group`. `structural_neighbor` remains available as
-an alternative that prefers rules with the same normalized head and nearest body:
+an alternative that replaces rules with others sharing the same head:
 
 ```python
 mutation={
     "name": "structural_neighbor",
     "probability": 0.9,
     "random_jump_probability": 0.1,
-    "sample_size": 64,
 }
 ```
 
-`random_jump_probability` preserves global exploration. `sample_size` bounds the
-number of structural distances calculated per replacement; no all-pairs distance
-matrix is built. Structural mutation supports up to six variables per candidate
-rule, matching the bundled benchmark catalog.
+`random_jump_probability` preserves global exploration by allowing replacement
+with a rule that has a different head.
 
 Benchmark output records hypothesis generation, genetic generations, elapsed
 search time, fitness evaluations, operator metrics, and Clingo phases.

@@ -56,29 +56,72 @@ def test_all_mutations_share_genome_contract():
     assert set(_render(context, result.program)) <= set(context.space.clauses)
 
 
-def test_structural_neighbor_prefers_same_head_and_nearest_body():
+def test_structural_neighbor_replaces_with_same_head():
     source = "target(X,Y) :- parent(X)."
-    close = "target(A,B) :- parent(A)."
-    far = "target(A,B) :- parent(B)."
-    context = _context([source, far, close], max_clauses=1)
+    same_head = "target(A,B) :- parent(B)."
+    other_head = "other(A,B) :- parent(B)."
+    context = _context([source, same_head, other_head], max_clauses=1)
     mutation = create_mutation(
         {
             "name": "structural_neighbor",
             "probability": 1.0,
             "random_jump_probability": 0.0,
-            "sample_size": 64,
         },
         context,
     )
 
     result = mutation(_encode(context, source), context)
 
-    assert _render(context, result.program) == (close,)
+    assert _render(context, result.program) == (same_head,)
     assert result.local is True
-    assert result.structural_distance == 0.0
 
 
-def test_mutation_metrics_include_structural_and_program_distances(monkeypatch):
+def test_structural_neighbor_does_not_materialize_available_rules(monkeypatch):
+    source = "target(X,Y) :- parent(X)."
+    same_head = "target(A,B) :- parent(B)."
+    context = _context([source, same_head, "other(X) :- parent(X)."], max_clauses=1)
+    program = _encode(context, source)
+    random_ids = context.generator._random_ids
+
+    def only_program_ids(mask):
+        assert mask == program
+        return random_ids(mask)
+
+    monkeypatch.setattr(context.generator, "_random_ids", only_program_ids)
+    mutation = create_mutation(
+        {
+            "name": "structural_neighbor",
+            "probability": 1.0,
+            "random_jump_probability": 0.0,
+        },
+        context,
+    )
+
+    result = mutation(program, context)
+
+    assert _render(context, result.program) == (same_head,)
+
+
+def test_structural_neighbor_random_jump_can_change_head():
+    source = "target(X) :- parent(X)."
+    other_head = "other(X) :- parent(X)."
+    context = _context([source, other_head], max_clauses=1)
+    mutation = create_mutation(
+        {
+            "name": "structural_neighbor",
+            "probability": 1.0,
+            "random_jump_probability": 1.0,
+        },
+        context,
+    )
+
+    result = mutation(_encode(context, source), context)
+
+    assert _render(context, result.program) == (other_head,)
+    assert result.local is False
+
+
+def test_mutation_metrics_include_local_and_program_distance(monkeypatch):
     rows = []
     monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
     parent = Individual(0b011, 1.0, False)
@@ -87,8 +130,6 @@ def test_mutation_metrics_include_structural_and_program_distances(monkeypatch):
         child.program,
         operation="replace",
         local=True,
-        structural_distance=0.25,
-        candidate_pool_size=12,
     )
 
     search._mutation_metric(
@@ -103,8 +144,6 @@ def test_mutation_metrics_include_structural_and_program_distances(monkeypatch):
     [row] = rows
     assert row["operation"] == "replace"
     assert row["local"] is True
-    assert row["structural_distance"] == 0.25
-    assert row["candidate_pool_size"] == 12
     assert row["program_distance"] == pytest.approx(2 / 3)
     assert row["changed_rules"] == 2
     assert row["valid_new"] is True

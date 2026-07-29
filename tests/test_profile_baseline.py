@@ -224,6 +224,32 @@ def test_operator_summary_counts_mutation_population_duplicates():
     assert summary["duplicate_rate"] == 1.0
 
 
+def test_operator_summary_separates_skipped_mutations_from_duplicates():
+    rows = [
+        {
+            "dataset": "d",
+            "operator": "mutation",
+            "strategy": "random_group",
+            "slots": 1,
+            "skipped": True,
+            "duplicate": False,
+        },
+        {
+            "dataset": "d",
+            "operator": "mutation",
+            "strategy": "random_group",
+            "slots": 1,
+            "skipped": False,
+            "duplicate": True,
+        },
+    ]
+
+    [summary] = operator_summary(rows)
+
+    assert summary["skipped_rate"] == 0.5
+    assert summary["duplicate_rate"] == 0.5
+
+
 def test_operator_summary_uses_run_means():
     [summary] = operator_summary(
         [
@@ -917,9 +943,13 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
     assert run["invalid"] == [[0, 0.25]]
     assert run["bestArr"][0][0] == 0
     assert "globalBestArr" not in run
-    assert 'useState("generation")' in Path(
-        ".benchmarks/src/charts/FitnessChart.jsx"
-    ).read_text(encoding="utf-8")
+    fitness_chart = Path(".benchmarks/src/charts/FitnessChart.jsx").read_text(
+        encoding="utf-8"
+    )
+    assert 'useState("mean")' in fitness_chart
+    assert 'name: "generación"' in fitness_chart
+    assert "fitnessEvaluations" not in fitness_chart
+    assert "elapsedSeconds" not in fitness_chart
 
 
 def test_dashboard_runtime_includes_timeout_and_reports_instrumentation_coverage(tmp_path):

@@ -12,6 +12,7 @@ class MutationProposal:
     program: Genome
     operation: str | None = None
     local: bool | None = None
+    skipped: bool = False
 
 
 PopulationInitializerFn = Callable[[EvolutionContext], list[Genome]]

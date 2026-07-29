@@ -586,6 +586,45 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     assert [row["duplicate"] for row in crossover_rows] == [False, True]
 
 
+@pytest.mark.parametrize("mutation_name", ["random_group", "structural_neighbor"])
+def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
+    monkeypatch, mutation_name
+):
+    rows = []
+    args = Arguments(
+        max_program_clauses=1,
+        random_seed=3,
+        iterations_genetic=1,
+        population={"name": "random", "size": 1},
+        crossover={"name": "set_mix", "probability": 0.0},
+        mutation={"name": mutation_name, "probability": 0.0},
+    )
+    monkeypatch.setattr(
+        search,
+        "create_population",
+        lambda config: lambda context: [context.generator.encode(("start.",))],
+    )
+    monkeypatch.setattr(
+        search,
+        "create_fitness",
+        lambda program, config, max_program_clauses, rule_space: (
+            lambda candidate: FitnessResult(1.0, False, candidate, (0, 0))
+        ),
+    )
+    monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
+
+    search_solver(
+        args,
+        Program([], [], [], [], []),
+        RuleSpace.from_clauses(["start.", "other."]),
+    )
+
+    mutation_rows = [row for row in rows if row["operator"] == "mutation"]
+    assert mutation_rows
+    assert all(row["skipped"] is True for row in mutation_rows)
+    assert all(row["duplicate"] is False for row in mutation_rows)
+
+
 def test_equal_novel_candidate_replaces_an_existing_individual():
     population = [
         Individual(1, 0.0, False, generated_timestamp=1.0),

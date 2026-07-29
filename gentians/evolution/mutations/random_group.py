@@ -11,5 +11,5 @@ class RandomGroupMutation:
 
     def __call__(self, genome: Genome, context: EvolutionContext) -> MutationProposal:
         if context.rng.random() >= self.probability:
-            return MutationProposal(genome)
+            return MutationProposal(genome, skipped=True)
         return context.generator.mutate_random(genome)

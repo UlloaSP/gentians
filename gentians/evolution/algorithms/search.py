@@ -167,7 +167,7 @@ def search_solver(
                 )
             with phase("mutation"):
                 proposal = mutation(child.program, context)
-                duplicate = proposal.program in evaluated
+                duplicate = not proposal.skipped and proposal.program in evaluated
                 unchanged = proposal.program == child.program
                 if unchanged:
                     mutated = child
@@ -302,6 +302,7 @@ def _mutation_metric(
                 ),
                 "changed_rules": (parent_program ^ proposal.program).bit_count(),
                 "applied": changed,
+                "skipped": proposal.skipped,
                 "slots": 1,
                 "valid_new": changed and not duplicate,
                 "duplicate": duplicate,

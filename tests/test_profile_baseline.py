@@ -12,6 +12,7 @@ from benchmarks.profile_baseline import (
     clingo_summary,
     compute_accounting_invariants,
     dashboard_phases,
+    dashboard_quality_rows,
     operator_summary,
     parse_log,
     quality_summary,
@@ -305,6 +306,23 @@ def test_quality_summary_uses_run_means():
     assert summary["mean_program_size"] == 3.5
     assert summary["mean_covered_positive"] == 2.5
     assert summary["mean_covered_negative"] == 1.5
+
+
+def test_dashboard_quality_rows_keeps_coverage_totals():
+    [row] = dashboard_quality_rows(
+        [
+            {
+                "run": 1,
+                "covered_positive": 7,
+                "covered_negative": 2,
+                "total_positive": 10,
+                "total_negative": 35,
+            }
+        ]
+    )
+
+    assert row["totalPositive"] == 10
+    assert row["totalNegative"] == 35
 
 
 def test_solve_exports_total_execution_after_phase_closes(monkeypatch):

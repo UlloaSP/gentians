@@ -5,6 +5,7 @@ import {
   LegendComponent,
   MarkLineComponent,
   GraphicComponent,
+  TitleComponent,
   TooltipComponent,
   VisualMapComponent,
 } from "echarts/components";
@@ -23,6 +24,7 @@ use([
   LegendComponent,
   MarkLineComponent,
   TooltipComponent,
+  TitleComponent,
   VisualMapComponent,
   CanvasRenderer,
 ]);

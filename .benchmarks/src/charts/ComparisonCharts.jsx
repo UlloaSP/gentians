@@ -3,6 +3,7 @@ import { Chart } from "../components/Chart";
 import { ChartSection } from "../components/Layout";
 import {
   aggregateSeries,
+  generationPoints,
   improvementOperatorRows,
   maybeNum,
   measuredTotal,
@@ -16,12 +17,8 @@ import {
   totalSeconds,
   typeOrder,
 } from "../metrics";
+import { coverageOption } from "./qualityOptions";
 
-const AXES = {
-  generation: "generación",
-  fitnessEvaluations: "evaluaciones de fitness",
-  elapsedSeconds: "segundos",
-};
 const FITNESS = [
   ["max", "max", "dashed", 2],
   ["best", "best", "solid", 3],
@@ -61,8 +58,14 @@ const TYPE_BLOCKS = [
   ],
 ];
 
-export function ComparisonCharts({ rows, axis, setAxis }) {
+export function ComparisonCharts({ rows, progressView, setProgressView }) {
   const available = rows.filter((row) => row.benchmark);
+  const runCount = Math.max(
+    0,
+    ...available.map(({ benchmark }) => benchmark.fitnessRuns?.length || 0),
+  );
+  const selectedProgressView =
+    progressView === "mean" || Number(progressView) < runCount ? progressView : "mean";
   const has = (field) => available.some(({ benchmark }) => (benchmark[field] || []).length);
   const hasBestPrograms = available.some(({ benchmark }) =>
     programSizeCounts(benchmark).some((row) => row.best),
@@ -82,21 +85,25 @@ export function ComparisonCharts({ rows, axis, setAxis }) {
         </ChartSection>
         <ChartSection title="Progreso de búsqueda">
           <div className="chart-control">
-            <label htmlFor="compare-axis">comparar por</label>
+            <label htmlFor="compare-progress-view">mostrar</label>
             <select
-              id="compare-axis"
-              value={axis}
-              onChange={(event) => setAxis(event.target.value)}
+              id="compare-progress-view"
+              value={selectedProgressView}
+              onChange={(event) => setProgressView(event.target.value)}
             >
-              {Object.entries(AXES).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              <option value="mean">media</option>
+              {Array.from({ length: runCount }, (_, index) => (
+                <option key={index} value={index}>
+                  ejecución {index + 1}
                 </option>
               ))}
             </select>
           </div>
           {available.some(({ benchmark }) => benchmark.fitnessRuns?.length) ? (
-            <Chart option={fitnessOption(available, axis)} height={390} />
+            <Chart
+              option={fitnessOption(available, selectedProgressView)}
+              height={Math.max(420, 370 + available.length * 18)}
+            />
           ) : (
             <Empty>Sin progreso instrumentado.</Empty>
           )}
@@ -121,11 +128,17 @@ export function ComparisonCharts({ rows, axis, setAxis }) {
           empty="Sin delta de score para operadores"
         />
         <DataPlot
-          title="Calidad vs fitness"
+          title="Cobertura de candidatos evaluados"
           present={has("qualityRows")}
-          option={qualityOption(available)}
+          option={coverageOption(
+            available.map(({ experiment, benchmark }) => ({
+              name: experiment.label,
+              color: experiment.color,
+              rows: benchmark.qualityRows || [],
+            })),
+          )}
           empty="Sin qualityRows en dashboard_data.json"
-          height={360}
+          height={420}
         />
         <DataPlot
           title="Programas evaluados por tamaño"
@@ -282,52 +295,58 @@ function typeSplitOption(rows, title, phases) {
   };
 }
 
-function fitnessOption(rows, axis) {
+function fitnessOption(rows, view) {
   const series = rows.flatMap(({ experiment, benchmark }) =>
     FITNESS.flatMap(([metric, label, lineType, width]) => {
-      const points = aggregateSeries(benchmark.fitnessRuns || [], axis, metric);
+      const points =
+        view === "mean"
+          ? aggregateSeries(benchmark.fitnessRuns || [], metric)
+          : generationPoints(benchmark.fitnessRuns?.[Number(view)], metric);
       const stack = `band-${experiment.id}-${metric}`;
-      return points.length
-        ? [
-            {
-              type: "line",
-              stack,
-              data: points.map((point) => [point.position, point.mean - point.std]),
-              showSymbol: false,
-              silent: true,
-              lineStyle: { opacity: 0 },
-              areaStyle: { opacity: 0 },
-              tooltip: { show: false },
-            },
-            {
-              type: "line",
-              stack,
-              data: points.map((point) => [point.position, point.std * 2]),
-              showSymbol: false,
-              silent: true,
-              lineStyle: { opacity: 0 },
-              areaStyle: { color: experiment.color, opacity: 0.08 },
-              tooltip: { show: false },
-            },
-            {
-              type: "line",
-              name: experiment.label,
-              metric: label,
-              data: points.map((point) => [point.position, point.mean]),
-              showSymbol: false,
-              lineStyle: { color: experiment.color, type: lineType, width },
-            },
-          ]
-        : [];
+      if (!points.length) return [];
+      const line = {
+        type: "line",
+        name: label,
+        experiment: experiment.label,
+        metric: label,
+        data: points.map((point) => (view === "mean" ? [point.position, point.mean] : point)),
+        showSymbol: false,
+        lineStyle: { color: experiment.color, type: lineType, width },
+      };
+      if (view !== "mean") return [line];
+      return [
+        line,
+        {
+          type: "line",
+          name: label,
+          band: true,
+          stack,
+          data: points.map((point) => [point.position, point.mean - point.std]),
+          showSymbol: false,
+          silent: true,
+          lineStyle: { opacity: 0 },
+          areaStyle: { opacity: 0 },
+          tooltip: { show: false },
+        },
+        {
+          type: "line",
+          name: label,
+          band: true,
+          stack,
+          data: points.map((point) => [point.position, point.std * 2]),
+          showSymbol: false,
+          silent: true,
+          lineStyle: { opacity: 0 },
+          areaStyle: { color: experiment.color, opacity: 0.08 },
+          tooltip: { show: false },
+        },
+      ];
     }),
   );
-  return lineOption(
-    series,
-    AXES[axis],
-    "fitness",
-    90,
-    FITNESS.map(([, label, type]) => [label, type]),
-  );
+  const option = lineOption(series, "generación", "fitness", 90);
+  option.graphic = [ringKey(rows)];
+  option.grid.top = 52 + rows.length * 18;
+  return option;
 }
 
 function operatorOutcomeOption(rows) {
@@ -398,36 +417,6 @@ function operatorDeltaOption(rows) {
     }),
     { bottom: 90, rotate: 25, yName: "score delta" },
   );
-}
-
-function qualityOption(rows) {
-  const metrics = [
-    ["score", "score", 0, "solid"],
-    ["coveredPositive", "covered +", 1, "dashed"],
-    ["coveredNegative", "covered -", 1, "dotted"],
-  ];
-  const series = rows.flatMap(({ experiment, benchmark }) =>
-    metrics.map(([field, label, yAxisIndex, type]) => ({
-      type: "line",
-      name: experiment.label,
-      metric: label,
-      yAxisIndex,
-      data: (benchmark.qualityRows || []).map((row, index) => [index, num(row[field])]),
-      showSymbol: false,
-      lineStyle: { color: experiment.color, type, width: label === "score" ? 2 : 1 },
-    })),
-  );
-  const option = lineOption(series, "evaluaciones", "score", 90, [
-    ["score", "solid"],
-    ["covered +", "dashed"],
-    ["covered -", "dotted"],
-  ]);
-  option.yAxis = [
-    { type: "value", name: "score", position: "left" },
-    { type: "value", name: "coverage", position: "right" },
-  ];
-  option.grid.right = 70;
-  return option;
 }
 
 function programSizeOption(rows, field, yName) {
@@ -635,13 +624,7 @@ function barOption(labels, series, settings = {}) {
   };
 }
 
-function lineOption(series, xName, yName, bottom = 70, metrics = []) {
-  const keys = metrics.map(([name, type]) => ({
-    type: "line",
-    name,
-    data: [],
-    lineStyle: { color: "#64748b", type },
-  }));
+function lineOption(series, xName, yName, bottom = 70) {
   return {
     tooltip: {
       trigger: "axis",
@@ -650,19 +633,19 @@ function lineOption(series, xName, yName, bottom = 70, metrics = []) {
         [
           params[0]?.axisValueLabel || "",
           ...params
-            .filter((param) => series[param.seriesIndex]?.metric)
+            .filter((param) => !series[param.seriesIndex]?.band)
             .map((param) => {
-              const metric = series[param.seriesIndex].metric;
+              const source = series[param.seriesIndex];
               const value = Array.isArray(param.value) ? param.value[1] : param.value;
-              return `${param.marker}${param.seriesName} · ${metric}: ${value}`;
+              return `${param.marker}${source.experiment} · ${source.metric}: ${value}`;
             }),
         ].join("<br/>"),
     },
-    legend: { bottom: 0, selectedMode: false },
+    legend: { bottom: 0 },
     grid: { left: 75, right: 24, top: 30, bottom },
     xAxis: { type: "value", name: xName, nameLocation: "middle", nameGap: 34 },
     yAxis: { type: "value", name: yName },
-    series: [...series, ...keys],
+    series,
   };
 }
 

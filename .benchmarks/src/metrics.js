@@ -25,15 +25,7 @@ export const colors = {
   accent: "#ef4444",
 };
 
-const SERIES_KEYS = {
-  generation: { best: "bestArr", max: "maxArr", avg: "avgArr" },
-  fitnessEvaluations: {
-    best: "evaluationBestArr",
-    max: "evaluationMaxArr",
-    avg: "evaluationAvgArr",
-  },
-  elapsedSeconds: { best: "elapsedBestArr", max: "elapsedMaxArr", avg: "elapsedAvgArr" },
-};
+const SERIES_KEYS = { best: "bestArr", max: "maxArr", avg: "avgArr" };
 
 export const dataUrl = () =>
   new URLSearchParams(window.location.search).get("data") || "ga_profile/dashboard_data.json";
@@ -75,6 +67,77 @@ export function programSizeCounts(benchmark) {
     .sort((left, right) => left.size - right.size);
 }
 
+const runKey = (row) => row.run ?? "__all__";
+
+function weightedByRun(rows) {
+  const totals = new Map();
+  for (const row of rows) {
+    const key = runKey(row);
+    totals.set(key, (totals.get(key) || 0) + 1);
+  }
+  const runs = totals.size || 1;
+  return rows.map((row) => ({
+    row,
+    weight: 100 / (runs * totals.get(runKey(row))),
+  }));
+}
+
+export function coveragePoints(rows) {
+  const valid = rows.filter((row) => {
+    const positive = maybeNum(row.coveredPositive);
+    const negative = maybeNum(row.coveredNegative);
+    return (
+      positive !== null &&
+      negative !== null &&
+      Number.isFinite(positive) &&
+      Number.isFinite(negative)
+    );
+  });
+  const points = new Map();
+  for (const { row, weight } of weightedByRun(valid)) {
+    const positive = Number(row.coveredPositive);
+    const negative = Number(row.coveredNegative);
+    const key = `${positive}\0${negative}`;
+    const point = points.get(key) || {
+      positive,
+      negative,
+      count: 0,
+      share: 0,
+      scoreTotal: 0,
+      best: false,
+    };
+    point.count += 1;
+    point.share += weight;
+    point.scoreTotal += num(row.score);
+    point.best ||= Boolean(row.bestFound);
+    points.set(key, point);
+  }
+  return [...points.values()]
+    .map(({ scoreTotal, ...point }) => ({
+      ...point,
+      meanScore: scoreTotal / point.count,
+    }))
+    .sort((left, right) => left.positive - right.positive || left.negative - right.negative);
+}
+
+export function coverageExtent(rows) {
+  let positive = 0;
+  let negative = 0;
+  for (const row of rows) {
+    positive = Math.max(
+      positive,
+      maybeNum(row.totalPositive) ?? 0,
+      maybeNum(row.coveredPositive) ?? 0,
+    );
+    negative = Math.max(
+      negative,
+      maybeNum(row.totalNegative) ?? 0,
+      maybeNum(row.coveredNegative) ?? 0,
+    );
+  }
+  return { positive, negative };
+}
+
 export const phaseTypeTotal = (benchmark, phase, type) => num(benchmark.phases?.[phase]?.[type]);
 export const phaseTotal = (benchmark, phase) =>
   sum(typeOrder.map(([type]) => phaseTypeTotal(benchmark, phase, type)));
@@ -110,15 +173,15 @@ export const topPhase = (benchmark) =>
   });
 export const dominantLabel = (value) => (value === "overhead" ? "python" : value);
 
-const progressPoints = (run, axis = "generation", metric = "best") =>
-  (run[SERIES_KEYS[axis]?.[metric]] || [])
+export const generationPoints = (run, metric = "best") =>
+  (run?.[SERIES_KEYS[metric]] || [])
     .map(([position, value]) => [Number(position), Number(value)])
     .filter(([position, value]) => Number.isFinite(position) && Number.isFinite(value))
     .sort(([left], [right]) => left - right);
 
-export function aggregateSeries(runs, axis = "generation", metric = "best") {
+export function aggregateSeries(runs, metric = "best") {
   const runPoints = runs
-    .map((run) => progressPoints(run, axis, metric))
+    .map((run) => generationPoints(run, metric))
     .filter((points) => points.length);
   const positions = [
     ...new Set(runPoints.flatMap((points) => points.map(([position]) => position))),

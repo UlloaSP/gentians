@@ -1227,6 +1227,8 @@ def dashboard_quality_rows(rows: list[dict[str, object]]) -> list[dict[str, obje
             "score": to_float(row.get("score")),
             "coveredPositive": to_float(row.get("covered_positive")),
             "coveredNegative": to_float(row.get("covered_negative")),
+            "totalPositive": to_float(row.get("total_positive")),
+            "totalNegative": to_float(row.get("total_negative")),
             "programSize": to_float(row.get("program_size")),
             "bestFound": bool(to_float(row.get("best_found"))),
         }

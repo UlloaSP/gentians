@@ -15,7 +15,6 @@ import { PhaseTypeChart } from "./charts/PhaseTypeChart";
 import { QualityProgramChart } from "./charts/QualityProgramChart";
 import { QualityChart } from "./charts/QualityChart";
 import { SolverStatsChart } from "./charts/SolverStatsChart";
-import { TimingDepthChart } from "./charts/TimingDepthChart";
 import { TypeSplitChart } from "./charts/TypeSplitChart";
 import {
   bestRunRatio,
@@ -191,7 +190,6 @@ function Detail({ benchmark }) {
         <OperatorScoreDeltaChart benchmark={benchmark} />
         <QualityChart benchmark={benchmark} />
         <QualityProgramChart benchmark={benchmark} />
-        <TimingDepthChart benchmark={benchmark} />
         <SolverStatsChart benchmark={benchmark} />
         <ClingoBottleneckChart benchmark={benchmark} />
         <ClingoModelsChart benchmark={benchmark} />

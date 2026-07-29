@@ -11,6 +11,7 @@ import {
   outcomeOperatorRows,
   phaseOrder,
   phaseTypeTotal,
+  programSizeCounts,
   scoreDeltaRows,
   totalSeconds,
   typeOrder,
@@ -63,6 +64,9 @@ const TYPE_BLOCKS = [
 export function ComparisonCharts({ rows, axis, setAxis }) {
   const available = rows.filter((row) => row.benchmark);
   const has = (field) => available.some(({ benchmark }) => (benchmark[field] || []).length);
+  const hasBestPrograms = available.some(({ benchmark }) =>
+    programSizeCounts(benchmark).some((row) => row.best),
+  );
 
   return (
     <section>
@@ -124,17 +128,18 @@ export function ComparisonCharts({ rows, axis, setAxis }) {
           height={360}
         />
         <DataPlot
-          title="Tamaño programa vs best found"
+          title="Programas evaluados por tamaño"
           present={has("qualityRows")}
-          option={programSizeOption(available)}
-          empty="Sin qualityRows en dashboard_data.json"
+          option={programSizeOption(available, "evaluated", "programas")}
+          empty="Sin programas evaluados"
           height={340}
         />
         <DataPlot
-          title="Timing events por profundidad"
-          present={has("timingEvents")}
-          option={timingDepthOption(available)}
-          empty="Sin timingEvents en dashboard_data.json"
+          title="Best encontrados por tamaño"
+          present={hasBestPrograms}
+          option={programSizeOption(available, "best", "ejecuciones")}
+          empty="No se encontró ningún best program"
+          height={340}
         />
         <DataPlot
           title="Stats Clingo"
@@ -425,55 +430,33 @@ function qualityOption(rows) {
   return option;
 }
 
-function programSizeOption(rows) {
-  return scatterOption(
-    rows.flatMap(({ experiment, benchmark }) => [
-      {
-        type: "scatter",
+function programSizeOption(rows, field, yName) {
+  const counts = new Map(
+    rows.map(({ experiment, benchmark }) => [experiment.id, programSizeCounts(benchmark)]),
+  );
+  const labels = [
+    ...new Set([...counts.values()].flatMap((items) => items.map((item) => item.size))),
+  ].sort((left, right) => left - right);
+  const option = barOption(
+    labels,
+    rows.map(({ experiment }) => {
+      const indexed = new Map(counts.get(experiment.id).map((item) => [item.size, item]));
+      return {
+        type: "bar",
         name: experiment.label,
-        metric: "program size",
-        data: (benchmark.qualityRows || []).map((row, index) => [index, num(row.programSize)]),
-        symbolSize: 5,
-        symbol: "circle",
-        itemStyle: { color: experiment.color, opacity: 0.45 },
-      },
-      {
-        type: "scatter",
-        name: experiment.label,
-        metric: "best found",
-        data: (benchmark.qualityRows || []).map((row, index) => [
-          index,
-          row.bestFound ? num(row.programSize) : 0,
-        ]),
-        symbolSize: 8,
-        symbol: "diamond",
+        data: labels.map((size) => indexed.get(size)?.[field] || 0),
         itemStyle: { color: experiment.color },
-      },
-    ]),
-    "evaluación",
-    "program size",
-    [
-      ["program size", "circle"],
-      ["best found", "diamond"],
-    ],
+      };
+    }),
+    {
+      yName,
+    },
   );
-}
-
-function timingDepthOption(rows) {
-  return scatterOption(
-    rows.map(({ experiment, benchmark }) => ({
-      type: "scatter",
-      name: experiment.label,
-      data: (benchmark.timingEvents || []).map((row) => ({
-        name: row.phase,
-        value: [num(row.start), num(row.depth)],
-        symbolSize: 4 + Math.log10(num(row.seconds) + 1) * 8,
-      })),
-      itemStyle: { color: experiment.color },
-    })),
-    "segundos desde inicio",
-    "depth",
-  );
+  option.xAxis.name = "tamaño programa";
+  option.xAxis.nameLocation = "middle";
+  option.xAxis.nameGap = 32;
+  option.yAxis.minInterval = 1;
+  return option;
 }
 
 function solverStatsOption(rows) {
@@ -678,30 +661,6 @@ function lineOption(series, xName, yName, bottom = 70, metrics = []) {
     legend: { bottom: 0, selectedMode: false },
     grid: { left: 75, right: 24, top: 30, bottom },
     xAxis: { type: "value", name: xName, nameLocation: "middle", nameGap: 34 },
-    yAxis: { type: "value", name: yName },
-    series: [...series, ...keys],
-  };
-}
-
-function scatterOption(series, xName, yName, metrics = []) {
-  const keys = metrics.map(([name, symbol]) => ({
-    type: "scatter",
-    name,
-    data: [],
-    symbol,
-    itemStyle: { color: "#64748b" },
-  }));
-  return {
-    tooltip: {
-      trigger: "item",
-      formatter: (param) => {
-        const source = series[param.seriesIndex];
-        return `${param.marker}${param.seriesName}${source?.metric ? ` · ${source.metric}` : ""}: ${param.value}`;
-      },
-    },
-    legend: { bottom: 0, selectedMode: false },
-    grid: { left: 65, right: 24, top: 24, bottom: 75 },
-    xAxis: { type: "value", name: xName, nameLocation: "middle", nameGap: 30 },
     yAxis: { type: "value", name: yName },
     series: [...series, ...keys],
   };

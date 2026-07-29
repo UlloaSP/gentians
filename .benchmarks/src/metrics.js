@@ -54,6 +54,27 @@ export const bestRunCount = (benchmark) =>
 export const bestRunRatio = (benchmark) =>
   `${fmtInt(bestRunCount(benchmark))}/${fmtInt(runCount(benchmark))}`;
 
+export function programSizeCounts(benchmark) {
+  const evaluated = new Map();
+  const winnersByRun = new Map();
+  for (const row of benchmark.qualityRows || []) {
+    const size = num(row.programSize);
+    evaluated.set(size, (evaluated.get(size) || 0) + 1);
+    if (row.bestFound) winnersByRun.set(row.run, size);
+  }
+  const best = new Map();
+  for (const size of winnersByRun.values()) {
+    best.set(size, (best.get(size) || 0) + 1);
+  }
+  return [...evaluated]
+    .map(([size, count]) => ({
+      size,
+      evaluated: count,
+      best: best.get(size) || 0,
+    }))
+    .sort((left, right) => left.size - right.size);
+}
+
 export const phaseTypeTotal = (benchmark, phase, type) => num(benchmark.phases?.[phase]?.[type]);
 export const phaseTotal = (benchmark, phase) =>
   sum(typeOrder.map(([type]) => phaseTypeTotal(benchmark, phase, type)));

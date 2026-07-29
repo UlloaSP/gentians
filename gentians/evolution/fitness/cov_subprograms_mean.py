@@ -5,6 +5,7 @@ from ...asp.coverage import Coverage
 from ...asp.normal_coverage_solver import NormalCoverageSolver
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
+from ..types import FitnessResult
 
 
 class CovSubprogramsMean:
@@ -43,16 +44,16 @@ class CovSubprogramsMean:
 
     def __call__(
         self, candidate: tuple[str, ...]
-    ) -> tuple[float, bool, tuple[str, ...] | None]:
+    ) -> FitnessResult:
         return self._evaluate(candidate)
 
     def _evaluate(
         self, candidate: tuple[str, ...]
-    ) -> tuple[float, bool, tuple[str, ...] | None]:
+    ) -> FitnessResult:
         coverages = self.solver.extract_subset_coverage(candidate)
         if not coverages:
             self._record(candidate, -2000.0, False, 0, 0.0, 0.0)
-            return -2000.0, False, None
+            return FitnessResult(-2000.0, False, None, (0, 0))
 
         ranked = [
             (coverage_score(self.program, coverage), selected, coverage)
@@ -60,6 +61,9 @@ class CovSubprogramsMean:
         ]
         score = sum(item[0] for item in ranked) / len(ranked)
         perfect = [item for item in ranked if self._is_perfect(item[2])]
+        representative = min(
+            ranked, key=lambda item: (-item[0], len(item[1]), item[1])
+        )
         selected_program = None
         if perfect:
             selected = min(perfect, key=lambda item: (len(item[1]), item[1]))[1]
@@ -72,7 +76,12 @@ class CovSubprogramsMean:
             sum(item[2].pos_mask.bit_count() for item in ranked) / len(ranked),
             sum(item[2].neg_mask.bit_count() for item in ranked) / len(ranked),
         )
-        return score, bool(perfect), selected_program
+        return FitnessResult(
+            score,
+            bool(perfect),
+            selected_program,
+            (representative[2].pos_mask, representative[2].neg_mask),
+        )
 
     def _is_perfect(self, coverage: Coverage) -> bool:
         return (

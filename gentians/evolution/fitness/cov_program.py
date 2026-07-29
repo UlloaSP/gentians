@@ -4,6 +4,7 @@ from .coverage_common import coverage_score, record_fitness_metric
 from ...asp.normal_coverage_solver import NormalCoverageSolver
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
+from ..types import FitnessResult
 
 
 class CovProgram:
@@ -47,12 +48,12 @@ class CovProgram:
 
     def __call__(
         self, candidate: tuple[str, ...]
-    ) -> tuple[float, bool, tuple[str, ...]]:
+    ) -> FitnessResult:
         return self._evaluate(candidate)
 
     def _evaluate(
         self, candidate: tuple[str, ...]
-    ) -> tuple[float, bool, tuple[str, ...]]:
+    ) -> FitnessResult:
         coverage = self.solver.extract_fixed_coverage(candidate)
         score = coverage_score(self.program, coverage)
         best_found = (
@@ -71,4 +72,9 @@ class CovProgram:
                 "candidate_rules": len(candidate),
             },
         )
-        return score, best_found, candidate
+        return FitnessResult(
+            score,
+            best_found,
+            candidate,
+            (coverage.pos_mask, coverage.neg_mask),
+        )

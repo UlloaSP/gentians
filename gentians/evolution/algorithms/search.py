@@ -83,12 +83,12 @@ def search_solver(
         if candidate in evaluated:
             return None
         evaluations += 1
-        score = evaluate_score(generator.render(candidate))
-        individual = individual_from_fitness(candidate, score)
+        result = evaluate_score(generator.render(candidate))
+        individual = individual_from_fitness(candidate, result)
         evaluated[candidate] = individual
         return individual
 
-    with phase("population"):
+    with phase("initialization"):
         mutation = create_mutation(args.mutation, context)
         population = [
             individual

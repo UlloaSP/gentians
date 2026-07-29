@@ -81,8 +81,7 @@ class ProgramGenerator:
             signature = (heads, deps, body)
             signature_masks[signature] = signature_masks.get(signature, 0) | rule_bit
         self.signatures = tuple(
-            (*signature, rule_mask)
-            for signature, rule_mask in signature_masks.items()
+            (*signature, rule_mask) for signature, rule_mask in signature_masks.items()
         )
         self._structural_index = None
         self._render_cache: dict[Genome, ProgramText] = {}
@@ -126,7 +125,11 @@ class ProgramGenerator:
         limit = min(self.max_clauses, self.rule_count)
         size = limit if self.fixed_size else self.rng.randint(1, limit)
         candidate = self._build(self._sample_rules(size), 0)
-        return candidate if candidate is not None and candidate.bit_count() <= size else None
+        return (
+            candidate
+            if candidate is not None and candidate.bit_count() <= size
+            else None
+        )
 
     @record_generation_time
     def mutate_random(self, program: Genome) -> MutationProposal:
@@ -182,6 +185,22 @@ class ProgramGenerator:
         first_probability: float,
         second_probability: float,
     ) -> Genome | None:
+        """
+        Mezcla dos genomas en cuatro fases: toma primero las reglas
+        compartidas por ambos padres, luego añade reglas exclusivas de cada
+        padre con probabilidad independiente por regla, y si no queda ninguna
+        regla preferida escoge una regla aleatoria entre todas las presentes
+        en cualquiera de los dos genomas.
+
+        A continuación intenta construir el hijo final iterando por las
+        reglas preferidas. En cada paso llama a _complete() para completar el
+        conjunto parcial de reglas y solo acepta esa expansión si el tamaño
+        resultante no supera el límite permitido. El conjunto "selected" se
+        va quedando con la última expansión válida. Si no se selecciona
+        ninguna regla, devuelve None. Si fixed_size está activado, rellena el
+        conjunto final hasta target_size con _fill(); si no, devuelve el
+        subconjunto seleccionado tal cual.
+        """
         preferred = first & second
         for rule_id in self._ids(first & ~second):
             if self.rng.random() < first_probability:
@@ -206,7 +225,7 @@ class ProgramGenerator:
         operations = []
         if not self.fixed_size and size < self.max_clauses:
             operations.append("append")
-        if size > 1:
+        if not self.fixed_size and size > 1:
             operations.append("remove")
         if program and self.all_rules & ~program:
             operations.append("replace")
@@ -224,14 +243,15 @@ class ProgramGenerator:
                 if candidate := self._build(program ^ rule_bit, rule_bit):
                     return candidate
             return None
-        for source_id in self._random_ids(program):
-            source_bit = 1 << source_id
-            base = program ^ source_bit
-            for replacement_id in self._random_available(program):
-                if candidate := self._build(
-                    base | (1 << replacement_id), source_bit
-                ):
-                    return candidate
+        if operation == "replace":
+            for source_id in self._random_ids(program):
+                source_bit = 1 << source_id
+                base = program ^ source_bit
+                for replacement_id in self._random_available(program):
+                    if candidate := self._build(
+                        base | (1 << replacement_id), source_bit
+                    ):
+                        return candidate
         return None
 
     def _structural_replacement(
@@ -240,6 +260,39 @@ class ProgramGenerator:
         random_jump_probability: float,
         sample_size: int,
     ) -> MutationProposal | None:
+        """
+        Genera una propuesta de mutación de tipo "replace" usando información estructural.
+
+        La función sigue este proceso:
+
+        1. Obtiene el índice estructural de las reglas mediante ``_get_structural_index()``,
+            que devuelve la forma de cada regla y un mapa de reglas agrupadas por cabeza.
+        2. Calcula ``available`` como el conjunto de reglas que no están presentes en
+            ``program``.
+        3. Recorre las reglas actuales del programa en orden aleatorio usando
+            ``_random_ids(program)`` para seleccionar una regla fuente ``source_id``.
+        4. Para esa regla fuente, decide si la sustitución será local o global:
+            - Local: con probabilidad ``1 - random_jump_probability`` intenta reemplazar
+               la regla por otra con la misma cabeza.
+            - Global: con probabilidad ``random_jump_probability`` permite cualquier regla
+               disponible como candidata.
+        5. Si la búsqueda local no encuentra candidatos, se cae automáticamente a la
+            búsqueda global usando todo ``available``.
+        6. Cuando la búsqueda es local, toma una muestra de tamaño ``sample_size`` del
+            conjunto candidato, calcula la distancia estructural entre la regla fuente y
+            cada candidata, mezcla y ordena esas distancias para priorizar las más
+            cercanas, y prueba cada sustitución con ``_build``.
+        7. Si ninguna candidata muestreada funciona, realiza un último intento global
+            con todas las reglas disponibles restantes.
+        8. Cada vez que ``_build`` devuelve un candidato válido, se construye y devuelve
+            una ``MutationProposal`` con:
+            - el programa resultante,
+            - la operación ``"replace"``,
+            - si la sustitución fue local o no,
+            - la distancia estructural entre la regla eliminada y la sustituida,
+            - y el tamaño del conjunto de búsqueda usado.
+        9. Si ninguna regla fuente produce una sustitución válida, devuelve ``None``.
+        """
         shapes, rules_by_head = self._get_structural_index()
         available = self.all_rules & ~program
         for source_id in self._random_ids(program):
@@ -273,17 +326,13 @@ class ProgramGenerator:
             self.rng.shuffle(distances)
             distances.sort(key=lambda item: item[0])
             for distance, replacement_id in distances:
-                if candidate := self._build(
-                    base | (1 << replacement_id), source_bit
-                ):
+                if candidate := self._build(base | (1 << replacement_id), source_bit):
                     return MutationProposal(
                         candidate, "replace", local, distance, pool_size
                     )
             global_size = available.bit_count()
             for replacement_id in self._random_available(program):
-                if candidate := self._build(
-                    base | (1 << replacement_id), source_bit
-                ):
+                if candidate := self._build(base | (1 << replacement_id), source_bit):
                     return MutationProposal(
                         candidate,
                         "replace",
@@ -317,7 +366,10 @@ class ProgramGenerator:
 
     def _sample_rules(self, size: int) -> Genome:
         if not self.invented_mask or not self.target_rules:
-            return sum(1 << rule_id for rule_id in self.rng.sample(range(self.rule_count), size))
+            return sum(
+                1 << rule_id
+                for rule_id in self.rng.sample(range(self.rule_count), size)
+            )
         invented_consumers = sum(
             1 << rule_id
             for rule_id in self._ids(self.target_rules)
@@ -375,7 +427,9 @@ class ProgramGenerator:
                         self.rules_by_head.get(bit, 0) & ~completed & ~forbidden
                     ).bit_count(),
                 )
-                providers = self.rules_by_head.get(missing_bit, 0) & ~completed & ~forbidden
+                providers = (
+                    self.rules_by_head.get(missing_bit, 0) & ~completed & ~forbidden
+                )
                 score_groups: dict[tuple[int, int, int], int] = {}
                 for rule_id in self._ids(providers):
                     rule_heads = self.head_masks[rule_id]
@@ -384,7 +438,9 @@ class ProgramGenerator:
                         continue
                     score = (
                         (rule_heads & missing).bit_count(),
-                        -(rule_deps & ~(self.background_mask | heads | rule_heads)).bit_count(),
+                        -(
+                            rule_deps & ~(self.background_mask | heads | rule_heads)
+                        ).bit_count(),
                         -self.body_sizes[rule_id],
                     )
                     score_groups[score] = score_groups.get(score, 0) | (1 << rule_id)
@@ -419,9 +475,9 @@ class ProgramGenerator:
                     score = (
                         (rule_heads & deps & self.invented_mask).bit_count(),
                         int(bool(rule_heads)),
-                        -(rule_deps & ~(
-                            self.background_mask | heads | rule_heads
-                        )).bit_count(),
+                        -(
+                            rule_deps & ~(self.background_mask | heads | rule_heads)
+                        ).bit_count(),
                         -body,
                     )
                     if best_score is None or score > best_score:
@@ -434,13 +490,21 @@ class ProgramGenerator:
                 candidate |= self._random_rule(best_rules)
                 continue
             else:
-                for _sig_heads, _sig_deps, _sig_body, signature_rules in self.signatures:
+                for (
+                    _sig_heads,
+                    _sig_deps,
+                    _sig_body,
+                    signature_rules,
+                ) in self.signatures:
                     concrete = signature_rules & available
                     if not concrete:
                         continue
                     rule_bit = self._random_rule(concrete)
                     expanded = self._complete(candidate | rule_bit, forbidden)
-                    if expanded is not None and expanded.bit_count() <= self.target_size:
+                    if (
+                        expanded is not None
+                        and expanded.bit_count() <= self.target_size
+                    ):
                         choices.append(
                             (
                                 self._fill_score(
@@ -647,9 +711,7 @@ def _split_top_level(fragment: str, separator: str) -> list[str]:
     return parts
 
 
-def _multiset_jaccard_distance(
-    left: tuple[str, ...], right: tuple[str, ...]
-) -> float:
+def _multiset_jaccard_distance(left: tuple[str, ...], right: tuple[str, ...]) -> float:
     left_index = right_index = intersection = 0
     while left_index < len(left) and right_index < len(right):
         if left[left_index] == right[right_index]:

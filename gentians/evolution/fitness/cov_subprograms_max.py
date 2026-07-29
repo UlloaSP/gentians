@@ -5,6 +5,7 @@ from ...asp.coverage import Coverage
 from ...asp.normal_coverage_solver import NormalCoverageSolver
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
+from ..types import FitnessResult
 
 
 class CovSubprogramsMax:
@@ -43,16 +44,16 @@ class CovSubprogramsMax:
 
     def __call__(
         self, candidate: tuple[str, ...]
-    ) -> tuple[float, bool, tuple[str, ...] | None]:
+    ) -> FitnessResult:
         return self._evaluate(candidate)
 
     def _evaluate(
         self, candidate: tuple[str, ...]
-    ) -> tuple[float, bool, tuple[str, ...] | None]:
+    ) -> FitnessResult:
         coverages = self.solver.extract_subset_coverage(candidate)
         if not coverages:
             self._record(candidate, Coverage([], []), -2000.0, False, 0, len(candidate))
-            return -2000.0, False, None
+            return FitnessResult(-2000.0, False, None, (0, 0))
 
         ranked = [
             (coverage_score(self.program, coverage), selected, coverage)
@@ -77,7 +78,12 @@ class CovSubprogramsMax:
             len(ranked),
             len(candidate),
         )
-        return score, bool(perfect), selected_program
+        return FitnessResult(
+            score,
+            bool(perfect),
+            selected_program,
+            (selected[2].pos_mask, selected[2].neg_mask),
+        )
 
     def _is_perfect(self, coverage: Coverage) -> bool:
         return (

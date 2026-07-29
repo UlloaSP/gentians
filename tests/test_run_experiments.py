@@ -20,8 +20,14 @@ def test_default_config_defines_comparable_experiment_matrix():
         "cov_subprograms_mean",
         "cov_subprograms_max",
         "cov_program",
-        "cov_whole_program_random_group_mutation",
-        "cov_whole_program_structural_neighbor_mutation",
+        "cov_program_random_group_pop10_mut005",
+        "cov_program_random_group_pop10_mut09",
+        "cov_program_random_group_pop100_mut005",
+        "cov_program_random_group_pop100_mut09",
+        "cov_program_structural_neighbor_pop10_mut005",
+        "cov_program_structural_neighbor_pop10_mut09",
+        "cov_program_structural_neighbor_pop100_mut005",
+        "cov_program_structural_neighbor_pop100_mut09",
     }
     assert all(experiment["runs"] == 10 for experiment in experiments)
     assert all(experiment["timeout_seconds"] == 100 for experiment in experiments)
@@ -32,7 +38,27 @@ def test_default_config_defines_comparable_experiment_matrix():
 def test_default_experiments_have_no_pregrounding_strategy_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
     assert all("fitness.grounding" not in item["overrides"] for item in experiments)
-    assert len(experiments) == 5
+    assert len(experiments) == 11
+
+
+def test_default_experiments_cover_mutation_population_probability_matrix():
+    _, experiments = load_config(DEFAULT_CONFIG)
+    matrix = {
+        (
+            experiment["overrides"]["mutation.name"],
+            experiment["overrides"]["population.size"],
+            experiment["overrides"]["mutation.probability"],
+        )
+        for experiment in experiments
+        if "population.size" in experiment["overrides"]
+    }
+
+    assert matrix == {
+        (mutation, population, probability)
+        for mutation in ("random_group", "structural_neighbor")
+        for population in (10, 100)
+        for probability in (0.05, 0.9)
+    }
 
 
 def test_default_experiments_cover_all_fitness_operators():

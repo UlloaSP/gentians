@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import time
 
-from .types import Genome, ProgramText
+from .types import Behavior, FitnessResult, Genome, ProgramText
 
 
 @dataclass(slots=True)
@@ -10,6 +10,7 @@ class Individual:
     score: float
     is_best: bool  # does this cover everything positive and no negative?
     best_program: ProgramText | None = None
+    behavior: Behavior = (0, 0)
     generated_timestamp: float = field(default_factory=time.time)
 
     def __str__(self) -> str:
@@ -21,11 +22,15 @@ class Individual:
 
 def individual_from_fitness(
     program: Genome,
-    result: tuple[float, bool] | tuple[float, bool, ProgramText | None],
+    result: FitnessResult,
 ) -> Individual:
-    score, is_best = result[0], result[1]
-    best_program = result[2] if len(result) > 2 else None
-    return Individual(program, score, is_best, best_program)
+    return Individual(
+        program,
+        result.score,
+        result.is_best,
+        result.best_program,
+        result.behavior,
+    )
 
 
 def winning_program(individual: Individual, rendered: ProgramText) -> ProgramText:

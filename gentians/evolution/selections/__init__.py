@@ -8,7 +8,7 @@ def create_selection(config: dict[str, object]) -> SelectionFn:
     name = str(config["name"])
     if name == "tournament":
         return TournamentSelection(
-            int(config["tournament_size"]),
+            float(config["tournament_percentage"]),
             float(config["prob_selecting_fittest"]),
         )
     raise ValueError(f"Unknown selection strategy: {name}")

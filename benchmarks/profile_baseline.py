@@ -113,12 +113,12 @@ STANDARD_TIMING_METRICS = [
     "mutation.fitness",
     "crossover.grounding",
     "crossover.solving",
-    "population.grounding",
-    "population.solving",
+    "initialization.grounding",
+    "initialization.solving",
     "mutation",
     "crossover",
     "search",
-    "population",
+    "initialization",
 ]
 
 
@@ -703,7 +703,7 @@ def compute_accounting_invariants(
     for phase in [
         "hypothesis_space",
         "fitness.setup",
-        "population",
+        "initialization",
         "fitness",
         "selection",
         "crossover",
@@ -1133,7 +1133,7 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
     phases = {
         "hypothesisSpace": phase("hypothesis_space"),
         "pregrounding": phase("pregrounding"),
-        "initialization": phase("population"),
+        "initialization": phase("initialization"),
         "selection": phase("selection"),
         "crossover": phase("crossover"),
         "mutation": phase("mutation"),

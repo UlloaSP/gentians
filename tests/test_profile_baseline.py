@@ -517,10 +517,10 @@ def test_dashboard_attributes_fitness_cost_to_operator_phase():
             TimingMetric("d", 1, "hypothesis_space.self", 5.0, 1),
             TimingMetric("d", 1, "hypothesis_space.grounding", 1.0, 1),
             TimingMetric("d", 1, "hypothesis_space.solving", 2.0, 1),
-            TimingMetric("d", 1, "population.self", 10.0, 2),
-            TimingMetric("d", 1, "population.grounding", 3.0, 2),
-            TimingMetric("d", 1, "population.solving", 4.0, 2),
-            TimingMetric("d", 1, "population.closure", 1.0, 2),
+            TimingMetric("d", 1, "initialization.self", 10.0, 2),
+            TimingMetric("d", 1, "initialization.grounding", 3.0, 2),
+            TimingMetric("d", 1, "initialization.solving", 4.0, 2),
+            TimingMetric("d", 1, "initialization.closure", 1.0, 2),
             TimingMetric("d", 1, "search.self", 5.0, 1),
         ]
     )

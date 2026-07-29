@@ -11,4 +11,7 @@ def create_replacement(config: dict[str, object]) -> ReplacementFn:
         strategy = strategies[name]
     except KeyError:
         raise ValueError(f"Unknown replacement strategy: {name}") from None
-    return strategy(float(config["prob_replacing_oldest"]))
+    return strategy(
+        float(config["prob_replacing_oldest"]),
+        bool(config.get("behavior_tiebreak", False)),
+    )

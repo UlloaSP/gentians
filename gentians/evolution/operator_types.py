@@ -1,6 +1,6 @@
+import random
 from collections.abc import Callable
 from dataclasses import dataclass
-import random
 
 from .evolution_context import EvolutionContext
 from .individual import Individual
@@ -17,9 +17,7 @@ class MutationProposal:
 
 
 PopulationInitializerFn = Callable[[EvolutionContext], list[Genome]]
-SelectionFn = Callable[
-    [list[Individual], random.Random], tuple[Individual, Individual]
-]
+SelectionFn = Callable[[list[Individual], random.Random], tuple[Individual, Individual]]
 CrossoverFn = Callable[[Genome, Genome, EvolutionContext], tuple[Genome, ...]]
 MutationFn = Callable[[Genome, EvolutionContext], MutationProposal]
 ReplacementFn = Callable[

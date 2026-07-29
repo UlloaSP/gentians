@@ -54,23 +54,33 @@ def test_factory_rejects_unknown_strategy():
 
 def test_subprogram_mean_and_max_use_exponential_score():
     candidate = ("target(n).", "target(p).")
-    mean_score, mean_best, mean_program = _fitness("cov_subprograms_mean")(candidate)
-    max_score, max_best, max_program = _fitness("cov_subprograms_max")(candidate)
+    mean = _fitness("cov_subprograms_mean")(candidate)
+    maximum = _fitness("cov_subprograms_max")(candidate)
 
-    assert mean_score == pytest.approx((2.0 + math.exp(10) + math.exp(-10)) / 4)
-    assert max_score == pytest.approx(math.exp(10))
-    assert mean_best is True and max_best is True
-    assert mean_program == ("target(p).",)
-    assert max_program == ("target(p).",)
+    assert mean.score == pytest.approx((2.0 + math.exp(10) + math.exp(-10)) / 4)
+    assert maximum.score == pytest.approx(math.exp(10))
+    assert mean.is_best is True and maximum.is_best is True
+    assert mean.best_program == ("target(p).",)
+    assert maximum.best_program == ("target(p).",)
 
 
 def test_whole_program_scores_only_individual():
     candidate = ("target(n).", "target(p).")
-    score, best, selected = _fitness("cov_program")(candidate)
+    result = _fitness("cov_program")(candidate)
 
-    assert score == 1.0
-    assert best is False
-    assert selected == candidate
+    assert result.score == 1.0
+    assert result.is_best is False
+    assert result.best_program == candidate
+    assert result.behavior == (1, 1)
+
+
+@pytest.mark.parametrize(
+    "name", ["cov_subprograms_mean", "cov_subprograms_max"]
+)
+def test_subprogram_fitness_exposes_best_coverage_behavior(name):
+    result = _fitness(name)(("target(n).", "target(p)."))
+
+    assert result.behavior == (1, 0)
 
 
 @pytest.mark.parametrize(
@@ -100,8 +110,8 @@ def test_normal_solver_grounds_each_evaluation(monkeypatch):
 
     monkeypatch.setattr(solver, "_ground", counted)
 
-    assert evaluate(("target(p).",))[0] == pytest.approx(math.exp(10))
-    assert evaluate(("target(n).",))[0] == pytest.approx(math.exp(-10))
+    assert evaluate(("target(p).",)).score == pytest.approx(math.exp(10))
+    assert evaluate(("target(n).",)).score == pytest.approx(math.exp(-10))
     assert calls == 2
 
 
@@ -134,7 +144,7 @@ def test_internal_selection_does_not_collide_with_user_program():
         2,
         RULES,
     )
-    assert evaluate(("target(n).",))[0] == pytest.approx(math.exp(-10))
+    assert evaluate(("target(n).",)).score == pytest.approx(math.exp(-10))
 
 
 def test_undefined_atoms_are_false_without_log_noise(capsys):

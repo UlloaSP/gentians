@@ -53,8 +53,8 @@ class Arguments:
         default_factory=lambda: {
             # Parent selection implementation.
             "name": "tournament",
-            # Number of candidates sampled for each tournament.
-            "tournament_size": 3,
+            # Population percentage sampled per tournament, expressed in (0, 1].
+            "tournament_percentage": 0.3,
             # Probability of picking the fittest candidate in the tournament.
             "prob_selecting_fittest": 1.0,
         }
@@ -77,6 +77,10 @@ class Arguments:
             "name": "random_group",
             # Probability of mutating an offspring.
             "probability": 0.9,
+            # Probability of ignoring structural neighbors and jumping randomly.
+            "random_jump_probability": 0.0,
+            # Maximum structural neighbors sampled when choosing a mutation.
+            "sample_size": 64,
         }
     )
 
@@ -97,6 +101,8 @@ class Arguments:
             "name": "oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
             "prob_replacing_oldest": 0.1,
+            # Prefer behavior diversity when scores tie.
+            "behavior_tiebreak": False,
         }
     )
 

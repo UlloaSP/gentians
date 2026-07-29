@@ -9,11 +9,13 @@ from gentians.evolution.crossovers import create_crossover
 from gentians.evolution.mutations import create_mutation
 from gentians.evolution.populations import create_population
 from gentians.evolution.selections import create_selection
+from gentians.evolution.selections.tournament_selection import TournamentSelection
 from gentians.evolution.evolution_context import EvolutionContext
 from gentians.evolution.individual import Individual
 from gentians.evolution.operator_types import MutationProposal
 from gentians.evolution.program_generators import ProgramGenerator
 from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
+from gentians.evolution.types import FitnessResult
 from gentians.rule_generation.program import Program
 from gentians.rule_generation.example import Example
 from gentians.rule_generation.rule_space import RuleSpace
@@ -149,7 +151,7 @@ def test_tournament_has_one_canonical_strategy_name():
         create_selection(
             {
                 "name": "original_tournament",
-                "tournament_size": 3,
+                "tournament_percentage": 0.3,
                 "prob_selecting_fittest": 1.0,
             }
         )
@@ -157,6 +159,29 @@ def test_tournament_has_one_canonical_strategy_name():
         assert "Unknown selection strategy" in str(error)
     else:
         raise AssertionError("legacy tournament alias was accepted")
+
+
+def test_tournament_size_scales_with_population_percentage():
+    sampled_sizes = []
+
+    class RecordingRandom(random.Random):
+        def sample(self, population, k, *, counts=None):
+            sampled_sizes.append(k)
+            return super().sample(population, k, counts=counts)
+
+    selection = TournamentSelection(0.3, 1.0)
+    rng = RecordingRandom(1)
+
+    selection([Individual(index, float(index), False) for index in range(10)], rng)
+    selection([Individual(index, float(index), False) for index in range(100)], rng)
+
+    assert sampled_sizes == [3, 3, 30, 30]
+
+
+@pytest.mark.parametrize("percentage", [0.0, -0.1, 1.1])
+def test_tournament_percentage_rejects_out_of_range_values(percentage):
+    with pytest.raises(ValueError, match="tournament_percentage"):
+        TournamentSelection(percentage, 1.0)
 
 
 def test_program_generator_creates_only_closed_programs():
@@ -367,9 +392,8 @@ def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
     )
     monkeypatch.setattr(
         "gentians.evolution.algorithms.search.create_fitness",
-        lambda program, config, max_program_clauses, rule_space: lambda candidate: (
-            1.0,
-            True,
+        lambda program, config, max_program_clauses, rule_space: lambda candidate: FitnessResult(
+            1.0, True, candidate, (1, 0)
         ),
     )
     result, score, best = search_solver(
@@ -407,9 +431,11 @@ def test_mutation_runs_when_crossover_is_skipped(monkeypatch):
         search,
         "create_fitness",
         lambda program, config, max_program_clauses, rule_space: (
-            lambda candidate: (
+            lambda candidate: FitnessResult(
                 1.0 if candidate == ("win.",) else 0.0,
                 candidate == ("win.",),
+                candidate,
+                (1, 0) if candidate == ("win.",) else (0, 0),
             )
         ),
     )
@@ -459,9 +485,11 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
         search,
         "create_fitness",
         lambda program, config, max_program_clauses, rule_space: (
-            lambda candidate: (
+            lambda candidate: FitnessResult(
                 1.0 if candidate == ("win.",) else 0.0,
                 candidate == ("win.",),
+                candidate,
+                (1, 0) if candidate == ("win.",) else (0, 0),
             )
         ),
     )
@@ -504,7 +532,7 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
         search,
         "create_fitness",
         lambda program, config, max_program_clauses, rule_space: (
-            lambda candidate: (1.0, False)
+            lambda candidate: FitnessResult(1.0, False, candidate, (0, 0))
         ),
     )
     monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
@@ -530,3 +558,22 @@ def test_equal_novel_candidate_replaces_an_existing_individual():
 
     assert candidate in result
     assert len(result) == len(population)
+
+
+def test_equal_score_new_behavior_evicts_repeated_behavior():
+    population = [
+        Individual(1, 2.0, False, behavior=(1, 1), generated_timestamp=1.0),
+        Individual(2, 2.0, False, behavior=(1, 1), generated_timestamp=2.0),
+        Individual(4, 2.0, False, behavior=(2, 1), generated_timestamp=3.0),
+    ]
+    candidate = Individual(
+        8, 2.0, False, behavior=(2, 0), generated_timestamp=4.0
+    )
+
+    result = OldestOrWorstReplacement(0.0, behavior_tiebreak=True)(
+        population, candidate, random.Random(1)
+    )
+
+    assert candidate in result
+    assert Individual(1, 2.0, False, behavior=(1, 1), generated_timestamp=1.0) not in result
+    assert {item.behavior for item in result} == {(1, 1), (2, 1), (2, 0)}

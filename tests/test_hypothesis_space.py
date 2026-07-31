@@ -60,6 +60,73 @@ def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
     assert calls == 1
 
 
+def test_hypothesis_generator_decodes_models_without_shown_symbols(monkeypatch):
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("hypothesis generation must not materialize shown symbols")
+
+    monkeypatch.setattr(clingo.Model, "symbols", fail_if_called)
+    program = Program(
+        ["edge(1,2)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "1"), True)],
+        [ModeDeclaration(("1", "edge", "2", "positive"), False)],
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert "target(V0) :- edge(V0,V1)." in clauses
+
+
+def test_hypothesis_encoding_prunes_duplicates_without_output_atoms():
+    rules = hypothesis_space.HYPOTHESIS_SPACE_RULES
+
+    assert ":- same_normal_literal(" in rules
+    assert ":- same_mode_literal(" in rules
+    assert "code_prefix(" not in rules
+    assert "#show lit/4." not in rules
+
+
+def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
+    class FakeModel:
+        def __init__(self, true_literals):
+            self.true_literals = true_literals
+            self.calls = []
+
+        def is_true(self, literal):
+            self.calls.append(literal)
+            return literal in self.true_literals
+
+    model = FakeModel({102, 202, 203, 112, 212, 214, 133})
+    index = (
+        (
+            "body",
+            0,
+            ((1, 2, 101), (2, 2, 102)),
+            (((0, 201), (1, 202)), ((0, 203), (1, 204))),
+        ),
+        (
+            "body",
+            1,
+            ((1, 2, 111), (2, 2, 112)),
+            (((0, 211), (1, 212)), ((0, 213), (1, 214))),
+        ),
+        ("body", 2, ((2, 0, 122), (3, 0, 123)), ()),
+        ("body", 3, ((3, 0, 133),), ()),
+    )
+
+    clause = hypothesis_space._clause_from_model(model, index)
+
+    assert [(literal.mode_id, literal.variables) for literal in clause.body] == [
+        (2, (1, 0)),
+        (2, (1, 1)),
+    ]
+    assert 111 not in model.calls
+    assert 133 not in model.calls
+
+
 def test_facts_do_not_emit_redundant_control_flags():
     facts = hypothesis_space._facts(
         Program([], [], [], [], []),
@@ -187,10 +254,9 @@ def _reset_timing_state() -> None:
     timing.reset()
 
 
-def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch, tmp_path):
+def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
     _reset_timing_state()
     monkeypatch.setattr(timing, "_enabled", True)
-    monkeypatch.setenv("GENTIANS_CACHE_DIR", str(tmp_path))
     phases = []
 
     class FakeHypothesisSpaceGenerator:
@@ -216,8 +282,7 @@ def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch, tm
     _reset_timing_state()
 
 
-def test_hypothesis_space_cache_skips_second_generation(monkeypatch, tmp_path):
-    monkeypatch.setenv("GENTIANS_CACHE_DIR", str(tmp_path))
+def test_hypothesis_space_is_generated_each_time(monkeypatch):
     generated = []
 
     class FakeHypothesisSpaceGenerator:
@@ -237,7 +302,7 @@ def test_hypothesis_space_cache_skips_second_generation(monkeypatch, tmp_path):
     second = hypothesis_space.build_hypothesis_space(program, Arguments())
 
     assert first.clauses == second.clauses == ("p.",)
-    assert generated == [True]
+    assert generated == [True, True]
 
 
 def test_hypothesis_space_clingo_times_use_current_phase(monkeypatch):
@@ -1939,6 +2004,41 @@ def test_language_bias_auto_does_not_generate_head_when_body_is_explicit():
     } == {("target", 1, True)}
 
 
+def test_positive_body_singleton_is_available_as_existential_projection():
+    program = Program(
+        ["edge(1,2)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "1"), True)],
+        [ModeDeclaration(("1", "edge", "2", "positive"), False)],
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert "target(V0) :- edge(V0,V1)." in clauses
+
+
+def test_negative_body_singleton_remains_rejected():
+    program = Program(
+        ["node(1).", "edge(1,2)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "1"), True)],
+        [
+            ModeDeclaration(("1", "node", "1", "positive"), False),
+            ModeDeclaration(("1", "edge", "2", "negative"), False),
+        ],
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=3, max_variables=2)
+    ).generate().clauses
+
+    assert "target(V0) :- node(V0),not edge(V0,V1)." not in clauses
+
+
 def test_ast_atom_extraction_handles_choice_rules():
     atoms = {
         (name, arguments)
@@ -1995,6 +2095,133 @@ def test_grandparent_hypothesis_space_contains_invented_predicate_solution():
         clause.startswith("target_1(") and "target_1(" in clause.split(" :- ", 1)[1]
         for clause in clauses
     )
+
+
+def test_latin_square_hypothesis_space_contains_covering_target_program():
+    args = copy.deepcopy(CASES["latin_square"])
+    program = read_program(args.filename)
+    clauses = set(HypothesisSpaceGenerator(program, args).generate().clauses)
+    target = (
+        "count_row(V0,V3) :- cell(V0),#count{V1:x(V0,V2,V1)}=V3.",
+        "count_col(V0,V3) :- cell(V0),#count{V1:x(V2,V0,V1)}=V3.",
+        ":- count_row(V0,V1),size(V2),V1!=V2.",
+        ":- count_col(V0,V1),size(V2),V1!=V2.",
+    )
+
+    assert program.aggregate_modes == [
+        AggregateDeclaration(1, "count", (("x", 3),), True)
+    ]
+    assert len(program.positive_examples) == 4
+    assert len(program.negative_examples) == 20
+    assert set(target) <= clauses
+
+    coverage = NormalCoverageSolver(
+        program.background,
+        ["0", "--enum-mode=brave"],
+        program.positive_examples,
+        program.negative_examples,
+    ).extract_fixed_coverage(target)
+
+    assert coverage.pos_mask == (1 << len(program.positive_examples)) - 1
+    assert coverage.neg_mask == 0
+
+
+def test_magic_square_no_diag_requires_row_and_column_rules():
+    args = copy.deepcopy(CASES["magic_square_no_diag"])
+    program = read_program(args.filename)
+
+    def example_cells(example):
+        return {
+            (int(arguments[0]), int(arguments[1])): int(arguments[2])
+            for name, arguments, _negative in fragment_atoms(example.included)
+            if name == "x"
+        }
+
+    def axes_are_equal(cells):
+        rows = {
+            sum(cells[row, column] for column in (1, 2, 3))
+            for row in (1, 2, 3)
+        }
+        columns = {
+            sum(cells[row, column] for row in (1, 2, 3))
+            for column in (1, 2, 3)
+        }
+        return len(rows) == 1, len(columns) == 1
+
+    positive_cells = [example_cells(example) for example in program.positive_examples]
+    negative_cells = [example_cells(example) for example in program.negative_examples]
+    categories = [axes_are_equal(cells) for cells in negative_cells]
+    positions = {(row, column) for row in (1, 2, 3) for column in (1, 2, 3)}
+    signatures = [
+        tuple(cells[position] for position in sorted(positions))
+        for cells in positive_cells + negative_cells
+    ]
+    target = {
+        "sum_row(V0,V3) :- size(V0),#sum{V1:x(V0,V2,V1)}=V3.",
+        "sum_col(V0,V3) :- size(V0),#sum{V1:x(V2,V0,V1)}=V3.",
+        ":- sum_row(V0,V1),sum_row(V2,V3),V0!=V2,V1!=V3.",
+        ":- sum_col(V0,V1),sum_col(V2,V3),V0!=V2,V1!=V3.",
+    }
+
+    assert len(program.positive_examples) == 72
+    assert len(program.negative_examples) == 27
+    assert all(set(cells) == positions for cells in positive_cells + negative_cells)
+    assert all(sorted(cells.values()) == list(range(1, 10)) for cells in positive_cells + negative_cells)
+    assert len(set(signatures)) == len(signatures)
+    assert categories.count((True, False)) == 9
+    assert categories.count((False, True)) == 9
+    assert categories.count((False, False)) == 9
+    assert args.max_depth == 4
+    assert args.max_variables == 4
+    assert args.max_program_clauses == 4
+    assert all(mode.recall == 1 for mode in program.language_bias_head)
+
+    definition_args = copy.deepcopy(args)
+    definition_args.max_depth = 3
+    definition_program = copy.deepcopy(program)
+    definition_program.language_bias_body = [
+        mode for mode in definition_program.language_bias_body if mode.name == "size"
+    ]
+    definition_program.comparison_modes = []
+    definition_clauses = set(
+        HypothesisSpaceGenerator(definition_program, definition_args).generate().clauses
+    )
+    constraint_program = copy.deepcopy(program)
+    constraint_program.language_bias_body = [
+        mode
+        for mode in constraint_program.language_bias_body
+        if mode.name in {"sum_row", "sum_col"}
+    ]
+    constraint_program.aggregate_modes = []
+    constraint_clauses = set(
+        HypothesisSpaceGenerator(constraint_program, args).generate().clauses
+    )
+
+    assert {clause for clause in target if "#sum{" in clause} <= definition_clauses
+    assert {clause for clause in target if clause.startswith(":-")} <= constraint_clauses
+
+    solver = NormalCoverageSolver(
+        program.background,
+        ["0", "--enum-mode=brave"],
+        program.positive_examples,
+        program.negative_examples,
+    )
+    row_program = (
+        "sum_row(R,S) :- size(R),#sum{V:x(R,C,V)}=S.",
+        ":- sum_row(R0,S0),sum_row(R1,S1),R0!=R1,S0!=S1.",
+    )
+    column_program = (
+        "sum_col(C,S) :- size(C),#sum{V:x(R,C,V)}=S.",
+        ":- sum_col(C0,S0),sum_col(C1,S1),C0!=C1,S0!=S1.",
+    )
+    full_coverage = solver.extract_fixed_coverage(row_program + column_program)
+    row_coverage = solver.extract_fixed_coverage(row_program)
+    column_coverage = solver.extract_fixed_coverage(column_program)
+
+    assert full_coverage.pos_mask.bit_count() == 72
+    assert full_coverage.neg_mask == 0
+    assert row_coverage.neg_mask.bit_count() == 9
+    assert column_coverage.neg_mask.bit_count() == 9
 
 
 def test_fixed_benchmark_definitions_expose_real_target_shapes():

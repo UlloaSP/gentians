@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from functools import lru_cache
+import re
 from itertools import combinations, permutations, product
 from pathlib import Path
-import re
 
 import clingo
 from clingo import ast
@@ -30,7 +29,6 @@ from .reified_clause import ReifiedClause
 from .reified_literal import ReifiedLiteral
 from .rule_entry import RuleEntry
 from .rule_space import RuleSpace
-
 
 HYPOTHESIS_SPACE_RULE_MODULES = (
     "core/slots.lp",
@@ -77,12 +75,22 @@ HYPOTHESIS_SPACE_RULE_MODULES = (
     "properties/cardinality_upper.lp",
     "properties/transitive.lp",
     "properties/acyclic.lp",
-    "core/output.lp",
+    "core/duplicates.lp",
 )
 HYPOTHESIS_SPACE_RULES = "\n".join(
     (Path(__file__).with_name("rules") / module).read_text()
     for module in HYPOTHESIS_SPACE_RULE_MODULES
 )
+
+
+_ValueLiteral = tuple[int, int]
+_ModeLiteral = tuple[int, int, int]
+_ModelSlot = tuple[
+    str,
+    int,
+    tuple[_ModeLiteral, ...],
+    tuple[tuple[_ValueLiteral, ...], ...],
+]
 
 
 def _rule_entry_from_clause(
@@ -146,6 +154,7 @@ class HypothesisSpaceGenerator:
         grounding_seconds = net_time() - start
         phase = current_phase()
         add(f"{phase}.grounding", grounding_seconds)
+        model_index = _model_literal_index(ctl.symbolic_atoms, self.modes_by_id)
 
         clauses: dict[ReifiedClause, None] = {}
         seconds = 0.0
@@ -163,10 +172,9 @@ class HypothesisSpaceGenerator:
                     break
                 seconds += net_time() - start
                 clauses.setdefault(
-                    _clause_from_symbols(
-                        model.symbols(shown=True),
-                        self.modes_by_id,
-                        self.args.max_variables,
+                    _clause_from_model(
+                        model,
+                        model_index,
                     ),
                     None,
                 )
@@ -2002,51 +2010,84 @@ def _closed_world_property_facts(
     return parts
 
 
-def _clause_from_symbols(
-    symbols: list[clingo.Symbol],
+def _model_literal_index(
+    atoms: clingo.SymbolicAtoms,
     modes: dict[int, HypothesisMode],
-    max_variables: int,
-) -> ReifiedClause:
-    literals: list[ReifiedLiteral] = []
-    for symbol in symbols:
-        arguments = symbol.arguments
-        section = "head" if arguments[0].number == 0 else "body"
-        slot = arguments[1].number
-        mode_id = arguments[2].number
-        code = arguments[3].number
-        literals.append(
-            ReifiedLiteral(
-                section,
-                slot,
-                mode_id,
-                _decode_vars(code, modes[mode_id].arity, max_variables),
-            )
+) -> tuple[_ModelSlot, ...]:
+    selected: dict[tuple[str, int], list[tuple[int, int]]] = {}
+    variables: dict[tuple[str, int, int], list[tuple[int, int]]] = {}
+    for atom in atoms.by_signature("selected", 3):
+        section, slot, mode = atom.symbol.arguments
+        selected.setdefault((section.name, slot.number), []).append(
+            (mode.number, atom.literal)
         )
-
-    head = tuple(
-        literal
-        for literal in sorted(literals, key=lambda literal: literal.slot)
-        if literal.section == "head"
+    for atom in atoms.by_signature("var_at", 4):
+        section, slot, argument, variable = atom.symbol.arguments
+        variables.setdefault(
+            (section.name, slot.number, argument.number), []
+        ).append((variable.number, atom.literal))
+    return tuple(
+        (
+            section,
+            slot,
+            tuple(
+                (mode_id, modes[mode_id].arity, literal)
+                for mode_id, literal in sorted(mode_choices)
+            ),
+            tuple(
+                tuple(sorted(variables.get((section, slot, argument), ())))
+                for argument in range(
+                    max(modes[mode_id].arity for mode_id, _literal in mode_choices)
+                )
+            ),
+        )
+        for (section, slot), mode_choices in sorted(selected.items())
     )
-    body = tuple(
-        literal
-        for literal in sorted(literals, key=lambda literal: literal.slot)
-        if literal.section == "body"
-    )
-    return ReifiedClause(head=head, body=body)
 
 
-@lru_cache(maxsize=None)
-def _decode_vars(code: int, arity: int, max_variables: int) -> tuple[int, ...]:
-    if arity == 0:
-        return ()
-    if max_variables <= 0:
-        raise ValueError("max_variables must be positive for non-zero arity modes")
-    values = [0] * arity
-    for index in range(arity - 1, -1, -1):
-        values[index] = code % max_variables
-        code //= max_variables
-    return tuple(values)
+def _clause_from_model(
+    model: clingo.Model,
+    model_index: tuple[_ModelSlot, ...],
+) -> ReifiedClause:
+    is_true = model.is_true
+    head: list[ReifiedLiteral] = []
+    body: list[ReifiedLiteral] = []
+    current_section = ""
+    minimum_mode = -1
+    section_empty = False
+    for section, slot, mode_choices, argument_choices in model_index:
+        if section != current_section:
+            current_section = section
+            minimum_mode = -1
+            section_empty = False
+        if section_empty:
+            continue
+        mode_id = None
+        arity = 0
+        for candidate_mode, candidate_arity, program_literal in mode_choices:
+            if candidate_mode < minimum_mode:
+                continue
+            if is_true(program_literal):
+                mode_id = candidate_mode
+                arity = candidate_arity
+                break
+        if mode_id is None:
+            section_empty = True
+            continue
+        minimum_mode = mode_id
+        variables: list[int] = []
+        for choices in argument_choices[:arity]:
+            for variable, program_literal in choices:
+                if is_true(program_literal):
+                    variables.append(variable)
+                    break
+            else:
+                raise RuntimeError("selected literal argument has no variable")
+        literal = ReifiedLiteral(
+            section, slot, mode_id, tuple(variables)
+        )
+        (head if section == "head" else body).append(literal)
+    return ReifiedClause(head=tuple(head), body=tuple(body))
 
 
 def _hypothesis_space_args(args: Arguments) -> list[str]:

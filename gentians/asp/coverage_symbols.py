@@ -1,4 +1,5 @@
 SELECTED_PREDICATE = "gentians_internal_selected"
+ACTIVE_CONTEXT_PREDICATE = "gentians_internal_active_context"
 
 
 def parse_coverage_symbol_masks(symbols) -> tuple[int, int]:

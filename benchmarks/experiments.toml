@@ -4,7 +4,22 @@
 # Run all entries by omitting experiment IDs.
 [suite]
 output_root = ".benchmarks"
-datasets = ["5queens", "grandparent", "coloring"]
+datasets = [
+    "5queens",
+    "grandparent",
+    "coloring",
+    "latin_square",
+    "magic_square_no_diag",
+    "subset_sum_double",
+    "subset_sum_double_unbalanced",
+    "subset_sum_double_unbalanced_count",
+    "subset_sum_double_and_prod",
+    "subset_sum_double_and_prod_unbalanced",
+    "subset_sum_triple",
+    "set_partition_sum",
+    "set_partition_sum_and_cardinality",
+    "set_partition_sum_cardinality_and_square",
+]
 runs = 10
 timeout_seconds = 100
 seed_base = 1

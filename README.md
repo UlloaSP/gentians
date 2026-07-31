@@ -126,6 +126,15 @@ while negative examples must follow the syntax
 ```
 where, in both cases, `included` and `excluded` can be either empty, a single atom, or a conjunction of atoms.
 
+An example can optionally include a contextual ASP program as its third argument:
+```
+#pos({target(a)}, {}, {seed(a). reachable(X) :- seed(X).}).
+```
+The context is active only while evaluating examples with that exact context.
+Contextual facts, rules, constraints, choices, disjunctions, and aggregates are
+supported. Global directives and weak constraints are rejected because they
+cannot be isolated by the per-context ASP selector.
+
 Some examples are:
 ```
 #pos({odd(1), odd(3), even(2)}, {}).

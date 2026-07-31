@@ -172,3 +172,138 @@ def test_fixed_program_builder_combines_static_program_and_rules():
     assert "base." in dump
     assert "pos_exs(0..0)." in dump
     assert "target :- base." in dump
+
+
+@pytest.mark.parametrize(
+    "name", ["cov_subprograms_mean", "cov_subprograms_max", "cov_program"]
+)
+def test_contexts_do_not_leak_between_examples(name):
+    program = Program(
+        [],
+        [
+            Example(("target(a)", "", "seed(a). ctx(X) :- seed(X)."), True),
+            Example(("target(b)", "", "seed(b). ctx(X) :- seed(X)."), True),
+        ],
+        [],
+        [],
+        [],
+    )
+    rules = RuleSpace.from_clauses(["target(a) :- ctx(b)."])
+    evaluate = create_fitness(
+        program,
+        {"name": name, "max_as": 0, "clingo_arguments": []},
+        1,
+        rules,
+    )
+
+    result = evaluate(rules.clauses)
+
+    assert result.score == pytest.approx(1.0)
+    assert result.is_best is False
+    assert result.behavior == (0, 0)
+
+
+def test_context_constraint_does_not_disable_other_examples():
+    program = Program(
+        [],
+        [
+            Example(("target(a)", "", "ctx(a)"), True),
+            Example(("target(b)", "", "ctx(b). :- ctx(b)."), True),
+        ],
+        [],
+        [],
+        [],
+    )
+    rules = RuleSpace.from_clauses(["target(a) :- ctx(a)."])
+    evaluate = create_fitness(
+        program,
+        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
+        1,
+        rules,
+    )
+
+    result = evaluate(rules.clauses)
+
+    assert result.score == pytest.approx(math.exp(5))
+    assert result.behavior == (1, 0)
+
+
+def test_positive_context_does_not_leak_into_negative_example():
+    program = Program(
+        [],
+        [Example(("target(a)", "", "ctx(a)"), True)],
+        [Example(("target(a)", "", "ctx(b)"), False)],
+        [],
+        [],
+    )
+    rules = RuleSpace.from_clauses(["target(a) :- ctx(a)."])
+    evaluate = create_fitness(
+        program,
+        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
+        1,
+        rules,
+    )
+
+    result = evaluate(rules.clauses)
+
+    assert result.score == pytest.approx(math.exp(10))
+    assert result.is_best is True
+    assert result.behavior == (1, 0)
+
+
+@pytest.mark.parametrize("context", ["", "ctx(a)"])
+def test_example_with_empty_inclusion_is_covered(context):
+    program = Program(
+        [],
+        [Example(("", "", context), True)],
+        [],
+        [],
+        [],
+    )
+    evaluate = create_fitness(
+        program,
+        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
+        0,
+        RuleSpace.from_clauses([]),
+    )
+
+    result = evaluate(())
+
+    assert result.score == pytest.approx(math.exp(10))
+    assert result.is_best is True
+    assert result.behavior == (1, 0)
+
+
+def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
+    program = Program(
+        [],
+        [
+            Example(("", "", ""), True),
+            Example(("target", "", "ctx(a)"), True),
+        ],
+        [],
+        [],
+        [],
+    )
+    evaluate = create_fitness(
+        program,
+        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
+        0,
+        RuleSpace.from_clauses([]),
+    )
+
+    result = evaluate(())
+
+    assert result.score == pytest.approx(math.exp(5))
+    assert result.behavior == (1, 0)
+
+
+@pytest.mark.parametrize("context", [":~ cost(X). [1@1,X]", "#const n=1."])
+def test_context_rejects_non_isolatable_statements(context):
+    with pytest.raises(ValueError, match="unsupported statement"):
+        build_fixed_coverage_program(
+            [],
+            (),
+            [Example(("target", "", context), True)],
+            [],
+        )

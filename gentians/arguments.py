@@ -54,7 +54,7 @@ class Arguments:
             # Parent selection implementation.
             "name": "tournament",
             # Population percentage sampled per tournament, expressed in (0, 1].
-            "tournament_percentage": 0.3,
+            "tournament_percentage": 0.1,
             # Probability of picking the fittest candidate in the tournament.
             "prob_selecting_fittest": 1.0,
         }

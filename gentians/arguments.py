@@ -108,6 +108,6 @@ class Arguments:
     hypothesis_space: dict[str, object] = field(
         default_factory=lambda: {
             # Extra Clingo CLI arguments used to enumerate generated clauses.
-            "clingo_arguments": ["--parallel-mode=4"],
+            "clingo_arguments": ["--parallel-mode=5,split"],
         }
     )

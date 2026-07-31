@@ -98,21 +98,28 @@ def search_solver(
     if not population:
         raise RuntimeError("Could not initialize population")
     population.sort(key=lambda item: item.score, reverse=True)
+    best_overall = population[0]
     winner = next((item for item in population if item.is_best), None)
     if winner is not None:
-        return winning_program(winner, generator.render(winner.program)), winner.score, True
-
-    best_overall = population[0]
-    for generation in range(generations):
-        population.sort(key=lambda item: item.score, reverse=True)
-        best_overall = _better(best_overall, population[0])
         record_ga_generation(
-            generation,
+            0,
             best_overall.score,
             population,
             elapsed_seconds=net_time() - started,
             fitness_evaluations=evaluations,
         )
+        return winning_program(winner, generator.render(winner.program)), winner.score, True
+
+    record_ga_generation(
+        0,
+        best_overall.score,
+        population,
+        elapsed_seconds=net_time() - started,
+        fitness_evaluations=evaluations,
+    )
+    for generation in range(generations):
+        population.sort(key=lambda item: item.score, reverse=True)
+        best_overall = _better(best_overall, population[0])
         with phase("selection"):
             first, second = selection(population, rng)
             with instrumentation():
@@ -160,6 +167,17 @@ def search_solver(
                     duplicate=not base_is_new,
                 )
             if child.is_best:
+                best_overall = _better(best_overall, child)
+                terminal_population = replacement(list(population), child, rng)
+                if all(item is not child for item in terminal_population):
+                    terminal_population = [*population[:-1], child]
+                record_ga_generation(
+                    generation + 1,
+                    best_overall.score,
+                    terminal_population,
+                    elapsed_seconds=net_time() - started,
+                    fitness_evaluations=evaluations,
+                )
                 return (
                     winning_program(child, generator.render(child.program)),
                     child.score,
@@ -188,6 +206,17 @@ def search_solver(
             if unchanged and not base_is_new:
                 continue
             if mutated.is_best:
+                best_overall = _better(best_overall, mutated)
+                terminal_population = replacement(list(population), mutated, rng)
+                if all(item is not mutated for item in terminal_population):
+                    terminal_population = [*population[:-1], mutated]
+                record_ga_generation(
+                    generation + 1,
+                    best_overall.score,
+                    terminal_population,
+                    elapsed_seconds=net_time() - started,
+                    fitness_evaluations=evaluations,
+                )
                 return (
                     winning_program(mutated, generator.render(mutated.program)),
                     mutated.score,
@@ -233,6 +262,15 @@ def search_solver(
                         "population_size": len(population),
                     },
                 )
+        population.sort(key=lambda item: item.score, reverse=True)
+        best_overall = _better(best_overall, population[0])
+        record_ga_generation(
+            generation + 1,
+            best_overall.score,
+            population,
+            elapsed_seconds=net_time() - started,
+            fitness_evaluations=evaluations,
+        )
     population.sort(key=lambda item: item.score, reverse=True)
     best_overall = _better(best_overall, population[0])
     return (

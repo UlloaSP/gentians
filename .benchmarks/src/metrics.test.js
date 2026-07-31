@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { aggregateSeries, coverageExtent, coveragePoints, generationPoints } from "./metrics";
+import {
+  aggregateSeries,
+  bestSeries,
+  coverageExtent,
+  coveragePoints,
+  generationPoints,
+} from "./metrics";
 
 const rows = [
   {
@@ -48,14 +54,22 @@ describe("quality metrics", () => {
 describe("search progress", () => {
   const runs = [
     {
-      bestArr: [
+      maxArr: [
         [1, 4],
         [0, 2],
         ["bad", 8],
       ],
+      bestSoFarArr: [
+        [0, 2],
+        [1, 4],
+      ],
     },
     {
-      bestArr: [
+      maxArr: [
+        [0, 4],
+        [1, 8],
+      ],
+      bestSoFarArr: [
         [0, 4],
         [1, 8],
       ],
@@ -63,20 +77,52 @@ describe("search progress", () => {
   ];
 
   it("reads and orders only generation points from one run", () => {
-    expect(generationPoints(runs[0], "best")).toEqual([
+    expect(generationPoints(runs[0], "bestSoFar")).toEqual([
       [0, 2],
       [1, 4],
     ]);
   });
 
-  it("aggregates generation values with their sample deviation", () => {
-    const rows = aggregateSeries(runs, "best");
+  it("aggregates generation values with their observed range", () => {
+    const rows = aggregateSeries(runs, "max");
 
-    expect(rows.map(({ position, mean }) => [position, mean])).toEqual([
-      [0, 3],
-      [1, 6],
+    expect(rows).toEqual([
+      { position: 0, mean: 3, min: 2, max: 4 },
+      { position: 1, mean: 6, min: 4, max: 8 },
     ]);
-    expect(rows[0].std).toBeCloseTo(Math.sqrt(2));
-    expect(rows[1].std).toBeCloseTo(Math.sqrt(8));
+  });
+
+  it("takes best as the maximum of run maxima", () => {
+    expect(bestSeries(runs)).toEqual([
+      { position: 0, value: 4 },
+      { position: 1, value: 8 },
+    ]);
+  });
+
+  it("carries each run forward when generation coordinates differ", () => {
+    expect(
+      aggregateSeries(
+        [
+          {
+            maxArr: [
+              [0, 2],
+              [2, 6],
+            ],
+          },
+          {
+            maxArr: [
+              [0, 4],
+              [1, 8],
+              [2, 10],
+            ],
+          },
+        ],
+        "max",
+      ),
+    ).toEqual([
+      { position: 0, mean: 3, min: 2, max: 4 },
+      { position: 1, mean: 5, min: 2, max: 8 },
+      { position: 2, mean: 8, min: 6, max: 10 },
+    ]);
   });
 });

@@ -25,7 +25,7 @@ export const colors = {
   accent: "#ef4444",
 };
 
-const SERIES_KEYS = { best: "bestArr", max: "maxArr", avg: "avgArr" };
+const SERIES_KEYS = { bestSoFar: "bestSoFarArr", max: "maxArr", avg: "avgArr" };
 
 export const dataUrl = () =>
   new URLSearchParams(window.location.search).get("data") || "ga_profile/dashboard_data.json";
@@ -173,13 +173,13 @@ export const topPhase = (benchmark) =>
   });
 export const dominantLabel = (value) => (value === "overhead" ? "python" : value);
 
-export const generationPoints = (run, metric = "best") =>
+export const generationPoints = (run, metric = "bestSoFar") =>
   (run?.[SERIES_KEYS[metric]] || [])
     .map(([position, value]) => [Number(position), Number(value)])
     .filter(([position, value]) => Number.isFinite(position) && Number.isFinite(value))
     .sort(([left], [right]) => left - right);
 
-export function aggregateSeries(runs, metric = "best") {
+function alignedSeries(runs, metric) {
   const runPoints = runs
     .map((run) => generationPoints(run, metric))
     .filter((points) => points.length);
@@ -191,10 +191,7 @@ export function aggregateSeries(runs, metric = "best") {
     let current = null;
     return positions.map((position) => {
       while (index < points.length && points[index][0] <= position) {
-        current =
-          metric === "best" && current !== null
-            ? Math.max(current, points[index][1])
-            : points[index][1];
+        current = points[index][1];
         index += 1;
       }
       return current;
@@ -205,16 +202,21 @@ export function aggregateSeries(runs, metric = "best") {
       position,
       carried.map((values) => values[index]).filter((value) => value !== null),
     ])
-    .filter(([, values]) => values.length)
-    .map(([position, values]) => {
-      const mean = sum(values) / values.length;
-      const variance =
-        values.length > 1
-          ? sum(values.map((value) => (value - mean) ** 2)) / (values.length - 1)
-          : 0;
-      return { position, mean, std: Math.sqrt(variance) };
-    });
+    .filter(([, values]) => values.length);
 }
+
+export function aggregateSeries(runs, metric = "bestSoFar") {
+  return alignedSeries(runs, metric).map(([position, values]) => {
+    const mean = sum(values) / values.length;
+    return { position, mean, min: Math.min(...values), max: Math.max(...values) };
+  });
+}
+
+export const bestSeries = (runs) =>
+  alignedSeries(runs, "max").map(([position, values]) => ({
+    position,
+    value: Math.max(...values),
+  }));
 
 export const operatorLabel = (row) => `${row.operator}:${row.strategy}`;
 export const operatorRows = (benchmark) => benchmark.operatorSummary || [];

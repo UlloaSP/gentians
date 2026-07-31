@@ -2,13 +2,14 @@ import { useMemo, useState } from "react";
 import { chartTw } from "../chartTw";
 import { Chart } from "../components/Chart";
 import { ChartSection } from "../components/Layout";
-import { aggregateSeries, colors, generationPoints } from "../metrics";
+import { aggregateSeries, bestSeries, colors, generationPoints } from "../metrics";
 
-const SERIES = [
+const RUN_SERIES = [
   ["max", "max", colors.python],
-  ["best", "best", colors.accent],
+  ["bestSoFar", "best so far", colors.total],
   ["avg", "avg", colors.closure],
 ];
+const MEAN_SERIES = [["best", "best", colors.accent], ...RUN_SERIES];
 
 export function FitnessChart({ benchmark }) {
   const [view, setView] = useState("mean");
@@ -16,31 +17,36 @@ export function FitnessChart({ benchmark }) {
   const selectedView = view === "mean" || runs[Number(view)] ? view : "mean";
   const series = useMemo(
     () =>
-      SERIES.flatMap(([metric, name, color]) => {
+      (selectedView === "mean" ? MEAN_SERIES : RUN_SERIES).flatMap(([metric, name, color]) => {
         const rows =
           selectedView === "mean"
-            ? aggregateSeries(runs, metric)
+            ? metric === "best"
+              ? bestSeries(runs)
+              : aggregateSeries(runs, metric)
             : generationPoints(runs[Number(selectedView)], metric);
         if (!rows.length) return [];
         const line = {
           type: "line",
           name,
-          data: rows.map((row) => (selectedView === "mean" ? [row.position, row.mean] : row)),
+          data: rows.map((row) =>
+            selectedView === "mean" ? [row.position, row.value ?? row.mean] : row,
+          ),
           lineStyle: {
             color,
-            width: metric === "best" ? 3 : 2,
+            width: metric === "best" ? 4 : metric === "bestSoFar" ? 3 : 2,
             type: metric === "avg" ? "dotted" : "solid",
           },
           showSymbol: false,
         };
-        if (selectedView !== "mean") return [line];
+        if (selectedView !== "mean" || metric === "best") return [line];
         return [
           line,
           {
             type: "line",
             name,
             stack: `band-${metric}`,
-            data: rows.map((row) => [row.position, row.mean - row.std]),
+            stackStrategy: "all",
+            data: rows.map((row) => [row.position, row.min]),
             showSymbol: false,
             silent: true,
             lineStyle: { opacity: 0 },
@@ -51,7 +57,8 @@ export function FitnessChart({ benchmark }) {
             type: "line",
             name,
             stack: `band-${metric}`,
-            data: rows.map((row) => [row.position, row.std * 2]),
+            stackStrategy: "all",
+            data: rows.map((row) => [row.position, row.max - row.min]),
             showSymbol: false,
             silent: true,
             lineStyle: { opacity: 0 },

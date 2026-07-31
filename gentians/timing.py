@@ -7,7 +7,6 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, TypeVar
 
-
 _enabled = bool(os.environ.get("GENTIANS_TIMINGS_PATH"))
 _totals: dict[str, float] = {}
 _counts: dict[str, int] = {}

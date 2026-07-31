@@ -423,29 +423,50 @@ def test_generation_consumers_make_one_high_level_generator_call():
 
 
 def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
+    generations = []
     args = Arguments(
         max_program_clauses=1,
         random_seed=3,
         iterations_genetic=0,
-        population={"name": "random", "size": 1},
+        population={"name": "random", "size": 2},
+    )
+    monkeypatch.setattr(
+        search,
+        "create_population",
+        lambda config: lambda context: [
+            context.generator.encode(("good.",)),
+            context.generator.encode(("higher-score.",)),
+        ],
     )
     monkeypatch.setattr(
         "gentians.evolution.algorithms.search.create_fitness",
         lambda program, config, max_program_clauses, rule_space: lambda candidate: FitnessResult(
-            1.0, True, candidate, (1, 0)
+            1.0 if candidate == ("good.",) else 2.0,
+            candidate == ("good.",),
+            candidate,
+            (1, 0) if candidate == ("good.",) else (0, 0),
+        ),
+    )
+    monkeypatch.setattr(
+        search,
+        "record_ga_generation",
+        lambda generation, best_so_far, population, **kwargs: generations.append(
+            (generation, best_so_far, [item.score for item in population])
         ),
     )
     result, score, best = search_solver(
         args,
         Program([], [], [], [], []),
-        RuleSpace.from_clauses(["good."]),
+        RuleSpace.from_clauses(["good.", "higher-score."]),
     )
     assert result == ("good.",)
     assert score == 1.0
     assert best is True
+    assert generations == [(0, 2.0, [2.0, 1.0])]
 
 
 def test_mutation_runs_when_crossover_is_skipped(monkeypatch):
+    generations = []
     args = Arguments(
         max_program_clauses=1,
         random_seed=3,
@@ -479,6 +500,14 @@ def test_mutation_runs_when_crossover_is_skipped(monkeypatch):
         ),
     )
 
+    monkeypatch.setattr(
+        search,
+        "record_ga_generation",
+        lambda generation, best_so_far, population, **kwargs: generations.append(
+            (generation, best_so_far, [item.score for item in population])
+        ),
+    )
+
     result, score, best = search_solver(
         args,
         Program([], [], [], [], []),
@@ -488,20 +517,25 @@ def test_mutation_runs_when_crossover_is_skipped(monkeypatch):
     assert result == ("win.",)
     assert score == 1.0
     assert best is True
+    assert generations == [(0, 0.0, [0.0]), (1, 1.0, [1.0])]
 
 
 def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     mutation_calls = []
+    generations = []
     args = Arguments(
         max_program_clauses=1,
         random_seed=3,
         iterations_genetic=1,
-        population={"name": "random", "size": 1},
+        population={"name": "random", "size": 2},
     )
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [context.generator.encode(("start.",))],
+        lambda config: lambda context: [
+            context.generator.encode(("start.",)),
+            context.generator.encode(("loss.",)),
+        ],
     )
     monkeypatch.setattr(
         search,
@@ -525,7 +559,7 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
         "create_fitness",
         lambda program, config, max_program_clauses, rule_space: (
             lambda candidate: FitnessResult(
-                1.0 if candidate == ("win.",) else 0.0,
+                -1.0 if candidate == ("win.",) else 0.0,
                 candidate == ("win.",),
                 candidate,
                 (1, 0) if candidate == ("win.",) else (0, 0),
@@ -533,6 +567,13 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
         ),
     )
 
+    monkeypatch.setattr(
+        search,
+        "record_ga_generation",
+        lambda generation, best_so_far, population, **kwargs: generations.append(
+            (generation, best_so_far, [item.score for item in population])
+        ),
+    )
     result, score, best = search_solver(
         args,
         Program([], [], [], [], []),
@@ -540,9 +581,10 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     )
 
     assert result == ("win.",)
-    assert score == 1.0
+    assert score == -1.0
     assert best is True
     assert mutation_calls == []
+    assert generations == [(0, 0.0, [0.0, 0.0]), (1, 0.0, [0.0, -1.0])]
 
 
 def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):

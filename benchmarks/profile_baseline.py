@@ -1165,10 +1165,12 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
             {
                 "maxArr": [[point.generation, point.max_fitness] for point in points],
                 "avgArr": [[point.generation, point.avg_fitness] for point in points],
-                "bestArr": [[point.generation, point.best_so_far] for point in points],
+                "bestSoFarArr": [
+                    [point.generation, point.best_so_far] for point in points
+                ],
                 "diversity": [[point.generation, point.diversity] for point in points],
                 "invalid": [[point.generation, point.invalid_rate] for point in points],
-                "elapsedBestArr": [
+                "elapsedBestSoFarArr": [
                     [point.elapsed_seconds, point.best_so_far] for point in points
                 ],
                 "elapsedMaxArr": [
@@ -1177,7 +1179,7 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
                 "elapsedAvgArr": [
                     [point.elapsed_seconds, point.avg_fitness] for point in points
                 ],
-                "evaluationBestArr": [
+                "evaluationBestSoFarArr": [
                     [point.fitness_evaluations, point.best_so_far] for point in points
                 ],
                 "evaluationMaxArr": [

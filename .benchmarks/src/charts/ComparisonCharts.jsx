@@ -3,6 +3,7 @@ import { Chart } from "../components/Chart";
 import { ChartSection } from "../components/Layout";
 import {
   aggregateSeries,
+  bestSeries,
   generationPoints,
   improvementOperatorRows,
   maybeNum,
@@ -21,9 +22,10 @@ import { coverageOption } from "./qualityOptions";
 
 const FITNESS = [
   ["max", "max", "dashed", 2],
-  ["best", "best", "solid", 3],
+  ["bestSoFar", "best so far", "solid", 2],
   ["avg", "avg", "dotted", 2],
 ];
+const MEAN_FITNESS = [["best", "best", "solid", 4], ...FITNESS];
 const OUTCOMES = [
   ["valid_rate", "valid"],
   ["duplicate_rate", "duplicate"],
@@ -297,10 +299,12 @@ function typeSplitOption(rows, title, phases) {
 
 function fitnessOption(rows, view) {
   const series = rows.flatMap(({ experiment, benchmark }) =>
-    FITNESS.flatMap(([metric, label, lineType, width]) => {
+    (view === "mean" ? MEAN_FITNESS : FITNESS).flatMap(([metric, label, lineType, width]) => {
       const points =
         view === "mean"
-          ? aggregateSeries(benchmark.fitnessRuns || [], metric)
+          ? metric === "best"
+            ? bestSeries(benchmark.fitnessRuns || [])
+            : aggregateSeries(benchmark.fitnessRuns || [], metric)
           : generationPoints(benchmark.fitnessRuns?.[Number(view)], metric);
       const stack = `band-${experiment.id}-${metric}`;
       if (!points.length) return [];
@@ -309,11 +313,13 @@ function fitnessOption(rows, view) {
         name: label,
         experiment: experiment.label,
         metric: label,
-        data: points.map((point) => (view === "mean" ? [point.position, point.mean] : point)),
+        data: points.map((point) =>
+          view === "mean" ? [point.position, point.value ?? point.mean] : point,
+        ),
         showSymbol: false,
         lineStyle: { color: experiment.color, type: lineType, width },
       };
-      if (view !== "mean") return [line];
+      if (view !== "mean" || metric === "best") return [line];
       return [
         line,
         {
@@ -321,7 +327,8 @@ function fitnessOption(rows, view) {
           name: label,
           band: true,
           stack,
-          data: points.map((point) => [point.position, point.mean - point.std]),
+          stackStrategy: "all",
+          data: points.map((point) => [point.position, point.min]),
           showSymbol: false,
           silent: true,
           lineStyle: { opacity: 0 },
@@ -333,7 +340,8 @@ function fitnessOption(rows, view) {
           name: label,
           band: true,
           stack,
-          data: points.map((point) => [point.position, point.std * 2]),
+          stackStrategy: "all",
+          data: points.map((point) => [point.position, point.max - point.min]),
           showSymbol: false,
           silent: true,
           lineStyle: { opacity: 0 },

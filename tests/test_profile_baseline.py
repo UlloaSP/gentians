@@ -941,8 +941,8 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
     ][0]
     assert run["diversity"] == [[0, 0.5]]
     assert run["invalid"] == [[0, 0.25]]
-    assert run["bestArr"][0][0] == 0
-    assert "globalBestArr" not in run
+    assert run["bestSoFarArr"][0][0] == 0
+    assert "bestArr" not in run
     fitness_chart = Path(".benchmarks/src/charts/FitnessChart.jsx").read_text(
         encoding="utf-8"
     )
@@ -1004,8 +1004,8 @@ def test_ga_progress_exposes_round_time_and_evaluations(tmp_path):
     run = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0][
         "fitnessRuns"
     ][0]
-    assert run["elapsedBestArr"] == [[4.5, 3.0]]
-    assert run["evaluationBestArr"] == [[27, 3.0]]
+    assert run["elapsedBestSoFarArr"] == [[4.5, 3.0]]
+    assert run["evaluationBestSoFarArr"] == [[27, 3.0]]
 
 
 def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):

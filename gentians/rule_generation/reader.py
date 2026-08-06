@@ -1,21 +1,21 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
-from .parser import parse_aggregate_spec, split_top_level_args
 from .aggregate_declaration import AggregateDeclaration
 from .example import Example
 from .mode_declaration import ModeDeclaration
 from .operator_declaration import OperatorDeclaration
+from .parser import parse_aggregate_spec, split_top_level_args
 from .program import Program
 
 
 def _get_mode_declaration(
     s: str, for_head: bool
-) -> "tuple[str,str,str] | tuple[str,str,str,str]":
+) -> tuple[str, ...]:
     name = "#modeh" if for_head else "#modeb"
     parts = split_top_level_args(_directive_args(s, name))
-    expected = 3 if for_head else 4
-    if len(parts) != expected:
+    expected = (3, 4) if for_head else (4, 5)
+    if len(parts) not in expected:
         raise ValueError(f"invalid {name} declaration: {s}")
     return tuple(part.strip() for part in parts)  # type: ignore[return-value]
 

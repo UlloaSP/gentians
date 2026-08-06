@@ -9,6 +9,9 @@ from gentians.evolution.crossovers import create_crossover
 from gentians.evolution.mutations import create_mutation
 from gentians.evolution.populations import create_population
 from gentians.evolution.selections import create_selection
+from gentians.evolution.selections.behavior_tournament_selection import (
+    BehaviorTournamentSelection,
+)
 from gentians.evolution.selections.tournament_selection import TournamentSelection
 from gentians.evolution.evolution_context import EvolutionContext
 from gentians.evolution.individual import Individual
@@ -215,6 +218,65 @@ def test_tournament_size_scales_with_population_percentage():
     selection([Individual(index, float(index), False) for index in range(100)], rng)
 
     assert sampled_sizes == [3, 3, 30, 30]
+
+
+def test_behavior_tournament_chooses_most_complete_parent_regardless_of_score():
+    selection = BehaviorTournamentSelection(1.0)
+    high_score = Individual(1, 10.0, False, behavior=(0b0011, 0))
+    most_complete = Individual(2, 1.0, False, behavior=(0b1111, 0b11))
+    other = Individual(4, 9.0, False, behavior=(0b0001, 0b1))
+
+    first, _ = selection([high_score, most_complete, other], random.Random(1))
+
+    assert first is most_complete
+
+
+def test_behavior_tournament_factory_creates_strategy():
+    selection = create_selection(
+        {
+            "name": "behavior_tournament",
+            "tournament_percentage": 0.3,
+        }
+    )
+
+    assert isinstance(selection, BehaviorTournamentSelection)
+    assert selection.percentage == 0.3
+
+
+def test_behavior_tournament_chooses_most_consistent_second_parent():
+    selection = BehaviorTournamentSelection(1.0)
+    first = Individual(1, 1.0, False, behavior=(0b1111, 0b11))
+    unsafe = Individual(2, 10.0, False, behavior=(0b111, 0b1))
+    consistent = Individual(4, 0.0, False, behavior=(0b001, 0))
+
+    parents = selection([first, unsafe, consistent], random.Random(1))
+
+    assert parents == (first, consistent)
+
+
+def test_behavior_tournament_reuses_only_parent_in_singleton_population():
+    selection = BehaviorTournamentSelection(1.0)
+    only = Individual(1, 1.0, False, behavior=(1, 0))
+
+    assert selection([only], random.Random(1)) == (only, only)
+
+
+def test_behavior_tournament_compares_at_least_two_mates():
+    sampled_sizes = []
+
+    class RecordingRandom(random.Random):
+        def sample(self, population, k, *, counts=None):
+            sampled_sizes.append(k)
+            return super().sample(population, k, counts=counts)
+
+    population = [
+        Individual(index, float(index), False, behavior=(index, 0))
+        for index in range(10)
+    ]
+
+    BehaviorTournamentSelection(0.1)(population, RecordingRandom(1))
+
+    assert sampled_sizes == [2]
 
 
 @pytest.mark.parametrize("percentage", [0.0, -0.1, 1.1])
@@ -465,12 +527,11 @@ def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
     assert generations == [(0, 2.0, [2.0, 1.0])]
 
 
-def test_mutation_runs_when_crossover_is_skipped(monkeypatch):
+def test_default_unlimited_generations_run_until_winner(monkeypatch):
     generations = []
     args = Arguments(
         max_program_clauses=1,
         random_seed=3,
-        iterations_genetic=1,
         population={"name": "random", "size": 1},
         crossover={"name": "set_mix", "probability": 0.0},
         mutation={"name": "random_group", "probability": 1.0},

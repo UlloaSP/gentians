@@ -16,3 +16,4 @@ class HypothesisMode:
     tuple_arity: int = 0
     aggregate_atoms: tuple[tuple[str, int], ...] = ()
     arg_types: tuple[str, ...] = ()
+    arg_directions: tuple[str, ...] = ()

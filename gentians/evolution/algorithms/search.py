@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from itertools import count
 
 from ...arguments import Arguments
 from ...rule_generation.hypothesis_space import (
@@ -42,7 +43,9 @@ def search_solver(
     selection = create_selection(args.selection)
     crossover = create_crossover(args.crossover)
     replacement = create_replacement(args.replacement)
-    generations = args.iterations_genetic
+    generations = (
+        count() if args.iterations_genetic == 0 else range(args.iterations_genetic)
+    )
 
     space = (
         supplied_space
@@ -108,7 +111,11 @@ def search_solver(
             elapsed_seconds=net_time() - started,
             fitness_evaluations=evaluations,
         )
-        return winning_program(winner, generator.render(winner.program)), winner.score, True
+        return (
+            winning_program(winner, generator.render(winner.program)),
+            winner.score,
+            True,
+        )
 
     record_ga_generation(
         0,
@@ -117,7 +124,7 @@ def search_solver(
         elapsed_seconds=net_time() - started,
         fitness_evaluations=evaluations,
     )
-    for generation in range(generations):
+    for generation in generations:
         population.sort(key=lambda item: item.score, reverse=True)
         best_overall = _better(best_overall, population[0])
         with phase("selection"):
@@ -335,9 +342,7 @@ def _mutation_metric(
                 "strategy": str(config["name"]),
                 "operation": proposal.operation or "",
                 "local": proposal.local if proposal.local is not None else "",
-                "program_distance": _program_distance(
-                    parent_program, proposal.program
-                ),
+                "program_distance": _program_distance(parent_program, proposal.program),
                 "changed_rules": (parent_program ^ proposal.program).bit_count(),
                 "applied": changed,
                 "skipped": proposal.skipped,

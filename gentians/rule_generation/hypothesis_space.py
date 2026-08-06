@@ -39,9 +39,11 @@ HYPOTHESIS_SPACE_RULE_MODULES = (
     "core/literals.lp",
     "core/tuple_helpers.lp",
     "aggregates/roles.lp",
+    "safety/linkedness.lp",
     "safety/typing.lp",
     "safety/variables.lp",
     "safety/asp_safety.lp",
+    "safety/mode_directed.lp",
     "operators/comparisons.lp",
     "operators/arithmetic.lp",
     "operators/arithmetic_domain.lp",
@@ -171,13 +173,9 @@ class HypothesisSpaceGenerator:
                     seconds += net_time() - start
                     break
                 seconds += net_time() - start
-                clauses.setdefault(
-                    _clause_from_model(
-                        model,
-                        model_index,
-                    ),
-                    None,
-                )
+                clause = _clause_from_model(model, model_index)
+                if _theta_reduced(clause, self.modes_by_id):
+                    clauses.setdefault(clause, None)
             start = net_time()
         seconds += net_time() - start
         add(f"{phase}.solving", seconds)
@@ -1674,6 +1672,7 @@ def _hypothesis_modes(
                 recall=md.recall,
                 positive=True,
                 arg_types=_normal_arg_types(md.name, md.arity, predicate_arg_types),
+                arg_directions=md.directions,
             )
         )
     for md in program.language_bias_body:
@@ -1696,6 +1695,7 @@ def _hypothesis_modes(
                 recall=md.recall,
                 positive=md.positive,
                 arg_types=_normal_arg_types(md.name, md.arity, predicate_arg_types),
+                arg_directions=md.directions,
             )
         )
 
@@ -1825,6 +1825,9 @@ def _facts(
         for index, arg_type in enumerate(mode.arg_types):
             if arg_type != "any":
                 parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
+        for index, direction in enumerate(mode.arg_directions):
+            if direction != "any":
+                parts.append(f"mode_arg_direction({mode.id},{index},{direction}).")
         if not mode.positive:
             parts.append(f"negative_mode({mode.id}).")
         if mode.kind == "comparison":
@@ -2088,6 +2091,62 @@ def _clause_from_model(
         )
         (head if section == "head" else body).append(literal)
     return ReifiedClause(head=tuple(head), body=tuple(body))
+
+
+def _theta_reduced(
+    clause: ReifiedClause,
+    modes: dict[int, HypothesisMode],
+) -> bool:
+    """Reject normal clauses θ-equivalent to one of their proper subclauses."""
+    literals = (*clause.head, *clause.body)
+    if any(modes[literal.mode_id].kind != "normal" for literal in literals):
+        return True
+    signatures = tuple((literal.section, literal.mode_id) for literal in literals)
+    repeated = {
+        signature for signature in signatures if signatures.count(signature) > 1
+    }
+    if not repeated:
+        return True
+    return not any(
+        _theta_subsumes(literals, literals[:index] + literals[index + 1 :])
+        for index in range(len(literals))
+        if signatures[index] in repeated
+    )
+
+
+def _theta_subsumes(
+    source: tuple[ReifiedLiteral, ...],
+    target: tuple[ReifiedLiteral, ...],
+) -> bool:
+    candidates = {
+        literal: tuple(
+            candidate
+            for candidate in target
+            if (candidate.section, candidate.mode_id)
+            == (literal.section, literal.mode_id)
+        )
+        for literal in source
+    }
+    if any(not matches for matches in candidates.values()):
+        return False
+    ordered = sorted(source, key=lambda literal: len(candidates[literal]))
+
+    def match(index: int, substitution: dict[int, int]) -> bool:
+        if index == len(ordered):
+            return True
+        literal = ordered[index]
+        for candidate in candidates[literal]:
+            extended = substitution.copy()
+            if all(
+                extended.setdefault(variable, target_variable) == target_variable
+                for variable, target_variable in zip(
+                    literal.variables, candidate.variables, strict=True
+                )
+            ) and match(index + 1, extended):
+                return True
+        return False
+
+    return match(0, {})
 
 
 def _hypothesis_space_args(args: Arguments) -> list[str]:

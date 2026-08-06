@@ -18,7 +18,7 @@ import {
   totalSeconds,
   typeOrder,
 } from "../metrics";
-import { coverageOption } from "./qualityOptions";
+import { coverageCriteriaOption, coverageOption } from "./qualityOptions";
 
 const FITNESS = [
   ["max", "max", "dashed", 2],
@@ -130,7 +130,7 @@ export function ComparisonCharts({ rows, progressView, setProgressView }) {
           empty="Sin delta de score para operadores"
         />
         <DataPlot
-          title="Cobertura de candidatos evaluados"
+          title="Candidatos evaluados por cobertura (media por run)"
           present={has("qualityRows")}
           option={coverageOption(
             available.map(({ experiment, benchmark }) => ({
@@ -141,6 +141,19 @@ export function ComparisonCharts({ rows, progressView, setProgressView }) {
           )}
           empty="Sin qualityRows en dashboard_data.json"
           height={420}
+        />
+        <DataPlot
+          title="Facilidad de satisfacer criterios de cobertura"
+          present={has("qualityRows")}
+          option={coverageCriteriaOption(
+            available.map(({ experiment, benchmark }) => ({
+              name: experiment.label,
+              color: experiment.color,
+              rows: benchmark.qualityRows || [],
+            })),
+          )}
+          empty="Sin qualityRows en dashboard_data.json"
+          height={340}
         />
         <DataPlot
           title="Programas evaluados por tamaño"

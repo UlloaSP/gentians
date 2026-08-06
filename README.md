@@ -41,7 +41,7 @@ size, membership, and dependency invariants.
 ```python
 arguments = Arguments(
     filename="benchmarks/gentians/coin.txt",
-    iterations_genetic=2000,
+    iterations_genetic=0,
     fitness={
         "name": "cov_subprograms_mean",
         "max_as": 0,
@@ -114,6 +114,17 @@ while for negative body literals
 with the same syntax as for head atoms.
 Here, `positive` and `negative` are reserved keywords so they should be written as they are.
 For example, with `#modeb(1, a, 2, positive)` you may obtain `a(X,Y)` in the body while with `#modeb(1, a, 2, negative)` you may also obtain not `a(X,Y)`.
+
+Argument directions are optional:
+```
+#modeh(1,target,2,(+,-)).
+#modeb(1,edge,2,positive,(+,-)).
+```
+`+` is an input variable, `-` an output variable, and `?` unrestricted. Body
+inputs must be reachable from head inputs through outputs of positive body
+literals; every head output must be produced by one. Negative modes cannot
+declare outputs. Gentians currently generates variables only, so constant (`#`)
+mode arguments are not supported.
 
 ## Examples definition
 Positive examples must follow the syntax
@@ -238,7 +249,7 @@ Here we list only the main ones:
 - `max_candidate_clauses`: maximum number of candidate clauses to generate. `0` means all.
 - `max_program_clauses`: maximum number of clauses in one candidate program. Default 6.
 - `filename`: task file to parse.
-- `iterations_genetic`: number of genetic generations. Default 2000.
+- `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
 - `fitness.name`: `cov_subprograms_mean`, `cov_subprograms_max`, or `cov_program`.
 - `ProgramGenerator` is mandatory infrastructure: every initialization,
   mutation, and crossover returns an already dependency-closed valid program.

@@ -67,21 +67,6 @@ export function programSizeCounts(benchmark) {
     .sort((left, right) => left.size - right.size);
 }
 
-const runKey = (row) => row.run ?? "__all__";
-
-function weightedByRun(rows) {
-  const totals = new Map();
-  for (const row of rows) {
-    const key = runKey(row);
-    totals.set(key, (totals.get(key) || 0) + 1);
-  }
-  const runs = totals.size || 1;
-  return rows.map((row) => ({
-    row,
-    weight: 100 / (runs * totals.get(runKey(row))),
-  }));
-}
-
 export function coveragePoints(rows) {
   const valid = rows.filter((row) => {
     const positive = maybeNum(row.coveredPositive);
@@ -93,8 +78,9 @@ export function coveragePoints(rows) {
       Number.isFinite(negative)
     );
   });
+  const runs = new Set(valid.map((row) => row.run ?? "__all__")).size || 1;
   const points = new Map();
-  for (const { row, weight } of weightedByRun(valid)) {
+  for (const row of valid) {
     const positive = Number(row.coveredPositive);
     const negative = Number(row.coveredNegative);
     const key = `${positive}\0${negative}`;
@@ -102,12 +88,10 @@ export function coveragePoints(rows) {
       positive,
       negative,
       count: 0,
-      share: 0,
       scoreTotal: 0,
       best: false,
     };
     point.count += 1;
-    point.share += weight;
     point.scoreTotal += num(row.score);
     point.best ||= Boolean(row.bestFound);
     points.set(key, point);
@@ -115,9 +99,45 @@ export function coveragePoints(rows) {
   return [...points.values()]
     .map(({ scoreTotal, ...point }) => ({
       ...point,
+      meanCount: point.count / runs,
+      runs,
       meanScore: scoreTotal / point.count,
     }))
     .sort((left, right) => left.positive - right.positive || left.negative - right.negative);
+}
+
+export function coverageCriteria(rows) {
+  const byRun = new Map();
+  for (const row of rows) {
+    const positive = maybeNum(row.coveredPositive);
+    const totalPositive = maybeNum(row.totalPositive);
+    const negative = maybeNum(row.coveredNegative);
+    if (![positive, totalPositive, negative].every(Number.isFinite)) continue;
+    const run = row.run ?? "__all__";
+    const counts = byRun.get(run) || { total: 0, complete: 0, consistent: 0, both: 0 };
+    const complete = positive === totalPositive;
+    const consistent = negative === 0;
+    counts.total += 1;
+    counts.complete += Number(complete);
+    counts.consistent += Number(consistent);
+    counts.both += Number(complete && consistent);
+    byRun.set(run, counts);
+  }
+  const runs = [...byRun.values()];
+  if (!runs.length) return [];
+  return [
+    ["complete", "complete", "cubre todos los positivos; ignora negativos"],
+    ["consistent", "consistent", "no cubre negativos; ignora positivos"],
+    ["both", "complete + consistent", "cubre todos los positivos y ningún negativo"],
+  ].map(([key, label, detail]) => ({
+    key,
+    label,
+    detail,
+    rate: runs.reduce((total, run) => total + (100 * run[key]) / run.total, 0) / runs.length,
+    meanCount: runs.reduce((total, run) => total + run[key], 0) / runs.length,
+    count: runs.reduce((total, run) => total + run[key], 0),
+    runs: runs.length,
+  }));
 }
 
 export function coverageExtent(rows) {

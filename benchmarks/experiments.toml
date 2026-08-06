@@ -58,6 +58,7 @@ description = "Random-group mutation with population 10 and mutation probability
 "mutation.name" = "random_group"
 "population.size" = 10
 "mutation.probability" = 0.9
+"selection.tournament_percentage" = 0.3
 
 [[experiment]]
 id = "cov_program_random_group_pop100_mut09"
@@ -68,25 +69,50 @@ description = "Random-group mutation with population 100 and mutation probabilit
 "mutation.name" = "random_group"
 "population.size" = 100
 "mutation.probability" = 0.9
+"selection.tournament_percentage" = 0.3
 
 [[experiment]]
-id = "cov_program_structural_neighbor_pop10_mut09"
-label = "Whole program · structural · population 10 · mutation 0.9"
-description = "Structural-neighbor mutation with population 10 and mutation probability 0.9."
+id = "cov_program_behavior_tournament_pop10"
+label = "Whole program · behavior tournament · population 10"
+description = "Behavior-tournament selection with population 10 and random-group mutation."
 [experiment.overrides]
 "fitness.name" = "cov_program"
-"mutation.name" = "structural_neighbor"
+"selection.name" = "behavior_tournament"
+"selection.tournament_percentage" = 0.3
+"mutation.name" = "random_group"
 "population.size" = 10
 "mutation.probability" = 0.9
-"mutation.random_jump_probability" = 0.1
 
 [[experiment]]
-id = "cov_program_structural_neighbor_pop100_mut09"
-label = "Whole program · structural · population 100 · mutation 0.9"
-description = "Structural-neighbor mutation with population 100 and mutation probability 0.9."
+id = "cov_program_behavior_tournament_pop100"
+label = "Whole program · behavior tournament · population 100"
+description = "Behavior-tournament selection with population 100 and random-group mutation."
 [experiment.overrides]
 "fitness.name" = "cov_program"
-"mutation.name" = "structural_neighbor"
+"selection.name" = "behavior_tournament"
+"selection.tournament_percentage" = 0.3
+"mutation.name" = "random_group"
 "population.size" = 100
 "mutation.probability" = 0.9
-"mutation.random_jump_probability" = 0.1
+
+#[[experiment]]
+#id = "cov_program_structural_neighbor_pop10_mut09"
+#label = "Whole program · structural · population 10 · mutation 0.9"
+#description = "Structural-neighbor mutation with population 10 and mutation probability 0.9."
+#[experiment.overrides]
+#"fitness.name" = "cov_program"
+#"mutation.name" = "structural_neighbor"
+#"population.size" = 10
+#"mutation.probability" = 0.9
+#"mutation.random_jump_probability" = 0.1
+#
+#[[experiment]]
+#id = "cov_program_structural_neighbor_pop100_mut09"
+#label = "Whole program · structural · population 100 · mutation 0.9"
+#description = "Structural-neighbor mutation with population 100 and mutation probability 0.9."
+#[experiment.overrides]
+#"fitness.name" = "cov_program"
+#"mutation.name" = "structural_neighbor"
+#"population.size" = 100
+#"mutation.probability" = 0.9
+#"mutation.random_jump_probability" = 0.1

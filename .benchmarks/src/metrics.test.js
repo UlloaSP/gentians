@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateSeries,
   bestSeries,
+  coverageCriteria,
   coverageExtent,
   coveragePoints,
   generationPoints,
@@ -37,17 +38,49 @@ const rows = [
 ];
 
 describe("quality metrics", () => {
-  it("weights every run equally", () => {
+  it("averages evaluated candidates over the measured runs", () => {
     const coverage = coveragePoints(rows);
 
-    expect(coverage.map(({ count, share }) => [count, share])).toEqual([
-      [1, 25],
-      [2, 75],
+    expect(coverage.map(({ count, meanCount, runs }) => [count, meanCount, runs])).toEqual([
+      [1, 0.5, 2],
+      [2, 1, 2],
     ]);
   });
 
   it("uses declared coverage totals for the matrix extent", () => {
     expect(coverageExtent(rows)).toEqual({ positive: 1, negative: 2 });
+  });
+
+  it("averages coverage criteria rates with equal weight per run", () => {
+    expect(coverageCriteria(rows)).toEqual([
+      {
+        key: "complete",
+        label: "complete",
+        detail: "cubre todos los positivos; ignora negativos",
+        rate: 75,
+        meanCount: 1,
+        count: 2,
+        runs: 2,
+      },
+      {
+        key: "consistent",
+        label: "consistent",
+        detail: "no cubre negativos; ignora positivos",
+        rate: 75,
+        meanCount: 1,
+        count: 2,
+        runs: 2,
+      },
+      {
+        key: "both",
+        label: "complete + consistent",
+        detail: "cubre todos los positivos y ningún negativo",
+        rate: 75,
+        meanCount: 1,
+        count: 2,
+        runs: 2,
+      },
+    ]);
   });
 });
 

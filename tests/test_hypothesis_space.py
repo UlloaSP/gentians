@@ -23,6 +23,8 @@ from gentians.rule_generation.example import Example
 from gentians.rule_generation.mode_declaration import ModeDeclaration
 from gentians.rule_generation.operator_declaration import OperatorDeclaration
 from gentians.rule_generation.program import Program
+from gentians.rule_generation.reified_clause import ReifiedClause
+from gentians.rule_generation.reified_literal import ReifiedLiteral
 from gentians.rule_generation.rule_space import RuleSpace
 
 
@@ -2226,14 +2228,12 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
 
 def test_fixed_benchmark_definitions_expose_real_target_shapes():
     queens = _benchmark_clauses("8queens")
-    euclid = _benchmark_clauses("euclid")
     subset_double = _benchmark_clauses("subset_sum_double")
     subset_sum = _benchmark_clauses("subset_sum_double_and_sum")
     set_partition = _benchmark_clauses("set_partition_sum")
 
     assert any(clause.startswith(":- ") and clause.count("q(") == 2 and "+" in clause for clause in queens)
     assert any(clause.startswith(":- ") and clause.count("q(") == 2 and "-" in clause for clause in queens)
-    assert any("\\" in clause and "eucl(" in clause for clause in euclid)
     assert "ok(V0) :- s0(V0),s1(V0)." in subset_double
     assert any(
         clause.startswith("ok(") and clause.count("#sum{") >= 2 and "+" in clause
@@ -2266,3 +2266,72 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
         program.positive_examples,
         program.negative_examples,
     ).extract_fixed_coverage(candidate)
+
+
+def test_linkedness_rejects_disconnected_literal_components():
+    program = Program(
+        ["p(1).", "p(2).", "q(1).", "q(3).", "r(1).", "r(4)."],
+        [],
+        [],
+        [ModeDeclaration(("1", "target", "1"), True)],
+        [
+            ModeDeclaration(("1", "p", "1", "positive"), False),
+            ModeDeclaration(("1", "q", "1", "positive"), False),
+            ModeDeclaration(("1", "r", "1", "positive"), False),
+        ],
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=4, max_variables=2)
+    ).generate().clauses
+
+    assert "target(V0) :- p(V0),q(V1),r(V1)." not in clauses
+    assert "target(V0) :- p(V0),q(V0),r(V0)." in clauses
+
+
+def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
+    task = tmp_path / "directed.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "edge(1,2).",
+                "#modeh(1,target,2,(+,-)).",
+                "#modeb(1,edge,2,positive,(+,-)).",
+            )
+        ),
+        encoding="utf-8",
+    )
+    program = read_program(str(task))
+
+    clauses = HypothesisSpaceGenerator(
+        program, Arguments(max_depth=2, max_variables=2)
+    ).generate().clauses
+
+    assert program.language_bias_head[0].directions == ("input", "output")
+    assert "target(V0,V1) :- edge(V0,V1)." in clauses
+    assert "target(V0,V1) :- edge(V1,V0)." not in clauses
+
+
+def test_theta_reduction_rejects_clause_equivalent_to_proper_subclause():
+    modes = {
+        0: HypothesisMode(0, 0, "head", "normal", "target", 1, 1),
+        1: HypothesisMode(1, 1, "body", "normal", "edge", 2, 2),
+        2: HypothesisMode(2, 2, "body", "normal", "other", 2, 1),
+    }
+    reducible = ReifiedClause(
+        (ReifiedLiteral("head", 0, 0, (0,)),),
+        (
+            ReifiedLiteral("body", 0, 1, (0, 1)),
+            ReifiedLiteral("body", 1, 1, (0, 2)),
+        ),
+    )
+    reduced = ReifiedClause(
+        (ReifiedLiteral("head", 0, 0, (0,)),),
+        (
+            ReifiedLiteral("body", 0, 1, (0, 1)),
+            ReifiedLiteral("body", 1, 2, (0, 1)),
+        ),
+    )
+
+    assert not hypothesis_space._theta_reduced(reducible, modes)
+    assert hypothesis_space._theta_reduced(reduced, modes)

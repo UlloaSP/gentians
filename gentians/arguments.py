@@ -33,8 +33,8 @@ class Arguments:
     # Seed used by evolutionary operators.
     random_seed: int | None = None
 
-    # Number of genetic generations.
-    iterations_genetic: int = 2000
+    # Number of genetic generations. 0 means unlimited.
+    iterations_genetic: int = 0
 
     # Fitness operator config.
     fitness: dict[str, object] = field(
@@ -51,11 +51,11 @@ class Arguments:
     # Parent selection operator config.
     selection: dict[str, object] = field(
         default_factory=lambda: {
-            # Parent selection implementation.
+            # tournament or behavior_tournament.
             "name": "tournament",
             # Population percentage sampled per tournament, expressed in (0, 1].
             "tournament_percentage": 0.1,
-            # Probability of picking the fittest candidate in the tournament.
+            # Probability of picking the fittest candidate; tournament only.
             "prob_selecting_fittest": 1.0,
         }
     )

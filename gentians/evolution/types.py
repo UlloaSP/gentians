@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-
 Genome = int
 ProgramText = tuple[str, ...]
 Behavior = tuple[int, int]

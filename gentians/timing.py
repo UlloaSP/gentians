@@ -2,10 +2,11 @@ import atexit
 import json
 import os
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 _enabled = bool(os.environ.get("GENTIANS_TIMINGS_PATH"))
 _totals: dict[str, float] = {}

@@ -1,6 +1,6 @@
+import time
 from collections.abc import Callable
 from functools import wraps
-import time
 
 from ...rule_generation.parser import Predicate, clause_predicates
 from ...rule_generation.program import Program

@@ -1,5 +1,5 @@
-from dataclasses import dataclass, field
 import time
+from dataclasses import dataclass, field
 
 from .types import Behavior, FitnessResult, Genome, ProgramText
 

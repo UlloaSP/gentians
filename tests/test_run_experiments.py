@@ -17,17 +17,12 @@ def test_default_config_defines_comparable_experiment_matrix():
 
     assert output_root.name == ".benchmarks"
     assert {experiment["id"] for experiment in experiments} == {
-        "cov_subprograms_mean",
-        "cov_subprograms_max",
-        "cov_program",
-        "cov_program_random_group_pop10_mut005",
         "cov_program_random_group_pop10_mut09",
-        "cov_program_random_group_pop100_mut005",
         "cov_program_random_group_pop100_mut09",
-        "cov_program_structural_neighbor_pop10_mut005",
-        "cov_program_structural_neighbor_pop10_mut09",
-        "cov_program_structural_neighbor_pop100_mut005",
-        "cov_program_structural_neighbor_pop100_mut09",
+        "cov_program_behavior_tournament_pop10",
+        "cov_program_behavior_tournament_pop100",
+        "trigram_cov",
+        "trigram_cov_structural",
     }
     assert all(experiment["runs"] == 10 for experiment in experiments)
     assert all(experiment["timeout_seconds"] == 100 for experiment in experiments)
@@ -38,10 +33,10 @@ def test_default_config_defines_comparable_experiment_matrix():
 def test_default_experiments_have_no_pregrounding_strategy_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
     assert all("fitness.grounding" not in item["overrides"] for item in experiments)
-    assert len(experiments) == 11
+    assert len(experiments) == 6
 
 
-def test_default_experiments_cover_mutation_population_probability_matrix():
+def test_default_experiments_cover_configured_mutation_population_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
     matrix = {
         (
@@ -54,20 +49,19 @@ def test_default_experiments_cover_mutation_population_probability_matrix():
     }
 
     assert matrix == {
-        (mutation, population, probability)
-        for mutation in ("random_group", "structural_neighbor")
-        for population in (10, 100)
-        for probability in (0.05, 0.9)
+        ("random_group", 10, 0.9),
+        ("random_group", 100, 0.9),
+        ("structural_neighbor", 10, 0.9),
     }
 
 
 def test_default_experiments_cover_all_fitness_operators():
     _, experiments = load_config(DEFAULT_CONFIG)
     names = {
-        experiment["overrides"].get("fitness.name", "cov_subprograms_mean")
+        experiment["overrides"].get("fitness.name", "cov_program")
         for experiment in experiments
     }
-    assert names == {"cov_subprograms_mean", "cov_subprograms_max", "cov_program"}
+    assert names == {"cov_program", "trigram_cov"}
 
 
 def test_trigram_cov_matches_random_group_baseline_conditions():
@@ -79,16 +73,16 @@ def test_trigram_cov_matches_random_group_baseline_conditions():
     assert baseline.pop("fitness.name") == "cov_program"
     assert trigram.pop("fitness.name") == "trigram_cov"
     assert trigram == baseline
-    assert indexed["cov_program_random_group_pop10_mut09"]["runs"] == 30
-    assert indexed["trigram_cov"]["runs"] == 30
+    assert indexed["cov_program_random_group_pop10_mut09"]["runs"] == 10
+    assert indexed["trigram_cov"]["runs"] == 10
 
 
 def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):
     config = tmp_path / "experiments.toml"
     config.write_text(
         '[suite]\noutput_root = ".benchmarks"\ndatasets = ["coin"]\nruns = 10\n'
-        '[[experiment]]\nid = "subprogram_mean"\n'
-        'overrides = { "fitness.name" = "cov_subprograms_mean" }\n',
+        '[[experiment]]\nid = "whole_program"\n'
+        'overrides = { "fitness.name" = "cov_program" }\n',
         encoding="utf-8",
     )
 
@@ -98,7 +92,7 @@ def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):
     assert output_root.name == ".benchmarks"
     assert experiment["runs"] == 10
     assert command[command.index("--datasets") + 1] == "coin"
-    assert "fitness.name=\"cov_subprograms_mean\"" in command
+    assert "fitness.name=\"cov_program\"" in command
 
 
 def test_load_config_rejects_path_like_and_duplicate_ids(tmp_path):
@@ -116,12 +110,12 @@ def test_load_config_rejects_path_like_and_duplicate_ids(tmp_path):
 
 def test_index_points_to_each_dashboard_for_comparison(tmp_path):
     experiment = {
-        "id": "subprogram_mean",
-        "label": "Subprogram mean",
+        "id": "whole_program",
+        "label": "Whole program",
         "description": "",
         "datasets": ["coin"],
         "runs": 2,
-        "overrides": {"fitness.name": "cov_subprograms_mean"},
+        "overrides": {"fitness.name": "cov_program"},
     }
     out_dir = tmp_path / experiment["id"]
     out_dir.mkdir()
@@ -134,7 +128,7 @@ def test_index_points_to_each_dashboard_for_comparison(tmp_path):
 
     [indexed] = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
     assert indexed["status"] == "complete"
-    assert indexed["dashboard_path"] == "subprogram_mean/dashboard_data.json"
+    assert indexed["dashboard_path"] == "whole_program/dashboard_data.json"
     assert indexed["has_dashboard"] is True
     assert "dashboard" not in indexed
     assert indexed["fingerprint"] == fingerprint(experiment)
@@ -142,10 +136,10 @@ def test_index_points_to_each_dashboard_for_comparison(tmp_path):
 
 def test_index_marks_results_stale_when_config_changed(tmp_path):
     experiment = {
-        "id": "subprogram_mean",
+        "id": "whole_program",
         "datasets": ["coin"],
         "runs": 2,
-        "overrides": {"fitness.name": "cov_subprograms_mean"},
+        "overrides": {"fitness.name": "cov_program"},
     }
     out_dir = tmp_path / experiment["id"]
     out_dir.mkdir()
@@ -163,12 +157,12 @@ def test_index_marks_results_stale_when_config_changed(tmp_path):
 
 def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
     experiment = {
-        "id": "subprogram_mean",
+        "id": "whole_program",
         "label": "Current label",
         "description": "current",
         "datasets": ["coin"],
         "runs": 2,
-        "overrides": {"fitness.name": "cov_subprograms_mean"},
+        "overrides": {"fitness.name": "cov_program"},
     }
     out_dir = tmp_path / experiment["id"]
     out_dir.mkdir()

@@ -1,4 +1,3 @@
-SELECTED_PREDICATE = "gentians_internal_selected"
 ACTIVE_CONTEXT_PREDICATE = "gentians_internal_active_context"
 
 
@@ -14,13 +13,3 @@ def parse_coverage_symbol_masks(symbols) -> tuple[int, int]:
         elif symbol.name == "extended_n":
             neg_mask |= 1 << value
     return pos_mask, neg_mask
-
-
-def parse_selected_rule_tuple(symbols) -> tuple[int, ...]:
-    return tuple(
-        sorted(
-            symbol.arguments[0].number
-            for symbol in symbols
-            if symbol.name == SELECTED_PREDICATE and len(symbol.arguments) == 1
-        )
-    )

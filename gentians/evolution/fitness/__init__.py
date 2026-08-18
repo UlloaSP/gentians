@@ -1,14 +1,9 @@
-from .cov_program import CovProgram
-from .cov_subprograms_max import CovSubprogramsMax
-from .cov_subprograms_mean import CovSubprogramsMean
-from .trigram_cov import TrigramCov
 from ...rule_generation.program import Program
 from ...rule_generation.rule_space import RuleSpace
-
+from .cov_program import CovProgram
+from .trigram_cov import TrigramCov
 
 FITNESS_STRATEGIES = {
-    "cov_subprograms_mean": CovSubprogramsMean,
-    "cov_subprograms_max": CovSubprogramsMax,
     "cov_program": CovProgram,
     "trigram_cov": TrigramCov,
 }

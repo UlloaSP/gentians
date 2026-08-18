@@ -53,7 +53,7 @@ arguments = Arguments(
     filename="benchmarks/gentians/coin.txt",
     iterations_genetic=0,
     fitness={
-        "name": "cov_subprograms_mean",
+        "name": "cov_program",
         "max_as": 0,
         "clingo_arguments": [],
     },
@@ -61,14 +61,11 @@ arguments = Arguments(
 main(arguments)
 ```
 
-`fitness.name` is one of `cov_subprograms_mean`, `cov_subprograms_max`,
-`cov_program`, or `trigram_cov`. `trigram_cov` evaluates the whole program like
-`cov_program`, but scores balanced accuracy linearly from 0 to 1. Subprogram
-fitness keeps every evolutionary individual at the fixed
-size `min(#maxpl, hypothesis_space_size)` and evaluates its possible
-subprograms. Program fitness evaluates the whole individual and permits variable
-sizes. Every fitness evaluation creates a fresh Clingo control, grounds its
-candidate program, then solves it. Whole-program fitness uses brave consequences.
+`fitness.name` is `cov_program` or `trigram_cov`. `trigram_cov` evaluates the
+whole program like `cov_program`, but scores balanced accuracy linearly from 0
+to 1. Evolutionary individuals may have variable sizes. Every fitness evaluation
+creates a fresh Clingo control, grounds its candidate program, then solves it.
+Whole-program fitness uses brave consequences.
 
 Mutation defaults to `random_group`. `structural_neighbor` remains available as
 an alternative that replaces rules with others sharing the same head:
@@ -96,8 +93,8 @@ indexed by `.benchmarks/experiments.json` for multi-experiment comparison.
 
 ```powershell
 uv run python benchmarks/run_experiments.py --list
-uv run python benchmarks/run_experiments.py cov_subprograms_mean
-uv run python benchmarks/run_experiments.py cov_subprograms_mean --force
+uv run python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09
+uv run python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09 --force
 uv run python benchmarks/run_experiments.py  # all configured experiments
 ```
 
@@ -240,6 +237,6 @@ Here we list only the main ones:
   hypothesis space finite.
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
-- `fitness.name`: `cov_subprograms_mean`, `cov_subprograms_max`, or `cov_program`.
+- `fitness.name`: `cov_program` or `trigram_cov`.
 - `ProgramGenerator` is mandatory infrastructure: every initialization,
   mutation, and crossover returns an already dependency-closed valid program.

@@ -20,15 +20,12 @@ class ProgramGenerator:
         space: RuleSpace,
         max_clauses: int,
         rng: random.Random,
-        fixed_size: bool = False,
     ) -> None:
         self.max_clauses = max_clauses
         self.rng = rng
         self.space = prepare_space(program, space)
-        self.fixed_size = fixed_size
         self.rules = self.space.clauses
         self.rule_count = len(self.rules)
-        self.target_size = min(max_clauses, self.rule_count)
         self.all_rules = (1 << self.rule_count) - 1
         self.rule_ids = {rule: index for index, rule in enumerate(self.rules)}
 
@@ -62,20 +59,14 @@ class ProgramGenerator:
             if heads & self.target_mask
         )
         self.rules_by_head: dict[int, int] = {}
-        signature_masks: dict[tuple[int, int, int], int] = {}
-        for rule_id, (heads, deps, body) in enumerate(
-            zip(self.head_masks, self.dep_masks, self.body_sizes, strict=True)
+        for rule_id, (heads, deps) in enumerate(
+            zip(self.head_masks, self.dep_masks, strict=True)
         ):
             rule_bit = 1 << rule_id
             for predicate_bit in bits(heads):
                 self.rules_by_head[predicate_bit] = (
                     self.rules_by_head.get(predicate_bit, 0) | rule_bit
                 )
-            signature = (heads, deps, body)
-            signature_masks[signature] = signature_masks.get(signature, 0) | rule_bit
-        self.signatures = tuple(
-            (*signature, rule_mask) for signature, rule_mask in signature_masks.items()
-        )
         self._render_cache: dict[Genome, ProgramText] = {}
         self._summary_cache: dict[Genome, tuple[int, int]] = {}
         self._build_cache: dict[tuple[Genome, Genome], Genome | None] = {}
@@ -114,7 +105,7 @@ class ProgramGenerator:
         if not self.rule_count:
             return None
         limit = min(self.max_clauses, self.rule_count)
-        size = limit if self.fixed_size else self.rng.randint(1, limit)
+        size = self.rng.randint(1, limit)
         return self._build(self._sample_rules(size), 0)
 
     @record_generation_time
@@ -181,9 +172,7 @@ class ProgramGenerator:
         conjunto parcial de reglas y solo acepta esa expansión si el tamaño
         resultante no supera el límite permitido. El conjunto "selected" se
         va quedando con la última expansión válida. Si no se selecciona
-        ninguna regla, devuelve None. Si fixed_size está activado, rellena el
-        conjunto final hasta target_size con _fill(); si no, devuelve el
-        subconjunto seleccionado tal cual.
+        ninguna regla, devuelve None.
         """
         preferred = first & second
         for rule_id in self._ids(first & ~second):
@@ -195,21 +184,20 @@ class ProgramGenerator:
         if not preferred:
             preferred = self._random_rule(first | second)
         selected = 0
-        limit = self.target_size if self.fixed_size else self.max_clauses
         for rule_id in self._ids(preferred):
             expanded = self._complete(selected | (1 << rule_id), 0)
-            if expanded is not None and expanded.bit_count() <= limit:
+            if expanded is not None and expanded.bit_count() <= self.max_clauses:
                 selected = expanded
         if not selected:
             return None
-        return self._fill(selected, 0) if self.fixed_size else selected
+        return selected
 
     def _possible_operations(self, program: Genome) -> list[str]:
         size = program.bit_count()
         operations = []
-        if not self.fixed_size and size < self.max_clauses:
+        if size < self.max_clauses:
             operations.append("append")
-        if not self.fixed_size and size > 1:
+        if size > 1:
             operations.append("remove")
         if program and self.all_rules & ~program:
             operations.append("replace")
@@ -274,8 +262,6 @@ class ProgramGenerator:
         )
         seeds = invented_consumers or self.target_rules
         seed = self._random_rule(seeds)
-        if self.fixed_size:
-            return seed
         remaining = size - 1
         others = self._sample_ids(self.all_rules & ~seed, remaining)
         return seed | sum(1 << rule_id for rule_id in others)
@@ -294,12 +280,7 @@ class ProgramGenerator:
         if invalid:
             result = None
         else:
-            completed = self._complete(proposal, forbidden)
-            result = (
-                self._fill(completed, forbidden)
-                if completed is not None and self.fixed_size
-                else completed
-            )
+            result = self._complete(proposal, forbidden)
         if result is not None or invalid:
             self._remember(self._build_cache, key, result)
         return result
@@ -349,90 +330,6 @@ class ProgramGenerator:
             return None
 
         return search(candidate)
-
-    def _fill(self, candidate: Genome, forbidden: Genome) -> Genome | None:
-        if candidate.bit_count() > self.target_size:
-            return None
-        while candidate.bit_count() < self.target_size:
-            available = self.all_rules & ~candidate & ~forbidden
-            gap = self.target_size - candidate.bit_count()
-            heads, deps = self._summary(candidate)
-            choices: list[tuple[tuple[int, int, int, int], Genome, int]] = []
-            if gap == 1:
-                best_score = None
-                best_rules = 0
-                for rule_heads, rule_deps, body, signature_rules in self.signatures:
-                    concrete = signature_rules & available
-                    if not concrete:
-                        continue
-                    if (deps | rule_deps) & ~(
-                        self.background_mask | heads | rule_heads
-                    ):
-                        continue
-                    score = (
-                        (rule_heads & deps & self.invented_mask).bit_count(),
-                        int(bool(rule_heads)),
-                        -(
-                            rule_deps & ~(self.background_mask | heads | rule_heads)
-                        ).bit_count(),
-                        -body,
-                    )
-                    if best_score is None or score > best_score:
-                        best_score = score
-                        best_rules = concrete
-                    elif score == best_score:
-                        best_rules |= concrete
-                if not best_rules:
-                    return None
-                candidate |= self._random_rule(best_rules)
-                continue
-            else:
-                for (
-                    _sig_heads,
-                    _sig_deps,
-                    _sig_body,
-                    signature_rules,
-                ) in self.signatures:
-                    concrete = signature_rules & available
-                    if not concrete:
-                        continue
-                    rule_bit = self._random_rule(concrete)
-                    expanded = self._complete(candidate | rule_bit, forbidden)
-                    if (
-                        expanded is not None
-                        and expanded.bit_count() <= self.target_size
-                    ):
-                        choices.append(
-                            (
-                                self._fill_score(
-                                    rule_bit.bit_length() - 1, heads, deps
-                                ),
-                                expanded ^ candidate,
-                                concrete.bit_count(),
-                            )
-                        )
-            if not choices:
-                return None
-            best_score = max(score for score, _addition, _weight in choices)
-            best = [choice for choice in choices if choice[0] == best_score]
-            candidate |= self.rng.choices(
-                [addition for _score, addition, _weight in best],
-                weights=[weight for _score, _addition, weight in best],
-                k=1,
-            )[0]
-        return candidate
-
-    def _fill_score(
-        self, rule_id: int, defined: int, active_deps: int
-    ) -> tuple[int, int, int, int]:
-        heads = self.head_masks[rule_id]
-        deps = self.dep_masks[rule_id]
-        return (
-            (heads & active_deps & self.invented_mask).bit_count(),
-            int(bool(heads)),
-            -(deps & ~(self.background_mask | defined | heads)).bit_count(),
-            -self.body_sizes[rule_id],
-        )
 
     def _summary(self, genome: Genome) -> tuple[int, int]:
         if genome not in self._summary_cache:

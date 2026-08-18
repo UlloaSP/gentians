@@ -10,18 +10,14 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Iterable
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_BASELINE_PATH = Path(__file__).resolve()
 sys.path.insert(0, str(REPO_ROOT))
 
-from gentians import Arguments, main as gentians_main
-from gentians.asp.coverage_program import build_fixed_coverage_program
-from gentians.rule_generation.reader import read_program
 from benchmarks.catalog import (
     DEFAULT_DATASETS,
     arguments_for,
@@ -29,6 +25,10 @@ from benchmarks.catalog import (
     arguments_json,
     case_names,
 )
+from gentians import Arguments
+from gentians import main as gentians_main
+from gentians.asp.coverage_program import build_fixed_coverage_program
+from gentians.rule_generation.reader import read_program
 
 
 @dataclass
@@ -46,7 +46,7 @@ class RunResult:
     total_seconds: float | None = None
     success: bool = False
     first_success_generation_observed: int | None = None
-    fitness_operator: str = "cov_subprograms_mean"
+    fitness_operator: str = "cov_program"
     genetic_iterations: int = 0
     cprofile_path: str = ""
 
@@ -329,7 +329,7 @@ def run_benchmark_suite(
                     "first_success_generation_observed"
                 ],
                 fitness_operator=str(
-                    fitness_config.get("name", "cov_subprograms_mean")
+                    fitness_config.get("name", "cov_program")
                 ),
                 genetic_iterations=int(run_arguments.get("iterations_genetic", 0)),
                 cprofile_path=str(cprofile_path) if args.cprofile else "",
@@ -581,11 +581,6 @@ def fitness_clingo_arguments(arguments: Arguments) -> list[str]:
     clingo_args = fitness.get("clingo_arguments", [])
     if isinstance(clingo_args, str):
         clingo_args = [clingo_args]
-    if (
-        fitness.get("name") in {"cov_subprograms_mean", "cov_subprograms_max"}
-        and "--project" not in clingo_args
-    ):
-        clingo_args = [*clingo_args, "--project"]
     return [str(fitness.get("max_as", 0)), *[str(arg) for arg in clingo_args]]
 
 
@@ -805,7 +800,7 @@ def read_existing_outputs(
             int(to_float(row.get("first_success_generation_observed")))
             if row.get("first_success_generation_observed") not in (None, "")
             else None,
-            row.get("fitness_operator", "cov_subprograms_mean"),
+            row.get("fitness_operator", "cov_program"),
             int(to_float(row.get("genetic_iterations"))),
             row.get("cprofile_path", ""),
         )

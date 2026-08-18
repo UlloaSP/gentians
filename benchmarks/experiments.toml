@@ -1,6 +1,6 @@
 # List:  python benchmarks/run_experiments.py --list
-# Run:   python benchmarks/run_experiments.py cov_subprograms_mean
-# Rerun: python benchmarks/run_experiments.py cov_subprograms_mean --force
+# Run:   python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09
+# Rerun: python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09 --force
 # Run all entries by omitting experiment IDs.
 [suite]
 output_root = ".benchmarks"
@@ -30,18 +30,6 @@ cprofile = false
 # Controls shared by all fitness experiments.
 [suite.overrides]
 
-#[[experiment]]
-#id = "cov_subprograms_mean"
-#label = "Subprograms mean"
-#description = "Mean score over fixed-size subprograms with per-candidate grounding."
-#
-#[[experiment]]
-#id = "cov_subprograms_max"
-#label = "Subprograms max"
-#description = "Maximum score over fixed-size subprograms with per-candidate grounding."
-#[experiment.overrides]
-#"fitness.name" = "cov_subprograms_max"
-#
 #[[experiment]]
 #id = "cov_program"
 #label = "Whole program"

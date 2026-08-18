@@ -2,7 +2,7 @@ from pathlib import Path
 
 from ..rule_generation.example import Example
 from .coverage import generate_clauses_for_coverage_interpretations, guard_context
-from .coverage_symbols import ACTIVE_CONTEXT_PREDICATE, SELECTED_PREDICATE
+from .coverage_symbols import ACTIVE_CONTEXT_PREDICATE
 
 COVERAGE_RULES = (Path(__file__).with_name("rules") / "coverage.lp").read_text()
 
@@ -62,29 +62,3 @@ def build_fixed_coverage_program(
         background, interpretation_pos, interpretation_neg
     )
     return static_program + "\n" + "\n".join(program)
-
-
-def build_subset_coverage_program(
-    coverage_static_program: str, program: tuple[str, ...]
-) -> str:
-    return (
-        coverage_static_program
-        + "\n"
-        + "\n".join(
-            clause_with_atom(rule, f"{SELECTED_PREDICATE}({index})")
-            for index, rule in enumerate(program)
-        )
-        + "\n"
-        + "\n".join(
-            f"{{{SELECTED_PREDICATE}({index})}}." for index in range(len(program))
-        )
-        + f"\n#show {SELECTED_PREDICATE}/1."
-    )
-
-
-def clause_with_atom(clause: str, selected: str) -> str:
-    content = clause.strip().rstrip(".")
-    if ":-" in content:
-        head, body = content.split(":-", 1)
-        return f"{head.strip()} :- {body.strip()}, {selected}."
-    return f"{content} :- {selected}."

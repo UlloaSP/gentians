@@ -295,9 +295,7 @@ def test_program_generator_creates_only_closed_programs():
     )
     program = Program(["coin(c1)."], [], [], [], [])
     space = RuleSpace.from_clauses(list(rules))
-    generator = ProgramGenerator(
-        program, space, 2, random.Random(1), fixed_size=True
-    )
+    generator = ProgramGenerator(program, space, 2, random.Random(1))
 
     assert [generator.render(genome) for genome in generator.create_population(1)] == [
         tuple(sorted(rules))
@@ -321,9 +319,8 @@ def test_program_generator_builds_invented_definition_module():
     space = RuleSpace.from_clauses(
         [consumer, mother, father, recursive, constraint]
     )
-    generator = ProgramGenerator(
-        program, space, 3, random.Random(1), fixed_size=True
-    )
+    generator = ProgramGenerator(program, space, 3, random.Random(1))
+    generator.rng.randint = lambda _start, end: end
 
     [generated] = generator.create_population(1)
 
@@ -387,19 +384,6 @@ def test_generator_prunes_uncloseable_rules():
     assert [generator.render(genome) for genome in generator.create_population(2)] == [
         ("base.",)
     ]
-
-
-def test_fixed_size_generator_keeps_every_transition_at_target_size():
-    program = Program([], [], [], [], [])
-    space = RuleSpace.from_clauses(["a.", "b.", "c.", "d."])
-    generator = ProgramGenerator(
-        program, space, 3, random.Random(1), fixed_size=True
-    )
-    [generated] = generator.create_population(1)
-
-    assert generated is not None
-    assert generated.bit_count() == 3
-    assert generator.mutate_random(generated).program.bit_count() == 3
 
 
 def test_program_generator_creates_requested_population_size():

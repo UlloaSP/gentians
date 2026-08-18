@@ -105,23 +105,6 @@ def test_profile_baseline_writes_debug_clingo_program(tmp_path):
     assert "--enum-mode=brave" not in args
 
 
-def test_profile_baseline_uses_strategy_fitness_for_debug_dump(tmp_path):
-    task = tmp_path / "task.txt"
-    task.write_text("#pos({target},{}).\n#modeh(1,target).\n", encoding="utf-8")
-    arguments = Arguments(filename=str(task))
-    arguments.fitness = {
-        "name": "cov_subprograms_mean",
-        "max_as": 10000,
-        "clingo_arguments": [],
-    }
-
-    write_debug_clingo_program(tmp_path, "original", arguments, ["target."])
-
-    assert "python -m clingo 10000 --project" in (
-        tmp_path / "original.args.txt"
-    ).read_text(encoding="utf-8")
-
-
 def test_operator_summary_counts_non_finite_mutation_as_invalid():
     rows = [
         {

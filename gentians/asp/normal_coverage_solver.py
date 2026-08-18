@@ -1,10 +1,5 @@
 import clingo
 
-from .callbacks import coverage_logger
-from .coverage import Coverage
-from .coverage_program import build_coverage_static_program, build_subset_coverage_program
-from .coverage_symbols import parse_coverage_symbol_masks, parse_selected_rule_tuple
-from .stats import clingo_stat, ground_stats
 from ..rule_generation.example import Example
 from ..timing import (
     add,
@@ -14,6 +9,11 @@ from ..timing import (
     net_time,
     record_metric,
 )
+from .callbacks import coverage_logger
+from .coverage import Coverage
+from .coverage_program import build_coverage_static_program
+from .coverage_symbols import parse_coverage_symbol_masks
+from .stats import clingo_stat, ground_stats
 
 
 class NormalCoverageSolver:
@@ -56,36 +56,6 @@ class NormalCoverageSolver:
             phase,
         )
         return coverage
-
-    def extract_subset_coverage(
-        self, program: tuple[str, ...]
-    ) -> dict[tuple[int, ...], Coverage]:
-        generated = build_subset_coverage_program(self.coverage_static_program, program)
-        ctl, grounding_seconds, phase = self._ground(generated)
-        coverages: dict[tuple[int, ...], Coverage] = {}
-
-        def collect(symbols) -> None:
-            coverage = coverages.setdefault(
-                parse_selected_rule_tuple(symbols), Coverage([], [])
-            )
-            coverage.extend_masks(*parse_coverage_symbol_masks(symbols))
-
-        solving_seconds = self._solve(ctl, collect)
-        merged = Coverage([], [])
-        for coverage in coverages.values():
-            merged.extend_masks(coverage.pos_mask, coverage.neg_mask)
-        self._record(
-            ctl,
-            generated,
-            program,
-            merged,
-            grounding_seconds,
-            solving_seconds,
-            "subset_coverage_grounding",
-            "subset_coverage_solving",
-            phase,
-        )
-        return coverages
 
     def _ground(self, generated: str):
         ctl = clingo.Control(self.clingo_arguments, logger=coverage_logger)  # type: ignore

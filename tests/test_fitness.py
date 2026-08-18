@@ -9,8 +9,6 @@ from gentians.asp.coverage import (
 from gentians.asp.coverage_program import build_fixed_coverage_program
 from gentians.evolution.fitness import create_fitness
 from gentians.evolution.fitness.cov_program import CovProgram
-from gentians.evolution.fitness.cov_subprograms_max import CovSubprogramsMax
-from gentians.evolution.fitness.cov_subprograms_mean import CovSubprogramsMean
 from gentians.evolution.fitness.coverage_common import (
     balanced_coverage_score,
     coverage_score,
@@ -45,8 +43,6 @@ def _fitness(name: str, rules: RuleSpace = RULES):
 @pytest.mark.parametrize(
     ("name", "strategy"),
     [
-        ("cov_subprograms_mean", CovSubprogramsMean),
-        ("cov_subprograms_max", CovSubprogramsMax),
         ("cov_program", CovProgram),
         ("trigram_cov", TrigramCov),
     ],
@@ -58,18 +54,6 @@ def test_factory_dispatches_complete_coverages(name, strategy):
 def test_factory_rejects_unknown_strategy():
     with pytest.raises(ValueError, match="Unknown fitness strategy"):
         _fitness("coverage")
-
-
-def test_subprogram_mean_and_max_use_exponential_score():
-    candidate = ("target(n).", "target(p).")
-    mean = _fitness("cov_subprograms_mean")(candidate)
-    maximum = _fitness("cov_subprograms_max")(candidate)
-
-    assert mean.score == pytest.approx((2.0 + math.exp(10) + math.exp(-10)) / 4)
-    assert maximum.score == pytest.approx(math.exp(10))
-    assert mean.is_best is True and maximum.is_best is True
-    assert mean.best_program == ("target(p).",)
-    assert maximum.best_program == ("target(p).",)
 
 
 def test_whole_program_scores_only_individual():
@@ -143,18 +127,7 @@ def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
     assert first == second
 
 
-@pytest.mark.parametrize(
-    "name", ["cov_subprograms_mean", "cov_subprograms_max"]
-)
-def test_subprogram_fitness_exposes_best_coverage_behavior(name):
-    result = _fitness(name)(("target(n).", "target(p)."))
-
-    assert result.behavior == (1, 0)
-
-
-@pytest.mark.parametrize(
-    "name", ["cov_subprograms_mean", "cov_subprograms_max", "cov_program"]
-)
+@pytest.mark.parametrize("name", ["cov_program", "trigram_cov"])
 @pytest.mark.parametrize("option", ["scope", "aggregation", "grounding"])
 def test_obsolete_fitness_options_are_rejected(name, option):
     with pytest.raises(ValueError, match="Obsolete fitness options"):
@@ -199,25 +172,8 @@ def test_finite_model_limit_is_rejected():
         )
 
 
-def test_internal_selection_does_not_collide_with_user_program():
-    program = Program(
-        ["selected(0).", "r(0)."],
-        [Example(("target(p)", ""), True)],
-        [Example(("target(n)", ""), False)],
-        [],
-        [],
-    )
-    evaluate = create_fitness(
-        program,
-        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
-        2,
-        RULES,
-    )
-    assert evaluate(("target(n).",)).score == pytest.approx(math.exp(-10))
-
-
 def test_undefined_atoms_are_false_without_log_noise(capsys):
-    _fitness("cov_subprograms_mean")(("target(n).",))
+    _fitness("cov_program")(("target(n).",))
     assert capsys.readouterr().err == ""
 
 
@@ -243,10 +199,7 @@ def test_fixed_program_builder_combines_static_program_and_rules():
     assert "target :- base." in dump
 
 
-@pytest.mark.parametrize(
-    "name", ["cov_subprograms_mean", "cov_subprograms_max", "cov_program"]
-)
-def test_contexts_do_not_leak_between_examples(name):
+def test_contexts_do_not_leak_between_examples():
     program = Program(
         [],
         [
@@ -260,7 +213,7 @@ def test_contexts_do_not_leak_between_examples(name):
     rules = RuleSpace.from_clauses(["target(a) :- ctx(b)."])
     evaluate = create_fitness(
         program,
-        {"name": name, "max_as": 0, "clingo_arguments": []},
+        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
         1,
         rules,
     )

@@ -61,7 +61,6 @@ class TrigramCov:
             score,
             best_found,
             {
-                "evaluated_subprograms": 1,
                 "candidate_rules": len(candidate),
             },
         )

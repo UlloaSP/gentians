@@ -68,7 +68,6 @@ def search_solver(
         space,
         max_program_clauses,
         rng,
-        str(args.fitness["name"]).startswith("cov_subprograms_"),
     )
     space = generator.space
     if not space:

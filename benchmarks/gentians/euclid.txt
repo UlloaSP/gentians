@@ -26,9 +26,9 @@ result(M) :- eucl(a,b,M).
 
 #modeh(1,eucl(var(numeric,input),var(numeric,input),var(numeric,output))).
 
-#modeb(1,eucl(var(numeric,input),var(numeric,input),var(numeric,output)),positive).
-#modeb(1,zero(var(numeric,input)),positive).
-#modeb(2,num(var(numeric,input)),positive).
+#modeb(1,eucl(var(numeric,input),var(numeric,input),var(numeric,output))).
+#modeb(1,zero(var(numeric,input))).
+#modeb(2,num(var(numeric,input))).
 #modecmp(1,lt).
 #modecmp(2,gt).
 #modearith(1,mod).

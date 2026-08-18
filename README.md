@@ -115,14 +115,15 @@ For head atoms
 For example, `#modeh(1,a(var(node,input),var(node,output))).` permits
 `a(X,Y)` in a rule head.
 
-For positive body literals
+For positive body literals, omit default negation:
 ```prolog
-#modeb(recall, atom_template, positive).
+#modeb(recall, atom_template).
 ```
-while for negative body literals
+For negative body literals, write `not` before the atom template:
 ```prolog
-#modeb(recall, atom_template, negative).
+#modeb(recall, not atom_template).
 ```
+Declare both forms independently when both polarities are allowed.
 Every non-nullary argument is explicitly either a directed typed variable or a
 typed constant placeholder:
 
@@ -131,16 +132,17 @@ typed constant placeholder:
 #constant(colour,green).
 
 #modeh(1,target(var(node,input))).
-#modeb(1,edge(var(node,input),var(node,output)),positive).
-#modeb(1,colour(var(node,input),const(colour)),positive).
+#modeb(1,edge(var(node,input),var(node,output))).
+#modeb(1,colour(var(node,input),const(colour))).
+#modeb(1,not blocked(var(node,input))).
 ```
 
 Variables require exactly one direction: `input`, `output`, or `any`.
 `input` must already be bound, `output` is produced by a positive body literal,
 and `any` opts out of data-flow restrictions. Constants have no direction and
-must be enumerated by `#constant(TYPE, VALUE)`. Negative modes cannot contain
-output variables. Types and directions are task declarations; Gentians does
-not infer normal modes from background knowledge or examples.
+must be enumerated by `#constant(TYPE, VALUE)`. Modes containing `not` cannot
+contain output variables. Types and directions are task declarations; Gentians
+does not infer normal modes from background knowledge or examples.
 
 ## Examples definition
 Positive examples must follow the syntax
@@ -219,8 +221,8 @@ only on earlier invented predicates, preventing recursive invention cycles.
 Example:
 ```prolog
 #modeh(1,target(var(person,input),var(person,output))).
-#modeb(1,father(var(person,input),var(person,output)),positive).
-#modeb(1,mother(var(person,input),var(person,output)),positive).
+#modeb(1,father(var(person,input),var(person,output))).
+#modeb(1,mother(var(person,input),var(person,output))).
 #invent(2,target_1(var(person,input),var(person,output))).
 ```
 

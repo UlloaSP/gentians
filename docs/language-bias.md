@@ -61,7 +61,7 @@ with recall `*` is invalid because it describes an infinite rule space:
 ```prolog
 % Invalid combination: no finite body bound.
 #maxbl(*).
-#modeb(*,edge(var(node,any),var(node,any)),positive).
+#modeb(*,edge(var(node,any),var(node,any))).
 ```
 
 Use a finite global length or a finite recall to make that task enumerable.
@@ -75,8 +75,8 @@ Use a finite global length or a finite recall to make that task enumerable.
 #maxpl(*).
 
 #modeh(1,target(var(node,any))).
-#modeb(2,edge(var(node,any),var(node,any)),positive).
-#modeb(1,red(var(node,any)),positive).
+#modeb(2,edge(var(node,any),var(node,any))).
+#modeb(1,red(var(node,any))).
 ```
 
 This permits clauses with at most three distinct variables, two body literals,
@@ -90,8 +90,8 @@ predicate name and arity:
 
 ```prolog
 #modeh(1,target(var(node,input))).
-#modeb(1,edge(var(node,input),var(node,output)),positive).
-#modeb(1,blocked(var(node,input)),negative).
+#modeb(1,edge(var(node,input),var(node,output))).
+#modeb(1,not blocked(var(node,input))).
 ```
 
 Every argument is explicit. Variables always contain a nominal type and one
@@ -99,16 +99,20 @@ direction; `var(type)` without a direction is invalid.
 
 ```ebnf
 head-mode       = "#modeh(", recall, ",", atom-template, ")." ;
-body-mode       = "#modeb(", recall, ",", atom-template, ",", polarity, ")." ;
+body-mode       = "#modeb(", recall, ",", ["not", whitespace], atom-template, ")." ;
 atom-template   = predicate, ["(", mode-argument, {",", mode-argument}, ")"] ;
 mode-argument   = variable-argument | constant-argument ;
 variable-argument = "var(", type, ",", direction, ")" ;
 constant-argument = "const(", type, ")" ;
 direction       = "input" | "output" | "any" ;
-polarity        = "positive" | "negative" ;
 recall          = positive-integer | "*" ;
 type            = lowercase-identifier ;
 ```
+
+A body mode without `not` permits the positive literal. A body mode with
+`not` permits only its default-negated form. Declare both modes independently
+to permit both polarities; their recalls remain independent. Head modes cannot
+contain `not`.
 
 Directions mean:
 
@@ -119,8 +123,8 @@ Directions mean:
 
 An output requirement in a rule head must be produced by a positive normal
 body output, aggregate result, or arithmetic result. It is also satisfied when
-that variable is unified with an input position of the same head. A negative
-body mode cannot declare output variables. ASP safety remains active
+that variable is unified with an input position of the same head. A body mode
+containing `not` cannot declare output variables. ASP safety remains active
 independently of mode direction.
 
 Built-ins have intrinsic directions rather than task syntax:
@@ -160,7 +164,7 @@ Constants allowed in learned literals are enumerated explicitly:
 #constant(colour,red).
 #constant(colour,green).
 
-#modeb(1,colour(var(node,input),const(colour)),positive).
+#modeb(1,colour(var(node,input),const(colour))).
 ```
 
 `const(colour)` expands independently to each declared colour. A template with

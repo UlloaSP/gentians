@@ -17,25 +17,28 @@ def _get_mode_declaration(
 ) -> ModeDeclaration:
     name = "#modeh" if for_head else "#modeb"
     parts = split_top_level_args(_directive_args(s, name))
-    expected = 2 if for_head else 3
-    if len(parts) != expected:
+    if len(parts) != 2:
         raise ValueError(f"invalid {name} declaration: {s}")
     recall = _parse_recall(parts[0])
-    predicate, arguments = _get_mode_atom(parts[1], s)
-    polarity = "positive" if for_head else parts[2].strip()
-    if polarity not in {"positive", "negative"}:
-        raise ValueError(f"invalid {name} polarity: {s}")
-    return ModeDeclaration(
-        recall, predicate, arguments, polarity == "positive", for_head
-    )
+    atom = parts[1].strip()
+    negative = bool(re.match(r"not\s+", atom))
+    if negative:
+        if for_head:
+            raise ValueError(f"head modes cannot be negative: {s}")
+        atom = re.sub(r"^not\s+", "", atom, count=1)
+    predicate, arguments = _get_mode_atom(atom, s)
+    return ModeDeclaration(recall, predicate, arguments, not negative, for_head)
 
 
 def _get_mode_atom(raw: str, declaration: str) -> tuple[str, tuple[ModeArgument, ...]]:
-    parsed = parse_atom(raw.strip())
+    raw = raw.strip()
+    if raw == "not" or re.match(r"not\s+", raw) or raw.startswith("-"):
+        raise ValueError(f"invalid mode atom: {declaration}")
+    parsed = parse_atom(raw)
     if parsed is None:
         raise ValueError(f"invalid mode atom: {declaration}")
     name, raw_arguments = parsed
-    if not re.fullmatch(r"[a-z][A-Za-z0-9_]*", name):
+    if name == "not" or not re.fullmatch(r"[a-z][A-Za-z0-9_]*", name):
         raise ValueError(f"invalid mode predicate: {declaration}")
     return name, tuple(
         _get_mode_argument(argument, declaration) for argument in raw_arguments

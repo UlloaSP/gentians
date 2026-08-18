@@ -27,7 +27,7 @@ const(type)
 
 `var(type)` is invalid. There is no separate direction tuple and no legacy
 syntax adapter. Predicate arity is derived from the atom template. Body
-polarity remains an explicit Gentians argument.
+polarity syntax is superseded by ADR 0004.
 
 Constants are finite and task-owned through `#constant(type,value)`. They are
 not inferred from background terms and do not assert facts. Each constant

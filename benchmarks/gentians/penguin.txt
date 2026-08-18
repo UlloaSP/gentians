@@ -22,5 +22,5 @@ ability(swim).
 
 #modeh(1,penguin(var(animal,input))).
 
-#modeb(1,bird(var(animal,input)),positive).
-#modeb(1,flies(var(animal,input)),negative).
+#modeb(1,bird(var(animal,input))).
+#modeb(1,not flies(var(animal,input))).

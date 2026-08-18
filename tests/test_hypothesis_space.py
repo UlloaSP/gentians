@@ -497,10 +497,50 @@ def test_reader_requires_type_and_direction_for_variable_modes(tmp_path):
         read_program(str(task))
 
 
+def test_reader_uses_not_for_body_mode_polarity(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "#modeb(1,p(var(person,input))).",
+                "#modeb(2,not p(var(person,input))).",
+                "#modeb(1,notable).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+
+    assert [
+        (mode.recall, mode.name, mode.positive)
+        for mode in program.language_bias_body
+    ] == [(1, "p", True), (2, "p", False), (1, "notable", True)]
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        "#modeb(1,p(var(person,input)),positive).",
+        "#modeh(1,not p(var(person,input))).",
+        "#modeb(1,not not p(var(person,input))).",
+        "#modeb(1,not).",
+        "#modeb(1,-p(var(person,input))).",
+        "#modeb(1,not(var(person,input))).",
+    ],
+)
+def test_reader_rejects_invalid_mode_polarity_syntax(tmp_path, declaration):
+    task = tmp_path / "task.txt"
+    task.write_text(f"{declaration}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        read_program(str(task))
+
+
 def test_reader_rejects_output_variables_in_negative_modes(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(
-        "#modeb(1,p(var(person,output)),negative).\n",
+        "#modeb(1,not p(var(person,output))).\n",
         encoding="utf-8",
     )
 
@@ -522,7 +562,7 @@ def test_constant_modes_expand_declared_ground_terms_without_variables(tmp_path)
                 "#constant(symbol,a).",
                 "#constant(symbol,b).",
                 "#modeh(1,p(const(symbol))).",
-                "#modeb(1,q(const(symbol)),positive).",
+                "#modeb(1,q(const(symbol))).",
             )
         ),
         encoding="utf-8",
@@ -573,7 +613,7 @@ def test_all_structural_limits_accept_star_with_finite_recalls(tmp_path):
                 "#maxpl(*).",
                 "p(1).",
                 "#modeh(1,target(var(term,any))).",
-                "#modeb(1,p(var(term,any)),positive).",
+                "#modeb(1,p(var(term,any))).",
             ]
         ),
         encoding="utf-8",
@@ -598,8 +638,8 @@ def test_reader_deduplicates_equal_directives(tmp_path):
                 "#neg({ b(1) }, {}).",
                 "#modeh(1, a(var(term,any))).",
                 "#modeh(1, a(var(term,any))).",
-                "#modeb(1, b(var(term,any)), positive).",
-                "#modeb(1, b(var(term,any)), positive).",
+                "#modeb(1, b(var(term,any))).",
+                "#modeb(1, b(var(term,any))).",
             ]
         ),
         encoding="utf-8",
@@ -677,8 +717,8 @@ def test_invented_predicates_are_stratified_and_excluded_from_constraints(tmp_pa
                 "base(a).",
                 "#pos({target(a)},{}).",
                 "#modeh(1,target(var(term,any))).",
-                "#modeb(1,base(var(term,any)),positive).",
-                "#modeb(1,target(var(term,any)),positive).",
+                "#modeb(1,base(var(term,any))).",
+                "#modeb(1,target(var(term,any))).",
                 "#invent(1,early(var(term,any))).",
                 "#invent(1,late(var(term,any))).",
             ]
@@ -1955,7 +1995,7 @@ def test_reader_parses_directives_without_regex_space_loss(tmp_path):
                 "#pos({ red(1), blue(f(2,3)) }, { green(1) }, { ctx((1,2)) }).",
                 "#neg({ bad(1) }, {}).",
                 "#modeh(1, red(var(numeric,any))).",
-                "#modeb(2, edge(var(numeric,any),var(numeric,any)), positive).",
+                "#modeb(2, edge(var(numeric,any),var(numeric,any))).",
                 "#modeagg(1, sum(edge/2), unbalanced).",
                 "#modecmp(2, neq).",
                 "#modearith(1, add).",
@@ -2350,7 +2390,7 @@ def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
             (
                 "edge(1,2).",
                 "#modeh(1,target(var(term,input),var(term,output))).",
-                "#modeb(1,edge(var(term,input),var(term,output)),positive).",
+                "#modeb(1,edge(var(term,input),var(term,output))).",
             )
         ),
         encoding="utf-8",

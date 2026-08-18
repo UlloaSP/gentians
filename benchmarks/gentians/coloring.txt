@@ -39,8 +39,8 @@ node(1..6).
 #modeh(1,green(var(node,input))).
 #modeh(1,blue(var(node,input))).
 
-#modeb(1,node(var(node,input)),positive).
-#modeb(1,e(var(node,output),var(node,output)),positive).
-#modeb(2,red(var(node,input)),positive).
-#modeb(2,green(var(node,input)),positive).
-#modeb(2,blue(var(node,input)),positive).
+#modeb(1,node(var(node,input))).
+#modeb(1,e(var(node,output),var(node,output))).
+#modeb(2,red(var(node,input))).
+#modeb(2,green(var(node,input))).
+#modeb(2,blue(var(node,input))).

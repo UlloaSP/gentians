@@ -126,8 +126,8 @@ val(1..n*n).
 #modeh(1,sum_row(var(index,input),var(numeric,output))).
 #modeh(1,sum_col(var(index,input),var(numeric,output))).
 
-#modeb(1,size(var(index,input)),positive).
-#modeb(2,sum_row(var(index,output),var(numeric,output)),positive).
-#modeb(2,sum_col(var(index,output),var(numeric,output)),positive).
+#modeb(1,size(var(index,input))).
+#modeb(2,sum_row(var(index,output),var(numeric,output))).
+#modeb(2,sum_col(var(index,output),var(numeric,output))).
 #modeagg(1,sum(x/3),unbalanced).
 #modecmp(2,neq).

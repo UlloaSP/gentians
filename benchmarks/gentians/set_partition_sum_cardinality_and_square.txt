@@ -29,9 +29,9 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 #modeh(1,sum_partition_sq(var(partition,input),var(numeric,output))).
 #modeh(1,count_partition(var(partition,input),var(numeric,output))).
 
-#modeb(2,sum_partition_sq(var(partition,output),var(numeric,output)),positive).
-#modeb(2,count_partition(var(partition,output),var(numeric,output)),positive).
-#modeb(1,partition(var(partition,input)),positive).
+#modeb(2,sum_partition_sq(var(partition,output),var(numeric,output))).
+#modeb(2,count_partition(var(partition,output),var(numeric,output))).
+#modeb(1,partition(var(partition,input))).
 #modeagg(1,sum(sq/2),unbalanced).
 #modeagg(1,count(p/2),unbalanced).
 #modecmp(2,neq).

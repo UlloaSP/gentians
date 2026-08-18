@@ -21,4 +21,4 @@ colour(c,red).
 #constant(colour,green).
 
 #modeh(1,target(var(node,input))).
-#modeb(1,colour(var(node,input),const(colour)),positive).
+#modeb(1,colour(var(node,input),const(colour))).

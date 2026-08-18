@@ -40,7 +40,7 @@ number(1..n).
 #neg({q(1,1), q(4,2), q(2,3), q(3,4)}, {}).
 #neg({q(1,1), q(3,2), q(2,3), q(4,4)}, {}).
 
-#modeb(2,q(var(numeric,output),var(numeric,output)),positive).
+#modeb(2,q(var(numeric,output),var(numeric,output))).
 #modecmp(1,lt).
 #modearith(1,add).
 #modearith(1,sub).

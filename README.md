@@ -218,10 +218,10 @@ only on earlier invented predicates, preventing recursive invention cycles.
 
 Example:
 ```prolog
-#modeh(1,target(var(person,any),var(person,any))).
-#modeb(1,father(var(person,any),var(person,any)),positive).
-#modeb(1,mother(var(person,any),var(person,any)),positive).
-#invent(2,target_1(var(person,any),var(person,any))).
+#modeh(1,target(var(person,input),var(person,output))).
+#modeb(1,father(var(person,input),var(person,output)),positive).
+#modeb(1,mother(var(person,input),var(person,output)),positive).
+#invent(2,target_1(var(person,input),var(person,output))).
 ```
 
 Here `target_1/2` is learned in rule heads and may occur twice in rule bodies.

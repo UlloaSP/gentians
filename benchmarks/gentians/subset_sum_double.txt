@@ -24,11 +24,11 @@
 #neg({ok(2)}, {}).
 #neg({ok(10)}, {}).
 
-#modeh(1,ok(var(numeric,any))).
-#modeh(1,s0(var(numeric,any))).
-#modeh(1,s1(var(numeric,any))).
+#modeh(1,ok(var(numeric,output))).
+#modeh(1,s0(var(numeric,output))).
+#modeh(1,s1(var(numeric,output))).
 
-#modeb(1,s0(var(numeric,any)),positive).
-#modeb(1,s1(var(numeric,any)),positive).
+#modeb(1,s0(var(numeric,output)),positive).
+#modeb(1,s1(var(numeric,input)),positive).
 #modeagg(2,sum(el/2),balanced).
 #modearith(1,add).

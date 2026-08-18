@@ -35,12 +35,12 @@ node(1..6).
 #neg({blue(1), blue(2)}, {}).
 #neg({green(3), green(4)}, {}).
 
-#modeh(1,red(var(numeric,any))).
-#modeh(1,green(var(numeric,any))).
-#modeh(1,blue(var(numeric,any))).
+#modeh(1,red(var(node,input))).
+#modeh(1,green(var(node,input))).
+#modeh(1,blue(var(node,input))).
 
-#modeb(1,node(var(numeric,any)),positive).
-#modeb(1,e(var(numeric,any),var(numeric,any)),positive).
-#modeb(2,red(var(numeric,any)),positive).
-#modeb(2,green(var(numeric,any)),positive).
-#modeb(2,blue(var(numeric,any)),positive).
+#modeb(1,node(var(node,input)),positive).
+#modeb(1,e(var(node,output),var(node,output)),positive).
+#modeb(2,red(var(node,input)),positive).
+#modeb(2,green(var(node,input)),positive).
+#modeb(2,blue(var(node,input)),positive).

@@ -2076,6 +2076,45 @@ def _benchmark_clauses(name: str) -> set[str]:
     return set(HypothesisSpaceGenerator(read_program(args.filename), args).generate().clauses)
 
 
+def test_bundled_benchmarks_use_explicit_non_any_directions():
+    for arguments in CASES.values():
+        program = read_program(arguments.filename)
+        for mode in [*program.language_bias_head, *program.language_bias_body]:
+            assert all(
+                argument.kind == "constant" or argument.direction != "any"
+                for argument in mode.arguments
+            ), arguments.filename
+
+
+def test_constant_colour_benchmark_contains_both_concrete_mode_expansions():
+    clauses = _benchmark_clauses("constant_colour")
+
+    assert clauses == {
+        "target(V0) :- colour(V0,green).",
+        "target(V0) :- colour(V0,red).",
+    }
+
+
+def test_equal_ground_values_do_not_merge_distinct_declared_types():
+    program = Program(
+        ["left(1).", "right(1)."],
+        [],
+        [],
+        [],
+        [
+            _mode(1, "left", 1, type_name="node"),
+            _mode(1, "right", 1, type_name="numeric"),
+        ],
+    )
+
+    types = hypothesis_space._predicate_arg_types(
+        program, hypothesis_space._closed_world_fragments(program)
+    )
+
+    assert types[("left", 1, 0)] == "node"
+    assert types[("right", 1, 0)] == "numeric"
+
+
 def test_coloring_hypothesis_space_contains_target_rules():
     clauses = _benchmark_clauses("coloring")
 

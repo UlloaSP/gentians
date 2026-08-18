@@ -28,10 +28,10 @@ green(green).
 #neg({target(d)}, {}).
 #neg({target(e)}, {}).
 
-#modeh(1,target(var(node,any))).
+#modeh(1,target(var(node,input))).
 
-#modeb(1,edge(var(node,any),var(node,any)),positive).
-#modeb(1,colour(var(node,any),var(colour,any)),positive).
-#modeb(1,red(var(colour,any)),positive).
-#modeb(1,green(var(colour,any)),positive).
-#modeb(1,target(var(node,any)),positive).
+#modeb(1,edge(var(node,input),var(node,output)),positive).
+#modeb(1,colour(var(node,input),var(colour,output)),positive).
+#modeb(1,red(var(colour,input)),positive).
+#modeb(1,green(var(colour,input)),positive).
+#modeb(1,target(var(node,input)),positive).

@@ -117,16 +117,35 @@ Directions mean:
 - `any`: deliberately has no input/output requirement; a positive body literal
   still binds it for later inputs.
 
-Only `output` satisfies an output requirement declared in a rule head. A
-negative body mode cannot declare output variables. ASP safety remains active
+An output requirement in a rule head must be produced by a positive normal
+body output, aggregate result, or arithmetic result. It is also satisfied when
+that variable is unified with an input position of the same head. A negative
+body mode cannot declare output variables. ASP safety remains active
 independently of mode direction.
+
+Built-ins have intrinsic directions rather than task syntax:
+
+- aggregate condition variables are local or supplied by surrounding terms;
+  the aggregate result is `output`;
+- arithmetic consumes its first two arguments as `input` and produces its
+  third argument as `output`;
+- comparisons consume both arguments as `input` and produce nothing.
+
+Readiness is a clause-wide fixed point, not textual body order. A zero-input
+positive mode can seed a constraint, its outputs can make another literal
+ready, and so on. Bundled benchmarks therefore use explicit `input`/`output`
+directions throughout. `any` remains available only when a task intentionally
+opts out of mode-directed pruning.
 
 Types are nominal task declarations. They constrain which positions may share
 a generated variable; they do not add domain literals to learned rules. The
 reserved type name `any` is invalid because every normal-mode type must be
 explicit. Aggregate source literals continue deriving their types from their
 defined occurrences in the task; declared normal-mode types name connected
-aggregate positions when both describe the same observed domain.
+aggregate positions when both describe the same observed domain. Connections
+come from shared variables in task rules, not merely from equal ground values:
+the integer `1` may be both a node identifier and a numeric value without
+merging those nominal types.
 
 Gentians does not synthesize missing normal modes from background knowledge or
 examples. No head modes means constraint learning; no body modes means no body
@@ -152,6 +171,10 @@ without any `#constant(type,value)` is a task error.
 
 `#constant` is mode-bias syntax and does not assert a background fact. It is
 unrelated to Clingo's `#const name=value` macro, which remains background ASP.
+Bundled tasks use it only when the learned rule itself contains a fixed term;
+`constant_colour` is the reference benchmark. Singleton background predicates
+such as `hd(D)` and `max_weight(M)` keep variable placeholders because their
+values must be shared with aggregate or comparison results.
 
 ## Predicate invention
 

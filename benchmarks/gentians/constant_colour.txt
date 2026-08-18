@@ -1,0 +1,24 @@
+#maxv(1).
+#maxbl(1).
+#maxhl(1).
+#maxpl(1).
+
+% Source: synthetic constant-placeholder benchmark
+% Task: Learn which fixed colour identifies target nodes.
+% Target rules:
+% target(X) :- colour(X,red).
+
+colour(a,red).
+colour(b,green).
+colour(c,red).
+
+#pos({target(a)}, {}).
+#pos({target(c)}, {}).
+
+#neg({target(b)}, {}).
+
+#constant(colour,red).
+#constant(colour,green).
+
+#modeh(1,target(var(node,input))).
+#modeb(1,colour(var(node,input),const(colour)),positive).

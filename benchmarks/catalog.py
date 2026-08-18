@@ -24,6 +24,7 @@ CASES: dict[str, Arguments] = {
     "animals_bird": task("animals_bird.txt"),
     "clique": task("clique.txt"),
     "coin": task("coin.txt"),
+    "constant_colour": task("constant_colour.txt"),
     "euclid": task("euclid.txt"),
     "coloring": task("coloring.txt"),
     "even_odd": task("even_odd.txt"),

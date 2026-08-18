@@ -16,9 +16,9 @@
 
 #pos({s(6)}, {}).
 
-#modeh(1,s(var(numeric,any))).
+#modeh(1,s(var(numeric,output))).
 
-#modeb(1,el(var(numeric,any)),positive).
+#modeb(1,el(var(numeric,output)),positive).
 #modeagg(1,sum(el/1),unbalanced).
 #modeagg(1,count(el/1),unbalanced).
 #modecmp(1,neq).

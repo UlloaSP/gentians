@@ -16,9 +16,9 @@ coin(c3).
 #pos({heads(c1), tails(c2), heads(c3)}, {tails(c1), heads(c2), tails(c3)}).
 #pos({heads(c1), heads(c2), tails(c3)}, {tails(c1), tails(c2), heads(c3)}).
 
-#modeh(1,heads(var(coin,any))).
-#modeh(1,tails(var(coin,any))).
+#modeh(1,heads(var(coin,input))).
+#modeh(1,tails(var(coin,input))).
 
-#modeb(1,coin(var(coin,any)),positive).
-#modeb(1,heads(var(coin,any)),negative).
-#modeb(1,tails(var(coin,any)),negative).
+#modeb(1,coin(var(coin,input)),positive).
+#modeb(1,heads(var(coin,input)),negative).
+#modeb(1,tails(var(coin,input)),negative).

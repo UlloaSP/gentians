@@ -26,7 +26,7 @@ same_block(C1,C2) :- block(C1, B), block(C2, B), C1 != C2.
 #neg({value((1,1),1), value((3,1),1)}, {}).
 #neg({value((1,1),1), value((2,2),1)}, {}).
 
-#modeb(2,value(var(cell,any),var(numeric,any)),positive).
-#modeb(1,same_row(var(cell,any),var(cell,any)),positive).
-#modeb(1,same_col(var(cell,any),var(cell,any)),positive).
-#modeb(1,same_block(var(cell,any),var(cell,any)),positive).
+#modeb(2,value(var(cell,output),var(numeric,output)),positive).
+#modeb(1,same_row(var(cell,input),var(cell,input)),positive).
+#modeb(1,same_col(var(cell,input),var(cell,input)),positive).
+#modeb(1,same_block(var(cell,input),var(cell,input)),positive).

@@ -22,6 +22,6 @@ max_weight(10).
 #neg({el(1,3), el(3,5), el(4,4)}, {}).
 #neg({el(1,3), el(5,9)}, {}).
 
-#modeb(1,max_weight(var(numeric,any)),positive).
+#modeb(1,max_weight(var(numeric,output)),positive).
 #modeagg(1,sum(el/2),unbalanced).
 #modecmp(1,gt).

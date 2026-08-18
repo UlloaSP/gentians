@@ -22,6 +22,6 @@
 #neg({ok(10)}, {}).
 #neg({ok(15)}, {}).
 
-#modeh(1,ok(var(numeric,any))).
+#modeh(1,ok(var(numeric,output))).
 
 #modeagg(3,sum(el/3),balanced).

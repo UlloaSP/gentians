@@ -123,11 +123,11 @@ val(1..n*n).
 #neg({x(1,1,7), x(1,2,2), x(1,3,6), x(2,1,5), x(2,2,9), x(2,3,3), x(3,1,1), x(3,2,4), x(3,3,8)}, {}).
 #neg({x(1,1,4), x(1,2,5), x(1,3,3), x(2,1,6), x(2,2,1), x(2,3,8), x(3,1,2), x(3,2,9), x(3,3,7)}, {}).
 
-#modeh(1,sum_row(var(numeric,any),var(numeric,any))).
-#modeh(1,sum_col(var(numeric,any),var(numeric,any))).
+#modeh(1,sum_row(var(index,input),var(numeric,output))).
+#modeh(1,sum_col(var(index,input),var(numeric,output))).
 
-#modeb(1,size(var(numeric,any)),positive).
-#modeb(2,sum_row(var(numeric,any),var(numeric,any)),positive).
-#modeb(2,sum_col(var(numeric,any),var(numeric,any)),positive).
+#modeb(1,size(var(index,input)),positive).
+#modeb(2,sum_row(var(index,output),var(numeric,output)),positive).
+#modeb(2,sum_col(var(index,output),var(numeric,output)),positive).
 #modeagg(1,sum(x/3),unbalanced).
 #modecmp(2,neq).

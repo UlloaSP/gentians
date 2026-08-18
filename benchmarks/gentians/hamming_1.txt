@@ -81,6 +81,6 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 #neg({v0(0,1), v0(0,2), v0(1,0), v1(0,0), v1(0,1), v1(1,2)}, {}).
 #neg({v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(0,1), v1(0,2)}, {}).
 
-#modeb(1,hd(var(numeric,any)),positive).
+#modeb(1,hd(var(numeric,output)),positive).
 #modeagg(1,sum(d/2),balanced).
 #modecmp(1,neq).

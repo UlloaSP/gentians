@@ -1555,7 +1555,6 @@ def _predicate_arg_types(
     constants_by_position: dict[tuple[str, int, int], set[str]] = {
         position: set() for position in positions
     }
-    positions_by_constant: dict[str, set[tuple[str, int, int]]] = {}
     variable_position_groups: list[list[tuple[str, int, int]]] = []
     for fragment in fragments:
         positions_by_variable: dict[str, list[tuple[str, int, int]]] = {}
@@ -1570,7 +1569,6 @@ def _predicate_arg_types(
                     continue
                 else:
                     constants_by_position.setdefault(position, set()).add(value)
-                    positions_by_constant.setdefault(value, set()).add(position)
         variable_position_groups.extend(
             group for group in positions_by_variable.values() if len(group) > 1
         )
@@ -1589,10 +1587,6 @@ def _predicate_arg_types(
         if left_root != right_root:
             parent[right_root] = left_root
 
-    for shared_positions in positions_by_constant.values():
-        items = list(shared_positions)
-        for other in items[1:]:
-            union(items[0], other)
     for shared_positions in variable_position_groups:
         for other in shared_positions[1:]:
             union(shared_positions[0], other)

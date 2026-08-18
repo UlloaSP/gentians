@@ -1,8 +1,5 @@
-from __future__ import annotations
-
 from ...asp.normal_coverage_solver import NormalCoverageSolver
 from ...rule_generation.program import Program
-from ...rule_generation.rule_space import RuleSpace
 from ..types import FitnessResult
 from .coverage_common import coverage_score, record_fitness_metric
 
@@ -17,14 +14,7 @@ class CovProgram:
         cls,
         program: Program,
         config: dict[str, object],
-        max_program_clauses: int,
-        rule_space: RuleSpace,
     ) -> CovProgram:
-        obsolete = {"scope", "aggregation", "grounding"}.intersection(config)
-        if obsolete:
-            raise ValueError(
-                f"Obsolete fitness options for cov_program: {sorted(obsolete)}"
-            )
         max_as = int(config.get("max_as", 0))
         if max_as != 0:
             raise ValueError("cov_program requires max_as=0")
@@ -47,9 +37,6 @@ class CovProgram:
         return cls(program, solver)
 
     def __call__(self, candidate: tuple[str, ...]) -> FitnessResult:
-        return self._evaluate(candidate)
-
-    def _evaluate(self, candidate: tuple[str, ...]) -> FitnessResult:
         coverage = self.solver.extract_fixed_coverage(candidate)
         score = coverage_score(self.program, coverage)
         best_found = (
@@ -70,6 +57,5 @@ class CovProgram:
         return FitnessResult(
             score,
             best_found,
-            candidate,
             (coverage.pos_mask, coverage.neg_mask),
         )

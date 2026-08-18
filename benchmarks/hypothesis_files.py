@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import hashlib
 import json
 from dataclasses import asdict
@@ -36,11 +34,6 @@ def write_hypothesis_file(
         "metrics": metrics or {},
     }
     path.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
-
-
-def read_hypothesis_file(path: Path, arguments: Arguments) -> RuleSpace:
-    payload = read_hypothesis_payload(path, arguments)
-    return rule_space_from_payload(payload, path)
 
 
 def rule_space_from_payload(payload: dict[str, object], path: Path) -> RuleSpace:

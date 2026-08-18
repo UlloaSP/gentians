@@ -51,8 +51,6 @@ class NormalCoverageSolver:
             coverage,
             grounding_seconds,
             solving_seconds,
-            "grounding",
-            "solving",
             phase,
         )
         return coverage
@@ -96,8 +94,6 @@ class NormalCoverageSolver:
         coverage: Coverage,
         grounding_seconds: float,
         solving_seconds: float,
-        grounding_operation: str,
-        solving_operation: str,
         phase: str,
     ) -> None:
         if not metric_enabled("clingo"):
@@ -114,7 +110,7 @@ class NormalCoverageSolver:
                 "clingo",
                 {
                     **common,
-                    "operation": grounding_operation,
+                    "operation": "grounding",
                     "operation_category": "grounding",
                     "seconds": grounding_seconds,
                     "input_clauses": len(self.lines) + len(program),
@@ -129,7 +125,7 @@ class NormalCoverageSolver:
                 "clingo",
                 {
                     **common,
-                    "operation": solving_operation,
+                    "operation": "solving",
                     "operation_category": "solving",
                     "seconds": solving_seconds,
                     "models": clingo_stat(stats, "summary", "models", "enumerated"),

@@ -27,7 +27,7 @@ _METRIC_ENV_PATHS = {
 }
 
 
-def _write_json_atomic_direct(path: str, rows: list[dict[str, object]]) -> None:
+def _write_json_atomic(path: str, rows: list[dict[str, object]]) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(f"{target.suffix}.{os.getpid()}.tmp")
@@ -51,14 +51,6 @@ def _append_jsonl_direct(path: str, rows: list[dict[str, Any]]) -> None:
         handle.write("".join(json.dumps(row) + "\n" for row in rows))
 
 
-def _close_writer() -> None:
-    _flush_jsonl()
-
-
-def _write_json_atomic(path: str, rows: list[dict[str, object]]) -> None:
-    _write_json_atomic_direct(path, rows)
-
-
 def _append_jsonl(path: str | None, row: dict[str, Any]) -> None:
     if not path:
         return
@@ -79,7 +71,7 @@ def append_jsonl(path: str | None, rows: list[dict[str, object]]) -> None:
 
 def reset() -> None:
     global _event_counter, _instrumentation_total, _timings_dirty, _ga_dirty
-    _close_writer()
+    _flush_jsonl()
     _totals.clear()
     _counts.clear()
     _stack.clear()
@@ -339,4 +331,4 @@ def _flush_timings() -> None:
     _timings_dirty = False
 
 
-atexit.register(_close_writer)
+atexit.register(_flush_jsonl)

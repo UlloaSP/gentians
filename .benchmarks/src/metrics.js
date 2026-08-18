@@ -39,10 +39,8 @@ export const fmt = (value, digits = 2) =>
     minimumFractionDigits: digits,
   });
 export const fmtInt = (value) => Math.round(num(value)).toLocaleString("es-ES");
-export const runCount = (benchmark) =>
-  num(benchmark.runCount) || benchmark.fitnessRuns?.length || 0;
-export const bestRunCount = (benchmark) =>
-  benchmark.bestFoundRuns ?? Math.round(num(benchmark.exactSolved) * runCount(benchmark));
+export const runCount = (benchmark) => num(benchmark.runCount);
+export const bestRunCount = (benchmark) => num(benchmark.bestFoundRuns);
 export const bestRunRatio = (benchmark) =>
   `${fmtInt(bestRunCount(benchmark))}/${fmtInt(runCount(benchmark))}`;
 
@@ -164,7 +162,6 @@ export const phaseTotal = (benchmark, phase) =>
 export const measuredTotal = (benchmark) =>
   sum(phaseOrder.map(([phase]) => phaseTotal(benchmark, phase)));
 export const totalSeconds = (benchmark) => num(benchmark.total);
-export const wallSeconds = (benchmark) => num(benchmark.wall);
 export const groundingSeconds = (benchmark) =>
   sum(phaseOrder.map(([phase]) => benchmark.phases?.[phase]?.grounding));
 export const solvingSeconds = (benchmark) =>

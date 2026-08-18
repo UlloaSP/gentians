@@ -38,7 +38,6 @@ ASP `positive_mode/1` and `negative_mode/1` relations remain unchanged.
   adapter.
 - Bundled Gentians tasks migrate one-to-one without changing their hypothesis
   spaces.
-- ILASP benchmark sources retain ILASP syntax and are not Gentians task files.
 
 ## Rejected alternative
 

@@ -6,7 +6,7 @@ from gentians.asp.coverage import (
     Coverage,
     generate_clauses_for_coverage_interpretations,
 )
-from gentians.asp.coverage_program import build_fixed_coverage_program
+from gentians.asp.coverage_program import build_coverage_static_program
 from gentians.evolution.fitness import create_fitness
 from gentians.evolution.fitness.cov_program import CovProgram
 from gentians.evolution.fitness.coverage_common import (
@@ -17,8 +17,6 @@ from gentians.evolution.fitness.trigram_cov import TrigramCov
 from gentians.rule_generation.example import Example
 from gentians.rule_generation.program import Program
 from gentians.rule_generation.rule_space import RuleSpace
-
-RULES = RuleSpace.from_clauses(["target(p).", "target(n)."])
 
 
 def _program() -> Program:
@@ -31,12 +29,10 @@ def _program() -> Program:
     )
 
 
-def _fitness(name: str, rules: RuleSpace = RULES):
+def _fitness(name: str):
     return create_fitness(
         _program(),
         {"name": name, "max_as": 0, "clingo_arguments": []},
-        3,
-        rules,
     )
 
 
@@ -62,7 +58,6 @@ def test_whole_program_scores_only_individual():
 
     assert result.score == 1.0
     assert result.is_best is False
-    assert result.best_program == candidate
     assert result.behavior == (1, 1)
 
 
@@ -102,8 +97,6 @@ def test_trigram_cov_normalizes_positive_and_negative_examples_separately():
     evaluate = create_fitness(
         program,
         {"name": "trigram_cov", "max_as": 0, "clingo_arguments": []},
-        2,
-        rules,
     )
 
     result = evaluate(rules.clauses)
@@ -125,18 +118,6 @@ def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
     second = score(program, Coverage(list(range(9)), list(range(30))))
 
     assert first == second
-
-
-@pytest.mark.parametrize("name", ["cov_program", "trigram_cov"])
-@pytest.mark.parametrize("option", ["scope", "aggregation", "grounding"])
-def test_obsolete_fitness_options_are_rejected(name, option):
-    with pytest.raises(ValueError, match="Obsolete fitness options"):
-        create_fitness(
-            _program(),
-            {"name": name, option: "obsolete"},
-            2,
-            RULES,
-        )
 
 
 def test_normal_solver_grounds_each_evaluation(monkeypatch):
@@ -167,8 +148,6 @@ def test_finite_model_limit_is_rejected():
         create_fitness(
             _program(),
             {"name": "cov_program", "max_as": 2},
-            1,
-            RULES,
         )
 
 
@@ -187,16 +166,14 @@ def test_excluded_atoms_are_checked_individually():
     assert "cpe(0):- bad(1), bad(f(2,3))." not in clauses
 
 
-def test_fixed_program_builder_combines_static_program_and_rules():
-    dump = build_fixed_coverage_program(
+def test_static_program_builder_includes_background_and_examples():
+    dump = build_coverage_static_program(
         ["base."],
-        ("target :- base.",),
         [Example(("target", ""), True)],
         [],
     )
     assert "base." in dump
     assert "pos_exs(0..0)." in dump
-    assert "target :- base." in dump
 
 
 def test_contexts_do_not_leak_between_examples():
@@ -214,8 +191,6 @@ def test_contexts_do_not_leak_between_examples():
     evaluate = create_fitness(
         program,
         {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
-        1,
-        rules,
     )
 
     result = evaluate(rules.clauses)
@@ -240,8 +215,6 @@ def test_context_constraint_does_not_disable_other_examples():
     evaluate = create_fitness(
         program,
         {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
-        1,
-        rules,
     )
 
     result = evaluate(rules.clauses)
@@ -262,8 +235,6 @@ def test_positive_context_does_not_leak_into_negative_example():
     evaluate = create_fitness(
         program,
         {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
-        1,
-        rules,
     )
 
     result = evaluate(rules.clauses)
@@ -285,8 +256,6 @@ def test_example_with_empty_inclusion_is_covered(context):
     evaluate = create_fitness(
         program,
         {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
-        0,
-        RuleSpace.from_clauses([]),
     )
 
     result = evaluate(())
@@ -310,8 +279,6 @@ def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
     evaluate = create_fitness(
         program,
         {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
-        0,
-        RuleSpace.from_clauses([]),
     )
 
     result = evaluate(())
@@ -323,9 +290,8 @@ def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
 @pytest.mark.parametrize("context", [":~ cost(X). [1@1,X]", "#const n=1."])
 def test_context_rejects_non_isolatable_statements(context):
     with pytest.raises(ValueError, match="unsupported statement"):
-        build_fixed_coverage_program(
+        build_coverage_static_program(
             [],
-            (),
             [Example(("target", "", context), True)],
             [],
         )

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import random
 from itertools import count
 
@@ -22,7 +20,7 @@ from ...timing import (
 from ..crossovers import create_crossover
 from ..evolution_context import EvolutionContext
 from ..fitness import create_fitness
-from ..individual import Individual, individual_from_fitness, winning_program
+from ..individual import Individual, individual_from_fitness
 from ..mutations import create_mutation
 from ..operator_types import MutationProposal
 from ..populations import create_population
@@ -72,12 +70,10 @@ def search_solver(
     space = generator.space
     if not space:
         raise ValueError("No clauses satisfy the program generator")
-    context = EvolutionContext(space, generator, max_program_clauses, rng)
+    context = EvolutionContext(generator, rng)
 
     with phase("initialization"):
-        evaluate_score = create_fitness(
-            program, args.fitness, max_program_clauses, space
-        )
+        evaluate_score = create_fitness(program, args.fitness)
 
     evaluated: dict[Genome, Individual] = {}
     evaluations = 0
@@ -94,7 +90,7 @@ def search_solver(
         return individual
 
     with phase("initialization"):
-        mutation = create_mutation(args.mutation, context)
+        mutation = create_mutation(args.mutation)
         population = [
             individual
             for proposal in population_strategy(context)
@@ -114,7 +110,7 @@ def search_solver(
             fitness_evaluations=evaluations,
         )
         return (
-            winning_program(winner, generator.render(winner.program)),
+            generator.render(winner.program),
             winner.score,
             True,
         )
@@ -137,6 +133,9 @@ def search_solver(
                     {
                         "operator": "selection",
                         "strategy": str(args.selection["name"]),
+                        "applied": True,
+                        "skipped": False,
+                        "slots": 1,
                         "parent_a_score": first.score,
                         "parent_b_score": second.score,
                         "population_size": len(population),
@@ -153,7 +152,15 @@ def search_solver(
                             "strategy": str(args.crossover["name"]),
                             "applied": False,
                             "skipped": True,
-                            "children": 0,
+                            "slots": 1,
+                            "valid_new": False,
+                            "duplicate": False,
+                            "changed": False,
+                            "invalid": False,
+                            "original_score": "",
+                            "new_score": "",
+                            "improved": False,
+                            "is_best": False,
                             "population_size": len(population),
                         },
                     )
@@ -190,7 +197,7 @@ def search_solver(
                     fitness_evaluations=evaluations,
                 )
                 return (
-                    winning_program(child, generator.render(child.program)),
+                    generator.render(child.program),
                     child.score,
                     True,
                 )
@@ -240,7 +247,7 @@ def search_solver(
                     fitness_evaluations=evaluations,
                 )
                 return (
-                    winning_program(mutated, generator.render(mutated.program)),
+                    generator.render(mutated.program),
                     mutated.score,
                     True,
                 )
@@ -263,18 +270,14 @@ def search_solver(
                     {
                         "operator": "replacement",
                         "strategy": str(args.replacement["name"]),
+                        "applied": True,
+                        "skipped": False,
+                        "slots": 1,
                         "candidate_score": mutated.score,
                         "accepted": accepted,
                         "duplicate": duplicate,
                         "invalid": False,
                         "not_competitive": not accepted and not duplicate,
-                        "reject_reason": (
-                            ""
-                            if accepted
-                            else "duplicate"
-                            if duplicate
-                            else "not_competitive"
-                        ),
                         "victim_score": victim.score if victim is not None else "",
                         "improved_victim": (
                             accepted
@@ -296,7 +299,7 @@ def search_solver(
     population.sort(key=lambda item: item.score, reverse=True)
     best_overall = _better(best_overall, population[0])
     return (
-        winning_program(best_overall, generator.render(best_overall.program)),
+        generator.render(best_overall.program),
         best_overall.score,
         best_overall.is_best,
     )
@@ -323,17 +326,14 @@ def _operator_metric(
                 "operator": operator,
                 "strategy": str(config["name"]),
                 "applied": changed,
+                "skipped": False,
                 "slots": 1,
                 "valid_new": changed and not duplicate,
                 "duplicate": duplicate,
-                "duplicate_population": duplicate,
                 "changed": changed,
-                "parent_score": parent.score,
-                "child_score": child.score if child is not None else "",
                 "original_score": parent.score,
                 "new_score": child.score if child is not None else "",
                 "improved": child is not None and child.score > parent.score,
-                "best": child.is_best if child is not None else False,
                 "is_best": child.is_best if child is not None else False,
             },
         )
@@ -370,11 +370,8 @@ def _mutation_metric(
                 "slots": 1,
                 "valid_new": changed and not duplicate,
                 "duplicate": duplicate,
-                "duplicate_population": duplicate,
                 "changed": changed,
                 "invalid": False,
-                "parent_score": parent.score if parent is not None else "",
-                "child_score": child.score if child is not None else "",
                 "original_score": parent.score if parent is not None else "",
                 "new_score": child.score if child is not None else "",
                 "improved": (
@@ -382,7 +379,6 @@ def _mutation_metric(
                     and parent is not None
                     and child.score > parent.score
                 ),
-                "best": child.is_best if child is not None else False,
                 "is_best": child.is_best if child is not None else False,
             },
         )

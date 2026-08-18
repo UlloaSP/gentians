@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import csv
 import hashlib
@@ -12,7 +10,6 @@ import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_BASELINE = Path(__file__).with_name("profile_baseline.py")

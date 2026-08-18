@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import sys
 from pathlib import Path
@@ -7,8 +5,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from gentians import main
 from benchmarks.catalog import DEFAULT_DATASETS, arguments_for, case_names
+from gentians import main
 
 
 def main_cli() -> None:

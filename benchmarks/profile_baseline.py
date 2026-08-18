@@ -27,7 +27,7 @@ from benchmarks.catalog import (
 )
 from gentians import Arguments
 from gentians import main as gentians_main
-from gentians.asp.coverage_program import build_fixed_coverage_program
+from gentians.asp.coverage_program import build_coverage_static_program
 from gentians.rule_generation.reader import read_program
 
 
@@ -45,19 +45,7 @@ class RunResult:
     log_path: str
     total_seconds: float | None = None
     success: bool = False
-    first_success_generation_observed: int | None = None
-    fitness_operator: str = "cov_program"
-    genetic_iterations: int = 0
     cprofile_path: str = ""
-
-
-@dataclass
-class FitnessPoint:
-    dataset: str
-    run: int
-    generation: int
-    best_current: float
-    best_so_far: float
 
 
 @dataclass
@@ -87,9 +75,6 @@ class GAMetric:
     fitness_evaluations: int = 0
 
 
-ITERATION_RE = re.compile(
-    r"Iteration\s+(\d+)\s+-.*best:\s+Program:.*-\s+score:\s+([-+0-9.eE]+)"
-)
 TOTAL_RE = re.compile(r"Total time:\s+([-+0-9.eE]+)")
 
 
@@ -148,7 +133,6 @@ def parse_profile_args(
     )
     parser.add_argument("--list-datasets", action="store_true")
     parser.add_argument("--seed-base", type=int, default=1)
-    parser.add_argument("--plots-only", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument(
         "--cprofile",
         action="store_true",
@@ -180,35 +164,7 @@ def run_benchmark_suite(
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "runs").mkdir(exist_ok=True)
 
-    if args.plots_only:
-        (
-            results,
-            fitness,
-            timings,
-            ga_metrics,
-            timing_events,
-            operator_metrics,
-            candidate_metrics,
-            quality_metrics,
-            clingo_metrics,
-            invariants,
-        ) = read_existing_outputs(out_dir)
-        _ = (fitness, timing_events, invariants)
-        write_dashboard_data(
-            out_dir,
-            results,
-            timings,
-            ga_metrics,
-            timing_events,
-            operator_metrics,
-            candidate_metrics,
-            quality_metrics,
-            clingo_metrics,
-        )
-        return
-
     results: list[RunResult] = []
-    fitness: list[FitnessPoint] = []
     timings: list[TimingMetric] = []
     ga_metrics: list[GAMetric] = []
     timing_events: list[dict[str, object]] = []
@@ -300,7 +256,7 @@ def run_benchmark_suite(
             )
             elapsed = time.perf_counter() - started
             status = "timeout" if timed_out else "ok" if returncode == 0 else "failed"
-            parsed = parse_log(log_path, dataset, run)
+            parsed = parse_log(log_path)
             if returncode == 0:
                 write_debug_clingo_program(
                     REPO_ROOT / ".debug" / "clingo",
@@ -308,10 +264,6 @@ def run_benchmark_suite(
                     dataset_arguments,
                     parsed["best_program"],
                 )
-            run_arguments = json.loads(arguments_json)
-            fitness_config = run_arguments.get("fitness", {})
-            if not isinstance(fitness_config, dict):
-                fitness_config = {}
             run_result = RunResult(
                 dataset=dataset,
                 run=run,
@@ -325,17 +277,9 @@ def run_benchmark_suite(
                 log_path=str(log_path),
                 total_seconds=parsed["total_seconds"],
                 success=parsed["success"],
-                first_success_generation_observed=parsed[
-                    "first_success_generation_observed"
-                ],
-                fitness_operator=str(
-                    fitness_config.get("name", "cov_program")
-                ),
-                genetic_iterations=int(run_arguments.get("iterations_genetic", 0)),
                 cprofile_path=str(cprofile_path) if args.cprofile else "",
             )
             results.append(run_result)
-            fitness.extend(parsed["fitness"])
             ga_metrics.extend(read_ga_metrics(ga_metrics_path, dataset, run))
             run_timings = read_timings(timings_path, dataset, run)
             timings.extend(run_timings)
@@ -366,7 +310,6 @@ def run_benchmark_suite(
     write_outputs(
         out_dir,
         results,
-        fitness,
         timings,
         ga_metrics,
         timing_events,
@@ -501,22 +444,12 @@ def kill_tree(process: subprocess.Popen[str]) -> None:
         process.kill()
 
 
-def parse_log(path: Path, dataset: str, run: int) -> dict[str, object]:
-    points: list[FitnessPoint] = []
-    best_so_far = float("-inf")
-    last_generation: int | None = None
+def parse_log(path: Path) -> dict[str, object]:
     total_seconds: float | None = None
     success = False
     best_program: list[str] | None = None
     capturing_program = False
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        match = ITERATION_RE.search(line)
-        if match:
-            generation = int(match.group(1))
-            score = float(match.group(2))
-            best_so_far = max(best_so_far, score)
-            last_generation = generation
-            points.append(FitnessPoint(dataset, run, generation, score, best_so_far))
         if "Found best program" in line:
             success = True
             best_program = []
@@ -535,14 +468,8 @@ def parse_log(path: Path, dataset: str, run: int) -> dict[str, object]:
         if total_match:
             total_seconds = float(total_match.group(1))
     return {
-        "fitness": points,
         "total_seconds": total_seconds,
         "success": success,
-        "first_success_generation_observed": (
-            last_generation if last_generation is not None else 0
-        )
-        if success
-        else None,
         "best_program": best_program,
     }
 
@@ -559,13 +486,11 @@ def write_debug_clingo_program(
     lp_path = directory / f"{safe_filename(dataset)}.lp"
     args_path = directory / f"{safe_filename(dataset)}.args.txt"
     directory.mkdir(parents=True, exist_ok=True)
+    static_program = build_coverage_static_program(
+        task.background, task.positive_examples, task.negative_examples
+    )
     lp_path.write_text(
-        build_fixed_coverage_program(
-            task.background,
-            tuple(str(rule) for rule in best_program),
-            task.positive_examples,
-            task.negative_examples,
-        ),
+        static_program + "\n" + "\n".join(str(rule) for rule in best_program),
         encoding="utf-8",
     )
     args_path.write_text(
@@ -726,115 +651,9 @@ def compute_accounting_invariants(
     return rows
 
 
-def read_existing_outputs(
-    out_dir: Path,
-) -> tuple[
-    list[RunResult],
-    list[FitnessPoint],
-    list[TimingMetric],
-    list[GAMetric],
-    list[dict[str, object]],
-    list[dict[str, object]],
-    list[dict[str, object]],
-    list[dict[str, object]],
-    list[dict[str, object]],
-    list[dict[str, object]],
-]:
-    timings = [
-        TimingMetric(
-            row["dataset"],
-            int(row["run"]),
-            row["metric"],
-            float(row["seconds"]),
-            int(row["calls"]),
-        )
-        for row in read_csv_dicts(out_dir / "timings_raw.csv")
-    ]
-    ga_metrics = [
-        GAMetric(
-            row["dataset"],
-            int(row["run"]),
-            int(row["generation"]),
-            float(row["max_fitness"]),
-            float(row["avg_fitness"]),
-            float(row["best_so_far"]),
-            to_float(row.get("population_size")),
-            to_float(row.get("unique_signatures")),
-            to_float(row.get("diversity")),
-            to_float(row.get("invalid_count")),
-            to_float(row.get("invalid_rate")),
-            to_float(row.get("mean_program_size")),
-            to_float(row.get("elapsed_seconds")),
-            int(to_float(row.get("fitness_evaluations"))),
-        )
-        for row in read_csv_dicts(out_dir / "ga_fitness.csv")
-    ]
-    fitness = [
-        FitnessPoint(
-            row["dataset"],
-            int(row["run"]),
-            int(row["generation"]),
-            float(row["best_current"]),
-            float(row["best_so_far"]),
-        )
-        for row in read_csv_dicts(out_dir / "fitness_observed.csv")
-    ]
-    results = [
-        RunResult(
-            row.get("dataset", ""),
-            int(to_float(row.get("run"))),
-            int(to_float(row.get("seed"))),
-            row.get("experiment_id", ""),
-            row.get("status", ""),
-            int(to_float(row.get("returncode")))
-            if row.get("returncode") not in (None, "")
-            else None,
-            to_float(row.get("elapsed_seconds")),
-            [],
-            row.get("arguments_json", ""),
-            row.get("log_path", ""),
-            to_float(row.get("total_seconds"))
-            if row.get("total_seconds") not in (None, "")
-            else None,
-            bool(to_float(row.get("success"))),
-            int(to_float(row.get("first_success_generation_observed")))
-            if row.get("first_success_generation_observed") not in (None, "")
-            else None,
-            row.get("fitness_operator", "cov_program"),
-            int(to_float(row.get("genetic_iterations"))),
-            row.get("cprofile_path", ""),
-        )
-        for row in read_csv_dicts(out_dir / "runs.csv")
-    ]
-    return (
-        results,
-        fitness,
-        timings,
-        ga_metrics,
-        read_csv_object_rows(out_dir / "timing_events.csv"),
-        read_csv_object_rows(out_dir / "operator_metrics.csv"),
-        read_csv_object_rows(out_dir / "candidate_metrics.csv"),
-        read_csv_object_rows(out_dir / "quality_metrics.csv"),
-        read_csv_object_rows(out_dir / "clingo_metrics.csv"),
-        read_csv_object_rows(out_dir / "accounting_invariants.csv"),
-    )
-
-
-def read_csv_dicts(path: Path) -> list[dict[str, str]]:
-    if not path.exists() or path.stat().st_size == 0:
-        return []
-    with path.open("r", encoding="utf-8", newline="") as f:
-        return list(csv.DictReader(f))
-
-
-def read_csv_object_rows(path: Path) -> list[dict[str, object]]:
-    return [dict(row) for row in read_csv_dicts(path)]
-
-
 def write_outputs(
     out_dir: Path,
     results: list[RunResult],
-    fitness: list[FitnessPoint],
     timings: list[TimingMetric],
     ga_metrics: list[GAMetric],
     timing_events: list[dict[str, object]],
@@ -845,7 +664,6 @@ def write_outputs(
     invariants: list[dict[str, object]],
 ) -> None:
     write_csv(out_dir / "runs.csv", [asdict(r) for r in results])
-    write_csv(out_dir / "fitness_observed.csv", [asdict(p) for p in fitness])
     write_csv(out_dir / "timings_raw.csv", [asdict(t) for t in timings])
     write_csv(out_dir / "timings_mean.csv", timing_means(timings))
     write_csv(out_dir / "ga_fitness.csv", [asdict(p) for p in ga_metrics])
@@ -885,8 +703,6 @@ def write_dashboard_data(
     clingo_metrics: list[dict[str, object]],
 ) -> None:
     datasets = sorted({result.dataset for result in results})
-    candidate_rows = candidate_summary(candidate_metrics)
-    quality_rows = quality_summary(quality_metrics)
     clingo_rows = clingo_summary(clingo_metrics)
     operator_rows = operator_summary(operator_metrics)
     results_by_dataset: dict[str, list[RunResult]] = {}
@@ -926,8 +742,6 @@ def write_dashboard_data(
             for row in timing_events_by_dataset.get(dataset, [])
             if int(to_float(row.get("run"))) == first_timing_run
         ]
-        candidate = first_row(candidate_rows, dataset)
-        quality = first_row(quality_rows, dataset)
         phases = dashboard_phases(dataset_timings)
         instrumented_total = mean(
             timing.seconds
@@ -977,73 +791,18 @@ def write_dashboard_data(
         benchmarks.append(
             {
                 "name": dataset,
-                "family": "real",
-                "source": "benchmarks",
-                "complexity": max(
-                    1.0,
-                    to_float(candidate.get("mean_clauses")) / 10,
-                ),
                 "candidates": int(candidates),
-                "clauses": int(candidates),
-                "inventedPredicates": to_float(
-                    candidate.get("mean_invented_predicates")
-                ),
-                "inventedDefinitions": to_float(
-                    candidate.get("mean_invented_definition_clauses")
-                ),
-                "inventedConsumers": to_float(
-                    candidate.get("mean_invented_consumer_clauses")
-                ),
-                "variables": 0,
-                "predicates": 0,
-                "avgArity": 0,
-                "bodyLiterals": 0,
-                "varsPerRule": 0,
-                "negation": 0,
-                "aggregates": 0,
-                "arithmetic": 0,
-                "recursion": 0,
-                "contextAtoms": 0,
                 "total": instrumented_total,
-                "wall": mean(result.elapsed_seconds for result in dataset_results),
                 "instrumentedRuns": instrumented_runs,
-                "clingoRuns": len(clingo_run_ids),
-                "solveRuns": len(solve_run_ids),
-                "groundRuns": len(ground_run_ids),
                 "runCount": len(dataset_results),
                 "bestFoundRuns": sum(1 for result in dataset_results if result.success),
-                "successRate": mean_bool(
-                    [asdict(result) for result in dataset_results], "success"
-                ),
-                "timeouts": sum(
-                    1 for result in dataset_results if result.status == "timeout"
-                ),
-                "firstSolution": min(
-                    [
-                        result.first_success_generation_observed
-                        for result in dataset_results
-                        if result.first_success_generation_observed is not None
-                    ],
-                    default=0,
-                ),
-                "finalQuality": to_float(quality.get("best_found_rate")),
-                "exactSolved": to_float(quality.get("best_found_rate")),
-                "internalFitness": to_float(quality.get("best_score")),
-                "fitnessOperator": dataset_results[0].fitness_operator
-                if dataset_results
-                else "mean",
-                "geneticIterations": dataset_results[0].genetic_iterations
-                if dataset_results
-                else 0,
                 "solveCalls": solve_calls,
                 "groundCalls": ground_calls,
                 "atoms": atoms,
                 "groundRules": ground_rules,
                 "choices": choices,
                 "conflicts": conflicts,
-                "propagations": 0,
                 "models": models,
-                "memoryMB": 0,
                 "dominant": dominant_phase(phases),
                 "phases": phases,
                 "fitnessRuns": dashboard_fitness_runs(dataset_ga),
@@ -1250,10 +1009,6 @@ def dashboard_timing_events(rows: list[dict[str, object]]) -> list[dict[str, obj
     ]
 
 
-def first_row(rows: list[dict[str, object]], dataset: str) -> dict[str, object]:
-    return next((row for row in rows if row.get("dataset") == dataset), {})
-
-
 def _rows_by_dataset(rows: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
     grouped: dict[str, list[dict[str, object]]] = {}
     for row in rows:
@@ -1374,10 +1129,10 @@ def operator_run_summary(
     operator: str, selected: list[dict[str, object]]
 ) -> dict[str, float | None]:
     events = len(selected)
-    slots = sum(operator_slots(row, operator) for row in selected)
-    applied_events = sum(1 for row in selected if operator_applied(row, operator))
+    slots = sum(operator_slots(row) for row in selected)
+    applied_events = sum(1 for row in selected if operator_applied(row))
     skipped_slots = sum(
-        operator_slots(row, operator)
+        operator_slots(row)
         for row in selected
         if operator_skipped(row)
     )
@@ -1387,37 +1142,10 @@ def operator_run_summary(
     accepted_count = sum(to_float(row.get("accepted")) for row in selected)
     not_competitive_count = sum(
         to_float(row.get("not_competitive"))
-        or float(row.get("reject_reason") == "not_competitive")
         for row in selected
     )
     improved_count = operator_improved_count(selected, operator)
     best_count = operator_best_count(selected, operator)
-    crossover_deltas = []
-    for row in selected:
-        if operator == "crossover" and row.get("child_score") not in (None, ""):
-            crossover_deltas.append(
-                to_float(row.get("child_score")) - to_float(row.get("parent_score"))
-            )
-            continue
-        if not all(
-            row.get(key) not in (None, "")
-            for key in (
-                "child_1_score",
-                "child_2_score",
-                "parent_a_score",
-                "parent_b_score",
-            )
-        ):
-            continue
-        child_scores = [
-            to_float(row.get("child_1_score")),
-            to_float(row.get("child_2_score")),
-        ]
-        parent_best = max(
-            to_float(row.get("parent_a_score")),
-            to_float(row.get("parent_b_score")),
-        )
-        crossover_deltas.extend(score - parent_best for score in child_scores)
     replacement_operator = operator == "replacement"
     crossover_gain_events = sum(
         to_float(row.get("crossover_improved")) for row in selected
@@ -1431,7 +1159,7 @@ def operator_run_summary(
         else valid_new_count
     )
     worse_or_equal_count = max(improvement_denominator - improved_count, 0.0)
-    mutation_deltas = [
+    score_deltas = [
         to_float(row.get("new_score")) - to_float(row.get("original_score"))
         for row in selected
         if row.get("valid_new") is True
@@ -1443,10 +1171,8 @@ def operator_run_summary(
         for row in selected
         if row.get("accepted") is True and row.get("victim_score") not in (None, "")
     ]
-    if operator == "crossover" and crossover_deltas:
-        mean_score_delta = mean(crossover_deltas)
-    elif operator == "mutation":
-        mean_score_delta = mean(mutation_deltas)
+    if operator in {"crossover", "mutation"}:
+        mean_score_delta = mean(score_deltas)
     elif replacement_operator:
         mean_score_delta = mean(replacement_deltas)
     else:
@@ -1492,110 +1218,45 @@ def operator_run_summary(
     }
 
 
-def operator_slots(row: dict[str, object], operator: str) -> float:
-    if row.get("slots") not in (None, ""):
-        return to_float(row.get("slots"))
-    if operator == "crossover":
-        children = to_float(row.get("children"))
-        return children if children else 2.0
-    return 1.0
+def operator_slots(row: dict[str, object]) -> float:
+    return to_float(row.get("slots"))
 
 
-def operator_applied(row: dict[str, object], operator: str) -> bool:
-    if row.get("applied") not in (None, ""):
-        return bool(to_float(row.get("applied")))
-    if operator == "crossover":
-        return not bool(to_float(row.get("not_applied")))
-    if operator == "mutation":
-        return bool(to_float(row.get("changed")))
-    return True
+def operator_applied(row: dict[str, object]) -> bool:
+    return bool(to_float(row.get("applied")))
 
 
 def operator_skipped(row: dict[str, object]) -> bool:
-    if row.get("skipped") not in (None, ""):
-        return bool(to_float(row.get("skipped")))
-    return bool(to_float(row.get("not_applied")))
+    return bool(to_float(row.get("skipped")))
 
 
 def operator_valid_new_count(
     rows: list[dict[str, object]], operator: str
 ) -> float:
-    if operator == "crossover":
-        return sum(
-            to_float(
-                row.get(
-                    "children_valid_new",
-                    row.get("valid_new", max(
-                        to_float(row.get("children"))
-                        - to_float(
-                            row.get(
-                                "children_duplicate_parent",
-                                row.get("children_same_as_parent"),
-                            )
-                        )
-                        - to_float(row.get("children_duplicate_population")),
-                        0.0,
-                    )),
-                )
-            )
-            for row in rows
-        )
-    if operator == "mutation":
-        return sum(
-            to_float(row.get("valid_new", row.get("changed")))
-            for row in rows
-        )
-    return 0.0
+    return sum(to_float(row.get("valid_new")) for row in rows)
 
 
 def operator_duplicate_count(
     rows: list[dict[str, object]], operator: str
 ) -> float:
-    if operator == "crossover":
-        return sum(
-            to_float(row.get("duplicate"))
-            if row.get("duplicate") not in (None, "")
-            else to_float(
-                row.get("children_duplicate_parent", row.get("children_same_as_parent"))
-            )
-            + to_float(row.get("children_duplicate_population"))
-            for row in rows
-        )
-    return sum(
-        to_float(row.get("duplicate", row.get("duplicate_population")))
-        for row in rows
-    )
+    return sum(to_float(row.get("duplicate")) for row in rows)
 
 
 def operator_invalid_count(
     rows: list[dict[str, object]], operator: str
 ) -> float:
-    if operator == "crossover":
-        return sum(to_float(row.get("children_invalid")) for row in rows)
-    if operator == "mutation":
-        return sum(
-            to_float(row.get("invalid")) + to_float(row.get("failed"))
-            for row in rows
-        )
     return sum(to_float(row.get("invalid")) for row in rows)
 
 
 def operator_improved_count(
     rows: list[dict[str, object]], operator: str
 ) -> float:
-    if operator == "crossover":
-        return sum(to_float(row.get("children_improved", row.get("improved"))) for row in rows)
     if operator == "replacement":
-        return sum(
-            to_float(row.get("improved_victim", row.get("improved")))
-            for row in rows
-        )
+        return sum(to_float(row.get("improved_victim")) for row in rows)
     return sum(to_float(row.get("improved")) for row in rows)
 
 
 def operator_best_count(rows: list[dict[str, object]], operator: str) -> float:
-    if operator == "crossover":
-        return sum(to_float(row.get("children_best", row.get("is_best"))) for row in rows)
     return sum(to_float(row.get("is_best")) for row in rows)
 
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import random
 
 from ...rule_generation.parser import fragment_atoms
@@ -59,9 +57,7 @@ class ProgramGenerator:
             if heads & self.target_mask
         )
         self.rules_by_head: dict[int, int] = {}
-        for rule_id, (heads, deps) in enumerate(
-            zip(self.head_masks, self.dep_masks, strict=True)
-        ):
+        for rule_id, heads in enumerate(self.head_masks):
             rule_bit = 1 << rule_id
             for predicate_bit in bits(heads):
                 self.rules_by_head[predicate_bit] = (

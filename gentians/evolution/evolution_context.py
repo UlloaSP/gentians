@@ -1,10 +1,6 @@
-from __future__ import annotations
-
 import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-
-from ..rule_generation.rule_space import RuleSpace
 
 if TYPE_CHECKING:
     from .program_generators import ProgramGenerator
@@ -12,7 +8,5 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class EvolutionContext:
-    space: RuleSpace
     generator: ProgramGenerator
-    max_program_clauses: int
     rng: random.Random

@@ -50,15 +50,3 @@ def _context_ids(
         return None
     contexts = dict.fromkeys(example.context for example in examples)
     return {context: index for index, context in enumerate(contexts)}
-
-
-def build_fixed_coverage_program(
-    background: list[str],
-    program: tuple[str, ...],
-    interpretation_pos: list[Example],
-    interpretation_neg: list[Example],
-) -> str:
-    static_program = build_coverage_static_program(
-        background, interpretation_pos, interpretation_neg
-    )
-    return static_program + "\n" + "\n".join(program)

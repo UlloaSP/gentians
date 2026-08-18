@@ -4,7 +4,8 @@ from pathlib import Path
 import pytest
 
 from benchmarks.hypothesis_files import (
-    read_hypothesis_file,
+    read_hypothesis_payload,
+    rule_space_from_payload,
     write_hypothesis_file,
 )
 from benchmarks.profile_baseline import build_command
@@ -33,7 +34,7 @@ def test_hypothesis_file_ignores_ga_only_arguments(tmp_path):
 
     write_hypothesis_file(path, "coin", generated, RuleSpace.from_clauses(["rule."]))
 
-    rule_space = read_hypothesis_file(path, requested)
+    rule_space = rule_space_from_payload(read_hypothesis_payload(path, requested), path)
 
     assert rule_space.clauses == ("rule.",)
 
@@ -56,7 +57,7 @@ def test_hypothesis_file_stores_entries_to_avoid_reparse(monkeypatch, tmp_path):
         lambda entries: (_ for _ in ()).throw(AssertionError("unexpected rebuild")),
     )
 
-    rule_space = read_hypothesis_file(path, arguments)
+    rule_space = rule_space_from_payload(read_hypothesis_payload(path, arguments), path)
 
     assert rule_space.clauses == ("rule.",)
 
@@ -69,7 +70,7 @@ def test_hypothesis_file_rejects_changed_task_content(tmp_path):
     Path(arguments.filename).write_text("coin(c2).\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="does not match"):
-        read_hypothesis_file(path, arguments)
+        read_hypothesis_payload(path, arguments)
 
 
 def test_build_command_accepts_profile_script_path():

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from ..evolution_context import EvolutionContext
 from ..operator_types import MutationProposal
 from ..types import Genome

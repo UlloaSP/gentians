@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from .parser import clause_predicates
 from .rule_entry import RuleEntry
 

@@ -6,21 +6,21 @@ from gentians.arguments import Arguments
 from gentians.evolution.algorithms import search
 from gentians.evolution.algorithms.search import search_solver
 from gentians.evolution.crossovers import create_crossover
+from gentians.evolution.evolution_context import EvolutionContext
+from gentians.evolution.individual import Individual
 from gentians.evolution.mutations import create_mutation
+from gentians.evolution.operator_types import MutationProposal
 from gentians.evolution.populations import create_population
+from gentians.evolution.program_generators import ProgramGenerator
+from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.evolution.selections import create_selection
 from gentians.evolution.selections.behavior_tournament_selection import (
     BehaviorTournamentSelection,
 )
 from gentians.evolution.selections.tournament_selection import TournamentSelection
-from gentians.evolution.evolution_context import EvolutionContext
-from gentians.evolution.individual import Individual
-from gentians.evolution.operator_types import MutationProposal
-from gentians.evolution.program_generators import ProgramGenerator
-from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.evolution.types import FitnessResult
-from gentians.rule_generation.program import Program
 from gentians.rule_generation.example import Example
+from gentians.rule_generation.program import Program
 from gentians.rule_generation.rule_space import RuleSpace
 
 
@@ -34,9 +34,7 @@ def _context(rules, *, max_clauses=3):
     program = Program(background, [], [], [], [])
     rng = random.Random(7)
     program_generator = ProgramGenerator(program, space, max_clauses, rng)
-    return EvolutionContext(
-        program_generator.space, program_generator, max_clauses, rng
-    )
+    return EvolutionContext(program_generator, rng)
 
 
 def _encode(context, *rules):
@@ -51,12 +49,12 @@ def test_all_mutations_share_genome_contract():
     context = _context(["a.", "b.", "c."])
     genome = _encode(context, "a.", "b.")
     result = create_mutation(
-        {"name": "random_group", "probability": 1.0}, context
+        {"name": "random_group", "probability": 1.0}
     )(
         genome, context
     )
     assert isinstance(result.program, int)
-    assert set(_render(context, result.program)) <= set(context.space.clauses)
+    assert set(_render(context, result.program)) <= set(context.generator.space.clauses)
 
 
 def test_structural_neighbor_replaces_with_same_head():
@@ -70,7 +68,6 @@ def test_structural_neighbor_replaces_with_same_head():
             "probability": 1.0,
             "random_jump_probability": 0.0,
         },
-        context,
     )
 
     result = mutation(_encode(context, source), context)
@@ -97,7 +94,6 @@ def test_structural_neighbor_does_not_materialize_available_rules(monkeypatch):
             "probability": 1.0,
             "random_jump_probability": 0.0,
         },
-        context,
     )
 
     result = mutation(program, context)
@@ -115,7 +111,6 @@ def test_structural_neighbor_random_jump_can_change_head():
             "probability": 1.0,
             "random_jump_probability": 1.0,
         },
-        context,
     )
 
     result = mutation(_encode(context, source), context)
@@ -174,7 +169,7 @@ def test_crossover_generates_closed_programs_directly():
     )
     rng = random.Random(3)
     generator = ProgramGenerator(program, space, 2, rng)
-    context = EvolutionContext(generator.space, generator, 2, rng)
+    context = EvolutionContext(generator, rng)
 
     children = create_crossover({"name": "set_mix", "probability": 1.0})(
         generator.encode(tuple(sorted((consumer, first_provider)))),
@@ -477,11 +472,11 @@ def test_generation_consumers_make_one_high_level_generator_call():
 
     generator = GeneratorSpy()
     space = RuleSpace.from_clauses(["a.", "b."])
-    context = EvolutionContext(space, generator, 2, random.Random(1))
+    context = EvolutionContext(generator, random.Random(1))
     genome = 1
 
     create_population({"name": "random", "size": 3})(context)
-    create_mutation({"name": "random_group", "probability": 1.0}, context)(
+    create_mutation({"name": "random_group", "probability": 1.0})(
         genome, context
     )
     create_crossover({"name": "set_mix", "probability": 1.0})(
@@ -512,10 +507,9 @@ def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
     )
     monkeypatch.setattr(
         "gentians.evolution.algorithms.search.create_fitness",
-        lambda program, config, max_program_clauses, rule_space: lambda candidate: FitnessResult(
+        lambda program, config: lambda candidate: FitnessResult(
             1.0 if candidate == ("good.",) else 2.0,
             candidate == ("good.",),
-            candidate,
             (1, 0) if candidate == ("good.",) else (0, 0),
         ),
     )
@@ -553,18 +547,17 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_mutation",
-        lambda config, context: lambda genome, context: MutationProposal(
+        lambda config: lambda genome, context: MutationProposal(
             context.generator.encode(("win.",))
         ),
     )
     monkeypatch.setattr(
         search,
         "create_fitness",
-        lambda program, config, max_program_clauses, rule_space: (
+        lambda program, config: (
             lambda candidate: FitnessResult(
                 1.0 if candidate == ("win.",) else 0.0,
                 candidate == ("win.",),
-                candidate,
                 (1, 0) if candidate == ("win.",) else (0, 0),
             )
         ),
@@ -621,16 +614,15 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_mutation",
-        lambda config, context: destructive_mutation,
+        lambda config: destructive_mutation,
     )
     monkeypatch.setattr(
         search,
         "create_fitness",
-        lambda program, config, max_program_clauses, rule_space: (
+        lambda program, config: (
             lambda candidate: FitnessResult(
                 -1.0 if candidate == ("win.",) else 0.0,
                 candidate == ("win.",),
-                candidate,
                 (1, 0) if candidate == ("win.",) else (0, 0),
             )
         ),
@@ -681,7 +673,7 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_mutation",
-        lambda config, context: lambda genome, context: MutationProposal(
+        lambda config: lambda genome, context: MutationProposal(
             context.generator.encode(("mutated.",))
         ),
     )
@@ -689,8 +681,8 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_fitness",
-        lambda program, config, max_program_clauses, rule_space: (
-            lambda candidate: FitnessResult(scores[candidate[0]], False, candidate, (0, 0))
+        lambda program, config: (
+            lambda candidate: FitnessResult(scores[candidate[0]], False, (0, 0))
         ),
     )
     monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
@@ -731,8 +723,8 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_fitness",
-        lambda program, config, max_program_clauses, rule_space: (
-            lambda candidate: FitnessResult(1.0, False, candidate, (0, 0))
+        lambda program, config: (
+            lambda candidate: FitnessResult(1.0, False, (0, 0))
         ),
     )
     monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
@@ -767,8 +759,8 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     monkeypatch.setattr(
         search,
         "create_fitness",
-        lambda program, config, max_program_clauses, rule_space: (
-            lambda candidate: FitnessResult(1.0, False, candidate, (0, 0))
+        lambda program, config: (
+            lambda candidate: FitnessResult(1.0, False, (0, 0))
         ),
     )
     monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from ..operator_types import SelectionFn
 from .behavior_tournament_selection import BehaviorTournamentSelection
 from .tournament_selection import TournamentSelection

@@ -9,5 +9,4 @@ Behavior = tuple[int, int]
 class FitnessResult:
     score: float
     is_best: bool
-    best_program: ProgramText | None
     behavior: Behavior

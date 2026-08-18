@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from ..operator_types import PopulationInitializerFn
 from .random_population import RandomPopulation
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -7,7 +5,6 @@ import random
 import sys
 import time
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_GA_PATH = Path(__file__).resolve()
@@ -23,8 +20,7 @@ from benchmarks.profile_baseline import (
     parse_profile_args,
     run_benchmark_suite,
 )
-from gentians import Arguments
-from gentians import timing
+from gentians import Arguments, timing
 from gentians.gentians import program_from_arguments, solve
 
 

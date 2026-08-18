@@ -53,7 +53,7 @@ def test_parse_log_marks_only_found_best_as_success(tmp_path):
         encoding="utf-8",
     )
 
-    parsed = parse_log(log, "dataset", 1)
+    parsed = parse_log(log)
 
     assert parsed["success"] is True
     assert parsed["best_program"] == ["rule."]
@@ -69,7 +69,7 @@ def test_parse_log_keeps_best_candidate_as_not_success(tmp_path):
         encoding="utf-8",
     )
 
-    parsed = parse_log(log, "dataset", 1)
+    parsed = parse_log(log)
 
     assert parsed["success"] is False
     assert parsed["best_program"] == ["rule."]
@@ -148,65 +148,6 @@ def test_operator_summary_accepts_engine_generic_schema():
     assert summary["mean_score_delta"] == 1.0
 
 
-def test_operator_summary_counts_crossover_parent_duplicates_as_duplicates():
-    rows = [
-        {
-            "dataset": "d",
-            "operator": "crossover",
-            "strategy": "set_mix",
-            "not_applied": True,
-            "children": 2,
-            "children_same_as_parent": 2,
-            "children_duplicate_population": 0,
-            "children_improved": 0,
-            "parent_a_score": 3,
-            "parent_b_score": 2,
-            "child_1_score": 3,
-            "child_2_score": 2,
-        },
-        {
-            "dataset": "d",
-            "operator": "crossover",
-            "strategy": "set_mix",
-            "not_applied": False,
-            "children": 2,
-            "children_same_as_parent": 1,
-            "children_duplicate_population": 1,
-            "children_improved": 1,
-            "parent_a_score": 3,
-            "parent_b_score": 2,
-            "child_1_score": 5,
-            "child_2_score": 1,
-        },
-    ]
-
-    [summary] = operator_summary(rows)
-
-    assert summary["applied_rate"] == 0.5
-    assert summary["skipped_rate"] == 0.5
-    assert summary["valid_rate"] == 0.0
-    assert summary["duplicate_rate"] == 1.0
-    assert summary["invalid_rate"] == 0.0
-    assert summary["improvement_rate"] == 0.0
-    assert summary["worse_or_equal_rate"] == 0.0
-    assert summary["mean_score_delta"] == -0.25
-
-
-def test_operator_summary_counts_mutation_population_duplicates():
-    rows = [
-        {
-            "dataset": "d",
-            "operator": "mutation",
-            "strategy": "random_group",
-            "duplicate_population": True,
-        }
-    ]
-
-    [summary] = operator_summary(rows)
-
-    assert summary["duplicate_rate"] == 1.0
-
-
 def test_operator_summary_separates_skipped_mutations_from_duplicates():
     rows = [
         {
@@ -241,6 +182,12 @@ def test_operator_summary_uses_run_means():
                 "run": 1,
                 "operator": "mutation",
                 "strategy": "random_group",
+                "slots": 1,
+                "applied": True,
+                "skipped": False,
+                "duplicate": False,
+                "invalid": False,
+                "is_best": False,
                 "changed": True,
                 "valid_new": True,
                 "improved": True,
@@ -252,6 +199,12 @@ def test_operator_summary_uses_run_means():
                 "run": 2,
                 "operator": "mutation",
                 "strategy": "random_group",
+                "slots": 1,
+                "applied": False,
+                "skipped": True,
+                "duplicate": False,
+                "invalid": False,
+                "is_best": False,
                 "changed": False,
                 "valid_new": False,
                 "improved": False,
@@ -261,6 +214,12 @@ def test_operator_summary_uses_run_means():
                 "run": 2,
                 "operator": "mutation",
                 "strategy": "random_group",
+                "slots": 1,
+                "applied": False,
+                "skipped": True,
+                "duplicate": False,
+                "invalid": False,
+                "is_best": False,
                 "changed": False,
                 "valid_new": False,
                 "improved": False,
@@ -921,15 +880,9 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
 
     bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
     assert bench["candidates"] == 200
-    assert bench["inventedPredicates"] == 1
-    assert bench["inventedDefinitions"] == 30
-    assert bench["inventedConsumers"] == 40
     assert bench["groundCalls"] == 1
     assert bench["solveCalls"] == 1.5
     assert bench["models"] == 7
-    assert bench["clingoRuns"] == 2
-    assert bench["groundRuns"] == 1
-    assert bench["solveRuns"] == 2
 
 
 def test_dashboard_uses_real_ga_diversity(tmp_path):
@@ -974,7 +927,7 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
     assert "elapsedSeconds" not in fitness_chart
 
 
-def test_dashboard_runtime_includes_timeout_and_reports_instrumentation_coverage(tmp_path):
+def test_dashboard_reports_instrumentation_coverage(tmp_path):
     write_dashboard_data(
         tmp_path,
         [
@@ -994,9 +947,9 @@ def test_dashboard_runtime_includes_timeout_and_reports_instrumentation_coverage
     benchmark = payload["benchmarks"][0]
     assert payload["schemaVersion"] == 6
     assert benchmark["total"] == 3.0
-    assert benchmark["wall"] == 7.0
     assert benchmark["instrumentedRuns"] == 1
-    assert benchmark["timeouts"] == 1
+    assert "wall" not in benchmark
+    assert "timeouts" not in benchmark
 
 
 def test_ga_progress_exposes_round_time_and_evaluations(tmp_path):

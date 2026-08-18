@@ -2,12 +2,14 @@ import math
 
 import pytest
 
-from gentians.asp.coverage import generate_clauses_for_coverage_interpretations
+from gentians.asp.coverage import Coverage, generate_clauses_for_coverage_interpretations
 from gentians.asp.coverage_program import build_fixed_coverage_program
 from gentians.evolution.fitness import create_fitness
 from gentians.evolution.fitness.cov_program import CovProgram
 from gentians.evolution.fitness.cov_subprograms_max import CovSubprogramsMax
 from gentians.evolution.fitness.cov_subprograms_mean import CovSubprogramsMean
+from gentians.evolution.fitness.coverage_common import balanced_coverage_score
+from gentians.evolution.fitness.trigram_cov import TrigramCov
 from gentians.rule_generation.example import Example
 from gentians.rule_generation.program import Program
 from gentians.rule_generation.rule_space import RuleSpace
@@ -41,6 +43,7 @@ def _fitness(name: str, rules: RuleSpace = RULES):
         ("cov_subprograms_mean", CovSubprogramsMean),
         ("cov_subprograms_max", CovSubprogramsMax),
         ("cov_program", CovProgram),
+        ("trigram_cov", TrigramCov),
     ],
 )
 def test_factory_dispatches_complete_coverages(name, strategy):
@@ -72,6 +75,69 @@ def test_whole_program_scores_only_individual():
     assert result.is_best is False
     assert result.best_program == candidate
     assert result.behavior == (1, 1)
+
+
+@pytest.mark.parametrize(
+    ("candidate", "score", "perfect"),
+    [
+        (("target(p).",), 1.0, True),
+        ((), 0.5, False),
+        (("target(n).", "target(p)."), 0.5, False),
+        (("target(n).",), 0.0, False),
+    ],
+)
+def test_trigram_cov_uses_balanced_accuracy(candidate, score, perfect):
+    result = _fitness("trigram_cov")(candidate)
+
+    assert result.score == pytest.approx(score)
+    assert result.is_best is perfect
+
+
+def test_trigram_cov_normalizes_positive_and_negative_examples_separately():
+    program = Program(
+        [],
+        [
+            Example(("target(p1)", ""), True),
+            Example(("target(p2)", ""), True),
+        ],
+        [
+            Example(("target(n1)", ""), False),
+            Example(("target(n2)", ""), False),
+            Example(("target(n3)", ""), False),
+            Example(("target(n4)", ""), False),
+        ],
+        [],
+        [],
+    )
+    rules = RuleSpace.from_clauses(["target(p1).", "target(n1)."])
+    evaluate = create_fitness(
+        program,
+        {"name": "trigram_cov", "max_as": 0, "clingo_arguments": []},
+        2,
+        rules,
+    )
+
+    result = evaluate(rules.clauses)
+
+    assert result.score == pytest.approx(0.625)
+
+
+def test_trigram_cov_preserves_mathematically_equal_scores_exactly():
+    program = Program(
+        [],
+        [Example((f"positive({index})", ""), True) for index in range(10)],
+        [Example((f"negative({index})", ""), False) for index in range(35)],
+        [],
+        [],
+    )
+
+    empty = balanced_coverage_score(program, Coverage([], []))
+    balanced = balanced_coverage_score(
+        program,
+        Coverage(list(range(4)), list(range(14))),
+    )
+
+    assert empty == balanced == 0.5
 
 
 @pytest.mark.parametrize(

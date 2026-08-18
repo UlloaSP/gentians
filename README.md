@@ -51,8 +51,10 @@ arguments = Arguments(
 main(arguments)
 ```
 
-`fitness.name` is one of `cov_subprograms_mean`, `cov_subprograms_max`, or
-`cov_program`. Subprogram fitness keeps every evolutionary individual at the fixed
+`fitness.name` is one of `cov_subprograms_mean`, `cov_subprograms_max`,
+`cov_program`, or `trigram_cov`. `trigram_cov` evaluates the whole program like
+`cov_program`, but scores balanced accuracy linearly from 0 to 1. Subprogram
+fitness keeps every evolutionary individual at the fixed
 size `min(max_program_clauses, hypothesis_space_size)` and evaluates its possible
 subprograms. Program fitness evaluates the whole individual and permits variable
 sizes. Every fitness evaluation creates a fresh Clingo control, grounds its

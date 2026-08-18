@@ -39,7 +39,7 @@ class Arguments:
     # Fitness operator config.
     fitness: dict[str, object] = field(
         default_factory=lambda: {
-            # cov_subprograms_mean, cov_subprograms_max, or cov_program.
+            # cov_subprograms_mean, cov_subprograms_max, cov_program, or trigram_cov.
             "name": "cov_subprograms_mean",
             # Maximum answer sets requested from Clingo per coverage check. 0 means all.
             "max_as": 0,

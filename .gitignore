@@ -5,6 +5,7 @@ sweeps/
 graphify-out/
 .benchmarks/baseline_profile/
 .benchmarks/cov*/
+.benchmarks/trigram_cov*/
 .benchmarks/ga_profile/
 .benchmarks/experiments.json
 .benchmarks/profile_*/

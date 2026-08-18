@@ -70,6 +70,19 @@ def test_default_experiments_cover_all_fitness_operators():
     assert names == {"cov_subprograms_mean", "cov_subprograms_max", "cov_program"}
 
 
+def test_trigram_cov_matches_random_group_baseline_conditions():
+    _, experiments = load_config(DEFAULT_CONFIG)
+    indexed = {experiment["id"]: experiment for experiment in experiments}
+    baseline = dict(indexed["cov_program_random_group_pop10_mut09"]["overrides"])
+    trigram = dict(indexed["trigram_cov"]["overrides"])
+
+    assert baseline.pop("fitness.name") == "cov_program"
+    assert trigram.pop("fitness.name") == "trigram_cov"
+    assert trigram == baseline
+    assert indexed["cov_program_random_group_pop10_mut09"]["runs"] == 30
+    assert indexed["trigram_cov"]["runs"] == 30
+
+
 def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):
     config = tmp_path / "experiments.toml"
     config.write_text(

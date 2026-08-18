@@ -6,17 +6,22 @@ from ...timing import current_phase, instrumentation, metric_enabled, record_met
 
 
 def coverage_score(program: Program, coverage: Coverage) -> float:
-    positive_rate = (
-        coverage.pos_mask.bit_count() / len(program.positive_examples)
-        if program.positive_examples
-        else 0.0
-    )
-    negative_rate = (
-        coverage.neg_mask.bit_count() / len(program.negative_examples)
-        if program.negative_examples
-        else 0.0
-    )
-    return math.exp((positive_rate - negative_rate) * 10)
+    positive_total = len(program.positive_examples)
+    negative_total = len(program.negative_examples)
+    covered_positive = coverage.pos_mask.bit_count()
+    covered_negative = coverage.neg_mask.bit_count()
+    if positive_total and negative_total:
+        numerator = (
+            covered_positive * negative_total - covered_negative * positive_total
+        )
+        rate_difference = numerator / (positive_total * negative_total)
+    elif positive_total:
+        rate_difference = covered_positive / positive_total
+    elif negative_total:
+        rate_difference = -covered_negative / negative_total
+    else:
+        rate_difference = 0.0
+    return math.exp(rate_difference * 10)
 
 
 def balanced_coverage_score(program: Program, coverage: Coverage) -> float:

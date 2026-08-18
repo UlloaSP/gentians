@@ -2,18 +2,23 @@ import math
 
 import pytest
 
-from gentians.asp.coverage import Coverage, generate_clauses_for_coverage_interpretations
+from gentians.asp.coverage import (
+    Coverage,
+    generate_clauses_for_coverage_interpretations,
+)
 from gentians.asp.coverage_program import build_fixed_coverage_program
 from gentians.evolution.fitness import create_fitness
 from gentians.evolution.fitness.cov_program import CovProgram
 from gentians.evolution.fitness.cov_subprograms_max import CovSubprogramsMax
 from gentians.evolution.fitness.cov_subprograms_mean import CovSubprogramsMean
-from gentians.evolution.fitness.coverage_common import balanced_coverage_score
+from gentians.evolution.fitness.coverage_common import (
+    balanced_coverage_score,
+    coverage_score,
+)
 from gentians.evolution.fitness.trigram_cov import TrigramCov
 from gentians.rule_generation.example import Example
 from gentians.rule_generation.program import Program
 from gentians.rule_generation.rule_space import RuleSpace
-
 
 RULES = RuleSpace.from_clauses(["target(p).", "target(n)."])
 
@@ -122,7 +127,8 @@ def test_trigram_cov_normalizes_positive_and_negative_examples_separately():
     assert result.score == pytest.approx(0.625)
 
 
-def test_trigram_cov_preserves_mathematically_equal_scores_exactly():
+@pytest.mark.parametrize("score", [balanced_coverage_score, coverage_score])
+def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
     program = Program(
         [],
         [Example((f"positive({index})", ""), True) for index in range(10)],
@@ -131,13 +137,10 @@ def test_trigram_cov_preserves_mathematically_equal_scores_exactly():
         [],
     )
 
-    empty = balanced_coverage_score(program, Coverage([], []))
-    balanced = balanced_coverage_score(
-        program,
-        Coverage(list(range(4)), list(range(14))),
-    )
+    first = score(program, Coverage(list(range(3)), list(range(9))))
+    second = score(program, Coverage(list(range(9)), list(range(30))))
 
-    assert empty == balanced == 0.5
+    assert first == second
 
 
 @pytest.mark.parametrize(

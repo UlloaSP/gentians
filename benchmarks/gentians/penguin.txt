@@ -20,7 +20,7 @@ ability(swim).
 
 #neg({penguin(a)}, {}).
 
-#modeh(1,penguin,1).
+#modeh(1,penguin(var(animal,any))).
 
-#modeb(1,bird,1,positive).
-#modeb(1,flies,1,negative).
+#modeb(1,bird(var(animal,any)),positive).
+#modeb(1,flies(var(animal,any)),negative).

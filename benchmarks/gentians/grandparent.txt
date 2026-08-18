@@ -36,8 +36,8 @@ father(b,e).
 #neg({target(g,h)}, {}).
 #neg({target(h,i)}, {}).
 
-#modeh(1,target,2).
+#modeh(1,target(var(person,any),var(person,any))).
 
-#modeb(1,father,2,positive).
-#modeb(1,mother,2,positive).
-#invent(2,target_1,2).
+#modeb(1,father(var(person,any),var(person,any)),positive).
+#modeb(1,mother(var(person,any),var(person,any)),positive).
+#invent(2,target_1(var(person,any),var(person,any))).

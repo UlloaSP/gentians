@@ -20,6 +20,7 @@ from gentians.rule_generation.hypothesis_capabilities import HypothesisCapabilit
 from gentians.rule_generation.hypothesis_mode import HypothesisMode
 from gentians.rule_generation.aggregate_declaration import AggregateDeclaration
 from gentians.rule_generation.example import Example
+from gentians.rule_generation.mode_argument import ModeArgument
 from gentians.rule_generation.mode_declaration import ModeDeclaration
 from gentians.rule_generation.operator_declaration import OperatorDeclaration
 from gentians.rule_generation.program import Program
@@ -32,6 +33,24 @@ def _generate(program, max_body_literals=3, max_variables=3):
     program.max_body_literals = max_body_literals
     program.max_variables = max_variables
     return HypothesisSpaceGenerator(program, Arguments()).generate()
+
+
+def _mode(
+    recall: int,
+    name: str,
+    arity: int,
+    *,
+    head: bool = False,
+    positive: bool = True,
+    type_name: str = "numeric",
+) -> ModeDeclaration:
+    return ModeDeclaration(
+        recall,
+        name,
+        tuple(ModeArgument("variable", type_name, "any") for _ in range(arity)),
+        positive,
+        head,
+    )
 
 
 def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypatch):
@@ -58,8 +77,8 @@ def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
             ["p(1)."],
             [],
             [],
-            [ModeDeclaration(("1", "target", "1"), True)],
-            [ModeDeclaration(("1", "p", "1", "positive"), False)],
+            [_mode(1, "target", 1, head=True)],
+            [_mode(1, "p", 1, positive=True)],
             [AggregateDeclaration(1, "sum", (("p", 1),), False)],
         ),
         Arguments(),
@@ -77,8 +96,8 @@ def test_hypothesis_generator_decodes_models_without_shown_symbols(monkeypatch):
         ["edge(1,2)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "1"), True)],
-        [ModeDeclaration(("1", "edge", "2", "positive"), False)],
+        [_mode(1, "target", 1, head=True)],
+        [_mode(1, "edge", 2, positive=True)],
         max_variables=2,
         max_body_literals=2,
     )
@@ -112,17 +131,17 @@ def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
         (
             "body",
             0,
-            ((1, 2, 101), (2, 2, 102)),
+                ((1, (0, 1), 101), (2, (0, 1), 102)),
             (((0, 201), (1, 202)), ((0, 203), (1, 204))),
         ),
         (
             "body",
             1,
-            ((1, 2, 111), (2, 2, 112)),
+                ((1, (0, 1), 111), (2, (0, 1), 112)),
             (((0, 211), (1, 212)), ((0, 213), (1, 214))),
         ),
-        ("body", 2, ((2, 0, 122), (3, 0, 123)), ()),
-        ("body", 3, ((3, 0, 133),), ()),
+            ("body", 2, ((2, (), 122), (3, (), 123)), ()),
+            ("body", 3, ((3, (), 133),), ()),
     )
 
     clause = hypothesis_space._clause_from_model(model, index)
@@ -329,8 +348,8 @@ def test_hypothesis_space_clingo_times_use_current_phase(monkeypatch):
         ["p(1)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "1"), True)],
-        [ModeDeclaration(("1", "p", "1", "positive"), False)],
+        [_mode(1, "target", 1, head=True)],
+        [_mode(1, "p", 1, positive=True)],
     )
 
     with timing.phase("outer"):
@@ -347,7 +366,7 @@ def test_unbalanced_aggregate_variants_share_recall():
         ["el(1,2).", "el(2,3)."],
         [],
         [],
-        [ModeDeclaration(("1", "ok", "1"), True)],
+        [_mode(1, "ok", 1, head=True)],
         [],
         [AggregateDeclaration(1, "sum", (("el", 2),), True)],
         max_variables=8,
@@ -407,7 +426,7 @@ def test_hypothesis_space_args_reject_string():
 
 
 def test_star_recall_uses_section_limit():
-    mode = ModeDeclaration(("*", "p", "1"), True)
+    mode = _mode(-1, "p", 1, head=True)
     facts = hypothesis_space._facts(
         Program([], [], [], [mode], []),
         [
@@ -470,13 +489,72 @@ def test_reader_parses_structural_limits_and_star(tmp_path):
     assert program.max_program_clauses is None
 
 
+def test_reader_requires_type_and_direction_for_variable_modes(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text("#modeh(1,target(var(person))).\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="invalid mode argument"):
+        read_program(str(task))
+
+
+def test_reader_rejects_output_variables_in_negative_modes(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "#modeb(1,p(var(person,output)),negative).\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="cannot produce output"):
+        read_program(str(task))
+
+
+def test_constant_modes_expand_declared_ground_terms_without_variables(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(0).",
+                "#maxbl(1).",
+                "#maxhl(1).",
+                "#maxpl(1).",
+                "q(a).",
+                "q(b).",
+                "#constant(symbol,a).",
+                "#constant(symbol,b).",
+                "#modeh(1,p(const(symbol))).",
+                "#modeb(1,q(const(symbol)),positive).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
+
+    assert program.constants == {"symbol": ("a", "b")}
+    assert set(clauses) == {
+        "p(a) :- q(a).",
+        "p(a) :- q(b).",
+        "p(b) :- q(a).",
+        "p(b) :- q(b).",
+    }
+
+
+def test_constant_mode_requires_declared_values(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text("#modeh(1,p(const(symbol))).\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="require #constant"):
+        read_program(str(task))
+
+
 def test_unbounded_section_requires_finite_mode_recalls():
     program = Program(
         ["p(1)."],
         [],
         [],
         [],
-        [ModeDeclaration(("*", "p", "1", "positive"), False)],
+        [_mode(-1, "p", 1, positive=True)],
         max_body_literals=None,
     )
 
@@ -494,8 +572,8 @@ def test_all_structural_limits_accept_star_with_finite_recalls(tmp_path):
                 "#maxhl(*).",
                 "#maxpl(*).",
                 "p(1).",
-                "#modeh(1,target,1).",
-                "#modeb(1,p,1,positive).",
+                "#modeh(1,target(var(term,any))).",
+                "#modeb(1,p(var(term,any)),positive).",
             ]
         ),
         encoding="utf-8",
@@ -518,10 +596,10 @@ def test_reader_deduplicates_equal_directives(tmp_path):
                 "#pos({ a(1) }, {}).",
                 "#neg({ b(1) }, {}).",
                 "#neg({ b(1) }, {}).",
-                "#modeh(1, a, 1).",
-                "#modeh(1, a, 1).",
-                "#modeb(1, b, 1, positive).",
-                "#modeb(1, b, 1, positive).",
+                "#modeh(1, a(var(term,any))).",
+                "#modeh(1, a(var(term,any))).",
+                "#modeb(1, b(var(term,any)), positive).",
+                "#modeb(1, b(var(term,any)), positive).",
             ]
         ),
         encoding="utf-8",
@@ -538,7 +616,7 @@ def test_reader_deduplicates_equal_directives(tmp_path):
 def test_invent_replaces_head_and_body_modes(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(
-        "#invent(2,helper,2).\n",
+        "#invent(2,helper(var(term,any),var(term,any))).\n",
         encoding="utf-8",
     )
 
@@ -558,7 +636,8 @@ def test_invent_replaces_head_and_body_modes(tmp_path):
 def test_invent_rejects_duplicate_explicit_modes(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(
-        "#invent(2,helper,2).\n#modeh(1,helper,2).\n",
+        "#invent(2,helper(var(term,any),var(term,any))).\n"
+        "#modeh(1,helper(var(term,any),var(term,any))).\n",
         encoding="utf-8",
     )
 
@@ -569,7 +648,8 @@ def test_invent_rejects_duplicate_explicit_modes(tmp_path):
 def test_invent_rejects_duplicate_signature(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(
-        "#invent(1,helper,2).\n#invent(2,helper,2).\n",
+        "#invent(1,helper(var(term,any),var(term,any))).\n"
+        "#invent(2,helper(var(term,any),var(term,any))).\n",
         encoding="utf-8",
     )
 
@@ -580,7 +660,7 @@ def test_invent_rejects_duplicate_signature(tmp_path):
 def test_invent_rejects_observed_predicate(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(
-        "helper(a).\n#invent(1,helper,1).\n",
+        "helper(a).\n#invent(1,helper(var(term,any))).\n",
         encoding="utf-8",
     )
     program = read_program(str(task))
@@ -596,11 +676,11 @@ def test_invented_predicates_are_stratified_and_excluded_from_constraints(tmp_pa
             [
                 "base(a).",
                 "#pos({target(a)},{}).",
-                "#modeh(1,target,1).",
-                "#modeb(1,base,1,positive).",
-                "#modeb(1,target,1,positive).",
-                "#invent(1,early,1).",
-                "#invent(1,late,1).",
+                "#modeh(1,target(var(term,any))).",
+                "#modeb(1,base(var(term,any)),positive).",
+                "#modeb(1,target(var(term,any)),positive).",
+                "#invent(1,early(var(term,any))).",
+                "#invent(1,late(var(term,any))).",
             ]
         ),
         encoding="utf-8",
@@ -626,9 +706,9 @@ def test_invented_definition_cannot_call_target_through_aggregate(tmp_path):
         "\n".join(
             [
                 "target(a).",
-                "#modeh(1,target,1).",
+                "#modeh(1,target(var(term,any))).",
                 "#modeagg(1,count(target/1),balanced).",
-                "#invent(1,helper,1).",
+                "#invent(1,helper(var(term,any))).",
             ]
         ),
         encoding="utf-8",
@@ -648,8 +728,8 @@ def test_hypothesis_space_prunes_arg_distinct_modes_before_rendering():
         ["edge(1,2)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "2"), True)],
-        [ModeDeclaration(("1", "edge", "2", "positive"), False)],
+        [_mode(1, "target", 2, head=True)],
+        [_mode(1, "edge", 2, positive=True)],
     )
     clauses = _generate(program, 2).clauses
 
@@ -664,8 +744,8 @@ def test_arg_distinct_still_prunes_body_self_pair_without_irreflexive_property()
         [],
         [],
         [
-            ModeDeclaration(("2", "p", "2", "positive"), False),
-            ModeDeclaration(("2", "guard", "1", "positive"), False),
+            _mode(2, "p", 2, positive=True),
+            _mode(2, "guard", 1, positive=True),
         ],
     )
     clauses = _generate(program, 2, 2).clauses
@@ -673,13 +753,14 @@ def test_arg_distinct_still_prunes_body_self_pair_without_irreflexive_property()
     assert not any("p(V0,V0)" in clause or "p(V1,V1)" in clause for clause in clauses)
 
 
-def test_auto_body_bias_does_not_enable_recursion():
+def test_missing_bias_is_not_inferred_from_background():
     program = Program(["p(1,2)."], [], [], [], [])
-    program.complete_language_bias()
 
     clauses = _generate(program, 2, 2).clauses
 
-    assert not any(clause.startswith("p(") and " :- p(" in clause for clause in clauses)
+    assert program.language_bias_head == []
+    assert program.language_bias_body == []
+    assert clauses == ()
 
 
 def test_explicit_body_bias_enables_recursion():
@@ -687,8 +768,8 @@ def test_explicit_body_bias_enables_recursion():
         ["p(1,2)."],
         [],
         [],
-        [ModeDeclaration(("1", "p", "2"), True)],
-        [ModeDeclaration(("1", "p", "2", "positive"), False)],
+        [_mode(1, "p", 2, head=True)],
+        [_mode(1, "p", 2, positive=True)],
     )
 
     clauses = _generate(program, 2, 2).clauses
@@ -696,22 +777,24 @@ def test_explicit_body_bias_enables_recursion():
     assert "p(V1,V0) :- p(V0,V1)." in clauses
 
 
-def test_hypothesis_space_prunes_unobserved_body_modes():
+def test_hypothesis_space_keeps_task_declared_unobserved_body_modes():
     program = Program(
         ["base(a)."],
         [Example(("target(a)", ""), True)],
         [],
-        [ModeDeclaration(("1", "target", "1"), True)],
+        [_mode(1, "target", 1, head=True)],
         [
-            ModeDeclaration(("1", "base", "1", "positive"), False),
-            ModeDeclaration(("1", "ghost", "1", "positive"), False),
-            ModeDeclaration(("1", "ghost", "1", "negative"), False),
+            _mode(1, "base", 1, positive=True),
+            _mode(1, "ghost", 1, positive=True),
+            _mode(1, "ghost", 1, positive=False),
         ],
     )
 
-    clauses = _generate(program, 3, 1).clauses
+    generator = HypothesisSpaceGenerator(program, Arguments())
+    clauses = generator.generate().clauses
 
     assert "target(V0) :- base(V0)." in clauses
+    assert any(mode.name == "ghost" for mode in generator.modes)
     assert not any("ghost(" in clause for clause in clauses)
 
 
@@ -721,7 +804,7 @@ def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering
         [],
         [],
         [],
-        [ModeDeclaration(("2", "p", "1", "positive"), False)],
+        [_mode(2, "p", 1, positive=True)],
         [],
         [OperatorDeclaration(2, "neq")],
     )
@@ -737,7 +820,7 @@ def test_hypothesis_space_prunes_comparison_redundancy_before_rendering():
         [],
         [],
         [],
-        [ModeDeclaration(("2", "p", "1", "positive"), False)],
+        [_mode(2, "p", 1, positive=True)],
         [],
         [OperatorDeclaration(1, "lt"), OperatorDeclaration(1, "leq"), OperatorDeclaration(1, "neq")],
     )
@@ -753,8 +836,8 @@ def test_hypothesis_space_does_not_generate_equality_comparison():
         ["p(1)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "1"), True)],
-        [ModeDeclaration(("1", "p", "1", "positive"), False)],
+        [_mode(1, "target", 1, head=True)],
+        [_mode(1, "p", 1, positive=True)],
         [],
         [OperatorDeclaration(1, "eq")],
     )
@@ -771,7 +854,7 @@ def test_hypothesis_space_prunes_leq_neq_when_strict_comparison_exists():
         [],
         [],
         [],
-        [ModeDeclaration(("2", "p", "1", "positive"), False)],
+        [_mode(2, "p", 1, positive=True)],
         [],
         [
             OperatorDeclaration(1, "lt"),
@@ -792,7 +875,7 @@ def test_hypothesis_space_prunes_transitive_comparison_redundancy():
         [],
         [],
         [],
-        [ModeDeclaration(("3", "p", "1", "positive"), False)],
+        [_mode(3, "p", 1, positive=True)],
         [],
         [OperatorDeclaration(3, "lt"), OperatorDeclaration(3, "neq")],
     )
@@ -813,8 +896,8 @@ def test_hypothesis_space_prunes_duplicate_arithmetic_inputs_before_rendering():
         ["q(1,2)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "2"), True)],
-        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [_mode(1, "target", 2, head=True)],
+        [_mode(1, "q", 2, positive=True)],
         [],
         [],
         [OperatorDeclaration(2, "add")],
@@ -832,7 +915,7 @@ def test_positive_domain_prunes_impossible_mul_and_div_comparisons():
         [],
         [],
         [],
-        [ModeDeclaration(("1", "q", "3", "positive"), False)],
+        [_mode(1, "q", 3, positive=True)],
         [],
         [OperatorDeclaration(1, "lt")],
         [OperatorDeclaration(1, "mul"), OperatorDeclaration(1, "div")],
@@ -855,7 +938,7 @@ def test_hypothesis_space_prunes_duplicate_aggregate_inputs_before_rendering():
         ["el(1).", "el(2)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "2"), True)],
+        [_mode(1, "target", 2, head=True)],
         [],
         [AggregateDeclaration(2, "sum", (("el", 1),), False)],
     )
@@ -872,7 +955,7 @@ def test_count_aggregate_tuple_variables_are_canonicalized():
         ["edge(a,b).", "edge(b,a)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "1"), True)],
+        [_mode(1, "target", 1, head=True)],
         [],
         [AggregateDeclaration(1, "count", (("edge", 2),), False)],
     )
@@ -900,7 +983,7 @@ def test_canonicalization_prevents_reversed_add_operands_by_default():
         [],
         [],
         [],
-        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [_mode(1, "q", 2, positive=True)],
         [],
         [],
         [OperatorDeclaration(1, "add")],
@@ -921,7 +1004,7 @@ def test_domain_arithmetic_prune_removes_impossible_zero_result_by_default():
         [],
         [],
         [],
-        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [_mode(1, "q", 2, positive=True)],
         [],
         [],
         [OperatorDeclaration(1, "sub")],
@@ -931,7 +1014,7 @@ def test_domain_arithmetic_prune_removes_impossible_zero_result_by_default():
         [],
         [],
         [],
-        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [_mode(1, "q", 2, positive=True)],
         [],
         [],
         [OperatorDeclaration(1, "sub")],
@@ -949,7 +1032,7 @@ def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
         [],
         [],
         [],
-        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [_mode(1, "q", 2, positive=True)],
         [],
         [OperatorDeclaration(1, "lt")],
         [OperatorDeclaration(1, "add"), OperatorDeclaration(1, "sub")],
@@ -985,8 +1068,8 @@ def test_closed_world_properties_prune_symmetric_predicate_orientation():
         ["edge(1,2).", "edge(2,1)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "2"), True)],
-        [ModeDeclaration(("1", "edge", "2", "positive"), False)],
+        [_mode(1, "target", 2, head=True)],
+        [_mode(1, "edge", 2, positive=True)],
     )
     clauses = _generate(program, 2, 2).clauses
 
@@ -1001,10 +1084,10 @@ def test_closed_world_properties_prune_implied_and_mutex_literals():
         [],
         [],
         [
-            ModeDeclaration(("1", "p", "1", "positive"), False),
-            ModeDeclaration(("1", "q", "1", "positive"), False),
-            ModeDeclaration(("1", "q", "1", "negative"), False),
-            ModeDeclaration(("1", "r", "1", "positive"), False),
+            _mode(1, "p", 1, positive=True),
+            _mode(1, "q", 1, positive=True),
+            _mode(1, "q", 1, positive=False),
+            _mode(1, "r", 1, positive=True),
         ],
     )
     clauses = _generate(program, 2, 1).clauses
@@ -1020,7 +1103,7 @@ def test_closed_world_properties_prune_functional_dependency():
         [],
         [],
         [],
-        [ModeDeclaration(("2", "parent", "2", "positive"), False)],
+        [_mode(2, "parent", 2, positive=True)],
     )
     clauses = _generate(program, 2, 3).clauses
 
@@ -1034,9 +1117,9 @@ def test_closed_world_properties_prune_projection_implication():
         [],
         [],
         [
-            ModeDeclaration(("2", "edge", "2", "positive"), False),
-            ModeDeclaration(("1", "node", "1", "positive"), False),
-            ModeDeclaration(("1", "node", "1", "negative"), False),
+            _mode(2, "edge", 2, positive=True),
+            _mode(1, "node", 1, positive=True),
+            _mode(1, "node", 1, positive=False),
         ],
     )
     clauses = _generate(program, 2, 2).clauses
@@ -1052,8 +1135,8 @@ def test_closed_world_properties_prune_tuple_mutex_permutation():
         [],
         [],
         [
-            ModeDeclaration(("2", "father", "2", "positive"), False),
-            ModeDeclaration(("2", "mother", "2", "positive"), False),
+            _mode(2, "father", 2, positive=True),
+            _mode(2, "mother", 2, positive=True),
         ],
     )
     fragments = hypothesis_space._closed_world_fragments(program)
@@ -1073,7 +1156,7 @@ def test_count_aggregate_full_local_condition_is_canonical():
         ["p(a,b).", "p(a,c).", "p(d,b).", "p(d,c)."],
         [],
         [],
-        [ModeDeclaration(("1", "out", "1"), True)],
+        [_mode(1, "out", 1, head=True)],
         [],
         [AggregateDeclaration(1, "count", (("p", 2),), True)],
     )
@@ -1081,6 +1164,22 @@ def test_count_aggregate_full_local_condition_is_canonical():
 
     assert "out(V2) :- #count{V0,V1:p(V0,V1)}=V2." in clauses
     assert "out(V2) :- #count{V0,V1:p(V1,V0)}=V2." not in clauses
+
+
+def test_aggregate_condition_keeps_inference_and_inherits_declared_normal_type():
+    program = Program(
+        ["edge(a,b)."],
+        [],
+        [],
+        [],
+        [_mode(1, "edge", 2, type_name="node")],
+        aggregate_modes=[AggregateDeclaration(1, "count", (("edge", 2),), True)],
+    )
+
+    generator = HypothesisSpaceGenerator(program, Arguments())
+    aggregate = next(mode for mode in generator.modes if mode.kind == "aggregate")
+
+    assert aggregate.arg_types[-3:] == ("node", "node", "numeric")
 
 
 def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
@@ -1097,7 +1196,7 @@ def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
         ],
         [],
         [],
-        [ModeDeclaration(("1", "out", "1"), True)],
+        [_mode(1, "out", 1, head=True)],
         [],
         [AggregateDeclaration(1, "sum", (("p", 3),), True)],
     )
@@ -1119,7 +1218,7 @@ def test_unbalanced_aggregate_prunes_key_determined_discriminator():
         ],
         [],
         [],
-        [ModeDeclaration(("1", "out", "1"), True)],
+        [_mode(1, "out", 1, head=True)],
         [],
         [AggregateDeclaration(1, "sum", (("p", 2),), True)],
     )
@@ -1140,7 +1239,7 @@ def test_balanced_aggregate_keeps_key_determined_discriminator():
         ],
         [],
         [],
-        [ModeDeclaration(("1", "out", "1"), True)],
+        [_mode(1, "out", 1, head=True)],
         [],
         [AggregateDeclaration(1, "sum", (("p", 2),), False)],
     )
@@ -1159,7 +1258,7 @@ def test_closed_world_properties_prune_composite_functional_dependency():
         [],
         [],
         [],
-        [ModeDeclaration(("2", "assign", "3", "positive"), False)],
+        [_mode(2, "assign", 3, positive=True)],
     )
     clauses = _generate(program, 2, 4).clauses
 
@@ -1172,7 +1271,7 @@ def test_closed_world_properties_prune_acyclic_body_cycle():
         [],
         [],
         [],
-        [ModeDeclaration(("3", "edge", "2", "positive"), False)],
+        [_mode(3, "edge", 2, positive=True)],
     )
     clauses = _generate(program, 3, 3).clauses
 
@@ -1186,9 +1285,9 @@ def test_closed_world_properties_prune_complement_negative_pair():
         [],
         [],
         [
-            ModeDeclaration(("1", "p", "1", "negative"), False),
-            ModeDeclaration(("1", "q", "1", "negative"), False),
-            ModeDeclaration(("1", "safe", "2", "positive"), False),
+            _mode(1, "p", 1, positive=False),
+            _mode(1, "q", 1, positive=False),
+            _mode(1, "safe", 2, positive=True),
         ],
     )
     clauses = _generate(program, 3, 2).clauses
@@ -1331,12 +1430,11 @@ def test_partition_subsumes_pairwise_mutex_facts():
         [],
         [],
         [
-            ModeDeclaration(("1", "a", "1", "positive"), False),
-            ModeDeclaration(("1", "b", "1", "positive"), False),
-            ModeDeclaration(("1", "c", "1", "positive"), False),
+            _mode(1, "a", 1, positive=True),
+            _mode(1, "b", 1, positive=True),
+            _mode(1, "c", 1, positive=True),
         ],
     )
-    program.complete_language_bias()
     fragments = hypothesis_space._closed_world_fragments(program)
     arg_types = hypothesis_space._predicate_arg_types(program, fragments)
     properties = hypothesis_space._closed_world_properties(
@@ -1355,9 +1453,8 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
         [],
         [],
         [],
-        [ModeDeclaration(("1", "r", "4", "positive"), False)],
+        [_mode(1, "r", 4, positive=True)],
     )
-    program.complete_language_bias()
     fragments = hypothesis_space._closed_world_fragments(program)
     arg_types = hypothesis_space._predicate_arg_types(program, fragments)
     properties = hypothesis_space._closed_world_properties(
@@ -1450,7 +1547,7 @@ def test_choice_rule_keys_prune_conflicting_positive_literals():
         [],
         [],
         [],
-        [ModeDeclaration(("2", "q", "2", "positive"), False)],
+        [_mode(2, "q", 2, positive=True)],
     )
     clauses = _generate(program, 2, 3).clauses
 
@@ -1468,8 +1565,8 @@ def test_choice_projection_prunes_redundant_domain_literal():
         [],
         [],
         [
-            ModeDeclaration(("1", "q", "2", "positive"), False),
-            ModeDeclaration(("1", "number", "1", "positive"), False),
+            _mode(1, "q", 2, positive=True),
+            _mode(1, "number", 1, positive=True),
         ],
     )
     clauses = _generate(program, 2, 2).clauses
@@ -1491,10 +1588,10 @@ def test_partition_prunes_all_negative_partition_literals():
         [],
         [],
         [
-            ModeDeclaration(("1", "node", "1", "positive"), False),
-            ModeDeclaration(("1", "red", "1", "negative"), False),
-            ModeDeclaration(("1", "green", "1", "negative"), False),
-            ModeDeclaration(("1", "blue", "1", "negative"), False),
+            _mode(1, "node", 1, positive=True),
+            _mode(1, "red", 1, positive=False),
+            _mode(1, "green", 1, positive=False),
+            _mode(1, "blue", 1, positive=False),
         ],
     )
     clauses = _generate(program, 4, 1).clauses
@@ -1510,11 +1607,11 @@ def test_mutex_complement_and_partition_prune_positive_negative_redundancy():
         [],
         [],
         [
-            ModeDeclaration(("1", "safe", "1", "positive"), False),
-            ModeDeclaration(("1", "p", "1", "positive"), False),
-            ModeDeclaration(("1", "p", "1", "negative"), False),
-            ModeDeclaration(("1", "q", "1", "positive"), False),
-            ModeDeclaration(("1", "q", "1", "negative"), False),
+            _mode(1, "safe", 1, positive=True),
+            _mode(1, "p", 1, positive=True),
+            _mode(1, "p", 1, positive=False),
+            _mode(1, "q", 1, positive=True),
+            _mode(1, "q", 1, positive=False),
         ],
     )
     clauses = _generate(program, 3, 1).clauses
@@ -1530,8 +1627,8 @@ def test_inverse_and_transitive_negative_closure_prune():
         [],
         [],
         [
-            ModeDeclaration(("1", "p", "2", "positive"), False),
-            ModeDeclaration(("1", "q", "2", "negative"), False),
+            _mode(1, "p", 2, positive=True),
+            _mode(1, "q", 2, positive=False),
         ],
     )
     transitive = Program(
@@ -1540,8 +1637,8 @@ def test_inverse_and_transitive_negative_closure_prune():
         [],
         [],
         [
-            ModeDeclaration(("2", "p", "2", "positive"), False),
-            ModeDeclaration(("1", "p", "2", "negative"), False),
+            _mode(2, "p", 2, positive=True),
+            _mode(1, "p", 2, positive=False),
         ],
     )
 
@@ -1559,8 +1656,8 @@ def test_acyclic_negative_back_edge_prune():
         [],
         [],
         [
-            ModeDeclaration(("2", "edge", "2", "positive"), False),
-            ModeDeclaration(("1", "edge", "2", "negative"), False),
+            _mode(2, "edge", 2, positive=True),
+            _mode(1, "edge", 2, positive=False),
         ],
     )
     clauses = _generate(program, 3, 3).clauses
@@ -1575,9 +1672,9 @@ def test_universal_empty_and_complement_facts_are_emitted():
         [],
         [],
         [
-            ModeDeclaration(("1", "dom", "1", "positive"), False),
-            ModeDeclaration(("1", "p", "1", "positive"), False),
-            ModeDeclaration(("1", "missing", "1", "positive"), False),
+            _mode(1, "dom", 1, positive=True),
+            _mode(1, "p", 1, positive=True),
+            _mode(1, "missing", 1, positive=True),
         ],
     )
     domain_program = Program(
@@ -1586,12 +1683,10 @@ def test_universal_empty_and_complement_facts_are_emitted():
         [],
         [],
         [
-            ModeDeclaration(("1", "left", "1", "positive"), False),
-            ModeDeclaration(("1", "right", "1", "positive"), False),
+            _mode(1, "left", 1, positive=True),
+            _mode(1, "right", 1, positive=True),
         ],
     )
-    universal_program.complete_language_bias()
-    domain_program.complete_language_bias()
     universal_fragments = hypothesis_space._closed_world_fragments(universal_program)
     domain_fragments = hypothesis_space._closed_world_fragments(domain_program)
     universal_arg_types = hypothesis_space._predicate_arg_types(
@@ -1652,9 +1747,9 @@ def test_empty_predicate_prunes_positive_and_negative_literals():
         [],
         [],
         [
-            ModeDeclaration(("1", "safe", "1", "positive"), False),
-            ModeDeclaration(("1", "missing", "1", "positive"), False),
-            ModeDeclaration(("1", "missing", "1", "negative"), False),
+            _mode(1, "safe", 1, positive=True),
+            _mode(1, "missing", 1, positive=True),
+            _mode(1, "missing", 1, positive=False),
         ],
     )
     clauses = _generate(program, 2, 1).clauses
@@ -1669,9 +1764,9 @@ def test_functional_negative_redundancy_with_inequality_prunes():
         [],
         [],
         [
-            ModeDeclaration(("1", "parent", "2", "positive"), False),
-            ModeDeclaration(("1", "parent", "2", "negative"), False),
-            ModeDeclaration(("1", "child", "1", "positive"), False),
+            _mode(1, "parent", 2, positive=True),
+            _mode(1, "parent", 2, positive=False),
+            _mode(1, "child", 1, positive=True),
         ],
         [],
         [OperatorDeclaration(1, "neq")],
@@ -1694,9 +1789,9 @@ def test_functional_negative_redundancy_uses_strict_comparison():
         [],
         [],
         [
-            ModeDeclaration(("1", "p", "2", "positive"), False),
-            ModeDeclaration(("1", "p", "2", "negative"), False),
-            ModeDeclaration(("1", "value", "1", "positive"), False),
+            _mode(1, "p", 2, positive=True),
+            _mode(1, "p", 2, positive=False),
+            _mode(1, "value", 1, positive=True),
         ],
         [],
         [OperatorDeclaration(1, "lt")],
@@ -1718,7 +1813,7 @@ def test_cardinality_upper_prunes_pairwise_distinct_positive_tuples():
         [],
         [],
         [],
-        [ModeDeclaration(("2", "in", "1", "positive"), False)],
+        [_mode(2, "in", 1, positive=True)],
         [],
         [OperatorDeclaration(1, "neq")],
     )
@@ -1734,9 +1829,9 @@ def test_empty_join_and_total_order_prune_impossible_bodies():
         [],
         [],
         [
-            ModeDeclaration(("1", "safe", "1", "positive"), False),
-            ModeDeclaration(("1", "p", "1", "positive"), False),
-            ModeDeclaration(("1", "q", "1", "positive"), False),
+            _mode(1, "safe", 1, positive=True),
+            _mode(1, "p", 1, positive=True),
+            _mode(1, "q", 1, positive=True),
         ],
     )
     order = Program(
@@ -1745,8 +1840,8 @@ def test_empty_join_and_total_order_prune_impossible_bodies():
         [],
         [],
         [
-            ModeDeclaration(("1", "pair", "2", "positive"), False),
-            ModeDeclaration(("2", "le", "2", "negative"), False),
+            _mode(1, "pair", 2, positive=True),
+            _mode(2, "le", 2, positive=False),
         ],
     )
 
@@ -1764,9 +1859,9 @@ def test_reflexive_key_antisymmetric_and_subsumption_prunes():
         [],
         [],
         [
-            ModeDeclaration(("1", "node", "1", "positive"), False),
-            ModeDeclaration(("1", "le", "2", "positive"), False),
-            ModeDeclaration(("1", "le", "2", "negative"), False),
+            _mode(1, "node", 1, positive=True),
+            _mode(1, "le", 2, positive=True),
+            _mode(1, "le", 2, positive=False),
         ],
     )
     key = Program(
@@ -1774,14 +1869,14 @@ def test_reflexive_key_antisymmetric_and_subsumption_prunes():
         [],
         [],
         [],
-        [ModeDeclaration(("2", "rel", "3", "positive"), False)],
+        [_mode(2, "rel", 3, positive=True)],
     )
     subsumption = Program(
         ["p(a,a).", "p(a,b)."],
         [],
         [],
         [],
-        [ModeDeclaration(("2", "p", "2", "positive"), False)],
+        [_mode(2, "p", 2, positive=True)],
     )
 
     reflexive_clauses = _generate(reflexive, 3, 2).clauses
@@ -1800,8 +1895,8 @@ def test_equivalent_head_body_redundancy_is_pruned():
         ["p(a).", "q(a)."],
         [],
         [],
-        [ModeDeclaration(("1", "p", "1"), True)],
-        [ModeDeclaration(("1", "q", "1", "positive"), False)],
+        [_mode(1, "p", 1, head=True)],
+        [_mode(1, "q", 1, positive=True)],
     )
     clauses = _generate(program, 2, 1).clauses
 
@@ -1813,7 +1908,7 @@ def test_closed_world_properties_apply_to_aggregate_condition_atoms():
         ["edge(a,b).", "edge(b,a)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "1"), True)],
+        [_mode(1, "target", 1, head=True)],
         [],
         [AggregateDeclaration(1, "count", (("edge", 2),), True)],
     )
@@ -1830,7 +1925,7 @@ def test_mul_and_abs_operands_are_canonicalized():
         [],
         [],
         [],
-        [ModeDeclaration(("1", "q", "2", "positive"), False)],
+        [_mode(1, "q", 2, positive=True)],
         [],
         [],
         [OperatorDeclaration(1, "mul"), OperatorDeclaration(1, "abs")],
@@ -1859,8 +1954,8 @@ def test_reader_parses_directives_without_regex_space_loss(tmp_path):
                 "edge(1,2).",
                 "#pos({ red(1), blue(f(2,3)) }, { green(1) }, { ctx((1,2)) }).",
                 "#neg({ bad(1) }, {}).",
-                "#modeh(1, red, 1).",
-                "#modeb(2, edge, 2, positive).",
+                "#modeh(1, red(var(numeric,any))).",
+                "#modeb(2, edge(var(numeric,any),var(numeric,any)), positive).",
                 "#modeagg(1, sum(edge/2), unbalanced).",
                 "#modecmp(2, neq).",
                 "#modearith(1, add).",
@@ -1885,7 +1980,7 @@ def test_reader_parses_directives_without_regex_space_loss(tmp_path):
     assert program.arithmetic_modes == [OperatorDeclaration(1, "add")]
 
 
-def test_language_bias_auto_generates_head_and_closed_body_when_bias_is_missing():
+def test_language_bias_is_not_generated_when_bias_is_missing():
     program = Program(
         ["a :- b, not c."],
         [],
@@ -1894,60 +1989,37 @@ def test_language_bias_auto_generates_head_and_closed_body_when_bias_is_missing(
         [],
     )
 
-    program.complete_language_bias()
-
-    heads = {(mode.name, mode.arity) for mode in program.language_bias_head}
-    bodies = {
-        (mode.name, mode.arity, mode.positive) for mode in program.language_bias_body
-    }
-
-    assert heads == {("a", 0), ("b", 0), ("c", 0)}
-    assert bodies == {
-        ("a", 0, True),
-        ("b", 0, True),
-        ("c", 0, True),
-        ("c", 0, False),
-    }
+    assert program.language_bias_head == []
+    assert program.language_bias_body == []
 
 
-def test_language_bias_auto_keeps_explicit_head_and_generates_missing_body():
+def test_language_bias_keeps_explicit_head_without_generating_body():
     program = Program(
         ["coin(c1)."],
         [Example(("heads(c1)", "tails(c1)"), True)],
         [],
         [
-            ModeDeclaration(("1", "heads", "1"), True),
-            ModeDeclaration(("1", "tails", "1"), True),
+            _mode(1, "heads", 1, head=True),
+            _mode(1, "tails", 1, head=True),
         ],
         [],
     )
-
-    program.complete_language_bias()
 
     assert {(mode.name, mode.arity) for mode in program.language_bias_head} == {
         ("heads", 1),
         ("tails", 1),
     }
-    assert {
-        (mode.name, mode.arity, mode.positive) for mode in program.language_bias_body
-    } == {
-        ("coin", 1, True),
-        ("heads", 1, True),
-        ("tails", 1, True),
-        ("tails", 1, False),
-    }
+    assert program.language_bias_body == []
 
 
-def test_language_bias_auto_does_not_generate_head_when_body_is_explicit():
+def test_language_bias_keeps_explicit_body_without_generating_head():
     program = Program(
         ["target(1)."],
         [],
         [],
         [],
-        [ModeDeclaration(("1", "target", "1", "positive"), False)],
+        [_mode(1, "target", 1, positive=True)],
     )
-
-    program.complete_language_bias()
 
     assert program.language_bias_head == []
     assert {
@@ -1960,8 +2032,8 @@ def test_positive_body_singleton_is_available_as_existential_projection():
         ["edge(1,2)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "1"), True)],
-        [ModeDeclaration(("1", "edge", "2", "positive"), False)],
+        [_mode(1, "target", 1, head=True)],
+        [_mode(1, "edge", 2, positive=True)],
     )
 
     clauses = _generate(program, 2, 2).clauses
@@ -1974,10 +2046,10 @@ def test_negative_body_singleton_remains_rejected():
         ["node(1).", "edge(1,2)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "1"), True)],
+        [_mode(1, "target", 1, head=True)],
         [
-            ModeDeclaration(("1", "node", "1", "positive"), False),
-            ModeDeclaration(("1", "edge", "2", "negative"), False),
+            _mode(1, "node", 1, positive=True),
+            _mode(1, "edge", 2, positive=False),
         ],
     )
 
@@ -2218,11 +2290,11 @@ def test_linkedness_rejects_disconnected_literal_components():
         ["p(1).", "p(2).", "q(1).", "q(3).", "r(1).", "r(4)."],
         [],
         [],
-        [ModeDeclaration(("1", "target", "1"), True)],
+        [_mode(1, "target", 1, head=True)],
         [
-            ModeDeclaration(("1", "p", "1", "positive"), False),
-            ModeDeclaration(("1", "q", "1", "positive"), False),
-            ModeDeclaration(("1", "r", "1", "positive"), False),
+            _mode(1, "p", 1, positive=True),
+            _mode(1, "q", 1, positive=True),
+            _mode(1, "r", 1, positive=True),
         ],
     )
 
@@ -2238,8 +2310,8 @@ def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
         "\n".join(
             (
                 "edge(1,2).",
-                "#modeh(1,target,2,(+,-)).",
-                "#modeb(1,edge,2,positive,(+,-)).",
+                "#modeh(1,target(var(term,input),var(term,output))).",
+                "#modeb(1,edge(var(term,input),var(term,output)),positive).",
             )
         ),
         encoding="utf-8",
@@ -2248,7 +2320,9 @@ def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
 
     clauses = _generate(program, 2, 2).clauses
 
-    assert program.language_bias_head[0].directions == ("input", "output")
+    assert tuple(
+        argument.direction for argument in program.language_bias_head[0].arguments
+    ) == ("input", "output")
     assert "target(V0,V1) :- edge(V0,V1)." in clauses
     assert "target(V0,V1) :- edge(V1,V0)." not in clauses
 

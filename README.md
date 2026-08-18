@@ -109,34 +109,38 @@ If instead you prefer to define your own program and domain, keep reading.
 ## Language Bias Definition
 You can define the language bias (i.e., atoms and literals that can appear in the head and body of rules) with the following syntax.
 For head atoms
+```prolog
+#modeh(recall, atom_template).
 ```
-#modeh(recall, atom, arity).
-```
-define an atom `atom` with arity `arity` that can appear at most once in the head.
-For example, with `#modeh(1,a,2)` you may obtain `a(X,Y)` in the head.
+For example, `#modeh(1,a(var(node,input),var(node,output))).` permits
+`a(X,Y)` in a rule head.
 
 For positive body literals
-```
-#modeb(recall, atom, arity, positive).
+```prolog
+#modeb(recall, atom_template, positive).
 ```
 while for negative body literals
+```prolog
+#modeb(recall, atom_template, negative).
 ```
-#modeb(recall, atom, arity, negative).
-```
-with the same syntax as for head atoms.
-Here, `positive` and `negative` are reserved keywords so they should be written as they are.
-For example, with `#modeb(1, a, 2, positive)` you may obtain `a(X,Y)` in the body while with `#modeb(1, a, 2, negative)` you may also obtain not `a(X,Y)`.
+Every non-nullary argument is explicitly either a directed typed variable or a
+typed constant placeholder:
 
-Argument directions are optional:
+```prolog
+#constant(colour,red).
+#constant(colour,green).
+
+#modeh(1,target(var(node,input))).
+#modeb(1,edge(var(node,input),var(node,output)),positive).
+#modeb(1,colour(var(node,input),const(colour)),positive).
 ```
-#modeh(1,target,2,(+,-)).
-#modeb(1,edge,2,positive,(+,-)).
-```
-`+` is an input variable, `-` an output variable, and `?` unrestricted. Body
-inputs must be reachable from head inputs through outputs of positive body
-literals; every head output must be produced by one. Negative modes cannot
-declare outputs. Gentians currently generates variables only, so constant (`#`)
-mode arguments are not supported.
+
+Variables require exactly one direction: `input`, `output`, or `any`.
+`input` must already be bound, `output` is produced by a positive body literal,
+and `any` opts out of data-flow restrictions. Constants have no direction and
+must be enumerated by `#constant(TYPE, VALUE)`. Negative modes cannot contain
+output variables. Types and directions are task declarations; Gentians does
+not infer normal modes from background knowledge or examples.
 
 ## Examples definition
 Positive examples must follow the syntax
@@ -206,48 +210,18 @@ Examples:
 #modearith(1, sub).
 ```
 
-## Automatic Language Bias
-You can leave the solver discovering missing language bias automatically.
-This scans positive and negative examples and background knowledge and extracts the signature for each observed atom.
-If no `#modeh` and no `#modeb` are provided, it generates both head and body bias.
-If `#modeh` is provided but `#modeb` is missing, it keeps the explicit head bias and generates only body bias.
-If `#modeb` is provided, it does not generate head bias, because the task may be learning constraints.
-Generated bias assumes a closed world over the input file: a signature is generated only if it appears in background knowledge or examples.
-Generated body bias always includes the positive mode for observed atoms and includes the negative mode only when that atom appears negated or in an excluded example.
-If you also declare aggregates, comparison operators, or arithmetic operators, these will be kept.
-
-Example: suppose we have in the program
-```
-a:- b.
-#pos({f(1)},{f(1,a)}).
-```
-and no explicit language bias. This translates into:
-```
-#modeh(1, a, 0).
-#modeh(1, f, 1).
-#modeh(1, f, 2).
-#modeh(1, b, 0).
-#modeb(1, a, 0, positive).
-#modeb(1, f, 1, positive).
-#modeb(1, f, 2, positive).
-#modeb(1, f, 2, negative).
-#modeb(1, b, 0, positive).
-```
-
-Currently, pay attention when using this together with aggregates, since you may encounter an infinite loop while grounding the program.
-
 ## Predicate Invention
-Declare an invented predicate once with `#invent(BODY_RECALL, NAME, ARITY)`.
+Declare an invented predicate once with `#invent(BODY_RECALL, ATOM_TEMPLATE)`.
 It is generated in rule heads with recall 1 and in positive rule bodies with the
 declared recall. Invented definitions are ordered by declaration and may depend
 only on earlier invented predicates, preventing recursive invention cycles.
 
 Example:
 ```prolog
-#modeh(1,target,2).
-#modeb(1,father,2,positive).
-#modeb(1,mother,2,positive).
-#invent(2,target_1,2).
+#modeh(1,target(var(person,any),var(person,any))).
+#modeb(1,father(var(person,any),var(person,any)),positive).
+#modeb(1,mother(var(person,any),var(person,any)),positive).
+#invent(2,target_1(var(person,any),var(person,any))).
 ```
 
 Here `target_1/2` is learned in rule heads and may occur twice in rule bodies.

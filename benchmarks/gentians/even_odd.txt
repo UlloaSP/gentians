@@ -21,9 +21,9 @@ prev(4,3).
 #neg({even(1)}, {}).
 #neg({odd(2)}, {}).
 
-#modeh(1,even,1).
-#modeh(1,odd,1).
+#modeh(1,even(var(numeric,any))).
+#modeh(1,odd(var(numeric,any))).
 
-#modeb(1,even,1,positive).
-#modeb(1,odd,1,positive).
-#modeb(2,prev,2,positive).
+#modeb(1,even(var(numeric,any)),positive).
+#modeb(1,odd(var(numeric,any)),positive).
+#modeb(2,prev(var(numeric,any),var(numeric,any)),positive).

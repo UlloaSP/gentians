@@ -15,8 +15,8 @@
 %   Arity is number of arguments; Recall is the per-mode recall cap.
 % - selected(Section,Slot,Mode): this file's choice atom. It means literal
 %   slot Slot in Section uses generator mode Mode.
-% - var_at(Section,Slot,Arg,Var): defined in core/arguments.lp. It means
-%   argument Arg of selected literal Section/Slot uses generated variable Var.
+% - var_at(Section,Slot,Arg,Var): defined in core/arguments.lp. It means variable
+%   placeholder Arg of selected literal Section/Slot uses generated variable Var.
 
 % Python fact contract:
 % - max_vars(Max): emitted from task #maxv. Max is count
@@ -100,13 +100,13 @@ same_mode_tuple_gt(Section,Slot0,Slot1):-
     selected(Section,Slot0,Mode),
     selected(Section,Slot1,Mode),
     Slot1 = Slot0 + 1,
-    mode(Section,Mode,_,Arity,_),
-    Arg = 0..Arity-1,
+    mode_variable_arg(Mode,Arg),
     var_at(Section,Slot0,Arg,Left),
     var_at(Section,Slot1,Arg,Right),
     Left > Right,
-    Arg = #count{
-        Prev : Prev = 0..Arg-1,
+    Before = #count{Prev : mode_variable_arg(Mode,Prev), Prev < Arg},
+    Before = #count{
+        Prev : mode_variable_arg(Mode,Prev), Prev < Arg,
         var_at(Section,Slot0,Prev,Same),
         var_at(Section,Slot1,Prev,Same)
     }.

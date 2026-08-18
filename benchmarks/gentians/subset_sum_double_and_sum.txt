@@ -22,7 +22,7 @@
 #neg({ok(2)}, {}).
 #neg({ok(10)}, {}).
 
-#modeh(1,ok,1).
+#modeh(1,ok(var(numeric,any))).
 
 #modeagg(2,sum(el/2),balanced).
 #modearith(1,add).

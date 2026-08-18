@@ -55,12 +55,12 @@ p(1,2).
 #neg({p(1,2), p(2,4), p(2,5), p(2,6), p(2,8), p(2,9)}, {}).
 #neg({p(1,2), p(1,4), p(1,5), p(1,6), p(2,8), p(2,9)}, {}).
 
-#modeh(1,sum_partition,2).
-#modeh(1,count_partition,2).
+#modeh(1,sum_partition(var(numeric,any),var(numeric,any))).
+#modeh(1,count_partition(var(numeric,any),var(numeric,any))).
 
-#modeb(2,sum_partition,2,positive).
-#modeb(1,partition,1,positive).
-#modeb(2,count_partition,2,positive).
+#modeb(2,sum_partition(var(numeric,any),var(numeric,any)),positive).
+#modeb(1,partition(var(numeric,any)),positive).
+#modeb(2,count_partition(var(numeric,any),var(numeric,any)),positive).
 #modeagg(1,sum(p/2),unbalanced).
 #modeagg(1,count(p/2),unbalanced).
 #modecmp(2,neq).

@@ -28,7 +28,7 @@ def write_hypothesis_file(
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "schemaVersion": 4,
+        "schemaVersion": 5,
         "dataset": dataset,
         "hypothesisKey": hypothesis_key(arguments),
         "arguments": asdict(arguments),
@@ -61,7 +61,7 @@ def read_hypothesis_payload(path: Path, arguments: Arguments) -> dict[str, objec
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError(f"Invalid hypothesis space file: {path}")
-    if payload.get("schemaVersion") != 4:
+    if payload.get("schemaVersion") != 5:
         raise ValueError(f"Unsupported hypothesis space schema: {path}")
     expected = hypothesis_key(arguments)
     actual = payload.get("hypothesisKey")

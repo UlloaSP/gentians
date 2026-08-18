@@ -12,7 +12,7 @@
 
 % Rule: detect duplicate normal predicate literals.
 % Section0/Slot0 and Section1/Slot1 are ordered by section_order and Slot.
-% Pred/Arity must match. same_vars/4 proves both literals use the same tuple.
+% Pred/Arity must match. same_vars/4 proves both literals use the same term tuple.
 same_normal_literal(Section0,Slot0,Section1,Slot1):-
     normal_literal(Section0,Slot0,Mode0,Pred,Arity),
     normal_literal(Section1,Slot1,Mode1,Pred,Arity),

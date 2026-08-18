@@ -3,11 +3,13 @@ import time
 from gentians.evolution.algorithms.search import search_solver
 
 from .arguments import Arguments
-from .rule_generation.reader import read_program
 from .rule_generation.program import Program
+from .rule_generation.reader import read_program
 from .rule_generation.rule_space import RuleSpace
 from .timing import (
     export as export_timings,
+)
+from .timing import (
     phase,
     recorded_seconds,
 )
@@ -55,8 +57,6 @@ def program_from_arguments(arguments: Arguments) -> Program:
         program = read_program(arguments.filename)
     else:
         raise ValueError("Specify a file with the task")
-
-    program.complete_language_bias()
 
     return program
 

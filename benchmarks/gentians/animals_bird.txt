@@ -76,13 +76,13 @@ has_gills(eel).
 #neg({bird(snake)}, {}).
 #neg({bird(turtle)}, {}).
 
-#modeh(1,bird,1).
+#modeh(1,bird(var(animal,any))).
 
-#modeb(1,feathers,1,positive).
-#modeb(1,scales,1,positive).
-#modeb(1,hair,1,positive).
-#modeb(2,has_covering,2,positive).
-#modeb(1,has_milk,1,positive).
-#modeb(1,homeothermic,1,positive).
-#modeb(1,has_eggs,1,positive).
-#modeb(1,has_gills,1,positive).
+#modeb(1,feathers(var(covering,any)),positive).
+#modeb(1,scales(var(covering,any)),positive).
+#modeb(1,hair(var(covering,any)),positive).
+#modeb(2,has_covering(var(animal,any),var(covering,any)),positive).
+#modeb(1,has_milk(var(animal,any)),positive).
+#modeb(1,homeothermic(var(animal,any)),positive).
+#modeb(1,has_eggs(var(animal,any)),positive).
+#modeb(1,has_gills(var(animal,any)),positive).

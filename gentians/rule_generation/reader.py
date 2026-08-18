@@ -1,23 +1,66 @@
 import re
 from pathlib import Path
 
+import clingo
+
 from .aggregate_declaration import AggregateDeclaration
 from .example import Example
+from .mode_argument import ModeArgument
 from .mode_declaration import ModeDeclaration
 from .operator_declaration import OperatorDeclaration
-from .parser import parse_aggregate_spec, split_top_level_args
+from .parser import parse_aggregate_spec, parse_atom, split_top_level_args
 from .program import Program
 
 
 def _get_mode_declaration(
     s: str, for_head: bool
-) -> tuple[str, ...]:
+) -> ModeDeclaration:
     name = "#modeh" if for_head else "#modeb"
     parts = split_top_level_args(_directive_args(s, name))
-    expected = (3, 4) if for_head else (4, 5)
-    if len(parts) not in expected:
+    expected = 2 if for_head else 3
+    if len(parts) != expected:
         raise ValueError(f"invalid {name} declaration: {s}")
-    return tuple(part.strip() for part in parts)  # type: ignore[return-value]
+    recall = _parse_recall(parts[0])
+    predicate, arguments = _get_mode_atom(parts[1], s)
+    polarity = "positive" if for_head else parts[2].strip()
+    if polarity not in {"positive", "negative"}:
+        raise ValueError(f"invalid {name} polarity: {s}")
+    return ModeDeclaration(
+        recall, predicate, arguments, polarity == "positive", for_head
+    )
+
+
+def _get_mode_atom(raw: str, declaration: str) -> tuple[str, tuple[ModeArgument, ...]]:
+    parsed = parse_atom(raw.strip())
+    if parsed is None:
+        raise ValueError(f"invalid mode atom: {declaration}")
+    name, raw_arguments = parsed
+    if not re.fullmatch(r"[a-z][A-Za-z0-9_]*", name):
+        raise ValueError(f"invalid mode predicate: {declaration}")
+    return name, tuple(
+        _get_mode_argument(argument, declaration) for argument in raw_arguments
+    )
+
+
+def _get_mode_argument(raw: str, declaration: str) -> ModeArgument:
+    parsed = parse_atom(raw.strip())
+    if parsed is None:
+        raise ValueError(f"invalid mode argument: {declaration}")
+    kind, parts = parsed
+    if kind == "var" and len(parts) == 2:
+        type_name, direction = (part.strip() for part in parts)
+        _validate_type(type_name, declaration)
+        return ModeArgument("variable", type_name, direction)
+    if kind == "const" and len(parts) == 1:
+        type_name = parts[0].strip()
+        _validate_type(type_name, declaration)
+        return ModeArgument("constant", type_name)
+    raise ValueError(f"invalid mode argument: {declaration}")
+
+
+def _validate_type(type_name: str, declaration: str) -> None:
+    if type_name == "any" or not re.fullmatch(r"[a-z][A-Za-z0-9_]*", type_name):
+        raise ValueError(f"invalid mode type in declaration: {declaration}")
 
 
 def _get_pos_neg_examples(s: str) -> "tuple[str,str] | tuple[str,str,str]":
@@ -51,16 +94,28 @@ def _get_operator_declaration(s: str, name: str) -> OperatorDeclaration:
     return OperatorDeclaration(_parse_recall(parts[0]), parts[1].strip())
 
 
-def _get_invented_declaration(s: str) -> tuple[int, str, int]:
+def _get_invented_declaration(s: str) -> tuple[int, str, tuple[ModeArgument, ...]]:
     parts = split_top_level_args(_directive_args(s, "#invent"))
-    if len(parts) != 3:
+    if len(parts) != 2:
         raise ValueError(f"invalid #invent declaration: {s}")
     recall = _parse_recall(parts[0])
-    name = parts[1].strip()
-    arity = int(parts[2])
-    if recall < 1 or arity < 0 or not re.fullmatch(r"[a-z][A-Za-z0-9_]*", name):
+    name, arguments = _get_mode_atom(parts[1], s)
+    if recall < 1:
         raise ValueError(f"invalid #invent declaration: {s}")
-    return recall, name, arity
+    return recall, name, arguments
+
+
+def _get_constant_declaration(s: str) -> tuple[str, str]:
+    parts = split_top_level_args(_directive_args(s, "#constant"))
+    if len(parts) != 2:
+        raise ValueError(f"invalid #constant declaration: {s}")
+    type_name = parts[0].strip()
+    _validate_type(type_name, s)
+    try:
+        value = str(clingo.parse_term(parts[1].strip()))
+    except RuntimeError as exc:
+        raise ValueError(f"#constant value must be a ground term: {s}") from exc
+    return type_name, value
 
 
 def _directive_args(line: str, name: str) -> str:
@@ -107,7 +162,8 @@ def read_program(filename: str):
     aggregates: list[AggregateDeclaration] = []
     comparisons: list[OperatorDeclaration] = []
     arithmetic: list[OperatorDeclaration] = []
-    inventions: list[tuple[int, str, int]] = []
+    inventions: list[tuple[int, str, tuple[ModeArgument, ...]]] = []
+    constants: dict[str, list[str]] = {}
     limits: dict[str, int | None] = {
         "#maxv": 3,
         "#maxbl": 3,
@@ -135,13 +191,11 @@ def read_program(filename: str):
             declared_limits.add(limit)
             limits[limit] = _get_limit(lc, limit, limit in {"#maxv", "#maxhl"})
         elif lc.startswith("#modeh"):
-            res = _get_mode_declaration(lc, True)
-            md = ModeDeclaration(res, True)
+            md = _get_mode_declaration(lc, True)
             if md not in lbh:
                 lbh.append(md)
         elif lc.startswith("#modeb"):
-            res = _get_mode_declaration(lc, False)
-            md = ModeDeclaration(res, False)
+            md = _get_mode_declaration(lc, False)
             if md not in lbb:
                 lbb.append(md)
         elif lc.startswith("#pos"):
@@ -171,10 +225,17 @@ def read_program(filename: str):
             if any(existing[1:] == invention[1:] for existing in inventions):
                 raise ValueError(f"duplicate #invent declaration: {lc}")
             inventions.append(invention)
+        elif lc.startswith("#constant"):
+            type_name, value = _get_constant_declaration(lc)
+            values = constants.setdefault(type_name, [])
+            if value not in values:
+                values.append(value)
         else:
             bg.append(lc)
 
-    invented_predicates = tuple((name, arity) for _recall, name, arity in inventions)
+    invented_predicates = tuple(
+        (name, len(arguments)) for _recall, name, arguments in inventions
+    )
     explicit = {
         (mode.name, mode.arity)
         for mode in [*lbh, *lbb]
@@ -184,9 +245,20 @@ def read_program(filename: str):
         raise ValueError(
             f"invented predicates must not also use #modeh/#modeb: {sorted(overlap)}"
         )
-    for recall, name, arity in inventions:
-        lbh.append(ModeDeclaration(("1", name, str(arity)), True))
-        lbb.append(ModeDeclaration((str(recall), name, str(arity), "positive"), False))
+    for recall, name, arguments in inventions:
+        lbh.append(ModeDeclaration(1, name, arguments, True, True))
+        lbb.append(ModeDeclaration(recall, name, arguments, True, False))
+    constant_types = {
+        argument.type
+        for mode in [*lbh, *lbb]
+        for argument in mode.arguments
+        if argument.kind == "constant"
+    }
+    missing_constants = constant_types - constants.keys()
+    if missing_constants:
+        raise ValueError(
+            f"constant mode types require #constant declarations: {sorted(missing_constants)}"
+        )
     return Program(
         bg,
         pe,
@@ -197,6 +269,7 @@ def read_program(filename: str):
         comparisons,
         arithmetic,
         invented_predicates=invented_predicates,
+        constants={name: tuple(values) for name, values in constants.items()},
         max_variables=limits["#maxv"],
         max_body_literals=limits["#maxbl"],
         max_head_literals=limits["#maxhl"],

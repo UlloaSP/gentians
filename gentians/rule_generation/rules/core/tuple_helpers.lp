@@ -2,7 +2,7 @@
 %
 % This file contains small structural relations reused by many property
 % modules.  It does not reject candidates directly; it names common situations
-% such as "these two literals have the same variables" or "this variable occurs
+% such as "these two literals have the same terms" or "this variable occurs
 % in another positive body literal".
 %
 % Shared atom shapes used here:
@@ -12,19 +12,47 @@
 % - body_slot(Slot): defined in core/slots.lp.
 % - positive_body_literal(Slot,Mode,Pred,Arity): core/literals.lp alias.
 
-% Rule: two distinct selected literals use the same full variable tuple.
+% Rule: two distinct selected literals use the same full term tuple.
 % Section0/Slot0 and Section1/Slot1 identify the two literals. Mode0/Mode1 are
 % selected only to read their arity. The two mode arities must be equal. The
-% #count equals Arity only when every Arg position uses the same Var in both
-% literals. Same-slot self-pairs are excluded because callers never consume
-% them.
+% Variable positions must share the same generated variable, constant positions
+% must contain the same ground term, and kinds must match. Same-slot self-pairs
+% are excluded because callers never consume them.
+different_term(Section0,Slot0,Section1,Slot1):-
+    selected(Section0,Slot0,Mode0),
+    selected(Section1,Slot1,Mode1),
+    mode_variable_arg(Mode0,Arg),
+    mode_variable_arg(Mode1,Arg),
+    var_at(Section0,Slot0,Arg,Var0),
+    var_at(Section1,Slot1,Arg,Var1),
+    Var0 != Var1.
+
+different_term(Section0,Slot0,Section1,Slot1):-
+    selected(Section0,Slot0,Mode0),
+    selected(Section1,Slot1,Mode1),
+    mode_constant_arg(Mode0,Arg,Value0),
+    mode_constant_arg(Mode1,Arg,Value1),
+    Value0 != Value1.
+
+different_term(Section0,Slot0,Section1,Slot1):-
+    selected(Section0,Slot0,Mode0),
+    selected(Section1,Slot1,Mode1),
+    mode_variable_arg(Mode0,Arg),
+    mode_constant_arg(Mode1,Arg,_).
+
+different_term(Section0,Slot0,Section1,Slot1):-
+    selected(Section0,Slot0,Mode0),
+    selected(Section1,Slot1,Mode1),
+    mode_constant_arg(Mode0,Arg,_),
+    mode_variable_arg(Mode1,Arg).
+
 same_vars(Section0,Slot0,Section1,Slot1):-
     selected(Section0,Slot0,Mode0),
     selected(Section1,Slot1,Mode1),
     Section0 != Section1,
     mode(Section0,Mode0,_,Arity,_),
     mode(Section1,Mode1,_,Arity,_),
-    Arity = #count{Arg : var_at(Section0,Slot0,Arg,Var), var_at(Section1,Slot1,Arg,Var)}.
+    not different_term(Section0,Slot0,Section1,Slot1).
 
 same_vars(Section,Slot0,Section,Slot1):-
     selected(Section,Slot0,Mode0),
@@ -32,7 +60,7 @@ same_vars(Section,Slot0,Section,Slot1):-
     Slot0 != Slot1,
     mode(Section,Mode0,_,Arity,_),
     mode(Section,Mode1,_,Arity,_),
-    Arity = #count{Arg : var_at(Section,Slot0,Arg,Var), var_at(Section,Slot1,Arg,Var)}.
+    not different_term(Section,Slot0,Section,Slot1).
 
 % Rule: two distinct binary literals use reversed variables.
 % Section0/Slot0 has arguments Left,Right. Section1/Slot1 has Right,Left.

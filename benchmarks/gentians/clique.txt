@@ -35,7 +35,7 @@ ne(X,Y):- not e(X,Y), v(X), v(Y).
 #neg({in(3)}, {}).
 #neg({in(4)}, {}).
 
-#modeb(2,v,1,positive).
-#modeb(2,ne,2,positive).
-#modeb(2,in,1,positive).
+#modeb(2,v(var(numeric,any)),positive).
+#modeb(2,ne(var(numeric,any),var(numeric,any)),positive).
+#modeb(2,in(var(numeric,any)),positive).
 #modecmp(1,neq).

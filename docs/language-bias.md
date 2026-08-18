@@ -61,7 +61,7 @@ with recall `*` is invalid because it describes an infinite rule space:
 ```prolog
 % Invalid combination: no finite body bound.
 #maxbl(*).
-#modeb(*,edge,2,positive).
+#modeb(*,edge(var(node,any),var(node,any)),positive).
 ```
 
 Use a finite global length or a finite recall to make that task enumerable.
@@ -74,14 +74,96 @@ Use a finite global length or a finite recall to make that task enumerable.
 #maxhl(1).
 #maxpl(*).
 
-#modeh(1,target,1).
-#modeb(2,edge,2,positive).
-#modeb(1,red,1,positive).
+#modeh(1,target(var(node,any))).
+#modeb(2,edge(var(node,any),var(node,any)),positive).
+#modeb(1,red(var(node,any)),positive).
 ```
 
 This permits clauses with at most three distinct variables, two body literals,
 and one head atom. Candidate hypotheses may use any number of clauses from the
 finite rule space.
+
+## Normal modes
+
+Normal head and body modes contain an atom template rather than a separate
+predicate name and arity:
+
+```prolog
+#modeh(1,target(var(node,input))).
+#modeb(1,edge(var(node,input),var(node,output)),positive).
+#modeb(1,blocked(var(node,input)),negative).
+```
+
+Every argument is explicit. Variables always contain a nominal type and one
+direction; `var(type)` without a direction is invalid.
+
+```ebnf
+head-mode       = "#modeh(", recall, ",", atom-template, ")." ;
+body-mode       = "#modeb(", recall, ",", atom-template, ",", polarity, ")." ;
+atom-template   = predicate, ["(", mode-argument, {",", mode-argument}, ")"] ;
+mode-argument   = variable-argument | constant-argument ;
+variable-argument = "var(", type, ",", direction, ")" ;
+constant-argument = "const(", type, ")" ;
+direction       = "input" | "output" | "any" ;
+polarity        = "positive" | "negative" ;
+recall          = positive-integer | "*" ;
+type            = lowercase-identifier ;
+```
+
+Directions mean:
+
+- `input`: must already be bound.
+- `output`: is produced by a selected positive body literal.
+- `any`: deliberately has no input/output requirement; a positive body literal
+  still binds it for later inputs.
+
+Only `output` satisfies an output requirement declared in a rule head. A
+negative body mode cannot declare output variables. ASP safety remains active
+independently of mode direction.
+
+Types are nominal task declarations. They constrain which positions may share
+a generated variable; they do not add domain literals to learned rules. The
+reserved type name `any` is invalid because every normal-mode type must be
+explicit. Aggregate source literals continue deriving their types from their
+defined occurrences in the task; declared normal-mode types name connected
+aggregate positions when both describe the same observed domain.
+
+Gentians does not synthesize missing normal modes from background knowledge or
+examples. No head modes means constraint learning; no body modes means no body
+predicate templates. The task is the complete authority for normal language
+bias.
+
+## Constant placeholders
+
+Constants allowed in learned literals are enumerated explicitly:
+
+```prolog
+#constant(colour,red).
+#constant(colour,green).
+
+#modeb(1,colour(var(node,input),const(colour)),positive).
+```
+
+`const(colour)` expands independently to each declared colour. A template with
+multiple constant positions expands to their Cartesian product. All concrete
+expansions share the original declaration's recall. Constants do not count
+towards `#maxv`, are always ground, and have no direction. Using `const(type)`
+without any `#constant(type,value)` is a task error.
+
+`#constant` is mode-bias syntax and does not assert a background fact. It is
+unrelated to Clingo's `#const name=value` macro, which remains background ASP.
+
+## Predicate invention
+
+Invented predicates use the same complete template:
+
+```prolog
+#invent(2,helper(var(node,input),var(node,output))).
+```
+
+The template generates a head mode with recall 1 and a positive body mode with
+the declared recall. This keeps invented arguments typed and directed without
+fallback inference.
 
 ## Runtime boundary
 

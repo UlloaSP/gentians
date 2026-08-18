@@ -24,12 +24,12 @@
 #neg({ok(2)}, {}).
 #neg({ok(10)}, {}).
 
-#modeh(1,ok,1).
-#modeh(1,s0,1).
-#modeh(1,s1,1).
+#modeh(1,ok(var(numeric,any))).
+#modeh(1,s0(var(numeric,any))).
+#modeh(1,s1(var(numeric,any))).
 
-#modeb(1,s0,1,positive).
-#modeb(1,s1,1,positive).
+#modeb(1,s0(var(numeric,any)),positive).
+#modeb(1,s1(var(numeric,any)),positive).
 #modeagg(2,sum(el/2),unbalanced).
 #modeagg(2,count(el/2),unbalanced).
 #modearith(1,add).

@@ -80,7 +80,7 @@ def test_profile_baseline_writes_debug_clingo_program(tmp_path):
     task.write_text(
         "base.\n"
         "#pos({target},{}).\n"
-        "#modeh(1,target,0).\n",
+        "#modeh(1,target).\n",
         encoding="utf-8",
     )
     arguments = Arguments(filename=str(task))
@@ -107,7 +107,7 @@ def test_profile_baseline_writes_debug_clingo_program(tmp_path):
 
 def test_profile_baseline_uses_strategy_fitness_for_debug_dump(tmp_path):
     task = tmp_path / "task.txt"
-    task.write_text("#pos({target},{}).\n#modeh(1,target,0).\n", encoding="utf-8")
+    task.write_text("#pos({target},{}).\n#modeh(1,target).\n", encoding="utf-8")
     arguments = Arguments(filename=str(task))
     arguments.fitness = {
         "name": "cov_subprograms_mean",

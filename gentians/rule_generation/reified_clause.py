@@ -24,8 +24,13 @@ class ReifiedClause:
 def _render_literal(literal: ReifiedLiteral, mode: HypothesisMode) -> str:
     variables = [f"V{var}" for var in literal.variables]
     if mode.kind == "normal":
+        variable_iterator = iter(variables)
+        arguments = [
+            next(variable_iterator) if fixed is None else fixed
+            for fixed in mode.fixed_arguments
+        ]
         atom = (
-            f"{mode.name}({','.join(variables)})" if variables else mode.name
+            f"{mode.name}({','.join(arguments)})" if arguments else mode.name
         )
         return atom if mode.positive else f"not {atom}"
     if mode.kind == "comparison":

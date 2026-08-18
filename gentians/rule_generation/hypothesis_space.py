@@ -23,6 +23,7 @@ from .aggregate_declaration import AggregateDeclaration
 from .closed_world_properties import ClosedWorldProperties
 from .hypothesis_capabilities import HypothesisCapabilities
 from .hypothesis_mode import HypothesisMode
+from .mode_declaration import ModeDeclaration
 from .parser import Predicate, fragment_atoms
 from .program import Program
 from .reified_clause import ReifiedClause
@@ -86,7 +87,7 @@ HYPOTHESIS_SPACE_RULES = "\n".join(
 
 
 _ValueLiteral = tuple[int, int]
-_ModeLiteral = tuple[int, int, int]
+_ModeLiteral = tuple[int, tuple[int, ...], int]
 _ModelSlot = tuple[
     str,
     int,
@@ -131,7 +132,6 @@ class HypothesisSpaceGenerator:
             self.capabilities,
             self.predicate_arg_types,
             self.aggregate_specs,
-            _observed_predicates(self.fragments),
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
         self.head_slots = _section_capacity(
@@ -145,12 +145,20 @@ class HypothesisSpaceGenerator:
             if program.max_variables is not None
             else self.head_slots
             * max(
-                (mode.arity for mode in self.modes if mode.section == "head"),
+                (
+                    _variable_arity(mode)
+                    for mode in self.modes
+                    if mode.section == "head"
+                ),
                 default=0,
             )
             + self.body_slots
             * max(
-                (mode.arity for mode in self.modes if mode.section == "body"),
+                (
+                    _variable_arity(mode)
+                    for mode in self.modes
+                    if mode.section == "body"
+                ),
                 default=0,
             )
         )
@@ -1464,13 +1472,11 @@ def _is_acyclic(tuples: set[tuple[str, ...]]) -> bool:
 
 def _recursive_predicates(program: Program) -> set[Predicate]:
     head_predicates = {(md.name, md.arity) for md in program.language_bias_head}
-    generated = program.generated_language_bias_body
     return {
         (md.name, md.arity)
         for md in program.language_bias_body
         if md.positive
         and (md.name, md.arity) in head_predicates
-        and (md.name, md.arity) not in generated
     }
 
 
@@ -1598,10 +1604,19 @@ def _predicate_arg_types(
             constants_by_position.get(position, set())
         )
 
+    declared_types_by_root: dict[tuple[str, int, int], set[str]] = {}
+    for mode in [*program.language_bias_head, *program.language_bias_body]:
+        for index, argument in enumerate(mode.arguments):
+            position = (mode.name, mode.arity, index)
+            declared_types_by_root.setdefault(find(position), set()).add(
+                argument.type
+            )
     type_by_root: dict[tuple[str, int, int], str] = {}
     next_type = 0
     for root, constants in constants_by_root.items():
-        if constants and all(_is_numeric_constant(value) for value in constants):
+        if len(declared_types_by_root.get(root, ())) == 1:
+            type_by_root[root] = next(iter(declared_types_by_root[root]))
+        elif constants and all(_is_numeric_constant(value) for value in constants):
             type_by_root[root] = "numeric"
         elif constants:
             type_by_root[root] = f"type_{next_type}"
@@ -1669,56 +1684,39 @@ def _hypothesis_modes(
     capabilities: HypothesisCapabilities,
     predicate_arg_types: dict[tuple[str, int, int], str],
     aggregate_specs: list[AggregateDeclaration],
-    observed_predicates: set[Predicate],
 ) -> list[HypothesisMode]:
     modes: list[HypothesisMode] = []
     next_id = 0
-    head_predicates = {(md.name, md.arity) for md in program.language_bias_head}
-    recursive_predicates = _recursive_predicates(program)
-
     def add(mode: HypothesisMode) -> None:
         nonlocal next_id
         modes.append(mode)
         next_id += 1
 
-    for md in program.language_bias_head:
-        add(
-            HypothesisMode(
-                id=next_id,
-                recall_group=next_id,
-                section="head",
-                kind="normal",
-                name=md.name,
-                arity=md.arity,
-                recall=md.recall,
-                positive=True,
-                arg_types=_normal_arg_types(md.name, md.arity, predicate_arg_types),
-                arg_directions=md.directions,
+    for declaration in [
+        *program.language_bias_head,
+        *program.language_bias_body,
+    ]:
+        recall_group = next_id
+        for fixed_arguments in _concrete_normal_arguments(declaration, program.constants):
+            add(
+                HypothesisMode(
+                    id=next_id,
+                    recall_group=recall_group,
+                    section="head" if declaration.head else "body",
+                    kind="normal",
+                    name=declaration.name,
+                    arity=declaration.arity,
+                    recall=declaration.recall,
+                    positive=declaration.positive,
+                    arg_types=tuple(
+                        argument.type for argument in declaration.arguments
+                    ),
+                    arg_directions=tuple(
+                        argument.direction for argument in declaration.arguments
+                    ),
+                    fixed_arguments=fixed_arguments,
+                )
             )
-        )
-    for md in program.language_bias_body:
-        if (md.name, md.arity) not in observed_predicates | head_predicates:
-            continue
-        if (
-            md.positive
-            and (md.name, md.arity) in head_predicates
-            and (md.name, md.arity) not in recursive_predicates
-        ):
-            continue
-        add(
-            HypothesisMode(
-                id=next_id,
-                recall_group=next_id,
-                section="body",
-                kind="normal",
-                name=md.name,
-                arity=md.arity,
-                recall=md.recall,
-                positive=md.positive,
-                arg_types=_normal_arg_types(md.name, md.arity, predicate_arg_types),
-                arg_directions=md.directions,
-            )
-        )
 
     comparison_operators = {declaration.operator for declaration in program.comparison_modes}
     for declaration in program.comparison_modes:
@@ -1778,10 +1776,23 @@ def _hypothesis_modes(
     return modes
 
 
-def _normal_arg_types(
-    name: str, arity: int, predicate_arg_types: dict[tuple[str, int, int], str]
-) -> tuple[str, ...]:
-    return tuple(predicate_arg_types.get((name, arity, arg), "any") for arg in range(arity))
+def _concrete_normal_arguments(
+    declaration: ModeDeclaration,
+    constants: dict[str, tuple[str, ...]],
+) -> tuple[tuple[str | None, ...], ...]:
+    choices = [
+        (None,)
+        if argument.kind == "variable"
+        else constants[argument.type]
+        for argument in declaration.arguments
+    ]
+    return tuple(product(*choices)) if choices else ((),)
+
+
+def _variable_arity(mode: HypothesisMode) -> int:
+    if not mode.fixed_arguments:
+        return mode.arity
+    return sum(argument is None for argument in mode.fixed_arguments)
 
 
 def _section_capacity(
@@ -1810,7 +1821,6 @@ def _closed_body_predicates(program: Program) -> set[Predicate]:
         (mode.name, mode.arity)
         for mode in program.language_bias_body
         if (mode.name, mode.arity) not in head_predicates
-        and (mode.name, mode.arity) not in program.generated_language_bias_body
     }
 
 
@@ -1868,10 +1878,19 @@ def _facts(
         parts.append(f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{recall}).")
         parts.append(f"recall_group({mode.id},{mode.recall_group}).")
         for index, arg_type in enumerate(mode.arg_types):
-            if arg_type != "any":
-                parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
+            fixed = (
+                mode.fixed_arguments[index]
+                if mode.fixed_arguments
+                else None
+            )
+            if fixed is None:
+                parts.append(f"mode_variable_arg({mode.id},{index}).")
+                if arg_type != "any":
+                    parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
+            else:
+                parts.append(f"mode_constant_arg({mode.id},{index},{fixed}).")
         for index, direction in enumerate(mode.arg_directions):
-            if direction != "any":
+            if direction:
                 parts.append(f"mode_arg_direction({mode.id},{index},{direction}).")
         if not mode.positive:
             parts.append(f"negative_mode({mode.id}).")
@@ -2079,7 +2098,16 @@ def _model_literal_index(
             section,
             slot,
             tuple(
-                (mode_id, modes[mode_id].arity, literal)
+                (
+                    mode_id,
+                    tuple(
+                        index
+                        for index in range(modes[mode_id].arity)
+                        if not modes[mode_id].fixed_arguments
+                        or modes[mode_id].fixed_arguments[index] is None
+                    ),
+                    literal,
+                )
                 for mode_id, literal in sorted(mode_choices)
             ),
             tuple(
@@ -2111,20 +2139,21 @@ def _clause_from_model(
         if section_empty:
             continue
         mode_id = None
-        arity = 0
-        for candidate_mode, candidate_arity, program_literal in mode_choices:
+        variable_positions: tuple[int, ...] = ()
+        for candidate_mode, candidate_positions, program_literal in mode_choices:
             if candidate_mode < minimum_mode:
                 continue
             if is_true(program_literal):
                 mode_id = candidate_mode
-                arity = candidate_arity
+                variable_positions = candidate_positions
                 break
         if mode_id is None:
             section_empty = True
             continue
         minimum_mode = mode_id
         variables: list[int] = []
-        for choices in argument_choices[:arity]:
+        for argument in variable_positions:
+            choices = argument_choices[argument]
             for variable, program_literal in choices:
                 if is_true(program_literal):
                     variables.append(variable)

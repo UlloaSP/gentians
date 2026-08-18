@@ -24,11 +24,11 @@ result(M) :- eucl(a,b,M).
 #neg({pairprime(1,2)}, {}).
 #neg({pairprime(2,1)}, {}).
 
-#modeh(1,eucl,3).
+#modeh(1,eucl(var(numeric,any),var(numeric,any),var(numeric,any))).
 
-#modeb(1,eucl,3,positive).
-#modeb(1,zero,1,positive).
-#modeb(2,num,1,positive).
+#modeb(1,eucl(var(numeric,any),var(numeric,any),var(numeric,any)),positive).
+#modeb(1,zero(var(numeric,any)),positive).
+#modeb(2,num(var(numeric,any)),positive).
 #modecmp(1,lt).
 #modecmp(2,gt).
 #modearith(1,mod).

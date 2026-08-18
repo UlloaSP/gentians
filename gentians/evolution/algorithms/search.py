@@ -20,7 +20,7 @@ from ...timing import (
 from ..crossovers import create_crossover
 from ..evolution_context import EvolutionContext
 from ..fitness import create_fitness
-from ..individual import Individual, individual_from_fitness
+from ..individual import Individual
 from ..mutations import create_mutation
 from ..operator_types import MutationProposal
 from ..populations import create_population
@@ -85,7 +85,9 @@ def search_solver(
             return None
         evaluations += 1
         result = evaluate_score(generator.render(candidate))
-        individual = individual_from_fitness(candidate, result)
+        individual = Individual(
+            candidate, result.score, result.is_best, result.behavior
+        )
         evaluated[candidate] = individual
         return individual
 

@@ -13,7 +13,6 @@ _totals: dict[str, float] = {}
 _counts: dict[str, int] = {}
 _stack: list[dict[str, Any]] = []
 _ga_rows: list[dict[str, float]] = []
-_event_counter = 0
 _instrumentation_total = 0.0
 _timings_dirty = False
 _ga_dirty = False
@@ -70,13 +69,12 @@ def append_jsonl(path: str | None, rows: list[dict[str, object]]) -> None:
 
 
 def reset() -> None:
-    global _event_counter, _instrumentation_total, _timings_dirty, _ga_dirty
+    global _instrumentation_total, _timings_dirty, _ga_dirty
     _flush_jsonl()
     _totals.clear()
     _counts.clear()
     _stack.clear()
     _ga_rows.clear()
-    _event_counter = 0
     _instrumentation_total = 0.0
     _timings_dirty = False
     _ga_dirty = False
@@ -140,17 +138,11 @@ def phase(name: str):
     if not _enabled:
         yield
         return
-    global _event_counter, _instrumentation_total
+    global _instrumentation_total
     parent = _stack[-1] if _stack else None
     setup_start = time.perf_counter() if parent else 0.0
-    _event_counter += 1
     event = {
-        "event_id": _event_counter,
-        "parent_id": parent["event_id"] if parent else None,
         "phase": name,
-        "depth": len(_stack),
-        "started_perf": time.perf_counter(),
-        "started_wall": time.time(),
         "child_seconds": 0.0,
         "instrumentation_seconds": 0.0,
         "instrumenting": False,
@@ -171,21 +163,6 @@ def phase(name: str):
         finalize_start = ended
         _record_total(name, seconds)
         _record_total(f"{name}.self", self_seconds)
-        row = {
-            "event_id": event["event_id"],
-            "parent_id": event["parent_id"],
-            "phase": name,
-            "depth": event["depth"],
-            "started_perf": event["started_perf"],
-            "ended_perf": ended,
-            "started_wall": event["started_wall"],
-            "ended_wall": time.time(),
-            "seconds": seconds,
-            "raw_seconds": raw_seconds,
-            "self_seconds": self_seconds,
-            "instrumentation_seconds": instrumentation_seconds,
-        }
-        _append_jsonl(os.environ.get("GENTIANS_TIMING_EVENTS_PATH"), row)
         _stack.pop()
         finalize_overhead = time.perf_counter() - finalize_start
         _instrumentation_total += finalize_overhead
@@ -213,10 +190,6 @@ def profile_phase(name: str):
 
 def current_phase() -> str:
     return _stack[-1]["phase"] if _stack else "unclassified"
-
-
-def current_event_id() -> int | None:
-    return _stack[-1]["event_id"] if _stack else None
 
 
 def recorded_seconds(name: str) -> float | None:
@@ -250,13 +223,7 @@ def record_metric(kind: str, row: dict[str, Any]) -> None:
     if not path:
         return
     with instrumentation():
-        enriched = {
-            "phase": current_phase(),
-            "event_id": current_event_id(),
-            "wall_time": time.time(),
-            **row,
-        }
-        _append_jsonl(path, enriched)
+        _append_jsonl(path, row)
 
 
 def record_ga_generation(

@@ -10,12 +10,10 @@ from benchmarks.profile_baseline import (
     RunResult,
     TimingMetric,
     clingo_summary,
-    compute_accounting_invariants,
     dashboard_phases,
     dashboard_quality_rows,
     operator_summary,
     parse_log,
-    quality_summary,
     reset_run_outputs,
     run_profile_worker,
     run_streamed,
@@ -273,48 +271,6 @@ def test_operator_summary_measures_lost_crossover_gain_per_run():
     assert summary["retained_crossover_gain_rate"] == 0.5
 
 
-def test_quality_summary_uses_run_means():
-    [summary] = quality_summary(
-        [
-            {
-                "dataset": "d",
-                "run": 1,
-                "score": 10,
-                "program_size": 2,
-                "covered_positive": 4,
-                "covered_negative": 0,
-                "best_found": True,
-            },
-            {
-                "dataset": "d",
-                "run": 2,
-                "score": 0,
-                "program_size": 4,
-                "covered_positive": 2,
-                "covered_negative": 2,
-                "best_found": False,
-            },
-            {
-                "dataset": "d",
-                "run": 2,
-                "score": 0,
-                "program_size": 6,
-                "covered_positive": 0,
-                "covered_negative": 4,
-                "best_found": False,
-            },
-        ]
-    )
-
-    assert summary["evaluations"] == 1.5
-    assert summary["mean_score"] == 5.0
-    assert summary["best_score"] == 5.0
-    assert summary["best_found_rate"] == 0.5
-    assert summary["mean_program_size"] == 3.5
-    assert summary["mean_covered_positive"] == 2.5
-    assert summary["mean_covered_negative"] == 1.5
-
-
 def test_dashboard_quality_rows_keeps_coverage_totals():
     [row] = dashboard_quality_rows(
         [
@@ -445,47 +401,9 @@ def test_phase_subtracts_instrumentation_time(monkeypatch):
         with timing.instrumentation():
             pass
 
-    assert timing._totals["outer"] == 7.0
-    assert timing._totals["outer.self"] == 7.0
-    timing.reset()
-
-
-def test_phase_event_logging_is_parent_instrumentation(monkeypatch):
-    timing.reset()
-    monkeypatch.setattr(timing, "_enabled", True)
-    clock = [0.0]
-    monkeypatch.setattr(timing.time, "perf_counter", lambda: clock[0])
-
-    def append(*_args):
-        clock[0] += 5.0
-
-    monkeypatch.setattr(timing, "_append_jsonl", append)
-
-    with timing.phase("outer"):
-        clock[0] += 1.0
-        with timing.phase("inner"):
-            clock[0] += 1.0
-        clock[0] += 1.0
-
-    assert timing._totals["inner"] == 1.0
     assert timing._totals["outer"] == 3.0
-    assert timing._totals["outer.self"] == 2.0
+    assert timing._totals["outer.self"] == 3.0
     timing.reset()
-
-
-def test_export_closes_jsonl_writer_before_reset(monkeypatch, tmp_path):
-    path = tmp_path / "timing_events.jsonl"
-    timing.reset()
-    monkeypatch.setattr(timing, "_enabled", True)
-    monkeypatch.setenv("GENTIANS_TIMING_EVENTS_PATH", str(path))
-
-    with timing.phase("outer"):
-        pass
-
-    timing.export()
-    reset_run_outputs([path])
-
-    assert not path.exists()
 
 
 def test_ga_metrics_have_one_generation_coordinate(monkeypatch):
@@ -593,34 +511,15 @@ def test_frontend_phase_order_matches_dashboard_phases():
     assert set(frontend_phases) == set(backend_phases)
 
 
-def test_accounting_invariants_match_current_search_phases():
-    rows = compute_accounting_invariants(
-        "d",
-        1,
-        [
-            TimingMetric("d", 1, "total_execution", 10.0, 1),
-            TimingMetric("d", 1, "hypothesis_space", 2.0, 1),
-            TimingMetric("d", 1, "fitness.setup", 3.0, 1),
-            TimingMetric("d", 1, "fitness.setup.grounding", 2.5, 1),
-            TimingMetric("d", 1, "search", 10.0, 1),
-        ],
-    )
-
-    by_name = {row["invariant"]: row for row in rows}
-
-    assert by_name["total_vs_top_level"]["right_seconds"] == 10.0
-    assert by_name["fitness.setup_contains_clingo"]["right_seconds"] == 2.5
-
-
-def test_clingo_summary_uses_run_means_and_mean_models_from_zero():
+def test_clingo_summary_uses_run_means():
     [summary] = clingo_summary(
         [
             {
                 "dataset": "d",
                 "run": 1,
-                "operation": "fixed_presolve",
+                "operation": "solving",
                 "operation_category": "solving",
-                "phase_context": "mutation.fitness",
+                "phase_context": "mutation",
                 "seconds": 0.2,
                 "models": 2,
                 "stats_atoms": 10,
@@ -629,9 +528,9 @@ def test_clingo_summary_uses_run_means_and_mean_models_from_zero():
             {
                 "dataset": "d",
                 "run": 2,
-                "operation": "fixed_presolve",
+                "operation": "solving",
                 "operation_category": "solving",
-                "phase_context": "mutation.fitness",
+                "phase_context": "mutation",
                 "seconds": 0.4,
                 "models": 4,
                 "stats_atoms": 30,
@@ -640,9 +539,9 @@ def test_clingo_summary_uses_run_means_and_mean_models_from_zero():
             {
                 "dataset": "d",
                 "run": 2,
-                "operation": "fixed_presolve",
+                "operation": "solving",
                 "operation_category": "solving",
-                "phase_context": "mutation.fitness",
+                "phase_context": "mutation",
                 "seconds": 0.6,
                 "models": 6,
                 "stats_atoms": 50,
@@ -654,13 +553,7 @@ def test_clingo_summary_uses_run_means_and_mean_models_from_zero():
     assert summary["operation_category"] == "solving"
     assert summary["calls"] == 1.5
     assert summary["total_seconds"] == 0.6
-    assert summary["mean_seconds"] == 0.35
     assert summary["total_models"] == 6
-    assert summary["mean_models"] == 3.5
-    assert summary["mean_atoms"] == 25
-    assert summary["mean_rules"] == 50
-    assert summary["mean_models_points"][0] == [0, 0.0]
-    assert summary["mean_models_points"][1] == [1.5, 3.5]
 
 
 def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
@@ -697,14 +590,13 @@ def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
         [],
         [],
         [],
-        [],
         [
             {
                 "dataset": "d",
                 "run": 1,
                 "operation": "grounding",
                 "operation_category": "grounding",
-                "phase_context": "fitness.setup",
+                "phase_context": "initialization",
                 "seconds": 0.5,
                 "stats_atoms": 10,
                 "stats_rules": 20,
@@ -714,7 +606,7 @@ def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
                 "run": 2,
                 "operation": "grounding",
                 "operation_category": "grounding",
-                "phase_context": "fitness.setup",
+                "phase_context": "initialization",
                 "seconds": 0.7,
                 "stats_atoms": 30,
                 "stats_rules": 60,
@@ -724,7 +616,7 @@ def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
                 "run": 2,
                 "operation": "solving",
                 "operation_category": "solving",
-                "phase_context": "mutation.fitness",
+                "phase_context": "mutation",
                 "seconds": 0.2,
                 "models": 9,
                 "stats_atoms": 30,
@@ -735,7 +627,7 @@ def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
                 "run": 1,
                 "operation": "solving",
                 "operation_category": "solving",
-                "phase_context": "mutation.fitness",
+                "phase_context": "mutation",
                 "seconds": 0.1,
                 "models": 3,
                 "stats_atoms": 10,
@@ -759,7 +651,6 @@ def test_dashboard_counts_best_found_runs(tmp_path):
             RunResult("d", 1, 1, "run", "ok", 0, 1.0, [], "{}", ""),
             RunResult("d", 2, 2, "run", "ok", 0, 1.0, [], "{}", "", success=True),
         ],
-        [],
         [],
         [],
         [],
@@ -797,7 +688,6 @@ def test_run_streamed_sets_dataset_and_run_env(tmp_path):
         log_path,
         10,
         tmp_path / "timings.json",
-        tmp_path / "events.jsonl",
         tmp_path / "ga.json",
         tmp_path / "operator.jsonl",
         tmp_path / "candidate.jsonl",
@@ -820,7 +710,6 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
     write_dashboard_data(
         tmp_path,
         results,
-        [],
         [],
         [],
         [],
@@ -908,7 +797,6 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
         [],
         [],
         [],
-        [],
     )
 
     run = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0][
@@ -935,7 +823,6 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
             RunResult("d", 2, 2, "run", "timeout", None, 10.0, [], "{}", ""),
         ],
         [TimingMetric("d", 1, "total_execution", 3.0, 1)],
-        [],
         [],
         [],
         [],
@@ -973,7 +860,6 @@ def test_ga_progress_exposes_round_time_and_evaluations(tmp_path):
         [],
         [],
         [],
-        [],
     )
 
     run = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0][
@@ -1002,7 +888,6 @@ def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
         ],
         [],
         [GAMetric("even_odd", 1, 332, -0.02, float("-inf"), -0.02)],
-        [],
         [],
         [],
         [],

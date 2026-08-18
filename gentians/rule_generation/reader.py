@@ -66,7 +66,7 @@ def _validate_type(type_name: str, declaration: str) -> None:
         raise ValueError(f"invalid mode type in declaration: {declaration}")
 
 
-def _get_pos_neg_examples(s: str) -> "tuple[str,str] | tuple[str,str,str]":
+def _get_pos_neg_examples(s: str) -> tuple[str, str] | tuple[str, str, str]:
     name = "#pos" if s.startswith("#pos") else "#neg"
     parts = split_top_level_args(_directive_args(s, name))
     if len(parts) not in (2, 3):
@@ -157,11 +157,11 @@ def read_program(filename: str):
     """
     Read the inductive task from file.
     """
-    bg: "list[str]" = []
-    pe: "list[Example]" = []
-    ne: "list[Example]" = []
-    lbh: "list[ModeDeclaration]" = []
-    lbb: "list[ModeDeclaration]" = []
+    bg: list[str] = []
+    pe: list[Example] = []
+    ne: list[Example] = []
+    lbh: list[ModeDeclaration] = []
+    lbb: list[ModeDeclaration] = []
     aggregates: list[AggregateDeclaration] = []
     comparisons: list[OperatorDeclaration] = []
     arithmetic: list[OperatorDeclaration] = []

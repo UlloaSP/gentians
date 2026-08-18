@@ -8,24 +8,13 @@ from .coverage_symbols import ACTIVE_CONTEXT_PREDICATE
 class Coverage:
     __slots__ = ("neg_mask", "pos_mask")
 
-    def __init__(self, l_pos: list[int], l_neg: list[int]):
-        self.pos_mask = _mask(l_pos)
-        self.neg_mask = _mask(l_neg)
-
-    def extend(self, l_pos: list[int], l_neg: list[int]) -> None:
-        self.pos_mask |= _mask(l_pos)
-        self.neg_mask |= _mask(l_neg)
+    def __init__(self):
+        self.pos_mask = 0
+        self.neg_mask = 0
 
     def extend_masks(self, pos_mask: int, neg_mask: int) -> None:
         self.pos_mask |= pos_mask
         self.neg_mask |= neg_mask
-
-
-def _mask(values: list[int]) -> int:
-    mask = 0
-    for value in values:
-        mask |= 1 << value
-    return mask
 
 
 def generate_clauses_for_coverage_interpretations(

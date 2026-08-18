@@ -8,12 +8,12 @@ from gentians.asp.coverage import (
 )
 from gentians.asp.coverage_program import build_coverage_static_program
 from gentians.evolution.fitness import create_fitness
+from gentians.evolution.fitness.cov_balanced import CovBalanced
 from gentians.evolution.fitness.cov_program import CovProgram
 from gentians.evolution.fitness.coverage_common import (
     balanced_coverage_score,
     coverage_score,
 )
-from gentians.evolution.fitness.trigram_cov import TrigramCov
 from gentians.rule_generation.example import Example
 from gentians.rule_generation.program import Program
 from gentians.rule_generation.rule_space import RuleSpace
@@ -32,16 +32,22 @@ def _program() -> Program:
 def _fitness(name: str):
     return create_fitness(
         _program(),
-        {"name": name, "max_as": 0, "clingo_arguments": []},
+        {"name": name, "clingo_arguments": []},
     )
+
+
+def _coverage(positive, negative) -> Coverage:
+    coverage = Coverage()
+    coverage.extend_masks(
+        sum(1 << value for value in positive),
+        sum(1 << value for value in negative),
+    )
+    return coverage
 
 
 @pytest.mark.parametrize(
     ("name", "strategy"),
-    [
-        ("cov_program", CovProgram),
-        ("trigram_cov", TrigramCov),
-    ],
+    [("cov_program", CovProgram), ("cov_balanced", CovBalanced)],
 )
 def test_factory_dispatches_complete_coverages(name, strategy):
     assert isinstance(_fitness(name), strategy)
@@ -70,14 +76,14 @@ def test_whole_program_scores_only_individual():
         (("target(n).",), 0.0, False),
     ],
 )
-def test_trigram_cov_uses_balanced_accuracy(candidate, score, perfect):
-    result = _fitness("trigram_cov")(candidate)
+def test_balanced_coverage_uses_balanced_accuracy(candidate, score, perfect):
+    result = _fitness("cov_balanced")(candidate)
 
     assert result.score == pytest.approx(score)
     assert result.is_best is perfect
 
 
-def test_trigram_cov_normalizes_positive_and_negative_examples_separately():
+def test_balanced_coverage_normalizes_positive_and_negative_examples_separately():
     program = Program(
         [],
         [
@@ -96,7 +102,7 @@ def test_trigram_cov_normalizes_positive_and_negative_examples_separately():
     rules = RuleSpace.from_clauses(["target(p1).", "target(n1)."])
     evaluate = create_fitness(
         program,
-        {"name": "trigram_cov", "max_as": 0, "clingo_arguments": []},
+        {"name": "cov_balanced", "clingo_arguments": []},
     )
 
     result = evaluate(rules.clauses)
@@ -114,8 +120,8 @@ def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
         [],
     )
 
-    first = score(program, Coverage(list(range(3)), list(range(9))))
-    second = score(program, Coverage(list(range(9)), list(range(30))))
+    first = score(program, _coverage(range(3), range(9)))
+    second = score(program, _coverage(range(9), range(30)))
 
     assert first == second
 
@@ -143,12 +149,17 @@ def test_whole_program_forces_brave_consequences():
     assert "--enum-mode=brave" in solver.clingo_arguments
 
 
-def test_finite_model_limit_is_rejected():
-    with pytest.raises(ValueError, match="max_as=0"):
-        create_fitness(
-            _program(),
-            {"name": "cov_program", "max_as": 2},
-        )
+@pytest.mark.parametrize("name", ["cov_program", "cov_balanced"])
+def test_fitness_discards_split_enum_mode_override(name):
+    evaluate = create_fitness(
+        _program(),
+        {
+            "name": name,
+            "clingo_arguments": ["--enum-mode", "cautious"],
+        },
+    )
+
+    assert evaluate.solver.clingo_arguments == ["0", "--enum-mode=brave"]
 
 
 def test_undefined_atoms_are_false_without_log_noise(capsys):
@@ -190,7 +201,7 @@ def test_contexts_do_not_leak_between_examples():
     rules = RuleSpace.from_clauses(["target(a) :- ctx(b)."])
     evaluate = create_fitness(
         program,
-        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
+        {"name": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(rules.clauses)
@@ -214,7 +225,7 @@ def test_context_constraint_does_not_disable_other_examples():
     rules = RuleSpace.from_clauses(["target(a) :- ctx(a)."])
     evaluate = create_fitness(
         program,
-        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
+        {"name": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(rules.clauses)
@@ -234,7 +245,7 @@ def test_positive_context_does_not_leak_into_negative_example():
     rules = RuleSpace.from_clauses(["target(a) :- ctx(a)."])
     evaluate = create_fitness(
         program,
-        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
+        {"name": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(rules.clauses)
@@ -255,7 +266,7 @@ def test_example_with_empty_inclusion_is_covered(context):
     )
     evaluate = create_fitness(
         program,
-        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
+        {"name": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(())
@@ -278,7 +289,7 @@ def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
     )
     evaluate = create_fitness(
         program,
-        {"name": "cov_program", "max_as": 0, "clingo_arguments": []},
+        {"name": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(())

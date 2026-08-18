@@ -1,10 +1,10 @@
 from ...rule_generation.program import Program
+from .cov_balanced import CovBalanced
 from .cov_program import CovProgram
-from .trigram_cov import TrigramCov
 
 FITNESS_STRATEGIES = {
     "cov_program": CovProgram,
-    "trigram_cov": TrigramCov,
+    "cov_balanced": CovBalanced,
 }
 
 
@@ -16,5 +16,5 @@ def create_fitness(
     try:
         strategy = FITNESS_STRATEGIES[name]
     except KeyError:
-        raise ValueError(f"Unknown fitness strategy: {name}")
+        raise ValueError(f"Unknown fitness strategy: {name}") from None
     return strategy.from_config(program, config)

@@ -21,7 +21,6 @@ import {
   bestRunRatio,
   clingoSeconds,
   dataUrl,
-  dominantLabel,
   evolutionarySeconds,
   fmt,
   fmtInt,
@@ -178,7 +177,7 @@ function Detail({ benchmark }) {
         <Stat label="candidatas" value={fmtInt(benchmark.candidates)} />
         <Stat
           label="dominante"
-          value={dominantLabel(benchmark.dominant || topPhase(benchmark).label)}
+          value={benchmark.dominant || topPhase(benchmark).label}
         />
         <Stat label="is best" value={bestRunRatio(benchmark)} />
       </div>

@@ -43,7 +43,7 @@ def parse_aggregate_spec(spec: str) -> tuple[str, tuple[Predicate, ...]]:
     return function.strip(), parse_predicate_specs(rest.rstrip(")"))
 
 
-def extract_name_arity(atom: str) -> "tuple[str,int]":
+def extract_name_arity(atom: str) -> tuple[str, int]:
     """
     Extracts name and arity from an atom.
     """

@@ -37,7 +37,7 @@ class NormalCoverageSolver:
     def extract_fixed_coverage(self, program: tuple[str, ...]) -> Coverage:
         generated = self.coverage_static_program + "\n" + "\n".join(program)
         ctl, grounding_seconds, phase = self._ground(generated)
-        coverage = Coverage([], [])
+        coverage = Coverage()
         solving_seconds = self._solve(
             ctl,
             lambda symbols: coverage.extend_masks(
@@ -110,7 +110,6 @@ class NormalCoverageSolver:
                 "clingo",
                 {
                     **common,
-                    "operation": "grounding",
                     "operation_category": "grounding",
                     "seconds": grounding_seconds,
                     "input_clauses": len(self.lines) + len(program),
@@ -125,15 +124,11 @@ class NormalCoverageSolver:
                 "clingo",
                 {
                     **common,
-                    "operation": "solving",
                     "operation_category": "solving",
                     "seconds": solving_seconds,
                     "models": clingo_stat(stats, "summary", "models", "enumerated"),
                     "covered_positive": coverage.pos_mask.bit_count(),
                     "covered_negative": coverage.neg_mask.bit_count(),
-                    "stats_models_enumerated": clingo_stat(
-                        stats, "summary", "models", "enumerated"
-                    ),
                     "stats_choices": clingo_stat(
                         stats, "solving", "solvers", "choices"
                     ),

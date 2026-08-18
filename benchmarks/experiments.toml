@@ -86,12 +86,12 @@ description = "Behavior-tournament selection with population 100 and random-grou
 "mutation.probability" = 0.9
 
 [[experiment]]
-id = "trigram_cov"
-label = "Trigram coverage · random · population 10 · mutation 0.9"
+id = "cov_balanced"
+label = "Balanced coverage · random · population 10 · mutation 0.9"
 description = "Balanced-accuracy coverage under the random-group baseline conditions."
 runs = 10
 [experiment.overrides]
-"fitness.name" = "trigram_cov"
+"fitness.name" = "cov_balanced"
 "mutation.name" = "random_group"
 "population.size" = 10
 "mutation.probability" = 0.9
@@ -99,12 +99,12 @@ runs = 10
 "replacement.behavior_tiebreak" = true
 
 [[experiment]]
-id = "trigram_cov_structural"
-label = "Trigram coverage · structural · population 10 · mutation 0.9"
+id = "cov_balanced_structural"
+label = "Balanced coverage · structural · population 10 · mutation 0.9"
 description = "Balanced-accuracy coverage under the structural-group baseline conditions."
 runs = 10
 [experiment.overrides]
-"fitness.name" = "trigram_cov"
+"fitness.name" = "cov_balanced"
 "mutation.name" = "structural_neighbor"
 "mutation.random_jump_probability" = 0.0
 "population.size" = 10

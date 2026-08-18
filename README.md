@@ -54,14 +54,13 @@ arguments = Arguments(
     iterations_genetic=0,
     fitness={
         "name": "cov_program",
-        "max_as": 0,
         "clingo_arguments": [],
     },
 )
 main(arguments)
 ```
 
-`fitness.name` is `cov_program` or `trigram_cov`. `trigram_cov` evaluates the
+`fitness.name` is `cov_program` or `cov_balanced`. `cov_balanced` evaluates the
 whole program like `cov_program`, but scores balanced accuracy linearly from 0
 to 1. Evolutionary individuals may have variable sizes. Every fitness evaluation
 creates a fresh Clingo control, grounds its candidate program, then solves it.
@@ -237,6 +236,6 @@ Here we list only the main ones:
   hypothesis space finite.
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
-- `fitness.name`: `cov_program` or `trigram_cov`.
+- `fitness.name`: `cov_program` or `cov_balanced`.
 - `ProgramGenerator` is mandatory infrastructure: every initialization,
   mutation, and crossover returns an already dependency-closed valid program.

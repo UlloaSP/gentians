@@ -1,10 +1,10 @@
 from ...asp.normal_coverage_solver import NormalCoverageSolver
 from ...rule_generation.program import Program
 from ..types import FitnessResult
-from .coverage_common import coverage_score, record_fitness_metric
+from .coverage_common import balanced_coverage_score, record_fitness_metric
 
 
-class CovProgram:
+class CovBalanced:
     def __init__(self, program: Program, solver: NormalCoverageSolver) -> None:
         self.program = program
         self.solver = solver
@@ -30,7 +30,7 @@ class CovProgram:
 
     def __call__(self, candidate: tuple[str, ...]) -> FitnessResult:
         coverage = self.solver.extract_fixed_coverage(candidate)
-        score = coverage_score(self.program, coverage)
+        score = balanced_coverage_score(self.program, coverage)
         best_found = (
             coverage.pos_mask.bit_count() == len(self.program.positive_examples)
             and coverage.neg_mask == 0

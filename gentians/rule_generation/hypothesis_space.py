@@ -220,7 +220,6 @@ class HypothesisSpaceGenerator:
                 record_metric(
                     "clingo",
                     {
-                        "operation": "hypothesis_space_grounding",
                         "operation_category": "grounding",
                         "phase_context": phase,
                         "seconds": grounding_seconds,
@@ -234,7 +233,6 @@ class HypothesisSpaceGenerator:
                 record_metric(
                     "clingo",
                     {
-                        "operation": "hypothesis_space_solving",
                         "operation_category": "solving",
                         "phase_context": phase,
                         "seconds": seconds,
@@ -247,9 +245,6 @@ class HypothesisSpaceGenerator:
                         "allow_aggregates": self.capabilities.allow_aggregates,
                         "allow_recursion": self.capabilities.allow_recursion,
                         "clingo_arguments": clingo_arguments,
-                        "stats_models_enumerated": clingo_stat(
-                            stats, "summary", "models", "enumerated"
-                        ),
                         "stats_choices": clingo_stat(
                             stats, "solving", "solvers", "choices"
                         ),

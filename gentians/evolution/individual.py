@@ -1,7 +1,7 @@
 import time
 from dataclasses import dataclass, field
 
-from .types import Behavior, FitnessResult, Genome
+from .types import Behavior, Genome
 
 
 @dataclass(slots=True)
@@ -11,21 +11,3 @@ class Individual:
     is_best: bool  # does this cover everything positive and no negative?
     behavior: Behavior = (0, 0)
     generated_timestamp: float = field(default_factory=time.time)
-
-    def __str__(self) -> str:
-        return f"Program: {self.program} - score: {self.score}"
-
-    def __repr__(self) -> str:
-        return self.__str__()
-
-
-def individual_from_fitness(
-    program: Genome,
-    result: FitnessResult,
-) -> Individual:
-    return Individual(
-        program,
-        result.score,
-        result.is_best,
-        result.behavior,
-    )

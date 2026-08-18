@@ -188,7 +188,6 @@ export const topPhase = (benchmark) =>
     label: "n/a",
     seconds: 0,
   });
-export const dominantLabel = (value) => (value === "overhead" ? "python" : value);
 
 export const generationPoints = (run, metric = "bestSoFar") =>
   (run?.[SERIES_KEYS[metric]] || [])

@@ -21,10 +21,8 @@ class Arguments:
     # Fitness operator config.
     fitness: dict[str, object] = field(
         default_factory=lambda: {
-            # cov_program or trigram_cov.
+            # cov_program or cov_balanced.
             "name": "cov_program",
-            # Maximum answer sets requested from Clingo per coverage check. 0 means all.
-            "max_as": 0,
             # Clingo CLI arguments used by the fitness evaluator.
             "clingo_arguments": [],
         }

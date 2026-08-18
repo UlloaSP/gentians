@@ -21,8 +21,8 @@ def test_default_config_defines_comparable_experiment_matrix():
         "cov_program_random_group_pop100_mut09",
         "cov_program_behavior_tournament_pop10",
         "cov_program_behavior_tournament_pop100",
-        "trigram_cov",
-        "trigram_cov_structural",
+        "cov_balanced",
+        "cov_balanced_structural",
     }
     assert all(experiment["runs"] == 10 for experiment in experiments)
     assert all(experiment["timeout_seconds"] == 100 for experiment in experiments)
@@ -61,20 +61,20 @@ def test_default_experiments_cover_all_fitness_operators():
         experiment["overrides"].get("fitness.name", "cov_program")
         for experiment in experiments
     }
-    assert names == {"cov_program", "trigram_cov"}
+    assert names == {"cov_program", "cov_balanced"}
 
 
-def test_trigram_cov_matches_random_group_baseline_conditions():
+def test_balanced_coverage_matches_random_group_baseline_conditions():
     _, experiments = load_config(DEFAULT_CONFIG)
     indexed = {experiment["id"]: experiment for experiment in experiments}
     baseline = dict(indexed["cov_program_random_group_pop10_mut09"]["overrides"])
-    trigram = dict(indexed["trigram_cov"]["overrides"])
+    balanced = dict(indexed["cov_balanced"]["overrides"])
 
     assert baseline.pop("fitness.name") == "cov_program"
-    assert trigram.pop("fitness.name") == "trigram_cov"
-    assert trigram == baseline
+    assert balanced.pop("fitness.name") == "cov_balanced"
+    assert balanced == baseline
     assert indexed["cov_program_random_group_pop10_mut09"]["runs"] == 10
-    assert indexed["trigram_cov"]["runs"] == 10
+    assert indexed["cov_balanced"]["runs"] == 10
 
 
 def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):

@@ -20,17 +20,27 @@ uv run python your_script.py
 Provide a file with background knowledge, positive and negative examples, and the language bias definition.
 Benchmark tasks live in `benchmarks/gentians/` as plain text files.
 
-For example if you want to run the hamming task, you can use
+For example, the task file owns its structural language bias:
+
+```prolog
+#maxv(4).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+```
+
+Run it with:
+
 ```python
 from gentians import Arguments, main
 
 main(Arguments(
     filename="benchmarks/gentians/hamming_0.txt", # Task file to parse.
-    max_depth=3,                                 # Max literals in each rule.
-    max_variables=4,                             # Max variables allowed in one rule.
 ))
 ```
-where `filename` specifies the task file, `max_depth` sets the maximum length of a clause (number of literals), and `max_variables` sets the maximum number of variables in a rule.
+
+See [`docs/language-bias.md`](docs/language-bias.md) for syntax and `*`
+semantics.
 
 ### Search configuration
 
@@ -55,7 +65,7 @@ main(arguments)
 `cov_program`, or `trigram_cov`. `trigram_cov` evaluates the whole program like
 `cov_program`, but scores balanced accuracy linearly from 0 to 1. Subprogram
 fitness keeps every evolutionary individual at the fixed
-size `min(max_program_clauses, hypothesis_space_size)` and evaluates its possible
+size `min(#maxpl, hypothesis_space_size)` and evaluates its possible
 subprograms. Program fitness evaluates the whole individual and permits variable
 sizes. Every fitness evaluation creates a fresh Clingo control, grounds its
 candidate program, then solves it. Whole-program fitness uses brave consequences.
@@ -245,15 +255,15 @@ Here `target_1/2` is learned in rule heads and may occur twice in rule bodies.
 ## Main Available Options
 
 Here we list only the main ones:
-- `max_variables`: maximum number of variables to consider in a rule. Default 3.
-- `max_depth`: maximum number of literals in a rule (number of atoms in the head + number of literals in the body). Default 3.
-- `disjunctive_head_length`: maximum number of atoms in disjunctive head. Default 1.
-- `max_candidate_clauses`: maximum number of candidate clauses to generate. `0` means all.
-- `max_program_clauses`: maximum number of clauses in one candidate program. Default 6.
+
+- `#maxv`: maximum distinct variables in one clause. Default 3.
+- `#maxbl`: maximum body literals in one clause. Default 3.
+- `#maxhl`: maximum head atoms in one clause. Default 1.
+- `#maxpl`: maximum clauses in one candidate program. Default 6.
+- Any structural limit accepts `*` when remaining mode recalls still make the
+  hypothesis space finite.
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
 - `fitness.name`: `cov_subprograms_mean`, `cov_subprograms_max`, or `cov_program`.
 - `ProgramGenerator` is mandatory infrastructure: every initialization,
   mutation, and crossover returns an already dependency-closed valid program.
-- `admission`: `reject_duplicates` or `allow_duplicates`.
-

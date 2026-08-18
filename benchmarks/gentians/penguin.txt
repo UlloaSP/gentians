@@ -1,3 +1,8 @@
+#maxv(3).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+
 % Source: default-negation bird benchmark
 % Task: Penguins are birds that do not fly.
 % Target rules:

@@ -331,6 +331,30 @@ def test_program_generator_builds_invented_definition_module():
     assert mother in rendered or father in rendered
 
 
+def test_population_accepts_closure_larger_than_sampled_size(monkeypatch):
+    consumer = "target(V0) :- helper(V0)."
+    provider = "helper(V0) :- base(V0)."
+    program = Program(
+        ["base(a)."],
+        [Example(("target(a)", ""), True)],
+        [],
+        [],
+        [],
+        invented_predicates=(("helper", 1),),
+    )
+    generator = ProgramGenerator(
+        program,
+        RuleSpace.from_clauses([consumer, provider]),
+        2,
+        random.Random(1),
+    )
+    monkeypatch.setattr(generator.rng, "randint", lambda _start, _end: 1)
+
+    [generated] = generator.create_population(1)
+
+    assert generator.render(generated) == tuple(sorted((consumer, provider)))
+
+
 def test_program_generator_applies_mutation_atomically():
     seed = "seed(V0) :- coin(V0)."
     consumer = "heads(V0) :- coin(V0),not tails(V0)."
@@ -487,7 +511,6 @@ def test_generation_consumers_make_one_high_level_generator_call():
 def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
     generations = []
     args = Arguments(
-        max_program_clauses=1,
         random_seed=3,
         iterations_genetic=0,
         population={"name": "random", "size": 2},
@@ -518,7 +541,7 @@ def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
     )
     result, score, best = search_solver(
         args,
-        Program([], [], [], [], []),
+        Program([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["good.", "higher-score."]),
     )
     assert result == ("good.",)
@@ -530,7 +553,6 @@ def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
 def test_default_unlimited_generations_run_until_winner(monkeypatch):
     generations = []
     args = Arguments(
-        max_program_clauses=1,
         random_seed=3,
         population={"name": "random", "size": 1},
         crossover={"name": "set_mix", "probability": 0.0},
@@ -571,7 +593,7 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
 
     result, score, best = search_solver(
         args,
-        Program([], [], [], [], []),
+        Program([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["start.", "win."]),
     )
 
@@ -585,7 +607,6 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     mutation_calls = []
     generations = []
     args = Arguments(
-        max_program_clauses=1,
         random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 2},
@@ -651,7 +672,6 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
 def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     rows = []
     args = Arguments(
-        max_program_clauses=1,
         random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 1},
@@ -681,7 +701,7 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
 
     search_solver(
         args,
-        Program([], [], [], [], []),
+        Program([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["start.", "cross."]),
     )
 
@@ -695,7 +715,6 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
 ):
     rows = []
     args = Arguments(
-        max_program_clauses=1,
         random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 1},
@@ -718,7 +737,7 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
 
     search_solver(
         args,
-        Program([], [], [], [], []),
+        Program([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["start.", "other."]),
     )
 

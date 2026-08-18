@@ -1,3 +1,8 @@
+#maxv(5).
+#maxbl(8).
+#maxhl(1).
+#maxpl(6).
+
 % Source: Euclid algorithm synthetic benchmark
 % Task: Learn gcd recursion used by pairprime/2.
 % Target rules:

@@ -8,163 +8,55 @@ from typing import Any
 
 from gentians import Arguments
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DATASETS = ROOT / "benchmarks" / "gentians"
 
 
-def task(filename: str, **kwargs: object) -> Arguments:
-    return Arguments(filename=str(DATASETS / filename), **kwargs)
+def task(filename: str) -> Arguments:
+    return Arguments(filename=str(DATASETS / filename))
 
 
 CASES: dict[str, Arguments] = {
-    "4queens": task(
-        "4queens.txt",
-        max_depth=5,
-        max_variables=3,
-    ),
-    "5queens": task(
-        "5queens.txt",
-        max_depth=5,
-        max_variables=5,
-    ),
-    "8queens": task(
-        "8queens.txt",
-        max_depth=5,
-        max_variables=5,
-    ),
-    "adj2red": task(
-        "adjacent_to_red.txt",
-        max_depth=4,
-    ),
-    "animals_bird": task(
-        "animals_bird.txt",
-        max_depth=3,
-    ),
-    "clique": task(
-        "clique.txt",
-        max_depth=7,
-        max_variables=2,
-    ),
+    "4queens": task("4queens.txt"),
+    "5queens": task("5queens.txt"),
+    "8queens": task("8queens.txt"),
+    "adj2red": task("adjacent_to_red.txt"),
+    "animals_bird": task("animals_bird.txt"),
+    "clique": task("clique.txt"),
     "coin": task("coin.txt"),
-    "euclid": task("euclid.txt", max_depth=8, max_variables=5),
-    "coloring": task(
-        "coloring.txt",
-        disjunctive_head_length=3,
-        max_depth=4,
-        max_program_clauses=4,
-    ),
-    "even_odd": task(
-        "even_odd.txt",
-    ),
-    "grandparent": task(
-        "grandparent.txt",
-        max_program_clauses=3,
-    ),
-    "knapsack": task(
-        "knapsack.txt",
-        max_depth=3,
-        max_variables=4,
-    ),
-    "latin_square": task(
-        "latin_square.txt",
-        max_depth=4,
-        max_variables=4,
-    ),
-    "magic_square_no_diag": task(
-        "magic_square_no_diag.txt",
-        max_depth=4,
-        max_variables=4,
-    ),
-    "penguin": task(
-        "penguin.txt",
-        max_depth=3,
-    ),
-    "sudoku": task(
-        "sudoku.txt",
-        max_depth=3,
-    ),
-    "subset_sum": task(
-        "subset_sum.txt",
-        max_depth=3,
-    ),
-    "hamming_0": task(
-        "hamming_0.txt",
-        max_depth=3,
-        max_variables=4,
-    ),
-    "hamming_1": task(
-        "hamming_1.txt",
-        max_depth=3,
-        max_variables=4,
-    ),
-    "hamming_0_unbalanced": task(
-        "hamming_0_unbalanced.txt",
-        max_depth=3,
-        max_variables=4,
-    ),
-    "hamming_1_unbalanced": task(
-        "hamming_1_unbalanced.txt",
-        max_depth=3,
-        max_variables=4,
-    ),
-    "subset_sum_unbalanced": task(
-        "subset_sum_unbalanced.txt",
-        max_depth=3,
-    ),
-    "subset_sum_unbalanced_ops": task(
-        "subset_sum_unbalanced_ops.txt",
-        max_depth=3,
-    ),
-    "subset_sum_double": task(
-        "subset_sum_double.txt",
-        max_depth=4,
-        max_variables=3,
-    ),
-    "subset_sum_double_unbalanced": task(
-        "subset_sum_double_unbalanced.txt",
-        max_depth=4,
-        max_variables=3,
-    ),
+    "euclid": task("euclid.txt"),
+    "coloring": task("coloring.txt"),
+    "even_odd": task("even_odd.txt"),
+    "grandparent": task("grandparent.txt"),
+    "knapsack": task("knapsack.txt"),
+    "latin_square": task("latin_square.txt"),
+    "magic_square_no_diag": task("magic_square_no_diag.txt"),
+    "penguin": task("penguin.txt"),
+    "sudoku": task("sudoku.txt"),
+    "subset_sum": task("subset_sum.txt"),
+    "hamming_0": task("hamming_0.txt"),
+    "hamming_1": task("hamming_1.txt"),
+    "hamming_0_unbalanced": task("hamming_0_unbalanced.txt"),
+    "hamming_1_unbalanced": task("hamming_1_unbalanced.txt"),
+    "subset_sum_unbalanced": task("subset_sum_unbalanced.txt"),
+    "subset_sum_unbalanced_ops": task("subset_sum_unbalanced_ops.txt"),
+    "subset_sum_double": task("subset_sum_double.txt"),
+    "subset_sum_double_unbalanced": task("subset_sum_double_unbalanced.txt"),
     "subset_sum_double_unbalanced_count": task(
-        "subset_sum_double_unbalanced_count.txt",
-        max_depth=4,
-        max_variables=3,
+        "subset_sum_double_unbalanced_count.txt"
     ),
-    "subset_sum_double_and_sum": task(
-        "subset_sum_double_and_sum.txt",
-        max_depth=4,
-        max_variables=6,
-    ),
-    "subset_sum_double_and_prod": task(
-        "subset_sum_double_and_prod.txt",
-        max_depth=4,
-        max_variables=5,
-    ),
+    "subset_sum_double_and_sum": task("subset_sum_double_and_sum.txt"),
+    "subset_sum_double_and_prod": task("subset_sum_double_and_prod.txt"),
     "subset_sum_double_and_prod_unbalanced": task(
-        "subset_sum_double_and_prod_unbalanced.txt",
-        max_depth=4,
-        max_variables=5,
+        "subset_sum_double_and_prod_unbalanced.txt"
     ),
-    "subset_sum_triple": task(
-        "subset_sum_triple.txt",
-        max_depth=4,
-        max_variables=4,
-    ),
-    "set_partition_sum": task(
-        "set_partition_sum.txt",
-        max_depth=4,
-        max_variables=4,
-    ),
+    "subset_sum_triple": task("subset_sum_triple.txt"),
+    "set_partition_sum": task("set_partition_sum.txt"),
     "set_partition_sum_and_cardinality": task(
-        "set_partition_sum_and_cardinality.txt",
-        max_depth=4,
-        max_variables=4,
+        "set_partition_sum_and_cardinality.txt"
     ),
     "set_partition_sum_cardinality_and_square": task(
-        "set_partition_sum_cardinality_and_square.txt",
-        max_depth=4,
-        max_variables=4,
+        "set_partition_sum_cardinality_and_square.txt"
     ),
 }
 

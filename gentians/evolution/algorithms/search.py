@@ -60,21 +60,24 @@ def search_solver(
             )
     if not space:
         raise ValueError("No clauses found")
+    max_program_clauses = (
+        len(space) if program.max_program_clauses is None else program.max_program_clauses
+    )
     generator = ProgramGenerator(
         program,
         space,
-        args.max_program_clauses,
+        max_program_clauses,
         rng,
         str(args.fitness["name"]).startswith("cov_subprograms_"),
     )
     space = generator.space
     if not space:
         raise ValueError("No clauses satisfy the program generator")
-    context = EvolutionContext(space, generator, args.max_program_clauses, rng)
+    context = EvolutionContext(space, generator, max_program_clauses, rng)
 
     with phase("initialization"):
         evaluate_score = create_fitness(
-            program, args.fitness, args.max_program_clauses, space
+            program, args.fitness, max_program_clauses, space
         )
 
     evaluated: dict[Genome, Individual] = {}

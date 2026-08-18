@@ -25,6 +25,10 @@ class Program:
     arithmetic_modes: list[OperatorDeclaration] = field(default_factory=list)
     generated_language_bias_body: set[Signature] = field(default_factory=set)
     invented_predicates: tuple[Signature, ...] = ()
+    max_variables: int | None = 3
+    max_body_literals: int | None = 3
+    max_head_literals: int | None = 1
+    max_program_clauses: int | None = 6
 
     def complete_language_bias(self, recall: int = 1) -> None:
         """

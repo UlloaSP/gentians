@@ -1,3 +1,8 @@
+#maxv(4).
+#maxbl(4).
+#maxhl(1).
+#maxpl(6).
+
 % Source: triple subset-sum synthetic benchmark
 % Task: Return sums that agree across all three tuple positions.
 % Target rules:

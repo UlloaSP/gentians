@@ -75,6 +75,19 @@ def _parse_recall(raw: str) -> int:
     return -1 if raw == "*" else int(raw)
 
 
+def _get_limit(s: str, name: str, allow_zero: bool) -> int | None:
+    raw = _directive_args(s, name).strip()
+    if raw == "*":
+        return None
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"invalid {name} declaration: {s}") from exc
+    if value < (0 if allow_zero else 1):
+        raise ValueError(f"invalid {name} declaration: {s}")
+    return value
+
+
 def _strip_outer_braces(value: str) -> str:
     value = value.strip()
     if not (value.startswith("{") and value.endswith("}")):
@@ -95,13 +108,33 @@ def read_program(filename: str):
     comparisons: list[OperatorDeclaration] = []
     arithmetic: list[OperatorDeclaration] = []
     inventions: list[tuple[int, str, int]] = []
+    limits: dict[str, int | None] = {
+        "#maxv": 3,
+        "#maxbl": 3,
+        "#maxhl": 1,
+        "#maxpl": 6,
+    }
+    declared_limits: set[str] = set()
 
     for line in Path(filename).read_text(encoding="utf-8").splitlines():
         lc = line.rstrip().lstrip()
         if not lc or lc.startswith("%"):
             continue
 
-        if lc.startswith("#modeh"):
+        limit = next(
+            (
+                name
+                for name in ("#maxv", "#maxbl", "#maxhl", "#maxpl")
+                if lc.startswith(f"{name}(")
+            ),
+            None,
+        )
+        if limit is not None:
+            if limit in declared_limits:
+                raise ValueError(f"duplicate {limit} declaration: {lc}")
+            declared_limits.add(limit)
+            limits[limit] = _get_limit(lc, limit, limit in {"#maxv", "#maxhl"})
+        elif lc.startswith("#modeh"):
             res = _get_mode_declaration(lc, True)
             md = ModeDeclaration(res, True)
             if md not in lbh:
@@ -164,4 +197,8 @@ def read_program(filename: str):
         comparisons,
         arithmetic,
         invented_predicates=invented_predicates,
+        max_variables=limits["#maxv"],
+        max_body_literals=limits["#maxbl"],
+        max_head_literals=limits["#maxhl"],
+        max_program_clauses=limits["#maxpl"],
     )

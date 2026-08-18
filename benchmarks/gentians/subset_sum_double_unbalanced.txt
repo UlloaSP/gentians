@@ -1,3 +1,8 @@
+#maxv(3).
+#maxbl(4).
+#maxhl(1).
+#maxpl(6).
+
 % Source: double subset-sum synthetic benchmark
 % Task: Unbalanced aggregate variant for both coordinate sums.
 % Target rules:

@@ -9,13 +9,8 @@ from gentians import Arguments
 from gentians.rule_generation.rule_entry import RuleEntry
 from gentians.rule_generation.rule_space import RuleSpace
 
-
 HYPOTHESIS_FIELDS = (
     "filename",
-    "max_variables",
-    "max_depth",
-    "disjunctive_head_length",
-    "max_candidate_clauses",
     "hypothesis_space",
 )
 
@@ -33,7 +28,7 @@ def write_hypothesis_file(
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "dataset": dataset,
         "hypothesisKey": hypothesis_key(arguments),
         "arguments": asdict(arguments),
@@ -66,7 +61,7 @@ def read_hypothesis_payload(path: Path, arguments: Arguments) -> dict[str, objec
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError(f"Invalid hypothesis space file: {path}")
-    if payload.get("schemaVersion") != 3:
+    if payload.get("schemaVersion") != 4:
         raise ValueError(f"Unsupported hypothesis space schema: {path}")
     expected = hypothesis_key(arguments)
     actual = payload.get("hypothesisKey")

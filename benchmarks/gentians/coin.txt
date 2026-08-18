@@ -1,3 +1,8 @@
+#maxv(3).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+
 % Source: https://doc.ilasp.com/specification/cdpis.html
 % Task: Choose heads or tails for each coin.
 % Target rules:

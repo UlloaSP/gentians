@@ -14,22 +14,6 @@ class Arguments:
     # Path to a task file with background, examples, and language bias.
     filename: str | None = None
 
-    # Maximum number of variables allowed in one generated rule.
-    max_variables: int = 3
-
-    # Maximum rule length: head atoms + body literals.
-    max_depth: int = 3
-
-    # Maximum number of atoms allowed in a disjunctive head.
-    disjunctive_head_length: int = 1
-
-    # Maximum number of candidate clauses generated from the hypothesis space.
-    # 0 means all.
-    max_candidate_clauses: int = 0
-
-    # Maximum number of clauses in one candidate program.
-    max_program_clauses: int = 6
-
     # Seed used by evolutionary operators.
     random_seed: int | None = None
 

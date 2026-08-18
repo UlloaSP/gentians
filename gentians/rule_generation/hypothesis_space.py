@@ -134,21 +134,42 @@ class HypothesisSpaceGenerator:
             _observed_predicates(self.fragments),
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
+        self.head_slots = _section_capacity(
+            program.max_head_literals, self.modes, "head"
+        )
+        self.body_slots = _section_capacity(
+            program.max_body_literals, self.modes, "body"
+        )
+        self.max_variables = (
+            program.max_variables
+            if program.max_variables is not None
+            else self.head_slots
+            * max(
+                (mode.arity for mode in self.modes if mode.section == "head"),
+                default=0,
+            )
+            + self.body_slots
+            * max(
+                (mode.arity for mode in self.modes if mode.section == "body"),
+                default=0,
+            )
+        )
 
     def generate(self) -> RuleSpace:
         program = (
             _facts(
                 self.program,
-                self.args,
                 self.modes,
                 self.predicate_arg_types,
+                self.max_variables,
+                self.head_slots,
+                self.body_slots,
             )
             + "\n"
             + HYPOTHESIS_SPACE_RULES
         )
         ctl = clingo.Control(
-            [str(self.args.max_candidate_clauses), *_hypothesis_space_args(self.args)],
-            logger=wrapper_exit_callback,
+            ["0", *_hypothesis_space_args(self.args)], logger=wrapper_exit_callback
         )
         ctl.add("base", [], program)
         start = net_time()
@@ -186,7 +207,7 @@ class HypothesisSpaceGenerator:
                 grounded = ground_stats(stats)
                 clingo_arguments = " ".join(
                     [
-                        str(self.args.max_candidate_clauses),
+                        "0",
                         *_hypothesis_space_args(self.args),
                     ]
                 )
@@ -1763,6 +1784,26 @@ def _normal_arg_types(
     return tuple(predicate_arg_types.get((name, arity, arg), "any") for arg in range(arity))
 
 
+def _section_capacity(
+    limit: int | None, modes: list[HypothesisMode], section: str
+) -> int:
+    if limit is not None:
+        return limit
+    recalls: dict[int, int] = {}
+    for mode in modes:
+        if mode.section != section:
+            continue
+        if mode.recall < 0:
+            directive = "#maxhl" if section == "head" else "#maxbl"
+            raise ValueError(
+                f"{directive}(*) requires finite recalls for every {section} mode"
+            )
+        recalls[mode.recall_group] = min(
+            recalls.get(mode.recall_group, mode.recall), mode.recall
+        )
+    return sum(recalls.values())
+
+
 def _closed_body_predicates(program: Program) -> set[Predicate]:
     head_predicates = {(mode.name, mode.arity) for mode in program.language_bias_head}
     return {
@@ -1775,9 +1816,11 @@ def _closed_body_predicates(program: Program) -> set[Predicate]:
 
 def _facts(
     program: Program,
-    args: Arguments,
     modes: list[HypothesisMode],
     predicate_arg_types: dict[tuple[str, int, int], str],
+    max_variables: int,
+    max_head_literals: int,
+    max_body_literals: int,
 ) -> str:
     fragments = _closed_world_fragments(program)
     properties = _closed_world_properties(
@@ -1798,9 +1841,9 @@ def _facts(
         )
     }
     parts = [
-        f"max_depth({args.max_depth}).",
-        f"max_head({args.disjunctive_head_length}).",
-        f"max_vars({args.max_variables}).",
+        f"max_body({max_body_literals}).",
+        f"max_head({max_head_literals}).",
+        f"max_vars({max_variables}).",
     ]
     domain = _numeric_domain_values(program)
     all_positive = bool(domain) and all(value > 0 for value in domain)
@@ -1819,7 +1862,9 @@ def _facts(
         if mode.kind == "normal":
             key = (mode.name, mode.arity)
             predicate_id = predicate_ids[key]
-        recall = args.max_depth if mode.recall < 0 else mode.recall
+        recall = (
+            max_head_literals if mode.section == "head" else max_body_literals
+        ) if mode.recall < 0 else mode.recall
         parts.append(f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{recall}).")
         parts.append(f"recall_group({mode.id},{mode.recall_group}).")
         for index, arg_type in enumerate(mode.arg_types):

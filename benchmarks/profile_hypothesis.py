@@ -29,7 +29,10 @@ def main() -> None:
         action="append",
         default=[],
         metavar="PATH=JSON",
-        help="Override Arguments field, e.g. --set max_depth=4",
+        help=(
+            "Override Arguments field, e.g. "
+            "--set hypothesis_space.clingo_arguments=[]"
+        ),
     )
     parser.add_argument(
         "--arguments-json",

@@ -28,6 +28,12 @@ from gentians.rule_generation.reified_literal import ReifiedLiteral
 from gentians.rule_generation.rule_space import RuleSpace
 
 
+def _generate(program, max_body_literals=3, max_variables=3):
+    program.max_body_literals = max_body_literals
+    program.max_variables = max_variables
+    return HypothesisSpaceGenerator(program, Arguments()).generate()
+
+
 def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypatch):
     def fail_if_called(program):
         raise AssertionError("predicate scan should not run without aggregate specs")
@@ -73,11 +79,11 @@ def test_hypothesis_generator_decodes_models_without_shown_symbols(monkeypatch):
         [],
         [ModeDeclaration(("1", "target", "1"), True)],
         [ModeDeclaration(("1", "edge", "2", "positive"), False)],
+        max_variables=2,
+        max_body_literals=2,
     )
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
 
     assert "target(V0) :- edge(V0,V1)." in clauses
 
@@ -132,13 +138,14 @@ def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
 def test_facts_do_not_emit_redundant_control_flags():
     facts = hypothesis_space._facts(
         Program([], [], [], [], []),
-        Arguments(max_depth=4),
         [],
         {},
+        3,
+        1,
+        4,
     )
 
-    assert "max_depth(4)." in facts
-    assert "max_body(4)." not in facts
+    assert "max_body(4)." in facts
     assert "constraints_allowed." not in facts
     assert "canonical_prune." not in facts
     assert "prune_arithmetic_identities." not in facts
@@ -171,9 +178,11 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
     ]
     facts = hypothesis_space._facts(
         program,
-        Arguments(),
         modes,
         {},
+        3,
+        1,
+        3,
     )
 
     fact_lines = set(facts.splitlines())
@@ -202,9 +211,11 @@ def test_facts_do_not_emit_redundant_arithmetic_mode():
     ]
     facts = hypothesis_space._facts(
         Program([], [], [], [], [], [], [], [OperatorDeclaration(1, "add")]),
-        Arguments(),
         modes,
         {},
+        3,
+        1,
+        3,
     )
 
     fact_lines = set(facts.splitlines())
@@ -216,7 +227,6 @@ def test_facts_do_not_emit_redundant_arithmetic_mode():
 def test_facts_do_not_emit_derived_numeric_domain_args():
     facts = hypothesis_space._facts(
         Program([], [], [], [], []),
-        Arguments(),
         [
         HypothesisMode(
                 0,
@@ -230,6 +240,9 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
             )
         ],
         {("p", 2, 0): "numeric"},
+        3,
+        1,
+        3,
     )
 
     fact_lines = set(facts.splitlines())
@@ -242,9 +255,11 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
 def test_facts_emit_only_strong_positive_numeric_domain_property():
     facts = hypothesis_space._facts(
         Program(["p(1).", "p(2)."], [], [], [], []),
-        Arguments(),
         [],
         {},
+        3,
+        1,
+        3,
     )
 
     assert "numeric_domain_positive." in facts
@@ -319,7 +334,7 @@ def test_hypothesis_space_clingo_times_use_current_phase(monkeypatch):
     )
 
     with timing.phase("outer"):
-        HypothesisSpaceGenerator(program, Arguments(max_candidate_clauses=0)).generate()
+        HypothesisSpaceGenerator(program, Arguments()).generate()
 
     assert "outer.grounding" in timing._totals
     assert "outer.solving" in timing._totals
@@ -335,15 +350,10 @@ def test_unbalanced_aggregate_variants_share_recall():
         [ModeDeclaration(("1", "ok", "1"), True)],
         [],
         [AggregateDeclaration(1, "sum", (("el", 2),), True)],
+        max_variables=8,
+        max_body_literals=6,
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(
-            max_depth=6,
-            max_variables=8,
-            max_candidate_clauses=0,
-        ),
-    ).generate().clauses
+    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
 
     assert not any("#sum{V0:el(V0,V0)}" in clause for clause in clauses)
     assert any("#sum{V0:el(V0,V1)}" in clause for clause in clauses)
@@ -396,11 +406,10 @@ def test_hypothesis_space_args_reject_string():
         raise AssertionError("string clingo_arguments should fail")
 
 
-def test_star_recall_uses_max_depth():
+def test_star_recall_uses_section_limit():
     mode = ModeDeclaration(("*", "p", "1"), True)
     facts = hypothesis_space._facts(
         Program([], [], [], [mode], []),
-        Arguments(max_depth=2),
         [
         HypothesisMode(
                 0,
@@ -413,6 +422,9 @@ def test_star_recall_uses_max_depth():
             )
         ],
         {},
+        2,
+        2,
+        3,
     )
 
     assert "mode(head,0,0,1,2)." in facts
@@ -425,18 +437,76 @@ def test_star_recall_uses_max_depth():
 def test_group_recall_uses_tightest_mode_recall():
     facts = hypothesis_space._facts(
         Program([], [], [], [], []),
-        Arguments(max_depth=5),
         [
             HypothesisMode(0, 7, "body", "normal", "p", 1, 3),
             HypothesisMode(1, 7, "body", "normal", "q", 1, 1),
         ],
         {("p", 1): 0, ("q", 1): 1},
+        3,
+        1,
+        5,
     )
 
     assert "mode(body,0,0,1,3)." in facts
     assert "mode(body,1,1,1,1)." in facts
     assert "group_recall(7,1)." not in facts
     assert "group_recall(7,3)." not in facts
+
+
+def test_reader_parses_structural_limits_and_star(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "\n".join(
+            ["#maxv(*).", "#maxbl(2).", "#maxhl(0).", "#maxpl(*)."]
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+
+    assert program.max_variables is None
+    assert program.max_body_literals == 2
+    assert program.max_head_literals == 0
+    assert program.max_program_clauses is None
+
+
+def test_unbounded_section_requires_finite_mode_recalls():
+    program = Program(
+        ["p(1)."],
+        [],
+        [],
+        [],
+        [ModeDeclaration(("*", "p", "1", "positive"), False)],
+        max_body_literals=None,
+    )
+
+    with pytest.raises(ValueError, match=r"#maxbl\(\*\)"):
+        HypothesisSpaceGenerator(program, Arguments())
+
+
+def test_all_structural_limits_accept_star_with_finite_recalls(tmp_path):
+    task = tmp_path / "task.txt"
+    task.write_text(
+        "\n".join(
+            [
+                "#maxv(*).",
+                "#maxbl(*).",
+                "#maxhl(*).",
+                "#maxpl(*).",
+                "p(1).",
+                "#modeh(1,target,1).",
+                "#modeb(1,p,1,positive).",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    program = read_program(str(task))
+    generator = HypothesisSpaceGenerator(program, Arguments())
+
+    assert generator.head_slots == 1
+    assert generator.body_slots == 1
+    assert generator.max_variables == 2
+    assert "target(V0) :- p(V0)." in generator.generate().clauses
 
 
 def test_reader_deduplicates_equal_directives(tmp_path):
@@ -537,9 +607,7 @@ def test_invented_predicates_are_stratified_and_excluded_from_constraints(tmp_pa
     )
     program = read_program(str(task))
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=1)
-    ).generate().clauses
+    clauses = _generate(program, 3, 1).clauses
 
     assert "late(V0) :- early(V0)." in clauses
     assert "early(V0) :- late(V0)." not in clauses
@@ -567,9 +635,7 @@ def test_invented_definition_cannot_call_target_through_aggregate(tmp_path):
     )
     program = read_program(str(task))
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 3, 2).clauses
 
     assert not any(
         clause.startswith("helper(") and ":target(" in clause
@@ -585,10 +651,7 @@ def test_hypothesis_space_prunes_arg_distinct_modes_before_rendering():
         [ModeDeclaration(("1", "target", "2"), True)],
         [ModeDeclaration(("1", "edge", "2", "positive"), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=2),
-    ).generate().clauses
+    clauses = _generate(program, 2).clauses
 
     assert not any("edge(V0,V0)" in clause for clause in clauses)
     assert "target(V0,V1) :- edge(V0,V1)." in clauses
@@ -605,10 +668,7 @@ def test_arg_distinct_still_prunes_body_self_pair_without_irreflexive_property()
             ModeDeclaration(("2", "guard", "1", "positive"), False),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=2, max_variables=2),
-    ).generate().clauses
+    clauses = _generate(program, 2, 2).clauses
 
     assert not any("p(V0,V0)" in clause or "p(V1,V1)" in clause for clause in clauses)
 
@@ -617,9 +677,7 @@ def test_auto_body_bias_does_not_enable_recursion():
     program = Program(["p(1,2)."], [], [], [], [])
     program.complete_language_bias()
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 2, 2).clauses
 
     assert not any(clause.startswith("p(") and " :- p(" in clause for clause in clauses)
 
@@ -633,9 +691,7 @@ def test_explicit_body_bias_enables_recursion():
         [ModeDeclaration(("1", "p", "2", "positive"), False)],
     )
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 2, 2).clauses
 
     assert "p(V1,V0) :- p(V0,V1)." in clauses
 
@@ -653,9 +709,7 @@ def test_hypothesis_space_prunes_unobserved_body_modes():
         ],
     )
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=1)
-    ).generate().clauses
+    clauses = _generate(program, 3, 1).clauses
 
     assert "target(V0) :- base(V0)." in clauses
     assert not any("ghost(" in clause for clause in clauses)
@@ -671,13 +725,7 @@ def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering
         [],
         [OperatorDeclaration(2, "neq")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(
-            max_depth=4,
-            max_variables=2,
-        ),
-    ).generate().clauses
+    clauses = _generate(program, 4, 2).clauses
 
     assert not any("V0!=V1,V1!=V0" in clause for clause in clauses)
     assert any("V0!=V1" in clause for clause in clauses)
@@ -693,10 +741,7 @@ def test_hypothesis_space_prunes_comparison_redundancy_before_rendering():
         [],
         [OperatorDeclaration(1, "lt"), OperatorDeclaration(1, "leq"), OperatorDeclaration(1, "neq")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=4, max_variables=2),
-    ).generate().clauses
+    clauses = _generate(program, 4, 2).clauses
 
     assert not any("V0<V1,V0!=V1" in clause for clause in clauses)
     assert not any("V0<V1,V0<=V1" in clause for clause in clauses)
@@ -713,10 +758,7 @@ def test_hypothesis_space_does_not_generate_equality_comparison():
         [],
         [OperatorDeclaration(1, "eq")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=3, max_variables=2),
-    ).generate().clauses
+    clauses = _generate(program, 3, 2).clauses
 
     assert clauses
     assert not any("==" in clause for clause in clauses)
@@ -737,10 +779,7 @@ def test_hypothesis_space_prunes_leq_neq_when_strict_comparison_exists():
             OperatorDeclaration(1, "neq"),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=4, max_variables=2),
-    ).generate().clauses
+    clauses = _generate(program, 4, 2).clauses
 
     assert not any(
         "V0<=V1" in clause and "V0!=V1" in clause for clause in clauses
@@ -757,10 +796,7 @@ def test_hypothesis_space_prunes_transitive_comparison_redundancy():
         [],
         [OperatorDeclaration(3, "lt"), OperatorDeclaration(3, "neq")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=6, max_variables=3),
-    ).generate().clauses
+    clauses = _generate(program, 6, 3).clauses
 
     assert not any(
         "V0<V1" in clause and "V1<V2" in clause and "V0<V2" in clause
@@ -783,10 +819,7 @@ def test_hypothesis_space_prunes_duplicate_arithmetic_inputs_before_rendering():
         [],
         [OperatorDeclaration(2, "add")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=4, max_variables=4),
-    ).generate().clauses
+    clauses = _generate(program, 4, 4).clauses
 
     assert not any(
         "V0+V1=V2" in clause and "V0+V1=V3" in clause for clause in clauses
@@ -804,10 +837,7 @@ def test_positive_domain_prunes_impossible_mul_and_div_comparisons():
         [OperatorDeclaration(1, "lt")],
         [OperatorDeclaration(1, "mul"), OperatorDeclaration(1, "div")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=3, max_variables=3),
-    ).generate().clauses
+    clauses = _generate(program, 3, 3).clauses
 
     assert not any(
         "V0*V1=V2" in clause and "V2<V0" in clause for clause in clauses
@@ -829,10 +859,7 @@ def test_hypothesis_space_prunes_duplicate_aggregate_inputs_before_rendering():
         [],
         [AggregateDeclaration(2, "sum", (("el", 1),), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=3, max_variables=4),
-    ).generate().clauses
+    clauses = _generate(program, 3, 4).clauses
 
     assert not any(
         "#sum{V0:el(V0)}=V1" in clause and "#sum{V0:el(V0)}=V2" in clause
@@ -849,9 +876,7 @@ def test_count_aggregate_tuple_variables_are_canonicalized():
         [],
         [AggregateDeclaration(1, "count", (("edge", 2),), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=4)
-    ).generate().clauses
+    clauses = _generate(program, 2, 4).clauses
 
     assert clauses
     assert not any(
@@ -861,12 +886,11 @@ def test_count_aggregate_tuple_variables_are_canonicalized():
     )
 
 
-def test_hypothesis_space_prunes_arithmetic_identities_before_cap():
+def test_hypothesis_space_prunes_arithmetic_identities():
     args = copy.deepcopy(CASES["4queens"])
-    args.max_candidate_clauses = 10000
     clauses = HypothesisSpaceGenerator(read_program(args.filename), args).generate().clauses
 
-    assert len(clauses) < args.max_candidate_clauses
+    assert clauses
     assert not any("V0+V1=V2,V2-V0=V1" in clause for clause in clauses)
 
 
@@ -881,13 +905,7 @@ def test_canonicalization_prevents_reversed_add_operands_by_default():
         [],
         [OperatorDeclaration(1, "add")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program_without_zero,
-        Arguments(
-            max_depth=4,
-            max_variables=3,
-        ),
-    ).generate().clauses
+    clauses = _generate(program_without_zero, 4, 3).clauses
 
     assert clauses
     assert not any(
@@ -918,12 +936,8 @@ def test_domain_arithmetic_prune_removes_impossible_zero_result_by_default():
         [],
         [OperatorDeclaration(1, "sub")],
     )
-    args = Arguments(
-        max_depth=4,
-        max_variables=3,
-    )
-    without_zero = HypothesisSpaceGenerator(program_without_zero, args).generate().clauses
-    with_zero = HypothesisSpaceGenerator(program_with_zero, args).generate().clauses
+    without_zero = _generate(program_without_zero, 4, 3).clauses
+    with_zero = _generate(program_with_zero, 4, 3).clauses
 
     assert not any("V0-V0=V1" in clause and "q(V0,V1)" in clause for clause in without_zero)
     assert any("V0-V0=V1" in clause and "q(V0,V1)" in clause for clause in with_zero)
@@ -940,10 +954,7 @@ def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
         [OperatorDeclaration(1, "lt")],
         [OperatorDeclaration(1, "add"), OperatorDeclaration(1, "sub")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program,
-        Arguments(max_depth=4, max_variables=3),
-    ).generate().clauses
+    clauses = _generate(program, 4, 3).clauses
 
     assert ":- q(V0,V0),V1<V2,V0+V0=V1,V0-V0=V2." not in clauses
     assert ":- q(V0,V0),V1+V1=V0,V0-V0=V1." not in clauses
@@ -977,9 +988,7 @@ def test_closed_world_properties_prune_symmetric_predicate_orientation():
         [ModeDeclaration(("1", "target", "2"), True)],
         [ModeDeclaration(("1", "edge", "2", "positive"), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 2, 2).clauses
 
     assert "target(V0,V1) :- edge(V0,V1)." in clauses
     assert "target(V0,V1) :- edge(V1,V0)." not in clauses
@@ -998,9 +1007,7 @@ def test_closed_world_properties_prune_implied_and_mutex_literals():
             ModeDeclaration(("1", "r", "1", "positive"), False),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=1)
-    ).generate().clauses
+    clauses = _generate(program, 2, 1).clauses
 
     assert ":- p(V0),q(V0)." not in clauses
     assert ":- p(V0),not q(V0)." not in clauses
@@ -1015,9 +1022,7 @@ def test_closed_world_properties_prune_functional_dependency():
         [],
         [ModeDeclaration(("2", "parent", "2", "positive"), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 2, 3).clauses
 
     assert ":- parent(V0,V1),parent(V0,V2)." not in clauses
 
@@ -1034,9 +1039,7 @@ def test_closed_world_properties_prune_projection_implication():
             ModeDeclaration(("1", "node", "1", "negative"), False),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 2, 2).clauses
 
     assert ":- edge(V0,V1),node(V0)." not in clauses
     assert ":- edge(V0,V1),not node(V0)." not in clauses
@@ -1059,9 +1062,7 @@ def test_closed_world_properties_prune_tuple_mutex_permutation():
         hypothesis_space._predicate_arg_types(program, fragments),
         hypothesis_space._closed_body_predicates(program),
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 2, 2).clauses
 
     assert ((("father", 2), ("mother", 2), (1, 0))) in properties.tuple_mutex
     assert ":- father(V0,V1),mother(V1,V0)." not in clauses
@@ -1076,9 +1077,7 @@ def test_count_aggregate_full_local_condition_is_canonical():
         [],
         [AggregateDeclaration(1, "count", (("p", 2),), True)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 2, 3).clauses
 
     assert "out(V2) :- #count{V0,V1:p(V0,V1)}=V2." in clauses
     assert "out(V2) :- #count{V0,V1:p(V1,V0)}=V2." not in clauses
@@ -1102,9 +1101,7 @@ def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
         [],
         [AggregateDeclaration(1, "sum", (("p", 3),), True)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=4)
-    ).generate().clauses
+    clauses = _generate(program, 2, 4).clauses
 
     assert "out(V3) :- #sum{V0,V1,V2:p(V0,V1,V2)}=V3." in clauses
     assert "out(V3) :- #sum{V0,V1,V2:p(V0,V2,V1)}=V3." not in clauses
@@ -1126,9 +1123,7 @@ def test_unbalanced_aggregate_prunes_key_determined_discriminator():
         [],
         [AggregateDeclaration(1, "sum", (("p", 2),), True)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 2, 3).clauses
 
     assert "out(V2) :- #sum{V0:p(V1,V0)}=V2." in clauses
     assert "out(V2) :- #sum{V0,V1:p(V1,V0)}=V2." not in clauses
@@ -1149,9 +1144,7 @@ def test_balanced_aggregate_keeps_key_determined_discriminator():
         [],
         [AggregateDeclaration(1, "sum", (("p", 2),), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 2, 3).clauses
 
     assert "out(V2) :- #sum{V0,V1:p(V1,V0)}=V2." in clauses
 
@@ -1168,9 +1161,7 @@ def test_closed_world_properties_prune_composite_functional_dependency():
         [],
         [ModeDeclaration(("2", "assign", "3", "positive"), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=4)
-    ).generate().clauses
+    clauses = _generate(program, 2, 4).clauses
 
     assert ":- assign(V0,V1,V2),assign(V0,V1,V3)." not in clauses
 
@@ -1183,9 +1174,7 @@ def test_closed_world_properties_prune_acyclic_body_cycle():
         [],
         [ModeDeclaration(("3", "edge", "2", "positive"), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 3, 3).clauses
 
     assert ":- edge(V0,V1),edge(V1,V2),edge(V2,V0)." not in clauses
 
@@ -1202,9 +1191,7 @@ def test_closed_world_properties_prune_complement_negative_pair():
             ModeDeclaration(("1", "safe", "2", "positive"), False),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 3, 2).clauses
 
     assert ":- not p(V0),not q(V0),safe(V0,V1)." not in clauses
 
@@ -1465,9 +1452,7 @@ def test_choice_rule_keys_prune_conflicting_positive_literals():
         [],
         [ModeDeclaration(("2", "q", "2", "positive"), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 2, 3).clauses
 
     assert ":- q(V0,V1),q(V0,V2)." not in clauses
     assert ":- q(V0,V1),q(V2,V1)." not in clauses
@@ -1487,9 +1472,7 @@ def test_choice_projection_prunes_redundant_domain_literal():
             ModeDeclaration(("1", "number", "1", "positive"), False),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 2, 2).clauses
 
     assert ":- q(V0,V1),number(V1)." not in clauses
 
@@ -1514,9 +1497,7 @@ def test_partition_prunes_all_negative_partition_literals():
             ModeDeclaration(("1", "blue", "1", "negative"), False),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=4, max_variables=1)
-    ).generate().clauses
+    clauses = _generate(program, 4, 1).clauses
 
     assert ":- node(V0),not red(V0),not green(V0)." in clauses
     assert ":- node(V0),not red(V0),not green(V0),not blue(V0)." not in clauses
@@ -1536,9 +1517,7 @@ def test_mutex_complement_and_partition_prune_positive_negative_redundancy():
             ModeDeclaration(("1", "q", "1", "negative"), False),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=1)
-    ).generate().clauses
+    clauses = _generate(program, 3, 1).clauses
 
     assert ":- safe(V0),q(V0),not p(V0)." not in clauses
     assert ":- safe(V0),not p(V0),not q(V0)." not in clauses
@@ -1566,12 +1545,8 @@ def test_inverse_and_transitive_negative_closure_prune():
         ],
     )
 
-    inverse_clauses = HypothesisSpaceGenerator(
-        inverse, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
-    transitive_clauses = HypothesisSpaceGenerator(
-        transitive, Arguments(max_depth=3, max_variables=3)
-    ).generate().clauses
+    inverse_clauses = _generate(inverse, 2, 2).clauses
+    transitive_clauses = _generate(transitive, 3, 3).clauses
 
     assert ":- p(V0,V1),not q(V1,V0)." not in inverse_clauses
     assert ":- p(V0,V1),p(V1,V2),not p(V0,V2)." not in transitive_clauses
@@ -1588,9 +1563,7 @@ def test_acyclic_negative_back_edge_prune():
             ModeDeclaration(("1", "edge", "2", "negative"), False),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 3, 3).clauses
 
     assert ":- edge(V0,V1),edge(V1,V2),not edge(V2,V0)." not in clauses
 
@@ -1684,9 +1657,7 @@ def test_empty_predicate_prunes_positive_and_negative_literals():
             ModeDeclaration(("1", "missing", "1", "negative"), False),
         ],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=1)
-    ).generate().clauses
+    clauses = _generate(program, 2, 1).clauses
 
     assert not any("missing(" in clause for clause in clauses)
 
@@ -1705,9 +1676,7 @@ def test_functional_negative_redundancy_with_inequality_prunes():
         [],
         [OperatorDeclaration(1, "neq")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=4, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 4, 3).clauses
 
     assert not any(
         "parent(V0,V1)" in clause
@@ -1732,9 +1701,7 @@ def test_functional_negative_redundancy_uses_strict_comparison():
         [],
         [OperatorDeclaration(1, "lt")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=4, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 4, 3).clauses
 
     assert not any(
         "p(V0,V1)" in clause
@@ -1755,9 +1722,7 @@ def test_cardinality_upper_prunes_pairwise_distinct_positive_tuples():
         [],
         [OperatorDeclaration(1, "neq")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 3, 2).clauses
 
     assert ":- in(V0),in(V1),V0!=V1." not in clauses
 
@@ -1785,12 +1750,8 @@ def test_empty_join_and_total_order_prune_impossible_bodies():
         ],
     )
 
-    empty_clauses = HypothesisSpaceGenerator(
-        empty_join, Arguments(max_depth=3, max_variables=1)
-    ).generate().clauses
-    order_clauses = HypothesisSpaceGenerator(
-        order, Arguments(max_depth=3, max_variables=2)
-    ).generate().clauses
+    empty_clauses = _generate(empty_join, 3, 1).clauses
+    order_clauses = _generate(order, 3, 2).clauses
 
     assert ":- safe(V0),p(V0),q(V0)." not in empty_clauses
     assert ":- pair(V0,V1),not le(V0,V1),not le(V1,V0)." not in order_clauses
@@ -1823,15 +1784,9 @@ def test_reflexive_key_antisymmetric_and_subsumption_prunes():
         [ModeDeclaration(("2", "p", "2", "positive"), False)],
     )
 
-    reflexive_clauses = HypothesisSpaceGenerator(
-        reflexive, Arguments(max_depth=3, max_variables=2)
-    ).generate().clauses
-    key_clauses = HypothesisSpaceGenerator(
-        key, Arguments(max_depth=2, max_variables=5)
-    ).generate().clauses
-    subsumption_clauses = HypothesisSpaceGenerator(
-        subsumption, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    reflexive_clauses = _generate(reflexive, 3, 2).clauses
+    key_clauses = _generate(key, 2, 5).clauses
+    subsumption_clauses = _generate(subsumption, 2, 2).clauses
 
     assert ":- node(V0),le(V0,V0)." not in reflexive_clauses
     assert ":- node(V0),not le(V0,V0)." not in reflexive_clauses
@@ -1848,9 +1803,7 @@ def test_equivalent_head_body_redundancy_is_pruned():
         [ModeDeclaration(("1", "p", "1"), True)],
         [ModeDeclaration(("1", "q", "1", "positive"), False)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=1)
-    ).generate().clauses
+    clauses = _generate(program, 2, 1).clauses
 
     assert "p(V0) :- q(V0)." not in clauses
 
@@ -1864,9 +1817,7 @@ def test_closed_world_properties_apply_to_aggregate_condition_atoms():
         [],
         [AggregateDeclaration(1, "count", (("edge", 2),), True)],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=4)
-    ).generate().clauses
+    clauses = _generate(program, 2, 4).clauses
 
     for clause in clauses:
         for left, right in re.findall(r"edge\(V(\d+),V(\d+)\)", clause):
@@ -1884,9 +1835,7 @@ def test_mul_and_abs_operands_are_canonicalized():
         [],
         [OperatorDeclaration(1, "mul"), OperatorDeclaration(1, "abs")],
     )
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=3)
-    ).generate().clauses
+    clauses = _generate(program, 3, 3).clauses
 
     assert not any(
         left > right
@@ -2015,9 +1964,7 @@ def test_positive_body_singleton_is_available_as_existential_projection():
         [ModeDeclaration(("1", "edge", "2", "positive"), False)],
     )
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 2, 2).clauses
 
     assert "target(V0) :- edge(V0,V1)." in clauses
 
@@ -2034,9 +1981,7 @@ def test_negative_body_singleton_remains_rejected():
         ],
     )
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=3, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 3, 2).clauses
 
     assert "target(V0) :- node(V0),not edge(V0,V1)." not in clauses
 
@@ -2056,7 +2001,6 @@ def test_ast_atom_extraction_handles_choice_rules():
 
 def _benchmark_clauses(name: str) -> set[str]:
     args = copy.deepcopy(CASES[name])
-    args.max_candidate_clauses = 0
     return set(HypothesisSpaceGenerator(read_program(args.filename), args).generate().clauses)
 
 
@@ -2173,20 +2117,19 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     assert categories.count((True, False)) == 9
     assert categories.count((False, True)) == 9
     assert categories.count((False, False)) == 9
-    assert args.max_depth == 4
-    assert args.max_variables == 4
-    assert args.max_program_clauses == 4
+    assert program.max_body_literals == 4
+    assert program.max_variables == 4
+    assert program.max_program_clauses == 6
     assert all(mode.recall == 1 for mode in program.language_bias_head)
 
-    definition_args = copy.deepcopy(args)
-    definition_args.max_depth = 3
     definition_program = copy.deepcopy(program)
+    definition_program.max_body_literals = 3
     definition_program.language_bias_body = [
         mode for mode in definition_program.language_bias_body if mode.name == "size"
     ]
     definition_program.comparison_modes = []
     definition_clauses = set(
-        HypothesisSpaceGenerator(definition_program, definition_args).generate().clauses
+        HypothesisSpaceGenerator(definition_program, args).generate().clauses
     )
     constraint_program = copy.deepcopy(program)
     constraint_program.language_bias_body = [
@@ -2258,7 +2201,9 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     program = read_program(args.filename)
     clauses = HypothesisSpaceGenerator(program, args).generate()
     random.seed(1)
-    candidate = tuple(sorted(random.sample(clauses.clauses, args.max_program_clauses)))
+    candidate = tuple(
+        sorted(random.sample(clauses.clauses, program.max_program_clauses))
+    )
 
     NormalCoverageSolver(
         program.background,
@@ -2281,9 +2226,7 @@ def test_linkedness_rejects_disconnected_literal_components():
         ],
     )
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=4, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 4, 2).clauses
 
     assert "target(V0) :- p(V0),q(V1),r(V1)." not in clauses
     assert "target(V0) :- p(V0),q(V0),r(V0)." in clauses
@@ -2303,9 +2246,7 @@ def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
     )
     program = read_program(str(task))
 
-    clauses = HypothesisSpaceGenerator(
-        program, Arguments(max_depth=2, max_variables=2)
-    ).generate().clauses
+    clauses = _generate(program, 2, 2).clauses
 
     assert program.language_bias_head[0].directions == ("input", "output")
     assert "target(V0,V1) :- edge(V0,V1)." in clauses

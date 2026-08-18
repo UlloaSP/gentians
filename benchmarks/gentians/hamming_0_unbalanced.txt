@@ -1,3 +1,8 @@
+#maxv(4).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+
 % Source: Hamming-distance synthetic benchmark
 % Task: Unbalanced aggregate variant; distance must equal hd/1.
 % Target rules:

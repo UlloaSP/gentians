@@ -61,19 +61,6 @@ def test_hypothesis_file_stores_entries_to_avoid_reparse(monkeypatch, tmp_path):
     assert rule_space.clauses == ("rule.",)
 
 
-def test_hypothesis_file_rejects_generation_argument_mismatch(tmp_path):
-    path = tmp_path / "coin.json"
-    write_hypothesis_file(
-        path,
-        "coin",
-        _arguments(tmp_path, max_depth=3),
-        RuleSpace.from_clauses(["rule."]),
-    )
-
-    with pytest.raises(ValueError, match="does not match"):
-        read_hypothesis_file(path, _arguments(tmp_path, max_depth=4))
-
-
 def test_hypothesis_file_rejects_changed_task_content(tmp_path):
     path = tmp_path / "coin.json"
     arguments = _arguments(tmp_path)

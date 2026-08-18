@@ -1,3 +1,8 @@
+#maxv(3).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+
 % Source: ILASP Sudoku benchmark
 % Task: Reject equal values in same row, column, or block.
 % Target rules:

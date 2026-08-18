@@ -1,3 +1,8 @@
+#maxv(2).
+#maxbl(7).
+#maxhl(1).
+#maxpl(6).
+
 % Source: synthetic clique benchmark
 % Task: Accept cliques of size 3.
 % Target rules:

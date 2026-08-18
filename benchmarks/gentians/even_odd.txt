@@ -1,3 +1,8 @@
+#maxv(3).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+
 % Source: https://github.com/stassa/louise/blob/master/data/examples/even_odd.pl
 % Task: Mutual recursion for even and odd numbers.
 % Target rules:

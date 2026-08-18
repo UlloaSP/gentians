@@ -1,3 +1,8 @@
+#maxv(3).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+
 % Source: https://github.com/logic-and-learning-lab/Popper/tree/main/examples/animals_bird
 % Task: Birds are animals with feather covering.
 % Target rules:

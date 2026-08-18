@@ -115,12 +115,7 @@ class ProgramGenerator:
             return None
         limit = min(self.max_clauses, self.rule_count)
         size = limit if self.fixed_size else self.rng.randint(1, limit)
-        candidate = self._build(self._sample_rules(size), 0)
-        return (
-            candidate
-            if candidate is not None and candidate.bit_count() <= size
-            else None
-        )
+        return self._build(self._sample_rules(size), 0)
 
     @record_generation_time
     def mutate_random(self, program: Genome) -> MutationProposal:

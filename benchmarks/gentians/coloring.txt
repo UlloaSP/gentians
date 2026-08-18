@@ -1,3 +1,8 @@
+#maxv(3).
+#maxbl(4).
+#maxhl(3).
+#maxpl(4).
+
 % Source: graph-coloring synthetic benchmark
 % Task: Three-color graph coloring.
 % Target rules:

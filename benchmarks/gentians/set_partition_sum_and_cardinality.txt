@@ -1,3 +1,8 @@
+#maxv(4).
+#maxbl(4).
+#maxhl(1).
+#maxpl(6).
+
 % Source: http://www.hakank.org/answer_set_programming/set_partition.lp
 % Task: Two partitions must have equal sums and cardinalities.
 % Target rules:

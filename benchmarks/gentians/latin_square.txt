@@ -1,3 +1,8 @@
+#maxv(4).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+
 % Source: Latin-square synthetic benchmark
 % Task: Every row and column must contain all values.
 % Target rules:

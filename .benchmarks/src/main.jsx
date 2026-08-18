@@ -7,6 +7,7 @@ import { ClingoBottleneckChart } from "./charts/ClingoBottleneckChart";
 import { ClingoCallsChart } from "./charts/ClingoCallsChart";
 import { ClingoCostChart } from "./charts/ClingoCostChart";
 import { ClingoModelsChart } from "./charts/ClingoModelsChart";
+import { CrossoverGainLossChart } from "./charts/CrossoverGainLossChart";
 import { FitnessChart } from "./charts/FitnessChart";
 import { OperatorImprovementChart } from "./charts/OperatorImprovementChart";
 import { OperatorScoreDeltaChart } from "./charts/OperatorScoreDeltaChart";
@@ -187,6 +188,7 @@ function Detail({ benchmark }) {
         <FitnessChart benchmark={benchmark} />
         <OperatorsChart benchmark={benchmark} />
         <OperatorImprovementChart benchmark={benchmark} />
+        <CrossoverGainLossChart benchmark={benchmark} />
         <OperatorScoreDeltaChart benchmark={benchmark} />
         <QualityChart benchmark={benchmark} />
         <QualityProgramChart benchmark={benchmark} />

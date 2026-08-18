@@ -4,6 +4,8 @@ import { ChartSection } from "../components/Layout";
 import {
   aggregateSeries,
   bestSeries,
+  crossoverGainLabel,
+  crossoverGainRows,
   generationPoints,
   improvementOperatorRows,
   maybeNum,
@@ -128,6 +130,12 @@ export function ComparisonCharts({ rows, progressView, setProgressView }) {
           present={available.some(({ benchmark }) => scoreDeltaRows(benchmark).length)}
           option={operatorDeltaOption(available)}
           empty="Sin delta de score para operadores"
+        />
+        <DataPlot
+          title="Pérdida de ganancias de crossover"
+          present={available.some(({ benchmark }) => crossoverGainRows(benchmark).length)}
+          option={crossoverGainOption(available)}
+          empty="Sin ganancias de crossover instrumentadas"
         />
         <DataPlot
           title="Candidatos evaluados por cobertura (media por run)"
@@ -437,6 +445,36 @@ function operatorDeltaOption(rows) {
       };
     }),
     { bottom: 90, rotate: 25, yName: "score delta" },
+  );
+}
+
+function crossoverGainOption(rows) {
+  const labels = unionLabels(rows, crossoverGainRows, crossoverGainLabel);
+  return barOption(
+    labels,
+    rows.flatMap(({ experiment, benchmark }) => {
+      const indexed = indexRows(crossoverGainRows(benchmark), crossoverGainLabel);
+      return [
+        ["lost_crossover_gain_rate", "perdida"],
+        ["retained_crossover_gain_rate", "preservada"],
+      ].map(([field, label], index) => ({
+        type: "bar",
+        name: experiment.label,
+        division: label,
+        stack: experiment.id,
+        data: labels.map((key) => maybeNum(indexed.get(key)?.[field])),
+        itemStyle: { color: experiment.color, ...SEGMENT_STYLES[index] },
+      }));
+    }),
+    {
+      bottom: 110,
+      rotate: 20,
+      yName: "gain rate",
+      divisions: [
+        ["perdida", SEGMENT_STYLES[0]],
+        ["preservada", SEGMENT_STYLES[1]],
+      ],
+    },
   );
 }
 

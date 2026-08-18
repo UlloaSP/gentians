@@ -292,6 +292,45 @@ def test_operator_summary_uses_run_means():
     assert summary["mean_score_delta"] == 1.0
 
 
+def test_operator_summary_measures_lost_crossover_gain_per_run():
+    [summary] = operator_summary(
+        [
+            {
+                "dataset": "d",
+                "run": 1,
+                "operator": "mutation",
+                "strategy": "random_group",
+                "crossover_strategy": "set_mix",
+                "crossover_improved": True,
+                "lost_crossover_gain": True,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "operator": "mutation",
+                "strategy": "random_group",
+                "crossover_strategy": "set_mix",
+                "crossover_improved": True,
+                "lost_crossover_gain": False,
+            },
+            {
+                "dataset": "d",
+                "run": 2,
+                "operator": "mutation",
+                "strategy": "random_group",
+                "crossover_strategy": "set_mix",
+                "crossover_improved": True,
+                "lost_crossover_gain": False,
+            },
+        ]
+    )
+
+    assert summary["crossover_strategy"] == "set_mix"
+    assert summary["crossover_gain_events"] == 1.5
+    assert summary["lost_crossover_gain_rate"] == 0.5
+    assert summary["retained_crossover_gain_rate"] == 0.5
+
+
 def test_quality_summary_uses_run_means():
     [summary] = quality_summary(
         [

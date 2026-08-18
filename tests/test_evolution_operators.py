@@ -142,6 +142,9 @@ def test_mutation_metrics_include_local_and_program_distance(monkeypatch):
         child,
         proposal,
         duplicate=False,
+        crossover_strategy="set_mix",
+        crossover_improved=False,
+        lost_crossover_gain=False,
     )
 
     [row] = rows
@@ -667,6 +670,57 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     assert best is True
     assert mutation_calls == []
     assert generations == [(0, 0.0, [0.0, 0.0]), (1, 0.0, [0.0, -1.0])]
+
+
+def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
+    rows = []
+    args = Arguments(
+        random_seed=3,
+        iterations_genetic=1,
+        population={"name": "random", "size": 2},
+    )
+    monkeypatch.setattr(
+        search,
+        "create_population",
+        lambda config: lambda context: [
+            context.generator.encode(("start.",)),
+            context.generator.encode(("other.",)),
+        ],
+    )
+    monkeypatch.setattr(
+        search,
+        "create_crossover",
+        lambda config: lambda first, second, context: (
+            context.generator.encode(("cross.",)),
+        ),
+    )
+    monkeypatch.setattr(
+        search,
+        "create_mutation",
+        lambda config, context: lambda genome, context: MutationProposal(
+            context.generator.encode(("mutated.",))
+        ),
+    )
+    scores = {"start.": 1.0, "other.": 0.0, "cross.": 2.0, "mutated.": 1.5}
+    monkeypatch.setattr(
+        search,
+        "create_fitness",
+        lambda program, config, max_program_clauses, rule_space: (
+            lambda candidate: FitnessResult(scores[candidate[0]], False, candidate, (0, 0))
+        ),
+    )
+    monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
+
+    search_solver(
+        args,
+        Program([], [], [], [], [], max_program_clauses=1),
+        RuleSpace.from_clauses(["start.", "other.", "cross.", "mutated."]),
+    )
+
+    [mutation] = [row for row in rows if row["operator"] == "mutation"]
+    assert mutation["crossover_strategy"] == "set_mix"
+    assert mutation["crossover_improved"] is True
+    assert mutation["lost_crossover_gain"] is True
 
 
 def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):

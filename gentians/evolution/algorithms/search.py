@@ -167,11 +167,13 @@ def search_solver(
                     if child is not None:
                         children.append((child, existing is None, True))
         for child, base_is_new, crossed in children:
+            best_parent = first if first.score >= second.score else second
+            crossover_improved = crossed and child.score > best_parent.score
             if crossed:
                 _operator_metric(
                     "crossover",
                     args.crossover,
-                    first if first.score >= second.score else second,
+                    best_parent,
                     child,
                     child.program,
                     duplicate=not base_is_new,
@@ -203,6 +205,9 @@ def search_solver(
                     mutated = None
                 else:
                     mutated = admit(proposal.program)
+            scored_mutation = (
+                evaluated.get(proposal.program) if mutated is None else mutated
+            )
             _mutation_metric(
                 args.mutation,
                 child.program,
@@ -210,6 +215,14 @@ def search_solver(
                 mutated,
                 proposal,
                 duplicate=duplicate,
+                crossover_strategy=str(args.crossover["name"]),
+                crossover_improved=crossover_improved,
+                lost_crossover_gain=(
+                    crossover_improved
+                    and scored_mutation is not None
+                    and scored_mutation.score < child.score
+                    and all(item.program != child.program for item in population)
+                ),
             )
             if mutated is None:
                 continue
@@ -335,6 +348,9 @@ def _mutation_metric(
     proposal: MutationProposal,
     *,
     duplicate: bool,
+    crossover_strategy: str,
+    crossover_improved: bool,
+    lost_crossover_gain: bool,
 ) -> None:
     with instrumentation():
         changed = proposal.program != parent_program
@@ -343,6 +359,9 @@ def _mutation_metric(
             {
                 "operator": "mutation",
                 "strategy": str(config["name"]),
+                "crossover_strategy": crossover_strategy,
+                "crossover_improved": crossover_improved,
+                "lost_crossover_gain": lost_crossover_gain,
                 "operation": proposal.operation or "",
                 "local": proposal.local if proposal.local is not None else "",
                 "program_distance": _program_distance(parent_program, proposal.program),

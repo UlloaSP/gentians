@@ -250,3 +250,13 @@ export const improvementOperatorRows = (benchmark) =>
   );
 export const scoreDeltaRows = (benchmark) =>
   operatorRows(benchmark).filter((row) => maybeNum(row.mean_score_delta) !== null);
+export const crossoverGainRows = (benchmark) =>
+  operatorRows(benchmark).filter(
+    (row) =>
+      row.operator === "mutation" &&
+      maybeNum(row.crossover_gain_events) > 0 &&
+      maybeNum(row.lost_crossover_gain_rate) !== null &&
+      maybeNum(row.retained_crossover_gain_rate) !== null,
+  );
+export const crossoverGainLabel = (row) =>
+  `crossover:${row.crossover_strategy} → mutation:${row.strategy}`;

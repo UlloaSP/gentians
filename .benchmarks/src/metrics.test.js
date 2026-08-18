@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateSeries,
   bestSeries,
+  crossoverGainLabel,
+  crossoverGainRows,
   coverageCriteria,
   coverageExtent,
   coveragePoints,
@@ -36,6 +38,29 @@ const rows = [
     bestFound: true,
   },
 ];
+
+describe("crossover gain loss", () => {
+  it("keeps measured mutation rows and labels their operator pair", () => {
+    const benchmark = {
+      operatorSummary: [
+        {
+          operator: "mutation",
+          strategy: "random_group",
+          crossover_strategy: "set_mix",
+          crossover_gain_events: 4,
+          lost_crossover_gain_rate: 0.25,
+          retained_crossover_gain_rate: 0.75,
+        },
+        { operator: "mutation", strategy: "other", crossover_gain_events: 0 },
+      ],
+    };
+
+    const [measured] = crossoverGainRows(benchmark);
+
+    expect(crossoverGainRows(benchmark)).toHaveLength(1);
+    expect(crossoverGainLabel(measured)).toBe("crossover:set_mix → mutation:random_group");
+  });
+});
 
 describe("quality metrics", () => {
   it("averages evaluated candidates over the measured runs", () => {

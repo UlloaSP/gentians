@@ -1343,6 +1343,33 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "mean_score_delta": mean_optional(
                     row["mean_score_delta"] for row in run_summaries
                 ),
+                "crossover_strategy": next(
+                    (
+                        str(row.get("crossover_strategy"))
+                        for row in selected
+                        if row.get("crossover_strategy")
+                    ),
+                    "",
+                ),
+                "crossover_gain_events": (
+                    mean(row["crossover_gain_events"] for row in run_summaries)
+                    if operator == "mutation"
+                    else None
+                ),
+                "lost_crossover_gain_rate": (
+                    mean_optional(
+                        row["lost_crossover_gain_rate"] for row in run_summaries
+                    )
+                    if operator == "mutation"
+                    else None
+                ),
+                "retained_crossover_gain_rate": (
+                    mean_optional(
+                        row["retained_crossover_gain_rate"] for row in run_summaries
+                    )
+                    if operator == "mutation"
+                    else None
+                ),
             }
         )
     return summary
@@ -1397,6 +1424,12 @@ def operator_run_summary(
         )
         crossover_deltas.extend(score - parent_best for score in child_scores)
     replacement_operator = operator == "replacement"
+    crossover_gain_events = sum(
+        to_float(row.get("crossover_improved")) for row in selected
+    )
+    lost_crossover_gain_events = sum(
+        to_float(row.get("lost_crossover_gain")) for row in selected
+    )
     improvement_denominator = (
         accepted_count + not_competitive_count
         if replacement_operator
@@ -1450,6 +1483,17 @@ def operator_run_summary(
         if operator == "mutation"
         else None,
         "mean_score_delta": mean_score_delta,
+        "crossover_gain_events": crossover_gain_events,
+        "lost_crossover_gain_rate": (
+            lost_crossover_gain_events / crossover_gain_events
+            if crossover_gain_events
+            else None
+        ),
+        "retained_crossover_gain_rate": (
+            1.0 - lost_crossover_gain_events / crossover_gain_events
+            if crossover_gain_events
+            else None
+        ),
     }
 
 

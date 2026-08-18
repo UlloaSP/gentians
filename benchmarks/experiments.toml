@@ -110,6 +110,20 @@ runs = 10
 "selection.tournament_percentage" = 0.3
 "replacement.behavior_tiebreak" = true
 
+[[experiment]]
+id = "trigram_cov_structural"
+label = "Trigram coverage · structural · population 10 · mutation 0.9"
+description = "Balanced-accuracy coverage under the structural-group baseline conditions."
+runs = 10
+[experiment.overrides]
+"fitness.name" = "trigram_cov"
+"mutation.name" = "structural_neighbor"
+"mutation.random_jump_probability" = 0.0
+"population.size" = 10
+"mutation.probability" = 0.9
+"selection.tournament_percentage" = 0.3
+"replacement.behavior_tiebreak" = true
+
 #[[experiment]]
 #id = "cov_program_structural_neighbor_pop10_mut09"
 #label = "Whole program · structural · population 10 · mutation 0.9"

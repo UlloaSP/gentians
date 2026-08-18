@@ -11,7 +11,7 @@ from benchmarks.profile_baseline import (
     TimingMetric,
     clingo_summary,
     dashboard_phases,
-    dashboard_quality_rows,
+    dashboard_quality,
     operator_summary,
     parse_log,
     reset_run_outputs,
@@ -271,21 +271,69 @@ def test_operator_summary_measures_lost_crossover_gain_per_run():
     assert summary["retained_crossover_gain_rate"] == 0.5
 
 
-def test_dashboard_quality_rows_keeps_coverage_totals():
-    [row] = dashboard_quality_rows(
+def test_dashboard_quality_preaggregates_without_changing_metrics():
+    quality = dashboard_quality(
         [
             {
                 "run": 1,
-                "covered_positive": 7,
-                "covered_negative": 2,
-                "total_positive": 10,
-                "total_negative": 35,
-            }
+                "score": 1,
+                "covered_positive": 0,
+                "covered_negative": 1,
+                "total_positive": 1,
+                "total_negative": 2,
+                "program_size": 2,
+            },
+            {
+                "run": 1,
+                "score": 10,
+                "covered_positive": 1,
+                "covered_negative": 0,
+                "total_positive": 1,
+                "total_negative": 2,
+                "program_size": 3,
+                "best_found": True,
+            },
+            {
+                "run": 2,
+                "score": 10,
+                "covered_positive": 1,
+                "covered_negative": 0,
+                "total_positive": 1,
+                "total_negative": 2,
+                "program_size": 3,
+                "best_found": True,
+            },
         ]
     )
 
-    assert row["totalPositive"] == 10
-    assert row["totalNegative"] == 35
+    assert quality["extent"] == {"positive": 1, "negative": 2}
+    assert [
+        (point["count"], point["meanCount"], point["runs"])
+        for point in quality["coveragePoints"]
+    ] == [(1, 0.5, 2), (2, 1, 2)]
+    assert quality["criteria"] == [
+        {"key": "complete", "rate": 75, "meanCount": 1, "count": 2, "runs": 2},
+        {
+            "key": "consistent",
+            "rate": 75,
+            "meanCount": 1,
+            "count": 2,
+            "runs": 2,
+        },
+        {"key": "both", "rate": 75, "meanCount": 1, "count": 2, "runs": 2},
+    ]
+    assert quality["programSizes"] == [
+        {"size": 2, "evaluated": 1, "best": 0},
+        {"size": 3, "evaluated": 2, "best": 2},
+    ]
+
+
+def test_dashboard_quality_has_no_criteria_without_measured_runs():
+    quality = dashboard_quality([])
+
+    assert quality["coveragePoints"] == []
+    assert quality["criteria"] == []
+    assert quality["programSizes"] == []
 
 
 def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
@@ -802,10 +850,7 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
     run = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0][
         "fitnessRuns"
     ][0]
-    assert run["diversity"] == [[0, 0.5]]
-    assert run["invalid"] == [[0, 0.25]]
-    assert run["bestSoFarArr"][0][0] == 0
-    assert "bestArr" not in run
+    assert run["points"] == [[0, 0.0, 0, 1.0, 0.5, 1.0, 0.5, 0.25]]
     fitness_chart = Path(".benchmarks/src/charts/FitnessChart.jsx").read_text(
         encoding="utf-8"
     )
@@ -832,7 +877,7 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 6
+    assert payload["schemaVersion"] == 7
     assert benchmark["total"] == 3.0
     assert benchmark["instrumentedRuns"] == 1
     assert "wall" not in benchmark
@@ -865,8 +910,7 @@ def test_ga_progress_exposes_round_time_and_evaluations(tmp_path):
     run = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0][
         "fitnessRuns"
     ][0]
-    assert run["elapsedBestSoFarArr"] == [[4.5, 3.0]]
-    assert run["evaluationBestSoFarArr"] == [[27, 3.0]]
+    assert run["points"] == [[2, 4.5, 27, 3.0, 2.0, 3.0, 0.0, 0.0]]
 
 
 def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
@@ -896,4 +940,6 @@ def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
 
-    assert payload["benchmarks"][0]["fitnessRuns"][0]["avgArr"] == [[332, None]]
+    assert payload["benchmarks"][0]["fitnessRuns"][0]["points"] == [
+        [332, 0.0, 0, -0.02, None, -0.02, 0.0, 0.0]
+    ]

@@ -3,6 +3,7 @@ import { chartTw } from "./chartTw";
 import { ComparisonCharts } from "./charts/ComparisonCharts";
 import { ParetoChart } from "./charts/ParetoChart";
 import {
+  assertDashboardSchema,
   bestRunRatio,
   bestRunCount,
   evolutionarySeconds,
@@ -88,10 +89,7 @@ export function ExperimentCompare() {
         const response = await fetch(experiment.dashboard_path, { cache: "no-store" });
         if (!response.ok) throw new Error(`${experiment.id}: HTTP ${response.status}`);
         const dashboard = await response.json();
-        if (dashboard.schemaVersion !== 6)
-          throw new Error(
-            `${experiment.id}: schema ${dashboard.schemaVersion ?? "ausente"}; vuelve a ejecutar el experimento`,
-          );
+        assertDashboardSchema(dashboard, experiment.id);
         if (!Array.isArray(dashboard.benchmarks))
           throw new Error(`${experiment.id}: dashboard inválido`);
         return [experiment.id, dashboard];

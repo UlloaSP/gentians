@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateSeries,
+  assertDashboardSchema,
   bestSeries,
   crossoverGainLabel,
   crossoverGainRows,
@@ -10,34 +11,27 @@ import {
   generationPoints,
 } from "./metrics";
 
-const rows = [
-  {
-    run: 1,
-    score: 1,
-    coveredPositive: 0,
-    coveredNegative: 1,
-    totalPositive: 1,
-    totalNegative: 2,
-  },
-  {
-    run: 1,
-    score: 10,
-    coveredPositive: 1,
-    coveredNegative: 0,
-    totalPositive: 1,
-    totalNegative: 2,
-    bestFound: true,
-  },
-  {
-    run: 2,
-    score: 10,
-    coveredPositive: 1,
-    coveredNegative: 0,
-    totalPositive: 1,
-    totalNegative: 2,
-    bestFound: true,
-  },
-];
+describe("dashboard schema", () => {
+  it("accepts v7 and rejects stale dashboards", () => {
+    expect(() => assertDashboardSchema({ schemaVersion: 7 })).not.toThrow();
+    expect(() => assertDashboardSchema({ schemaVersion: 6 }, "old")).toThrow(
+      "old: schema 6; vuelve a ejecutar el experimento",
+    );
+  });
+});
+
+const quality = {
+  coveragePoints: [
+    { positive: 0, negative: 1, count: 1, meanCount: 0.5, runs: 2, meanScore: 1 },
+    { positive: 1, negative: 0, count: 2, meanCount: 1, runs: 2, meanScore: 10, best: true },
+  ],
+  criteria: [
+    { key: "complete", rate: 75, meanCount: 1, count: 2, runs: 2 },
+    { key: "consistent", rate: 75, meanCount: 1, count: 2, runs: 2 },
+    { key: "both", rate: 75, meanCount: 1, count: 2, runs: 2 },
+  ],
+  extent: { positive: 1, negative: 2 },
+};
 
 describe("crossover gain loss", () => {
   it("keeps measured mutation rows and labels their operator pair", () => {
@@ -64,7 +58,7 @@ describe("crossover gain loss", () => {
 
 describe("quality metrics", () => {
   it("averages evaluated candidates over the measured runs", () => {
-    const coverage = coveragePoints(rows);
+    const coverage = coveragePoints(quality);
 
     expect(coverage.map(({ count, meanCount, runs }) => [count, meanCount, runs])).toEqual([
       [1, 0.5, 2],
@@ -73,11 +67,11 @@ describe("quality metrics", () => {
   });
 
   it("uses declared coverage totals for the matrix extent", () => {
-    expect(coverageExtent(rows)).toEqual({ positive: 1, negative: 2 });
+    expect(coverageExtent(quality)).toEqual({ positive: 1, negative: 2 });
   });
 
   it("averages coverage criteria rates with equal weight per run", () => {
-    expect(coverageCriteria(rows)).toEqual([
+    expect(coverageCriteria(quality)).toEqual([
       {
         key: "complete",
         label: "complete",
@@ -112,24 +106,16 @@ describe("quality metrics", () => {
 describe("search progress", () => {
   const runs = [
     {
-      maxArr: [
-        [1, 4],
-        [0, 2],
-        ["bad", 8],
-      ],
-      bestSoFarArr: [
-        [0, 2],
-        [1, 4],
+      points: [
+        [1, 0, 0, 4, 3, 4],
+        [0, 0, 0, 2, 1, 2],
+        ["bad", 0, 0, 8, 7, 8],
       ],
     },
     {
-      maxArr: [
-        [0, 4],
-        [1, 8],
-      ],
-      bestSoFarArr: [
-        [0, 4],
-        [1, 8],
+      points: [
+        [0, 0, 0, 4, 3, 4],
+        [1, 0, 0, 8, 7, 8],
       ],
     },
   ];
@@ -162,16 +148,16 @@ describe("search progress", () => {
       aggregateSeries(
         [
           {
-            maxArr: [
-              [0, 2],
-              [2, 6],
+            points: [
+              [0, 0, 0, 2],
+              [2, 0, 0, 6],
             ],
           },
           {
-            maxArr: [
-              [0, 4],
-              [1, 8],
-              [2, 10],
+            points: [
+              [0, 0, 0, 4],
+              [1, 0, 0, 8],
+              [2, 0, 0, 10],
             ],
           },
         ],

@@ -74,6 +74,7 @@ export function ComparisonCharts({ rows, progressView, setProgressView }) {
   const hasBestPrograms = available.some(({ benchmark }) =>
     programSizeCounts(benchmark).some((row) => row.best),
   );
+  const hasQuality = available.some(({ benchmark }) => benchmark.quality?.coveragePoints?.length);
 
   return (
     <section>
@@ -139,33 +140,33 @@ export function ComparisonCharts({ rows, progressView, setProgressView }) {
         />
         <DataPlot
           title="Candidatos evaluados por cobertura (media por run)"
-          present={has("qualityRows")}
+          present={hasQuality}
           option={coverageOption(
             available.map(({ experiment, benchmark }) => ({
               name: experiment.label,
               color: experiment.color,
-              rows: benchmark.qualityRows || [],
+              quality: benchmark.quality,
             })),
           )}
-          empty="Sin qualityRows en dashboard_data.json"
+          empty="Sin métricas de calidad"
           height={420}
         />
         <DataPlot
           title="Facilidad de satisfacer criterios de cobertura"
-          present={has("qualityRows")}
+          present={hasQuality}
           option={coverageCriteriaOption(
             available.map(({ experiment, benchmark }) => ({
               name: experiment.label,
               color: experiment.color,
-              rows: benchmark.qualityRows || [],
+              quality: benchmark.quality,
             })),
           )}
-          empty="Sin qualityRows en dashboard_data.json"
+          empty="Sin métricas de calidad"
           height={340}
         />
         <DataPlot
           title="Programas evaluados por tamaño"
-          present={has("qualityRows")}
+          present={hasQuality}
           option={programSizeOption(available, "evaluated", "programas")}
           empty="Sin programas evaluados"
           height={340}

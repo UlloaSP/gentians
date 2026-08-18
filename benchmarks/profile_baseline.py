@@ -655,13 +655,13 @@ def write_dashboard_data(
                 "operatorSummary": [
                     row for row in operator_rows_by_dataset.get(dataset, [])
                 ],
-                "qualityRows": dashboard_quality_rows(dataset_quality),
+                "quality": dashboard_quality(dataset_quality),
                 "clingoSummary": dataset_clingo_summary,
             }
         )
-    payload = {"schemaVersion": 6, "benchmarks": benchmarks}
+    payload = {"schemaVersion": 7, "benchmarks": benchmarks}
     (out_dir / "dashboard_data.json").write_text(
-        json.dumps(json_safe(payload), indent=2, allow_nan=False),
+        json.dumps(json_safe(payload), separators=(",", ":"), allow_nan=False),
         encoding="utf-8",
     )
 
@@ -759,50 +759,117 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
         )
         runs.append(
             {
-                "maxArr": [[point.generation, point.max_fitness] for point in points],
-                "avgArr": [[point.generation, point.avg_fitness] for point in points],
-                "bestSoFarArr": [
-                    [point.generation, point.best_so_far] for point in points
-                ],
-                "diversity": [[point.generation, point.diversity] for point in points],
-                "invalid": [[point.generation, point.invalid_rate] for point in points],
-                "elapsedBestSoFarArr": [
-                    [point.elapsed_seconds, point.best_so_far] for point in points
-                ],
-                "elapsedMaxArr": [
-                    [point.elapsed_seconds, point.max_fitness] for point in points
-                ],
-                "elapsedAvgArr": [
-                    [point.elapsed_seconds, point.avg_fitness] for point in points
-                ],
-                "evaluationBestSoFarArr": [
-                    [point.fitness_evaluations, point.best_so_far] for point in points
-                ],
-                "evaluationMaxArr": [
-                    [point.fitness_evaluations, point.max_fitness] for point in points
-                ],
-                "evaluationAvgArr": [
-                    [point.fitness_evaluations, point.avg_fitness] for point in points
+                "points": [
+                    [
+                        point.generation,
+                        point.elapsed_seconds,
+                        point.fitness_evaluations,
+                        point.max_fitness,
+                        point.avg_fitness,
+                        point.best_so_far,
+                        point.diversity,
+                        point.invalid_rate,
+                    ]
+                    for point in points
                 ],
             }
         )
     return runs
 
 
-def dashboard_quality_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
-    return [
-        {
-            "run": int(to_float(row.get("run"))),
-            "score": to_float(row.get("score")),
-            "coveredPositive": to_float(row.get("covered_positive")),
-            "coveredNegative": to_float(row.get("covered_negative")),
-            "totalPositive": to_float(row.get("total_positive")),
-            "totalNegative": to_float(row.get("total_negative")),
-            "programSize": to_float(row.get("program_size")),
-            "bestFound": bool(to_float(row.get("best_found"))),
-        }
-        for row in rows
-    ]
+def dashboard_quality(rows: list[dict[str, object]]) -> dict[str, object]:
+    run_ids = {int(to_float(row.get("run"))) for row in rows}
+    run_count = len(run_ids)
+    coverage: dict[tuple[float, float], dict[str, object]] = {}
+    criteria_by_run: dict[int, dict[str, int]] = {}
+    evaluated_sizes: dict[float, int] = {}
+    winner_sizes: dict[int, float] = {}
+    extent = {"positive": 0.0, "negative": 0.0}
+
+    for row in rows:
+        run = int(to_float(row.get("run")))
+        positive = to_float(row.get("covered_positive"))
+        negative = to_float(row.get("covered_negative"))
+        total_positive = to_float(row.get("total_positive"))
+        total_negative = to_float(row.get("total_negative"))
+        score = to_float(row.get("score"))
+        best = bool(to_float(row.get("best_found")))
+        size = to_float(row.get("program_size"))
+
+        extent["positive"] = max(extent["positive"], total_positive, positive)
+        extent["negative"] = max(extent["negative"], total_negative, negative)
+
+        point = coverage.setdefault(
+            (positive, negative),
+            {"count": 0, "score_total": 0.0, "best": False},
+        )
+        point["count"] = int(point["count"]) + 1
+        point["score_total"] = float(point["score_total"]) + score
+        point["best"] = bool(point["best"]) or best
+
+        counts = criteria_by_run.setdefault(
+            run, {"total": 0, "complete": 0, "consistent": 0, "both": 0}
+        )
+        complete = positive == total_positive
+        consistent = negative == 0
+        counts["total"] += 1
+        counts["complete"] += int(complete)
+        counts["consistent"] += int(consistent)
+        counts["both"] += int(complete and consistent)
+
+        evaluated_sizes[size] = evaluated_sizes.get(size, 0) + 1
+        if best:
+            winner_sizes[run] = size
+
+    best_sizes: dict[float, int] = {}
+    for size in winner_sizes.values():
+        best_sizes[size] = best_sizes.get(size, 0) + 1
+
+    coverage_points = []
+    for (positive, negative), values in sorted(coverage.items()):
+        count = int(values["count"])
+        coverage_points.append(
+            {
+                "positive": positive,
+                "negative": negative,
+                "count": count,
+                "meanCount": count / run_count if run_count else 0.0,
+                "runs": run_count,
+                "meanScore": float(values["score_total"]) / count,
+                "best": bool(values["best"]),
+            }
+        )
+
+    criteria = []
+    if run_count:
+        for key in ("complete", "consistent", "both"):
+            counts = [values[key] for values in criteria_by_run.values()]
+            criteria.append(
+                {
+                    "key": key,
+                    "rate": mean(
+                        100 * values[key] / values["total"]
+                        for values in criteria_by_run.values()
+                    ),
+                    "meanCount": mean(counts),
+                    "count": sum(counts),
+                    "runs": run_count,
+                }
+            )
+
+    return {
+        "coveragePoints": coverage_points,
+        "criteria": criteria,
+        "extent": extent,
+        "programSizes": [
+            {
+                "size": size,
+                "evaluated": count,
+                "best": best_sizes.get(size, 0),
+            }
+            for size, count in sorted(evaluated_sizes.items())
+        ],
+    }
 
 
 def _rows_by_dataset(rows: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:

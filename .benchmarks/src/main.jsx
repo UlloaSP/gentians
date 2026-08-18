@@ -18,6 +18,7 @@ import { QualityChart } from "./charts/QualityChart";
 import { SolverStatsChart } from "./charts/SolverStatsChart";
 import { TypeSplitChart } from "./charts/TypeSplitChart";
 import {
+  assertDashboardSchema,
   bestRunRatio,
   clingoSeconds,
   dataUrl,
@@ -45,10 +46,7 @@ export function DetailApp() {
         return response.json();
       })
       .then((payload) => {
-        if (payload.schemaVersion !== 6)
-          throw new Error(
-            `schema ${payload.schemaVersion ?? "ausente"}; vuelve a ejecutar el experimento`,
-          );
+        assertDashboardSchema(payload);
         if (!Array.isArray(payload.benchmarks) || !payload.benchmarks.length)
           throw new Error("dashboard_data.json sin benchmarks");
         setBenchmarks(payload.benchmarks);

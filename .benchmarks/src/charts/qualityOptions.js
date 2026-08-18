@@ -3,11 +3,19 @@ import { coverageCriteria, coverageExtent, coveragePoints } from "../metrics";
 const score = (value) => Number(value).toLocaleString("es-ES", { maximumFractionDigits: 2 });
 
 export function coverageOption(groups) {
-  const allRows = groups.flatMap((group) => group.rows);
-  const extent = coverageExtent(allRows);
+  const extent = groups.reduce(
+    (result, group) => {
+      const current = coverageExtent(group.quality);
+      return {
+        positive: Math.max(result.positive, current.positive),
+        negative: Math.max(result.negative, current.negative),
+      };
+    },
+    { positive: 0, negative: 0 },
+  );
   const pointGroups = groups.map((group) => ({
     ...group,
-    points: coveragePoints(group.rows),
+    points: coveragePoints(group.quality),
   }));
   const maxMeanCount = Math.max(
     0,
@@ -65,8 +73,7 @@ export function coverageOption(groups) {
             borderWidth: point.best ? 2 : 1,
           },
         })),
-        symbolSize: (value) =>
-          maxMeanCount ? 6 + 34 * Math.sqrt(value[2] / maxMeanCount) : 6,
+        symbolSize: (value) => (maxMeanCount ? 6 + 34 * Math.sqrt(value[2] / maxMeanCount) : 6),
         itemStyle: { color: group.color },
       })),
       {
@@ -83,7 +90,7 @@ export function coverageOption(groups) {
 export function coverageCriteriaOption(groups) {
   const criterionGroups = groups.map((group) => ({
     ...group,
-    criteria: coverageCriteria(group.rows),
+    criteria: coverageCriteria(group.quality),
   }));
   const categories = criterionGroups.find((group) => group.criteria.length)?.criteria || [];
   return {

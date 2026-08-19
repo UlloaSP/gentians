@@ -17,7 +17,9 @@ from gentians.rule_generation.hypothesis_space import build_hypothesis_space
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate benchmark hypothesis spaces.")
+    parser = argparse.ArgumentParser(
+        description="Generate benchmark hypothesis spaces."
+    )
     parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
     parser.add_argument("--out-dir", type=Path, default=Path(".debug") / "hypothesis")
     parser.add_argument(
@@ -26,8 +28,7 @@ def main() -> None:
         default=[],
         metavar="PATH=JSON",
         help=(
-            "Override Arguments field, e.g. "
-            "--set hypothesis_space.clingo_arguments=[]"
+            "Override Arguments field, e.g. --set hypothesis_space.clingo_arguments=[]"
         ),
     )
     parser.add_argument(
@@ -70,7 +71,7 @@ def main() -> None:
             encoding="utf-8",
         )
         elapsed = time.perf_counter() - started
-        print(f"{dataset}: {len(rule_space)} clauses -> {path} ({elapsed:.2f}s)")
+        print(f"{dataset}: {len(rule_space)} rules -> ({elapsed:.2f}s)")
 
 
 def build_profiled_hypothesis(program, arguments):

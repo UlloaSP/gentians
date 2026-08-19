@@ -15,6 +15,13 @@ Run Python code inside the managed environment with:
 uv run python your_script.py
 ```
 
+Development checks:
+```
+uv run ruff check gentians
+uv run ty check
+uv run pytest
+```
+
 ## Usage
 
 Provide a file with background knowledge, positive and negative examples, and the language bias definition.

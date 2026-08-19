@@ -17,11 +17,6 @@
 % is not useful in this hypothesis space.
 :- not selected_slot(body,_).
 
-% Constraint: reject unary headless constraints.
-% If there is no head, require at least two body slots. This avoids constraints
-% that merely ban a single literal and usually erase all examples too broadly.
-:- not selected_slot(head,_), body_count(Body), Body < 2.
-
 % Invented predicates form ordered, acyclic definition layers. An invented
 % head may depend only on background predicates or invented predicates declared
 % in earlier layers.

@@ -41,7 +41,7 @@ aggregate_local_var(Slot,Var):-
 % other singleton remains rejected.
 :- used_var(Var),
     not repeated_var(Var),
-%    not normal_positive_body_var(Var),
+    not normal_positive_body_var(Var),
     not aggregate_local_var(_,Var).
 
 % Constraint: reject gaps in variable ids.

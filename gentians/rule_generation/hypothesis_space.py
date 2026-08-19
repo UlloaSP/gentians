@@ -21,6 +21,7 @@ from .aggregate_declaration import AggregateDeclaration
 from .closed_world_properties import ClosedWorldProperties
 from .hypothesis_capabilities import HypothesisCapabilities
 from .hypothesis_mode import HypothesisMode
+from .linear_normal_form import LinearClauseKey, canonical_linear_clause_keys
 from .mode_declaration import ModeDeclaration
 from .parser import Predicate, fragment_atoms
 from .program import Program
@@ -83,7 +84,6 @@ HYPOTHESIS_SPACE_RULES = "\n".join(
     for module in HYPOTHESIS_SPACE_RULE_MODULES
 )
 
-
 _ValueLiteral = tuple[int, int]
 _ModeLiteral = tuple[int, tuple[int, ...], int]
 _ModelSlot = tuple[
@@ -132,6 +132,12 @@ class HypothesisSpaceGenerator:
             self.aggregate_specs,
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
+        linear_modes = [
+            mode
+            for mode in self.modes
+            if mode.kind == "arithmetic" and mode.operator in {"+", "-"}
+        ]
+        self.normalizes_linear_systems = bool(linear_modes)
         self.head_slots = _section_capacity(
             program.max_head_literals, self.modes, "head"
         )
@@ -174,9 +180,8 @@ class HypothesisSpaceGenerator:
             + "\n"
             + HYPOTHESIS_SPACE_RULES
         )
-        ctl = clingo.Control(
-            ["0", *_hypothesis_space_args(self.args)], logger=wrapper_exit_callback
-        )
+        solver_arguments = ["0", *_hypothesis_space_args(self.args)]
+        ctl = clingo.Control(solver_arguments, logger=wrapper_exit_callback)
         ctl.add("base", [], program)
         start = net_time()
         ctl.ground([("base", [])])
@@ -185,6 +190,8 @@ class HypothesisSpaceGenerator:
         add(f"{phase}.grounding", grounding_seconds)
         model_index = _model_literal_index(ctl.symbolic_atoms, self.modes_by_id)
 
+        representatives: dict[LinearClauseKey, tuple[str, ReifiedClause]] = {}
+        linear_clauses: list[ReifiedClause] = []
         clauses: dict[ReifiedClause, None] = {}
         seconds = 0.0
         collect_metrics = metric_enabled("clingo")
@@ -202,21 +209,33 @@ class HypothesisSpaceGenerator:
                 seconds += net_time() - start
                 clause = _clause_from_model(model, model_index)
                 if _theta_reduced(clause, self.modes_by_id):
-                    clauses.setdefault(clause, None)
+                    if not self.normalizes_linear_systems:
+                        clauses.setdefault(clause, None)
+                        continue
+                    linear_clauses.append(clause)
             start = net_time()
         seconds += net_time() - start
         add(f"{phase}.solving", seconds)
+        if self.normalizes_linear_systems:
+            canonical_keys = canonical_linear_clause_keys(
+                linear_clauses, self.modes_by_id, self.max_variables
+            )
+            for clause, canonical in zip(linear_clauses, canonical_keys):
+                if canonical is None:
+                    continue
+                rendered = clause.render(self.modes_by_id)
+                current = representatives.get(canonical)
+                if current is None or (len(clause.body), rendered) < (
+                    len(current[1].body),
+                    current[0],
+                ):
+                    representatives[canonical] = rendered, clause
         if collect_metrics:
             with instrumentation():
                 stats = ctl.statistics
                 models = clingo_stat(stats, "summary", "models", "enumerated")
                 grounded = ground_stats(stats)
-                clingo_arguments = " ".join(
-                    [
-                        "0",
-                        *_hypothesis_space_args(self.args),
-                    ]
-                )
+                clingo_arguments = " ".join(solver_arguments)
                 record_metric(
                     "clingo",
                     {
@@ -254,16 +273,22 @@ class HypothesisSpaceGenerator:
                     },
                 )
 
-        return RuleSpace(
+        entries = (
             [
+                _rule_entry_from_clause(rendered, clause, self.modes_by_id)
+                for rendered, clause in sorted(
+                    representatives.values(), key=lambda representative: representative[0]
+                )
+            ]
+            if self.normalizes_linear_systems
+            else [
                 _rule_entry_from_clause(
-                    clause.render(self.modes_by_id),
-                    clause,
-                    self.modes_by_id,
+                    clause.render(self.modes_by_id), clause, self.modes_by_id
                 )
                 for clause in clauses
             ]
         )
+        return RuleSpace(entries)
 
 
 @profile_phase("hypothesis_space")

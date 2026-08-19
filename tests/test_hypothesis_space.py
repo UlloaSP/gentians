@@ -16,6 +16,7 @@ from gentians.rule_generation.hypothesis_space import (
     HypothesisSpaceGenerator,
     _hypothesis_space_args,
 )
+from gentians.rule_generation.linear_normal_form import canonical_linear_clause_key
 from gentians.rule_generation.hypothesis_capabilities import HypothesisCapabilities
 from gentians.rule_generation.hypothesis_mode import HypothesisMode
 from gentians.rule_generation.aggregate_declaration import AggregateDeclaration
@@ -1015,6 +1016,196 @@ def test_hypothesis_space_prunes_arithmetic_identities():
 
     assert clauses
     assert not any("V0+V1=V2,V2-V0=V1" in clause for clause in clauses)
+
+
+def test_linear_canonicalization_merges_equivalent_add_sub_equations():
+    program = Program(
+        ["q(1,2,3)."],
+        [],
+        [],
+        [],
+        [_mode(1, "q", 3, positive=True)],
+        [],
+        [],
+        [OperatorDeclaration(1, "add"), OperatorDeclaration(1, "sub")],
+        max_head_literals=0,
+    )
+
+    arithmetic = {
+        clause
+        for clause in _generate(program, 2, 3).clauses
+        if "+" in clause or "-" in clause
+    }
+
+    assert arithmetic == {
+        ":- q(V0,V1,V2),V0+V1=V2.",
+        ":- q(V0,V1,V2),V0+V2=V1.",
+        ":- q(V0,V1,V2),V0-V1=V2.",
+    }
+
+
+@pytest.mark.parametrize("recall", [1, -1])
+def test_linear_canonicalization_normalizes_sub_only_bias(recall):
+    program = Program(
+        ["q(1,2,3)."],
+        [],
+        [],
+        [],
+        [_mode(1, "q", 3, positive=True)],
+        [],
+        [],
+        [OperatorDeclaration(recall, "sub")],
+        max_head_literals=0,
+    )
+
+    arithmetic = {
+        clause for clause in _generate(program, 2, 3).clauses if "-" in clause
+    }
+
+    assert len(arithmetic) == 3
+
+
+def test_linear_canonicalization_reduces_complete_nqueens_systems():
+    args = copy.deepcopy(CASES["5queens"])
+    clauses = HypothesisSpaceGenerator(read_program(args.filename), args).generate().clauses
+
+    assert len(clauses) == 3320
+    assert clauses == tuple(sorted(clauses))
+    assert any(
+        clause.startswith(":- ")
+        and clause.count("q(") == 2
+        and "+" in clause
+        and "-" in clause
+        and "<" in clause
+        for clause in clauses
+    )
+
+
+def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
+    modes = {
+        0: HypothesisMode(
+            0, 0, "body", "normal", "q", 3, 1, fixed_arguments=(None,) * 3
+        ),
+        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, operator="+"),
+        2: HypothesisMode(2, 2, "body", "comparison", "", 2, 1, operator="<"),
+    }
+    clause = ReifiedClause(
+        (),
+        (
+            ReifiedLiteral("body", 0, 0, (0, 1, 2)),
+            ReifiedLiteral("body", 1, 1, (0, 1, 3)),
+            ReifiedLiteral("body", 2, 2, (3, 2)),
+        ),
+    )
+
+    canonical = canonical_linear_clause_key(clause, modes, 4)
+
+    assert canonical is not None
+    assert ("linear",) == canonical[-1][0][:1]
+
+    equivalent_modes = {
+        **modes,
+        3: HypothesisMode(3, 3, "body", "arithmetic", "", 3, 1, operator="-"),
+    }
+    equivalent = ReifiedClause(
+        (),
+        (
+            ReifiedLiteral("body", 0, 0, (0, 1, 2)),
+            ReifiedLiteral("body", 1, 3, (2, 1, 3)),
+            ReifiedLiteral("body", 2, 2, (0, 3)),
+        ),
+    )
+
+    assert canonical_linear_clause_key(equivalent, equivalent_modes, 4) == canonical
+
+    disequality_modes = {
+        **modes,
+        2: HypothesisMode(2, 2, "body", "comparison", "", 2, 1, operator="!="),
+    }
+    assert canonical_linear_clause_key(clause, disequality_modes, 4) != canonical
+
+
+def test_linear_canonicalization_keeps_disconnected_constraints_separate():
+    modes = {
+        0: HypothesisMode(
+            0, 0, "body", "normal", "q", 5, 1, fixed_arguments=(None,) * 5
+        ),
+        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, operator="+"),
+        2: HypothesisMode(2, 2, "body", "comparison", "", 2, 1, operator="<"),
+        3: HypothesisMode(3, 3, "body", "comparison", "", 2, 1, operator="!="),
+    }
+    clause = ReifiedClause(
+        (),
+        (
+            ReifiedLiteral("body", 0, 0, (0, 1, 2, 3, 4)),
+            ReifiedLiteral("body", 1, 1, (0, 1, 5)),
+            ReifiedLiteral("body", 2, 2, (5, 2)),
+            ReifiedLiteral("body", 3, 3, (3, 4)),
+        ),
+    )
+
+    canonical = canonical_linear_clause_key(clause, modes, 6)
+
+    assert canonical is not None
+    assert len(canonical[-1]) == 2
+
+
+def test_linear_canonicalization_preserves_unsafe_output_assignment():
+    modes = {
+        0: HypothesisMode(
+            0, 0, "head", "normal", "target", 1, 1, fixed_arguments=(None,)
+        ),
+        1: HypothesisMode(
+            1, 1, "body", "normal", "p", 1, 1, fixed_arguments=(None,)
+        ),
+        2: HypothesisMode(2, 2, "body", "arithmetic", "", 3, 1, operator="+"),
+    }
+    clause = ReifiedClause(
+        (ReifiedLiteral("head", 0, 0, (1,)),),
+        (
+            ReifiedLiteral("body", 0, 1, (0,)),
+            ReifiedLiteral("body", 1, 2, (0, 0, 1)),
+        ),
+    )
+
+    canonical = canonical_linear_clause_key(clause, modes, 2)
+
+    assert canonical is not None
+    assert canonical == (
+        ((0, (1,)),),
+        ((1, (0,)),),
+        (("raw", ((2, (0, 0, 1)),)),),
+    )
+
+
+def test_linear_canonicalization_preserves_components_with_multiplication():
+    modes = {
+        0: HypothesisMode(
+            0, 0, "body", "normal", "q", 4, 1, fixed_arguments=(None,) * 4
+        ),
+        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, operator="+"),
+        2: HypothesisMode(2, 2, "body", "arithmetic", "", 3, 1, operator="*"),
+    }
+    clause = ReifiedClause(
+        (),
+        (
+            ReifiedLiteral("body", 0, 0, (0, 1, 2, 3)),
+            ReifiedLiteral("body", 1, 1, (0, 1, 2)),
+            ReifiedLiteral("body", 2, 2, (2, 0, 3)),
+        ),
+    )
+
+    canonical = canonical_linear_clause_key(clause, modes, 4)
+
+    assert canonical is not None
+    assert canonical == (
+        (),
+        (
+            (0, (0, 1, 2, 3)),
+            (1, (0, 1, 2)),
+            (2, (2, 0, 3)),
+        ),
+    )
 
 
 def test_canonicalization_prevents_reversed_add_operands_by_default():

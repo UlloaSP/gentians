@@ -1,3 +1,5 @@
+from typing import Any
+
 from ...asp.normal_coverage_solver import NormalCoverageSolver
 from ...rule_generation.program import Program
 from ..types import FitnessResult
@@ -10,7 +12,7 @@ class CovBalanced:
         self.solver = solver
 
     @classmethod
-    def from_config(cls, program: Program, config: dict[str, object]):
+    def from_config(cls, program: Program, config: dict[str, Any]):
         values = iter(str(value) for value in config.get("clingo_arguments", []))
         extra = []
         for value in values:

@@ -1,8 +1,10 @@
+from typing import Any
+
 from ..operator_types import PopulationInitializerFn
 from .random_population import RandomPopulation
 
 
-def create_population(config: dict[str, object]) -> PopulationInitializerFn:
+def create_population(config: dict[str, Any]) -> PopulationInitializerFn:
     name = str(config["name"])
     strategies = {"random": RandomPopulation}
     try:

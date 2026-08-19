@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 from .parser import clause_predicates
 from .rule_entry import RuleEntry
 
@@ -12,7 +14,7 @@ class RuleSpace:
         return cls.from_entries(_entry_from_clause(clause) for clause in clauses)
 
     @classmethod
-    def from_entries(cls, entries: list[RuleEntry]) -> RuleSpace:
+    def from_entries(cls, entries: Iterable[RuleEntry]) -> RuleSpace:
         unique: dict[str, RuleEntry] = {}
         for entry in entries:
             unique.setdefault(entry.text, entry)

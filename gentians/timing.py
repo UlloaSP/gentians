@@ -2,11 +2,11 @@ import atexit
 import json
 import os
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 _enabled = bool(os.environ.get("GENTIANS_TIMINGS_PATH"))
 _totals: dict[str, float] = {}
@@ -26,7 +26,7 @@ _METRIC_ENV_PATHS = {
 }
 
 
-def _write_json_atomic(path: str, rows: list[dict[str, object]]) -> None:
+def _write_json_atomic(path: str, rows: Sequence[Mapping[str, object]]) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(f"{target.suffix}.{os.getpid()}.tmp")
@@ -85,7 +85,7 @@ def set_enabled(enabled: bool) -> None:
     _enabled = enabled
 
 
-def merge_timings(rows: list[dict[str, object]]) -> None:
+def merge_timings(rows: list[dict[str, Any]]) -> None:
     global _timings_dirty
     for row in rows:
         metric = row.get("metric")
@@ -183,7 +183,7 @@ def profile_phase(name: str):
             with phase(name):
                 return func(*args, **kwargs)
 
-        return wrapper  # type: ignore[return-value]
+        return cast(_F, wrapper)
 
     return decorator
 
@@ -229,7 +229,7 @@ def record_metric(kind: str, row: dict[str, Any]) -> None:
 def record_ga_generation(
     generation: int,
     best_so_far: float,
-    population: list[object],
+    population: Sequence[Any],
     *,
     elapsed_seconds: float = 0.0,
     fitness_evaluations: int = 0,

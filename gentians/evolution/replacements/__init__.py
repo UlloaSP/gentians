@@ -1,8 +1,10 @@
+from typing import Any
+
 from ..operator_types import ReplacementFn
 from .oldest_or_worst import OldestOrWorstReplacement
 
 
-def create_replacement(config: dict[str, object]) -> ReplacementFn:
+def create_replacement(config: dict[str, Any]) -> ReplacementFn:
     name = str(config["name"])
     strategies = {"oldest_or_worst": OldestOrWorstReplacement}
     try:

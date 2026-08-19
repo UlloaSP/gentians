@@ -1,9 +1,11 @@
+from typing import Any
+
 from ..operator_types import SelectionFn
 from .behavior_tournament_selection import BehaviorTournamentSelection
 from .tournament_selection import TournamentSelection
 
 
-def create_selection(config: dict[str, object]) -> SelectionFn:
+def create_selection(config: dict[str, Any]) -> SelectionFn:
     name = str(config["name"])
     if name == "tournament":
         return TournamentSelection(

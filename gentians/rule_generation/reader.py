@@ -71,7 +71,10 @@ def _get_pos_neg_examples(s: str) -> tuple[str, str] | tuple[str, str, str]:
     parts = split_top_level_args(_directive_args(s, name))
     if len(parts) not in (2, 3):
         raise ValueError(f"invalid example declaration: {s}")
-    return tuple(_strip_outer_braces(part.strip()) for part in parts)  # type: ignore[return-value]
+    values = tuple(_strip_outer_braces(part.strip()) for part in parts)
+    if len(values) == 2:
+        return values[0], values[1]
+    return values[0], values[1], values[2]
 
 
 def _get_aggregate_declaration(s: str) -> AggregateDeclaration:

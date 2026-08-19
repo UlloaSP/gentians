@@ -8,9 +8,6 @@ from ..types import Genome, ProgramText
 from .common import bits, defined_predicates, prepare_space, record_generation_time
 
 _CACHE_SIZE = 65536
-_MISSING = object()
-
-
 class ProgramGenerator:
     def __init__(
         self,
@@ -264,9 +261,8 @@ class ProgramGenerator:
 
     def _build(self, proposal: Genome, forbidden: Genome) -> Genome | None:
         key = proposal, forbidden
-        cached = self._build_cache.get(key, _MISSING)
-        if cached is not _MISSING:
-            return cached
+        if key in self._build_cache:
+            return self._build_cache[key]
         invalid = (
             not proposal
             or proposal.bit_count() > self.max_clauses

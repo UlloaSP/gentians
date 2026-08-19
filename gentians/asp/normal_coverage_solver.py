@@ -56,7 +56,7 @@ class NormalCoverageSolver:
         return coverage
 
     def _ground(self, generated: str):
-        ctl = clingo.Control(self.clingo_arguments, logger=coverage_logger)  # type: ignore
+        ctl = clingo.Control(self.clingo_arguments, logger=coverage_logger)
         ctl.add("base", [], generated)
         start = net_time()
         ctl.ground([("base", [])])
@@ -69,7 +69,7 @@ class NormalCoverageSolver:
     def _solve(ctl, collect) -> float:
         seconds = 0.0
         start = net_time()
-        with ctl.solve(yield_=True) as handle:  # type: ignore
+        with ctl.solve(yield_=True) as handle:
             seconds += net_time() - start
             iterator = iter(handle)
             while True:

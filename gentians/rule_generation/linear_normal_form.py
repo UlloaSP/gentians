@@ -1,9 +1,7 @@
-from concurrent.futures import InterpreterPoolExecutor
 from dataclasses import dataclass
 from fractions import Fraction
 from functools import lru_cache
 from math import gcd, lcm
-from os import process_cpu_count
 
 from .hypothesis_mode import HypothesisMode
 from .reified_clause import ReifiedClause
@@ -17,29 +15,6 @@ def canonical_linear_clause_keys(
     modes: dict[int, HypothesisMode],
     max_variables: int,
 ) -> list[LinearClauseKey | None]:
-    workers = min(4, process_cpu_count() or 1)
-    if len(clauses) < 1000 or workers == 1:
-        return [
-            canonical_linear_clause_key(clause, modes, max_variables)
-            for clause in clauses
-        ]
-    batch_size = (len(clauses) + workers - 1) // workers
-    batches = [
-        (clauses[start : start + batch_size], modes, max_variables)
-        for start in range(0, len(clauses), batch_size)
-    ]
-    with InterpreterPoolExecutor(max_workers=workers) as executor:
-        return [
-            key
-            for batch in executor.map(_canonical_key_batch, batches)
-            for key in batch
-        ]
-
-
-def _canonical_key_batch(
-    arguments: tuple[list[ReifiedClause], dict[int, HypothesisMode], int],
-) -> list[LinearClauseKey | None]:
-    clauses, modes, max_variables = arguments
     return [
         canonical_linear_clause_key(clause, modes, max_variables)
         for clause in clauses

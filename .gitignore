@@ -30,6 +30,7 @@ sweeps/
 
 # Generated analysis
 graphify-out/
+.graphify*
 
 # Local environment
 .env

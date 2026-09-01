@@ -6,7 +6,7 @@
 %
 % Shared atom shapes used here:
 % - arithmetic_mode(Mode): derived atom. Mode renders as arithmetic expression.
-% - add_mode(Mode), sub_mode(Mode), mul_mode(Mode), div_mode(Mode),
+% - add_mode(Mode), mul_mode(Mode), div_mode(Mode),
 %   mod_mode(Mode), abs_mode(Mode): Python facts for arithmetic operator
 %   families.
 % - selected(body,Slot,Mode): selected body arithmetic literal.
@@ -15,15 +15,12 @@
 
 % Python fact contract:
 % - add_mode(Mode): emitted by Python for addition modes.
-% - sub_mode(Mode): emitted by Python for subtraction modes.
 % - mul_mode(Mode): emitted by Python for multiplication modes.
 % - div_mode(Mode): emitted by Python for division modes.
 % - mod_mode(Mode): emitted by Python for modulo modes.
 % - abs_mode(Mode): emitted by Python for absolute-distance modes.
 % Python fact detail: add_mode(Mode) marks arithmetic modes rendered as addition.
 #defined add_mode/1.
-% Python fact detail: sub_mode(Mode) marks arithmetic modes rendered as subtraction.
-#defined sub_mode/1.
 % Python fact detail: mul_mode(Mode) marks arithmetic modes rendered as multiplication.
 #defined mul_mode/1.
 % Python fact detail: div_mode(Mode) marks arithmetic modes rendered as division.
@@ -36,10 +33,6 @@
 % Rule: addition modes are arithmetic modes.
 % Mode is the Python id for an arithmetic body literal rendered with +.
 arithmetic_mode(Mode):- add_mode(Mode).
-
-% Rule: subtraction modes are arithmetic modes.
-% Mode is the Python id for an arithmetic body literal rendered with -.
-arithmetic_mode(Mode):- sub_mode(Mode).
 
 % Rule: multiplication modes are arithmetic modes.
 % Mode is the Python id for an arithmetic body literal rendered with *.

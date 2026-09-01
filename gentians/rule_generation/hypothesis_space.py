@@ -47,7 +47,6 @@ HYPOTHESIS_SPACE_RULE_MODULES = (
     "operators/comparisons.lp",
     "operators/arithmetic.lp",
     "operators/arithmetic_domain.lp",
-    "operators/arithmetic_identities.lp",
     "aggregates/canonicalization.lp",
     "aggregates/safety.lp",
     "aggregates/duplicates.lp",
@@ -1749,10 +1748,29 @@ def _hypothesis_modes(
             add(HypothesisMode(next_id, next_id, "body", "comparison", "", 2, declaration.recall, True, operator=symbol, arg_types=arg_types))
 
     if capabilities.allow_arithmetic:
+        additive = [
+            declaration
+            for declaration in program.arithmetic_modes
+            if declaration.operator in {"add", "sub"}
+        ]
+        additive_recall = (
+            -1
+            if any(declaration.recall < 0 for declaration in additive)
+            else sum(declaration.recall for declaration in additive)
+        )
+        additive_added = False
         for declaration in program.arithmetic_modes:
-            symbol = {"add": "+", "sub": "-", "mul": "*", "div": "/", "mod": "\\", "abs": "abs"}.get(declaration.operator)
+            if declaration.operator in {"add", "sub"}:
+                if additive_added:
+                    continue
+                symbol = "+"
+                recall = additive_recall
+                additive_added = True
+            else:
+                symbol = {"mul": "*", "div": "/", "mod": "\\", "abs": "abs"}.get(declaration.operator)
+                recall = declaration.recall
             if symbol:
-                add(HypothesisMode(next_id, next_id, "body", "arithmetic", "", 3, declaration.recall, True, operator=symbol, arg_types=("numeric", "numeric", "numeric")))
+                add(HypothesisMode(next_id, next_id, "body", "arithmetic", "", 3, recall, True, operator=symbol, arg_types=("numeric", "numeric", "numeric")))
 
     for declaration in aggregate_specs:
         atoms = list(declaration.atoms)
@@ -1920,8 +1938,6 @@ def _facts(
         elif mode.kind == "arithmetic":
             if mode.operator == "+":
                 parts.append(f"add_mode({mode.id}).")
-            elif mode.operator == "-":
-                parts.append(f"sub_mode({mode.id}).")
             elif mode.operator == "*":
                 parts.append(f"mul_mode({mode.id}).")
             elif mode.operator == "/":

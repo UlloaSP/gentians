@@ -17,7 +17,6 @@ from gentians.rule_generation.hypothesis_space import (
     _hypothesis_space_args,
 )
 from gentians.rule_generation.linear_normal_form import canonical_linear_clause_key
-from gentians.rule_generation.hypothesis_capabilities import HypothesisCapabilities
 from gentians.rule_generation.hypothesis_mode import HypothesisMode
 from gentians.rule_generation.aggregate_declaration import AggregateDeclaration
 from gentians.rule_generation.example import Example
@@ -1034,13 +1033,16 @@ def test_linear_canonicalization_merges_equivalent_add_sub_equations():
     arithmetic = {
         clause
         for clause in _generate(program, 2, 3).clauses
-        if "+" in clause or "-" in clause
+        for match in [re.search(r"V(\d+)\+V(\d+)=V(\d+)", clause)]
+        if clause.count("=") == 1
+        and match is not None
+        and len(set(match.groups())) == 3
     }
 
     assert arithmetic == {
         ":- q(V0,V1,V2),V0+V1=V2.",
         ":- q(V0,V1,V2),V0+V2=V1.",
-        ":- q(V0,V1,V2),V0-V1=V2.",
+        ":- q(V0,V1,V2),V1+V2=V0.",
     }
 
 
@@ -1058,24 +1060,75 @@ def test_linear_canonicalization_normalizes_sub_only_bias(recall):
         max_head_literals=0,
     )
 
+    generator = HypothesisSpaceGenerator(program, Arguments())
+    arithmetic_modes = [mode for mode in generator.modes if mode.kind == "arithmetic"]
     arithmetic = {
-        clause for clause in _generate(program, 2, 3).clauses if "-" in clause
+        clause
+        for clause in generator.generate().clauses
+        for match in [re.search(r"V(\d+)\+V(\d+)=V(\d+)", clause)]
+        if clause.count("=") == 1
+        and match is not None
+        and len(set(match.groups())) == 3
     }
 
+    assert [(mode.operator, mode.recall) for mode in arithmetic_modes] == [("+", recall)]
     assert len(arithmetic) == 3
+
+
+@pytest.mark.parametrize(
+    ("declarations", "expected"),
+    [
+        (
+            [OperatorDeclaration(1, "add"), OperatorDeclaration(2, "sub")],
+            [("+", 3)],
+        ),
+        (
+            [OperatorDeclaration(-1, "add"), OperatorDeclaration(2, "sub")],
+            [("+", -1)],
+        ),
+        (
+            [
+                OperatorDeclaration(1, "mul"),
+                OperatorDeclaration(2, "sub"),
+                OperatorDeclaration(1, "div"),
+                OperatorDeclaration(1, "add"),
+                OperatorDeclaration(1, "mod"),
+            ],
+            [("*", 1), ("+", 3), ("/", 1), ("\\", 1)],
+        ),
+    ],
+)
+def test_additive_modes_share_one_canonical_mode_with_combined_recall(
+    declarations, expected
+):
+    program = Program(
+        ["q(1,2,3)."],
+        [],
+        [],
+        [],
+        [_mode(1, "q", 3, positive=True)],
+        [],
+        [],
+        declarations,
+        max_head_literals=0,
+    )
+
+    generator = HypothesisSpaceGenerator(program, Arguments())
+    arithmetic_modes = [mode for mode in generator.modes if mode.kind == "arithmetic"]
+
+    assert [(mode.operator, mode.recall) for mode in arithmetic_modes] == expected
 
 
 def test_linear_canonicalization_reduces_complete_nqueens_systems():
     args = copy.deepcopy(CASES["5queens"])
     clauses = HypothesisSpaceGenerator(read_program(args.filename), args).generate().clauses
 
-    assert len(clauses) == 3320
+    assert len(clauses) == 4831
     assert clauses == tuple(sorted(clauses))
     assert any(
         clause.startswith(":- ")
         and clause.count("q(") == 2
-        and "+" in clause
-        and "-" in clause
+        and clause.count("+") == 2
         and "<" in clause
         for clause in clauses
     )
@@ -1229,7 +1282,7 @@ def test_canonicalization_prevents_reversed_add_operands_by_default():
     )
 
 
-def test_domain_arithmetic_prune_removes_impossible_zero_result_by_default():
+def test_canonical_additive_bias_drops_subtraction_zero_equations():
     program_without_zero = Program(
         ["#const n = 2.", "number(1..n).", "q(1,1)."],
         [],
@@ -1253,8 +1306,9 @@ def test_domain_arithmetic_prune_removes_impossible_zero_result_by_default():
     without_zero = _generate(program_without_zero, 4, 3).clauses
     with_zero = _generate(program_with_zero, 4, 3).clauses
 
-    assert not any("V0-V0=V1" in clause and "q(V0,V1)" in clause for clause in without_zero)
-    assert any("V0-V0=V1" in clause and "q(V0,V1)" in clause for clause in with_zero)
+    assert all("-V" not in clause for clause in [*without_zero, *with_zero])
+    assert any("+" in clause for clause in without_zero)
+    assert any("+" in clause for clause in with_zero)
 
 
 def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
@@ -1270,28 +1324,9 @@ def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
     )
     clauses = _generate(program, 4, 3).clauses
 
-    assert ":- q(V0,V0),V1<V2,V0+V0=V1,V0-V0=V2." not in clauses
-    assert ":- q(V0,V0),V1+V1=V0,V0-V0=V1." not in clauses
-    assert ":- q(V0,V0),V1<V0,V0-V0=V1." not in clauses
-    assert ":- q(V0,V1),V1+V2=V0,V1-V1=V2." not in clauses
-    assert ":- q(V0,V0),V1<V2,V0+V0=V2,V2-V1=V0." not in clauses
+    assert clauses
     assert ":- q(V0,V0),V1<V0,V0+V0=V1." not in clauses
-    assert ":- q(V0,V1),V1<V2,V1-V0=V2." not in clauses
-    assert ":- q(V0,V1),V1<V2,V2+V2=V1,V1-V0=V2." not in clauses
     assert ":- q(V0,V1),V1<V0,V1+V1=V0." not in clauses
-    assert ":- q(V0,V1),V2<V0,V0-V1=V2." not in clauses
-    assert ":- q(V0,V1),V0+V1=V2,V0-V1=V2." not in clauses
-    assert ":- q(V0,V1),V0+V1=V2,V1-V0=V2." not in clauses
-    assert ":- q(V0,V1),V0+V1=V2,V0-V2=V1." not in clauses
-    assert ":- q(V0,V1),V0+V1=V2,V1-V2=V0." not in clauses
-    assert ":- q(V0,V1),V1<V0,V1+V1=V2,V2-V1=V0." not in clauses
-    assert ":- q(V0,V1),V0<V1,V0+V2=V1,V0-V1=V2." not in clauses
-    assert ":- q(V0,V1),V0<V1,V1+V1=V2,V0-V1=V2." not in clauses
-    assert ":- q(V0,V1),V0+V0=V2,V2-V0=V1." not in clauses
-    assert ":- q(V0,V1),V1<V0,V1+V1=V2,V2-V0=V1." not in clauses
-    assert ":- q(V0,V1),V0<V1,V2+V2=V1,V0-V1=V2." not in clauses
-    assert ":- q(V0,V1),V1<V2,V0+V3=V2,V1-V0=V3." not in clauses
-    assert ":- q(V0,V1),q(V2,V3),V1<V2,V3+V3=V1,V3-V0=V2." not in clauses
 
 
 def test_closed_world_properties_prune_symmetric_predicate_orientation():

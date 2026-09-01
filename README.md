@@ -205,6 +205,8 @@ You can define comparison operators and arithmetic operators in the language bia
 The following comparison operators are considered: `lt` (<), `leq` (=<), `gt` (>), `geq` (>=), `eq` (=), and `neq` (!=).
 The following arithmetic operators are considered: `add` (+), `sub` (-), `mul` (*), `div` (/), `mod` (`\`), and `abs` (absolute value).
 Use recall to allow more occurrences of the same operator in one rule.
+`add` and `sub` declare one canonical additive family rendered with `+`; their
+recalls are added, or remain unbounded when either recall is `*`.
 
 Examples:
 ```prolog

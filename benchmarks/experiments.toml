@@ -7,7 +7,7 @@ output_root = ".benchmarks"
 datasets = [
     "5queens",
     "grandparent",
-    "coloring",
+    #"coloring",
     #"latin_square",
     #"magic_square_no_diag",
     #"subset_sum_double",

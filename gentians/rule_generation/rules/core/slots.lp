@@ -35,6 +35,7 @@
 #defined max_head/1.
 % Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
 #defined mode/5.
+#defined head_form_member/3.
 
 % Rule: create all variable ids allowed in candidate clauses.
 % Max comes from max_vars(Max). Var ranges from 0 to Max-1.
@@ -59,11 +60,13 @@ section_order(head,0).
 % Used with tuple comparisons such as (Order,Slot) < (OtherOrder,OtherSlot).
 section_order(body,1).
 
-% Choice rule: each head slot may contain zero or one head mode.
-% Slot comes from head_slot(Slot). Mode ranges over mode(head,Mode,...).
-% The lower bound 0 allows unused slots; the upper bound 1 prevents two
-% literals occupying the same head slot.
-0 { selected(head,Slot,Mode) : mode(head,Mode,_,_,_) } 1:- head_slot(Slot).
+% A head declaration is one complete form. Select none for a constraint or one
+% form, then activate every member atom at its fixed position.
+head_form(Form):- head_form_member(Form,_,_).
+0 { selected_head_form(Form) : head_form(Form) } 1.
+selected(head,Slot,Mode):-
+    selected_head_form(Form),
+    head_form_member(Form,Slot,Mode).
 
 % Choice rule: each body slot may contain zero or one body mode.
 % Slot comes from body_slot(Slot). Mode ranges over mode(body,Mode,...).

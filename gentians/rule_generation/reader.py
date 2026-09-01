@@ -2,9 +2,11 @@ import re
 from pathlib import Path
 
 import clingo
+from clingo import ast
 
 from .aggregate_declaration import AggregateDeclaration
 from .example import Example
+from .head_declaration import HeadDeclaration
 from .mode_argument import ModeArgument
 from .mode_declaration import ModeDeclaration
 from .operator_declaration import OperatorDeclaration
@@ -27,7 +29,67 @@ def _get_mode_declaration(
             raise ValueError(f"head modes cannot be negative: {s}")
         atom = re.sub(r"^not\s+", "", atom, count=1)
     predicate, arguments = _get_mode_atom(atom, s)
+    if not for_head and any(argument.label for argument in arguments):
+        raise ValueError(f"variable labels are only supported in #modeh: {s}")
     return ModeDeclaration(recall, predicate, arguments, not negative, for_head)
+
+
+def _get_head_declaration(s: str) -> HeadDeclaration:
+    parts = split_top_level_args(_directive_args(s, "#modeh"))
+    if len(parts) != 2:
+        raise ValueError(f"invalid #modeh declaration: {s}")
+    recall = _parse_recall(parts[0])
+    rules: list[ast.AST] = []
+    try:
+        ast.parse_string(
+            f"{parts[1].strip()} :- __modeh_body.",
+            lambda node: rules.append(node)
+            if node.ast_type == ast.ASTType.Rule
+            else None,
+        )
+    except RuntimeError as exc:
+        raise ValueError(f"invalid #modeh declaration: {s}") from exc
+    if len(rules) != 1:
+        raise ValueError(f"invalid #modeh declaration: {s}")
+    head = rules[0].head
+    if head.ast_type == ast.ASTType.Literal:
+        atoms = (_head_atom(str(head), s),)
+        return HeadDeclaration(recall, "normal", atoms)
+    if head.ast_type == ast.ASTType.Disjunction:
+        if any(element.condition for element in head.elements):
+            raise ValueError(f"conditional disjunction is not supported in #modeh: {s}")
+        atoms = tuple(_head_atom(str(element.literal), s) for element in head.elements)
+        return HeadDeclaration(recall, "disjunction", atoms)
+    if head.ast_type == ast.ASTType.Aggregate:
+        if any(element.condition for element in head.elements):
+            raise ValueError(
+                f"conditional choice/cardinality is not supported in #modeh: {s}"
+            )
+        atoms = tuple(_head_atom(str(element.literal), s) for element in head.elements)
+        return HeadDeclaration(
+            recall,
+            "choice",
+            atoms,
+            _head_bound(head.left_guard, s),
+            _head_bound(head.right_guard, s),
+        )
+    raise ValueError(f"unsupported #modeh head form: {s}")
+
+
+def _head_atom(raw: str, declaration: str) -> ModeDeclaration:
+    predicate, arguments = _get_mode_atom(raw, declaration)
+    return ModeDeclaration(1, predicate, arguments, True, True)
+
+
+def _head_bound(guard: ast.AST | None, declaration: str) -> int | None:
+    if guard is None:
+        return None
+    if guard.comparison != ast.ComparisonOperator.LessEqual:
+        raise ValueError(f"#modeh cardinality bounds must use <=: {declaration}")
+    try:
+        return int(str(guard.term))
+    except ValueError as exc:
+        raise ValueError(f"#modeh cardinality bounds must be integers: {declaration}") from exc
 
 
 def _get_mode_atom(raw: str, declaration: str) -> tuple[str, tuple[ModeArgument, ...]]:
@@ -50,10 +112,11 @@ def _get_mode_argument(raw: str, declaration: str) -> ModeArgument:
     if parsed is None:
         raise ValueError(f"invalid mode argument: {declaration}")
     kind, parts = parsed
-    if kind == "var" and len(parts) == 2:
-        type_name, direction = (part.strip() for part in parts)
+    if kind == "var" and len(parts) in {2, 3}:
+        type_name, direction = (part.strip() for part in parts[:2])
+        label = parts[2].strip() if len(parts) == 3 else ""
         _validate_type(type_name, declaration)
-        return ModeArgument("variable", type_name, direction)
+        return ModeArgument("variable", type_name, direction, label)
     if kind == "const" and len(parts) == 1:
         type_name = parts[0].strip()
         _validate_type(type_name, declaration)
@@ -163,7 +226,7 @@ def read_program(filename: str):
     bg: list[str] = []
     pe: list[Example] = []
     ne: list[Example] = []
-    lbh: list[ModeDeclaration] = []
+    lbh: list[HeadDeclaration] = []
     lbb: list[ModeDeclaration] = []
     aggregates: list[AggregateDeclaration] = []
     comparisons: list[OperatorDeclaration] = []
@@ -197,7 +260,7 @@ def read_program(filename: str):
             declared_limits.add(limit)
             limits[limit] = _get_limit(lc, limit, limit in {"#maxv", "#maxhl"})
         elif lc.startswith("#modeh"):
-            md = _get_mode_declaration(lc, True)
+            md = _get_head_declaration(lc)
             if md not in lbh:
                 lbh.append(md)
         elif lc.startswith("#modeb"):
@@ -244,7 +307,10 @@ def read_program(filename: str):
     )
     explicit = {
         (mode.name, mode.arity)
-        for mode in [*lbh, *lbb]
+        for mode in [
+            *(atom for head in lbh for atom in head.atoms),
+            *lbb,
+        ]
     }
     overlap = explicit.intersection(invented_predicates)
     if overlap:
@@ -252,11 +318,17 @@ def read_program(filename: str):
             f"invented predicates must not also use #modeh/#modeb: {sorted(overlap)}"
         )
     for recall, name, arguments in inventions:
-        lbh.append(ModeDeclaration(1, name, arguments, True, True))
+        lbh.append(
+            HeadDeclaration(
+                1,
+                "normal",
+                (ModeDeclaration(1, name, arguments, True, True),),
+            )
+        )
         lbb.append(ModeDeclaration(recall, name, arguments, True, False))
     constant_types = {
         argument.type
-        for mode in [*lbh, *lbb]
+        for mode in [*(atom for head in lbh for atom in head.atoms), *lbb]
         for argument in mode.arguments
         if argument.kind == "constant"
     }

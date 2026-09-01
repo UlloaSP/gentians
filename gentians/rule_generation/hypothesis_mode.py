@@ -21,3 +21,9 @@ class HypothesisMode:
     arg_directions: tuple[str, ...] = ()
     fixed_arguments: tuple[str | None, ...] = ()
     arithmetic: ArithmeticTemplate | None = None
+    head_form: int | None = None
+    head_position: int = 0
+    head_kind: str = ""
+    head_lower: int | None = None
+    head_upper: int | None = None
+    arg_labels: tuple[str, ...] = ()

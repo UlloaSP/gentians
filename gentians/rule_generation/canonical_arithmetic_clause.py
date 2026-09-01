@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .hypothesis_mode import HypothesisMode
-from .reified_clause import _render_literal
+from .reified_clause import _render_literal, render_head
 from .reified_literal import ReifiedLiteral
 
 if TYPE_CHECKING:
@@ -24,10 +24,7 @@ class CanonicalArithmeticClause:
         )
 
     def render(self, modes: dict[int, HypothesisMode]) -> str:
-        head = ";".join(
-            _render_literal(literal, modes[literal.mode_id])
-            for literal in self.head
-        )
+        head = render_head(self.head, modes)
         body = [
             _render_literal(literal, modes[literal.mode_id])
             for literal in self.body

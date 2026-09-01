@@ -50,7 +50,7 @@ GENTIANS must still derive a finite search space before grounding.
 - `#maxv(*).`: every variable needed by a finite clause is allowed. Unused
   variables are irrelevant and are never generated.
 - `#maxbl(*).`: body length is bounded only by finite body-mode recalls.
-- `#maxhl(*).`: head length is bounded only by finite head-mode recalls.
+- `#maxhl(*).`: head length is derived from the widest complete `#modeh`.
 - `#maxpl(*).`: a candidate may contain every clause in the finite generated
   rule space.
 
@@ -85,28 +85,48 @@ finite rule space.
 
 ## Normal modes
 
-Normal head and body modes contain an atom template rather than a separate
-predicate name and arity:
+Body modes contain one literal template. A head mode contains one complete
+head template:
 
 ```prolog
 #modeh(1,target(var(node,input))).
+#modeh(1,red(var(node,input,x));green(var(node,input,x));blue(var(node,input,x))).
+#modeh(1,{heads(var(coin,input,x));tails(var(coin,input,x))}).
+#modeh(1,1 {heads(var(coin,input,x));tails(var(coin,input,x))} 1).
 #modeb(1,edge(var(node,input),var(node,output))).
 #modeb(1,not blocked(var(node,input))).
 ```
+
+Every `#modeh` is an alternative complete head. Gentians selects either no
+head (a constraint) or exactly one declaration; it does not construct subsets
+or combine separate declarations. Head recall must be `1`. `#maxhl` bounds the
+number of atoms in a declaration, and `#maxhl(*)` derives that width from the
+largest declared head.
+
+The optional third component of a head variable is a declaration-local
+identity label. Reusing a label forces the corresponding positions to use one
+variable. Different labels force different variables. Unlabelled positions
+remain free. Labels must use compatible type declarations; their directions
+may differ.
+Conditional elements are not currently supported in disjunctions or choices.
 
 Every argument is explicit. Variables always contain a nominal type and one
 direction; `var(type)` without a direction is invalid.
 
 ```ebnf
-head-mode       = "#modeh(", recall, ",", atom-template, ")." ;
+head-mode       = "#modeh(1,", head-template, ")." ;
 body-mode       = "#modeb(", recall, ",", ["not", whitespace], atom-template, ")." ;
+head-template   = atom-template
+                | atom-template, {";", atom-template}
+                | [integer], "{", atom-template, {";", atom-template}, "}", [integer] ;
 atom-template   = predicate, ["(", mode-argument, {",", mode-argument}, ")"] ;
 mode-argument   = variable-argument | constant-argument ;
-variable-argument = "var(", type, ",", direction, ")" ;
+variable-argument = "var(", type, ",", direction, [",", label], ")" ;
 constant-argument = "const(", type, ")" ;
 direction       = "input" | "output" | "any" ;
 recall          = positive-integer | "*" ;
 type            = lowercase-identifier ;
+label           = lowercase-identifier ;
 ```
 
 A body mode without `not` permits the positive literal. A body mode with

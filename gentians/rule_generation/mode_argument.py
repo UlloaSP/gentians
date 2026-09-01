@@ -9,6 +9,7 @@ class ModeArgument:
     kind: str
     type: str
     direction: str = ""
+    label: str = ""
 
     def __post_init__(self) -> None:
         if self.type == "any" or not re.fullmatch(r"[a-z][A-Za-z0-9_]*", self.type):
@@ -16,8 +17,10 @@ class ModeArgument:
         if self.kind == "variable":
             if self.direction not in {"input", "output", "any"}:
                 raise ValueError("variables require input, output, or any direction")
+            if self.label and not re.fullmatch(r"[a-z][A-Za-z0-9_]*", self.label):
+                raise ValueError(f"invalid variable label: {self.label}")
         elif self.kind == "constant":
-            if self.direction:
-                raise ValueError("constant placeholders cannot have a direction")
+            if self.direction or self.label:
+                raise ValueError("constant placeholders cannot have direction or label")
         else:
             raise ValueError(f"invalid mode argument kind: {self.kind}")

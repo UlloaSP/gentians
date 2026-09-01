@@ -38,6 +38,7 @@ HYPOTHESIS_SPACE_RULE_MODULES = (
     "core/constraints.lp",
     "core/recall.lp",
     "core/arguments.lp",
+    "core/head_labels.lp",
     "core/literals.lp",
     "core/tuple_helpers.lp",
     "aggregates/roles.lp",
@@ -120,6 +121,11 @@ class HypothesisSpaceGenerator:
         self.program = program
         self.args = args
         self.fragments = _program_fragments(program)
+        if program.max_head_literals is not None and any(
+            head.width > program.max_head_literals
+            for head in program.language_bias_head
+        ):
+            raise ValueError("#modeh element count exceeds #maxhl")
         _validate_invented_predicates(program, self.fragments)
         self.predicate_arg_types = _predicate_arg_types(program, self.fragments)
         self.aggregate_specs = _valid_aggregate_specs(program, self.fragments)
@@ -1477,7 +1483,7 @@ def _is_acyclic(tuples: set[tuple[str, ...]]) -> bool:
 
 
 def _recursive_predicates(program: Program) -> set[Predicate]:
-    head_predicates = {(md.name, md.arity) for md in program.language_bias_head}
+    head_predicates = {(md.name, md.arity) for md in _head_atoms(program)}
     return {
         (md.name, md.arity)
         for md in program.language_bias_body
@@ -1486,11 +1492,19 @@ def _recursive_predicates(program: Program) -> set[Predicate]:
     }
 
 
+def _head_atoms(program: Program) -> tuple[ModeDeclaration, ...]:
+    return tuple(
+        atom
+        for declaration in program.language_bias_head
+        for atom in declaration.atoms
+    )
+
+
 def _validate_invented_predicates(program: Program, fragments: list[str]) -> None:
     invented = set(program.invented_predicates)
     if len(invented) != len(program.invented_predicates):
         raise ValueError("duplicate invented predicate")
-    heads = {(mode.name, mode.arity) for mode in program.language_bias_head}
+    heads = {(mode.name, mode.arity) for mode in _head_atoms(program)}
     positive_bodies = {
         (mode.name, mode.arity)
         for mode in program.language_bias_body
@@ -1534,7 +1548,7 @@ def _available_predicates(
 ) -> set[tuple[str, int]]:
     predicates = {
         (mode.name, mode.arity)
-        for mode in [*program.language_bias_head, *program.language_bias_body]
+        for mode in [*_head_atoms(program), *program.language_bias_body]
     }
     for fragment in fragments:
         for name, arguments, _negative in fragment_atoms(fragment):
@@ -1555,7 +1569,7 @@ def _predicate_arg_types(
 ) -> dict[tuple[str, int, int], str]:
     positions = {
         (mode.name, mode.arity, arg)
-        for mode in [*program.language_bias_head, *program.language_bias_body]
+        for mode in [*_head_atoms(program), *program.language_bias_body]
         for arg in range(mode.arity)
     }
     constants_by_position: dict[tuple[str, int, int], set[str]] = {
@@ -1605,7 +1619,7 @@ def _predicate_arg_types(
         )
 
     declared_types_by_root: dict[tuple[str, int, int], set[str]] = {}
-    for mode in [*program.language_bias_head, *program.language_bias_body]:
+    for mode in [*_head_atoms(program), *program.language_bias_body]:
         for index, argument in enumerate(mode.arguments):
             position = (mode.name, mode.arity, index)
             declared_types_by_root.setdefault(find(position), set()).add(
@@ -1692,17 +1706,57 @@ def _hypothesis_modes(
         modes.append(mode)
         next_id += 1
 
-    for declaration in [
-        *program.language_bias_head,
-        *program.language_bias_body,
-    ]:
+    next_head_form = 0
+    for head in program.language_bias_head:
+        concrete_atoms = [
+            tuple(
+                (atom, fixed_arguments)
+                for fixed_arguments in _concrete_normal_arguments(
+                    atom, program.constants
+                )
+            )
+            for atom in head.atoms
+        ]
+        for concrete_form in product(*concrete_atoms):
+            form_id = next_head_form
+            next_head_form += 1
+            for position, (declaration, fixed_arguments) in enumerate(concrete_form):
+                add(
+                    HypothesisMode(
+                        id=next_id,
+                        recall_group=next_id,
+                        section="head",
+                        kind="normal",
+                        name=declaration.name,
+                        arity=declaration.arity,
+                        recall=1,
+                        positive=True,
+                        arg_types=tuple(
+                            argument.type for argument in declaration.arguments
+                        ),
+                        arg_directions=tuple(
+                            argument.direction for argument in declaration.arguments
+                        ),
+                        fixed_arguments=fixed_arguments,
+                        head_form=form_id,
+                        head_position=position,
+                        head_kind=head.kind,
+                        head_lower=head.lower,
+                        head_upper=head.upper,
+                        arg_labels=tuple(
+                            argument.label for argument in declaration.arguments
+                        ),
+                    )
+                )
+
+    for declaration in program.language_bias_body:
         recall_group = next_id
         for fixed_arguments in _concrete_normal_arguments(declaration, program.constants):
             add(
                 HypothesisMode(
                     id=next_id,
                     recall_group=recall_group,
-                    section="head" if declaration.head else "body",
+                    section="body",
                     kind="normal",
                     name=declaration.name,
                     arity=declaration.arity,
@@ -1870,6 +1924,15 @@ def _section_capacity(
 ) -> int:
     if limit is not None:
         return limit
+    if section == "head":
+        return max(
+            (
+                mode.head_position + 1
+                for mode in modes
+                if mode.section == "head"
+            ),
+            default=0,
+        )
     recalls: dict[int, int] = {}
     for mode in modes:
         if mode.section != section:
@@ -1886,7 +1949,7 @@ def _section_capacity(
 
 
 def _closed_body_predicates(program: Program) -> set[Predicate]:
-    head_predicates = {(mode.name, mode.arity) for mode in program.language_bias_head}
+    head_predicates = {(mode.name, mode.arity) for mode in _head_atoms(program)}
     return {
         (mode.name, mode.arity)
         for mode in program.language_bias_body
@@ -1947,6 +2010,10 @@ def _facts(
         ) if mode.recall < 0 else mode.recall
         parts.append(f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{recall}).")
         parts.append(f"recall_group({mode.id},{mode.recall_group}).")
+        if mode.head_form is not None:
+            parts.append(
+                f"head_form_member({mode.head_form},{mode.head_position},{mode.id})."
+            )
         for index, arg_type in enumerate(mode.arg_types):
             fixed = (
                 mode.fixed_arguments[index]
@@ -1959,6 +2026,10 @@ def _facts(
                     parts.append(f"mode_arg_type({mode.id},{index},{arg_type}).")
             else:
                 parts.append(f"mode_constant_arg({mode.id},{index},{fixed}).")
+            if mode.head_form is not None and mode.arg_labels[index]:
+                parts.append(
+                    f"head_arg_label({mode.head_form},{mode.id},{index},{mode.arg_labels[index]})."
+                )
         for index, direction in enumerate(mode.arg_directions):
             if direction:
                 parts.append(f"mode_arg_direction({mode.id},{index},{direction}).")

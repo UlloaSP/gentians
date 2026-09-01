@@ -111,12 +111,27 @@ If instead you prefer to define your own program and domain, keep reading.
 
 ## Language Bias Definition
 You can define the language bias (i.e., atoms and literals that can appear in the head and body of rules) with the following syntax.
-For head atoms
+Each head declaration describes one complete allowed head:
 ```prolog
-#modeh(recall, atom_template).
+#modeh(1, head_template).
 ```
-For example, `#modeh(1,a(var(node,input),var(node,output))).` permits
-`a(X,Y)` in a rule head.
+The template may be a normal atom, a disjunction, a choice, or a bounded
+cardinality head:
+
+```prolog
+#modeh(1,a(var(node,input))).
+#modeh(1,a(var(node,input,x));b(var(node,input,x))).
+#modeh(1,{a(var(node,input,x));b(var(node,input,x))}).
+#modeh(1,1 {a(var(node,input,x));b(var(node,input,x))} 1).
+```
+
+Separate declarations are alternatives and are never combined implicitly.
+Head recall is therefore always `1`. The optional third `var` argument is a
+head-local identity label: equal labels denote the same generated variable;
+different labels denote different variables. An omitted label leaves that
+identity unconstrained. `#maxhl` limits the number of atoms in one declared
+head, not a later combination of declarations. Conditional head elements are
+not supported.
 
 For positive body literals, omit default negation:
 ```prolog

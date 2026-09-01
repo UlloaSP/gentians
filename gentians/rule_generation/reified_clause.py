@@ -71,3 +71,30 @@ def _render_literal(literal: ReifiedLiteral, mode: HypothesisMode) -> str:
             + result
         )
     raise ValueError(f"Unknown hypothesis mode kind: {mode.kind}")
+
+
+def render_head(
+    head: tuple[ReifiedLiteral, ...], modes: dict[int, HypothesisMode]
+) -> str:
+    if not head:
+        return ""
+    head_modes = tuple(modes[literal.mode_id] for literal in head)
+    form = head_modes[0].head_form
+    if form is None or any(mode.head_form != form for mode in head_modes):
+        raise ValueError("rule head does not belong to one complete #modeh form")
+    atoms = tuple(
+        _render_literal(literal, mode)
+        for literal, mode in zip(head, head_modes, strict=True)
+    )
+    kind = head_modes[0].head_kind
+    if kind == "normal":
+        if len(atoms) != 1:
+            raise ValueError("normal #modeh form must contain one atom")
+        return atoms[0]
+    if kind == "disjunction":
+        return ";".join(atoms)
+    if kind == "choice":
+        lower = "" if head_modes[0].head_lower is None else head_modes[0].head_lower
+        upper = "" if head_modes[0].head_upper is None else head_modes[0].head_upper
+        return f"{lower}{{{';'.join(atoms)}}}{upper}"
+    raise ValueError(f"unknown #modeh form kind: {kind}")

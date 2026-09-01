@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 from .aggregate_declaration import AggregateDeclaration
 from .example import Example
+from .head_declaration import HeadDeclaration
 from .mode_declaration import ModeDeclaration
 from .operator_declaration import OperatorDeclaration
 
@@ -17,7 +18,7 @@ class Program:
     background: list[str]
     positive_examples: list[Example]
     negative_examples: list[Example]
-    language_bias_head: list[ModeDeclaration]
+    language_bias_head: list[HeadDeclaration]
     language_bias_body: list[ModeDeclaration]
     aggregate_modes: list[AggregateDeclaration] = field(default_factory=list)
     comparison_modes: list[OperatorDeclaration] = field(default_factory=list)

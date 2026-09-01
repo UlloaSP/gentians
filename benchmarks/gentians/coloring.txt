@@ -35,9 +35,7 @@ node(1..6).
 #neg({blue(1), blue(2)}, {}).
 #neg({green(3), green(4)}, {}).
 
-#modeh(1,red(var(node,input))).
-#modeh(1,green(var(node,input))).
-#modeh(1,blue(var(node,input))).
+#modeh(1,red(var(node,input,x));green(var(node,input,x));blue(var(node,input,x))).
 
 #modeb(1,node(var(node,input))).
 #modeb(1,e(var(node,output),var(node,output))).

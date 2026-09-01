@@ -205,8 +205,20 @@ You can define comparison operators and arithmetic operators in the language bia
 The following comparison operators are considered: `lt` (<), `leq` (=<), `gt` (>), `geq` (>=), `eq` (=), and `neq` (!=).
 The following arithmetic operators are considered: `add` (+), `sub` (-), `mul` (*), `div` (/), `mod` (`\`), and `abs` (absolute value).
 Use recall to allow more occurrences of the same operator in one rule.
-`add` and `sub` declare one canonical additive family rendered with `+`; their
-recalls are added, or remain unbounded when either recall is `*`.
+Arithmetic is represented as connected systems. Linear rows use primitive
+integer coefficients and canonical row reduction, so auxiliaries may disappear
+as in `X+X=T,T+T=Y` becoming `4*X-Y=0`. Independent rows remain a system instead
+of being incorrectly collapsed into one equation. Multiplication, division,
+modulo, absolute value, and comparisons remain exact relations in the same
+system. Division and modulo carry an explicit nonzero-divisor condition.
+`add` and `sub` contribute to one linear recall budget; an unbounded declaration
+keeps that budget unbounded.
+Likewise, `lt`/`gt` and `leq`/`geq` share canonical comparison modes with their
+recalls combined.
+The bias limits source operations. Generated rows and mandatory conditions are
+part of their `ArithmeticSystem`; they do not consume extra recall or body slots.
+Rules expose only this final system representation, not the source operator
+literals used to derive it.
 
 Examples:
 ```prolog

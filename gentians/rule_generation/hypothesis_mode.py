@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from .arithmetic_template import ArithmeticTemplate
+
 
 @dataclass(frozen=True, slots=True)
 class HypothesisMode:
@@ -18,3 +20,4 @@ class HypothesisMode:
     arg_types: tuple[str, ...] = ()
     arg_directions: tuple[str, ...] = ()
     fixed_arguments: tuple[str | None, ...] = ()
+    arithmetic: ArithmeticTemplate | None = None

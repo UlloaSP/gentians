@@ -131,9 +131,19 @@ Built-ins have intrinsic directions rather than task syntax:
 
 - aggregate condition variables are local or supplied by surrounding terms;
   the aggregate result is `output`;
-- arithmetic consumes its first two arguments as `input` and produces its
-  third argument as `output`;
+- arithmetic templates consume every argument except the last as `input` and
+  produce the last argument as `output`; connected relations are represented
+  as one arithmetic system after decoding;
 - comparisons consume both arguments as `input` and produce nothing.
+
+Arithmetic systems use residual equations and canonical integer coefficient
+rows when every variable is already safe. A row that must produce a variable
+keeps an oriented assignment because Clingo rejects an unsafe residual form.
+Division and modulo bundle `divisor != 0` with the source operation. The guard
+does not consume another recall or another `#maxbl` position.
+Inverse comparison declarations (`lt`/`gt` and `leq`/`geq`) share one canonical
+mode and a combined recall budget. Emitted rules contain only the final system,
+not the source built-in literals.
 
 Readiness is a clause-wide fixed point, not textual body order. A zero-input
 positive mode can seed a constraint, its outputs can make another literal

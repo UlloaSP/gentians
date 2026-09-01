@@ -1,4 +1,5 @@
 import re
+from collections.abc import Iterable
 from itertools import combinations, permutations, product
 from pathlib import Path
 
@@ -18,10 +19,11 @@ from ..timing import (
     record_metric,
 )
 from .aggregate_declaration import AggregateDeclaration
+from .arithmetic_system import ArithmeticSystemKey, canonical_arithmetic_clause
+from .arithmetic_template import ArithmeticTemplate
 from .closed_world_properties import ClosedWorldProperties
 from .hypothesis_capabilities import HypothesisCapabilities
 from .hypothesis_mode import HypothesisMode
-from .linear_normal_form import LinearClauseKey, canonical_linear_clause_keys
 from .mode_declaration import ModeDeclaration
 from .parser import Predicate, fragment_atoms
 from .program import Program
@@ -131,12 +133,6 @@ class HypothesisSpaceGenerator:
             self.aggregate_specs,
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
-        linear_modes = [
-            mode
-            for mode in self.modes
-            if mode.kind == "arithmetic" and mode.operator in {"+", "-"}
-        ]
-        self.normalizes_linear_systems = bool(linear_modes)
         self.head_slots = _section_capacity(
             program.max_head_literals, self.modes, "head"
         )
@@ -189,9 +185,10 @@ class HypothesisSpaceGenerator:
         add(f"{phase}.grounding", grounding_seconds)
         model_index = _model_literal_index(ctl.symbolic_atoms, self.modes_by_id)
 
-        representatives: dict[LinearClauseKey, tuple[str, ReifiedClause]] = {}
-        linear_clauses: list[ReifiedClause] = []
-        clauses: dict[ReifiedClause, None] = {}
+        representatives: dict[
+            ArithmeticSystemKey,
+            tuple[str, ReifiedClause],
+        ] = {}
         seconds = 0.0
         collect_metrics = metric_enabled("clingo")
         start = net_time()
@@ -207,28 +204,25 @@ class HypothesisSpaceGenerator:
                     break
                 seconds += net_time() - start
                 clause = _clause_from_model(model, model_index)
-                if _theta_reduced(clause, self.modes_by_id):
-                    if not self.normalizes_linear_systems:
-                        clauses.setdefault(clause, None)
-                        continue
-                    linear_clauses.append(clause)
+                if not _theta_reduced(clause, self.modes_by_id):
+                    start = net_time()
+                    continue
+                canonical = canonical_arithmetic_clause(
+                    clause,
+                    self.modes_by_id,
+                    self.max_variables,
+                )
+                if canonical is not None:
+                    rendered = canonical.render(self.modes_by_id)
+                    current = representatives.get(canonical.key)
+                    if current is None or (len(clause.body), rendered) < (
+                        len(current[1].body),
+                        current[0],
+                    ):
+                        representatives[canonical.key] = rendered, clause
             start = net_time()
         seconds += net_time() - start
         add(f"{phase}.solving", seconds)
-        if self.normalizes_linear_systems:
-            canonical_keys = canonical_linear_clause_keys(
-                linear_clauses, self.modes_by_id, self.max_variables
-            )
-            for clause, canonical in zip(linear_clauses, canonical_keys):
-                if canonical is None:
-                    continue
-                rendered = clause.render(self.modes_by_id)
-                current = representatives.get(canonical)
-                if current is None or (len(clause.body), rendered) < (
-                    len(current[1].body),
-                    current[0],
-                ):
-                    representatives[canonical] = rendered, clause
         if collect_metrics:
             with instrumentation():
                 stats = ctl.statistics
@@ -272,21 +266,16 @@ class HypothesisSpaceGenerator:
                     },
                 )
 
-        entries = (
-            [
-                _rule_entry_from_clause(rendered, clause, self.modes_by_id)
-                for rendered, clause in sorted(
-                    representatives.values(), key=lambda representative: representative[0]
-                )
-            ]
-            if self.normalizes_linear_systems
-            else [
-                _rule_entry_from_clause(
-                    clause.render(self.modes_by_id), clause, self.modes_by_id
-                )
-                for clause in clauses
-            ]
-        )
+        entries = [
+            _rule_entry_from_clause(
+                rendered,
+                clause,
+                self.modes_by_id,
+            )
+            for rendered, clause in sorted(
+                representatives.values(), key=lambda representative: representative[0]
+            )
+        ]
         return RuleSpace(entries)
 
 
@@ -1729,23 +1718,45 @@ def _hypothesis_modes(
                 )
             )
 
-    comparison_operators = {declaration.operator for declaration in program.comparison_modes}
+    emitted_comparison_families: set[frozenset[str]] = set()
     for declaration in program.comparison_modes:
         if declaration.operator == "eq":
             continue
-        if declaration.operator == "gt" and "lt" in comparison_operators:
+        if declaration.operator in {"lt", "gt"}:
+            family = frozenset(("lt", "gt"))
+            symbol = "<"
+        elif declaration.operator in {"leq", "geq"}:
+            family = frozenset(("leq", "geq"))
+            symbol = "<="
+        else:
+            family = frozenset((declaration.operator,))
+            symbol = {"neq": "!="}.get(declaration.operator)
+        if family in emitted_comparison_families:
             continue
-        if declaration.operator == "geq" and "leq" in comparison_operators:
-            continue
-        symbol = {"lt": "<", "leq": "<=", "gt": ">", "geq": ">=", "eq": "==", "neq": "!="}.get(declaration.operator)
-        numeric_operator = declaration.operator in {"lt", "leq", "gt", "geq"}
-        equality_operator = declaration.operator in {"eq", "neq"}
+        emitted_comparison_families.add(family)
+        numeric = declaration.operator in {"lt", "leq", "gt", "geq"}
         if symbol and (
-            (numeric_operator and capabilities.allow_numeric_comparison)
-            or (equality_operator and capabilities.allow_equality_comparison)
+            numeric and capabilities.allow_numeric_comparison
+            or declaration.operator == "neq"
+            and capabilities.allow_equality_comparison
         ):
-            arg_types = ("numeric", "numeric") if numeric_operator else ("any", "any")
-            add(HypothesisMode(next_id, next_id, "body", "comparison", "", 2, declaration.recall, True, operator=symbol, arg_types=arg_types))
+            add(
+                HypothesisMode(
+                    next_id,
+                    next_id,
+                    "body",
+                    "comparison",
+                    "",
+                    2,
+                    _combined_recall(
+                        candidate.recall
+                        for candidate in program.comparison_modes
+                        if candidate.operator in family
+                    ),
+                    operator=symbol,
+                    arg_types=("numeric", "numeric") if numeric else ("any", "any"),
+                )
+            )
 
     if capabilities.allow_arithmetic:
         additive = [
@@ -1753,24 +1764,48 @@ def _hypothesis_modes(
             for declaration in program.arithmetic_modes
             if declaration.operator in {"add", "sub"}
         ]
-        additive_recall = (
-            -1
-            if any(declaration.recall < 0 for declaration in additive)
-            else sum(declaration.recall for declaration in additive)
-        )
-        additive_added = False
+        if additive:
+            recall = (
+                -1
+                if any(declaration.recall < 0 for declaration in additive)
+                else sum(declaration.recall for declaration in additive)
+            )
+            add(
+                HypothesisMode(
+                    next_id,
+                    next_id,
+                    "body",
+                    "arithmetic",
+                    "",
+                    3,
+                    recall,
+                    arg_types=("numeric",) * 3,
+                    arithmetic=ArithmeticTemplate("+", (1, 1, -1), 1),
+                )
+            )
         for declaration in program.arithmetic_modes:
             if declaration.operator in {"add", "sub"}:
-                if additive_added:
-                    continue
-                symbol = "+"
-                recall = additive_recall
-                additive_added = True
-            else:
-                symbol = {"mul": "*", "div": "/", "mod": "\\", "abs": "abs"}.get(declaration.operator)
-                recall = declaration.recall
+                continue
+            symbol = {
+                "mul": "*",
+                "div": "/",
+                "mod": "\\",
+                "abs": "abs",
+            }.get(declaration.operator)
             if symbol:
-                add(HypothesisMode(next_id, next_id, "body", "arithmetic", "", 3, recall, True, operator=symbol, arg_types=("numeric", "numeric", "numeric")))
+                add(
+                    HypothesisMode(
+                        next_id,
+                        next_id,
+                        "body",
+                        "arithmetic",
+                        "",
+                        3,
+                        declaration.recall,
+                        arg_types=("numeric",) * 3,
+                        arithmetic=ArithmeticTemplate(symbol),
+                    )
+                )
 
     for declaration in aggregate_specs:
         atoms = list(declaration.atoms)
@@ -1804,6 +1839,11 @@ def _hypothesis_modes(
                 )
             )
     return modes
+
+
+def _combined_recall(recalls: Iterable[int]) -> int:
+    values = tuple(recalls)
+    return -1 if any(recall < 0 for recall in values) else sum(values)
 
 
 def _concrete_normal_arguments(
@@ -1927,7 +1967,7 @@ def _facts(
         if mode.kind == "comparison":
             if mode.operator == "!=":
                 parts.append(f"neq_comparison_mode({mode.id}).")
-            if mode.operator == "<":
+            elif mode.operator == "<":
                 parts.append(f"less_than_comparison_mode({mode.id}).")
             elif mode.operator == ">":
                 parts.append(f"greater_than_comparison_mode({mode.id}).")
@@ -1936,15 +1976,18 @@ def _facts(
             elif mode.operator == ">=":
                 parts.append(f"geq_comparison_mode({mode.id}).")
         elif mode.kind == "arithmetic":
-            if mode.operator == "+":
+            arithmetic = mode.arithmetic
+            if arithmetic is None:
+                raise ValueError(f"arithmetic mode {mode.id} has no template")
+            if arithmetic.operator == "+":
                 parts.append(f"add_mode({mode.id}).")
-            elif mode.operator == "*":
+            elif arithmetic.operator == "*":
                 parts.append(f"mul_mode({mode.id}).")
-            elif mode.operator == "/":
+            elif arithmetic.operator == "/":
                 parts.append(f"div_mode({mode.id}).")
-            elif mode.operator == "\\":
+            elif arithmetic.operator == "\\":
                 parts.append(f"mod_mode({mode.id}).")
-            elif mode.operator == "abs":
+            elif arithmetic.operator == "abs":
                 parts.append(f"abs_mode({mode.id}).")
         elif mode.kind == "aggregate":
             parts.append(

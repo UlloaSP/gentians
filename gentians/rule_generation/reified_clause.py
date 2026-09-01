@@ -9,17 +9,6 @@ class ReifiedClause:
     head: tuple[ReifiedLiteral, ...]
     body: tuple[ReifiedLiteral, ...]
 
-    def render(self, modes: dict[int, HypothesisMode]) -> str:
-        head = ";".join(
-            _render_literal(literal, modes[literal.mode_id])
-            for literal in self.head
-        )
-        body = ",".join(
-            _render_literal(literal, modes[literal.mode_id])
-            for literal in self.body
-        )
-        return f"{head} :- {body}." if head else f":- {body}."
-
 
 def _render_literal(literal: ReifiedLiteral, mode: HypothesisMode) -> str:
     variables = [f"V{var}" for var in literal.variables]
@@ -36,9 +25,32 @@ def _render_literal(literal: ReifiedLiteral, mode: HypothesisMode) -> str:
     if mode.kind == "comparison":
         return f"{variables[0]}{mode.operator}{variables[1]}"
     if mode.kind == "arithmetic":
-        if mode.operator == "abs":
+        arithmetic = mode.arithmetic
+        if arithmetic is None:
+            raise ValueError(f"arithmetic mode {mode.id} has no template")
+        if arithmetic.linear:
+            output = variables[-1]
+            positive = [
+                variable
+                for variable, coefficient in zip(
+                    variables, arithmetic.coefficients
+                )
+                if coefficient > 0
+            ]
+            negative_inputs = [
+                variable
+                for variable, coefficient in zip(
+                    variables[:-1], arithmetic.coefficients[:-1]
+                )
+                if coefficient < 0
+            ]
+            expression = "+".join(positive)
+            if negative_inputs:
+                expression += "-" + "-".join(negative_inputs)
+            return f"{expression}={output}"
+        if arithmetic.operator == "abs":
             return f"|{variables[0]}-{variables[1]}|={variables[2]}"
-        return f"{variables[0]}{mode.operator}{variables[1]}={variables[2]}"
+        return f"{variables[0]}{arithmetic.operator}{variables[1]}={variables[2]}"
     if mode.kind == "aggregate":
         tuple_vars = variables[: mode.tuple_arity]
         atom_vars = variables[mode.tuple_arity : -1]

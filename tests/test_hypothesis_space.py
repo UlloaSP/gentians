@@ -16,9 +16,16 @@ from gentians.rule_generation.hypothesis_space import (
     HypothesisSpaceGenerator,
     _hypothesis_space_args,
 )
-from gentians.rule_generation.linear_normal_form import canonical_linear_clause_key
+from gentians.rule_generation.arithmetic_expression import ArithmeticExpression
+from gentians.rule_generation.arithmetic_system import (
+    ArithmeticSystem,
+    canonical_arithmetic_clause,
+)
+from gentians.rule_generation.linear_constraint import LinearConstraint
 from gentians.rule_generation.hypothesis_mode import HypothesisMode
 from gentians.rule_generation.aggregate_declaration import AggregateDeclaration
+from gentians.rule_generation.arithmetic_template import ArithmeticTemplate
+from gentians.rule_generation.expression_constraint import ExpressionConstraint
 from gentians.rule_generation.example import Example
 from gentians.rule_generation.mode_argument import ModeArgument
 from gentians.rule_generation.mode_declaration import ModeDeclaration
@@ -224,8 +231,8 @@ def test_facts_do_not_emit_redundant_arithmetic_mode():
             3,
             1,
             True,
-            operator="+",
             arg_types=("numeric", "numeric", "numeric"),
+            arithmetic=ArithmeticTemplate("+"),
         )
     ]
     facts = hypothesis_space._facts(
@@ -850,8 +857,8 @@ def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering
     )
     clauses = _generate(program, 4, 2).clauses
 
-    assert not any("V0!=V1,V1!=V0" in clause for clause in clauses)
-    assert any("V0!=V1" in clause for clause in clauses)
+    assert not any("V0-V1!=0,V0-V1!=0" in clause for clause in clauses)
+    assert any("V0-V1!=0" in clause for clause in clauses)
 
 
 def test_hypothesis_space_prunes_comparison_redundancy_before_rendering():
@@ -1033,17 +1040,14 @@ def test_linear_canonicalization_merges_equivalent_add_sub_equations():
     arithmetic = {
         clause
         for clause in _generate(program, 2, 3).clauses
-        for match in [re.search(r"V(\d+)\+V(\d+)=V(\d+)", clause)]
+        for match in [re.search(r",V(\d+)\+V(\d+)-V(\d+)=0", clause)]
         if clause.count("=") == 1
+        and clause.count("+") == 1
         and match is not None
         and len(set(match.groups())) == 3
     }
 
-    assert arithmetic == {
-        ":- q(V0,V1,V2),V0+V1=V2.",
-        ":- q(V0,V1,V2),V0+V2=V1.",
-        ":- q(V0,V1,V2),V1+V2=V0.",
-    }
+    assert arithmetic == {":- q(V0,V1,V2),V0+V1-V2=0."}
 
 
 @pytest.mark.parametrize("recall", [1, -1])
@@ -1062,29 +1066,26 @@ def test_linear_canonicalization_normalizes_sub_only_bias(recall):
 
     generator = HypothesisSpaceGenerator(program, Arguments())
     arithmetic_modes = [mode for mode in generator.modes if mode.kind == "arithmetic"]
-    arithmetic = {
-        clause
-        for clause in generator.generate().clauses
-        for match in [re.search(r"V(\d+)\+V(\d+)=V(\d+)", clause)]
-        if clause.count("=") == 1
-        and match is not None
-        and len(set(match.groups())) == 3
-    }
-
-    assert [(mode.operator, mode.recall) for mode in arithmetic_modes] == [("+", recall)]
-    assert len(arithmetic) == 3
+    assert len(arithmetic_modes) == 1
+    assert arithmetic_modes[0].recall == recall
+    assert arithmetic_modes[0].arithmetic == ArithmeticTemplate(
+        "+", (1, 1, -1), 1
+    )
+    assert any(
+        "V0-V1-V2=0" in clause for clause in generator.generate().clauses
+    )
 
 
 @pytest.mark.parametrize(
-    ("declarations", "expected"),
+    ("declarations", "expected_recalls"),
     [
         (
             [OperatorDeclaration(1, "add"), OperatorDeclaration(2, "sub")],
-            [("+", 3)],
+            (3,),
         ),
         (
             [OperatorDeclaration(-1, "add"), OperatorDeclaration(2, "sub")],
-            [("+", -1)],
+            (-1,),
         ),
         (
             [
@@ -1094,12 +1095,12 @@ def test_linear_canonicalization_normalizes_sub_only_bias(recall):
                 OperatorDeclaration(1, "add"),
                 OperatorDeclaration(1, "mod"),
             ],
-            [("*", 1), ("+", 3), ("/", 1), ("\\", 1)],
+            (3, 1, 1, 1),
         ),
     ],
 )
 def test_additive_modes_share_one_canonical_mode_with_combined_recall(
-    declarations, expected
+    declarations, expected_recalls
 ):
     program = Program(
         ["q(1,2,3)."],
@@ -1115,23 +1116,119 @@ def test_additive_modes_share_one_canonical_mode_with_combined_recall(
 
     generator = HypothesisSpaceGenerator(program, Arguments())
     arithmetic_modes = [mode for mode in generator.modes if mode.kind == "arithmetic"]
+    assert arithmetic_modes
+    assert arithmetic_modes[0].recall == expected_recalls[0]
 
-    assert [(mode.operator, mode.recall) for mode in arithmetic_modes] == expected
+
+def test_inverse_comparisons_share_one_mode_with_combined_recall():
+    program = Program(
+        ["q(1,2)."],
+        [],
+        [],
+        [],
+        [_mode(1, "q", 2, positive=True)],
+        comparison_modes=[
+            OperatorDeclaration(1, "lt"),
+            OperatorDeclaration(2, "gt"),
+            OperatorDeclaration(3, "leq"),
+            OperatorDeclaration(4, "geq"),
+        ],
+    )
+
+    comparisons = [
+        mode
+        for mode in HypothesisSpaceGenerator(program, Arguments()).modes
+        if mode.kind == "comparison"
+    ]
+
+    assert [(mode.operator, mode.recall) for mode in comparisons] == [
+        ("<", 3),
+        ("<=", 7),
+    ]
 
 
 def test_linear_canonicalization_reduces_complete_nqueens_systems():
     args = copy.deepcopy(CASES["5queens"])
     clauses = HypothesisSpaceGenerator(read_program(args.filename), args).generate().clauses
 
-    assert len(clauses) == 4831
+    assert len(clauses) == 4805
     assert clauses == tuple(sorted(clauses))
-    assert any(
-        clause.startswith(":- ")
-        and clause.count("q(") == 2
-        and clause.count("+") == 2
-        and "<" in clause
-        for clause in clauses
+    assert (
+        ":- q(V0,V1),q(V2,V3),V0+V1-V2-V3=0,-V1+V3<0."
+        in clauses
     )
+    assert (
+        ":- q(V0,V1),q(V2,V3),V0-V1-V2+V3=0,V1-V3<0."
+        in clauses
+    )
+
+
+def test_linear_modes_render_direct_equations_with_bounded_complexity():
+    program = Program(
+        ["q(1,2,3,4)."],
+        [],
+        [],
+        [],
+        [_mode(1, "q", 4, positive=True)],
+        [],
+        [],
+        [OperatorDeclaration(2, "add")],
+        max_head_literals=0,
+        max_body_literals=3,
+        max_variables=5,
+    )
+    generator = HypothesisSpaceGenerator(program, Arguments())
+    assert len([mode for mode in generator.modes if mode.kind == "arithmetic"]) == 1
+    assert any("V0+V1-V2-V3=0" in clause for clause in generator.generate().clauses)
+
+
+def test_linear_mode_complexity_is_capped_by_body_limit():
+    program = Program(
+        ["q(1,2,3)."],
+        [],
+        [],
+        [],
+        [_mode(1, "q", 3, positive=True)],
+        [],
+        [],
+        [OperatorDeclaration(100, "add")],
+        max_body_literals=3,
+    )
+
+    generator = HypothesisSpaceGenerator(program, Arguments())
+
+    arithmetic_modes = [mode for mode in generator.modes if mode.kind == "arithmetic"]
+    assert len(arithmetic_modes) == 1
+    assert arithmetic_modes[0].recall == 100
+    assert arithmetic_modes[0].arithmetic.complexity == 1
+
+
+def test_direct_linear_equation_can_safely_produce_a_head_variable():
+    program = Program(
+        ["q(1,2,3)."],
+        [],
+        [],
+        [
+            ModeDeclaration(
+                1,
+                "target",
+                (ModeArgument("variable", "numeric", "output"),),
+                True,
+                True,
+            )
+        ],
+        [_mode(1, "q", 3, positive=True)],
+        [],
+        [],
+        [OperatorDeclaration(2, "add")],
+        max_head_literals=1,
+        max_body_literals=3,
+        max_variables=5,
+    )
+
+    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
+
+    assert "target(V3) :- q(V0,V1,V2),V0+V1=V3." in clauses
 
 
 def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
@@ -1139,7 +1236,7 @@ def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
         0: HypothesisMode(
             0, 0, "body", "normal", "q", 3, 1, fixed_arguments=(None,) * 3
         ),
-        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, operator="+"),
+        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("+")),
         2: HypothesisMode(2, 2, "body", "comparison", "", 2, 1, operator="<"),
     }
     clause = ReifiedClause(
@@ -1151,14 +1248,14 @@ def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
         ),
     )
 
-    canonical = canonical_linear_clause_key(clause, modes, 4)
+    canonical = canonical_arithmetic_clause(clause, modes, 4)
 
     assert canonical is not None
-    assert ("linear",) == canonical[-1][0][:1]
+    assert isinstance(canonical.systems[0].relations[0], LinearConstraint)
 
     equivalent_modes = {
         **modes,
-        3: HypothesisMode(3, 3, "body", "arithmetic", "", 3, 1, operator="-"),
+        3: HypothesisMode(3, 3, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("-")),
     }
     equivalent = ReifiedClause(
         (),
@@ -1169,13 +1266,19 @@ def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
         ),
     )
 
-    assert canonical_linear_clause_key(equivalent, equivalent_modes, 4) == canonical
+    equivalent_system = canonical_arithmetic_clause(equivalent, equivalent_modes, 4)
+
+    assert equivalent_system is not None
+    assert equivalent_system.key == canonical.key
 
     disequality_modes = {
         **modes,
         2: HypothesisMode(2, 2, "body", "comparison", "", 2, 1, operator="!="),
     }
-    assert canonical_linear_clause_key(clause, disequality_modes, 4) != canonical
+    disequality = canonical_arithmetic_clause(clause, disequality_modes, 4)
+
+    assert disequality is not None
+    assert disequality.key != canonical.key
 
 
 def test_linear_canonicalization_keeps_disconnected_constraints_separate():
@@ -1183,7 +1286,7 @@ def test_linear_canonicalization_keeps_disconnected_constraints_separate():
         0: HypothesisMode(
             0, 0, "body", "normal", "q", 5, 1, fixed_arguments=(None,) * 5
         ),
-        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, operator="+"),
+        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("+")),
         2: HypothesisMode(2, 2, "body", "comparison", "", 2, 1, operator="<"),
         3: HypothesisMode(3, 3, "body", "comparison", "", 2, 1, operator="!="),
     }
@@ -1197,10 +1300,10 @@ def test_linear_canonicalization_keeps_disconnected_constraints_separate():
         ),
     )
 
-    canonical = canonical_linear_clause_key(clause, modes, 6)
+    canonical = canonical_arithmetic_clause(clause, modes, 6)
 
     assert canonical is not None
-    assert len(canonical[-1]) == 2
+    assert len(canonical.systems) == 2
 
 
 def test_linear_canonicalization_preserves_unsafe_output_assignment():
@@ -1211,7 +1314,7 @@ def test_linear_canonicalization_preserves_unsafe_output_assignment():
         1: HypothesisMode(
             1, 1, "body", "normal", "p", 1, 1, fixed_arguments=(None,)
         ),
-        2: HypothesisMode(2, 2, "body", "arithmetic", "", 3, 1, operator="+"),
+        2: HypothesisMode(2, 2, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("+")),
     }
     clause = ReifiedClause(
         (ReifiedLiteral("head", 0, 0, (1,)),),
@@ -1221,14 +1324,11 @@ def test_linear_canonicalization_preserves_unsafe_output_assignment():
         ),
     )
 
-    canonical = canonical_linear_clause_key(clause, modes, 2)
+    canonical = canonical_arithmetic_clause(clause, modes, 2)
 
     assert canonical is not None
-    assert canonical == (
-        ((0, (1,)),),
-        ((1, (0,)),),
-        (("raw", ((2, (0, 0, 1)),)),),
-    )
+    assert isinstance(canonical.systems[0].relations[0], ExpressionConstraint)
+    assert canonical.render(modes) == "target(V1) :- p(V0),V0+V0=V1."
 
 
 def test_linear_canonicalization_preserves_components_with_multiplication():
@@ -1236,8 +1336,8 @@ def test_linear_canonicalization_preserves_components_with_multiplication():
         0: HypothesisMode(
             0, 0, "body", "normal", "q", 4, 1, fixed_arguments=(None,) * 4
         ),
-        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, operator="+"),
-        2: HypothesisMode(2, 2, "body", "arithmetic", "", 3, 1, operator="*"),
+        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("+")),
+        2: HypothesisMode(2, 2, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("*")),
     }
     clause = ReifiedClause(
         (),
@@ -1248,16 +1348,332 @@ def test_linear_canonicalization_preserves_components_with_multiplication():
         ),
     )
 
-    canonical = canonical_linear_clause_key(clause, modes, 4)
+    canonical = canonical_arithmetic_clause(clause, modes, 4)
 
     assert canonical is not None
-    assert canonical == (
+    assert len(canonical.systems) == 1
+    assert all(
+        isinstance(relation, ExpressionConstraint)
+        for relation in canonical.systems[0].relations
+    )
+    assert canonical.render(modes) == ":- q(V0,V1,V2,V3),V2*V0-V3=0,V0+V1-V2=0."
+
+
+def test_arithmetic_system_inlines_mixed_nonlinear_auxiliaries():
+    modes = {
+        0: HypothesisMode(
+            0, 0, "head", "normal", "target", 1, 1, fixed_arguments=(None,)
+        ),
+        1: HypothesisMode(
+            1, 1, "body", "normal", "q", 3, 1, fixed_arguments=(None,) * 3
+        ),
+        2: HypothesisMode(
+            2, 2, "body", "arithmetic", "", 3, 1,
+            arithmetic=ArithmeticTemplate("+"),
+        ),
+        3: HypothesisMode(
+            3, 3, "body", "arithmetic", "", 3, 1,
+            arithmetic=ArithmeticTemplate("*"),
+        ),
+    }
+    clause = ReifiedClause(
+        (ReifiedLiteral("head", 0, 0, (4,)),),
+        (
+            ReifiedLiteral("body", 0, 1, (0, 1, 2)),
+            ReifiedLiteral("body", 1, 2, (0, 1, 3)),
+            ReifiedLiteral("body", 2, 3, (3, 2, 4)),
+        ),
+    )
+
+    canonical = canonical_arithmetic_clause(clause, modes, 5)
+
+    assert canonical is not None
+    assert canonical.render(modes) == "target(V4) :- q(V0,V1,V2),(V0+V1)*V2=V4."
+
+
+def test_arithmetic_expression_key_normalizes_associativity_and_signs():
+    x = ArithmeticExpression.var(0)
+    y = ArithmeticExpression.var(1)
+    z = ArithmeticExpression.var(2)
+    left_associative = ArithmeticExpression(
+        "+", (ArithmeticExpression("-", (x, y)), z)
+    )
+    reordered = ArithmeticExpression(
+        "-", (ArithmeticExpression("+", (z, x)), y)
+    )
+
+    assert left_associative.key == reordered.key
+    forward = ExpressionConstraint(ArithmeticExpression("-", (x, y)), "eq")
+    reverse = ExpressionConstraint(ArithmeticExpression("-", (y, x)), "eq")
+    assert forward.key == reverse.key
+
+
+def test_arithmetic_system_preserves_multiple_definitions_of_an_auxiliary():
+    modes = {
+        0: HypothesisMode(
+            0, 0, "body", "normal", "q", 4, 1, fixed_arguments=(None,) * 4
+        ),
+        1: HypothesisMode(
+            1, 1, "body", "arithmetic", "", 3, 1,
+            arithmetic=ArithmeticTemplate("+"),
+        ),
+        2: HypothesisMode(
+            2, 2, "body", "arithmetic", "", 3, 1,
+            arithmetic=ArithmeticTemplate("*"),
+        ),
+        3: HypothesisMode(3, 3, "body", "comparison", "", 2, 1, operator="<"),
+    }
+    clause = ReifiedClause(
         (),
         (
-            (0, (0, 1, 2, 3)),
-            (1, (0, 1, 2)),
-            (2, (2, 0, 3)),
+            ReifiedLiteral("body", 0, 0, (0, 1, 2, 3)),
+            ReifiedLiteral("body", 1, 1, (0, 1, 4)),
+            ReifiedLiteral("body", 2, 2, (2, 3, 4)),
+            ReifiedLiteral("body", 3, 3, (4, 0)),
         ),
+    )
+
+    canonical = canonical_arithmetic_clause(clause, modes, 5)
+
+    assert canonical is not None
+    rendered = canonical.render(modes)
+    assert "(V0+V1)-(V2*V3)=0" in rendered
+    assert "(V0+V1)-V0<0" in rendered
+
+
+def test_arithmetic_system_eliminates_repeated_auxiliary_coefficients():
+    modes = {
+        0: HypothesisMode(
+            0, 0, "body", "normal", "q", 2, 1, fixed_arguments=(None,) * 2
+        ),
+        1: HypothesisMode(
+            1,
+            1,
+            "body",
+            "arithmetic",
+            "",
+            3,
+            2,
+            arithmetic=ArithmeticTemplate("+"),
+        ),
+    }
+    clause = ReifiedClause(
+        (),
+        (
+            ReifiedLiteral("body", 0, 0, (0, 1)),
+            ReifiedLiteral("body", 1, 1, (0, 0, 2)),
+            ReifiedLiteral("body", 2, 1, (2, 2, 1)),
+        ),
+    )
+
+    canonical = canonical_arithmetic_clause(clause, modes, 3)
+
+    assert canonical is not None
+    assert canonical.render(modes) == ":- q(V0,V1),4*V0-V1=0."
+
+
+def test_arithmetic_system_preserves_independent_rows_in_one_component():
+    modes = {
+        0: HypothesisMode(
+            0, 0, "body", "normal", "q", 3, 1, fixed_arguments=(None,) * 3
+        ),
+        1: HypothesisMode(
+            1,
+            1,
+            "body",
+            "arithmetic",
+            "",
+            3,
+            2,
+            arithmetic=ArithmeticTemplate("+"),
+        ),
+    }
+    clause = ReifiedClause(
+        (),
+        (
+            ReifiedLiteral("body", 0, 0, (0, 1, 2)),
+            ReifiedLiteral("body", 1, 1, (0, 1, 2)),
+            ReifiedLiteral("body", 2, 1, (0, 2, 1)),
+        ),
+    )
+
+    canonical = canonical_arithmetic_clause(clause, modes, 3)
+
+    assert canonical is not None
+    assert len(canonical.systems) == 1
+    assert len(canonical.systems[0].relations) == 2
+
+
+@pytest.mark.parametrize(("operator", "rendered"), [("/", "V0/V1-V2=0"), ("\\", "V0\\V1-V2=0")])
+def test_arithmetic_system_carries_nonzero_domain_guards(operator, rendered):
+    modes = {
+        0: HypothesisMode(
+            0, 0, "body", "normal", "q", 3, 1, fixed_arguments=(None,) * 3
+        ),
+        1: HypothesisMode(
+            1,
+            1,
+            "body",
+            "arithmetic",
+            "",
+            3,
+            1,
+            arithmetic=ArithmeticTemplate(operator),
+        ),
+    }
+    clause = ReifiedClause(
+        (),
+        (
+            ReifiedLiteral("body", 0, 0, (0, 1, 2)),
+            ReifiedLiteral("body", 1, 1, (0, 1, 2)),
+        ),
+    )
+
+    canonical = canonical_arithmetic_clause(clause, modes, 3)
+
+    assert canonical is not None
+    assert canonical.render(modes) == f":- q(V0,V1,V2),{rendered},V1!=0."
+
+
+def test_arithmetic_system_deduplicates_shared_divisor_guards():
+    divisor = ArithmeticExpression.var(1)
+    system = ArithmeticSystem(
+        (
+            ExpressionConstraint(
+                ArithmeticExpression(
+                    "/", (ArithmeticExpression.var(0), divisor)
+                ),
+                "eq",
+                2,
+                guards=(divisor,),
+            ),
+            ExpressionConstraint(
+                ArithmeticExpression(
+                    "\\", (ArithmeticExpression.var(3), divisor)
+                ),
+                "eq",
+                4,
+                guards=(divisor,),
+            ),
+        )
+    )
+
+    assert len(system.render()) == 3
+    assert system.render() == ("V0/V1-V2=0", "V1!=0", "V3\\V1-V4=0")
+
+
+def test_arithmetic_system_renders_one_guard_per_canonical_expression():
+    x, y, z = (
+        ArithmeticExpression.var(index) for index in range(3)
+    )
+    left_nested = ArithmeticExpression(
+        "*", (ArithmeticExpression("*", (x, y)), z)
+    )
+    right_nested = ArithmeticExpression(
+        "*", (x, ArithmeticExpression("*", (y, z)))
+    )
+    system = ArithmeticSystem(
+        (
+            ExpressionConstraint(x, "eq", 3, guards=(left_nested,)),
+            ExpressionConstraint(y, "eq", 4, guards=(right_nested,)),
+        )
+    )
+
+    assert left_nested.key == right_nested.key
+    assert len(system.render()) == 3
+    assert system.render() == (
+        "V0-V3=0",
+        "(V0*V1)*V2!=0",
+        "V1-V4=0",
+    )
+
+
+def test_expression_guard_order_is_not_semantic():
+    left = ArithmeticExpression.var(0)
+    right = ArithmeticExpression.var(1)
+    forward = ExpressionConstraint(left, "eq", 2, guards=(left, right))
+    reverse = ExpressionConstraint(left, "eq", 2, guards=(right, left))
+
+    assert forward.key == reverse.key
+    assert forward.rendered_guards == reverse.rendered_guards
+
+
+def test_arithmetic_expression_parenthesizes_composite_abs_operands():
+    left = ArithmeticExpression(
+        "+", (ArithmeticExpression.var(0), ArithmeticExpression.var(1))
+    )
+    right = ArithmeticExpression(
+        "+", (ArithmeticExpression.var(2), ArithmeticExpression.var(3))
+    )
+
+    assert ArithmeticExpression("abs", (left, right)).render() == (
+        "|(V0+V1)-(V2+V3)|"
+    )
+
+
+def test_division_guard_does_not_consume_another_body_slot():
+    program = Program(
+        ["q(1,2,3)."],
+        [],
+        [],
+        [],
+        [_mode(1, "q", 3, positive=True)],
+        [],
+        [],
+        [OperatorDeclaration(1, "div")],
+        max_body_literals=None,
+    )
+
+    generator = HypothesisSpaceGenerator(program, Arguments())
+
+    assert generator.body_slots == 2
+    guarded = [
+        entry
+        for entry in generator.generate().entries
+        if "/" in entry.text and "!=0" in entry.text
+    ]
+    assert guarded
+    assert all(entry.body_literals <= 2 for entry in guarded)
+
+
+def test_symbolic_disequality_is_not_rewritten_as_subtraction():
+    program = Program(
+        ["p(a).", "p(b)."],
+        [],
+        [],
+        [],
+        [_mode(2, "p", 1, positive=True, type_name="term")],
+        [],
+        [OperatorDeclaration(1, "neq")],
+    )
+
+    clauses = _generate(program, 3, 2).clauses
+
+    assert ":- p(V0),p(V1),V0!=V1." in clauses
+    assert not any("V0-V1!=0" in clause for clause in clauses)
+
+
+def test_mixed_numeric_system_keeps_cross_type_disequality_symbolic():
+    program = Program(
+        ["p(a).", "p(b).", "n(1).", "n(2)."],
+        [],
+        [],
+        [],
+        [
+            _mode(1, "p", 1, positive=True, type_name="person"),
+            _mode(2, "n", 1, positive=True),
+        ],
+        [],
+        [OperatorDeclaration(1, "lt"), OperatorDeclaration(1, "neq")],
+    )
+
+    clauses = _generate(program, 5, 3).clauses
+
+    target = ":- p(V0),n(V1),n(V2),V0!=V1,V1-V2<0."
+    assert target in clauses
+    assert not any(
+        "p(V0),n(V1),n(V2)" in clause and "V0-V1!=0" in clause
+        for clause in clauses
     )
 
 
@@ -1306,9 +1722,10 @@ def test_canonical_additive_bias_drops_subtraction_zero_equations():
     without_zero = _generate(program_without_zero, 4, 3).clauses
     with_zero = _generate(program_with_zero, 4, 3).clauses
 
-    assert all("-V" not in clause for clause in [*without_zero, *with_zero])
-    assert any("+" in clause for clause in without_zero)
-    assert any("+" in clause for clause in with_zero)
+    assert all("=0" in clause for clause in [*without_zero, *with_zero] if "+" in clause)
+    assert not any("V0-V0" in clause for clause in [*without_zero, *with_zero])
+    assert any("=0" in clause for clause in without_zero)
+    assert any("=0" in clause for clause in with_zero)
 
 
 def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
@@ -2427,8 +2844,8 @@ def test_latin_square_hypothesis_space_contains_covering_target_program():
     target = (
         "count_row(V0,V3) :- cell(V0),#count{V1:x(V0,V2,V1)}=V3.",
         "count_col(V0,V3) :- cell(V0),#count{V1:x(V2,V0,V1)}=V3.",
-        ":- count_row(V0,V1),size(V2),V1!=V2.",
-        ":- count_col(V0,V1),size(V2),V1!=V2.",
+        ":- count_row(V0,V1),size(V2),V1-V2!=0.",
+        ":- count_col(V0,V1),size(V2),V1-V2!=0.",
     )
 
     assert program.aggregate_modes == [
@@ -2482,8 +2899,8 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     target = {
         "sum_row(V0,V3) :- size(V0),#sum{V1:x(V0,V2,V1)}=V3.",
         "sum_col(V0,V3) :- size(V0),#sum{V1:x(V2,V0,V1)}=V3.",
-        ":- sum_row(V0,V1),sum_row(V2,V3),V0!=V2,V1!=V3.",
-        ":- sum_col(V0,V1),sum_col(V2,V3),V0!=V2,V1!=V3.",
+            ":- sum_row(V0,V1),sum_row(V2,V3),V0!=V2,V1-V3!=0.",
+            ":- sum_col(V0,V1),sum_col(V2,V3),V0!=V2,V1-V3!=0.",
     }
 
     assert len(program.positive_examples) == 72

@@ -1,0 +1,181 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Generación del espacio de hipótesis en Gentians",
+    "quality_profile": "showcase",
+    "output": "docs/hypothesis-generation.html",
+    "viewBox": [1700, 700]
+  },
+  "lanes": [
+    { "id": "input", "label": "Task file, Reader e IR" },
+    { "id": "compiler", "label": "Compilación del espacio" },
+    { "id": "asp", "label": "Solver y salida" },
+    { "id": "post", "label": "Decodificación y forma canónica" }
+  ],
+  "phases": [
+    { "id": "parse", "label": "Lectura", "fromCol": 0, "toCol": 1 },
+    { "id": "represent", "label": "IR y análisis", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "enumerate", "label": "Compilar y enumerar", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "typed_ir", "label": "Contrato interno", "lane": "input", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "asp_pruning", "label": "Compilación y poda declarativa", "lane": "compiler", "fromCol": 3, "toCol": 4, "variant": "security" },
+    { "id": "canonical_output", "label": "Poda después del modelo", "lane": "post", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": [
+    "task_file",
+    "reader",
+    "program_ir",
+    "static_analysis",
+    "mode_compiler",
+    "asp_facts",
+    "clingo",
+    "decoder",
+    "arithmetic_system",
+    "rule_space"
+  ],
+  "semanticChecks": {
+    "allowedRoots": ["task_file"],
+    "allowedTerminals": ["rule_space"],
+    "requiredPaths": [
+      { "from": "task_file", "to": "clingo" },
+      { "from": "clingo", "to": "rule_space" }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "task_file",
+      "lane": "input",
+      "col": 0,
+      "type": "external",
+      "label": "Task file",
+      "width": 150
+    },
+    {
+      "id": "reader",
+      "lane": "input",
+      "col": 1,
+      "type": "backend",
+      "label": "reader.read_program",
+      "width": 170
+    },
+    {
+      "id": "program_ir",
+      "lane": "input",
+      "col": 2,
+      "type": "database",
+      "label": "Program",
+      "width": 150
+    },
+    {
+      "id": "head_forms",
+      "lane": "input",
+      "col": 3,
+      "type": "database",
+      "label": "HeadDeclaration",
+      "width": 175
+    },
+    {
+      "id": "static_analysis",
+      "lane": "compiler",
+      "col": 2,
+      "type": "security",
+      "label": "Análisis estático",
+      "width": 165
+    },
+    {
+      "id": "mode_compiler",
+      "lane": "compiler",
+      "col": 3,
+      "type": "backend",
+      "label": "HypothesisMode compiler",
+      "width": 185
+    },
+    {
+      "id": "asp_facts",
+      "lane": "compiler",
+      "col": 4,
+      "type": "messagebus",
+      "label": "Facts + metaprograma ASP",
+      "width": 195
+    },
+    {
+      "id": "clingo",
+      "lane": "asp",
+      "col": 4,
+      "type": "cloud",
+      "label": "Clingo ground + solve",
+      "width": 180
+    },
+    {
+      "id": "decoder",
+      "lane": "post",
+      "col": 4,
+      "type": "backend",
+      "label": "ReifiedClause decoder",
+      "width": 180
+    },
+    {
+      "id": "arithmetic_system",
+      "lane": "post",
+      "col": 5,
+      "type": "backend",
+      "label": "ArithmeticSystem",
+      "width": 190
+    },
+    {
+      "id": "rule_space",
+      "lane": "asp",
+      "col": 5,
+      "type": "database",
+      "label": "RuleSpace",
+      "width": 175
+    }
+  ],
+  "edges": [
+    { "id": "read-lines", "from": "task_file", "to": "reader", "label": "Path.read_text + splitlines", "variant": "default", "role": "main" },
+    { "id": "build-program", "from": "reader", "to": "program_ir", "label": "directivas validadas", "variant": "emphasis", "role": "main" },
+    { "id": "extract-heads", "from": "program_ir", "to": "head_forms", "label": "language_bias_head", "variant": "default", "role": "branch" },
+    { "id": "inspect-program", "from": "program_ir", "to": "static_analysis", "label": "fragments + declarations", "variant": "security", "role": "main" },
+    { "id": "compile-modes", "from": "static_analysis", "to": "mode_compiler", "label": "capacidades permitidas", "variant": "emphasis", "role": "main" },
+    { "id": "bind-head-forms", "from": "head_forms", "to": "mode_compiler", "label": "miembros y posiciones fijas", "variant": "default", "role": "branch" },
+    { "id": "emit-facts", "from": "mode_compiler", "to": "asp_facts", "label": "facts + módulos .lp", "variant": "security", "role": "main" },
+    { "id": "solve-space", "from": "asp_facts", "to": "clingo", "label": "programa ASP completo", "variant": "emphasis", "role": "main" },
+    { "id": "decode-model", "from": "clingo", "to": "decoder", "label": "selected/3 + var_at/4", "variant": "default", "role": "main" },
+    { "id": "canonicalize", "from": "decoder", "to": "arithmetic_system", "label": "ReifiedClause theta-reduced", "variant": "emphasis", "role": "main" },
+    { "id": "deduplicate", "from": "arithmetic_system", "to": "rule_space", "label": "canonical.key → representante", "variant": "emphasis", "role": "main" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Reader, parser y representación",
+      "items": [
+        "#maxv/#maxbl/#maxhl/#maxpl fijan dominios finitos; #pos/#neg, constants e inventions se validan y deduplican",
+        "#modeh usa clingo.ast y conserva una cabeza completa; los demás modos producen declaraciones tipadas",
+        "Program reúne background, ejemplos, bias, operadores y límites",
+        "HeadDeclaration guarda kind/bounds/átomos/labels; ModeArgument guarda tipo/dirección; constants expanden formas concretas"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Compilación y poda ASP previa al modelo",
+      "items": [
+        "Análisis estático valida #maxhl, inventions, tipos nominales y capacidades",
+        "HypothesisMode asigna IDs, recall groups, posiciones y roles; add/sub e inversas comparten modo y recall",
+        "ASP poda slots gapless, orden, recall, límites, linkedness, typing, safety y flujo input/output",
+        "Operadores, aggregates y propiedades podan dominio, duplicados, symmetry/order/inverse/mutex/keys/functional/transitive/acyclic/subsumption"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Decodificación, ArithmeticSystem y salida",
+      "items": [
+        "selected/3 + var_at/4 se decodifican como ReifiedClause; _theta_reduced elimina subcuerpos equivalentes",
+        "Operaciones conectadas forman ArithmeticSystem con ecuaciones residuales y condiciones",
+        "Outputs inseguros conservan asignación; div/mod incluyen divisor != 0 sin recall extra",
+        "canonical.key elige representante; RuleEntry guarda text/heads/deps/size; RuleSpace ordena y deduplica"
+      ]
+    }
+  ]
+}

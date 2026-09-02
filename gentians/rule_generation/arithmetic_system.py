@@ -4,18 +4,38 @@ from functools import lru_cache
 from math import gcd, lcm
 
 from .arithmetic_expression import ArithmeticExpression
+from .arithmetic_literal import ArithmeticLiteral
+from .aggregate_literal import AggregateLiteral
+from .atom_literal import AtomLiteral
 from .canonical_arithmetic_clause import CanonicalArithmeticClause
 from .comparison_constraint import ComparisonConstraint
+from .comparison_literal import ComparisonLiteral
 from .expression_constraint import ExpressionConstraint
 from .hypothesis_mode import HypothesisMode
 from .linear_constraint import LinearConstraint
 from .reified_clause import ReifiedClause
 from .reified_literal import ReifiedLiteral
+from .term_template import TermTemplate
 
 ArithmeticSystemKey = tuple[object, ...]
 
 
 SystemRelation = LinearConstraint | ExpressionConstraint | ComparisonConstraint
+
+
+def _is_builtin(mode: HypothesisMode) -> bool:
+    return isinstance(mode.literal, ArithmeticLiteral | ComparisonLiteral)
+
+
+def _is_positive_atom(mode: HypothesisMode) -> bool:
+    return isinstance(mode.literal, AtomLiteral) and not mode.literal.default_negated
+
+
+def _is_numeric_builtin(mode: HypothesisMode) -> bool:
+    return isinstance(mode.literal, ArithmeticLiteral) or (
+        isinstance(mode.literal, ComparisonLiteral)
+        and mode.literal.operator != "!="
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,12 +91,12 @@ def canonical_arithmetic_clause(
     builtin = [
         literal
         for literal in clause.body
-        if modes[literal.mode_id].kind in {"arithmetic", "comparison"}
+        if _is_builtin(modes[literal.mode_id])
     ]
     non_builtin = tuple(
         literal
         for literal in clause.body
-        if modes[literal.mode_id].kind not in {"arithmetic", "comparison"}
+        if not _is_builtin(modes[literal.mode_id])
     )
     if not builtin:
         return CanonicalArithmeticClause(clause.head, non_builtin, ())
@@ -102,7 +122,7 @@ def canonical_arithmetic_clause(
     external = {
         variable
         for literal in (*clause.head, *clause.body)
-        if modes[literal.mode_id].kind not in {"arithmetic", "comparison"}
+        if not _is_builtin(modes[literal.mode_id])
         for variable in literal.variables
     }
     external.update(
@@ -111,14 +131,13 @@ def canonical_arithmetic_clause(
     safe = {
         variable
         for literal in clause.body
-        if modes[literal.mode_id].kind == "normal"
-        and modes[literal.mode_id].positive
+        if _is_positive_atom(modes[literal.mode_id])
         for variable in literal.variables
     }
     safe.update(
         literal.variables[-1]
         for literal in clause.body
-        if modes[literal.mode_id].kind == "aggregate"
+        if isinstance(modes[literal.mode_id].literal, AggregateLiteral)
     )
     numeric_variables = _numeric_variables(clause, modes)
 
@@ -129,8 +148,7 @@ def canonical_arithmetic_clause(
     systems: list[ArithmeticSystem] = []
     for literals in components.values():
         numeric_component = any(
-            modes[literal.mode_id].kind == "arithmetic"
-            or modes[literal.mode_id].operator != "!="
+            _is_numeric_builtin(modes[literal.mode_id])
             or set(literal.variables) <= numeric_variables
             for literal in literals
         )
@@ -221,29 +239,14 @@ def _numeric_variables(
     numeric: set[int] = set()
     for literal in (*clause.head, *clause.body):
         mode = modes[literal.mode_id]
-        if mode.kind == "arithmetic" or (
-            mode.kind == "comparison" and mode.operator != "!="
-        ):
+        if _is_numeric_builtin(mode):
             numeric.update(literal.variables)
-        if not mode.arg_types:
-            continue
-        variable_types = (
-            mode.arg_types
-            if not mode.fixed_arguments
-            else tuple(
-                arg_type
-                for arg_type, fixed in zip(
-                    mode.arg_types, mode.fixed_arguments, strict=True
-                )
-                if fixed is None
-            )
-        )
         numeric.update(
             variable
-            for variable, arg_type in zip(
-                literal.variables, variable_types, strict=True
+            for variable, binding in zip(
+                literal.variables, mode.bindings, strict=True
             )
-            if arg_type == "numeric"
+            if binding.type == "numeric"
         )
     return numeric
 
@@ -254,11 +257,11 @@ def _arithmetic_relation(
     safe: set[int],
 ) -> SystemRelation:
     mode = modes[literal.mode_id]
-    if mode.kind == "comparison":
+    if isinstance(mode.literal, ComparisonLiteral):
         return ComparisonConstraint(
-            literal.variables[0], literal.variables[1], mode.operator
+            literal.variables[0], literal.variables[1], mode.literal.operator
         )
-    if mode.arithmetic is None:
+    if not isinstance(mode.literal, ArithmeticLiteral):
         raise ValueError(f"arithmetic mode {mode.id} has no template")
     known = {
         variable: ArithmeticExpression.var(variable)
@@ -267,7 +270,7 @@ def _arithmetic_relation(
     expression = _mode_expression(literal, mode, known)
     guards = (
         (known[literal.variables[1]],)
-        if mode.arithmetic.operator in {"/", "\\"}
+        if mode.literal.operator in {"/", "\\"}
         else ()
     )
     output = literal.variables[-1]
@@ -297,19 +300,19 @@ def _expression_system(
     pending = [
         literal
         for literal in literals
-        if modes[literal.mode_id].kind == "arithmetic"
+        if isinstance(modes[literal.mode_id].literal, ArithmeticLiteral)
     ]
     comparisons = [
         literal
         for literal in literals
-        if modes[literal.mode_id].kind == "comparison"
+        if isinstance(modes[literal.mode_id].literal, ComparisonLiteral)
     ]
     constraints: list[SystemRelation] = []
     while pending:
         progress = False
         for literal in pending[:]:
             mode = modes[literal.mode_id]
-            if mode.arithmetic is None:
+            if not isinstance(mode.literal, ArithmeticLiteral):
                 return None
             input_variables = literal.variables[:-1]
             if any(variable not in known for variable in input_variables):
@@ -320,7 +323,7 @@ def _expression_system(
                 for variable in input_variables
                 for guard in guards.get(variable, ())
             )
-            if mode.arithmetic.operator in {"/", "\\"}:
+            if mode.literal.operator in {"/", "\\"}:
                 inherited = (*inherited, known[input_variables[1]])
             inherited = tuple(dict.fromkeys(inherited))
             output = literal.variables[-1]
@@ -359,7 +362,10 @@ def _expression_system(
 
     for literal in comparisons:
         left, right = literal.variables
-        operator = modes[literal.mode_id].operator
+        comparison = modes[literal.mode_id].literal
+        if not isinstance(comparison, ComparisonLiteral):
+            return None
+        operator = comparison.operator
         if operator == "!=" and not set(literal.variables) <= numeric_variables:
             constraints.append(_arithmetic_relation(literal, modes, safe))
             continue
@@ -390,27 +396,22 @@ def _mode_expression(
     mode: HypothesisMode,
     known: dict[int, ArithmeticExpression],
 ) -> ArithmeticExpression:
-    arithmetic = mode.arithmetic
-    if arithmetic is None:
+    if not isinstance(mode.literal, ArithmeticLiteral):
         raise ValueError(f"arithmetic mode {mode.id} has no template")
     inputs = literal.variables[:-1]
-    if arithmetic.linear:
-        positive = [
-            known[variable]
-            for variable, coefficient in zip(inputs, arithmetic.coefficients)
-            if coefficient > 0
-        ]
-        negative = [
-            known[variable]
-            for variable, coefficient in zip(inputs, arithmetic.coefficients)
-            if coefficient < 0
-        ]
-        expression = _fold_expression("+", positive)
-        for value in negative:
-            expression = ArithmeticExpression("-", (expression, value))
-        return expression
-    left, right = (known[variable] for variable in inputs[:2])
-    return ArithmeticExpression(arithmetic.operator, (left, right))
+    variables = iter(inputs)
+
+    def instantiate(term: TermTemplate) -> ArithmeticExpression:
+        if term.kind == "variable":
+            return known[next(variables)]
+        if term.kind != "arithmetic":
+            raise ValueError("unsupported arithmetic term in compiled mode")
+        return ArithmeticExpression(
+            term.value,
+            tuple(instantiate(argument) for argument in term.arguments),
+        )
+
+    return instantiate(mode.literal.expression)
 
 
 def _orient_linear_constraints(
@@ -499,15 +500,15 @@ def _fold_expression(
 
 
 def _is_linear(mode: HypothesisMode, allow_disequality: bool) -> bool:
+    syntax = mode.literal
     return (
-        mode.kind == "arithmetic"
-        and mode.arithmetic is not None
-        and (mode.arithmetic.linear or mode.arithmetic.operator in {"+", "-"})
+        isinstance(syntax, ArithmeticLiteral)
+        and syntax.linear
     ) or (
-        mode.kind == "comparison"
+        isinstance(syntax, ComparisonLiteral)
         and (
-            mode.operator in {"<", "<=", ">", ">="}
-            or (allow_disequality and mode.operator == "!=")
+            syntax.operator in {"<", "<=", ">", ">="}
+            or (allow_disequality and syntax.operator == "!=")
         )
     )
 
@@ -518,23 +519,21 @@ def _constraint(
     width: int,
 ) -> LinearConstraint:
     coefficients = [Fraction(0) for _ in range(width)]
-    if mode.kind == "arithmetic":
-        if mode.arithmetic is None:
-            raise ValueError(f"arithmetic mode {mode.id} has no template")
-        if mode.arithmetic.linear:
+    if isinstance(mode.literal, ArithmeticLiteral):
+        arithmetic = mode.literal
+        if arithmetic.linear:
+            assert arithmetic.coefficients is not None
             for variable, coefficient in zip(
-                literal.variables, mode.arithmetic.coefficients
+                literal.variables, arithmetic.coefficients
             ):
                 coefficients[variable] += coefficient
             return LinearConstraint(tuple(coefficients), "eq")
-        left, right, result = literal.variables
-        coefficients[left] += 1
-        coefficients[right] += 1 if mode.arithmetic.operator == "+" else -1
-        coefficients[result] -= 1
-        return LinearConstraint(tuple(coefficients), "eq")
+        raise ValueError(f"arithmetic mode {mode.id} is not linear")
 
     left, right = literal.variables
-    operator = mode.operator
+    if not isinstance(mode.literal, ComparisonLiteral):
+        raise ValueError(f"comparison mode {mode.id} has no template")
+    operator = mode.literal.operator
     if operator in {">", ">="}:
         left, right = right, left
         operator = "<" if operator == ">" else "<="

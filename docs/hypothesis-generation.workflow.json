@@ -73,7 +73,7 @@
       "lane": "input",
       "col": 3,
       "type": "database",
-      "label": "HeadDeclaration",
+      "label": "Head modes",
       "width": 175
     },
     {
@@ -136,7 +136,7 @@
   "edges": [
     { "id": "read-lines", "from": "task_file", "to": "reader", "label": "Path.read_text + splitlines", "variant": "default", "role": "main" },
     { "id": "build-program", "from": "reader", "to": "program_ir", "label": "directivas validadas", "variant": "emphasis", "role": "main" },
-    { "id": "extract-heads", "from": "program_ir", "to": "head_forms", "label": "language_bias_head", "variant": "default", "role": "branch" },
+    { "id": "extract-heads", "from": "program_ir", "to": "head_forms", "label": "#modeh + #modeha", "variant": "default", "role": "branch" },
     { "id": "inspect-program", "from": "program_ir", "to": "static_analysis", "label": "fragments + declarations", "variant": "security", "role": "main" },
     { "id": "compile-modes", "from": "static_analysis", "to": "mode_compiler", "label": "capacidades permitidas", "variant": "emphasis", "role": "main" },
     { "id": "bind-head-forms", "from": "head_forms", "to": "mode_compiler", "label": "miembros y posiciones fijas", "variant": "default", "role": "branch" },
@@ -151,18 +151,18 @@
       "dot": "cyan",
       "title": "Reader, parser y representación",
       "items": [
-        "#maxv/#maxbl/#maxhl/#maxpl fijan dominios finitos; #pos/#neg, constants e inventions se validan y deduplican",
-        "#modeh usa clingo.ast y conserva una cabeza completa; los demás modos producen declaraciones tipadas",
+        "#maxv/#maxbl/#minhl/#maxhl/#maxpl fijan dominios finitos; #pos/#neg, constants e inventions se validan y deduplican",
+        "#modeh conserva una cabeza completa; #modeha compila combinaciones cardinalidad; #modeb/#modec producen declaraciones atómicas tipadas",
         "Program reúne background, ejemplos, bias, operadores y límites",
-        "HeadDeclaration guarda kind/bounds/átomos/labels; ModeArgument guarda tipo/dirección; constants expanden formas concretas"
+        "HeadDeclaration guarda HeadTemplate; TermTemplate recursivo guarda términos, bindings por ruta y constants; ConditionalLiteral une conclusión y condiciones dentro de LiteralTemplate"
       ]
     },
     {
       "dot": "rose",
       "title": "Compilación y poda ASP previa al modelo",
       "items": [
-        "Análisis estático valida #maxhl, inventions, tipos nominales y capacidades",
-        "HypothesisMode asigna IDs, recall groups, posiciones y roles; add/sub e inversas comparten modo y recall",
+        "Análisis estático valida #minhl/#maxhl, recalls de #modeha, inventions, tipos nominales y capacidades",
+        "HypothesisMode asigna IDs, recall groups, posiciones y roles; marca formularios #modeha para linkedness estructural",
         "ASP poda slots gapless, orden, recall, límites, linkedness, typing, safety y flujo input/output",
         "Operadores, aggregates y propiedades podan dominio, duplicados, symmetry/order/inverse/mutex/keys/functional/transitive/acyclic/subsumption"
       ]

@@ -42,7 +42,8 @@ aggregate_local_var(Slot,Var):-
 :- used_var(Var),
     not repeated_var(Var),
     not normal_positive_body_var(Var),
-    not aggregate_local_var(_,Var).
+    not aggregate_local_var(_,Var),
+    not conditional_local_var(_,_,Var).
 
 % Constraint: reject gaps in variable ids.
 % If Var1 is used and a smaller Var0 exists, Var0 must also be used. This keeps

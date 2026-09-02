@@ -23,9 +23,13 @@ class Program:
     aggregate_modes: list[AggregateDeclaration] = field(default_factory=list)
     comparison_modes: list[OperatorDeclaration] = field(default_factory=list)
     arithmetic_modes: list[OperatorDeclaration] = field(default_factory=list)
+    language_bias_condition: list[ModeDeclaration] = field(default_factory=list)
     invented_predicates: tuple[Signature, ...] = ()
     constants: dict[str, tuple[str, ...]] = field(default_factory=dict)
     max_variables: int | None = 3
     max_body_literals: int | None = 3
     max_head_literals: int | None = 1
     max_program_clauses: int | None = 6
+    language_bias_aggregate_head: list[ModeDeclaration] = field(default_factory=list)
+    min_aggregate_head_literals: int = 1
+    bias: tuple[str, ...] = ()

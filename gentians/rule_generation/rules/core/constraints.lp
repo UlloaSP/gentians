@@ -1,8 +1,8 @@
 % Clause-shape constraints.
 %
-% This file enforces basic syntactic policy for generated clauses: every clause
-% must have a body, and headless constraints must contain at least two body
-% literals.
+% This file enforces basic syntactic policy for generated clauses. Facts and
+% other rules with an empty body are valid when their head is ASP-safe. The
+% completely empty clause is not a rule and remains forbidden.
 %
 % Shared atom shapes used here:
 % - selected_slot(Section,Slot): defined in core/slots.lp. Section is head/body;
@@ -12,10 +12,8 @@
 #defined invented_pred/2.
 #defined aggregate_condition_atom/5.
 
-% Constraint: reject empty bodies.
-% A generated clause with no selected body slot has no evidence condition and
-% is not useful in this hypothesis space.
-:- not selected_slot(body,_).
+% Constraint: reject the empty clause while permitting learnable facts.
+:- not selected_slot(head,_), not selected_slot(body,_).
 
 % Invented predicates form ordered, acyclic definition layers. An invented
 % head may depend only on background predicates or invented predicates declared
@@ -23,6 +21,11 @@
 :- head_literal(_,_,HeadPred,_),
     invented_pred(HeadPred,HeadLayer),
     positive_body_literal(_,_,BodyPred,_),
+    invented_pred(BodyPred,BodyLayer),
+    BodyLayer >= HeadLayer.
+:- head_literal(_,_,HeadPred,_),
+    invented_pred(HeadPred,HeadLayer),
+    conditional_dependency(_,_,BodyPred),
     invented_pred(BodyPred,BodyLayer),
     BodyLayer >= HeadLayer.
 :- head_literal(_,_,HeadPred,_),
@@ -41,6 +44,11 @@
     not invented_pred(BodyPred,_).
 :- head_literal(_,_,HeadPred,_),
     invented_pred(HeadPred,_),
+    conditional_dependency(_,_,BodyPred),
+    mode(head,_,BodyPred,_,_),
+    not invented_pred(BodyPred,_).
+:- head_literal(_,_,HeadPred,_),
+    invented_pred(HeadPred,_),
     selected(body,_,Mode),
     aggregate_condition_atom(Mode,_,BodyPred,_,_),
     mode(head,_,BodyPred,_,_),
@@ -50,6 +58,9 @@
 % defining or using a learned target and multiply dependency-closed programs.
 :- not selected_slot(head,_),
     normal_literal(body,_,_,Pred,_),
+    invented_pred(Pred,_).
+:- not selected_slot(head,_),
+    conditional_dependency(body,_,Pred),
     invented_pred(Pred,_).
 :- not selected_slot(head,_),
     selected(body,_,Mode),

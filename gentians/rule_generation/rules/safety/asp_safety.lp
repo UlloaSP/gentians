@@ -32,7 +32,9 @@ safe_var(Var):- normal_positive_body_var(Var).
 
 % Rule: collect variables that appear in the head.
 % Var is unsafe unless safe_var(Var) can also be proven.
-head_var(Var):- var_at(head,_,_,Var).
+head_var(Var):-
+    var_at(head,Slot,Arg,Var),
+    not conditional_local_at(head,Slot,Arg).
 
 % Rule: collect variables that appear under default negation.
 % Slot is a negative normal body literal. Var is each variable used by it.

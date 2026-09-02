@@ -6,18 +6,87 @@ from clingo import ast
 
 from .aggregate_declaration import AggregateDeclaration
 from .example import Example
+from .atom_literal import AtomLiteral
+from .atom_template import AtomTemplate
 from .head_declaration import HeadDeclaration
-from .mode_argument import ModeArgument
+from .head_template import HeadTemplate
 from .mode_declaration import ModeDeclaration
 from .operator_declaration import OperatorDeclaration
-from .parser import parse_aggregate_spec, parse_atom, split_top_level_args
+from .parser import (
+    clause_predicates,
+    parse_aggregate_spec,
+    parse_atom,
+    split_top_level_args,
+)
 from .program import Program
+from .term_template import TermTemplate
 
 
-def _get_mode_declaration(
-    s: str, for_head: bool
-) -> ModeDeclaration:
-    name = "#modeh" if for_head else "#modeb"
+_BIAS_DIRECTIVE = re.compile(
+    r'^\s*#bias\s*\(\s*"((?:\\.|[^"\\])*)"\s*\)\s*\.',
+    re.DOTALL | re.MULTILINE,
+)
+_BIAS_ESCAPES = {"n": "\n", "r": "\r", "t": "\t", '"': '"', "\\": "\\"}
+
+
+def _extract_bias(source: str) -> tuple[str, tuple[str, ...]]:
+    bias: list[str] = []
+
+    def remove(match: re.Match[str]) -> str:
+        payload = re.sub(
+            r'\\([nrt"\\])',
+            lambda escaped: _BIAS_ESCAPES[escaped.group(1)],
+            match.group(1),
+        ).strip()
+        if not payload:
+            raise ValueError("#bias requires a non-empty ASP program")
+        nodes: list[ast.AST] = []
+        try:
+            ast.parse_string(payload, nodes.append)
+        except RuntimeError as exc:
+            raise ValueError("invalid ASP program in #bias") from exc
+        unsupported = {
+            node.ast_type.name
+            for node in nodes
+            if node.ast_type not in {ast.ASTType.Program, ast.ASTType.Rule}
+        }
+        if unsupported:
+            raise ValueError(
+                "#bias supports only ASP rules and hard constraints, not "
+                f"{sorted(unsupported)}"
+            )
+        program_directives = [
+            node for node in nodes if node.ast_type == ast.ASTType.Program
+        ]
+        if (
+            len(program_directives) != 1
+            or str(program_directives[0]) != "#program base."
+        ):
+            raise ValueError("#bias cannot contain #program directives")
+        rules = [node for node in nodes if node.ast_type == ast.ASTType.Rule]
+        if not rules:
+            raise ValueError("#bias requires at least one ASP rule or hard constraint")
+        defined = set().union(*(clause_predicates(str(rule))[0] for rule in rules))
+        invalid = {
+            predicate
+            for predicate in defined
+            if not predicate[0].startswith("bias_")
+        }
+        if invalid:
+            raise ValueError(
+                "predicates defined by #bias must use the bias_ namespace: "
+                f"{sorted(invalid)}"
+            )
+        bias.append(payload)
+        return "\n" * match.group(0).count("\n")
+
+    remaining = _BIAS_DIRECTIVE.sub(remove, source)
+    if re.search(r"(?m)^\s*#bias\b", remaining):
+        raise ValueError("invalid #bias declaration")
+    return remaining, tuple(bias)
+
+
+def _get_atom_mode_declaration(s: str, name: str) -> ModeDeclaration:
     parts = split_top_level_args(_directive_args(s, name))
     if len(parts) != 2:
         raise ValueError(f"invalid {name} declaration: {s}")
@@ -25,13 +94,35 @@ def _get_mode_declaration(
     atom = parts[1].strip()
     negative = bool(re.match(r"not\s+", atom))
     if negative:
-        if for_head:
-            raise ValueError(f"head modes cannot be negative: {s}")
         atom = re.sub(r"^not\s+", "", atom, count=1)
-    predicate, arguments = _get_mode_atom(atom, s)
-    if not for_head and any(argument.label for argument in arguments):
+    template = _get_mode_atom(atom, s)
+    if any(binding.label for binding in template.bindings()):
         raise ValueError(f"variable labels are only supported in #modeh: {s}")
-    return ModeDeclaration(recall, predicate, arguments, not negative, for_head)
+    return ModeDeclaration(recall, AtomLiteral(template, negative))
+
+
+def _get_body_mode_declaration(s: str) -> ModeDeclaration:
+    return _get_atom_mode_declaration(s, "#modeb")
+
+
+def _get_condition_mode_declaration(s: str) -> ModeDeclaration:
+    return _get_atom_mode_declaration(s, "#modec")
+
+
+def _get_aggregate_head_declaration(s: str) -> ModeDeclaration:
+    parts = split_top_level_args(_directive_args(s, "#modeha"))
+    if len(parts) == 1:
+        recall = -1
+        atom = parts[0]
+    elif len(parts) == 2:
+        recall = _parse_recall(parts[0])
+        atom = parts[1]
+    else:
+        raise ValueError(f"invalid #modeha declaration: {s}")
+    template = _get_mode_atom(atom, s)
+    if any(binding.label for binding in template.bindings()):
+        raise ValueError(f"variable labels are only supported in #modeh: {s}")
+    return ModeDeclaration(recall, AtomLiteral(template))
 
 
 def _get_head_declaration(s: str) -> HeadDeclaration:
@@ -54,12 +145,12 @@ def _get_head_declaration(s: str) -> HeadDeclaration:
     head = rules[0].head
     if head.ast_type == ast.ASTType.Literal:
         atoms = (_head_atom(str(head), s),)
-        return HeadDeclaration(recall, "normal", atoms)
+        return HeadDeclaration(recall, HeadTemplate("normal", atoms))
     if head.ast_type == ast.ASTType.Disjunction:
         if any(element.condition for element in head.elements):
             raise ValueError(f"conditional disjunction is not supported in #modeh: {s}")
         atoms = tuple(_head_atom(str(element.literal), s) for element in head.elements)
-        return HeadDeclaration(recall, "disjunction", atoms)
+        return HeadDeclaration(recall, HeadTemplate("disjunction", atoms))
     if head.ast_type == ast.ASTType.Aggregate:
         if any(element.condition for element in head.elements):
             raise ValueError(
@@ -68,17 +159,18 @@ def _get_head_declaration(s: str) -> HeadDeclaration:
         atoms = tuple(_head_atom(str(element.literal), s) for element in head.elements)
         return HeadDeclaration(
             recall,
-            "choice",
-            atoms,
-            _head_bound(head.left_guard, s),
-            _head_bound(head.right_guard, s),
+            HeadTemplate(
+                "choice",
+                atoms,
+                _head_bound(head.left_guard, s),
+                _head_bound(head.right_guard, s),
+            ),
         )
     raise ValueError(f"unsupported #modeh head form: {s}")
 
 
-def _head_atom(raw: str, declaration: str) -> ModeDeclaration:
-    predicate, arguments = _get_mode_atom(raw, declaration)
-    return ModeDeclaration(1, predicate, arguments, True, True)
+def _head_atom(raw: str, declaration: str) -> AtomTemplate:
+    return _get_mode_atom(raw, declaration)
 
 
 def _head_bound(guard: ast.AST | None, declaration: str) -> int | None:
@@ -92,9 +184,14 @@ def _head_bound(guard: ast.AST | None, declaration: str) -> int | None:
         raise ValueError(f"#modeh cardinality bounds must be integers: {declaration}") from exc
 
 
-def _get_mode_atom(raw: str, declaration: str) -> tuple[str, tuple[ModeArgument, ...]]:
+def _get_mode_atom(raw: str, declaration: str) -> AtomTemplate:
     raw = raw.strip()
-    if raw == "not" or re.match(r"not\s+", raw) or raw.startswith("-"):
+    if raw == "not" or re.match(r"not\s+", raw):
+        raise ValueError(f"invalid mode atom: {declaration}")
+    strong = raw.startswith("-")
+    if strong:
+        raw = raw[1:].strip()
+    if raw.startswith("-"):
         raise ValueError(f"invalid mode atom: {declaration}")
     parsed = parse_atom(raw)
     if parsed is None:
@@ -102,13 +199,25 @@ def _get_mode_atom(raw: str, declaration: str) -> tuple[str, tuple[ModeArgument,
     name, raw_arguments = parsed
     if name == "not" or not re.fullmatch(r"[a-z][A-Za-z0-9_]*", name):
         raise ValueError(f"invalid mode predicate: {declaration}")
-    return name, tuple(
-        _get_mode_argument(argument, declaration) for argument in raw_arguments
+    return AtomTemplate(
+        name,
+        tuple(_get_mode_argument(argument, declaration) for argument in raw_arguments),
+        strong,
     )
 
 
-def _get_mode_argument(raw: str, declaration: str) -> ModeArgument:
-    parsed = parse_atom(raw.strip())
+def _get_mode_argument(raw: str, declaration: str) -> TermTemplate:
+    raw = raw.strip()
+    if raw.startswith("(") and raw.endswith(")"):
+        inner = raw[1:-1].strip()
+        parts = split_top_level_args(inner)
+        if len(parts) == 1 and not inner.endswith(","):
+            raise ValueError(f"invalid mode tuple: {declaration}")
+        return TermTemplate(
+            "tuple",
+            arguments=tuple(_get_mode_argument(part, declaration) for part in parts),
+        )
+    parsed = parse_atom(raw)
     if parsed is None:
         raise ValueError(f"invalid mode argument: {declaration}")
     kind, parts = parsed
@@ -116,12 +225,20 @@ def _get_mode_argument(raw: str, declaration: str) -> ModeArgument:
         type_name, direction = (part.strip() for part in parts[:2])
         label = parts[2].strip() if len(parts) == 3 else ""
         _validate_type(type_name, declaration)
-        return ModeArgument("variable", type_name, direction, label)
+        return TermTemplate.variable(type_name, direction, label)
     if kind == "const" and len(parts) == 1:
         type_name = parts[0].strip()
         _validate_type(type_name, declaration)
-        return ModeArgument("constant", type_name)
-    raise ValueError(f"invalid mode argument: {declaration}")
+        return TermTemplate.constant(type_name)
+    if kind in {"var", "const", "not"} or not parts:
+        raise ValueError(f"invalid mode argument: {declaration}")
+    if not re.fullmatch(r"[a-z][A-Za-z0-9_]*", kind):
+        raise ValueError(f"invalid mode function: {declaration}")
+    return TermTemplate(
+        "function",
+        kind,
+        tuple(_get_mode_argument(part, declaration) for part in parts),
+    )
 
 
 def _validate_type(type_name: str, declaration: str) -> None:
@@ -163,15 +280,17 @@ def _get_operator_declaration(s: str, name: str) -> OperatorDeclaration:
     return OperatorDeclaration(_parse_recall(parts[0]), parts[1].strip())
 
 
-def _get_invented_declaration(s: str) -> tuple[int, str, tuple[ModeArgument, ...]]:
+def _get_invented_declaration(s: str) -> tuple[int, str, tuple[TermTemplate, ...]]:
     parts = split_top_level_args(_directive_args(s, "#invent"))
     if len(parts) != 2:
         raise ValueError(f"invalid #invent declaration: {s}")
     recall = _parse_recall(parts[0])
-    name, arguments = _get_mode_atom(parts[1], s)
+    atom = _get_mode_atom(parts[1], s)
+    if atom.strong:
+        raise ValueError(f"invented predicates cannot be strongly negated: {s}")
     if recall < 1:
         raise ValueError(f"invalid #invent declaration: {s}")
-    return recall, name, arguments
+    return recall, atom.name, atom.terms
 
 
 def _get_constant_declaration(s: str) -> tuple[str, str]:
@@ -219,7 +338,7 @@ def _strip_outer_braces(value: str) -> str:
     return value[1:-1].strip()
 
 
-def read_program(filename: str):
+def read_program(filename: str) -> Program:
     """
     Read the inductive task from file.
     """
@@ -227,11 +346,13 @@ def read_program(filename: str):
     pe: list[Example] = []
     ne: list[Example] = []
     lbh: list[HeadDeclaration] = []
+    lbha: list[ModeDeclaration] = []
     lbb: list[ModeDeclaration] = []
+    lbc: list[ModeDeclaration] = []
     aggregates: list[AggregateDeclaration] = []
     comparisons: list[OperatorDeclaration] = []
     arithmetic: list[OperatorDeclaration] = []
-    inventions: list[tuple[int, str, tuple[ModeArgument, ...]]] = []
+    inventions: list[tuple[int, str, tuple[TermTemplate, ...]]] = []
     constants: dict[str, list[str]] = {}
     limits: dict[str, int | None] = {
         "#maxv": 3,
@@ -239,9 +360,11 @@ def read_program(filename: str):
         "#maxhl": 1,
         "#maxpl": 6,
     }
+    min_head_literals = 1
     declared_limits: set[str] = set()
 
-    for line in Path(filename).read_text(encoding="utf-8").splitlines():
+    source, bias = _extract_bias(Path(filename).read_text(encoding="utf-8"))
+    for line in source.splitlines():
         lc = line.rstrip().lstrip()
         if not lc or lc.startswith("%"):
             continue
@@ -249,7 +372,7 @@ def read_program(filename: str):
         limit = next(
             (
                 name
-                for name in ("#maxv", "#maxbl", "#maxhl", "#maxpl")
+                for name in ("#maxv", "#maxbl", "#maxhl", "#maxpl", "#minhl")
                 if lc.startswith(f"{name}(")
             ),
             None,
@@ -258,13 +381,25 @@ def read_program(filename: str):
             if limit in declared_limits:
                 raise ValueError(f"duplicate {limit} declaration: {lc}")
             declared_limits.add(limit)
-            limits[limit] = _get_limit(lc, limit, limit in {"#maxv", "#maxhl"})
+            value = _get_limit(
+                lc, limit, limit in {"#maxv", "#maxbl", "#maxhl"}
+            )
+            if limit == "#minhl":
+                if value is None:
+                    raise ValueError(f"invalid #minhl declaration: {lc}")
+                min_head_literals = value
+            else:
+                limits[limit] = value
+        elif lc.startswith("#modeha"):
+            md = _get_aggregate_head_declaration(lc)
+            if md not in lbha:
+                lbha.append(md)
         elif lc.startswith("#modeh"):
             md = _get_head_declaration(lc)
             if md not in lbh:
                 lbh.append(md)
         elif lc.startswith("#modeb"):
-            md = _get_mode_declaration(lc, False)
+            md = _get_body_mode_declaration(lc)
             if md not in lbb:
                 lbb.append(md)
         elif lc.startswith("#pos"):
@@ -285,6 +420,10 @@ def read_program(filename: str):
             comparison = _get_operator_declaration(lc, "#modecmp")
             if comparison not in comparisons:
                 comparisons.append(comparison)
+        elif lc.startswith("#modec"):
+            md = _get_condition_mode_declaration(lc)
+            if md not in lbc:
+                lbc.append(md)
         elif lc.startswith("#modearith"):
             operator = _get_operator_declaration(lc, "#modearith")
             if operator not in arithmetic:
@@ -305,38 +444,44 @@ def read_program(filename: str):
     invented_predicates = tuple(
         (name, len(arguments)) for _recall, name, arguments in inventions
     )
-    explicit = {
-        (mode.name, mode.arity)
-        for mode in [
-            *(atom for head in lbh for atom in head.atoms),
-            *lbb,
-        ]
-    }
+    explicit = (
+        {atom.signature for head in lbh for atom in head.template.elements}
+        | {mode.literal.atom.signature for mode in lbha}
+        | {mode.literal.atom.signature for mode in lbb}
+    )
     overlap = explicit.intersection(invented_predicates)
     if overlap:
         raise ValueError(
-            f"invented predicates must not also use #modeh/#modeb: {sorted(overlap)}"
+            "invented predicates must not also use #modeh/#modeha/#modeb: "
+            f"{sorted(overlap)}"
         )
     for recall, name, arguments in inventions:
         lbh.append(
-            HeadDeclaration(
-                1,
-                "normal",
-                (ModeDeclaration(1, name, arguments, True, True),),
-            )
+            HeadDeclaration(1, HeadTemplate("normal", (AtomTemplate(name, arguments),)))
         )
-        lbb.append(ModeDeclaration(recall, name, arguments, True, False))
+        lbb.append(ModeDeclaration(recall, AtomLiteral(AtomTemplate(name, arguments))))
     constant_types = {
-        argument.type
-        for mode in [*(atom for head in lbh for atom in head.atoms), *lbb]
-        for argument in mode.arguments
-        if argument.kind == "constant"
+        type_name
+        for atom in [
+            *(atom for head in lbh for atom in head.template.elements),
+            *(mode.literal.atom for mode in lbha),
+            *(mode.literal.atom for mode in (*lbb, *lbc)),
+        ]
+        for argument in atom.terms
+        for type_name in argument.constant_types()
     }
     missing_constants = constant_types - constants.keys()
     if missing_constants:
         raise ValueError(
             f"constant mode types require #constant declarations: {sorted(missing_constants)}"
         )
+    max_head_literals = limits["#maxhl"]
+    if (
+        lbha
+        and max_head_literals is not None
+        and min_head_literals > max_head_literals
+    ):
+        raise ValueError("#minhl cannot exceed #maxhl")
     return Program(
         bg,
         pe,
@@ -346,10 +491,14 @@ def read_program(filename: str):
         aggregates,
         comparisons,
         arithmetic,
+        language_bias_condition=lbc,
         invented_predicates=invented_predicates,
         constants={name: tuple(values) for name, values in constants.items()},
         max_variables=limits["#maxv"],
         max_body_literals=limits["#maxbl"],
-        max_head_literals=limits["#maxhl"],
+        max_head_literals=max_head_literals,
         max_program_clauses=limits["#maxpl"],
+        language_bias_aggregate_head=lbha,
+        min_aggregate_head_literals=min_head_literals,
+        bias=bias,
     )

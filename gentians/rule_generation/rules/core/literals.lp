@@ -43,6 +43,9 @@ non_normal_mode(Mode):- arithmetic_mode(Mode).
 % Mode is declared by Python through aggregate_mode/3.
 non_normal_mode(Mode):- aggregate_mode(Mode,_,_).
 
+% Rule: conditional literals carry one conclusion plus #modec conditions.
+non_normal_mode(Mode):- conditional_mode(Mode,_,_).
+
 % Rule: any selected mode not classified as operator/aggregate is normal.
 % Section/Mode come from mode/5. The negated non_normal_mode check keeps normal
 % predicate atoms separate from comparisons, arithmetic, and aggregates.
@@ -89,3 +92,6 @@ negative_body_literal(Slot,Mode,Pred,Arity):-
 % Arity identify the selected head literal.
 head_literal(Slot,Mode,Pred,Arity):-
     positive_normal_literal(head,Slot,Mode,Pred,Arity).
+
+head_literal(Slot,Mode,Pred,Arity):-
+    conditional_head_literal(Slot,Mode,Pred,Arity).

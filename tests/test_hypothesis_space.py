@@ -10,7 +10,12 @@ from gentians.arguments import Arguments
 from gentians.asp.normal_coverage_solver import NormalCoverageSolver
 from gentians import timing
 from gentians.rule_generation import hypothesis_space
-from gentians.rule_generation.parser import extract_name_arity, fragment_atoms, parse_atom
+from gentians.rule_generation.parser import (
+    clause_predicates,
+    extract_name_arity,
+    fragment_atoms,
+    parse_atom,
+)
 from gentians.rule_generation.reader import read_program
 from gentians.rule_generation.hypothesis_space import (
     HypothesisSpaceGenerator,
@@ -22,19 +27,26 @@ from gentians.rule_generation.arithmetic_system import (
     canonical_arithmetic_clause,
 )
 from gentians.rule_generation.linear_constraint import LinearConstraint
-from gentians.rule_generation.hypothesis_mode import HypothesisMode
+from gentians.rule_generation.literal_template import render_literal
 from gentians.rule_generation.aggregate_declaration import AggregateDeclaration
-from gentians.rule_generation.arithmetic_template import ArithmeticTemplate
 from gentians.rule_generation.expression_constraint import ExpressionConstraint
 from gentians.rule_generation.example import Example
+from gentians.rule_generation.aggregate_literal import AggregateLiteral
+from gentians.rule_generation.arithmetic_literal import ArithmeticLiteral
+from gentians.rule_generation.atom_literal import AtomLiteral
+from gentians.rule_generation.atom_template import AtomTemplate
+from gentians.rule_generation.comparison_literal import ComparisonLiteral
+from gentians.rule_generation.conditional_literal import ConditionalLiteral
 from gentians.rule_generation.head_declaration import HeadDeclaration
-from gentians.rule_generation.mode_argument import ModeArgument
+from gentians.rule_generation.head_template import HeadTemplate
+from gentians.rule_generation.hypothesis_mode import HypothesisMode
 from gentians.rule_generation.mode_declaration import ModeDeclaration
 from gentians.rule_generation.operator_declaration import OperatorDeclaration
 from gentians.rule_generation.program import Program
 from gentians.rule_generation.reified_clause import ReifiedClause
 from gentians.rule_generation.reified_literal import ReifiedLiteral
 from gentians.rule_generation.rule_space import RuleSpace
+from gentians.rule_generation.term_template import TermTemplate
 
 
 def _generate(program, max_body_literals=3, max_variables=3):
@@ -52,14 +64,84 @@ def _mode(
     positive: bool = True,
     type_name: str = "numeric",
 ) -> ModeDeclaration | HeadDeclaration:
-    mode = ModeDeclaration(
-        recall,
+    atom = AtomTemplate(
         name,
-        tuple(ModeArgument("variable", type_name, "any") for _ in range(arity)),
-        positive,
+        tuple(TermTemplate.variable(type_name, "any") for _ in range(arity)),
+    )
+    return (
+        HeadDeclaration(recall, HeadTemplate("normal", (atom,)))
+        if head
+        else ModeDeclaration(recall, AtomLiteral(atom, not positive))
+    )
+
+
+def _normal_hypothesis_mode(
+    id: int,
+    recall_group: int,
+    section: str,
+    name: str,
+    arity: int,
+    recall: int,
+    *,
+    positive: bool = True,
+    types: tuple[str, ...] = (),
+    fixed: tuple[str | None, ...] = (),
+    head_form: int | None = None,
+) -> HypothesisMode:
+    terms = tuple(
+        TermTemplate.fixed(value)
+        if value is not None
+        else TermTemplate.variable(types[index] if types else "any", "")
+        for index, value in enumerate(fixed or (None,) * arity)
+    )
+    head = HeadTemplate("normal", (AtomTemplate(name, terms),)) if section == "head" else None
+    return HypothesisMode(
+        id,
+        recall_group,
+        section,
+        recall,
+        AtomLiteral(AtomTemplate(name, terms), not positive),
+        head_form,
+        0,
         head,
     )
-    return HeadDeclaration(recall, "normal", (mode,)) if head else mode
+
+
+def _arithmetic_hypothesis_mode(
+    id: int,
+    arity: int,
+    operator: str,
+    recall: int = 1,
+) -> HypothesisMode:
+    assert arity == 3
+    return HypothesisMode(
+        id,
+        id,
+        "body",
+        recall,
+        ArithmeticLiteral(
+            TermTemplate(
+                "arithmetic",
+                operator,
+                (
+                    TermTemplate.variable("numeric", ""),
+                    TermTemplate.variable("numeric", ""),
+                ),
+            ),
+            TermTemplate.variable("numeric", ""),
+        ),
+    )
+
+
+def _comparison_hypothesis_mode(id: int, operator: str) -> HypothesisMode:
+    term = TermTemplate.variable("any", "")
+    return HypothesisMode(
+        id,
+        id,
+        "body",
+        1,
+        ComparisonLiteral(operator, (term, term)),
+    )
 
 
 def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypatch):
@@ -195,13 +277,14 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
             0,
             0,
             "body",
-            "comparison",
-            "",
-            2,
             1,
-            True,
-            operator="<",
-            arg_types=("numeric", "numeric"),
+            ComparisonLiteral(
+                "<",
+                (
+                    TermTemplate.variable("numeric", ""),
+                    TermTemplate.variable("numeric", ""),
+                ),
+            ),
         )
     ]
     facts = hypothesis_space._facts(
@@ -224,18 +307,7 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
 
 def test_facts_do_not_emit_redundant_arithmetic_mode():
     modes = [
-        HypothesisMode(
-            0,
-            0,
-            "body",
-            "arithmetic",
-            "",
-            3,
-            1,
-            True,
-            arg_types=("numeric", "numeric", "numeric"),
-            arithmetic=ArithmeticTemplate("+"),
-        )
+        _arithmetic_hypothesis_mode(0, 3, "+")
     ]
     facts = hypothesis_space._facts(
         Program([], [], [], [], [], [], [], [OperatorDeclaration(1, "add")]),
@@ -256,15 +328,8 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
     facts = hypothesis_space._facts(
         Program([], [], [], [], []),
         [
-        HypothesisMode(
-                0,
-                0,
-                "body",
-                "normal",
-                "p",
-                2,
-                1,
-                arg_types=("numeric", "any"),
+            _normal_hypothesis_mode(
+                0, 0, "body", "p", 2, 1, types=("numeric", "any")
             )
         ],
         {("p", 2, 0): "numeric"},
@@ -400,6 +465,68 @@ def test_atom_parser_handles_nested_arguments():
     )
 
 
+def test_recursive_syntax_tracks_nested_bindings_and_renders_concrete_terms():
+    term = TermTemplate(
+        "function",
+        "pair",
+        (
+            TermTemplate.variable("node", "input"),
+            TermTemplate(
+                "tuple",
+                arguments=(
+                    TermTemplate.constant("symbol"),
+                    TermTemplate.variable("node", "output"),
+                ),
+            ),
+        ),
+    )
+    concrete = term.concretizations({"symbol": ("a",)})[0]
+    literal = AtomLiteral(AtomTemplate("nested", (concrete,)))
+
+    assert [binding.path for binding in literal.atom.bindings()] == [
+        (0, 0),
+        (0, 1, 1),
+    ]
+    assert render_literal(literal, (2, 5)) == "nested(pair(V2,(a,V5)))"
+
+
+def test_reader_parses_recursive_function_and_tuple_mode_terms(tmp_path):
+    task = tmp_path / "structured-reader.txt"
+    task.write_text(
+        "#modeh(1,target(box(var(node,input,x),"
+        "pair((const(colour),var(node,output,y)))))).\n"
+        "#constant(colour,red).\n",
+        encoding="utf-8",
+    )
+
+    atom = read_program(str(task)).language_bias_head[0].template.elements[0]
+
+    assert atom.terms[0].kind == "function"
+    assert atom.terms[0].value == "box"
+    assert atom.terms[0].arguments[1].arguments[0].kind == "tuple"
+    assert [binding.path for binding in atom.bindings()] == [
+        (0, 0),
+        (0, 1, 0, 1),
+    ]
+    assert [binding.label for binding in atom.bindings()] == ["x", "y"]
+
+
+def test_reader_rejects_invalid_recursive_mode_terms(tmp_path):
+    declarations = (
+        "#modeb(1,p(f)).",
+        "#modeb(1,p((var(node,input)))).",
+        "#modeb(1,p(var(node,input,extra,label))).",
+        "#modeb(1,p(f(not))).",
+        "#modeb(1,p(f(var(node,input,label)))).",
+    )
+
+    for index, declaration in enumerate(declarations):
+        task = tmp_path / f"invalid-structured-{index}.txt"
+        task.write_text(declaration + "\n", encoding="utf-8")
+        with pytest.raises(ValueError):
+            read_program(str(task))
+
+
 def test_closed_world_extensions_ignore_compound_variable_terms():
     extensions = hypothesis_space._closed_world_extensions(
         [
@@ -439,15 +566,7 @@ def test_star_recall_uses_section_limit():
     facts = hypothesis_space._facts(
         Program([], [], [], [], [mode]),
         [
-        HypothesisMode(
-                0,
-                0,
-                "body",
-                "normal",
-                "p",
-                1,
-                mode.recall,
-            )
+            _normal_hypothesis_mode(0, 0, "body", "p", 1, mode.recall)
         ],
         {},
         2,
@@ -466,8 +585,8 @@ def test_group_recall_uses_tightest_mode_recall():
     facts = hypothesis_space._facts(
         Program([], [], [], [], []),
         [
-            HypothesisMode(0, 7, "body", "normal", "p", 1, 3),
-            HypothesisMode(1, 7, "body", "normal", "q", 1, 1),
+            _normal_hypothesis_mode(0, 7, "body", "p", 1, 3),
+            _normal_hypothesis_mode(1, 7, "body", "q", 1, 1),
         ],
         {("p", 1): 0, ("q", 1): 1},
         3,
@@ -522,9 +641,67 @@ def test_reader_uses_not_for_body_mode_polarity(tmp_path):
     program = read_program(str(task))
 
     assert [
-        (mode.recall, mode.name, mode.positive)
+        (
+            mode.recall,
+            mode.literal.atom.name,
+            not mode.literal.default_negated,
+        )
         for mode in program.language_bias_body
     ] == [(1, "p", True), (2, "p", False), (1, "notable", True)]
+
+
+def test_reader_keeps_strong_and_default_negation_independent(tmp_path):
+    task = tmp_path / "strong-negation.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "#modeh(1,-p(var(person,input))).",
+                "#modeb(1,-q(var(person,input))).",
+                "#modeb(1,not -r(var(person,input))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+    head = program.language_bias_head[0].template.elements[0]
+    positive_body = program.language_bias_body[0].literal
+    default_negative_body = program.language_bias_body[1].literal
+
+    assert head.signature == ("-p", 1)
+    assert head.unsigned_signature == ("p", 1)
+    assert head.render(iter(("V0",))) == "-p(V0)"
+    assert positive_body.atom.signature == ("-q", 1)
+    assert not positive_body.default_negated
+    assert default_negative_body.atom.signature == ("-r", 1)
+    assert default_negative_body.default_negated
+    assert default_negative_body.render(iter(("V0",))) == "not -r(V0)"
+    generator = HypothesisSpaceGenerator(program, Arguments())
+    assert generator.predicate_arg_types[("p", 1, 0)] == "person"
+    assert ("-p", 1, 0) not in generator.predicate_arg_types
+
+
+def test_parser_preserves_strong_negation_in_atoms_and_rule_dependencies():
+    assert fragment_atoms("-p(a), not -q(a)") == (
+        ("-p", ("a",), False),
+        ("-q", ("a",), True),
+    )
+    assert clause_predicates("-p(X) :- q(X), not -r(X).") == (
+        frozenset((("-p", 1),)),
+        frozenset((("q", 1), ("-r", 1))),
+        2,
+    )
+
+
+def test_dependency_closure_does_not_confuse_positive_and_strong_providers():
+    from gentians.evolution.program_generators.common import prepare_space
+
+    space = RuleSpace.from_clauses(["target(X) :- -source(X)."])
+    positive_background = Program(["source(a)."], [], [], [], [])
+    strong_background = Program(["-source(a)."], [], [], [], [])
+
+    assert not prepare_space(positive_background, space)
+    assert prepare_space(strong_background, space).clauses == space.clauses
 
 
 @pytest.mark.parametrize(
@@ -534,7 +711,6 @@ def test_reader_uses_not_for_body_mode_polarity(tmp_path):
         "#modeh(1,not p(var(person,input))).",
         "#modeb(1,not not p(var(person,input))).",
         "#modeb(1,not).",
-        "#modeb(1,-p(var(person,input))).",
         "#modeb(1,not(var(person,input))).",
     ],
 )
@@ -582,6 +758,10 @@ def test_constant_modes_expand_declared_ground_terms_without_variables(tmp_path)
 
     assert program.constants == {"symbol": ("a", "b")}
     assert set(clauses) == {
+        ":- q(a).",
+        ":- q(b).",
+        "p(a).",
+        "p(b).",
         "p(a) :- q(a).",
         "p(a) :- q(b).",
         "p(b) :- q(a).",
@@ -673,11 +853,20 @@ def test_invent_replaces_head_and_body_modes(tmp_path):
 
     assert program.invented_predicates == (("helper", 2),)
     assert [
-        (head.recall, head.atoms[0].name, head.atoms[0].arity)
+        (
+            head.recall,
+            head.template.elements[0].name,
+            len(head.template.elements[0].terms),
+        )
         for head in program.language_bias_head
     ] == [(1, "helper", 2)]
     assert [
-        (mode.recall, mode.name, mode.arity, mode.positive)
+        (
+            mode.recall,
+            mode.literal.atom.name,
+            len(mode.literal.atom.terms),
+            not mode.literal.default_negated,
+        )
         for mode in program.language_bias_body
     ] == [(2, "helper", 2, True)]
 
@@ -843,7 +1032,11 @@ def test_hypothesis_space_keeps_task_declared_unobserved_body_modes():
     clauses = generator.generate().clauses
 
     assert "target(V0) :- base(V0)." in clauses
-    assert any(mode.name == "ghost" for mode in generator.modes)
+    assert any(
+        isinstance(mode.literal, AtomLiteral)
+        and mode.literal.atom.name == "ghost"
+        for mode in generator.modes
+    )
     assert not any("ghost(" in clause for clause in clauses)
 
 
@@ -1052,6 +1245,115 @@ def test_linear_canonicalization_merges_equivalent_add_sub_equations():
     assert arithmetic == {":- q(V0,V1,V2),V0+V1-V2=0."}
 
 
+def test_nested_constants_expand_and_structured_modes_render(tmp_path):
+    task = tmp_path / "structured-generation.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "source(box(a,red)).",
+                "source(box(a,blue)).",
+                "#constant(colour,red).",
+                "#constant(colour,blue).",
+                "#maxv(1).",
+                "#maxbl(1).",
+                "#maxhl(1).",
+                "#modeh(1,target(box(var(node,output),const(colour)))).",
+                "#modeb(1,source(box(var(node,output),const(colour)))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = set(
+        HypothesisSpaceGenerator(read_program(str(task)), Arguments())
+        .generate()
+        .clauses
+    )
+
+    assert "target(box(V0,red)) :- source(box(V0,red))." in clauses
+    assert "target(box(V0,red)) :- source(box(V0,blue))." in clauses
+    assert "target(box(V0,blue)) :- source(box(V0,red))." in clauses
+    assert "target(box(V0,blue)) :- source(box(V0,blue))." in clauses
+
+
+def test_empty_and_singleton_tuples_render_as_asp_tuples(tmp_path):
+    task = tmp_path / "tuple-arities.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "source((a,),()).",
+                "#maxv(1).",
+                "#maxbl(1).",
+                "#maxhl(1).",
+                "#modeh(1,target((var(node,output),),())).",
+                "#modeb(1,source((var(node,output),),())).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "target((V0,),()) :- source((V0,),())." in clauses
+
+
+def test_flat_constants_keep_outer_argument_positions(tmp_path):
+    task = tmp_path / "flat-constant-position.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "source(a,1).",
+                "#constant(symbol,a).",
+                "#maxv(1).",
+                "#maxbl(1).",
+                "#maxhl(1).",
+                "#modeh(1,target(var(number,output))).",
+                "#modeb(1,source(const(symbol),var(number,output))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+    generator = HypothesisSpaceGenerator(program, Arguments())
+    body_mode = next(mode for mode in generator.modes if mode.section == "body")
+    facts = hypothesis_space._facts(
+        program,
+        generator.modes,
+        generator.predicate_arg_types,
+        generator.max_variables,
+        generator.head_slots,
+        generator.body_slots,
+    )
+
+    assert f"mode_variable_arg({body_mode.id},1)." in facts
+    assert "target(V0) :- source(a,V0)." in generator.generate().clauses
+
+
+def test_nested_constant_requires_declaration(tmp_path):
+    task = tmp_path / "missing-nested-constant.txt"
+    task.write_text(
+        "#modeh(1,target(box(const(colour)))).\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="colour"):
+        read_program(str(task))
+
+
+def test_default_negated_structured_mode_cannot_hide_output(tmp_path):
+    task = tmp_path / "negative-structured-output.txt"
+    task.write_text(
+        "#modeb(1,not source(box(var(node,output)))).\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="cannot produce output"):
+        read_program(str(task))
+
+
 @pytest.mark.parametrize("recall", [1, -1])
 def test_linear_canonicalization_normalizes_sub_only_bias(recall):
     program = Program(
@@ -1067,15 +1369,36 @@ def test_linear_canonicalization_normalizes_sub_only_bias(recall):
     )
 
     generator = HypothesisSpaceGenerator(program, Arguments())
-    arithmetic_modes = [mode for mode in generator.modes if mode.kind == "arithmetic"]
+    arithmetic_modes = [
+        mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
+    ]
     assert len(arithmetic_modes) == 1
     assert arithmetic_modes[0].recall == recall
-    assert arithmetic_modes[0].arithmetic == ArithmeticTemplate(
-        "+", (1, 1, -1), 1
-    )
+    assert arithmetic_modes[0].literal.operator == "+"
+    assert arithmetic_modes[0].literal.coefficients == (1, 1, -1)
     assert any(
         "V0-V1-V2=0" in clause for clause in generator.generate().clauses
     )
+
+
+def test_invention_preserves_structured_argument_templates(tmp_path):
+    task = tmp_path / "structured-invention.txt"
+    task.write_text(
+        "#invent(1,helper(box(var(term,input),var(term,output)))).\n",
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+    head_atom = program.language_bias_head[0].template.elements[0]
+    body_atom = program.language_bias_body[0].literal.atom
+
+    assert program.invented_predicates == (("helper", 1),)
+    assert head_atom == body_atom
+    assert head_atom.terms[0].kind == "function"
+    assert [binding.direction for binding in head_atom.bindings()] == [
+        "input",
+        "output",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -1117,7 +1440,9 @@ def test_additive_modes_share_one_canonical_mode_with_combined_recall(
     )
 
     generator = HypothesisSpaceGenerator(program, Arguments())
-    arithmetic_modes = [mode for mode in generator.modes if mode.kind == "arithmetic"]
+    arithmetic_modes = [
+        mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
+    ]
     assert arithmetic_modes
     assert arithmetic_modes[0].recall == expected_recalls[0]
 
@@ -1140,10 +1465,10 @@ def test_inverse_comparisons_share_one_mode_with_combined_recall():
     comparisons = [
         mode
         for mode in HypothesisSpaceGenerator(program, Arguments()).modes
-        if mode.kind == "comparison"
+        if isinstance(mode.literal, ComparisonLiteral)
     ]
 
-    assert [(mode.operator, mode.recall) for mode in comparisons] == [
+    assert [(mode.literal.operator, mode.recall) for mode in comparisons] == [
         ("<", 3),
         ("<=", 7),
     ]
@@ -1180,7 +1505,13 @@ def test_linear_modes_render_direct_equations_with_bounded_complexity():
         max_variables=5,
     )
     generator = HypothesisSpaceGenerator(program, Arguments())
-    assert len([mode for mode in generator.modes if mode.kind == "arithmetic"]) == 1
+    assert len(
+        [
+            mode
+            for mode in generator.modes
+            if isinstance(mode.literal, ArithmeticLiteral)
+        ]
+    ) == 1
     assert any("V0+V1-V2-V3=0" in clause for clause in generator.generate().clauses)
 
 
@@ -1199,10 +1530,12 @@ def test_linear_mode_complexity_is_capped_by_body_limit():
 
     generator = HypothesisSpaceGenerator(program, Arguments())
 
-    arithmetic_modes = [mode for mode in generator.modes if mode.kind == "arithmetic"]
+    arithmetic_modes = [
+        mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
+    ]
     assert len(arithmetic_modes) == 1
     assert arithmetic_modes[0].recall == 100
-    assert arithmetic_modes[0].arithmetic.complexity == 1
+    assert arithmetic_modes[0].literal.complexity == 1
 
 
 def test_direct_linear_equation_can_safely_produce_a_head_variable():
@@ -1213,14 +1546,13 @@ def test_direct_linear_equation_can_safely_produce_a_head_variable():
         [
             HeadDeclaration(
                 1,
-                "normal",
-                (
-                    ModeDeclaration(
-                        1,
-                        "target",
-                        (ModeArgument("variable", "numeric", "output"),),
-                        True,
-                        True,
+                HeadTemplate(
+                    "normal",
+                    (
+                        AtomTemplate(
+                            "target",
+                            (TermTemplate.variable("numeric", "output"),),
+                        ),
                     ),
                 ),
             )
@@ -1241,11 +1573,9 @@ def test_direct_linear_equation_can_safely_produce_a_head_variable():
 
 def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
     modes = {
-        0: HypothesisMode(
-            0, 0, "body", "normal", "q", 3, 1, fixed_arguments=(None,) * 3
-        ),
-        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("+")),
-        2: HypothesisMode(2, 2, "body", "comparison", "", 2, 1, operator="<"),
+        0: _normal_hypothesis_mode(0, 0, "body", "q", 3, 1),
+        1: _arithmetic_hypothesis_mode(1, 3, "+"),
+        2: _comparison_hypothesis_mode(2, "<"),
     }
     clause = ReifiedClause(
         (),
@@ -1263,7 +1593,7 @@ def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
 
     equivalent_modes = {
         **modes,
-        3: HypothesisMode(3, 3, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("-")),
+        3: _arithmetic_hypothesis_mode(3, 3, "-"),
     }
     equivalent = ReifiedClause(
         (),
@@ -1281,7 +1611,7 @@ def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
 
     disequality_modes = {
         **modes,
-        2: HypothesisMode(2, 2, "body", "comparison", "", 2, 1, operator="!="),
+        2: _comparison_hypothesis_mode(2, "!="),
     }
     disequality = canonical_arithmetic_clause(clause, disequality_modes, 4)
 
@@ -1291,12 +1621,10 @@ def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
 
 def test_linear_canonicalization_keeps_disconnected_constraints_separate():
     modes = {
-        0: HypothesisMode(
-            0, 0, "body", "normal", "q", 5, 1, fixed_arguments=(None,) * 5
-        ),
-        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("+")),
-        2: HypothesisMode(2, 2, "body", "comparison", "", 2, 1, operator="<"),
-        3: HypothesisMode(3, 3, "body", "comparison", "", 2, 1, operator="!="),
+        0: _normal_hypothesis_mode(0, 0, "body", "q", 5, 1),
+        1: _arithmetic_hypothesis_mode(1, 3, "+"),
+        2: _comparison_hypothesis_mode(2, "<"),
+        3: _comparison_hypothesis_mode(3, "!="),
     }
     clause = ReifiedClause(
         (),
@@ -1316,22 +1644,11 @@ def test_linear_canonicalization_keeps_disconnected_constraints_separate():
 
 def test_linear_canonicalization_preserves_unsafe_output_assignment():
     modes = {
-        0: HypothesisMode(
-            0,
-            0,
-            "head",
-            "normal",
-            "target",
-            1,
-            1,
-            fixed_arguments=(None,),
-            head_form=0,
-            head_kind="normal",
+        0: _normal_hypothesis_mode(
+            0, 0, "head", "target", 1, 1, head_form=0
         ),
-        1: HypothesisMode(
-            1, 1, "body", "normal", "p", 1, 1, fixed_arguments=(None,)
-        ),
-        2: HypothesisMode(2, 2, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("+")),
+        1: _normal_hypothesis_mode(1, 1, "body", "p", 1, 1),
+        2: _arithmetic_hypothesis_mode(2, 3, "+"),
     }
     clause = ReifiedClause(
         (ReifiedLiteral("head", 0, 0, (1,)),),
@@ -1350,11 +1667,9 @@ def test_linear_canonicalization_preserves_unsafe_output_assignment():
 
 def test_linear_canonicalization_preserves_components_with_multiplication():
     modes = {
-        0: HypothesisMode(
-            0, 0, "body", "normal", "q", 4, 1, fixed_arguments=(None,) * 4
-        ),
-        1: HypothesisMode(1, 1, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("+")),
-        2: HypothesisMode(2, 2, "body", "arithmetic", "", 3, 1, arithmetic=ArithmeticTemplate("*")),
+        0: _normal_hypothesis_mode(0, 0, "body", "q", 4, 1),
+        1: _arithmetic_hypothesis_mode(1, 3, "+"),
+        2: _arithmetic_hypothesis_mode(2, 3, "*"),
     }
     clause = ReifiedClause(
         (),
@@ -1378,29 +1693,12 @@ def test_linear_canonicalization_preserves_components_with_multiplication():
 
 def test_arithmetic_system_inlines_mixed_nonlinear_auxiliaries():
     modes = {
-        0: HypothesisMode(
-            0,
-            0,
-            "head",
-            "normal",
-            "target",
-            1,
-            1,
-            fixed_arguments=(None,),
-            head_form=0,
-            head_kind="normal",
+        0: _normal_hypothesis_mode(
+            0, 0, "head", "target", 1, 1, head_form=0
         ),
-        1: HypothesisMode(
-            1, 1, "body", "normal", "q", 3, 1, fixed_arguments=(None,) * 3
-        ),
-        2: HypothesisMode(
-            2, 2, "body", "arithmetic", "", 3, 1,
-            arithmetic=ArithmeticTemplate("+"),
-        ),
-        3: HypothesisMode(
-            3, 3, "body", "arithmetic", "", 3, 1,
-            arithmetic=ArithmeticTemplate("*"),
-        ),
+        1: _normal_hypothesis_mode(1, 1, "body", "q", 3, 1),
+        2: _arithmetic_hypothesis_mode(2, 3, "+"),
+        3: _arithmetic_hypothesis_mode(3, 3, "*"),
     }
     clause = ReifiedClause(
         (ReifiedLiteral("head", 0, 0, (4,)),),
@@ -1436,18 +1734,10 @@ def test_arithmetic_expression_key_normalizes_associativity_and_signs():
 
 def test_arithmetic_system_preserves_multiple_definitions_of_an_auxiliary():
     modes = {
-        0: HypothesisMode(
-            0, 0, "body", "normal", "q", 4, 1, fixed_arguments=(None,) * 4
-        ),
-        1: HypothesisMode(
-            1, 1, "body", "arithmetic", "", 3, 1,
-            arithmetic=ArithmeticTemplate("+"),
-        ),
-        2: HypothesisMode(
-            2, 2, "body", "arithmetic", "", 3, 1,
-            arithmetic=ArithmeticTemplate("*"),
-        ),
-        3: HypothesisMode(3, 3, "body", "comparison", "", 2, 1, operator="<"),
+        0: _normal_hypothesis_mode(0, 0, "body", "q", 4, 1),
+        1: _arithmetic_hypothesis_mode(1, 3, "+"),
+        2: _arithmetic_hypothesis_mode(2, 3, "*"),
+        3: _comparison_hypothesis_mode(3, "<"),
     }
     clause = ReifiedClause(
         (),
@@ -1469,19 +1759,8 @@ def test_arithmetic_system_preserves_multiple_definitions_of_an_auxiliary():
 
 def test_arithmetic_system_eliminates_repeated_auxiliary_coefficients():
     modes = {
-        0: HypothesisMode(
-            0, 0, "body", "normal", "q", 2, 1, fixed_arguments=(None,) * 2
-        ),
-        1: HypothesisMode(
-            1,
-            1,
-            "body",
-            "arithmetic",
-            "",
-            3,
-            2,
-            arithmetic=ArithmeticTemplate("+"),
-        ),
+        0: _normal_hypothesis_mode(0, 0, "body", "q", 2, 1),
+        1: _arithmetic_hypothesis_mode(1, 3, "+", 2),
     }
     clause = ReifiedClause(
         (),
@@ -1500,19 +1779,8 @@ def test_arithmetic_system_eliminates_repeated_auxiliary_coefficients():
 
 def test_arithmetic_system_preserves_independent_rows_in_one_component():
     modes = {
-        0: HypothesisMode(
-            0, 0, "body", "normal", "q", 3, 1, fixed_arguments=(None,) * 3
-        ),
-        1: HypothesisMode(
-            1,
-            1,
-            "body",
-            "arithmetic",
-            "",
-            3,
-            2,
-            arithmetic=ArithmeticTemplate("+"),
-        ),
+        0: _normal_hypothesis_mode(0, 0, "body", "q", 3, 1),
+        1: _arithmetic_hypothesis_mode(1, 3, "+", 2),
     }
     clause = ReifiedClause(
         (),
@@ -1533,19 +1801,8 @@ def test_arithmetic_system_preserves_independent_rows_in_one_component():
 @pytest.mark.parametrize(("operator", "rendered"), [("/", "V0/V1-V2=0"), ("\\", "V0\\V1-V2=0")])
 def test_arithmetic_system_carries_nonzero_domain_guards(operator, rendered):
     modes = {
-        0: HypothesisMode(
-            0, 0, "body", "normal", "q", 3, 1, fixed_arguments=(None,) * 3
-        ),
-        1: HypothesisMode(
-            1,
-            1,
-            "body",
-            "arithmetic",
-            "",
-            3,
-            1,
-            arithmetic=ArithmeticTemplate(operator),
-        ),
+        0: _normal_hypothesis_mode(0, 0, "body", "q", 3, 1),
+        1: _arithmetic_hypothesis_mode(1, 3, operator),
     }
     clause = ReifiedClause(
         (),
@@ -1886,9 +2143,17 @@ def test_aggregate_condition_keeps_inference_and_inherits_declared_normal_type()
     )
 
     generator = HypothesisSpaceGenerator(program, Arguments())
-    aggregate = next(mode for mode in generator.modes if mode.kind == "aggregate")
+    aggregate = next(
+        mode
+        for mode in generator.modes
+        if isinstance(mode.literal, AggregateLiteral)
+    )
 
-    assert aggregate.arg_types[-3:] == ("node", "node", "numeric")
+    assert tuple(binding.type for binding in aggregate.bindings[-3:]) == (
+        "node",
+        "node",
+        "numeric",
+    )
 
 
 def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
@@ -2680,8 +2945,8 @@ def test_reader_parses_directives_without_regex_space_loss(tmp_path):
     assert program.positive_examples[0].excluded == "green(1)"
     assert program.positive_examples[0].context == "ctx((1,2))"
     assert program.negative_examples[0].included == "bad(1)"
-    assert program.language_bias_head[0].atoms[0].name == "red"
-    assert program.language_bias_body[0].name == "edge"
+    assert program.language_bias_head[0].template.elements[0].name == "red"
+    assert program.language_bias_body[0].literal.atom.name == "edge"
     assert program.aggregate_modes == [
         AggregateDeclaration(1, "sum", (("edge", 2),), True)
     ]
@@ -2706,7 +2971,7 @@ def test_reader_parses_complete_head_forms_and_variable_labels(tmp_path):
 
     program = read_program(str(task))
 
-    assert [head.kind for head in program.language_bias_head] == [
+    assert [head.template.kind for head in program.language_bias_head] == [
         "normal",
         "disjunction",
         "choice",
@@ -2714,12 +2979,12 @@ def test_reader_parses_complete_head_forms_and_variable_labels(tmp_path):
         "disjunction",
     ]
     assert [head.width for head in program.language_bias_head] == [1, 2, 2, 2, 2]
-    assert program.language_bias_head[3].lower == 1
-    assert program.language_bias_head[3].upper == 1
-    assert program.language_bias_head[1].atoms[1].arguments[0].label == "x"
+    assert program.language_bias_head[3].template.lower == 1
+    assert program.language_bias_head[3].template.upper == 1
+    assert program.language_bias_head[1].template.elements[1].terms[0].label == "x"
     assert tuple(
-        atom.arguments[0].direction
-        for atom in program.language_bias_head[4].atoms
+        atom.terms[0].direction
+        for atom in program.language_bias_head[4].template.elements
     ) == ("input", "output")
 
 
@@ -2766,6 +3031,14 @@ def test_complete_head_forms_are_alternatives_not_implicit_combinations(tmp_path
             "1 {p(var(node,input,x));q(var(node,input,x))} 1",
             "1{p(V0);q(V0)}1 :- node(V0).",
         ),
+        (
+            "-p(var(node,input,x));q(var(node,input,x))",
+            "-p(V0);q(V0) :- node(V0).",
+        ),
+        (
+            "{-p(var(node,input,x));q(var(node,input,x))}",
+            "{-p(V0);q(V0)} :- node(V0).",
+        ),
     ],
 )
 def test_complete_heads_render_as_declared(tmp_path, head, expected):
@@ -2789,6 +3062,190 @@ def test_complete_heads_render_as_declared(tmp_path, head, expected):
     ).generate().clauses
 
     assert expected in clauses
+
+
+def test_strong_negation_is_rendered_in_heads_and_default_negated_bodies(tmp_path):
+    task = tmp_path / "strong-generation.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "node(a).",
+                "node(b).",
+                "-blocked(a).",
+                "#maxv(1).",
+                "#maxbl(2).",
+                "#maxhl(1).",
+                "#modeh(1,-target(var(node,input))).",
+                "#modeb(1,node(var(node,output))).",
+                "#modeb(1,not -blocked(var(node,input))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = set(
+        HypothesisSpaceGenerator(read_program(str(task)), Arguments())
+        .generate()
+        .clauses
+    )
+
+    assert "-target(V0) :- node(V0),not -blocked(V0)." in clauses
+
+
+def test_strongly_negated_hypothesis_covers_strongly_negated_example():
+    coverage = NormalCoverageSolver(
+        ["node(a)."],
+        ["0", "--enum-mode=brave"],
+        [Example(("-target(a)", ""), True)],
+        [Example(("target(a)", ""), False)],
+    ).extract_fixed_coverage(("-target(X) :- node(X).",))
+
+    assert coverage.pos_mask == 1
+    assert coverage.neg_mask == 0
+
+
+def test_recursion_uses_signed_predicate_identity(tmp_path):
+    matching = tmp_path / "matching.txt"
+    matching.write_text(
+        "#modeh(1,-p(var(node,input))).\n"
+        "#modeb(1,-p(var(node,input))).\n",
+        encoding="utf-8",
+    )
+    opposite = tmp_path / "opposite.txt"
+    opposite.write_text(
+        "#modeh(1,p(var(node,input))).\n"
+        "#modeb(1,-p(var(node,input))).\n",
+        encoding="utf-8",
+    )
+
+    assert HypothesisSpaceGenerator(
+        read_program(str(matching)), Arguments()
+    ).capabilities.allow_recursion
+    assert not HypothesisSpaceGenerator(
+        read_program(str(opposite)), Arguments()
+    ).capabilities.allow_recursion
+
+
+def test_positive_strong_complements_are_pruned_from_same_body_tuple(tmp_path):
+    task = tmp_path / "strong-coherence.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "node(a).",
+                "node(b).",
+                "p(a).",
+                "-p(b).",
+                "#maxv(1).",
+                "#maxbl(3).",
+                "#maxhl(1).",
+                "#modeh(1,target(var(node,input))).",
+                "#modeb(1,node(var(node,output))).",
+                "#modeb(1,p(var(node,input))).",
+                "#modeb(1,-p(var(node,input))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    generator = HypothesisSpaceGenerator(read_program(str(task)), Arguments())
+    clauses = generator.generate().clauses
+
+    assert any(re.search(r"(?<!-)p\(V0\)", clause) for clause in clauses)
+    assert any("-p(V0)" in clause for clause in clauses)
+    assert not any(
+        re.search(r"(?<!-)p\(V0\)", clause) and "-p(V0)" in clause
+        for clause in clauses
+    )
+
+
+def test_structured_shapes_keep_distinct_functors_and_prune_exact_complements(
+    tmp_path,
+):
+    task = tmp_path / "structured-shapes.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "node(a).",
+                "p(f(a)).",
+                "p(g(a)).",
+                "-p(g(a)).",
+                "#maxv(1).",
+                "#maxbl(3).",
+                "#maxhl(1).",
+                "#modeh(1,target(var(node,input))).",
+                "#modeb(1,node(var(node,output))).",
+                "#modeb(1,p(f(var(node,input)))).",
+                "#modeb(1,p(g(var(node,input)))).",
+                "#modeb(1,-p(f(var(node,input)))).",
+                "#modeb(1,-p(g(var(node,input)))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert any(
+        "p(f(V0))" in clause and "-p(g(V0))" in clause
+        for clause in clauses
+    )
+    assert any(
+        "p(f(V0))" in clause and "p(g(V0))" in clause
+        for clause in clauses
+    )
+    assert not any(
+        re.search(r"(?<!-)p\(f\(V0\)\)", clause) and "-p(f(V0))" in clause
+        for clause in clauses
+    )
+
+
+def test_two_default_negated_strong_complements_remain_legal(tmp_path):
+    task = tmp_path / "default-strong-complements.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "node(a).",
+                "#maxv(1).",
+                "#maxbl(3).",
+                "#maxhl(1).",
+                "#modeh(1,p(var(node,input))).",
+                "#modeh(1,-p(var(node,input))).",
+                "#modeb(1,node(var(node,output))).",
+                "#modeb(1,not p(var(node,input))).",
+                "#modeb(1,not -p(var(node,input))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert ":- node(V0),not p(V0),not -p(V0)." in clauses
+
+
+def test_strong_negation_is_preserved_in_aggregate_conditions(tmp_path):
+    task = tmp_path / "strong-aggregate.txt"
+    task.write_text(
+        "-value(a).\n#modeagg(1,count(-value/1),balanced).\n",
+        encoding="utf-8",
+    )
+
+    generator = HypothesisSpaceGenerator(read_program(str(task)), Arguments())
+    aggregates = [
+        mode.literal
+        for mode in generator.modes
+        if isinstance(mode.literal, AggregateLiteral)
+    ]
+
+    assert aggregates
+    assert all(
+        aggregate.conditions[0].signature == ("-value", 1)
+        for aggregate in aggregates
+    )
 
 
 def test_distinct_head_labels_require_distinct_variables(tmp_path):
@@ -2815,6 +3272,252 @@ def test_distinct_head_labels_require_distinct_variables(tmp_path):
     assert "p(V0);q(V0) :- edge(V0,V1)." not in clauses
 
 
+def test_learnable_ground_facts_have_no_empty_rule_body(tmp_path):
+    task = tmp_path / "facts.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(1).",
+                "#maxbl(1).",
+                "#constant(node,a).",
+                "#modeh(1,ready(const(node))).",
+                "#modeh(1,unsafe(var(node,any))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "ready(a)." in clauses
+    assert all(":- ." not in clause for clause in clauses)
+    assert all(not clause.startswith("unsafe(") for clause in clauses)
+
+
+def test_bodyless_complete_heads_keep_their_declared_asp_form(tmp_path):
+    task = tmp_path / "bodyless-heads.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(0).",
+                "#maxhl(2).",
+                "#modeh(1,a;b).",
+                "#modeh(1,1 {c;d} 1).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "a;b." in clauses
+    assert "1{c;d}1." in clauses
+    assert ":-." not in clauses
+
+
+def test_completely_empty_clause_is_not_learnable():
+    clauses = HypothesisSpaceGenerator(
+        Program([], [], [], [], []), Arguments()
+    ).generate().clauses
+
+    assert clauses == ()
+
+
+def test_maxbl_zero_declares_a_facts_only_rule_space(tmp_path):
+    task = tmp_path / "facts-only.las"
+    task.write_text(
+        "#maxv(0).\n#maxbl(0).\n#modeh(1,ready).\n#modeb(1,source).\n",
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert clauses == ("ready.",)
+
+
+def test_positive_head_condition_can_safely_ground_a_bodyless_rule(tmp_path):
+    task = tmp_path / "conditional-fact.las"
+    task.write_text(
+        "\n".join(
+            (
+                "node(a).",
+                "#maxv(1).",
+                "#maxbl(1).",
+                "#modeh(1,p(var(node,any))).",
+                "#modec(1,node(var(node,any))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "p(V0):node(V0)." in clauses
+
+
+def test_bias_is_multiline_meta_asp_and_disables_implicit_head_identity(tmp_path):
+    task = tmp_path / "explicit-bias.las"
+    task.write_text(
+        """edge(1,2).
+#maxhl(2).
+#maxbl(1).
+#maxv(2).
+#modeh(1,p(var(node,input,x));q(var(node,input,x))).
+#modeh(1,r(var(node,input,x));s(var(node,input,y))).
+#modeb(1,edge(var(node,output),var(node,output))).
+#bias("
+bias_active.
+").
+""",
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
+
+    assert program.bias == ("bias_active.",)
+    assert "p(V0);q(V1) :- edge(V0,V1)." in clauses
+    assert "r(V0);s(V0) :- edge(V0,V1)." in clauses
+
+
+def test_bias_meta_rule_can_restore_variable_identity_explicitly(tmp_path):
+    task = tmp_path / "identity-metarule.las"
+    task.write_text(
+        """edge(1,2).
+#maxhl(2).
+#maxbl(1).
+#maxv(2).
+#modeh(1,p(var(node,input,x));q(var(node,input,x))).
+#modeh(1,r(var(node,input,x));s(var(node,input,y))).
+#modeb(1,edge(var(node,output),var(node,output))).
+#bias("
+bias_same_label_var(F,L,V) :-
+    selected_head_form(F),
+    head_arg_label(F,M,A,L),
+    selected(head,S,M),
+    var_at(head,S,A,V).
+:- bias_same_label_var(F,L,X), bias_same_label_var(F,L,Y), X != Y.
+:- bias_same_label_var(F,L,V), bias_same_label_var(F,R,V), L < R.
+").
+""",
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "p(V0);q(V0) :- edge(V0,V1)." in clauses
+    assert "p(V0);q(V1) :- edge(V0,V1)." not in clauses
+    assert "r(V0);s(V1) :- edge(V0,V1)." in clauses
+    assert "r(V0);s(V0) :- edge(V0,V1)." not in clauses
+
+
+def test_bias_meta_rule_can_require_a_named_predicate_pattern(tmp_path):
+    task = tmp_path / "named-predicate-metarule.las"
+    task.write_text(
+        '''edge(1).
+node(1).
+#maxv(1).
+#maxbl(1).
+#modeh(1,p(var(node,input))).
+#modeb(1,edge(var(node,output))).
+#modeb(1,node(var(node,output))).
+#bias("
+bias_uses_edge :-
+    selected_atom(body,_,\\"edge\\",1,positive).
+:- selected_slot(head,_), not bias_uses_edge.
+").
+''',
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "p(V0) :- edge(V0)." in clauses
+    assert "p(V0) :- node(V0)." not in clauses
+    assert "p(V0)." not in clauses
+
+
+def test_reader_rejects_invalid_or_empty_bias(tmp_path):
+    for index, declaration in enumerate(("#bias(\"\").", '#bias(\":-\").')):
+        task = tmp_path / f"invalid-bias-{index}.las"
+        task.write_text(declaration, encoding="utf-8")
+
+        with pytest.raises(ValueError, match="#bias|ASP"):
+            read_program(str(task))
+
+
+def test_bias_cannot_redefine_generator_relations(tmp_path):
+    task = tmp_path / "redefined-bias-relation.las"
+    task.write_text('#bias("selected(head,0,0).").', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="bias_ namespace"):
+        read_program(str(task))
+
+
+@pytest.mark.parametrize(
+    "payload",
+    (
+        "% comment before the forbidden definition\nselected(head,0,0).",
+        "safe_var(0).",
+        ":~ selected(body,S,M). [1@1,S,M]",
+        "% comment only",
+        "#program foo. bias_active.",
+    ),
+)
+def test_bias_rejects_internal_definitions_optimization_and_comments_only(
+    tmp_path, payload
+):
+    task = tmp_path / "invalid-meta-program.las"
+    escaped = payload.replace('"', '\\"')
+    task.write_text(f'#bias("{escaped}").', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="#bias|bias_ namespace|rules and hard"):
+        read_program(str(task))
+
+
+def test_commented_bias_does_not_enable_explicit_identity(tmp_path):
+    task = tmp_path / "commented-bias.las"
+    task.write_text('% #bias("enabled.").\n#modeh(1,p).\n', encoding="utf-8")
+
+    assert read_program(str(task)).bias == ()
+
+
+def test_nested_head_labels_control_flattened_placeholders(tmp_path):
+    task = tmp_path / "nested-labels.txt"
+    task.write_text(
+        "\n".join(
+            (
+                "edge(1,2).",
+                "#maxhl(2).",
+                "#maxbl(1).",
+                "#maxv(2).",
+                "#modeh(1,p(f(var(node,input,x)));q(g(var(node,input,x)))).",
+                "#modeb(1,edge(var(node,output),var(node,output))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "p(f(V0));q(g(V0)) :- edge(V0,V1)." in clauses
+    assert "p(f(V0));q(g(V1)) :- edge(V0,V1)." not in clauses
+
+
 @pytest.mark.parametrize(
     "declaration",
     [
@@ -2828,6 +3531,356 @@ def test_reader_rejects_invalid_complete_head_forms(tmp_path, declaration):
     task.write_text(declaration + "\n", encoding="utf-8")
 
     with pytest.raises(ValueError):
+        read_program(str(task))
+
+
+def test_reader_parses_condition_modes_with_full_atom_syntax(tmp_path):
+    task = tmp_path / "condition-mode.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#constant(colour,red).",
+                "#modec(2,not -blocked(box(var(node,input),const(colour)))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+    declaration = program.language_bias_condition[0]
+
+    assert declaration.recall == 2
+    assert declaration.literal.default_negated
+    assert declaration.literal.atom.strong
+    assert declaration.literal.atom.terms[0].kind == "function"
+    assert program.constants == {"colour": ("red",)}
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    (
+        "#modeh bad.",
+        "#modeb bad.",
+        "#modec bad.",
+        "#modec(0,node(var(node,input))).",
+        "#modec(1,node(var(node,input,label))).",
+        "#modec(1,not node(var(node,output))).",
+        "#modec(1,node(const(missing))).",
+    ),
+)
+def test_reader_rejects_invalid_condition_modes(tmp_path, declaration):
+    task = tmp_path / "invalid-condition-mode.las"
+    task.write_text(declaration + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        read_program(str(task))
+
+
+def test_condition_modes_generate_head_and_body_conditional_literals(tmp_path):
+    task = tmp_path / "conditionals.las"
+    task.write_text(
+        "\n".join(
+            (
+                "base(a).",
+                "node(a).",
+                "#maxv(2).",
+                "#maxbl(2).",
+                "#maxhl(1).",
+                "#modeh(1,target(var(node,input))).",
+                "#modeb(1,base(var(node,any))).",
+                "#modec(1,node(var(node,any))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "target(V0):node(V0) :- base(V0)." in clauses
+    assert "target(V0):node(V1) :- base(V0)." in clauses
+    assert "target(V0) :- base(V0):node(V0)." not in clauses
+
+
+@pytest.mark.parametrize(
+    ("head", "expected"),
+    (
+        (
+            "p(var(node,input,x));q(var(node,input,x))",
+            "p(V0):node(V1);q(V0) :- base(V0).",
+        ),
+        (
+            "1 {p(var(node,input,x));q(var(node,input,x))} 1",
+            "1{p(V0):node(V1);q(V0)}1 :- base(V0).",
+        ),
+    ),
+)
+def test_condition_modes_attach_to_disjunction_and_choice_elements(
+    tmp_path, head, expected
+):
+    task = tmp_path / "conditional-head-form.las"
+    task.write_text(
+        "\n".join(
+            (
+                "base(a).",
+                "node(a).",
+                "#maxv(2).",
+                "#maxbl(2).",
+                "#maxhl(2).",
+                f"#modeh(1,{head}).",
+                "#modeb(1,base(var(node,any))).",
+                "#modec(1,node(var(node,any))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert expected in clauses
+    control = clingo.Control(["0"])
+    control.add("base", [], f"base(a). node(a). {expected}")
+    control.ground([("base", [])])
+
+
+def test_positive_body_conclusion_and_conditions_make_local_variables_safe(tmp_path):
+    task = tmp_path / "local-conditionals.las"
+    task.write_text(
+        "\n".join(
+            (
+                "p(a).",
+                "q(a).",
+                "#maxv(2).",
+                "#maxbl(2).",
+                "#modeh(1,target).",
+                "#modeb(1,p(var(node,any))).",
+                "#modec(1,q(var(node,any))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "target :- p(V0):q(V0)." in clauses
+    assert "target :- p(V0):q(V1)." in clauses
+
+
+def test_body_conditional_uses_unambiguous_semicolon_separators(tmp_path):
+    task = tmp_path / "body-separator.las"
+    task.write_text(
+        "\n".join(
+            (
+                "base(a).",
+                "p(a).",
+                "q(a).",
+                "#maxv(2).",
+                "#maxbl(3).",
+                "#modeh(1,target).",
+                "#modeb(1,base(var(node,any))).",
+                "#modeb(1,p(var(node,any))).",
+                "#modec(1,q(var(node,any))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+    clause = "target :- base(V0);p(V1):q(V1)."
+
+    assert clause in clauses
+    control = clingo.Control(["0"])
+    control.add("base", [], f"base(a). p(a). q(a). {clause}")
+    control.ground([("base", [])])
+
+
+def test_conditional_local_names_can_be_reused_between_scopes(tmp_path):
+    task = tmp_path / "local-scopes.las"
+    task.write_text(
+        "\n".join(
+            (
+                "p(a).",
+                "q(a).",
+                "r(b).",
+                "s(b).",
+                "#maxv(2).",
+                "#maxbl(4).",
+                "#modeh(1,target).",
+                "#modeb(1,p(var(left,any))).",
+                "#modeb(1,r(var(right,any))).",
+                "#modec(1,q(var(left,any))).",
+                "#modec(1,s(var(right,any))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "target :- p(V0):q(V0);r(V0):s(V0)." in clauses
+
+
+def test_conditional_global_output_requires_an_external_producer(tmp_path):
+    def clauses(direction):
+        task = tmp_path / f"conditional-output-{direction}.las"
+        task.write_text(
+            "\n".join(
+                (
+                    "source(a).",
+                    "node(a).",
+                    "#maxv(1).",
+                    "#maxbl(2).",
+                    "#modeh(1,target(var(node,output))).",
+                    f"#modeb(1,source(var(node,{direction}))).",
+                    "#modec(1,node(var(node,any))).",
+                )
+            ),
+            encoding="utf-8",
+        )
+        return HypothesisSpaceGenerator(
+            read_program(str(task)), Arguments()
+        ).generate().clauses
+
+    clause = "target(V0):node(V0) :- source(V0)."
+
+    assert clause in clauses("output")
+    assert clause not in clauses("any")
+
+
+def test_condition_recall_and_body_budget_cover_all_attachments(tmp_path):
+    task = tmp_path / "condition-recall.las"
+    task.write_text(
+        "\n".join(
+            (
+                "base(a).",
+                "node(a).",
+                "#maxv(1).",
+                "#maxbl(3).",
+                "#modeh(1,target(var(node,input))).",
+                "#modeb(2,base(var(node,any))).",
+                "#modec(1,node(var(node,any))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert clauses
+    assert all(clause.count(":node(") <= 1 for clause in clauses)
+    assert all(
+        clause.count("base(") + clause.count(":node(") <= 3
+        for clause in clauses
+    )
+
+
+def test_multiple_conditions_preserve_negation_terms_and_dependencies(tmp_path):
+    task = tmp_path / "condition-syntax.las"
+    task.write_text(
+        "\n".join(
+            (
+                "base(a).",
+                "node(box(a,red)).",
+                "blocked(a).",
+                "#constant(colour,red).",
+                "#maxv(2).",
+                "#maxbl(3).",
+                "#modeh(1,target(var(node,input))).",
+                "#modeb(1,base(var(node,any))).",
+                "#modec(1,node(box(var(node,any),const(colour)))).",
+                "#modec(1,not blocked(var(node,input))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    space = HypothesisSpaceGenerator(read_program(str(task)), Arguments()).generate()
+    clause = "target(V0):node(box(V0,red)),not blocked(V0) :- base(V0)."
+    entry = next(entry for entry in space.entries if entry.text == clause)
+
+    assert entry.heads == frozenset({("target", 1)})
+    assert entry.deps == frozenset(
+        {("base", 1), ("node", 1), ("blocked", 1)}
+    )
+    assert entry.body_literals == 3
+
+
+def test_negative_body_conclusion_can_be_grounded_by_its_condition(tmp_path):
+    task = tmp_path / "negative-conclusion.las"
+    task.write_text(
+        "\n".join(
+            (
+                "p(a).",
+                "q(a).",
+                "#maxv(1).",
+                "#maxbl(2).",
+                "#modeh(1,target).",
+                "#modeb(1,not p(var(node,input))).",
+                "#modec(1,q(var(node,any))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = HypothesisSpaceGenerator(
+        read_program(str(task)), Arguments()
+    ).generate().clauses
+
+    assert "target :- not p(V0):q(V0)." in clauses
+    assert "target :- not p(V0):q(V1)." not in clauses
+
+
+def test_unbounded_body_requires_finite_condition_recalls(tmp_path):
+    task = tmp_path / "unbounded-conditions.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxbl(*).",
+                "#modeh(1,target).",
+                "#modeb(1,p).",
+                "#modec(*,q).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="finite recalls"):
+        HypothesisSpaceGenerator(read_program(str(task)), Arguments())
+
+
+def test_conditional_literal_ir_renders_variables_in_syntax_order():
+    variable = TermTemplate.variable("node", "any")
+    literal = ConditionalLiteral(
+        AtomLiteral(AtomTemplate("p", (variable,))),
+        (
+            AtomLiteral(AtomTemplate("q", (variable,))),
+            AtomLiteral(AtomTemplate("r", (variable,)), True),
+        ),
+        (0, 1),
+    )
+
+    assert render_literal(literal, (2, 2, 5)) == "p(V2):q(V2),not r(V5)"
+
+
+def test_reader_rejects_strongly_negated_invention(tmp_path):
+    task = tmp_path / "strong-invention.txt"
+    task.write_text(
+        "#invent(1,-helper(var(person,input))).\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="cannot be strongly negated"):
         read_program(str(task))
 
 
@@ -2868,9 +3921,9 @@ def test_language_bias_keeps_explicit_head_without_generating_body():
     )
 
     assert {
-        (atom.name, atom.arity)
+        atom.signature
         for head in program.language_bias_head
-        for atom in head.atoms
+        for atom in head.template.elements
     } == {
         ("heads", 1),
         ("tails", 1),
@@ -2889,7 +3942,11 @@ def test_language_bias_keeps_explicit_body_without_generating_head():
 
     assert program.language_bias_head == []
     assert {
-        (mode.name, mode.arity, mode.positive) for mode in program.language_bias_body
+        (
+            *mode.literal.atom.signature,
+            not mode.literal.default_negated,
+        )
+        for mode in program.language_bias_body
     } == {("target", 1, True)}
 
 
@@ -2946,12 +4003,15 @@ def test_bundled_benchmarks_use_explicit_non_any_directions():
     for arguments in CASES.values():
         program = read_program(arguments.filename)
         head_modes = [
-            atom for head in program.language_bias_head for atom in head.atoms
+            atom
+            for head in program.language_bias_head
+            for atom in head.template.elements
         ]
-        for mode in [*head_modes, *program.language_bias_body]:
+        body_atoms = [mode.literal.atom for mode in program.language_bias_body]
+        for atom in [*head_modes, *body_atoms]:
             assert all(
                 argument.kind == "constant" or argument.direction != "any"
-                for argument in mode.arguments
+                for argument in atom.terms
             ), arguments.filename
 
 
@@ -3106,7 +4166,9 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     definition_program = copy.deepcopy(program)
     definition_program.max_body_literals = 3
     definition_program.language_bias_body = [
-        mode for mode in definition_program.language_bias_body if mode.name == "size"
+        mode
+        for mode in definition_program.language_bias_body
+        if mode.literal.atom.name == "size"
     ]
     definition_program.comparison_modes = []
     definition_clauses = set(
@@ -3116,7 +4178,7 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     constraint_program.language_bias_body = [
         mode
         for mode in constraint_program.language_bias_body
-        if mode.name in {"sum_row", "sum_col"}
+        if mode.literal.atom.name in {"sum_row", "sum_col"}
     ]
     constraint_program.aggregate_modes = []
     constraint_clauses = set(
@@ -3234,7 +4296,7 @@ def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
 
     assert tuple(
         argument.direction
-        for argument in program.language_bias_head[0].atoms[0].arguments
+        for argument in program.language_bias_head[0].template.elements[0].terms
     ) == ("input", "output")
     assert "target(V0,V1) :- edge(V0,V1)." in clauses
     assert "target(V0,V1) :- edge(V1,V0)." not in clauses
@@ -3242,19 +4304,11 @@ def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
 
 def test_theta_reduction_rejects_clause_equivalent_to_proper_subclause():
     modes = {
-        0: HypothesisMode(
-            0,
-            0,
-            "head",
-            "normal",
-            "target",
-            1,
-            1,
-            head_form=0,
-            head_kind="normal",
+        0: _normal_hypothesis_mode(
+            0, 0, "head", "target", 1, 1, head_form=0
         ),
-        1: HypothesisMode(1, 1, "body", "normal", "edge", 2, 2),
-        2: HypothesisMode(2, 2, "body", "normal", "other", 2, 1),
+        1: _normal_hypothesis_mode(1, 1, "body", "edge", 2, 2),
+        2: _normal_hypothesis_mode(2, 2, "body", "other", 2, 1),
     }
     reducible = ReifiedClause(
         (ReifiedLiteral("head", 0, 0, (0,)),),
@@ -3273,3 +4327,230 @@ def test_theta_reduction_rejects_clause_equivalent_to_proper_subclause():
 
     assert not hypothesis_space._theta_reduced(reducible, modes)
     assert hypothesis_space._theta_reduced(reduced, modes)
+
+
+def test_reader_parses_aggregate_head_modes_with_optional_recall(tmp_path):
+    task = tmp_path / "aggregate-head.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#modeha(p(var(node,input))).",
+                "#modeha(2,-q(box(var(node,input),const(colour)))).",
+                "#constant(colour,red).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+
+    assert [mode.recall for mode in program.language_bias_aggregate_head] == [-1, 2]
+    assert [
+        mode.literal.atom.signature for mode in program.language_bias_aggregate_head
+    ] == [
+        ("p", 1),
+        ("-q", 1),
+    ]
+
+
+def test_modeha_generates_nonredundant_cardinality_heads(tmp_path):
+    task = tmp_path / "aggregate-head-space.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(0).",
+                "#maxbl(1).",
+                "#maxhl(2).",
+                "seed(a).",
+                "seed(b).",
+                "#constant(item,a).",
+                "#constant(item,b).",
+                "#modeha(2,p(const(item))).",
+                "#modeb(1,seed(const(item))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = set(
+        HypothesisSpaceGenerator(read_program(str(task)), Arguments())
+        .generate()
+        .clauses
+    )
+
+    assert "0{p(a)}1 :- seed(a)." in clauses
+    assert "0{p(b)}1 :- seed(a)." in clauses
+    assert {
+        "0{p(a);p(b)}1 :- seed(a).",
+        "1{p(a);p(b)}1 :- seed(a).",
+        "1{p(a);p(b)}2 :- seed(a).",
+    } <= clauses
+    assert not any("0{p(a);p(b)}2" in clause for clause in clauses)
+    assert not any("2{p(a);p(b)}2" in clause for clause in clauses)
+
+
+def test_modeha_recall_and_minhl_bound_generated_width(tmp_path):
+    task = tmp_path / "bounded-aggregate-head.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(0).",
+                "#maxbl(1).",
+                "#minhl(2).",
+                "#maxhl(*).",
+                "seed(a).",
+                "seed(b).",
+                "#constant(item,a).",
+                "#constant(item,b).",
+                "#modeha(2,p(const(item))).",
+                "#modeha(1,q(const(item))).",
+                "#modeb(1,seed(const(item))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = set(
+        HypothesisSpaceGenerator(read_program(str(task)), Arguments())
+        .generate()
+        .clauses
+    )
+
+    assert clauses
+    choice_clauses = {clause for clause in clauses if not clause.startswith(":-")}
+    assert all(clause.partition(" :-")[0].count(";") >= 1 for clause in choice_clauses)
+    assert any("{p(a);p(b);q(a)}" in clause for clause in choice_clauses)
+    assert not any("q(a);q(b)" in clause for clause in choice_clauses)
+
+
+def test_modeha_reuses_one_template_for_distinct_compatible_variables(tmp_path):
+    task = tmp_path / "variable-aggregate-head.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(2).",
+                "#maxbl(2).",
+                "#maxhl(2).",
+                "node(a).",
+                "node(b).",
+                "#modeha(2,p(var(node,input))).",
+                "#modeb(2,node(var(node,output))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = set(
+        HypothesisSpaceGenerator(read_program(str(task)), Arguments())
+        .generate()
+        .clauses
+    )
+
+    assert "0{p(V0);p(V1)}1 :- node(V0),node(V1)." in clauses
+    assert not any("p(V0);p(V0)" in clause for clause in clauses)
+
+
+def test_unbounded_modeha_requires_finite_maxhl(tmp_path):
+    task = tmp_path / "unbounded-aggregate-head.las"
+    task.write_text(
+        "#maxhl(*).\n#modeha(p(var(node,input))).\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"#maxhl\(\*\).+#modeha"):
+        HypothesisSpaceGenerator(read_program(str(task)), Arguments())
+
+
+def test_ground_modeha_caps_impossible_repeated_elements_before_grounding(tmp_path):
+    task = tmp_path / "ground-aggregate-head.las"
+    task.write_text(
+        "#maxhl(100).\n#modeha(p).\n",
+        encoding="utf-8",
+    )
+
+    templates = hypothesis_space._aggregate_head_templates(read_program(str(task)))
+
+    assert len(templates) == 1
+    assert templates[0].width == 1
+
+
+def test_bodyless_condition_budget_expands_ground_modeha_capacity(tmp_path):
+    task = tmp_path / "ground-conditional-aggregate-head.las"
+    task.write_text(
+        "#maxbl(1).\n#maxhl(100).\n#modeha(p).\n#modec(1,c).\n",
+        encoding="utf-8",
+    )
+
+    templates = hypothesis_space._aggregate_head_templates(read_program(str(task)))
+
+    assert len(templates) == 4
+    assert {template.width for template in templates} == {1, 2}
+
+
+def test_modeha_capacity_deduplicates_equal_constant_expansions(tmp_path):
+    task = tmp_path / "duplicate-constant-aggregate-head.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxhl(50).",
+                "#constant(left,a).",
+                "#constant(right,a).",
+                "#modeha(p(const(left))).",
+                "#modeha(p(const(right))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    templates = hypothesis_space._aggregate_head_templates(read_program(str(task)))
+
+    assert len(templates) == 1
+    assert templates[0].width == 1
+
+
+def test_modeha_elements_accept_generated_conditions(tmp_path):
+    task = tmp_path / "conditional-aggregate-head.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(1).",
+                "#maxbl(2).",
+                "#maxhl(1).",
+                "node(a).",
+                "allowed(a).",
+                "#modeha(1,p(var(node,input))).",
+                "#modeb(1,node(var(node,output))).",
+                "#modec(1,allowed(var(node,input))).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    program = read_program(str(task))
+    clauses = set(
+        HypothesisSpaceGenerator(program, Arguments())
+        .generate()
+        .clauses
+    )
+
+    assert "0{p(V0):allowed(V0)}1 :- node(V0)." in clauses
+    control = clingo.Control(["0"])
+    control.add("base", [], "\n".join([*program.background, *clauses]))
+    control.ground([("base", [])])
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    (
+        "#modeha(0,p).",
+        "#modeha(not p).",
+        "#modeha(1,p(var(node,input,x))).",
+        "#minhl(2).\n#maxhl(1).\n#modeha(1,p).",
+    ),
+)
+def test_reader_rejects_invalid_aggregate_head_bias(tmp_path, declaration):
+    task = tmp_path / "invalid-aggregate-head.las"
+    task.write_text(declaration + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        read_program(str(task))

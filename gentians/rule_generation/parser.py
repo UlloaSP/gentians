@@ -7,6 +7,10 @@ Predicate = tuple[str, int]
 ParsedAtom = tuple[str, tuple[str, ...], bool]
 
 
+def signed_predicate(name: str, arity: int, strong: bool = False) -> Predicate:
+    return (f"-{name}" if strong else name), arity
+
+
 def split_top_level_args(args: str) -> list[str]:
     parts: list[str] = []
     start = 0
@@ -135,12 +139,13 @@ def _collect_atoms(node: ast.AST, result: list[ParsedAtom], negative: bool = Fal
         _collect_atoms(node.atom, result, negative or node.sign != ast.Sign.NoSign)
         return
     if node.ast_type == ast.ASTType.SymbolicAtom:
-        symbol = node.symbol
-        if symbol.ast_type == ast.ASTType.Function and symbol.name:
+        parsed = _symbolic_function(node.symbol)
+        if parsed is not None:
+            name, arguments = parsed
             result.append(
                 (
-                    str(symbol.name),
-                    tuple(str(argument).replace(" ", "") for argument in symbol.arguments),
+                    name,
+                    tuple(str(argument).replace(" ", "") for argument in arguments),
                     negative,
                 )
             )
@@ -157,9 +162,10 @@ def _collect_atoms(node: ast.AST, result: list[ParsedAtom], negative: bool = Fal
 
 def _collect_predicates(node: ast.AST, result: set[Predicate]) -> None:
     if node.ast_type == ast.ASTType.SymbolicAtom:
-        symbol = node.symbol
-        if symbol.ast_type == ast.ASTType.Function and symbol.name:
-            result.add((str(symbol.name), len(symbol.arguments)))
+        parsed = _symbolic_function(node.symbol)
+        if parsed is not None:
+            name, arguments = parsed
+            result.add((name, len(arguments)))
         return
     for key in node.child_keys:
         child = getattr(node, key)
@@ -177,14 +183,15 @@ def _parse_atom_cached(atom: str) -> tuple[str, tuple[str, ...]] | None:
 
     def collect(node: ast.AST) -> None:
         if node.ast_type == ast.ASTType.SymbolicAtom:
-            symbol = node.symbol
-            if symbol.ast_type == ast.ASTType.Function and symbol.name:
+            parsed = _symbolic_function(node.symbol)
+            if parsed is not None:
+                name, arguments = parsed
                 found.append(
                     (
-                        str(symbol.name),
+                        name,
                         tuple(
                             str(argument).replace(" ", "")
-                            for argument in symbol.arguments
+                            for argument in arguments
                         ),
                     )
                 )
@@ -203,3 +210,16 @@ def _parse_atom_cached(atom: str) -> tuple[str, tuple[str, ...]] | None:
     except RuntimeError:
         return None
     return found[0] if len(found) == 1 else None
+
+
+def _symbolic_function(symbol: ast.AST) -> tuple[str, ast.ASTSequence] | None:
+    strong = False
+    if symbol.ast_type == ast.ASTType.UnaryOperation:
+        if symbol.operator_type != ast.UnaryOperator.Minus:
+            return None
+        strong = True
+        symbol = symbol.argument
+    if symbol.ast_type != ast.ASTType.Function or not symbol.name:
+        return None
+    name = f"-{symbol.name}" if strong else str(symbol.name)
+    return name, symbol.arguments

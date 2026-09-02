@@ -123,6 +123,7 @@ cardinality head:
 #modeh(1,a(var(node,input,x));b(var(node,input,x))).
 #modeh(1,{a(var(node,input,x));b(var(node,input,x))}).
 #modeh(1,1 {a(var(node,input,x));b(var(node,input,x))} 1).
+#modeh(1,-rejected(var(node,input))).
 ```
 
 Separate declarations are alternatives and are never combined implicitly.
@@ -130,8 +131,38 @@ Head recall is therefore always `1`. The optional third `var` argument is a
 head-local identity label: equal labels denote the same generated variable;
 different labels denote different variables. An omitted label leaves that
 identity unconstrained. `#maxhl` limits the number of atoms in one declared
-head, not a later combination of declarations. Conditional head elements are
-not supported.
+head, not a later combination of declarations. Conditional elements are
+generated through `#modec`, not written inside `#modeh`.
+
+Safe empty bodies are learnable. Ground normal heads, disjunctions, choices,
+and cardinality heads therefore produce facts; a variable head without a safe
+source remains rejected, and the empty constraint `:-.` is never generated.
+
+`#bias("...").` injects explicit ASP rules and constraints into the clause
+generator. Bias rules can derive task-specific metarule predicates from
+`selected/3`, `var_at/4`, `mode/5`, `predicate_symbol/3`, and the other reified
+mode relations. Derived names use the reserved `bias_` namespace; weak
+constraints and optimization directives are rejected. Once
+any `#bias` is present, head variable labels are metadata only: equality or
+inequality must be stated explicitly by a bias constraint over
+`head_arg_label/4` and `var_at/4`. Without `#bias`, labels keep their default
+identity semantics. See [the language-bias reference](docs/language-bias.md)
+for the complete contract and examples.
+
+ILASP-style aggregate head modes build choice/cardinality heads by combining
+compatible atoms:
+
+```prolog
+#minhl(1).
+#maxhl(2).
+#modeha(p(var(node,input))).
+#modeha(2,q(var(node,input),const(colour))).
+```
+
+The recall is optional and defaults to `*`. `#minhl` and `#maxhl` bound the
+number of elements. Gentians generates the non-redundant integer cardinality
+bounds, shares recall across constant expansions, and applies `#modec` to each
+element. `#maxhl(*)` requires finite recalls for every `#modeha` declaration.
 
 For positive body literals, omit default negation:
 ```prolog
@@ -142,6 +173,24 @@ For negative body literals, write `not` before the atom template:
 #modeb(recall, not atom_template).
 ```
 Declare both forms independently when both polarities are allowed.
+
+Condition modes use the same atom syntax:
+
+```prolog
+#modec(recall, atom_template).
+#modec(recall, not atom_template).
+```
+
+Gentians may attach them after any selected normal head or body literal, for
+example `p(V0):q(V0),not r(V0)`. Their recall is clause-wide and `#maxbl`
+counts attached conditions as well as ordinary body literals. Variables local
+to a body conditional may be grounded by its positive conclusion or a positive
+condition. A head conclusion does not ground locals. Global variables must be
+safe outside the conditional.
+ASP strong negation is written with `-` and can be combined with default
+negation, so `p(X)`, `-p(X)`, `not p(X)`, and `not -p(X)` are distinct mode
+forms. Strongly negated heads are also supported. `p/n` and `-p/n` are distinct
+for dependencies and recursion while sharing argument types.
 Every non-nullary argument is explicitly either a directed typed variable or a
 typed constant placeholder:
 
@@ -153,6 +202,7 @@ typed constant placeholder:
 #modeb(1,edge(var(node,input),var(node,output))).
 #modeb(1,colour(var(node,input),const(colour))).
 #modeb(1,not blocked(var(node,input))).
+#modeb(1,wrapped(box(var(node,input),const(colour)))).
 ```
 
 Variables require exactly one direction: `input`, `output`, or `any`.
@@ -161,6 +211,11 @@ and `any` opts out of data-flow restrictions. Constants have no direction and
 must be enumerated by `#constant(TYPE, VALUE)`. Modes containing `not` cannot
 contain output variables. Types and directions are task declarations; Gentians
 does not infer normal modes from background knowledge or examples.
+
+Mode terms may contain nested functions and tuples. Every leaf stays explicit:
+`var(...)` for a generated variable or `const(...)` for a declared ground
+value. Predicate arity counts outer arguments; variable limits and directions
+apply to nested placeholders.
 
 ## Examples definition
 Positive examples must follow the syntax
@@ -195,7 +250,7 @@ You can define aggregates in the language bias with:
 #modeagg(recall, aggregation_function(aggregation_atom), unbalanced).
 ```
 
-where `aggregation_function` is the aggregation function (`sum` or `count`, for example) and `aggregation_atom` is a term of the form `name/arity`, representing the atom aggregating on.
+where `aggregation_function` is the aggregation function (`sum` or `count`, for example) and `aggregation_atom` is a term of the form `name/arity` or `-name/arity`, representing the atom aggregating on.
 If you want to aggregate over multiple atoms, you can use multiple aggregation atoms separated by commas.
 The `balanced` option only generates aggregates whose tuple contains all condition variables.
 The `unbalanced` option also generates smaller tuples, so it includes both balanced and unbalanced aggregate variants.

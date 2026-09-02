@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .hypothesis_mode import HypothesisMode
+from .conditional_literal import ConditionalLiteral
 from .reified_clause import _render_literal, render_head
 from .reified_literal import ReifiedLiteral
 
@@ -31,5 +32,17 @@ class CanonicalArithmeticClause:
         ]
         for system in self.systems:
             body.extend(system.render())
-        rendered_body = ",".join(body)
+        separator = (
+            ";"
+            if any(
+                isinstance(modes[literal.mode_id].literal, ConditionalLiteral)
+                for literal in self.body
+            )
+            else ","
+        )
+        rendered_body = separator.join(body)
+        if not rendered_body:
+            if not head:
+                raise ValueError("a learned clause cannot have an empty head and body")
+            return f"{head}."
         return f"{head} :- {rendered_body}." if head else f":- {rendered_body}."

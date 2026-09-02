@@ -31,6 +31,7 @@ from .conditional_literal import ConditionalLiteral
 from .head_template import HeadTemplate
 from .hypothesis_capabilities import HypothesisCapabilities
 from .hypothesis_mode import HypothesisMode
+from .linear_constraint import LinearConstraint
 from .mode_declaration import ModeDeclaration
 from .operator_declaration import OperatorDeclaration
 from .parser import Predicate, clause_predicates, fragment_atoms
@@ -218,10 +219,7 @@ class HypothesisSpaceGenerator:
         add(f"{phase}.grounding", grounding_seconds)
         model_index = _model_literal_index(ctl.symbolic_atoms, self.modes_by_id)
 
-        representatives: dict[
-            ArithmeticSystemKey,
-            tuple[str, ReifiedClause],
-        ] = {}
+        clauses: list[ReifiedClause] = []
         seconds = 0.0
         collect_metrics = metric_enabled("clingo")
         start = net_time()
@@ -237,24 +235,44 @@ class HypothesisSpaceGenerator:
                     break
                 seconds += net_time() - start
                 clause = _clause_from_model(model, model_index)
-                if not _theta_reduced(clause, self.modes_by_id):
-                    start = net_time()
-                    continue
-                canonical = canonical_arithmetic_clause(
-                    clause,
-                    self.modes_by_id,
-                    self.max_variables,
-                )
-                if canonical is not None:
-                    rendered = canonical.render(self.modes_by_id)
-                    current = representatives.get(canonical.key)
-                    if current is None or (len(clause.body), rendered) < (
-                        len(current[1].body),
-                        current[0],
-                    ):
-                        representatives[canonical.key] = rendered, clause
+                if _theta_reduced(clause, self.modes_by_id):
+                    clauses.append(clause)
             start = net_time()
         seconds += net_time() - start
+        representatives: dict[
+            ArithmeticSystemKey,
+            tuple[str, ReifiedClause],
+        ] = {}
+        for clause in clauses:
+            canonical = canonical_arithmetic_clause(
+                clause,
+                self.modes_by_id,
+                self.max_variables,
+            )
+            if canonical is None:
+                continue
+            current = representatives.get(canonical.key)
+            if current is None:
+                representatives[canonical.key] = (
+                    canonical.render(self.modes_by_id),
+                    clause,
+                )
+            elif len(clause.body) > len(current[1].body):
+                continue
+            elif all(
+                isinstance(relation, LinearConstraint)
+                for system in canonical.systems
+                for relation in system.relations
+            ):
+                if len(clause.body) < len(current[1].body):
+                    representatives[canonical.key] = current[0], clause
+            else:
+                rendered = canonical.render(self.modes_by_id)
+                if (len(clause.body), rendered) < (
+                    len(current[1].body),
+                    current[0],
+                ):
+                    representatives[canonical.key] = rendered, clause
         add(f"{phase}.solving", seconds)
         if collect_metrics:
             with instrumentation():

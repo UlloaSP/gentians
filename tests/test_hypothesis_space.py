@@ -1476,6 +1476,22 @@ def test_linear_canonicalization_reduces_complete_nqueens_systems():
     assert ":- q(V0,V1),q(V2,V3),V0-V1-V2+V3=0,V1-V3<0." in clauses
 
 
+def test_nonlinear_canonicalization_keeps_lexicographic_render():
+    args = copy.deepcopy(CASES["subset_sum_double_and_prod"])
+    clauses = (
+        HypothesisSpaceGenerator(read_program(args.filename), args).generate().clauses
+    )
+
+    assert (
+        ":- #sum{V3,V4:el(V3,V4)}=V2,"
+        "((V2*V2)+(V2*V2))+(V2*V2)-V2=0."
+    ) in clauses
+    assert (
+        ":- #sum{V3,V4:el(V3,V4)}=V2,"
+        "(V2*V2)+((V2*V2)+(V2*V2))-V2=0."
+    ) not in clauses
+
+
 def test_linear_modes_render_direct_equations_with_bounded_complexity():
     program = Program(
         ["q(1,2,3,4)."],

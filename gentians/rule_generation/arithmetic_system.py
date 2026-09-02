@@ -476,6 +476,7 @@ def _is_linear(mode: HypothesisMode, allow_disequality: bool) -> bool:
     )
 
 
+@lru_cache(maxsize=8192)
 def _constraint(
     literal: ReifiedLiteral,
     mode: HypothesisMode,
@@ -635,6 +636,7 @@ def _rref(
     return tuple(tuple(row) for row in matrix if any(row))
 
 
+@lru_cache(maxsize=8192)
 def _primitive(
     coefficients: tuple[Fraction, ...],
     *,

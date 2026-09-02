@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .atom_literal import AtomLiteral
 from .conditional_literal import ConditionalLiteral
@@ -19,6 +19,11 @@ class HypothesisMode:
     head_position: int = 0
     head: HeadTemplate | None = None
     aggregate_head: bool = False
+    bindings: tuple[TermBinding, ...] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         if self.section not in {"head", "body"}:
@@ -37,18 +42,19 @@ class HypothesisMode:
                 raise ValueError("aggregate head modes require a choice head")
         elif self.head_form is not None or self.head is not None or self.aggregate_head:
             raise ValueError("body modes cannot belong to a head form")
+        object.__setattr__(
+            self,
+            "bindings",
+            tuple(
+                binding
+                for index, term in enumerate(self.literal.arguments)
+                for binding in term.bindings((index,))
+            ),
+        )
 
     @property
     def arity(self) -> int:
         return len(self.literal.arguments)
-
-    @property
-    def bindings(self) -> tuple[TermBinding, ...]:
-        return tuple(
-            binding
-            for index, term in enumerate(self.literal.arguments)
-            for binding in term.bindings((index,))
-        )
 
     @property
     def dependencies(self) -> frozenset[Predicate]:

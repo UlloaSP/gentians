@@ -83,4 +83,4 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 
 #modeb(1,hd(var(numeric,output))).
 #modeagg(1,sum(d/2),balanced).
-#modecmp(1,neq).
+#modearith(1,neq).

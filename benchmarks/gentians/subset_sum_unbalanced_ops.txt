@@ -21,6 +21,6 @@
 #modeb(1,el(var(numeric,output))).
 #modeagg(1,sum(el/1),unbalanced).
 #modeagg(1,count(el/1),unbalanced).
-#modecmp(1,neq).
-#modecmp(1,geq).
-#modecmp(1,leq).
+#modearith(1,neq).
+#modearith(1,geq).
+#modearith(1,leq).

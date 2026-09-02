@@ -9,6 +9,17 @@ from .term_template import TermTemplate
 class ComparisonLiteral:
     operator: str
     terms: tuple[TermTemplate, TermTemplate]
+    family: bool = True
+
+    @property
+    def canonicalizable(self) -> bool:
+        return self.family and self.operator != "=" and all(
+            term.kind == "variable" for term in self.terms
+        )
+
+    @property
+    def simple(self) -> bool:
+        return self.family and all(term.kind == "variable" for term in self.terms)
 
     @property
     def kind(self) -> str:

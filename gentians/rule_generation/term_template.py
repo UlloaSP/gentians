@@ -120,6 +120,11 @@ class TermTemplate:
         )
 
     def render(self, variables: Iterator[str]) -> str:
+        return self._render(variables, 0, False)
+
+    def _render(
+        self, variables: Iterator[str], parent_precedence: int, right_child: bool
+    ) -> str:
         if self.kind == "variable":
             return next(variables)
         if self.kind == "constant":
@@ -128,12 +133,41 @@ class TermTemplate:
             )
         if self.kind == "fixed":
             return self.value
-        rendered = tuple(argument.render(variables) for argument in self.arguments)
+        if self.kind == "arithmetic":
+            return self._render_arithmetic(variables, parent_precedence, right_child)
+        rendered = tuple(
+            argument._render(variables, 0, False) for argument in self.arguments
+        )
         if self.kind == "function":
             return f"{self.value}({','.join(rendered)})"
         if self.kind == "tuple":
             suffix = "," if len(rendered) == 1 else ""
             return f"({','.join(rendered)}{suffix})"
+        raise ValueError(f"unsupported term kind: {self.kind}")
+
+    def _render_arithmetic(
+        self, variables: Iterator[str], parent_precedence: int, right_child: bool
+    ) -> str:
+        if self.value == "absolute":
+            return f"|{self.arguments[0]._render(variables, 0, False)}|"
+        if self.value == "neg":
+            argument = self.arguments[0]
+            value = argument._render(variables, 0, False)
+            rendered = f"-({value})" if argument.kind == "arithmetic" else f"-{value}"
+            return f"({rendered})" if parent_precedence > 7 else rendered
+        if self.value == "bitnot":
+            argument = self.arguments[0]
+            value = argument._render(variables, 0, False)
+            rendered = f"~({value})" if argument.kind == "arithmetic" else f"~{value}"
+            return f"({rendered})" if parent_precedence > 7 else rendered
         if self.value == "abs":
-            return f"|{rendered[0]}-{rendered[1]}|"
-        return self.value.join(rendered)
+            left = self.arguments[0]._render(variables, 0, False)
+            right = self.arguments[1]._render(variables, 0, False)
+            return f"|{left}-{right}|"
+
+        def child(argument: TermTemplate) -> str:
+            rendered = argument._render(variables, 0, False)
+            return f"({rendered})" if argument.kind == "arithmetic" else rendered
+
+        left, right = (child(argument) for argument in self.arguments)
+        return f"{left}{self.value}{right}"

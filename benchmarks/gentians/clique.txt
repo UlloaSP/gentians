@@ -38,4 +38,4 @@ ne(X,Y):- not e(X,Y), v(X), v(Y).
 #modeb(2,v(var(node,input))).
 #modeb(2,ne(var(node,input),var(node,input))).
 #modeb(2,in(var(node,output))).
-#modecmp(1,neq).
+#modearith(1,neq).

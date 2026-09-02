@@ -25,6 +25,7 @@
 % - geq_comparison_mode(Mode): emitted by Python for >= modes.
 % Python fact detail: neq_comparison_mode(Mode) marks != comparison modes.
 #defined neq_comparison_mode/1.
+#defined eq_comparison_mode/1.
 % Python fact detail: less_than_comparison_mode(Mode) marks < comparison modes.
 #defined less_than_comparison_mode/1.
 % Python fact detail: greater_than_comparison_mode(Mode) marks > comparison modes.
@@ -33,6 +34,16 @@
 #defined leq_comparison_mode/1.
 % Python fact detail: geq_comparison_mode(Mode) marks >= comparison modes.
 #defined geq_comparison_mode/1.
+#defined generic_comparison_mode/1.
+
+comparison_mode(Mode):- generic_comparison_mode(Mode).
+
+simple_comparison_mode(Mode):- neq_comparison_mode(Mode).
+simple_comparison_mode(Mode):- eq_comparison_mode(Mode).
+simple_comparison_mode(Mode):- less_than_comparison_mode(Mode).
+simple_comparison_mode(Mode):- greater_than_comparison_mode(Mode).
+simple_comparison_mode(Mode):- leq_comparison_mode(Mode).
+simple_comparison_mode(Mode):- geq_comparison_mode(Mode).
 
 % Rule: != modes are comparison modes.
 % Mode is the Python id for a body operator rendered as !=.
@@ -69,7 +80,7 @@ strict_comparison_available:- greater_than_comparison_mode(_).
 % argument 0 and argument 1, making comparisons such as V0 < V0 or V0 != V0
 % impossible, and V0 == V0 redundant.
 :- selected(body,Slot,Mode),
-    comparison_mode(Mode),
+    simple_comparison_mode(Mode),
     var_at(body,Slot,0,Var),
     var_at(body,Slot,1,Var).
 

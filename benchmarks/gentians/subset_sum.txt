@@ -20,4 +20,4 @@
 
 #modeb(1,el(var(numeric,output))).
 #modeagg(1,sum(el/1),balanced).
-#modecmp(1,neq).
+#modearith(1,neq).

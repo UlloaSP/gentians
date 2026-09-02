@@ -131,8 +131,9 @@ Head recall is therefore always `1`. The optional third `var` argument is a
 head-local identity label: equal labels denote the same generated variable;
 different labels denote different variables. An omitted label leaves that
 identity unconstrained. `#maxhl` limits the number of atoms in one declared
-head, not a later combination of declarations. Conditional elements are
-generated through `#modec`, not written inside `#modeh`.
+head, not a later combination of declarations. Exact ASP conditions may be
+written on individual elements; `#modec` additionally generates optional
+conditions.
 
 Safe empty bodies are learnable. Ground normal heads, disjunctions, choices,
 and cardinality heads therefore produce facts; a variable head without a safe
@@ -162,7 +163,22 @@ compatible atoms:
 The recall is optional and defaults to `*`. `#minhl` and `#maxhl` bound the
 number of elements. Gentians generates the non-redundant integer cardinality
 bounds, shares recall across constant expansions, and applies `#modec` to each
-element. `#maxhl(*)` requires finite recalls for every `#modeha` declaration.
+element. `#maxhl(*)` requires finite recalls for every `#modeha` and `#modehd`
+declaration.
+
+`#modehd` has the same combinable-element interface, but constructs plain ASP
+disjunctions instead of choices:
+
+```prolog
+#minhl(2).
+#maxhl(3).
+#modehd(2,p(var(node,input))).
+#modehd(1,q(var(node,input))).
+```
+
+The head form is always explicit: `#modeh` is a complete head, `#modeha`
+combines choice elements, and `#modehd` combines disjunctive elements. Recall
+never changes one form into another.
 
 For positive body literals, omit default negation:
 ```prolog
@@ -174,19 +190,20 @@ For negative body literals, write `not` before the atom template:
 ```
 Declare both forms independently when both polarities are allowed.
 
-Condition modes use the same atom syntax:
+Condition modes accept atoms and exact comparisons:
 
 ```prolog
 #modec(recall, atom_template).
 #modec(recall, not atom_template).
+#modec(recall, arithmetic_expression < arithmetic_expression).
 ```
 
 Gentians may attach them after any selected normal head or body literal, for
 example `p(V0):q(V0),not r(V0)`. Their recall is clause-wide and `#maxbl`
-counts attached conditions as well as ordinary body literals. Variables local
-to a body conditional may be grounded by its positive conclusion or a positive
-condition. A head conclusion does not ground locals. Global variables must be
-safe outside the conditional.
+counts attached conditions as well as ordinary body literals. A conditional
+local must be grounded by one of its positive atomic conditions; neither a
+body nor a head conclusion grounds it. Global variables must be safe outside
+the conditional.
 ASP strong negation is written with `-` and can be combined with default
 negation, so `p(X)`, `-p(X)`, `not p(X)`, and `not -p(X)` are distinct mode
 forms. Strongly negated heads are also supported. `p/n` and `-p/n` are distinct
@@ -266,15 +283,29 @@ Examples:
 Pay attention with aggregates since you may encounter an infinite grounding, so the program will never terminate.
 
 ## Comparison and Arithmetic Operators in Language Bias
-You can define comparison operators and arithmetic operators in the language bias with:
+Arithmetic and comparison syntax has one declaration:
 ```
-#modecmp(recall, operator).
 #modearith(recall, operator).
+#modearith(recall, relation_template).
 ```
 
 The following comparison operators are considered: `lt` (<), `leq` (=<), `gt` (>), `geq` (>=), `eq` (=), and `neq` (!=).
 The following arithmetic operators are considered: `add` (+), `sub` (-), `mul` (*), `div` (/), `mod` (`\`), and `abs` (absolute value).
 Use recall to allow more occurrences of the same operator in one rule.
+`relation_template` preserves a specific ASP expression instead of generating
+an operator family. It supports nested `+`, `-`, `*`, `/`, `\`, `**`, bitwise
+`&`, `?`, `^`, and `~`, unary minus, absolute value, functions, constants, and
+all six comparison relations:
+
+```prolog
+#modearith(1,(var(numeric,input)+1)*var(numeric,input)
+             <= var(numeric,input)).
+#modearith(1,var(numeric,input)+1=var(numeric,output)).
+```
+
+Only equality may declare an output, and then exactly one output leaf is
+allowed. `#modecmp` no longer exists; `eq`, `neq`, `lt`, `leq`, `gt`, and
+`geq` are operator names of `#modearith`.
 Arithmetic is represented as connected systems. Linear rows use primitive
 integer coefficients and canonical row reduction, so auxiliaries may disappear
 as in `X+X=T,T+T=Y` becoming `4*X-Y=0`. Independent rows remain a system instead
@@ -292,12 +323,30 @@ literals used to derive it.
 
 Examples:
 ```prolog
-#modecmp(1, neq).
-#modecmp(2, geq).
+#modearith(1, neq).
+#modearith(2, geq).
 #modearith(1, add).
 #modearith(1, mul).
 #modearith(1, sub).
 ```
+
+## Second-order metarules
+
+Metarules instantiate predicate variables from explicit typed pools:
+
+```prolog
+#metarule(chain,"P(X,Z) :- Q(X,Y),R(Y,Z).").
+#predicate(target,path/2).
+#predicate(base,edge/2).
+#modem(chain(target/2,base/2,base/2)).
+```
+
+Predicate variables are ordered by first appearance and their declared arity
+must match every occurrence. A quoted metarule may contain several rules; one
+instantiation is then an atomic rule bundle during initialization, mutation,
+crossover, replacement, and dependency pruning. `#maxv` and `#maxbl` apply to
+each rule, while `#maxpl` counts every rule in the bundle.
+Use `P()` with a `/0` pool specification for a nullary predicate variable.
 
 ## Predicate Invention
 Declare an invented predicate once with `#invent(BODY_RECALL, ATOM_TEMPLATE)`.

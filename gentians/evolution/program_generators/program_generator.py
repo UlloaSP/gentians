@@ -8,6 +8,8 @@ from ..types import Genome, ProgramText
 from .common import bits, defined_predicates, prepare_space, record_generation_time
 
 _CACHE_SIZE = 65536
+
+
 class ProgramGenerator:
     def __init__(
         self,
@@ -48,6 +50,18 @@ class ProgramGenerator:
             self._predicate_mask(entry.deps) for entry in self.space.entries
         )
         self.body_sizes = tuple(entry.body_literals for entry in self.space.entries)
+        self.bundle_masks: dict[int, int] = {}
+        for rule_id, entry in enumerate(self.space.entries):
+            if entry.bundle is not None:
+                self.bundle_masks[entry.bundle] = self.bundle_masks.get(
+                    entry.bundle, 0
+                ) | (1 << rule_id)
+        self.rule_bundle_masks = tuple(
+            self.bundle_masks.get(entry.bundle, 1 << rule_id)
+            if entry.bundle is not None
+            else 1 << rule_id
+            for rule_id, entry in enumerate(self.space.entries)
+        )
         self.target_rules = sum(
             1 << rule_id
             for rule_id, heads in enumerate(self.head_masks)
@@ -204,14 +218,14 @@ class ProgramGenerator:
             return None
         if operation == "remove":
             for rule_id in self._random_ids(program):
-                rule_bit = 1 << rule_id
-                if candidate := self._build(program ^ rule_bit, rule_bit):
+                rule_bit = self.rule_bundle_masks[rule_id]
+                if candidate := self._build(program & ~rule_bit, rule_bit):
                     return candidate
             return None
         if operation == "replace":
             for source_id in self._random_ids(program):
-                source_bit = 1 << source_id
-                base = program ^ source_bit
+                source_bit = self.rule_bundle_masks[source_id]
+                base = program & ~source_bit
                 for replacement_id in self._random_available(program):
                     if candidate := self._build(
                         base | (1 << replacement_id), source_bit
@@ -226,8 +240,8 @@ class ProgramGenerator:
     ) -> MutationProposal | None:
         for source_id in self._random_ids(program):
             random_jump = self.rng.random() < random_jump_probability
-            source_bit = 1 << source_id
-            base = program ^ source_bit
+            source_bit = self.rule_bundle_masks[source_id]
+            base = program & ~source_bit
             replacements = (
                 self._random_available(program)
                 if random_jump
@@ -278,11 +292,17 @@ class ProgramGenerator:
         return result
 
     def _complete(self, candidate: Genome, forbidden: Genome) -> Genome | None:
+        candidate = self._bundle_closure(candidate)
+        if candidate & forbidden or candidate.bit_count() > self.max_clauses:
+            return None
         failed: set[Genome] = set()
         remaining = max(64, self.rule_count)
 
         def search(completed: Genome) -> Genome | None:
             nonlocal remaining
+            completed = self._bundle_closure(completed)
+            if completed & forbidden or completed.bit_count() > self.max_clauses:
+                return None
             if completed in failed or remaining == 0:
                 return None
             remaining -= 1
@@ -322,6 +342,12 @@ class ProgramGenerator:
             return None
 
         return search(candidate)
+
+    def _bundle_closure(self, genome: Genome) -> Genome:
+        expanded = genome
+        for rule_id in self._ids(genome):
+            expanded |= self.rule_bundle_masks[rule_id]
+        return expanded
 
     def _summary(self, genome: Genome) -> tuple[int, int]:
         if genome not in self._summary_cache:

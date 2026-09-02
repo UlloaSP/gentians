@@ -26,6 +26,6 @@ number(1..n).
 #neg({q(1,1), q(2,2), q(3,4), q(4,6), q(5,8), q(6,3), q(7,5), q(8,7)}, {}).
 
 #modeb(2,q(var(numeric,output),var(numeric,output))).
-#modecmp(1,lt).
+#modearith(1,lt).
 #modearith(1,add).
 #modearith(1,sub).

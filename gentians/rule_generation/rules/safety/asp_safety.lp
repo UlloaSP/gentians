@@ -48,7 +48,8 @@ negated_var(Var):-
 comparison_var(Var):-
     selected(body,Slot,Mode),
     comparison_mode(Mode),
-    var_at(body,Slot,_,Var).
+    var_at(body,Slot,Arg,Var),
+    not mode_arg_direction(Mode,Arg,output).
 
 % Rule: collect arithmetic operand variables.
 % Slot is a selected arithmetic body literal. Arg ranges over operands 0 and 1.

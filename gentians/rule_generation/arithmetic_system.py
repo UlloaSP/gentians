@@ -24,7 +24,9 @@ SystemRelation = LinearConstraint | ExpressionConstraint | ComparisonConstraint
 
 
 def _is_builtin(mode: HypothesisMode) -> bool:
-    return isinstance(mode.literal, ArithmeticLiteral | ComparisonLiteral)
+    return isinstance(mode.literal, ArithmeticLiteral) or (
+        isinstance(mode.literal, ComparisonLiteral) and mode.literal.canonicalizable
+    )
 
 
 def _is_positive_atom(mode: HypothesisMode) -> bool:
@@ -33,8 +35,7 @@ def _is_positive_atom(mode: HypothesisMode) -> bool:
 
 def _is_numeric_builtin(mode: HypothesisMode) -> bool:
     return isinstance(mode.literal, ArithmeticLiteral) or (
-        isinstance(mode.literal, ComparisonLiteral)
-        and mode.literal.operator != "!="
+        isinstance(mode.literal, ComparisonLiteral) and mode.literal.operator != "!="
     )
 
 
@@ -48,17 +49,13 @@ class ArithmeticSystem:
 
     @property
     def variables(self) -> frozenset[int]:
-        return frozenset().union(
-            *(relation.variables for relation in self.relations)
-        )
+        return frozenset().union(*(relation.variables for relation in self.relations))
 
     def render(self) -> tuple[str, ...]:
         rendered: list[str] = []
         rendered_guard_keys: set[tuple[object, ...]] = set()
         for relation in self.relations:
-            value = (
-                relation.render()
-            )
+            value = relation.render()
             if value not in rendered:
                 rendered.append(value)
             if not isinstance(relation, ExpressionConstraint):
@@ -71,9 +68,7 @@ class ArithmeticSystem:
                     rendered.append(guard)
         return tuple(rendered)
 
-    def remap(
-        self, variables: dict[int, int], width: int
-    ) -> "ArithmeticSystem":
+    def remap(self, variables: dict[int, int], width: int) -> "ArithmeticSystem":
         return ArithmeticSystem(
             tuple(
                 relation.remap(variables, width)
@@ -83,20 +78,17 @@ class ArithmeticSystem:
             )
         )
 
+
 def canonical_arithmetic_clause(
     clause: ReifiedClause,
     modes: dict[int, HypothesisMode],
     max_variables: int,
 ) -> CanonicalArithmeticClause | None:
     builtin = [
-        literal
-        for literal in clause.body
-        if _is_builtin(modes[literal.mode_id])
+        literal for literal in clause.body if _is_builtin(modes[literal.mode_id])
     ]
     non_builtin = tuple(
-        literal
-        for literal in clause.body
-        if not _is_builtin(modes[literal.mode_id])
+        literal for literal in clause.body if not _is_builtin(modes[literal.mode_id])
     )
     if not builtin:
         return CanonicalArithmeticClause(clause.head, non_builtin, ())
@@ -243,9 +235,7 @@ def _numeric_variables(
             numeric.update(literal.variables)
         numeric.update(
             variable
-            for variable, binding in zip(
-                literal.variables, mode.bindings, strict=True
-            )
+            for variable, binding in zip(literal.variables, mode.bindings, strict=True)
             if binding.type == "numeric"
         )
     return numeric
@@ -264,14 +254,11 @@ def _arithmetic_relation(
     if not isinstance(mode.literal, ArithmeticLiteral):
         raise ValueError(f"arithmetic mode {mode.id} has no template")
     known = {
-        variable: ArithmeticExpression.var(variable)
-        for variable in literal.variables
+        variable: ArithmeticExpression.var(variable) for variable in literal.variables
     }
     expression = _mode_expression(literal, mode, known)
     guards = (
-        (known[literal.variables[1]],)
-        if mode.literal.operator in {"/", "\\"}
-        else ()
+        (known[literal.variables[1]],) if mode.literal.operator in {"/", "\\"} else ()
     )
     output = literal.variables[-1]
     return ExpressionConstraint(
@@ -290,10 +277,7 @@ def _expression_system(
     safe: set[int],
     numeric_variables: set[int],
 ) -> ArithmeticSystem | None:
-    known = {
-        variable: ArithmeticExpression.var(variable)
-        for variable in safe
-    }
+    known = {variable: ArithmeticExpression.var(variable) for variable in safe}
     guards: dict[int, tuple[ArithmeticExpression, ...]] = {
         variable: () for variable in safe
     }
@@ -343,13 +327,9 @@ def _expression_system(
                 prior_guards = guards.get(output, ())
                 constraints.append(
                     ExpressionConstraint(
-                        ArithmeticExpression(
-                            "-", (known[output], expression)
-                        ),
+                        ArithmeticExpression("-", (known[output], expression)),
                         "eq",
-                        guards=tuple(
-                            dict.fromkeys((*prior_guards, *inherited))
-                        ),
+                        guards=tuple(dict.fromkeys((*prior_guards, *inherited))),
                     )
                 )
             else:
@@ -374,16 +354,12 @@ def _expression_system(
         if operator in {">", ">="}:
             left, right = right, left
             operator = "<" if operator == ">" else "<="
-        expression = ArithmeticExpression(
-            "-", (known[left], known[right])
-        )
+        expression = ArithmeticExpression("-", (known[left], known[right]))
         relation = {"<": "lt", "<=": "le", "!=": "ne"}[operator]
         inherited = tuple(
             dict.fromkeys((*guards.get(left, ()), *guards.get(right, ())))
         )
-        constraints.append(
-            ExpressionConstraint(expression, relation, guards=inherited)
-        )
+        constraints.append(ExpressionConstraint(expression, relation, guards=inherited))
     if not constraints:
         return None
     return ArithmeticSystem(
@@ -423,11 +399,7 @@ def _orient_linear_constraints(
     oriented: list[SystemRelation] = []
     while pending:
         ready = next(
-            (
-                constraint
-                for constraint in pending
-                if not (constraint.variables - safe)
-            ),
+            (constraint for constraint in pending if not (constraint.variables - safe)),
             None,
         )
         if ready is not None:
@@ -441,9 +413,7 @@ def _orient_linear_constraints(
                 if constraint.relation == "eq"
                 and len(constraint.variables - safe) == 1
                 and abs(
-                    constraint.coefficients[
-                        next(iter(constraint.variables - safe))
-                    ]
+                    constraint.coefficients[next(iter(constraint.variables - safe))]
                 )
                 == 1
             ),
@@ -476,13 +446,9 @@ def _linear_assignment_expression(
             continue
         scaled = int(-coefficient / divisor)
         target = positive if scaled > 0 else negative
-        target.extend(
-            ArithmeticExpression.var(variable) for _ in range(abs(scaled))
-        )
+        target.extend(ArithmeticExpression.var(variable) for _ in range(abs(scaled)))
     expression = (
-        _fold_expression("+", positive)
-        if positive
-        else ArithmeticExpression.const(0)
+        _fold_expression("+", positive) if positive else ArithmeticExpression.const(0)
     )
     for value in negative:
         expression = ArithmeticExpression("-", (expression, value))
@@ -501,10 +467,7 @@ def _fold_expression(
 
 def _is_linear(mode: HypothesisMode, allow_disequality: bool) -> bool:
     syntax = mode.literal
-    return (
-        isinstance(syntax, ArithmeticLiteral)
-        and syntax.linear
-    ) or (
+    return (isinstance(syntax, ArithmeticLiteral) and syntax.linear) or (
         isinstance(syntax, ComparisonLiteral)
         and (
             syntax.operator in {"<", "<=", ">", ">="}
@@ -584,9 +547,7 @@ def _normalize_component(
         [constraint.coefficients for constraint in rows if constraint.relation == "eq"],
         width,
     )
-    comparisons = [
-        constraint for constraint in rows if constraint.relation != "eq"
-    ]
+    comparisons = [constraint for constraint in rows if constraint.relation != "eq"]
     for equation in equations:
         pivot = next(index for index, value in enumerate(equation) if value)
         reduced = []
@@ -594,9 +555,7 @@ def _normalize_component(
             factor = comparison.coefficients[pivot] / equation[pivot]
             coefficients = tuple(
                 value - factor * equation_value
-                for value, equation_value in zip(
-                    comparison.coefficients, equation
-                )
+                for value, equation_value in zip(comparison.coefficients, equation)
             )
             reduced.append(LinearConstraint(coefficients, comparison.relation))
         comparisons = reduced
@@ -622,17 +581,14 @@ def _normalize_component(
         if constraint.relation == "eq"
     }
     if any(
-        constraint.coefficients in equalities
-        and constraint.relation in {"lt", "ne"}
+        constraint.coefficients in equalities and constraint.relation in {"lt", "ne"}
         for constraint in normalized
     ):
         return None
     normalized = {
         constraint
         for constraint in normalized
-        if not (
-            constraint.coefficients in equalities and constraint.relation == "le"
-        )
+        if not (constraint.coefficients in equalities and constraint.relation == "le")
     }
     strict = {
         constraint.coefficients
@@ -657,11 +613,7 @@ def _rref(
     pivot_row = 0
     for column in range(width):
         pivot = next(
-            (
-                row
-                for row in range(pivot_row, len(matrix))
-                if matrix[row][column]
-            ),
+            (row for row in range(pivot_row, len(matrix)) if matrix[row][column]),
             None,
         )
         if pivot is None:

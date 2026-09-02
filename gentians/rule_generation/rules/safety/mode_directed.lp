@@ -84,8 +84,52 @@ produced_var(Result):-
 % Comparisons consume bound values and produce nothing.
 :- selected(body,Slot,Mode),
     comparison_mode(Mode),
-    var_at(body,Slot,_,Var),
+    var_at(body,Slot,Arg,Var),
+    not mode_arg_direction(Mode,Arg,output),
     not bound_var(Var).
+
+% An exact equality may explicitly designate one leaf as its result.
+#defined exact_assignment_mode/1.
+
+exact_assignment_input_count(Mode,Count):-
+    exact_assignment_mode(Mode),
+    Count = #count {
+        Arg : mode_variable_arg(Mode,Arg),
+              not mode_arg_direction(Mode,Arg,output)
+    }.
+
+ready_exact_assignment(Slot):-
+    selected(body,Slot,Mode),
+    exact_assignment_mode(Mode),
+    exact_assignment_input_count(Mode,Count),
+    Count = #count {
+        Arg,Var : mode_variable_arg(Mode,Arg),
+                  not mode_arg_direction(Mode,Arg,output),
+                  var_at(body,Slot,Arg,Var),
+                  bound_var(Var)
+    }.
+
+bound_var(Var):-
+    ready_exact_assignment(Slot),
+    selected(body,Slot,Mode),
+    mode_arg_direction(Mode,Arg,output),
+    var_at(body,Slot,Arg,Var).
+
+produced_var(Var):-
+    ready_exact_assignment(Slot),
+    selected(body,Slot,Mode),
+    mode_arg_direction(Mode,Arg,output),
+    var_at(body,Slot,Arg,Var).
+
+safe_var(Var):-
+    ready_exact_assignment(Slot),
+    selected(body,Slot,Mode),
+    mode_arg_direction(Mode,Arg,output),
+    var_at(body,Slot,Arg,Var).
+
+:- selected(body,Slot,Mode),
+   exact_assignment_mode(Mode),
+   not ready_exact_assignment(Slot).
 
 :- selected(body,Slot,Mode), directed_mode(Mode), not ready_literal(Slot).
 

@@ -130,4 +130,4 @@ val(1..n*n).
 #modeb(2,sum_row(var(index,output),var(numeric,output))).
 #modeb(2,sum_col(var(index,output),var(numeric,output))).
 #modeagg(1,sum(x/3),unbalanced).
-#modecmp(2,neq).
+#modearith(2,neq).

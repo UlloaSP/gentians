@@ -1,6 +1,7 @@
 % Optional labels inside one complete head mode constrain variable identity.
 
 #defined head_arg_label/4.
+#defined mode_arg_label/3.
 #defined default_variable_identity/0.
 
 head_label_var(Form,Label,Var):-
@@ -8,6 +9,11 @@ head_label_var(Form,Label,Var):-
     head_arg_label(Form,Mode,Arg,Label),
     selected(head,Slot,Mode),
     var_at(head,Slot,Arg,Var).
+
+mode_label_var(Section,Slot,Label,Var):-
+    selected(Section,Slot,Mode),
+    mode_arg_label(Mode,Arg,Label),
+    var_at(Section,Slot,Arg,Var).
 
 :- default_variable_identity,
     head_label_var(Form,Label,Left),
@@ -17,4 +23,14 @@ head_label_var(Form,Label,Var):-
 :- default_variable_identity,
     head_label_var(Form,LeftLabel,Var),
     head_label_var(Form,RightLabel,Var),
+    LeftLabel < RightLabel.
+
+:- default_variable_identity,
+    mode_label_var(Section,Slot,Label,Left),
+    mode_label_var(Section,Slot,Label,Right),
+    Left != Right.
+
+:- default_variable_identity,
+    mode_label_var(Section,Slot,LeftLabel,Var),
+    mode_label_var(Section,Slot,RightLabel,Var),
     LeftLabel < RightLabel.

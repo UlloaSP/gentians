@@ -43,7 +43,16 @@ def prune_uncloseable_rules(
         providers = set(background)
         for entry in kept:
             providers.update(entry.heads)
-        filtered = [entry for entry in kept if entry.deps <= providers]
+        invalid_bundles = {
+            entry.bundle
+            for entry in kept
+            if entry.bundle is not None and not entry.deps <= providers
+        }
+        filtered = [
+            entry
+            for entry in kept
+            if entry.deps <= providers and entry.bundle not in invalid_bundles
+        ]
         if len(filtered) == len(kept):
             return kept
         kept = filtered

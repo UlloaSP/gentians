@@ -3,6 +3,7 @@
 #defined conditional_mode/3.
 #defined conditional_main_arg/2.
 #defined conditional_condition/4.
+#defined conditional_expression_condition/2.
 #defined conditional_condition_arg/4.
 #defined conditional_condition_variant/3.
 #defined mode_condition_count/2.
@@ -49,13 +50,6 @@ conditional_positive_condition_var(Section,Slot,Var):-
     conditional_condition_arg(Mode,Condition,_,Arg),
     var_at(Section,Slot,Arg,Var).
 
-conditional_positive_body_main_var(body,Slot,Var):-
-    selected(body,Slot,Mode),
-    conditional_mode(Mode,_,_),
-    not negative_mode(Mode),
-    conditional_main_arg(Mode,Arg),
-    var_at(body,Slot,Arg,Var).
-
 conditional_var(Section,Slot,Var):- conditional_main_var(Section,Slot,Var).
 conditional_var(Section,Slot,Var):- conditional_condition_var(Section,Slot,Var).
 
@@ -84,8 +78,7 @@ conditional_local_at(Section,Slot,Arg):-
     conditional_mode(Mode,_,_).
 
 :- conditional_local_var(Section,Slot,Var),
-    not conditional_positive_condition_var(Section,Slot,Var),
-    not conditional_positive_body_main_var(Section,Slot,Var).
+    not conditional_positive_condition_var(Section,Slot,Var).
 
 conditional_global_var(Section,Slot,Var):-
     conditional_var(Section,Slot,Var),

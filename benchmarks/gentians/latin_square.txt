@@ -51,4 +51,4 @@ x(1,1,1).
 #modeb(1,cell(var(index,input))).
 #modeb(1,size(var(numeric,output))).
 #modeagg(1,count(x/3),unbalanced).
-#modecmp(1,neq).
+#modearith(1,neq).

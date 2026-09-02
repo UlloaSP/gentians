@@ -31,7 +31,9 @@ from .conditional_literal import ConditionalLiteral
 from .head_template import HeadTemplate
 from .hypothesis_capabilities import HypothesisCapabilities
 from .hypothesis_mode import HypothesisMode
-from .parser import Predicate, fragment_atoms
+from .mode_declaration import ModeDeclaration
+from .operator_declaration import OperatorDeclaration
+from .parser import Predicate, clause_predicates, fragment_atoms
 from .program import Program
 from .reified_clause import ReifiedClause
 from .reified_literal import ReifiedLiteral
@@ -223,7 +225,7 @@ class HypothesisSpaceGenerator:
         seconds = 0.0
         collect_metrics = metric_enabled("clingo")
         start = net_time()
-        with ctl.solve(yield_=True) as handle:  # type: ignore
+        with ctl.solve(yield_=True) as handle:
             seconds += net_time() - start
             iterator = iter(handle)
             while True:
@@ -313,6 +315,43 @@ class HypothesisSpaceGenerator:
 @profile_phase("hypothesis_space")
 def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
     rule_space = HypothesisSpaceGenerator(program, arguments).generate()
+    if program.metarule_programs:
+        entries = list(rule_space.entries)
+        known_rules = {entry.text for entry in entries}
+        bundle_offset = (
+            max(
+                (entry.bundle for entry in entries if entry.bundle is not None),
+                default=-1,
+            )
+            + 1
+        )
+        for bundle, rules in enumerate(program.metarule_programs, bundle_offset):
+            for rule in rules:
+                if rule in known_rules:
+                    raise ValueError(
+                        f"metarule rule duplicates another hypothesis rule: {rule}"
+                    )
+                known_rules.add(rule)
+                heads, deps, body_literals = clause_predicates(rule)
+                head_literals = _rule_head_width(rule)
+                if (
+                    program.max_head_literals is not None
+                    and head_literals > program.max_head_literals
+                ):
+                    raise ValueError(f"metarule exceeds #maxhl: {rule}")
+                if (
+                    program.max_body_literals is not None
+                    and body_literals > program.max_body_literals
+                ):
+                    raise ValueError(f"metarule exceeds #maxbl: {rule}")
+                variables = set(re.findall(r"\b[A-Z][A-Za-z0-9_]*\b", rule))
+                if (
+                    program.max_variables is not None
+                    and len(variables) > program.max_variables
+                ):
+                    raise ValueError(f"metarule exceeds #maxv: {rule}")
+                entries.append(RuleEntry(rule, heads, deps, body_literals, bundle))
+        rule_space = RuleSpace.from_entries(entries)
     if metric_enabled("candidate"):
         with instrumentation():
             record_metric(
@@ -322,7 +361,26 @@ def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
     return rule_space
 
 
-def hypothesis_space_metrics(program: Program, rule_space: RuleSpace) -> dict[str, object]:
+def _rule_head_width(rule: str) -> int:
+    nodes: list[ast.AST] = []
+    ast.parse_string(rule, nodes.append)
+    parsed = next(node for node in nodes if node.ast_type == ast.ASTType.Rule)
+    head = parsed.head
+    if (
+        head.ast_type == ast.ASTType.Literal
+        and head.atom.ast_type == ast.ASTType.BooleanConstant
+    ):
+        return 0
+    if head.ast_type in {ast.ASTType.Literal, ast.ASTType.ConditionalLiteral}:
+        return 1
+    if head.ast_type in {ast.ASTType.Disjunction, ast.ASTType.Aggregate}:
+        return len(head.elements)
+    return 0
+
+
+def hypothesis_space_metrics(
+    program: Program, rule_space: RuleSpace
+) -> dict[str, object]:
     invented = set(program.invented_predicates)
     return {
         "metric": "hypothesis_space",
@@ -355,19 +413,25 @@ def _numeric_domain_values(program: Program) -> set[int]:
             if abs(end_value - start_value) <= 10000:
                 step = 1 if start_value <= end_value else -1
                 values.update(range(start_value, end_value + step, step))
-        values.update(int(value) for value in re.findall(r"(?<![\w-])-?\d+(?![\w])", fragment))
+        values.update(
+            int(value) for value in re.findall(r"(?<![\w-])-?\d+(?![\w])", fragment)
+        )
     return values
 
 
 def _numeric_constants(fragments: list[str]) -> dict[str, int]:
     constants: dict[str, int] = {}
     for fragment in fragments:
-        for name, value in re.findall(r"#const\s+([A-Za-z_]\w*)\s*=\s*(-?\d+)\s*\.", fragment):
+        for name, value in re.findall(
+            r"#const\s+([A-Za-z_]\w*)\s*=\s*(-?\d+)\s*\.", fragment
+        ):
             constants[name] = int(value)
     return constants
 
 
-def _closed_world_extensions(fragments: list[str]) -> dict[Predicate, set[tuple[str, ...]]]:
+def _closed_world_extensions(
+    fragments: list[str],
+) -> dict[Predicate, set[tuple[str, ...]]]:
     extensions: dict[Predicate, set[tuple[str, ...]]] = {}
     constants = _numeric_constants(fragments)
     for fragment in fragments:
@@ -480,7 +544,9 @@ def _simple_atom(text: str) -> tuple[str, tuple[str, ...]] | None:
     match = re.fullmatch(r"(-?[a-z][A-Za-z0-9_]*)\((.*)\)", text)
     if not match:
         return None
-    return match.group(1), tuple(part.strip() for part in _split_top_level(match.group(2)))
+    return match.group(1), tuple(
+        part.strip() for part in _split_top_level(match.group(2))
+    )
 
 
 def _merge_assignment(
@@ -534,7 +600,9 @@ def _expand_ground_arguments(
     return [tuple(values) for values in product(*domains)]
 
 
-def _expand_ground_argument(argument: str, constants: dict[str, int]) -> list[str] | None:
+def _expand_ground_argument(
+    argument: str, constants: dict[str, int]
+) -> list[str] | None:
     text = argument.strip()
     if text.startswith("(") and text.endswith(")"):
         text = text[1:-1]
@@ -635,12 +703,12 @@ def _unary_type_domains(
             value = arguments[0]
             if _has_variable(value):
                 continue
-            arg_type = predicate_arg_types.get(
-                (name.removeprefix("-"), 1, 0), "any"
-            )
+            arg_type = predicate_arg_types.get((name.removeprefix("-"), 1, 0), "any")
             values = _expand_ground_argument(value, constants)
             if arg_type != "any" and values is not None:
-                domains.setdefault(arg_type, {}).setdefault((name, 1), set()).update(values)
+                domains.setdefault(arg_type, {}).setdefault((name, 1), set()).update(
+                    values
+                )
     return domains
 
 
@@ -697,7 +765,9 @@ def _closed_world_properties(
                 symmetric.add(predicate)
             if tuples.isdisjoint(reversed_tuples):
                 asymmetric.add(predicate)
-            if all(left == right or (right, left) not in tuples for left, right in tuples):
+            if all(
+                left == right or (right, left) not in tuples for left, right in tuples
+            ):
                 antisymmetric.add(predicate)
             if _is_acyclic(tuples):
                 acyclic.add(predicate)
@@ -716,7 +786,7 @@ def _closed_world_properties(
         right_tuples = extensions[right]
         if left[1] == right[1]:
             if left_tuples == right_tuples:
-                equivalent.add(tuple(sorted((left, right))))
+                equivalent.add((min(left, right), max(left, right)))
             elif left_tuples <= right_tuples:
                 implies.add((left, right))
             elif right_tuples <= left_tuples:
@@ -724,14 +794,20 @@ def _closed_world_properties(
             if left_tuples.isdisjoint(right_tuples):
                 universe = tuple_universe_by_arity[left[1]]
                 if left_tuples | right_tuples == universe:
-                    complement.add(tuple(sorted((left, right))))
+                    complement.add((min(left, right), max(left, right)))
                 else:
-                    mutex.add(tuple(sorted((left, right))))
+                    mutex.add((min(left, right), max(left, right)))
             if left[1] == 2 and left_tuples == {(b, a) for a, b in right_tuples}:
-                inverse.add(tuple(sorted((left, right))))
-        _collect_disjoint_projections(left, left_tuples, right, right_tuples, disjoint_projection)
-        _collect_projection_implications(left, left_tuples, right, right_tuples, project_implies)
-        _collect_projection_implications(right, right_tuples, left, left_tuples, project_implies)
+                inverse.add((min(left, right), max(left, right)))
+        _collect_disjoint_projections(
+            left, left_tuples, right, right_tuples, disjoint_projection
+        )
+        _collect_projection_implications(
+            left, left_tuples, right, right_tuples, project_implies
+        )
+        _collect_projection_implications(
+            right, right_tuples, left, left_tuples, project_implies
+        )
     if closed_body_predicates:
         _collect_tuple_mutex(extensions, closed_body_predicates, tuple_mutex)
     functional.update(choice_functional)
@@ -763,7 +839,8 @@ def _closed_world_properties(
         empty.update(
             predicate
             for predicate in closed_body_predicates
-            if predicate not in extensions and predicate not in _defined_predicates(fragments)
+            if predicate not in extensions
+            and predicate not in _defined_predicates(fragments)
         )
     asymmetric -= acyclic | strict_order | total_order
     acyclic -= strict_order
@@ -833,10 +910,14 @@ def _choice_rule_properties(
         if not node.body and (upper := _aggregate_upper(head)) is not None:
             predicate = _choice_predicate(head.elements)
             if predicate is not None:
-                cardinality_upper[predicate] = cardinality_upper.get(predicate, 0) + upper
+                cardinality_upper[predicate] = (
+                    cardinality_upper.get(predicate, 0) + upper
+                )
         predicate = _choice_predicate(head.elements)
         if predicate is not None:
-            project_implies.update(_choice_project_implies(predicate, head.elements, node.body))
+            project_implies.update(
+                _choice_project_implies(predicate, head.elements, node.body)
+            )
         if not _aggregate_upper_at_most_one(head):
             return
         result = _choice_key(node.body, head.elements)
@@ -907,7 +988,9 @@ def _choice_key(
         return None
     name = atoms[0][0]
     arity = len(atoms[0][1])
-    if any(atom_name != name or len(arguments) != arity for atom_name, arguments in atoms):
+    if any(
+        atom_name != name or len(arguments) != arity for atom_name, arguments in atoms
+    ):
         return None
 
     body_vars = set().union(*(_term_variables(literal) for literal in body), set())
@@ -996,7 +1079,9 @@ def _collect_rule_defined_properties(
         if fragment.lstrip().startswith("#"):
             continue
         try:
-            ast.parse_string(fragment if fragment.strip().endswith(".") else f"{fragment}.", collect)
+            ast.parse_string(
+                fragment if fragment.strip().endswith(".") else f"{fragment}.", collect
+            )
         except RuntimeError:
             continue
 
@@ -1016,7 +1101,9 @@ def _collect_rule_defined_properties(
             continue
         for body_atom in body_atoms:
             for key in key_by_predicate.get((body_atom[0], len(body_atom[1])), ()):
-                _propagate_key_through_rule(head, body_atom, key, equalities, functional, functional_set, keys)
+                _propagate_key_through_rule(
+                    head, body_atom, key, equalities, functional, functional_set, keys
+                )
 
     for predicate, rules in rules_by_head.items():
         if predicate[1] == 2 and all(_rule_head_args_distinct(rule) for rule in rules):
@@ -1061,7 +1148,10 @@ def _terms_known_distinct(
         left_parts is not None
         and right_parts is not None
         and len(left_parts) == len(right_parts)
-        and any(_terms_known_distinct(a, b, inequalities) for a, b in zip(left_parts, right_parts))
+        and any(
+            _terms_known_distinct(a, b, inequalities)
+            for a, b in zip(left_parts, right_parts)
+        )
     )
 
 
@@ -1109,7 +1199,9 @@ def _term_pair_mapping(left: str, right: str) -> dict[str, str] | None:
 
 
 def _substitute_variables(text: str, mapping: dict[str, str]) -> str:
-    return re.sub(r"\b[A-Z]\w*\b", lambda match: mapping.get(match.group(0), match.group(0)), text)
+    return re.sub(
+        r"\b[A-Z]\w*\b", lambda match: mapping.get(match.group(0), match.group(0)), text
+    )
 
 
 def _canonical_literal_text(text: str) -> str:
@@ -1141,17 +1233,19 @@ def _propagate_key_through_rule(
     head_predicate = (head[0], len(head[1]))
     determinant_vars = {body_args[arg] for arg in body_key}
     determinant_vars |= {
-        square
-        for square, root in equalities
-        if root in determinant_vars
+        square for square, root in equalities if root in determinant_vars
     }
     determinant_positions = tuple(
-        index for index, argument in enumerate(head_args) if argument in determinant_vars
+        index
+        for index, argument in enumerate(head_args)
+        if argument in determinant_vars
     )
     if not determinant_positions:
         return
     output_positions = tuple(
-        index for index, argument in enumerate(head_args) if argument not in determinant_vars
+        index
+        for index, argument in enumerate(head_args)
+        if argument not in determinant_vars
     )
     if not output_positions:
         return
@@ -1446,7 +1540,9 @@ def _collect_tuple_mutex(
             for projection in permutations(range(left[1])):
                 if projection == tuple(range(left[1])):
                     continue
-                projected = {tuple(values[arg] for arg in projection) for values in left_tuples}
+                projected = {
+                    tuple(values[arg] for arg in projection) for values in left_tuples
+                }
                 if projected.isdisjoint(right_tuples):
                     tuple_mutex.add((left, right, projection))
 
@@ -1461,12 +1557,14 @@ def _collect_projection_implications(
     if source[1] <= target[1] or not target_tuples:
         return
     for projection in permutations(range(source[1]), target[1]):
-        projected = {tuple(values[arg] for arg in projection) for values in source_tuples}
+        projected = {
+            tuple(values[arg] for arg in projection) for values in source_tuples
+        }
         if projected <= target_tuples:
             project_implies.add((source, target, projection))
 
 
-def _is_transitive(tuples: set[tuple[str, ...]]) -> bool:
+def _is_transitive(tuples: set[tuple[str, ...]] | set[tuple[str, str]]) -> bool:
     if len(tuples) < 3:
         return False
     for left, middle in tuples:
@@ -1476,12 +1574,12 @@ def _is_transitive(tuples: set[tuple[str, ...]]) -> bool:
     return True
 
 
-def _is_reflexive(tuples: set[tuple[str, str]]) -> bool:
+def _is_reflexive(tuples: set[tuple[str, ...]]) -> bool:
     domain = {value for row in tuples for value in row}
     return bool(domain) and all((value, value) in tuples for value in domain)
 
 
-def _is_total_order(tuples: set[tuple[str, str]]) -> bool:
+def _is_total_order(tuples: set[tuple[str, ...]]) -> bool:
     domain = {value for row in tuples for value in row}
     if (
         len(domain) < 2
@@ -1523,10 +1621,10 @@ def _is_acyclic(tuples: set[tuple[str, ...]]) -> bool:
 def _recursive_predicates(program: Program) -> set[Predicate]:
     head_predicates = {atom.signature for atom in _head_atoms(program)}
     return {
-        md.literal.atom.signature
+        literal.atom.signature
         for md in (*program.language_bias_body, *program.language_bias_condition)
-        if not md.literal.default_negated
-        and md.literal.atom.signature in head_predicates
+        for literal in _mode_atom_literals(md)
+        if not literal.default_negated and literal.atom.signature in head_predicates
     }
 
 
@@ -1535,7 +1633,26 @@ def _head_atoms(program: Program) -> tuple[AtomTemplate, ...]:
         atom
         for declaration in program.language_bias_head
         for atom in declaration.template.elements
-    ) + tuple(mode.literal.atom for mode in program.language_bias_aggregate_head)
+    ) + tuple(
+        mode.literal.atom
+        for mode in (
+            *program.language_bias_aggregate_head,
+            *program.language_bias_disjunctive_head,
+        )
+        if isinstance(mode.literal, AtomLiteral)
+    )
+
+
+def _mode_atom_literals(mode: ModeDeclaration) -> tuple[AtomLiteral, ...]:
+    if isinstance(mode.literal, AtomLiteral):
+        return (mode.literal,)
+    if isinstance(mode.literal, ConditionalLiteral):
+        return tuple(
+            literal
+            for literal in (mode.literal.conclusion, *mode.literal.conditions)
+            if isinstance(literal, AtomLiteral)
+        )
+    return ()
 
 
 def _validate_invented_predicates(program: Program, fragments: list[str]) -> None:
@@ -1544,9 +1661,10 @@ def _validate_invented_predicates(program: Program, fragments: list[str]) -> Non
         raise ValueError("duplicate invented predicate")
     heads = {atom.signature for atom in _head_atoms(program)}
     positive_bodies = {
-        mode.literal.atom.signature
+        literal.atom.signature
         for mode in program.language_bias_body
-        if not mode.literal.default_negated
+        for literal in _mode_atom_literals(mode)[:1]
+        if not literal.default_negated
     }
     missing = invented - (heads & positive_bodies)
     if missing:
@@ -1555,7 +1673,9 @@ def _validate_invented_predicates(program: Program, fragments: list[str]) -> Non
         )
     observed = invented & _observed_predicates(fragments)
     if observed:
-        raise ValueError(f"invented predicates must not be observed: {sorted(observed)}")
+        raise ValueError(
+            f"invented predicates must not be observed: {sorted(observed)}"
+        )
 
 
 def _hypothesis_capabilities(
@@ -1566,8 +1686,13 @@ def _hypothesis_capabilities(
     numeric_evidence = any(
         arg_type == "numeric" for arg_type in predicate_arg_types.values()
     )
-    comparison_operators = {mode.operator for mode in program.comparison_modes}
-    equality_comparison = "neq" in comparison_operators
+    comparison_operators = {
+        mode.operator
+        for mode in program.arithmetic_modes
+        if isinstance(mode, OperatorDeclaration)
+        and mode.operator in {"eq", "neq", "lt", "leq", "gt", "geq"}
+    }
+    equality_comparison = bool({"eq", "neq"} & comparison_operators)
     numeric_comparison = numeric_evidence and bool(
         comparison_operators & {"lt", "leq", "gt", "geq"}
     )
@@ -1585,8 +1710,9 @@ def _available_predicates(
     program: Program, fragments: list[str]
 ) -> set[tuple[str, int]]:
     predicates = {atom.signature for atom in _head_atoms(program)} | {
-        mode.literal.atom.signature
+        literal.atom.signature
         for mode in (*program.language_bias_body, *program.language_bias_condition)
+        for literal in _mode_atom_literals(mode)
     }
     for fragment in fragments:
         for name, arguments, _negative in fragment_atoms(fragment):
@@ -1608,8 +1734,9 @@ def _predicate_arg_types(
     declared_atoms = [
         *_head_atoms(program),
         *(
-            mode.literal.atom
+            literal.atom
             for mode in (*program.language_bias_body, *program.language_bias_condition)
+            for literal in _mode_atom_literals(mode)
         ),
     ]
     positions = {
@@ -1670,9 +1797,7 @@ def _predicate_arg_types(
             if argument.kind not in {"variable", "constant"}:
                 continue
             position = (*atom.unsigned_signature, index)
-            declared_types_by_root.setdefault(find(position), set()).add(
-                argument.type
-            )
+            declared_types_by_root.setdefault(find(position), set()).add(argument.type)
     type_by_root: dict[tuple[str, int, int], str] = {}
     next_type = 0
     for root, constants in constants_by_root.items():
@@ -1741,15 +1866,19 @@ def _valid_aggregate_specs(
     return valid
 
 
-def _aggregate_head_templates(program: Program) -> tuple[HeadTemplate, ...]:
-    declarations = program.language_bias_aggregate_head
+def _combined_head_templates(
+    program: Program,
+    declarations: list[ModeDeclaration],
+    kind: str,
+) -> tuple[HeadTemplate, ...]:
     if not declarations:
         return ()
 
     max_width = program.max_head_literals
     if max_width is None:
         if any(declaration.recall < 0 for declaration in declarations):
-            raise ValueError("#maxhl(*) requires finite recalls for every #modeha")
+            directive = "#modeha" if kind == "choice" else "#modehd"
+            raise ValueError(f"#maxhl(*) requires finite recalls for every {directive}")
         aggregate_capacity = sum(declaration.recall for declaration in declarations)
         max_width = max(
             aggregate_capacity,
@@ -1761,6 +1890,7 @@ def _aggregate_head_templates(program: Program) -> tuple[HeadTemplate, ...]:
     choices = tuple(
         (declaration_index, atom)
         for declaration_index, declaration in enumerate(declarations)
+        if isinstance(declaration.literal, AtomLiteral)
         for atom in declaration.literal.atom.concretizations(program.constants)
     )
     condition_limit = _condition_limit(program)
@@ -1791,12 +1921,14 @@ def _aggregate_head_templates(program: Program) -> tuple[HeadTemplate, ...]:
     )
     templates: list[HeadTemplate] = []
     seen: set[HeadTemplate] = set()
-    for width in range(program.min_aggregate_head_literals, max_width + 1):
+    minimum = max(
+        2 if kind == "disjunction" else 1, program.min_aggregate_head_literals
+    )
+    for width in range(minimum, max_width + 1):
         for combination in combinations_with_replacement(choices, width):
             declaration_counts = Counter(index for index, _atom in combination)
             if any(
-                declarations[index].recall >= 0
-                and count > declarations[index].recall
+                declarations[index].recall >= 0 and count > declarations[index].recall
                 for index, count in declaration_counts.items()
             ):
                 continue
@@ -1806,27 +1938,49 @@ def _aggregate_head_templates(program: Program) -> tuple[HeadTemplate, ...]:
             ):
                 continue
             elements = tuple(atom for _index, atom in combination)
-            for lower, upper in _aggregate_head_bounds(width):
-                template = HeadTemplate("choice", elements, lower, upper)
+            bounds = (
+                _aggregate_head_bounds(width) if kind == "choice" else ((None, None),)
+            )
+            for lower, upper in bounds:
+                template = HeadTemplate(kind, elements, lower, upper)
                 if template not in seen:
                     seen.add(template)
                     templates.append(template)
     return tuple(templates)
 
 
+def _aggregate_head_templates(program: Program) -> tuple[HeadTemplate, ...]:
+    return _combined_head_templates(
+        program, program.language_bias_aggregate_head, "choice"
+    )
+
+
+def _disjunctive_head_templates(program: Program) -> tuple[HeadTemplate, ...]:
+    return _combined_head_templates(
+        program, program.language_bias_disjunctive_head, "disjunction"
+    )
+
+
 def _aggregate_head_atom_capacity(
     program: Program,
     atom: AtomTemplate,
     max_width: int,
-    condition_modes: tuple[tuple[AtomLiteral, int, int], ...],
+    condition_modes: tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...],
     condition_limit: int,
 ) -> int:
-    variants = _conditioned_literals(
-        AtomLiteral(atom), condition_modes, condition_limit
+    variants = tuple(
+        variant
+        for variant in _conditioned_literals(
+            AtomLiteral(atom), condition_modes, condition_limit
+        )
+        if isinstance(variant, AtomLiteral | ConditionalLiteral)
     )
     return min(
         max_width,
-        sum(_literal_assignment_capacity(program, variant, max_width) for variant in variants),
+        sum(
+            _literal_assignment_capacity(program, variant, max_width)
+            for variant in variants
+        ),
     )
 
 
@@ -1873,13 +2027,34 @@ def _hypothesis_modes(
     head_templates = (
         *((declaration.template, False) for declaration in program.language_bias_head),
         *((template, True) for template in _aggregate_head_templates(program)),
+        *((template, False) for template in _disjunctive_head_templates(program)),
     )
     for template, aggregate_head in head_templates:
-        concrete_atoms = [
-            atom.concretizations(program.constants)
-            for atom in template.elements
-        ]
-        for concrete_form in product(*concrete_atoms):
+        concrete_elements = []
+        for atom, exact_conditions in zip(
+            template.elements, template.conditions, strict=True
+        ):
+            base: AtomLiteral | ConditionalLiteral = AtomLiteral(atom)
+            if exact_conditions:
+                base = ConditionalLiteral(
+                    base,
+                    exact_conditions,
+                    (-1,) * len(exact_conditions),
+                )
+            concrete_elements.append(
+                tuple(
+                    literal
+                    for literal in _literal_concretizations(base, program.constants)
+                    if isinstance(literal, AtomLiteral | ConditionalLiteral)
+                )
+            )
+        for concrete_literals_base in product(*concrete_elements):
+            concrete_form = tuple(
+                literal.conclusion.atom
+                if isinstance(literal, ConditionalLiteral)
+                else literal.atom
+                for literal in concrete_literals_base
+            )
             head = HeadTemplate(
                 template.kind,
                 concrete_form,
@@ -1887,15 +2062,26 @@ def _hypothesis_modes(
                 template.upper,
             )
             alternatives = tuple(
-                _conditioned_literals(AtomLiteral(atom), condition_modes, condition_limit)
-                for atom in concrete_form
+                _conditioned_literals(literal, condition_modes, condition_limit)
+                for literal in concrete_literals_base
             )
             for concrete_literals in product(*alternatives):
-                if sum(
-                    len(literal.conditions)
+                generated_conditions = sum(
+                    sum(group >= 0 for group in literal.condition_groups)
                     for literal in concrete_literals
                     if isinstance(literal, ConditionalLiteral)
-                ) > condition_limit:
+                )
+                if generated_conditions > condition_limit:
+                    continue
+                if (
+                    sum(
+                        len(literal.conditions)
+                        for literal in concrete_literals
+                        if isinstance(literal, ConditionalLiteral)
+                    )
+                    > (program.max_body_literals or 0)
+                    and program.max_body_literals is not None
+                ):
                     continue
                 form_id = next_head_form
                 next_head_form += 1
@@ -1916,8 +2102,9 @@ def _hypothesis_modes(
 
     for declaration in program.language_bias_body:
         recall_group = next_id
-        for atom in declaration.literal.atom.concretizations(program.constants):
-            conclusion = AtomLiteral(atom, declaration.literal.default_negated)
+        for conclusion in _literal_concretizations(
+            declaration.literal, program.constants
+        ):
             for literal in _conditioned_literals(
                 conclusion, condition_modes, condition_limit
             ):
@@ -1931,11 +2118,36 @@ def _hypothesis_modes(
                     )
                 )
 
+    operator_modes = [
+        declaration
+        for declaration in program.arithmetic_modes
+        if isinstance(declaration, OperatorDeclaration)
+    ]
+    for declaration in (
+        declaration
+        for declaration in program.arithmetic_modes
+        if isinstance(declaration, ModeDeclaration)
+    ):
+        recall_group = next_id
+        for literal in _literal_concretizations(declaration.literal, program.constants):
+            add(
+                HypothesisMode(
+                    id=next_id,
+                    recall_group=recall_group,
+                    section="body",
+                    recall=declaration.recall,
+                    literal=literal,
+                )
+            )
+
     emitted_comparison_families: set[frozenset[str]] = set()
-    for declaration in program.comparison_modes:
-        if declaration.operator == "eq":
+    for declaration in operator_modes:
+        if declaration.operator not in {"eq", "neq", "lt", "leq", "gt", "geq"}:
             continue
-        if declaration.operator in {"lt", "gt"}:
+        if declaration.operator == "eq":
+            symbol = "="
+            family = frozenset(("eq",))
+        elif declaration.operator in {"lt", "gt"}:
             family = frozenset(("lt", "gt"))
             symbol = "<"
         elif declaration.operator in {"leq", "geq"}:
@@ -1949,8 +2161,11 @@ def _hypothesis_modes(
         emitted_comparison_families.add(family)
         numeric = declaration.operator in {"lt", "leq", "gt", "geq"}
         if symbol and (
-            numeric and capabilities.allow_numeric_comparison
+            numeric
+            and capabilities.allow_numeric_comparison
             or declaration.operator == "neq"
+            and capabilities.allow_equality_comparison
+            or declaration.operator == "eq"
             and capabilities.allow_equality_comparison
         ):
             add(
@@ -1960,18 +2175,14 @@ def _hypothesis_modes(
                     section="body",
                     recall=_combined_recall(
                         candidate.recall
-                        for candidate in program.comparison_modes
+                        for candidate in operator_modes
                         if candidate.operator in family
                     ),
                     literal=ComparisonLiteral(
                         symbol,
                         (
-                            TermTemplate.variable(
-                                "numeric" if numeric else "any", ""
-                            ),
-                            TermTemplate.variable(
-                                "numeric" if numeric else "any", ""
-                            ),
+                            TermTemplate.variable("numeric" if numeric else "any", ""),
+                            TermTemplate.variable("numeric" if numeric else "any", ""),
                         ),
                     ),
                 )
@@ -1980,7 +2191,7 @@ def _hypothesis_modes(
     if capabilities.allow_arithmetic:
         additive = [
             declaration
-            for declaration in program.arithmetic_modes
+            for declaration in operator_modes
             if declaration.operator in {"add", "sub"}
         ]
         if additive:
@@ -2008,7 +2219,7 @@ def _hypothesis_modes(
                     ),
                 )
             )
-        for declaration in program.arithmetic_modes:
+        for declaration in operator_modes:
             if declaration.operator in {"add", "sub"}:
                 continue
             symbol = {
@@ -2073,8 +2284,7 @@ def _hypothesis_modes(
                     literal=AggregateLiteral(
                         declaration.function,
                         tuple(
-                            TermTemplate.variable("any", "")
-                            for _ in range(tuple_arity)
+                            TermTemplate.variable("any", "") for _ in range(tuple_arity)
                         ),
                         conditions,
                         TermTemplate.variable("numeric", ""),
@@ -2096,25 +2306,47 @@ def _condition_limit(program: Program) -> int:
 
 def _condition_modes(
     program: Program,
-) -> tuple[tuple[AtomLiteral, int, int], ...]:
+) -> tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...]:
     return tuple(
-        (AtomLiteral(atom, declaration.literal.default_negated), group, declaration.recall)
+        (literal, group, declaration.recall)
         for group, declaration in enumerate(program.language_bias_condition)
-        for atom in declaration.literal.atom.concretizations(program.constants)
+        for literal in _literal_concretizations(declaration.literal, program.constants)
+        if isinstance(literal, AtomLiteral | ComparisonLiteral)
     )
 
 
 def _conditioned_literals(
-    conclusion: AtomLiteral,
-    condition_modes: tuple[tuple[AtomLiteral, int, int], ...],
+    conclusion: AtomLiteral | ComparisonLiteral | ConditionalLiteral,
+    condition_modes: tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...],
     limit: int,
-) -> tuple[AtomLiteral | ConditionalLiteral, ...]:
-    literals: list[AtomLiteral | ConditionalLiteral] = [conclusion]
-    for length in range(1, limit + 1):
-        for indices in combinations_with_replacement(range(len(condition_modes)), length):
+) -> tuple[AtomLiteral | ComparisonLiteral | ConditionalLiteral, ...]:
+    if isinstance(conclusion, ComparisonLiteral):
+        return (conclusion,)
+    literals: list[AtomLiteral | ComparisonLiteral | ConditionalLiteral] = [conclusion]
+    base_conclusion = (
+        conclusion.conclusion
+        if isinstance(conclusion, ConditionalLiteral)
+        else conclusion
+    )
+    base_conditions = (
+        conclusion.conditions if isinstance(conclusion, ConditionalLiteral) else ()
+    )
+    base_groups = (
+        conclusion.condition_groups
+        if isinstance(conclusion, ConditionalLiteral)
+        else ()
+    )
+    remaining = max(0, limit - len(base_conditions))
+    for length in range(1, remaining + 1):
+        for indices in combinations_with_replacement(
+            range(len(condition_modes)), length
+        ):
             selected = tuple(condition_modes[index] for index in indices)
             if any(
-                sum(candidate_group == group for _literal, candidate_group, _ in selected)
+                sum(
+                    candidate_group == group
+                    for _literal, candidate_group, _ in selected
+                )
                 > recall
                 for _literal, group, recall in selected
                 if recall >= 0
@@ -2122,18 +2354,42 @@ def _conditioned_literals(
                 continue
             if any(
                 indices.count(index) > 1
-                and not condition_modes[index][0].atom.bindings()
+                and not any(
+                    term.bindings() for term in condition_modes[index][0].arguments
+                )
                 for index in set(indices)
             ):
                 continue
             literals.append(
                 ConditionalLiteral(
-                    conclusion,
-                    tuple(literal for literal, _group, _recall in selected),
-                    tuple(group for _literal, group, _recall in selected),
+                    base_conclusion,
+                    (
+                        *base_conditions,
+                        *(literal for literal, _group, _recall in selected),
+                    ),
+                    (*base_groups, *(group for _literal, group, _recall in selected)),
                 )
             )
     return tuple(literals)
+
+
+def _literal_concretizations(
+    literal: AtomLiteral | ComparisonLiteral | ConditionalLiteral,
+    constants: dict[str, tuple[str, ...]],
+) -> tuple[AtomLiteral | ComparisonLiteral | ConditionalLiteral, ...]:
+    if isinstance(literal, AtomLiteral):
+        return tuple(
+            AtomLiteral(atom, literal.default_negated)
+            for atom in literal.atom.concretizations(constants)
+        )
+    if isinstance(literal, ConditionalLiteral):
+        return literal.concretizations(constants)
+    return tuple(
+        ComparisonLiteral(literal.operator, (terms[0], terms[1]), literal.family)
+        for terms in product(
+            *(term.concretizations(constants) for term in literal.terms)
+        )
+    )
 
 
 def _combined_recall(recalls: Iterable[int]) -> int:
@@ -2146,11 +2402,11 @@ def _variable_arity(mode: HypothesisMode) -> int:
 
 
 def _binding_positions(mode: HypothesisMode) -> tuple[int, ...]:
-    if isinstance(mode.literal, ConditionalLiteral) or (
+    if isinstance(
+        mode.literal, ConditionalLiteral | ComparisonLiteral | ArithmeticLiteral
+    ) or (
         isinstance(mode.literal, AtomLiteral)
-        and any(
-            term.kind in {"function", "tuple"} for term in mode.literal.atom.terms
-        )
+        and any(term.kind in {"function", "tuple"} for term in mode.literal.atom.terms)
     ):
         return tuple(range(len(mode.bindings)))
     return tuple(binding.path[0] for binding in mode.bindings)
@@ -2163,11 +2419,7 @@ def _section_capacity(
         return limit
     if section == "head":
         return max(
-            (
-                mode.head_position + 1
-                for mode in modes
-                if mode.section == "head"
-            ),
+            (mode.head_position + 1 for mode in modes if mode.section == "head"),
             default=0,
         )
     recalls: dict[int, int] = {}
@@ -2188,9 +2440,10 @@ def _section_capacity(
 def _closed_body_predicates(program: Program) -> set[Predicate]:
     head_predicates = {atom.signature for atom in _head_atoms(program)}
     return {
-        mode.literal.atom.signature
+        literal.atom.signature
         for mode in (*program.language_bias_body, *program.language_bias_condition)
-        if mode.literal.atom.signature not in head_predicates
+        for literal in _mode_atom_literals(mode)
+        if literal.atom.signature not in head_predicates
     }
 
 
@@ -2262,10 +2515,7 @@ def _facts(
         )
         complement = (f"-{predicate[0]}", predicate[1])
         complement_id = predicate_ids.get(complement)
-        if (
-            not predicate[0].startswith("-")
-            and complement_id is not None
-        ):
+        if not predicate[0].startswith("-") and complement_id is not None:
             parts.append(f"strong_complement_pred({predicate_id},{complement_id}).")
     for layer, predicate in enumerate(program.invented_predicates):
         parts.append(f"invented_pred({predicate_ids[predicate]},{layer}).")
@@ -2279,9 +2529,13 @@ def _facts(
         elif isinstance(mode.literal, ConditionalLiteral):
             predicate_id = predicate_ids[mode.literal.conclusion.atom.signature]
         recall = (
-            max_head_literals if mode.section == "head" else max_body_literals
-        ) if mode.recall < 0 else mode.recall
-        parts.append(f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{recall}).")
+            (max_head_literals if mode.section == "head" else max_body_literals)
+            if mode.recall < 0
+            else mode.recall
+        )
+        parts.append(
+            f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{recall})."
+        )
         parts.append(f"recall_group({mode.id},{mode.recall_group}).")
         shape = tuple(argument.shape() for argument in mode.literal.arguments)
         parts.append(f"mode_shape({mode.id},{shapes.setdefault(shape, len(shapes))}).")
@@ -2291,9 +2545,7 @@ def _facts(
             )
             if mode.aggregate_head:
                 parts.append(f"aggregate_head_form({mode.head_form}).")
-        for index, binding in zip(
-            _binding_positions(mode), mode.bindings, strict=True
-        ):
+        for index, binding in zip(_binding_positions(mode), mode.bindings, strict=True):
             parts.append(f"mode_variable_arg({mode.id},{index}).")
             if binding.type != "any":
                 parts.append(f"mode_arg_type({mode.id},{index},{binding.type}).")
@@ -2301,6 +2553,8 @@ def _facts(
                 parts.append(
                     f"head_arg_label({mode.head_form},{mode.id},{index},{binding.label})."
                 )
+            if binding.label:
+                parts.append(f"mode_arg_label({mode.id},{index},{binding.label}).")
             if binding.direction:
                 parts.append(
                     f"mode_arg_direction({mode.id},{index},{binding.direction})."
@@ -2321,19 +2575,30 @@ def _facts(
                 parts.append(f"conditional_main_arg({mode.id},{argument}).")
             offset += conclusion_bindings
             for index, condition in enumerate(conditional.conditions):
-                polarity = "negative" if condition.default_negated else "positive"
-                condition_key = (
-                    condition.default_negated,
-                    condition.atom.signature,
-                    *(term.shape() for term in condition.atom.terms),
-                )
-                parts.append(
-                    f"conditional_condition({mode.id},{index},{predicate_ids[condition.atom.signature]},{polarity})."
-                )
+                if isinstance(condition, AtomLiteral):
+                    polarity = "negative" if condition.default_negated else "positive"
+                    condition_key = (
+                        condition.default_negated,
+                        condition.atom.signature,
+                        *(term.shape() for term in condition.atom.terms),
+                    )
+                    parts.append(
+                        f"conditional_condition({mode.id},{index},{predicate_ids[condition.atom.signature]},{polarity})."
+                    )
+                else:
+                    condition_key = (
+                        condition.operator,
+                        *(term.shape() for term in condition.terms),
+                    )
+                    parts.append(
+                        f"conditional_expression_condition({mode.id},{index})."
+                    )
                 parts.append(
                     f"conditional_condition_variant({mode.id},{index},{condition_variants.setdefault(condition_key, len(condition_variants))})."
                 )
-                binding_count = len(condition.atom.bindings())
+                binding_count = sum(
+                    len(term.bindings()) for term in condition.arguments
+                )
                 for relative, argument in enumerate(
                     range(offset, offset + binding_count)
                 ):
@@ -2347,7 +2612,16 @@ def _facts(
                 f"mode_condition_count({mode.id},{len(conditional.conditions)})."
             )
         if isinstance(mode.literal, ComparisonLiteral):
-            if mode.literal.operator == "!=":
+            parts.append(f"generic_comparison_mode({mode.id}).")
+            if mode.literal.operator == "=" and any(
+                binding.direction == "output" for binding in mode.bindings
+            ):
+                parts.append(f"exact_assignment_mode({mode.id}).")
+            if not mode.literal.simple:
+                pass
+            elif mode.literal.operator == "=":
+                parts.append(f"eq_comparison_mode({mode.id}).")
+            elif mode.literal.operator == "!=":
                 parts.append(f"neq_comparison_mode({mode.id}).")
             elif mode.literal.operator == "<":
                 parts.append(f"less_than_comparison_mode({mode.id}).")
@@ -2400,7 +2674,10 @@ def _predicate_ids(modes: list[HypothesisMode]) -> dict[Predicate, int]:
                 mode.literal.conclusion.atom.signature, len(predicate_ids)
             )
             for condition in mode.literal.conditions:
-                predicate_ids.setdefault(condition.atom.signature, len(predicate_ids))
+                if isinstance(condition, AtomLiteral):
+                    predicate_ids.setdefault(
+                        condition.atom.signature, len(predicate_ids)
+                    )
         elif isinstance(mode.literal, AggregateLiteral):
             for atom in mode.literal.conditions:
                 predicate_ids.setdefault(atom.signature, len(predicate_ids))
@@ -2548,9 +2825,9 @@ def _model_literal_index(
         )
     for atom in atoms.by_signature("var_at", 4):
         section, slot, argument, variable = atom.symbol.arguments
-        variables.setdefault(
-            (section.name, slot.number, argument.number), []
-        ).append((variable.number, atom.literal))
+        variables.setdefault((section.name, slot.number, argument.number), []).append(
+            (variable.number, atom.literal)
+        )
     return tuple(
         (
             section,
@@ -2616,9 +2893,7 @@ def _clause_from_model(
                     break
             else:
                 raise RuntimeError("selected literal argument has no variable")
-        literal = ReifiedLiteral(
-            section, slot, mode_id, tuple(variables)
-        )
+        literal = ReifiedLiteral(section, slot, mode_id, tuple(variables))
         (head if section == "head" else body).append(literal)
     return ReifiedClause(head=tuple(head), body=tuple(body))
 

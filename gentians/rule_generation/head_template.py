@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
+from .atom_literal import AtomLiteral
 from .atom_template import AtomTemplate
+from .comparison_literal import ComparisonLiteral
 
 
 @dataclass(frozen=True, slots=True)
@@ -9,12 +11,17 @@ class HeadTemplate:
     elements: tuple[AtomTemplate, ...]
     lower: int | None = None
     upper: int | None = None
+    conditions: tuple[tuple[AtomLiteral | ComparisonLiteral, ...], ...] = ()
 
     def __post_init__(self) -> None:
         if self.kind not in {"normal", "disjunction", "choice"}:
             raise ValueError(f"invalid head mode kind: {self.kind}")
         if not self.elements:
             raise ValueError("head modes require at least one atom")
+        if not self.conditions:
+            object.__setattr__(self, "conditions", tuple(() for _ in self.elements))
+        elif len(self.conditions) != len(self.elements):
+            raise ValueError("every head element requires one condition list")
         if self.kind == "normal" and len(self.elements) != 1:
             raise ValueError("normal head modes require exactly one atom")
         if self.kind != "choice" and (self.lower is not None or self.upper is not None):
@@ -35,8 +42,17 @@ class HeadTemplate:
             raise ValueError("head upper bound exceeds element count")
 
         labels: dict[str, str] = {}
-        for atom in self.elements:
-            for binding in atom.bindings():
+        for atom, conditions in zip(self.elements, self.conditions, strict=True):
+            bindings = (
+                *atom.bindings(),
+                *(
+                    binding
+                    for condition in conditions
+                    for term in condition.arguments
+                    for binding in term.bindings()
+                ),
+            )
+            for binding in bindings:
                 if not binding.label:
                     continue
                 previous = labels.setdefault(binding.label, binding.type)

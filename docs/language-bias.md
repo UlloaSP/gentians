@@ -19,7 +19,7 @@ Runtime configuration owns only how GENTIANS searches that space.
 | --- | --- |
 | `#maxv(N).` | At most `N` distinct variables in one clause. |
 | `#maxbl(N).` | At most `N` literals in one clause body. |
-| `#minhl(N).` | At least `N` atoms in a head built by `#modeha`. |
+| `#minhl(N).` | At least `N` atoms in a head built by `#modeha` or `#modehd`. |
 | `#maxhl(N).` | At most `N` atoms in one clause head. `0` permits only headless clauses. |
 | `#maxpl(N).` | At most `N` clauses in one candidate hypothesis. |
 
@@ -43,7 +43,7 @@ Additional validity rules:
 - `#maxbl(0).` allows only bodyless rules; ASP safety still applies.
 - `#maxhl(0).` allows only constraints.
 - `#minhl` requires a positive integer and cannot exceed a finite `#maxhl`
-  when `#modeha` is present. Its default is `1`.
+  when `#modeha` or `#modehd` is present. Its default is `1`.
 - Duplicate directives are task errors.
 - Missing directives use `#maxv(3)`, `#maxbl(3)`, `#maxhl(1)`, and `#maxpl(6)`.
   Bundled tasks state all four values explicitly for reproducibility.
@@ -57,7 +57,7 @@ GENTIANS must still derive a finite search space before grounding.
   variables are irrelevant and are never generated.
 - `#maxbl(*).`: body length is bounded only by finite body-mode recalls.
 - `#maxhl(*).`: head length is derived from the widest complete `#modeh` and
-  the sum of finite `#modeha` recalls.
+  the finite recall capacities of `#modeha` and `#modehd`.
 - `#maxpl(*).`: a candidate may contain every clause in the finite generated
   rule space.
 
@@ -118,9 +118,10 @@ identity label. Reusing a label forces the corresponding positions to use one
 variable. Different labels force different variables. Unlabelled positions
 remain free. Labels must use compatible type declarations; their directions
 may differ.
-Conditional syntax is introduced with `#modec`, not embedded directly in a
-`#modeh` declaration. Generated conditions may attach to every element of a
-normal, disjunctive, choice, or cardinality head.
+An element may carry an exact conditional attachment directly, such as
+`#modeh(1,p(var(node,any)):node(var(node,any))).`. That condition is
+indivisible from the element. Generated `#modec` conditions may additionally
+attach to every element of a normal, disjunctive, choice, or cardinality head.
 
 Every argument is explicit. Variables always contain a nominal type and one
 direction; `var(type)` without a direction is invalid.
@@ -133,12 +134,19 @@ depth-first order. Predicate arity still counts outer arguments, so
 
 ```ebnf
 head-mode       = "#modeh(1,", head-template, ")." ;
-body-mode       = "#modeb(", recall, ",", ["not", whitespace], atom-template, ")." ;
-condition-mode  = "#modec(", recall, ",", ["not", whitespace], atom-template, ")." ;
+body-mode       = "#modeb(", recall, ",", atom-conditional-template, ")." ;
+condition-mode  = "#modec(", recall, ",", literal-template, ")." ;
 aggregate-head-mode = "#modeha(", [recall, ","], atom-template, ")." ;
-head-template   = atom-template
-                | atom-template, {";", atom-template}
-                | [integer], "{", atom-template, {";", atom-template}, "}", [integer] ;
+disjunctive-head-mode = "#modehd(", [recall, ","], atom-template, ")." ;
+head-template   = conditional-template
+                | conditional-template, {";", conditional-template}
+                | [integer], "{", conditional-template,
+                  {";", conditional-template}, "}", [integer] ;
+conditional-template = atom-template,
+                       [":", literal-template, {",", literal-template}] ;
+atom-conditional-template = ["not", whitespace], atom-template,
+                            [":", literal-template, {",", literal-template}] ;
+literal-template = ["not", whitespace], atom-template | comparison-expression ;
 atom-template   = ["-"], predicate, ["(", mode-term, {",", mode-term}, ")"] ;
 mode-term       = variable-argument | constant-argument | function-term | tuple-term ;
 function-term   = function, "(", mode-term, {",", mode-term}, ")" ;
@@ -206,9 +214,8 @@ The stable relations intended for task bias are:
 | `head_arg_label(Form,Mode,Arg,Label)` | Label metadata declared in `#modeh`. |
 | `positive_mode(Mode)` / `negative_mode(Mode)` | Body literal polarity. |
 
-Metarules are ordinary derived ASP rules inside `#bias`; they can name a
-structural pattern once and let constraints require or forbid it. No separate
-template engine or `#modem` cost language is involved:
+Bias helpers can name a reified structural pattern once and let constraints
+require or forbid it:
 
 ```prolog
 #bias("
@@ -239,6 +246,38 @@ relations are read-only. Only ordinary ASP rules and hard constraints are
 accepted: weak constraints, optimization directives, and a comment-only bias
 are task errors because they would change or silently empty model enumeration.
 
+Second-order metarules are a separate object-language template mechanism:
+
+```ebnf
+metarule = "#metarule(", name, ",\"", asp-rules, "\")." ;
+predicate-member = "#predicate(", pool, ",", predicate, "/", arity, ")." ;
+metarule-mode = "#modem(", name, "(", pool, "/", arity,
+                {",", pool, "/", arity}, "))." ;
+```
+
+```prolog
+#metarule(chain,"P(X,Z) :- Q(X,Y),R(Y,Z).").
+#predicate(target,path/2).
+#predicate(base,edge/2).
+#modem(chain(target/2,base/2,base/2)).
+```
+
+Uppercase symbols used in predicate position are second-order variables,
+ordered by first appearance. `#modem` assigns each one a typed predicate pool
+and an arity. Every pool member of that arity is instantiated; mismatched
+occurrence arities, undefined or unused metarules, non-rule statements, and
+unsafe instances are task errors.
+Nullary predicate variables use an explicit application, `P()`, and are paired
+with `/0`; the instantiated ASP is normalized to `p` by Clingo.
+
+A metarule string may contain multiple ASP rules. Each concrete instance is
+an atomic bundle: initialization, mutation, crossover, replacement, and
+dependency pruning either keep all its rules or none. `#maxv` and `#maxbl`
+validate each rule independently. `#maxpl` counts physical rules, so a bundle
+larger than that limit cannot enter a candidate. Metarule instances do not
+silently merge with mode-generated rules; a duplicate is rejected because it
+would destroy bundle ownership.
+
 ## Aggregate head modes
 
 `#modeha` is the ILASP aggregate-head declaration: each declaration contributes
@@ -266,12 +305,12 @@ two compatible `selected/2` atoms. Width two includes forms such as:
 Gentians emits every meaningful integer interval and removes the two forms
 that decompose into simpler heads: unrestricted `0..N` and all-required
 `N..N` for `N > 1`. A singleton remains `0 {a} 1`. Separate declarations may
-be combined, subject to each recall. `#minhl` affects only generated
-`#modeha` heads; explicit complete `#modeh` declarations remain unchanged.
+be combined, subject to each recall. `#minhl` affects generated combinable
+heads; explicit complete `#modeh` declarations remain unchanged.
 
 Aggregate-head atoms support strong negation, typed directions, constants,
-functions, and tuples. They cannot use default negation or head identity
-labels. The normal safety and direction rules apply. `#modec` may attach
+functions, tuples, and declaration-local labels. They cannot use default
+negation. The normal safety and direction rules apply. `#modec` may attach
 conditions independently to every generated element, and those conditions
 still consume the clause-wide body budget. Elements of one aggregate head are
 one structural component for linkedness, so compatible atoms may use distinct
@@ -281,10 +320,30 @@ With `#maxhl(*)`, all `#modeha` recalls must be finite. Gentians then derives
 the maximum width from their summed recalls. This preserves a finite search
 space before grounding.
 
+## Disjunctive head modes
+
+`#modehd` combines declarations exactly like `#modeha`, but emits a plain ASP
+disjunction and never a choice or cardinality head:
+
+```prolog
+#constant(colour,red).
+#constant(colour,blue).
+#minhl(2).
+#maxhl(2).
+#modehd(2,painted(var(node,input),const(colour))).
+```
+
+This can generate `painted(V0,red);painted(V0,blue)`. Recall counts uses of a
+declaration across constant expansions. A disjunction has at least two
+elements; `#minhl`, `#maxhl`, safety, labels, `#modec`, and the finite-recall
+requirement for `#maxhl(*)` otherwise behave as for `#modeha`. Keeping
+`#modehd` separate makes the object-level ASP semantics explicit: recall never
+implies disjunction or choice syntax.
+
 ## Conditional literals
 
-`#modec` declares atoms that may occur after the colon of a conditional
-literal:
+`#modec` declares atoms or exact comparisons that may occur after the colon of
+a conditional literal:
 
 ```prolog
 #maxbl(3).
@@ -292,6 +351,7 @@ literal:
 #modeb(1,base(var(node,any))).
 #modec(1,node(var(node,any))).
 #modec(1,not blocked(var(node,input))).
+#modec(1,var(numeric,input)<3).
 ```
 
 This bias includes clauses such as:
@@ -308,16 +368,29 @@ the conclusion occurs. Therefore the example needs a budget of three: one
 ordinary body literal and two conditions. With `#maxbl(*)`, every `#modec`
 recall must be finite.
 
-Conditions support default negation, strong negation, constants, nested
-functions, and tuples using the same grammar as `#modeb`. Declare positive
-and default-negated forms separately. Variable labels remain exclusive to
-`#modeh` and cannot appear in `#modec`.
+An exact attachment may instead be written in `#modeh` or `#modeb`:
+
+```prolog
+#modeh(1,target(var(node,any)):node(var(node,any))).
+#modeb(1,candidate(var(numeric,any)):var(numeric,input)<3).
+```
+
+Unlike a generated `#modec` attachment, it is never optional and stays on that
+specific head element or body conclusion. Optional `#modec` conditions can be
+added on top while the same clause-wide recall and `#maxbl` accounting remain
+in force.
+
+Atomic conditions support default negation, strong negation, constants, nested
+functions, and tuples using the same grammar as `#modeb`. Exact comparison
+conditions support the expression grammar of `#modearith`. Declare positive
+and default-negated atom forms separately. Labels are declaration-local by
+default and may appear in `#modeb` and `#modec` as well as head declarations;
+the presence of `#bias` disables their implicit identity constraints.
 
 ASP scoping determines conditional-variable safety. A variable used only in a
-body conditional is local. Its positive conclusion or one of its positive
-conditions must ground it; a default-negated conclusion cannot do so. A
-variable used only in the condition part of a head element is also local, but
-the head conclusion does not ground it. Every other conditional variable is
+conditional is local. One of its positive atomic conditions must ground it;
+the conditional conclusion does not do so in either a body or head element.
+Every other conditional variable is
 global and must be made safe outside that conditional. Global `input`
 positions must be bound; global `output` positions must be produced elsewhere.
 A conditional literal itself never produces a global variable.
@@ -343,7 +416,7 @@ that variable is unified with an input position of the same head. A body mode
 containing `not` cannot declare output variables. ASP safety remains active
 independently of mode direction.
 
-Built-ins have intrinsic directions rather than task syntax:
+Generic operator modes have intrinsic directions rather than task syntax:
 
 - aggregate condition variables are local or supplied by surrounding terms;
   the aggregate result is `output`;
@@ -351,6 +424,35 @@ Built-ins have intrinsic directions rather than task syntax:
   produce the last argument as `output`; connected relations are represented
   as one arithmetic system after decoding;
 - comparisons consume both arguments as `input` and produce nothing.
+
+All arithmetic and comparison learning is declared through `#modearith`:
+
+```ebnf
+arithmetic-mode = "#modearith(", recall, ",",
+                  (operator | comparison-expression), ")." ;
+operator = "add" | "sub" | "mul" | "div" | "mod" | "abs"
+         | "eq" | "neq" | "lt" | "leq" | "gt" | "geq" ;
+```
+
+The operator form generates a family. The expression form preserves one exact
+ASP relation and accepts nested `+`, `-`, `*`, `/`, `\`, `**`, bitwise `&`,
+`?`, `^`, and `~`, unary minus, absolute value, fixed terms, functions,
+`var(...)`, and `const(...)`:
+
+```prolog
+#modearith(2,geq).
+#modearith(1,(var(numeric,input)+1)*var(numeric,input)
+             <= |var(numeric,input)-2|).
+#modearith(1,var(numeric,input)+1=var(numeric,output)).
+```
+
+Exact templates retain their declared directions. Non-equalities cannot have
+an output. Equality may have exactly one output leaf, which becomes safe and
+produced once every other variable in the relation is bound. `#modecmp` is an
+error: comparison names, including `geq`, belong exclusively to
+`#modearith`.
+Consequently, a bare comparison in `#modeb` is a task error. Comparisons may
+appear there only after the colon as part of an exact conditional attachment.
 
 Arithmetic systems use residual equations and canonical integer coefficient
 rows when every variable is already safe. A row that must produce a variable

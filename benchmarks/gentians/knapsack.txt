@@ -24,4 +24,4 @@ max_weight(10).
 
 #modeb(1,max_weight(var(numeric,output))).
 #modeagg(1,sum(el/2),unbalanced).
-#modecmp(1,gt).
+#modearith(1,gt).

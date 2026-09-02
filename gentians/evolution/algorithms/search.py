@@ -166,7 +166,7 @@ def search_solver(
                             "population_size": len(population),
                         },
                     )
-                children = [(first, False, False), (second, False, False)]
+                children = []
             else:
                 children = []
                 for proposal in proposals:

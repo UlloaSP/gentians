@@ -536,7 +536,7 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     args = Arguments(
         random_seed=3,
         population={"name": "random", "size": 1},
-        crossover={"name": "set_mix", "probability": 0.0},
+        crossover={"name": "set_mix", "probability": 1.0},
         mutation={"name": "random_group", "probability": 1.0},
     )
     monkeypatch.setattr(
@@ -546,9 +546,9 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     )
     monkeypatch.setattr(
         search,
-        "create_mutation",
-        lambda config: lambda genome, context: MutationProposal(
-            context.generator.encode(("win.",))
+        "create_crossover",
+        lambda config: lambda first, second, context: (
+            context.generator.encode(("win.",)),
         ),
     )
     monkeypatch.setattr(
@@ -581,6 +581,44 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     assert score == 1.0
     assert best is True
     assert generations == [(0, 0.0, [0.0]), (1, 1.0, [1.0])]
+
+
+def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
+    mutation_calls = []
+    args = Arguments(
+        random_seed=3,
+        iterations_genetic=1,
+        population={"name": "random", "size": 1},
+        crossover={"name": "set_mix", "probability": 0.0},
+        mutation={"name": "random_group", "probability": 1.0},
+    )
+    monkeypatch.setattr(
+        search,
+        "create_population",
+        lambda config: lambda context: [context.generator.encode(("start.",))],
+    )
+    monkeypatch.setattr(
+        search,
+        "create_mutation",
+        lambda config: lambda genome, context: (
+            mutation_calls.append(genome) or MutationProposal(genome)
+        ),
+    )
+    monkeypatch.setattr(
+        search,
+        "create_fitness",
+        lambda program, config: (
+            lambda candidate: FitnessResult(0.0, False, (0, 0))
+        ),
+    )
+
+    search_solver(
+        args,
+        Program([], [], [], [], [], max_program_clauses=1),
+        RuleSpace.from_clauses(["start."]),
+    )
+
+    assert mutation_calls == []
 
 
 def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
@@ -763,12 +801,19 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
             lambda candidate: FitnessResult(1.0, False, (0, 0))
         ),
     )
+    monkeypatch.setattr(
+        search,
+        "create_crossover",
+        lambda config: lambda first, second, context: (
+            context.generator.encode(("cross.",)),
+        ),
+    )
     monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
 
     search_solver(
         args,
         Program([], [], [], [], [], max_program_clauses=1),
-        RuleSpace.from_clauses(["start.", "other."]),
+        RuleSpace.from_clauses(["start.", "other.", "cross."]),
     )
 
     mutation_rows = [row for row in rows if row["operator"] == "mutation"]

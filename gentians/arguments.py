@@ -31,8 +31,8 @@ class Arguments:
     # Parent selection operator config.
     selection: dict[str, object] = field(
         default_factory=lambda: {
-            # tournament or behavior_tournament.
-            "name": "tournament",
+            # tournament, behavior_tournament, or lexicase.
+            "name": "lexicase",
             # Population percentage sampled per tournament, expressed in (0, 1].
             "tournament_percentage": 0.1,
             # Probability of picking the fittest candidate; tournament only.

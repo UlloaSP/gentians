@@ -17,6 +17,7 @@ from gentians.evolution.selections import create_selection
 from gentians.evolution.selections.behavior_tournament_selection import (
     BehaviorTournamentSelection,
 )
+from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
 from gentians.evolution.types import FitnessResult
 from gentians.rule_generation.example import Example
@@ -275,6 +276,39 @@ def test_behavior_tournament_compares_at_least_two_mates():
     BehaviorTournamentSelection(0.1)(population, RecordingRandom(1))
 
     assert sampled_sizes == [2]
+
+
+def test_lexicase_filters_by_individual_positive_examples():
+    class OrderedRandom(random.Random):
+        def shuffle(self, items):
+            pass
+
+    first_case_specialist = Individual(1, 0.0, False, behavior=(0b01, 0))
+    second_case_specialist = Individual(2, 100.0, False, behavior=(0b10, 0))
+
+    first, second = LexicaseSelection()(
+        [first_case_specialist, second_case_specialist], OrderedRandom(1)
+    )
+
+    assert first is first_case_specialist
+    assert second is first_case_specialist
+
+
+def test_lexicase_treats_uncovered_negative_examples_as_success():
+    safe = Individual(1, 0.0, False, behavior=(0, 0))
+    unsafe = Individual(2, 100.0, False, behavior=(0, 0b1))
+
+    parents = LexicaseSelection()([unsafe, safe], random.Random(1))
+
+    assert parents == (safe, safe)
+
+
+def test_lexicase_factory_creates_strategy():
+    assert isinstance(create_selection({"name": "lexicase"}), LexicaseSelection)
+
+
+def test_lexicase_is_default_selection():
+    assert Arguments().selection["name"] == "lexicase"
 
 
 @pytest.mark.parametrize("percentage", [0.0, -0.1, 1.1])

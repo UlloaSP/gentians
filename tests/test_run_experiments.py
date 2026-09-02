@@ -19,6 +19,7 @@ def test_default_config_defines_comparable_experiment_matrix():
     assert {experiment["id"] for experiment in experiments} == {
         "cov_program_random_group_pop10_mut09",
         "cov_program_random_group_pop100_mut09",
+        "cov_program_lexicase_pop10_mut09",
         "cov_program_behavior_tournament_pop10",
         "cov_program_behavior_tournament_pop100",
         "cov_balanced",
@@ -33,7 +34,18 @@ def test_default_config_defines_comparable_experiment_matrix():
 def test_default_experiments_have_no_pregrounding_strategy_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
     assert all("fitness.grounding" not in item["overrides"] for item in experiments)
-    assert len(experiments) == 6
+    assert len(experiments) == 7
+
+
+def test_lexicase_experiment_changes_only_parent_selection():
+    _, experiments = load_config(DEFAULT_CONFIG)
+    indexed = {experiment["id"]: experiment for experiment in experiments}
+    baseline = dict(indexed["cov_program_random_group_pop10_mut09"]["overrides"])
+    lexicase = dict(indexed["cov_program_lexicase_pop10_mut09"]["overrides"])
+
+    assert lexicase.pop("selection.name") == "lexicase"
+    assert baseline.pop("selection.name") == "tournament"
+    assert lexicase == baseline
 
 
 def test_default_experiments_cover_configured_mutation_population_matrix():

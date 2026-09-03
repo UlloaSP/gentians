@@ -16,17 +16,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_BASELINE_PATH = Path(__file__).resolve()
 sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.catalog import (
+from benchmarks.catalog import (  # noqa: E402
     DEFAULT_DATASETS,
     arguments_for,
     arguments_from_json,
     arguments_json,
     case_names,
 )
-from gentians import Arguments
-from gentians import main as gentians_main
-from gentians.asp.coverage_program import build_coverage_static_program
-from gentians.clauses.reader import read_program
+from gentians import Arguments  # noqa: E402
+from gentians import main as gentians_main  # noqa: E402
+from gentians.asp.coverage_program import build_coverage_static_program  # noqa: E402
+from gentians.language import parse_file  # noqa: E402
 
 
 @dataclass
@@ -425,7 +425,7 @@ def write_debug_clingo_program(
 ) -> None:
     if arguments.filename is None or not isinstance(best_program, list):
         return
-    task = read_program(arguments.filename)
+    task = parse_file(arguments.filename)
     lp_path = directory / f"{safe_filename(dataset)}.lp"
     args_path = directory / f"{safe_filename(dataset)}.args.txt"
     directory.mkdir(parents=True, exist_ok=True)

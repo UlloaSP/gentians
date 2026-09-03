@@ -52,7 +52,11 @@ semantics.
 ### Search configuration
 
 GENTIANS searches candidate hypotheses built from a generated `RuleSpace`.
-`gentians.clauses` owns task parsing and clause generation. The mandatory
+`gentians.language` owns task I/O, lexical framing, parsing, ASP syntax helpers,
+and the typed `InductiveTask` IR. `gentians.clauses` compiles that IR into
+candidate clauses.
+Clingo validates background ASP. Task files do not accept `#script` blocks.
+The mandatory
 `HypothesisGenerator` in `gentians.hypotheses` is plumbing used by evolutionary
 strategies to preserve size, membership, bundle, and dependency invariants.
 

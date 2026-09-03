@@ -30,7 +30,7 @@ Each value is a non-negative integer, subject to the validation rules in
 `docs/language-bias.md`, or `*`. Omitted directives use documented defaults;
 bundled tasks remain explicit.
 
-Parsed values belong directly to the task `Program`. No compatibility adapter,
+Parsed values belong directly to the task `InductiveTask`. No compatibility adapter,
 second configuration object, or precedence rule is introduced.
 
 The four old `Arguments` fields are removed. Benchmark-specific values move
@@ -124,5 +124,5 @@ when tuned.
 
 ### Add a `ModeBiasLimits` wrapper
 
-Rejected for now: four fields fit directly on `Program`; wrapper adds navigation
+Rejected for now: four fields fit directly on `InductiveTask`; wrapper adds navigation
 without enforcing a useful boundary.

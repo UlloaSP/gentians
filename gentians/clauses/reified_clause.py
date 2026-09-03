@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from .hypothesis_mode import HypothesisMode
-from .literal_template import render_literal
+from ..language.ir.literal_template import render_literal
 from .reified_literal import ReifiedLiteral
 
 

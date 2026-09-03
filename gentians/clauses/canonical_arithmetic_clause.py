@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .hypothesis_mode import HypothesisMode
-from .conditional_literal import ConditionalLiteral
+from ..language.ir.conditional_literal import ConditionalLiteral
 from .reified_clause import _render_literal, render_head
 from .reified_literal import ReifiedLiteral
 

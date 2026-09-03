@@ -28,6 +28,21 @@ program because `h` already means hypothesis/head in the surrounding language.
 
 ## Grammar
 
+The executable front-end is split by responsibility. `parse_file()` performs
+UTF-8 I/O and `parse_text()` orchestrates parsing. `gentians.language.lexer`
+frames complete top-level statements while respecting strings, comments,
+nested delimiters, ranges, and annotations. Declaration parsing lives in
+`directives`, `declarations`, `modes`, and `metarules`. These modules build the
+`InductiveTask` IR in `gentians.language.ir`: types, directions, recalls,
+labels, and task limits. Generic ASP fragments keep Clingo's AST through
+`gentians.language.asp`; Gentians does not define a competing ASP AST.
+`TASK_GRAMMAR` records top-level composition and the directive parsers enforce
+the productions below.
+
+Every background statement must parse through `clingo.ast`. Task files reject
+`#script ... #end.` blocks; embedded host-language code is outside the task
+language.
+
 ```ebnf
 limit-directive = limit-name, "(", limit, ")", "." ;
 limit-name      = "#maxv" | "#maxbl" | "#maxhl" | "#maxpl" ;

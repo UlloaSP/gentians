@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 
-from .parser import clause_predicates
+from ..language.asp import clause_predicates
 from .rule_entry import RuleEntry
 
 

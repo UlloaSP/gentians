@@ -7,6 +7,14 @@ Predicate = tuple[str, int]
 ParsedAtom = tuple[str, tuple[str, ...], bool]
 
 
+def validate_statement(statement: str, line: int) -> None:
+    """Validate one background ASP statement with Clingo's parser."""
+    try:
+        ast.parse_string(statement, lambda _node: None)
+    except RuntimeError:
+        raise ValueError(f"line {line}: invalid ASP statement: {statement}") from None
+
+
 def signed_predicate(name: str, arity: int, strong: bool = False) -> Predicate:
     return (f"-{name}" if strong else name), arity
 

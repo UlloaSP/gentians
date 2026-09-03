@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from .atom_literal import AtomLiteral
 from .comparison_literal import ComparisonLiteral
-from .parser import Predicate
+from ..asp import Predicate
 from .term_template import TermTemplate
 
 

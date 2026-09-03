@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 
 from .atom_template import AtomTemplate
-from .parser import Predicate
+from ..asp import Predicate
 from .term_template import TermTemplate
 
 

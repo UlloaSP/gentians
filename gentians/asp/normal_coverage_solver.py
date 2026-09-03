@@ -1,6 +1,6 @@
 import clingo
 
-from ..clauses.example import Example
+from ..language.ir.example import Example
 from ..timing import (
     add,
     current_phase,

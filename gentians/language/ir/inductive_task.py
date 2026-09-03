@@ -10,10 +10,8 @@ Signature = tuple[str, int]
 
 
 @dataclass(slots=True)
-class Program:
-    """
-    Class for input programs.
-    """
+class InductiveTask:
+    """Parsed inductive task: background ASP, examples, bias, and limits."""
 
     background: list[str]
     positive_examples: list[Example]

@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
 
-from .atom_literal import AtomLiteral
-from .conditional_literal import ConditionalLiteral
-from .head_template import HeadTemplate
-from .literal_template import LiteralTemplate
-from .parser import Predicate
-from .term_binding import TermBinding
+from ..language.ir.atom_literal import AtomLiteral
+from ..language.ir.conditional_literal import ConditionalLiteral
+from ..language.ir.head_template import HeadTemplate
+from ..language.ir.literal_template import LiteralTemplate
+from ..language.asp import Predicate
+from ..language.ir.term_binding import TermBinding
 
 
 @dataclass(frozen=True, slots=True)

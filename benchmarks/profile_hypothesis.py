@@ -12,7 +12,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from benchmarks.catalog import DEFAULT_DATASETS, case_names
 from benchmarks.profile_baseline import profile_arguments
 from gentians import timing
-from gentians.gentians import program_from_arguments
+from gentians.gentians import task_from_arguments
 from gentians.clauses.hypothesis_space import build_hypothesis_space
 
 
@@ -48,8 +48,8 @@ def main() -> None:
         except (KeyError, ValueError, json.JSONDecodeError) as exc:
             raise SystemExit(f"Invalid arguments for dataset {dataset}: {exc}") from exc
         started = time.perf_counter()
-        program = program_from_arguments(arguments)
-        rule_space, metrics = build_profiled_hypothesis(program, arguments)
+        task = task_from_arguments(arguments)
+        rule_space, metrics = build_profiled_hypothesis(task, arguments)
         path = args.out_dir / f"{safe_filename(dataset)}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(

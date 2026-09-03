@@ -19,8 +19,8 @@
     {
       "id": "reader",
       "type": "backend",
-      "label": "Reader + Program",
-      "sublabel": "parsea y valida directivas",
+      "label": "Lenguaje de tareas",
+      "sublabel": "lexer · parser · IR",
       "pos": [200, 320],
       "size": [140, 72]
     },
@@ -99,8 +99,8 @@
     }
   ],
   "connections": [
-    { "id": "task-reader", "from": "task", "to": "reader" },
-    { "id": "reader-clauses", "from": "reader", "to": "clauses", "label": "Program", "labelAt": [365, 306] },
+    { "id": "task-reader", "from": "task", "to": "reader", "label": "UTF-8" },
+    { "id": "reader-clauses", "from": "reader", "to": "clauses", "label": "InductiveTask", "labelAt": [365, 306] },
     { "id": "clauses-search", "from": "clauses", "to": "search", "label": "RuleSpace", "labelAt": [590, 306] },
     { "id": "search-fitness", "from": "search", "to": "fitness", "label": "candidato", "labelAt": [800, 306] },
     { "id": "fitness-clingo", "from": "fitness", "to": "clingo", "label": "ground/solve", "variant": "emphasis", "labelAt": [1015, 306] },

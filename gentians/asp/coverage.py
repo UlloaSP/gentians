@@ -1,7 +1,7 @@
 from clingo import ast
 
-from ..clauses.example import Example
-from ..clauses.parser import split_top_level_args
+from ..language.ir.example import Example
+from ..language.asp import split_top_level_args
 from .coverage_symbols import ACTIVE_CONTEXT_PREDICATE
 
 

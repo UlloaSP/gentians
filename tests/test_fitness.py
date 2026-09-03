@@ -14,13 +14,13 @@ from gentians.evolution.fitness.coverage_common import (
     balanced_coverage_score,
     coverage_score,
 )
-from gentians.clauses.example import Example
-from gentians.clauses.program import Program
+from gentians.language.ir.example import Example
+from gentians.language.ir.inductive_task import InductiveTask
 from gentians.clauses.rule_space import RuleSpace
 
 
-def _program() -> Program:
-    return Program(
+def _program() -> InductiveTask:
+    return InductiveTask(
         [],
         [Example(("target(p)", ""), True)],
         [Example(("target(n)", ""), False)],
@@ -84,7 +84,7 @@ def test_balanced_coverage_uses_balanced_accuracy(candidate, score, perfect):
 
 
 def test_balanced_coverage_normalizes_positive_and_negative_examples_separately():
-    program = Program(
+    program = InductiveTask(
         [],
         [
             Example(("target(p1)", ""), True),
@@ -112,7 +112,7 @@ def test_balanced_coverage_normalizes_positive_and_negative_examples_separately(
 
 @pytest.mark.parametrize("score", [balanced_coverage_score, coverage_score])
 def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
-    program = Program(
+    program = InductiveTask(
         [],
         [Example((f"positive({index})", ""), True) for index in range(10)],
         [Example((f"negative({index})", ""), False) for index in range(35)],
@@ -188,7 +188,7 @@ def test_static_program_builder_includes_background_and_examples():
 
 
 def test_contexts_do_not_leak_between_examples():
-    program = Program(
+    program = InductiveTask(
         [],
         [
             Example(("target(a)", "", "seed(a). ctx(X) :- seed(X)."), True),
@@ -212,7 +212,7 @@ def test_contexts_do_not_leak_between_examples():
 
 
 def test_context_constraint_does_not_disable_other_examples():
-    program = Program(
+    program = InductiveTask(
         [],
         [
             Example(("target(a)", "", "ctx(a)"), True),
@@ -235,7 +235,7 @@ def test_context_constraint_does_not_disable_other_examples():
 
 
 def test_positive_context_does_not_leak_into_negative_example():
-    program = Program(
+    program = InductiveTask(
         [],
         [Example(("target(a)", "", "ctx(a)"), True)],
         [Example(("target(a)", "", "ctx(b)"), False)],
@@ -257,7 +257,7 @@ def test_positive_context_does_not_leak_into_negative_example():
 
 @pytest.mark.parametrize("context", ["", "ctx(a)"])
 def test_example_with_empty_inclusion_is_covered(context):
-    program = Program(
+    program = InductiveTask(
         [],
         [Example(("", "", context), True)],
         [],
@@ -277,7 +277,7 @@ def test_example_with_empty_inclusion_is_covered(context):
 
 
 def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
-    program = Program(
+    program = InductiveTask(
         [],
         [
             Example(("", "", ""), True),

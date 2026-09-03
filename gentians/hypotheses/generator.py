@@ -1,7 +1,7 @@
 import random
 
-from ..clauses.parser import fragment_atoms
-from ..clauses.program import Program
+from ..language.asp import fragment_atoms
+from ..language.ir.inductive_task import InductiveTask
 from ..clauses.rule_space import RuleSpace
 from ..evolution.operator_types import MutationProposal
 from ..evolution.types import Genome, ProgramText
@@ -13,20 +13,20 @@ _CACHE_SIZE = 65536
 class HypothesisGenerator:
     def __init__(
         self,
-        program: Program,
+        task: InductiveTask,
         space: RuleSpace,
         max_clauses: int,
         rng: random.Random,
     ) -> None:
         self.max_clauses = max_clauses
         self.rng = rng
-        self.space = prepare_space(program, space)
+        self.space = prepare_space(task, space)
         self.rules = self.space.clauses
         self.rule_count = len(self.rules)
         self.all_rules = (1 << self.rule_count) - 1
         self.rule_ids = {rule: index for index, rule in enumerate(self.rules)}
 
-        background = defined_predicates(program.background)
+        background = defined_predicates(task.background)
         predicates = set(background)
         for entry in self.space.entries:
             predicates.update(entry.heads)
@@ -35,10 +35,10 @@ class HypothesisGenerator:
             predicate: index for index, predicate in enumerate(sorted(predicates))
         }
         self.background_mask = self._predicate_mask(background)
-        self.invented_mask = self._predicate_mask(set(program.invented_predicates))
+        self.invented_mask = self._predicate_mask(set(task.invented_predicates))
         target_predicates = {
             (name, len(arguments))
-            for example in [*program.positive_examples, *program.negative_examples]
+            for example in [*task.positive_examples, *task.negative_examples]
             for fragment in (example.included, example.excluded)
             for name, arguments, _negative in fragment_atoms(fragment)
         }

@@ -5033,8 +5033,8 @@
         <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="Paquete gentians" x="188" y="56" width="809" height="556" rx="12" class="c-region" stroke-width="1"/>
 
         <!-- Connection paths (before components for correct z-order) -->
-        <path data-edge-from="task" data-edge-to="reader" data-edge-key="0" data-edge-id="task-reader" data-composition-points="160,356;200,356" d="M 160 356 L 200 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="reader" data-edge-to="clauses" data-edge-label="Program" data-edge-key="1" data-edge-id="reader-clauses" data-composition-points="340,356;390,356" d="M 340 356 L 390 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="task" data-edge-to="reader" data-edge-label="UTF-8" data-edge-key="0" data-edge-id="task-reader" data-composition-points="160,356;200,356" d="M 160 356 L 200 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="reader" data-edge-to="clauses" data-edge-label="InductiveTask" data-edge-key="1" data-edge-id="reader-clauses" data-composition-points="340,356;390,356" d="M 340 356 L 390 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="clauses" data-edge-to="search" data-edge-label="RuleSpace" data-edge-key="2" data-edge-id="clauses-search" data-composition-points="560,356;620,356" d="M 560 356 L 620 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="search" data-edge-to="fitness" data-edge-label="candidato" data-edge-key="3" data-edge-id="search-fitness" data-composition-points="770,356;830,356" d="M 770 356 L 830 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="fitness" data-edge-to="clingo" data-edge-label="ground/solve" data-edge-key="4" data-edge-id="fitness-clingo" data-composition-points="980,356;1050,356" d="M 980 356 L 1050 356" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
@@ -5057,15 +5057,15 @@
         <text data-detail="context" x="95" y="370" class="t-muted" font-size="9" text-anchor="middle">ASP + ejemplos + bias</text>
         </g>
 
-        <g id="node-reader" data-node-id="reader" data-node-label="Reader + Program" tabindex="0" role="button" aria-label="Focus Reader + Program, parsea y valida directivas, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="parsea y valida directivas" data-node-context="Paquete gentians">
-          <title>Reader + Program · parsea y valida directivas · Paquete gentians</title>
+        <g id="node-reader" data-node-id="reader" data-node-label="Lenguaje de tareas" tabindex="0" role="button" aria-label="Focus Lenguaje de tareas, lexer · parser · IR, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="lexer · parser · IR" data-node-context="Paquete gentians">
+          <title>Lenguaje de tareas · lexer · parser · IR · Paquete gentians</title>
           <rect x="200" y="320" width="140" height="72" rx="6" class="c-mask"/>
           <rect x="200" y="320" width="140" height="72" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(206 326) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="270" y="354" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Reader + Program</text>
-        <text data-detail="context" x="270" y="370" class="t-muted" font-size="8.4" text-anchor="middle">parsea y valida directivas</text>
+          <text data-node-label="" data-detail-anchor="" x="270" y="354" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Lenguaje de tareas</text>
+        <text data-detail="context" x="270" y="370" class="t-muted" font-size="9" text-anchor="middle">lexer · parser · IR</text>
         </g>
 
         <g id="node-clauses" data-node-id="clauses" data-node-label="Generación de cláusulas" tabindex="0" role="button" aria-label="Focus Generación de cláusulas, Clingo enumera RuleSpace, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Clingo enumera RuleSpace" data-node-context="Paquete gentians">
@@ -5160,10 +5160,13 @@
         </g>
 
         <!-- Connection labels -->
-
-        <g data-detail="context" data-edge-from="reader" data-edge-to="clauses" data-edge-label="Program" data-edge-key="1" data-edge-id="reader-clauses">
-          <rect x="343.2" y="296" width="43.6" height="14" rx="3" class="c-mask"/>
-          <text x="365" y="306" class="t-muted" font-size="8" text-anchor="middle">Program</text>
+        <g data-detail="context" data-edge-from="task" data-edge-to="reader" data-edge-label="UTF-8" data-edge-key="0" data-edge-id="task-reader">
+          <rect x="163" y="336" width="34" height="14" rx="3" class="c-mask"/>
+          <text x="180" y="346" class="t-muted" font-size="8" text-anchor="middle">UTF-8</text>
+        </g>
+        <g data-detail="context" data-edge-from="reader" data-edge-to="clauses" data-edge-label="InductiveTask" data-edge-key="1" data-edge-id="reader-clauses">
+          <rect x="328.8" y="296" width="72.4" height="14" rx="3" class="c-mask"/>
+          <text x="365" y="306" class="t-muted" font-size="8" text-anchor="middle">InductiveTask</text>
         </g>
         <g data-detail="context" data-edge-from="clauses" data-edge-to="search" data-edge-label="RuleSpace" data-edge-key="2" data-edge-id="clauses-search">
           <rect x="563.4" y="296" width="53.199999999999996" height="14" rx="3" class="c-mask"/>

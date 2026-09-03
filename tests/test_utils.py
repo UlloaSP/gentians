@@ -1,5 +1,5 @@
 import pytest
-from gentians.clauses.parser import clause_predicates, fragment_atoms
+from gentians.language.asp import clause_predicates, fragment_atoms
 
 
 class TestUnit:

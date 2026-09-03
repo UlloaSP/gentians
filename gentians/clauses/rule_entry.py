@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from .parser import Predicate
+from ..language.asp import Predicate
 
 
 @dataclass(frozen=True, slots=True)

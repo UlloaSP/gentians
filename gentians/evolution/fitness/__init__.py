@@ -1,4 +1,4 @@
-from ...clauses.program import Program
+from ...language.ir.inductive_task import InductiveTask
 from .cov_balanced import CovBalanced
 from .cov_program import CovProgram
 
@@ -9,7 +9,7 @@ FITNESS_STRATEGIES = {
 
 
 def create_fitness(
-    program: Program,
+    task: InductiveTask,
     config: dict[str, object],
 ):
     name = str(config["name"])
@@ -17,4 +17,4 @@ def create_fitness(
         strategy = FITNESS_STRATEGIES[name]
     except KeyError:
         raise ValueError(f"Unknown fitness strategy: {name}") from None
-    return strategy.from_config(program, config)
+    return strategy.from_config(task, config)

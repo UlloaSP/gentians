@@ -2,8 +2,8 @@ import time
 from collections.abc import Callable
 from functools import wraps
 
-from ..clauses.parser import Predicate, clause_predicates
-from ..clauses.program import Program
+from ..language.asp import Predicate, clause_predicates
+from ..language.ir.inductive_task import InductiveTask
 from ..clauses.rule_entry import RuleEntry
 from ..clauses.rule_space import RuleSpace
 from ..timing import add, current_phase
@@ -21,8 +21,8 @@ def record_generation_time(method: Callable) -> Callable:
     return measured
 
 
-def prepare_space(program: Program, space: RuleSpace) -> RuleSpace:
-    background = defined_predicates(program.background)
+def prepare_space(task: InductiveTask, space: RuleSpace) -> RuleSpace:
+    background = defined_predicates(task.background)
     entries = prune_uncloseable_rules(space.entries, background)
     return RuleSpace.from_entries(entries)
 

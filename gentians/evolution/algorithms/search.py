@@ -6,7 +6,7 @@ from ...clauses.hypothesis_space import (
     build_hypothesis_space,
     hypothesis_space_metrics,
 )
-from ...clauses.program import Program
+from ...language.ir.inductive_task import InductiveTask
 from ...clauses.rule_space import RuleSpace
 from ...timing import (
     instrumentation,
@@ -33,7 +33,7 @@ from ..types import Genome
 @profile_phase("search")
 def search_solver(
     args: Arguments,
-    program: Program,
+    task: InductiveTask,
     supplied_space: RuleSpace | None = None,
 ) -> tuple[tuple[str, ...], float, bool]:
     rng = random.Random(args.random_seed)
@@ -48,21 +48,21 @@ def search_solver(
     space = (
         supplied_space
         if supplied_space is not None
-        else build_hypothesis_space(program, args)
+        else build_hypothesis_space(task, args)
     )
     if supplied_space is not None and metric_enabled("candidate"):
         with instrumentation():
             record_metric(
                 "candidate",
-                hypothesis_space_metrics(program, space),
+                hypothesis_space_metrics(task, space),
             )
     if not space:
         raise ValueError("No clauses found")
     max_program_clauses = (
-        len(space) if program.max_program_clauses is None else program.max_program_clauses
+        len(space) if task.max_program_clauses is None else task.max_program_clauses
     )
     hypotheses = HypothesisGenerator(
-        program,
+        task,
         space,
         max_program_clauses,
         rng,
@@ -73,7 +73,7 @@ def search_solver(
     context = EvolutionContext(hypotheses, rng)
 
     with phase("initialization"):
-        evaluate_score = create_fitness(program, args.fitness)
+        evaluate_score = create_fitness(task, args.fitness)
 
     evaluated: dict[Genome, Individual] = {}
     evaluations = 0

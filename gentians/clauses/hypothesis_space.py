@@ -19,28 +19,28 @@ from ..timing import (
     profile_phase,
     record_metric,
 )
-from .aggregate_declaration import AggregateDeclaration
-from .aggregate_literal import AggregateLiteral
-from .arithmetic_literal import ArithmeticLiteral
+from ..language.ir.aggregate_declaration import AggregateDeclaration
+from ..language.ir.aggregate_literal import AggregateLiteral
+from ..language.ir.arithmetic_literal import ArithmeticLiteral
 from .arithmetic_system import ArithmeticSystemKey, canonical_arithmetic_clause
-from .atom_literal import AtomLiteral
-from .atom_template import AtomTemplate
+from ..language.ir.atom_literal import AtomLiteral
+from ..language.ir.atom_template import AtomTemplate
 from .closed_world_properties import ClosedWorldProperties
-from .comparison_literal import ComparisonLiteral
-from .conditional_literal import ConditionalLiteral
-from .head_template import HeadTemplate
+from ..language.ir.comparison_literal import ComparisonLiteral
+from ..language.ir.conditional_literal import ConditionalLiteral
+from ..language.ir.head_template import HeadTemplate
 from .hypothesis_capabilities import HypothesisCapabilities
 from .hypothesis_mode import HypothesisMode
 from .linear_constraint import LinearConstraint
-from .mode_declaration import ModeDeclaration
-from .operator_declaration import OperatorDeclaration
-from .parser import Predicate, clause_predicates, fragment_atoms
-from .program import Program
+from ..language.ir.mode_declaration import ModeDeclaration
+from ..language.ir.operator_declaration import OperatorDeclaration
+from ..language.asp import Predicate, clause_predicates, fragment_atoms
+from ..language.ir.inductive_task import InductiveTask
 from .reified_clause import ReifiedClause
 from .reified_literal import ReifiedLiteral
 from .rule_entry import RuleEntry
 from .rule_space import RuleSpace
-from .term_template import TermTemplate
+from ..language.ir.term_template import TermTemplate
 
 HYPOTHESIS_SPACE_RULE_MODULES = (
     "core/slots.lp",
@@ -138,45 +138,45 @@ def _rule_entry_from_clause(
 
 
 class HypothesisSpaceGenerator:
-    def __init__(self, program: Program, args: Arguments) -> None:
-        self.program = program
+    def __init__(self, task: InductiveTask, args: Arguments) -> None:
+        self.task = task
         self.args = args
-        self.fragments = _program_fragments(program)
-        if program.max_head_literals is not None and any(
-            head.width > program.max_head_literals
-            for head in program.language_bias_head
+        self.fragments = _task_fragments(task)
+        if task.max_head_literals is not None and any(
+            head.width > task.max_head_literals
+            for head in task.language_bias_head
         ):
             raise ValueError("#modeh element count exceeds #maxhl")
         if (
-            program.language_bias_aggregate_head
-            and program.max_head_literals is not None
-            and program.min_aggregate_head_literals > program.max_head_literals
+            task.language_bias_aggregate_head
+            and task.max_head_literals is not None
+            and task.min_aggregate_head_literals > task.max_head_literals
         ):
             raise ValueError("#minhl cannot exceed #maxhl")
-        _validate_invented_predicates(program, self.fragments)
-        self.predicate_arg_types = _predicate_arg_types(program, self.fragments)
-        self.aggregate_specs = _valid_aggregate_specs(program, self.fragments)
+        _validate_invented_predicates(task, self.fragments)
+        self.predicate_arg_types = _predicate_arg_types(task, self.fragments)
+        self.aggregate_specs = _valid_aggregate_specs(task, self.fragments)
         self.capabilities = _hypothesis_capabilities(
-            program, self.predicate_arg_types, self.aggregate_specs
+            task, self.predicate_arg_types, self.aggregate_specs
         )
         self.modes = _hypothesis_modes(
-            program,
+            task,
             self.capabilities,
             self.predicate_arg_types,
             self.aggregate_specs,
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
         self.head_slots = _section_capacity(
-            program.max_head_literals, self.modes, "head"
+            task.max_head_literals, self.modes, "head"
         )
         self.body_slots = _section_capacity(
-            program.max_body_literals, self.modes, "body"
+            task.max_body_literals, self.modes, "body"
         )
-        if program.max_body_literals is None:
-            self.body_slots += _condition_limit(program)
+        if task.max_body_literals is None:
+            self.body_slots += _condition_limit(task)
         self.max_variables = (
-            program.max_variables
-            if program.max_variables is not None
+            task.max_variables
+            if task.max_variables is not None
             else self.head_slots
             * max(
                 (
@@ -199,19 +199,19 @@ class HypothesisSpaceGenerator:
 
     def generate(self) -> RuleSpace:
         facts = _facts(
-            self.program,
+            self.task,
             self.modes,
             self.predicate_arg_types,
             self.max_variables,
             self.head_slots,
             self.body_slots,
         )
-        if not self.program.bias:
+        if not self.task.bias:
             facts += "\ndefault_variable_identity."
-        program = "\n".join((facts, HYPOTHESIS_SPACE_RULES, *self.program.bias))
+        asp_program = "\n".join((facts, HYPOTHESIS_SPACE_RULES, *self.task.bias))
         solver_arguments = ["0", *_hypothesis_space_args(self.args)]
         ctl = clingo.Control(solver_arguments, logger=wrapper_exit_callback)
-        ctl.add("base", [], program)
+        ctl.add("base", [], asp_program)
         start = net_time()
         ctl.ground([("base", [])])
         grounding_seconds = net_time() - start
@@ -287,7 +287,7 @@ class HypothesisSpaceGenerator:
                         "phase_context": phase,
                         "seconds": grounding_seconds,
                         "program_size": 1,
-                        "program_chars": len(program),
+                        "program_chars": len(asp_program),
                         "stats_atoms": grounded["atoms"],
                         "stats_rules": grounded["rules"],
                         "clingo_arguments": clingo_arguments,
@@ -331,9 +331,9 @@ class HypothesisSpaceGenerator:
 
 
 @profile_phase("hypothesis_space")
-def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
-    rule_space = HypothesisSpaceGenerator(program, arguments).generate()
-    if program.metarule_programs:
+def build_hypothesis_space(task: InductiveTask, arguments: Arguments) -> RuleSpace:
+    rule_space = HypothesisSpaceGenerator(task, arguments).generate()
+    if task.metarule_programs:
         entries = list(rule_space.entries)
         known_rules = {entry.text for entry in entries}
         bundle_offset = (
@@ -343,7 +343,7 @@ def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
             )
             + 1
         )
-        for bundle, rules in enumerate(program.metarule_programs, bundle_offset):
+        for bundle, rules in enumerate(task.metarule_programs, bundle_offset):
             for rule in rules:
                 if rule in known_rules:
                     raise ValueError(
@@ -353,19 +353,19 @@ def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
                 heads, deps, body_literals = clause_predicates(rule)
                 head_literals = _rule_head_width(rule)
                 if (
-                    program.max_head_literals is not None
-                    and head_literals > program.max_head_literals
+                    task.max_head_literals is not None
+                    and head_literals > task.max_head_literals
                 ):
                     raise ValueError(f"metarule exceeds #maxhl: {rule}")
                 if (
-                    program.max_body_literals is not None
-                    and body_literals > program.max_body_literals
+                    task.max_body_literals is not None
+                    and body_literals > task.max_body_literals
                 ):
                     raise ValueError(f"metarule exceeds #maxbl: {rule}")
                 variables = set(re.findall(r"\b[A-Z][A-Za-z0-9_]*\b", rule))
                 if (
-                    program.max_variables is not None
-                    and len(variables) > program.max_variables
+                    task.max_variables is not None
+                    and len(variables) > task.max_variables
                 ):
                     raise ValueError(f"metarule exceeds #maxv: {rule}")
                 entries.append(RuleEntry(rule, heads, deps, body_literals, bundle))
@@ -374,7 +374,7 @@ def build_hypothesis_space(program: Program, arguments: Arguments) -> RuleSpace:
         with instrumentation():
             record_metric(
                 "candidate",
-                hypothesis_space_metrics(program, rule_space),
+                hypothesis_space_metrics(task, rule_space),
             )
     return rule_space
 
@@ -397,9 +397,9 @@ def _rule_head_width(rule: str) -> int:
 
 
 def hypothesis_space_metrics(
-    program: Program, rule_space: RuleSpace
+    task: InductiveTask, rule_space: RuleSpace
 ) -> dict[str, object]:
-    invented = set(program.invented_predicates)
+    invented = set(task.invented_predicates)
     return {
         "metric": "hypothesis_space",
         "clauses": len(rule_space),
@@ -413,9 +413,9 @@ def hypothesis_space_metrics(
     }
 
 
-def _numeric_domain_values(program: Program) -> set[int]:
-    fragments = [*program.background]
-    for example in [*program.positive_examples, *program.negative_examples]:
+def _numeric_domain_values(task: InductiveTask) -> set[int]:
+    fragments = [*task.background]
+    for example in [*task.positive_examples, *task.negative_examples]:
         fragments.extend([example.included, example.excluded, example.context])
     constants = _numeric_constants(fragments)
     values = set(constants.values())
@@ -1636,26 +1636,26 @@ def _is_acyclic(tuples: set[tuple[str, ...]]) -> bool:
     return bool(tuples) and all(visit(node) for node in graph)
 
 
-def _recursive_predicates(program: Program) -> set[Predicate]:
-    head_predicates = {atom.signature for atom in _head_atoms(program)}
+def _recursive_predicates(task: InductiveTask) -> set[Predicate]:
+    head_predicates = {atom.signature for atom in _head_atoms(task)}
     return {
         literal.atom.signature
-        for md in (*program.language_bias_body, *program.language_bias_condition)
+        for md in (*task.language_bias_body, *task.language_bias_condition)
         for literal in _mode_atom_literals(md)
         if not literal.default_negated and literal.atom.signature in head_predicates
     }
 
 
-def _head_atoms(program: Program) -> tuple[AtomTemplate, ...]:
+def _head_atoms(task: InductiveTask) -> tuple[AtomTemplate, ...]:
     return tuple(
         atom
-        for declaration in program.language_bias_head
+        for declaration in task.language_bias_head
         for atom in declaration.template.elements
     ) + tuple(
         mode.literal.atom
         for mode in (
-            *program.language_bias_aggregate_head,
-            *program.language_bias_disjunctive_head,
+            *task.language_bias_aggregate_head,
+            *task.language_bias_disjunctive_head,
         )
         if isinstance(mode.literal, AtomLiteral)
     )
@@ -1673,14 +1673,14 @@ def _mode_atom_literals(mode: ModeDeclaration) -> tuple[AtomLiteral, ...]:
     return ()
 
 
-def _validate_invented_predicates(program: Program, fragments: list[str]) -> None:
-    invented = set(program.invented_predicates)
-    if len(invented) != len(program.invented_predicates):
+def _validate_invented_predicates(task: InductiveTask, fragments: list[str]) -> None:
+    invented = set(task.invented_predicates)
+    if len(invented) != len(task.invented_predicates):
         raise ValueError("duplicate invented predicate")
-    heads = {atom.signature for atom in _head_atoms(program)}
+    heads = {atom.signature for atom in _head_atoms(task)}
     positive_bodies = {
         literal.atom.signature
-        for mode in program.language_bias_body
+        for mode in task.language_bias_body
         for literal in _mode_atom_literals(mode)[:1]
         if not literal.default_negated
     }
@@ -1697,7 +1697,7 @@ def _validate_invented_predicates(program: Program, fragments: list[str]) -> Non
 
 
 def _hypothesis_capabilities(
-    program: Program,
+    task: InductiveTask,
     predicate_arg_types: dict[tuple[str, int, int], str],
     aggregate_specs: list[AggregateDeclaration],
 ) -> HypothesisCapabilities:
@@ -1706,7 +1706,7 @@ def _hypothesis_capabilities(
     )
     comparison_operators = {
         mode.operator
-        for mode in program.arithmetic_modes
+        for mode in task.arithmetic_modes
         if isinstance(mode, OperatorDeclaration)
         and mode.operator in {"eq", "neq", "lt", "leq", "gt", "geq"}
     }
@@ -1718,18 +1718,18 @@ def _hypothesis_capabilities(
         has_numeric_evidence=numeric_evidence,
         allow_numeric_comparison=numeric_comparison,
         allow_equality_comparison=equality_comparison,
-        allow_arithmetic=numeric_evidence and bool(program.arithmetic_modes),
+        allow_arithmetic=numeric_evidence and bool(task.arithmetic_modes),
         allow_aggregates=bool(aggregate_specs),
-        allow_recursion=bool(_recursive_predicates(program)),
+        allow_recursion=bool(_recursive_predicates(task)),
     )
 
 
 def _available_predicates(
-    program: Program, fragments: list[str]
+    task: InductiveTask, fragments: list[str]
 ) -> set[tuple[str, int]]:
-    predicates = {atom.signature for atom in _head_atoms(program)} | {
+    predicates = {atom.signature for atom in _head_atoms(task)} | {
         literal.atom.signature
-        for mode in (*program.language_bias_body, *program.language_bias_condition)
+        for mode in (*task.language_bias_body, *task.language_bias_condition)
         for literal in _mode_atom_literals(mode)
     }
     for fragment in fragments:
@@ -1747,13 +1747,13 @@ def _observed_predicates(fragments: list[str]) -> set[Predicate]:
 
 
 def _predicate_arg_types(
-    program: Program, fragments: list[str]
+    task: InductiveTask, fragments: list[str]
 ) -> dict[tuple[str, int, int], str]:
     declared_atoms = [
-        *_head_atoms(program),
+        *_head_atoms(task),
         *(
             literal.atom
-            for mode in (*program.language_bias_body, *program.language_bias_condition)
+            for mode in (*task.language_bias_body, *task.language_bias_condition)
             for literal in _mode_atom_literals(mode)
         ),
     ]
@@ -1846,53 +1846,53 @@ def _has_variable(value: str) -> bool:
     return bool(re.search(r"\b[A-Z]\w*\b|_", value))
 
 
-def _program_fragments(program: Program) -> list[str]:
+def _task_fragments(task: InductiveTask) -> list[str]:
     fragments = [
         line
-        for line in program.background
+        for line in task.background
         if line.strip() and not line.lstrip().startswith("%")
     ]
-    for example in [*program.positive_examples, *program.negative_examples]:
+    for example in [*task.positive_examples, *task.negative_examples]:
         fragments.extend([example.included, example.excluded, example.context])
     return [fragment for fragment in fragments if fragment.strip()]
 
 
-def _closed_world_fragments(program: Program) -> list[str]:
+def _closed_world_fragments(task: InductiveTask) -> list[str]:
     fragments = [
         line
-        for line in program.background
+        for line in task.background
         if line.strip() and not line.lstrip().startswith("%")
     ]
-    for example in program.positive_examples:
+    for example in task.positive_examples:
         fragments.append(example.context)
-    for example in program.negative_examples:
+    for example in task.negative_examples:
         fragments.append(example.context)
     return [fragment for fragment in fragments if fragment.strip()]
 
 
 def _valid_aggregate_specs(
-    program: Program,
+    task: InductiveTask,
     fragments: list[str] | None = None,
 ) -> list[AggregateDeclaration]:
-    if not program.aggregate_modes:
+    if not task.aggregate_modes:
         return []
-    available = _available_predicates(program, fragments or _program_fragments(program))
+    available = _available_predicates(task, fragments or _task_fragments(task))
     valid = []
-    for spec in program.aggregate_modes:
+    for spec in task.aggregate_modes:
         if all(atom in available for atom in spec.atoms):
             valid.append(spec)
     return valid
 
 
 def _combined_head_templates(
-    program: Program,
+    task: InductiveTask,
     declarations: list[ModeDeclaration],
     kind: str,
 ) -> tuple[HeadTemplate, ...]:
     if not declarations:
         return ()
 
-    max_width = program.max_head_literals
+    max_width = task.max_head_literals
     if max_width is None:
         if any(declaration.recall < 0 for declaration in declarations):
             directive = "#modeha" if kind == "choice" else "#modehd"
@@ -1900,7 +1900,7 @@ def _combined_head_templates(
         aggregate_capacity = sum(declaration.recall for declaration in declarations)
         max_width = max(
             aggregate_capacity,
-            max((head.width for head in program.language_bias_head), default=0),
+            max((head.width for head in task.language_bias_head), default=0),
         )
     if all(declaration.recall >= 0 for declaration in declarations):
         max_width = min(max_width, sum(mode.recall for mode in declarations))
@@ -1909,13 +1909,13 @@ def _combined_head_templates(
         (declaration_index, atom)
         for declaration_index, declaration in enumerate(declarations)
         if isinstance(declaration.literal, AtomLiteral)
-        for atom in declaration.literal.atom.concretizations(program.constants)
+        for atom in declaration.literal.atom.concretizations(task.constants)
     )
-    condition_limit = _condition_limit(program)
-    condition_modes = _condition_modes(program) if condition_limit else ()
+    condition_limit = _condition_limit(task)
+    condition_modes = _condition_modes(task) if condition_limit else ()
     atom_capacities = {
         atom: _aggregate_head_atom_capacity(
-            program, atom, max_width, condition_modes, condition_limit
+            task, atom, max_width, condition_modes, condition_limit
         )
         for _declaration_index, atom in choices
     }
@@ -1940,7 +1940,7 @@ def _combined_head_templates(
     templates: list[HeadTemplate] = []
     seen: set[HeadTemplate] = set()
     minimum = max(
-        2 if kind == "disjunction" else 1, program.min_aggregate_head_literals
+        2 if kind == "disjunction" else 1, task.min_aggregate_head_literals
     )
     for width in range(minimum, max_width + 1):
         for combination in combinations_with_replacement(choices, width):
@@ -1967,20 +1967,20 @@ def _combined_head_templates(
     return tuple(templates)
 
 
-def _aggregate_head_templates(program: Program) -> tuple[HeadTemplate, ...]:
+def _aggregate_head_templates(task: InductiveTask) -> tuple[HeadTemplate, ...]:
     return _combined_head_templates(
-        program, program.language_bias_aggregate_head, "choice"
+        task, task.language_bias_aggregate_head, "choice"
     )
 
 
-def _disjunctive_head_templates(program: Program) -> tuple[HeadTemplate, ...]:
+def _disjunctive_head_templates(task: InductiveTask) -> tuple[HeadTemplate, ...]:
     return _combined_head_templates(
-        program, program.language_bias_disjunctive_head, "disjunction"
+        task, task.language_bias_disjunctive_head, "disjunction"
     )
 
 
 def _aggregate_head_atom_capacity(
-    program: Program,
+    task: InductiveTask,
     atom: AtomTemplate,
     max_width: int,
     condition_modes: tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...],
@@ -1996,23 +1996,23 @@ def _aggregate_head_atom_capacity(
     return min(
         max_width,
         sum(
-            _literal_assignment_capacity(program, variant, max_width)
+            _literal_assignment_capacity(task, variant, max_width)
             for variant in variants
         ),
     )
 
 
 def _literal_assignment_capacity(
-    program: Program,
+    task: InductiveTask,
     literal: AtomLiteral | ConditionalLiteral,
     max_width: int,
 ) -> int:
     binding_count = sum(len(term.bindings()) for term in literal.arguments)
     if not binding_count:
         return 1
-    if program.max_variables is None:
+    if task.max_variables is None:
         return max_width
-    return program.max_variables**binding_count
+    return task.max_variables**binding_count
 
 
 def _aggregate_head_bounds(width: int) -> tuple[tuple[int, int], ...]:
@@ -2026,7 +2026,7 @@ def _aggregate_head_bounds(width: int) -> tuple[tuple[int, int], ...]:
 
 
 def _hypothesis_modes(
-    program: Program,
+    task: InductiveTask,
     capabilities: HypothesisCapabilities,
     predicate_arg_types: dict[tuple[str, int, int], str],
     aggregate_specs: list[AggregateDeclaration],
@@ -2039,13 +2039,13 @@ def _hypothesis_modes(
         modes.append(mode)
         next_id += 1
 
-    condition_limit = _condition_limit(program)
-    condition_modes = _condition_modes(program)
+    condition_limit = _condition_limit(task)
+    condition_modes = _condition_modes(task)
     next_head_form = 0
     head_templates = (
-        *((declaration.template, False) for declaration in program.language_bias_head),
-        *((template, True) for template in _aggregate_head_templates(program)),
-        *((template, False) for template in _disjunctive_head_templates(program)),
+        *((declaration.template, False) for declaration in task.language_bias_head),
+        *((template, True) for template in _aggregate_head_templates(task)),
+        *((template, False) for template in _disjunctive_head_templates(task)),
     )
     for template, aggregate_head in head_templates:
         concrete_elements = []
@@ -2062,7 +2062,7 @@ def _hypothesis_modes(
             concrete_elements.append(
                 tuple(
                     literal
-                    for literal in _literal_concretizations(base, program.constants)
+                    for literal in _literal_concretizations(base, task.constants)
                     if isinstance(literal, AtomLiteral | ConditionalLiteral)
                 )
             )
@@ -2097,8 +2097,8 @@ def _hypothesis_modes(
                         for literal in concrete_literals
                         if isinstance(literal, ConditionalLiteral)
                     )
-                    > (program.max_body_literals or 0)
-                    and program.max_body_literals is not None
+                    > (task.max_body_literals or 0)
+                    and task.max_body_literals is not None
                 ):
                     continue
                 form_id = next_head_form
@@ -2118,10 +2118,10 @@ def _hypothesis_modes(
                         )
                     )
 
-    for declaration in program.language_bias_body:
+    for declaration in task.language_bias_body:
         recall_group = next_id
         for conclusion in _literal_concretizations(
-            declaration.literal, program.constants
+            declaration.literal, task.constants
         ):
             for literal in _conditioned_literals(
                 conclusion, condition_modes, condition_limit
@@ -2138,16 +2138,16 @@ def _hypothesis_modes(
 
     operator_modes = [
         declaration
-        for declaration in program.arithmetic_modes
+        for declaration in task.arithmetic_modes
         if isinstance(declaration, OperatorDeclaration)
     ]
     for declaration in (
         declaration
-        for declaration in program.arithmetic_modes
+        for declaration in task.arithmetic_modes
         if isinstance(declaration, ModeDeclaration)
     ):
         recall_group = next_id
-        for literal in _literal_concretizations(declaration.literal, program.constants):
+        for literal in _literal_concretizations(declaration.literal, task.constants):
             add(
                 HypothesisMode(
                     id=next_id,
@@ -2312,23 +2312,23 @@ def _hypothesis_modes(
     return modes
 
 
-def _condition_limit(program: Program) -> int:
-    if not program.language_bias_condition:
+def _condition_limit(task: InductiveTask) -> int:
+    if not task.language_bias_condition:
         return 0
-    if program.max_body_literals is not None:
-        return program.max_body_literals
-    if any(mode.recall < 0 for mode in program.language_bias_condition):
+    if task.max_body_literals is not None:
+        return task.max_body_literals
+    if any(mode.recall < 0 for mode in task.language_bias_condition):
         raise ValueError("#maxbl(*) requires finite recalls for every condition mode")
-    return sum(mode.recall for mode in program.language_bias_condition)
+    return sum(mode.recall for mode in task.language_bias_condition)
 
 
 def _condition_modes(
-    program: Program,
+    task: InductiveTask,
 ) -> tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...]:
     return tuple(
         (literal, group, declaration.recall)
-        for group, declaration in enumerate(program.language_bias_condition)
-        for literal in _literal_concretizations(declaration.literal, program.constants)
+        for group, declaration in enumerate(task.language_bias_condition)
+        for literal in _literal_concretizations(declaration.literal, task.constants)
         if isinstance(literal, AtomLiteral | ComparisonLiteral)
     )
 
@@ -2455,29 +2455,29 @@ def _section_capacity(
     return sum(recalls.values())
 
 
-def _closed_body_predicates(program: Program) -> set[Predicate]:
-    head_predicates = {atom.signature for atom in _head_atoms(program)}
+def _closed_body_predicates(task: InductiveTask) -> set[Predicate]:
+    head_predicates = {atom.signature for atom in _head_atoms(task)}
     return {
         literal.atom.signature
-        for mode in (*program.language_bias_body, *program.language_bias_condition)
+        for mode in (*task.language_bias_body, *task.language_bias_condition)
         for literal in _mode_atom_literals(mode)
         if literal.atom.signature not in head_predicates
     }
 
 
 def _facts(
-    program: Program,
+    task: InductiveTask,
     modes: list[HypothesisMode],
     predicate_arg_types: dict[tuple[str, int, int], str],
     max_variables: int,
     max_head_literals: int,
     max_body_literals: int,
 ) -> str:
-    fragments = _closed_world_fragments(program)
+    fragments = _closed_world_fragments(task)
     properties = _closed_world_properties(
         fragments,
         predicate_arg_types,
-        _closed_body_predicates(program),
+        _closed_body_predicates(task),
     )
     predicate_ids = _predicate_ids(modes)
     structured_predicates = {
@@ -2507,9 +2507,9 @@ def _facts(
     ]
     parts.extend(
         f"condition_group_recall({group},{max_body_literals if mode.recall < 0 else mode.recall})."
-        for group, mode in enumerate(program.language_bias_condition)
+        for group, mode in enumerate(task.language_bias_condition)
     )
-    domain = _numeric_domain_values(program)
+    domain = _numeric_domain_values(task)
     all_positive = bool(domain) and all(value > 0 for value in domain)
     if domain and 0 not in domain and not all_positive:
         parts.append("zero_not_in_numeric_domain.")
@@ -2535,7 +2535,7 @@ def _facts(
         complement_id = predicate_ids.get(complement)
         if not predicate[0].startswith("-") and complement_id is not None:
             parts.append(f"strong_complement_pred({predicate_id},{complement_id}).")
-    for layer, predicate in enumerate(program.invented_predicates):
+    for layer, predicate in enumerate(task.invented_predicates):
         parts.append(f"invented_pred({predicate_ids[predicate]},{layer}).")
     shapes: dict[tuple[object, ...], int] = {}
     condition_variants: dict[tuple[object, ...], int] = {}

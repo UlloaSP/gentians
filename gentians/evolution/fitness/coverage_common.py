@@ -1,13 +1,13 @@
 import math
 
 from ...asp.coverage import Coverage
-from ...clauses.program import Program
+from ...language.ir.inductive_task import InductiveTask
 from ...timing import instrumentation, metric_enabled, record_metric
 
 
-def coverage_score(program: Program, coverage: Coverage) -> float:
-    positive_total = len(program.positive_examples)
-    negative_total = len(program.negative_examples)
+def coverage_score(task: InductiveTask, coverage: Coverage) -> float:
+    positive_total = len(task.positive_examples)
+    negative_total = len(task.negative_examples)
     covered_positive = coverage.pos_mask.bit_count()
     covered_negative = coverage.neg_mask.bit_count()
     if positive_total and negative_total:
@@ -24,9 +24,9 @@ def coverage_score(program: Program, coverage: Coverage) -> float:
     return math.exp(rate_difference * 10)
 
 
-def balanced_coverage_score(program: Program, coverage: Coverage) -> float:
-    positive_total = len(program.positive_examples)
-    negative_total = len(program.negative_examples)
+def balanced_coverage_score(task: InductiveTask, coverage: Coverage) -> float:
+    positive_total = len(task.positive_examples)
+    negative_total = len(task.negative_examples)
     covered_positive = coverage.pos_mask.bit_count()
     covered_negative = coverage.neg_mask.bit_count()
     if positive_total and negative_total:
@@ -43,7 +43,7 @@ def balanced_coverage_score(program: Program, coverage: Coverage) -> float:
 
 
 def record_fitness_metric(
-    program: Program,
+    task: InductiveTask,
     candidate_program: tuple[str, ...],
     coverage: Coverage,
     score: float,
@@ -62,7 +62,7 @@ def record_fitness_metric(
                 "best_found": best_found,
                 "covered_positive": covered_positive,
                 "covered_negative": covered_negative,
-                "total_positive": len(program.positive_examples),
-                "total_negative": len(program.negative_examples),
+                "total_positive": len(task.positive_examples),
+                "total_negative": len(task.negative_examples),
             },
         )

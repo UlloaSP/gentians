@@ -21,8 +21,8 @@ El flujo actual es:
 
 ```text
 task file
-  -> Reader + validación
-  -> Program, IR de la tarea inductiva
+  -> language lexer + parser + validación
+  -> InductiveTask, IR de la tarea inductiva
   -> análisis estático + compilación de modes
   -> facts + metaprograma ASP
   -> Clingo enumera y poda cláusulas
@@ -49,7 +49,7 @@ No introduzcas optimizaciones que asuman contribuciones aditivas, cobertura fija
 Usa estos términos en código, docs y conversación:
 
 - **Tarea inductiva**: archivo que contiene background ASP, ejemplos y language bias. También posee los límites estructurales.
-- **`Program`**: IR parseado de la tarea inductiva. No es la hipótesis aprendida, pese al nombre de la clase.
+- **`InductiveTask`**: IR parseado de la tarea inductiva. No es la hipótesis aprendida.
 - **Language bias**: lenguaje finito permitido para las hipótesis. Incluye modes, recalls, tipos, direcciones, constantes, límites, metarules, invención y `#bias` explícito.
 - **Regla o cláusula**: una regla ASP aprendible ya instanciada y canónica.
 - **`RuleEntry`**: texto de una regla junto a predicados definidos, dependencias, tamaño de cuerpo y bundle opcional.
@@ -71,7 +71,7 @@ No uses "hypothesis space" sin indicar si hablas de reglas candidatas o de progr
 
 Una tarea puede declarar background ASP, ejemplos positivos y negativos con contexto opcional, límites `#maxv/#maxbl/#minhl/#maxhl/#maxpl`, heads normales, disyuntivas, choice o cardinalidad, negación fuerte, negación por defecto, variables tipadas y dirigidas, constantes, términos anidados, condicionales, aggregates, arithmetic, comparisons, predicate invention, metarules de segundo orden y meta-ASP mediante `#bias`.
 
-`docs/language-bias.md` es el contrato de sintaxis y significado. Léelo completo antes de cambiar reader, grammar, modes, generación o pruning. `README.md` es el resumen de uso, no una segunda especificación.
+`docs/language-bias.md` es el contrato de sintaxis y significado. Léelo completo antes de cambiar lexer, grammar, parser, modes, generación o pruning. `README.md` es el resumen de uso, no una segunda especificación.
 
 Reglas semánticas que deben sobrevivir cualquier refactor:
 
@@ -93,7 +93,7 @@ Estos son límites del producto, aunque algunos todavía compartan paquete:
 
 | Módulo | Responsabilidad | Ubicación actual |
 |---|---|---|
-| Reader, grammar, bias, entities y ASP AST | Parsear una tarea una sola vez, validar en el boundary y construir IR tipado. Usar `clingo.ast` para sintaxis y transformaciones ASP, no manipulación textual frágil. | `gentians/clauses/reader.py`, `parser.py`, entidades pequeñas de `clauses/` |
+| Lenguaje de tareas | Leer UTF-8, separar sentencias completas, parsear directivas, delegar ASP a `clingo.ast` y construir un IR tipado. | `gentians/language/parser.py`, `lexer.py`, `grammar.py`, `asp.py`, `directives.py`, `declarations.py`, `modes.py`, `metarules.py`, `language/ir/` |
 | Generación de reglas | Compilar bias y análisis estático a facts, enumerar cláusulas mediante metaprograma ASP, podar ilegalidad y redundancia, decodificar y canonicalizar. | `gentians/clauses/hypothesis_space.py`, `clauses/rules/**/*.lp`, `RuleSpace` |
 | Generación de hipótesis | Construir programas candidatos, aplicar pruning mientras nacen y cerrar dependencias bajo `#maxpl` y bundles. | `gentians/hypotheses/` |
 | Solver evolutivo | Un único algoritmo central con población, selección, crossover, mutación, replacement y fitness intercambiables. | `gentians/evolution/algorithms/search.py` y subpaquetes de estrategias |
@@ -109,7 +109,7 @@ La tabla mezcla destino y estado real a propósito. La generación de hipótesis
 
 ## Cómo se genera una regla
 
-`read_program()` extrae primero `#bias` y `#metarule`, analiza directivas y background, valida duplicados y devuelve `Program`. El reader es el boundary de errores de sintaxis de la tarea.
+`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` y `metarules` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP.
 
 `HypothesisSpaceGenerator` ejecuta este pipeline:
 
@@ -124,7 +124,7 @@ La tabla mezcla destino y estado real a propósito. La generación de hipótesis
 
 Prefiere pruning declarativo en los módulos `.lp` cuando la condición depende de la selección reificada. Usa Python para análisis estático de la tarea, AST, decodificación o canonicalización que no conviene recomputar dentro del solver. Evita generar un dominio enorme para filtrarlo después.
 
-Un cambio de lenguaje suele tocar reader, entidades, compilación de modes/facts, metaprograma, decoder/render, `docs/language-bias.md` y tests de hipótesis. Recorre esa cadena completa. Una nueva sintaxis sin semántica de generación, o nueva semántica sin documentación, está incompleta.
+Un cambio de lenguaje suele tocar lexer, parser, IR, compilación de modes/facts, metaprograma, decoder/render, `docs/language-bias.md` y tests de hipótesis. Recorre esa cadena completa. Una nueva sintaxis sin semántica de generación, o nueva semántica sin documentación, está incompleta.
 
 ## Cómo se genera y busca una hipótesis
 
@@ -239,9 +239,10 @@ No cambies estas gráficas salvo petición explícita:
 
 ## Dónde vive cada cosa
 
-- `gentians/gentians.py`: entry points `main`, `program_from_arguments` y `solve`.
+- `gentians/gentians.py`: entry points `main`, `task_from_arguments` y `solve`.
 - `gentians/arguments.py`: configuración pública del SDK y defaults evolutivos.
-- `gentians/clauses/`: front-end de la tarea, IR, compilación, metaprograma y representación canónica de reglas.
+- `gentians/language/`: lexer, gramática de alto nivel, parser, parsers de declaraciones, utilidades `clingo.ast` e IR tipado de la tarea.
+- `gentians/clauses/`: compilación, metaprograma, pruning y representación canónica de cláusulas.
 - `gentians/clauses/rules/`: pruning ASP separado por core, safety, operators, aggregates y properties. El orden de carga es explícito.
 - `gentians/hypotheses/`: plumbing de representación de genomas, cierre y transiciones válidas que usan las estrategias evolutivas.
 - `gentians/evolution/algorithms/search.py`: orquestación evolutiva, caché de evaluaciones y archivo semántico.
@@ -261,7 +262,7 @@ No cambies estas gráficas salvo petición explícita:
 
 Antes de editar, clasifica el cambio:
 
-- Sintaxis o significado del task file: reader, entidad tipada, language spec, compilación, tests.
+- Sintaxis o significado del task file: lexer, parser, IR tipado, language spec, compilación, tests.
 - Legalidad de una regla: análisis estático o metaprograma ASP, decoder/canonicalización si aplica.
 - Legalidad de un programa candidato: `HypothesisGenerator`, nunca guards repartidos entre operadores.
 - Política evolutiva: estrategia y factory. Mantén `search_solver` agnóstico cuando el contrato existente alcanza.

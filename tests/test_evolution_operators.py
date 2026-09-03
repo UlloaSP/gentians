@@ -20,8 +20,8 @@ from gentians.evolution.selections.behavior_tournament_selection import (
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
 from gentians.evolution.types import FitnessResult
-from gentians.clauses.example import Example
-from gentians.clauses.program import Program
+from gentians.language.ir.example import Example
+from gentians.language.ir.inductive_task import InductiveTask
 from gentians.clauses.rule_space import RuleSpace
 
 
@@ -32,7 +32,7 @@ def _context(rules, *, max_clauses=3):
         f"{name}({','.join('c' for _ in range(arity))})." if arity else f"{name}."
         for name, arity in sorted(dependencies)
     ]
-    program = Program(background, [], [], [], [])
+    program = InductiveTask(background, [], [], [], [])
     rng = random.Random(7)
     hypothesis_generator = HypothesisGenerator(program, space, max_clauses, rng)
     return EvolutionContext(hypothesis_generator, rng)
@@ -164,7 +164,7 @@ def test_crossover_generates_closed_programs_directly():
     consumer = "heads(V0) :- coin(V0),not tails(V0)."
     first_provider = "tails(V0) :- coin(V0)."
     second_provider = "tails(V0) :- marked(V0)."
-    program = Program(["coin(c1).", "marked(c1)."], [], [], [], [])
+    program = InductiveTask(["coin(c1).", "marked(c1)."], [], [], [], [])
     space = RuleSpace.from_clauses(
         [consumer, first_provider, second_provider]
     )
@@ -322,7 +322,7 @@ def test_hypothesis_generator_creates_only_closed_programs():
         "heads(V0):- coin(V0),not tails(V0).",
         "tails(V0):- coin(V0),not heads(V0).",
     )
-    program = Program(["coin(c1)."], [], [], [], [])
+    program = InductiveTask(["coin(c1)."], [], [], [], [])
     space = RuleSpace.from_clauses(list(rules))
     generator = HypothesisGenerator(program, space, 2, random.Random(1))
 
@@ -337,7 +337,7 @@ def test_hypothesis_generator_builds_invented_definition_module():
     father = "helper(V0,V1) :- father(V0,V1)."
     recursive = "helper(V1,V0) :- helper(V0,V1)."
     constraint = ":- helper(V0,V1),bad(V0)."
-    program = Program(
+    program = InductiveTask(
         ["mother(a,b).", "father(b,c).", "bad(d)."],
         [Example(("target(a,c)", ""), True)],
         [],
@@ -363,7 +363,7 @@ def test_hypothesis_generator_builds_invented_definition_module():
 def test_population_accepts_closure_larger_than_sampled_size(monkeypatch):
     consumer = "target(V0) :- helper(V0)."
     provider = "helper(V0) :- base(V0)."
-    program = Program(
+    program = InductiveTask(
         ["base(a)."],
         [Example(("target(a)", ""), True)],
         [],
@@ -389,7 +389,7 @@ def test_hypothesis_generator_applies_mutation_atomically():
     consumer = "heads(V0) :- coin(V0),not tails(V0)."
     provider = "tails(V0) :- coin(V0)."
     alternative = "tails(V0) :- marked(V0)."
-    program = Program(["coin(c1).", "marked(c1)."], [], [], [], [])
+    program = InductiveTask(["coin(c1).", "marked(c1)."], [], [], [], [])
     generator = HypothesisGenerator(
         program,
         RuleSpace.from_clauses([seed, consumer, provider, alternative]),
@@ -405,7 +405,7 @@ def test_hypothesis_generator_applies_mutation_atomically():
 
 
 def test_generator_prunes_uncloseable_rules():
-    program = Program(["base."], [], [], [], [])
+    program = InductiveTask(["base."], [], [], [], [])
     space = RuleSpace.from_clauses(["base.", "target :- missing."])
     generator = HypothesisGenerator(program, space, 2, random.Random(1))
 
@@ -416,7 +416,7 @@ def test_generator_prunes_uncloseable_rules():
 
 
 def test_hypothesis_generator_creates_requested_population_size():
-    program = Program([], [], [], [], [])
+    program = InductiveTask([], [], [], [], [])
     space = RuleSpace.from_clauses(["a.", "b.", "c."])
     generator = HypothesisGenerator(program, space, 3, random.Random(1))
 
@@ -425,7 +425,7 @@ def test_hypothesis_generator_creates_requested_population_size():
 
 def test_hypothesis_generator_uses_canonical_bitset_genomes():
     generator = HypothesisGenerator(
-        Program([], [], [], [], []),
+        InductiveTask([], [], [], [], []),
         RuleSpace.from_clauses(["a.", "b.", "c.", "d."]),
         3,
         random.Random(1),
@@ -442,7 +442,7 @@ def test_hypothesis_generator_uses_canonical_bitset_genomes():
 
 def test_hypothesis_generator_does_not_cache_bounded_search_failures(monkeypatch):
     generator = HypothesisGenerator(
-        Program([], [], [], [], []),
+        InductiveTask([], [], [], [], []),
         RuleSpace.from_clauses(["a."]),
         1,
         random.Random(1),
@@ -469,7 +469,7 @@ def test_hypothesis_generator_records_one_closure_per_public_transition(monkeypa
         lambda name, seconds: calls.append((name, seconds)),
     )
     generator = HypothesisGenerator(
-        Program([], [], [], [], []),
+        InductiveTask([], [], [], [], []),
         RuleSpace.from_clauses(["a.", "b.", "c."]),
         2,
         random.Random(1),
@@ -505,7 +505,6 @@ def test_generation_consumers_make_one_high_level_generator_call():
             return ()
 
     generator = GeneratorSpy()
-    space = RuleSpace.from_clauses(["a.", "b."])
     context = EvolutionContext(generator, random.Random(1))
     genome = 1
 
@@ -556,7 +555,7 @@ def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
     )
     result, score, best = search_solver(
         args,
-        Program([], [], [], [], [], max_program_clauses=1),
+        InductiveTask([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["good.", "higher-score."]),
     )
     assert result == ("good.",)
@@ -607,7 +606,7 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
 
     result, score, best = search_solver(
         args,
-        Program([], [], [], [], [], max_program_clauses=1),
+        InductiveTask([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["start.", "win."]),
     )
 
@@ -648,7 +647,7 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
 
     search_solver(
         args,
-        Program([], [], [], [], [], max_program_clauses=1),
+        InductiveTask([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["start."]),
     )
 
@@ -709,7 +708,7 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     )
     result, score, best = search_solver(
         args,
-        Program([], [], [], [], []),
+        InductiveTask([], [], [], [], []),
         RuleSpace.from_clauses(["start.", "win.", "loss."]),
     )
 
@@ -761,7 +760,7 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
 
     search_solver(
         args,
-        Program([], [], [], [], [], max_program_clauses=1),
+        InductiveTask([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["start.", "other.", "cross.", "mutated."]),
     )
 
@@ -803,7 +802,7 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
 
     search_solver(
         args,
-        Program([], [], [], [], [], max_program_clauses=1),
+        InductiveTask([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["start.", "cross."]),
     )
 
@@ -846,7 +845,7 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
 
     search_solver(
         args,
-        Program([], [], [], [], [], max_program_clauses=1),
+        InductiveTask([], [], [], [], [], max_program_clauses=1),
         RuleSpace.from_clauses(["start.", "other.", "cross."]),
     )
 

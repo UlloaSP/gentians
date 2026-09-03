@@ -8,7 +8,7 @@
     "viewBox": [1700, 700]
   },
   "lanes": [
-    { "id": "input", "label": "Task file, Reader e IR" },
+    { "id": "input", "label": "Task file, lenguaje e IR" },
     { "id": "compiler", "label": "Compilación de cláusulas" },
     { "id": "asp", "label": "Solver y salida" },
     { "id": "post", "label": "Decodificación y forma canónica" }
@@ -57,7 +57,7 @@
       "lane": "input",
       "col": 1,
       "type": "backend",
-      "label": "reader.read_program",
+      "label": "language front-end",
       "width": 170
     },
     {
@@ -65,7 +65,7 @@
       "lane": "input",
       "col": 2,
       "type": "database",
-      "label": "Program",
+      "label": "InductiveTask",
       "width": 150
     },
     {
@@ -134,8 +134,8 @@
     }
   ],
   "edges": [
-    { "id": "read-lines", "from": "task_file", "to": "reader", "label": "Path.read_text + splitlines", "variant": "default", "role": "main" },
-    { "id": "build-program", "from": "reader", "to": "program_ir", "label": "directivas validadas", "variant": "emphasis", "role": "main" },
+    { "id": "read-lines", "from": "task_file", "to": "reader", "label": "Path.read_text UTF-8", "variant": "default", "role": "main" },
+    { "id": "build-program", "from": "reader", "to": "program_ir", "label": "lex + parse + validate", "variant": "emphasis", "role": "main" },
     { "id": "extract-heads", "from": "program_ir", "to": "head_forms", "label": "#modeh + #modeha", "variant": "default", "role": "branch" },
     { "id": "inspect-program", "from": "program_ir", "to": "static_analysis", "label": "fragments + declarations", "variant": "security", "role": "main" },
     { "id": "compile-modes", "from": "static_analysis", "to": "mode_compiler", "label": "capacidades permitidas", "variant": "emphasis", "role": "main" },
@@ -149,12 +149,12 @@
   "cards": [
     {
       "dot": "cyan",
-      "title": "Reader, parser y representación",
+      "title": "Lenguaje, parser y representación",
       "items": [
+        "parse_file carga UTF-8; lexer separa sentencias; parser construye el IR; Clingo conserva gramática y AST ASP",
         "#maxv/#maxbl/#minhl/#maxhl/#maxpl fijan dominios finitos; #pos/#neg, constants e inventions se validan y deduplican",
         "#modeh conserva una cabeza completa; #modeha compila combinaciones cardinalidad; #modeb/#modec producen declaraciones atómicas tipadas",
-        "Program reúne background, ejemplos, bias, operadores y límites",
-        "HeadDeclaration guarda HeadTemplate; TermTemplate recursivo guarda términos, bindings por ruta y constants; ConditionalLiteral une conclusión y condiciones dentro de LiteralTemplate"
+        "InductiveTask reúne background, ejemplos, bias, operadores y límites; las piezas de cláusula viven en language.ir"
       ]
     },
     {
@@ -163,8 +163,8 @@
       "items": [
         "Análisis estático valida #minhl/#maxhl, recalls de #modeha, inventions, tipos nominales y capacidades",
         "HypothesisMode asigna IDs, recall groups, posiciones y roles; marca formularios #modeha para linkedness estructural",
-        "ASP poda slots gapless, orden, recall, límites, linkedness, typing, safety y flujo input/output",
-        "Operadores, aggregates y propiedades podan dominio, duplicados, symmetry/order/inverse/mutex/keys/functional/transitive/acyclic/subsumption"
+        "ASP poda slots, orden, recall, límites, linkedness, typing, safety y flujo",
+        "Módulos de operadores y propiedades podan redundancias y contradicciones"
       ]
     },
     {
@@ -174,7 +174,7 @@
         "selected/3 + var_at/4 se decodifican como ReifiedClause; _theta_reduced elimina subcuerpos equivalentes",
         "Operaciones conectadas forman ArithmeticSystem con ecuaciones residuales y condiciones",
         "Outputs inseguros conservan asignación; div/mod incluyen divisor != 0 sin recall extra",
-        "canonical.key elige representante; RuleEntry guarda text/heads/deps/size; RuleSpace ordena y deduplica"
+        "RuleEntry guarda texto, heads, dependencies, tamaño y bundle; RuleSpace ordena y deduplica"
       ]
     }
   ]

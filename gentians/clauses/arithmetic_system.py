@@ -4,18 +4,18 @@ from functools import lru_cache
 from math import gcd, lcm
 
 from .arithmetic_expression import ArithmeticExpression
-from .arithmetic_literal import ArithmeticLiteral
-from .aggregate_literal import AggregateLiteral
-from .atom_literal import AtomLiteral
+from ..language.ir.arithmetic_literal import ArithmeticLiteral
+from ..language.ir.aggregate_literal import AggregateLiteral
+from ..language.ir.atom_literal import AtomLiteral
 from .canonical_arithmetic_clause import CanonicalArithmeticClause
 from .comparison_constraint import ComparisonConstraint
-from .comparison_literal import ComparisonLiteral
+from ..language.ir.comparison_literal import ComparisonLiteral
 from .expression_constraint import ExpressionConstraint
 from .hypothesis_mode import HypothesisMode
 from .linear_constraint import LinearConstraint
 from .reified_clause import ReifiedClause
 from .reified_literal import ReifiedLiteral
-from .term_template import TermTemplate
+from ..language.ir.term_template import TermTemplate
 
 ArithmeticSystemKey = tuple[object, ...]
 

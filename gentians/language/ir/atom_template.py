@@ -3,7 +3,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import product
 
-from .parser import Predicate, signed_predicate
+from ..asp import Predicate, signed_predicate
 from .term_binding import TermBinding
 from .term_template import TermTemplate
 

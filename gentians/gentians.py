@@ -3,8 +3,8 @@ import time
 from gentians.evolution.algorithms.search import search_solver
 
 from .arguments import Arguments
-from .clauses.program import Program
-from .clauses.reader import read_program
+from .language.ir.inductive_task import InductiveTask
+from .language import parse_file
 from .clauses.rule_space import RuleSpace
 from .timing import (
     export as export_timings,
@@ -16,7 +16,7 @@ from .timing import (
 
 
 def solve(
-    program: Program,
+    task: InductiveTask,
     arguments: Arguments,
     rule_space: RuleSpace | None = None,
     start_total_time: float | None = None,
@@ -33,7 +33,7 @@ def solve(
 
     try:
         with phase("total_execution"):
-            prg, score, best_found = search_solver(arguments, program, rule_space)
+            prg, score, best_found = search_solver(arguments, task, rule_space)
         total_seconds = recorded_seconds("total_execution")
         if total_seconds is None:
             total_seconds = time.time() - start_total_time
@@ -48,17 +48,17 @@ def solve(
         export_timings()
 
 
-def program_from_arguments(arguments: Arguments) -> Program:
+def task_from_arguments(arguments: Arguments) -> InductiveTask:
     """
     SDK entry point.
     """
 
     if arguments.filename:
-        program = read_program(arguments.filename)
+        task = parse_file(arguments.filename)
     else:
         raise ValueError("Specify a file with the task")
 
-    return program
+    return task
 
 
 def main(arguments: Arguments) -> None:
@@ -66,5 +66,5 @@ def main(arguments: Arguments) -> None:
     SDK entry point.
     """
 
-    program = program_from_arguments(arguments)
-    solve(program, arguments)
+    task = task_from_arguments(arguments)
+    solve(task, arguments)

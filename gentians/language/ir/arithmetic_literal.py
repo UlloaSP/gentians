@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
 
-from .parser import Predicate
+from ..asp import Predicate
 from .term_template import TermTemplate
 
 

@@ -11,7 +11,7 @@ class SetMixCrossover:
     ) -> tuple[Genome, ...]:
         if context.rng.random() >= self.probability:
             return ()
-        return context.generator.mix(
+        return context.hypotheses.mix(
             first,
             second,
             ((0.7, 0.3), (0.3, 0.7)),

@@ -11,7 +11,7 @@ from gentians.evolution.individual import Individual
 from gentians.evolution.mutations import create_mutation
 from gentians.evolution.operator_types import MutationProposal
 from gentians.evolution.populations import create_population
-from gentians.evolution.program_generators import ProgramGenerator
+from gentians.hypotheses import HypothesisGenerator
 from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.evolution.selections import create_selection
 from gentians.evolution.selections.behavior_tournament_selection import (
@@ -20,9 +20,9 @@ from gentians.evolution.selections.behavior_tournament_selection import (
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
 from gentians.evolution.types import FitnessResult
-from gentians.rule_generation.example import Example
-from gentians.rule_generation.program import Program
-from gentians.rule_generation.rule_space import RuleSpace
+from gentians.clauses.example import Example
+from gentians.clauses.program import Program
+from gentians.clauses.rule_space import RuleSpace
 
 
 def _context(rules, *, max_clauses=3):
@@ -34,16 +34,16 @@ def _context(rules, *, max_clauses=3):
     ]
     program = Program(background, [], [], [], [])
     rng = random.Random(7)
-    program_generator = ProgramGenerator(program, space, max_clauses, rng)
-    return EvolutionContext(program_generator, rng)
+    hypothesis_generator = HypothesisGenerator(program, space, max_clauses, rng)
+    return EvolutionContext(hypothesis_generator, rng)
 
 
 def _encode(context, *rules):
-    return context.generator.encode(tuple(rules))
+    return context.hypotheses.encode(tuple(rules))
 
 
 def _render(context, genome):
-    return context.generator.render(genome)
+    return context.hypotheses.render(genome)
 
 
 def test_all_mutations_share_genome_contract():
@@ -55,7 +55,7 @@ def test_all_mutations_share_genome_contract():
         genome, context
     )
     assert isinstance(result.program, int)
-    assert set(_render(context, result.program)) <= set(context.generator.space.clauses)
+    assert set(_render(context, result.program)) <= set(context.hypotheses.space.clauses)
 
 
 def test_structural_neighbor_replaces_with_same_head():
@@ -82,13 +82,13 @@ def test_structural_neighbor_does_not_materialize_available_rules(monkeypatch):
     same_head = "target(A,B) :- parent(B)."
     context = _context([source, same_head, "other(X) :- parent(X)."], max_clauses=1)
     program = _encode(context, source)
-    random_ids = context.generator._random_ids
+    random_ids = context.hypotheses._random_ids
 
     def only_program_ids(mask):
         assert mask == program
         return random_ids(mask)
 
-    monkeypatch.setattr(context.generator, "_random_ids", only_program_ids)
+    monkeypatch.setattr(context.hypotheses, "_random_ids", only_program_ids)
     mutation = create_mutation(
         {
             "name": "structural_neighbor",
@@ -169,7 +169,7 @@ def test_crossover_generates_closed_programs_directly():
         [consumer, first_provider, second_provider]
     )
     rng = random.Random(3)
-    generator = ProgramGenerator(program, space, 2, rng)
+    generator = HypothesisGenerator(program, space, 2, rng)
     context = EvolutionContext(generator, rng)
 
     children = create_crossover({"name": "set_mix", "probability": 1.0})(
@@ -317,21 +317,21 @@ def test_tournament_percentage_rejects_out_of_range_values(percentage):
         TournamentSelection(percentage, 1.0)
 
 
-def test_program_generator_creates_only_closed_programs():
+def test_hypothesis_generator_creates_only_closed_programs():
     rules = (
         "heads(V0):- coin(V0),not tails(V0).",
         "tails(V0):- coin(V0),not heads(V0).",
     )
     program = Program(["coin(c1)."], [], [], [], [])
     space = RuleSpace.from_clauses(list(rules))
-    generator = ProgramGenerator(program, space, 2, random.Random(1))
+    generator = HypothesisGenerator(program, space, 2, random.Random(1))
 
     assert [generator.render(genome) for genome in generator.create_population(1)] == [
         tuple(sorted(rules))
     ]
 
 
-def test_program_generator_builds_invented_definition_module():
+def test_hypothesis_generator_builds_invented_definition_module():
     consumer = "target(V0,V2) :- helper(V0,V1),helper(V1,V2)."
     mother = "helper(V0,V1) :- mother(V0,V1)."
     father = "helper(V0,V1) :- father(V0,V1)."
@@ -348,7 +348,7 @@ def test_program_generator_builds_invented_definition_module():
     space = RuleSpace.from_clauses(
         [consumer, mother, father, recursive, constraint]
     )
-    generator = ProgramGenerator(program, space, 3, random.Random(1))
+    generator = HypothesisGenerator(program, space, 3, random.Random(1))
     generator.rng.randint = lambda _start, end: end
 
     [generated] = generator.create_population(1)
@@ -371,7 +371,7 @@ def test_population_accepts_closure_larger_than_sampled_size(monkeypatch):
         [],
         invented_predicates=(("helper", 1),),
     )
-    generator = ProgramGenerator(
+    generator = HypothesisGenerator(
         program,
         RuleSpace.from_clauses([consumer, provider]),
         2,
@@ -384,13 +384,13 @@ def test_population_accepts_closure_larger_than_sampled_size(monkeypatch):
     assert generator.render(generated) == tuple(sorted((consumer, provider)))
 
 
-def test_program_generator_applies_mutation_atomically():
+def test_hypothesis_generator_applies_mutation_atomically():
     seed = "seed(V0) :- coin(V0)."
     consumer = "heads(V0) :- coin(V0),not tails(V0)."
     provider = "tails(V0) :- coin(V0)."
     alternative = "tails(V0) :- marked(V0)."
     program = Program(["coin(c1).", "marked(c1)."], [], [], [], [])
-    generator = ProgramGenerator(
+    generator = HypothesisGenerator(
         program,
         RuleSpace.from_clauses([seed, consumer, provider, alternative]),
         3,
@@ -407,7 +407,7 @@ def test_program_generator_applies_mutation_atomically():
 def test_generator_prunes_uncloseable_rules():
     program = Program(["base."], [], [], [], [])
     space = RuleSpace.from_clauses(["base.", "target :- missing."])
-    generator = ProgramGenerator(program, space, 2, random.Random(1))
+    generator = HypothesisGenerator(program, space, 2, random.Random(1))
 
     assert generator.space.clauses == ("base.",)
     assert [generator.render(genome) for genome in generator.create_population(2)] == [
@@ -415,16 +415,16 @@ def test_generator_prunes_uncloseable_rules():
     ]
 
 
-def test_program_generator_creates_requested_population_size():
+def test_hypothesis_generator_creates_requested_population_size():
     program = Program([], [], [], [], [])
     space = RuleSpace.from_clauses(["a.", "b.", "c."])
-    generator = ProgramGenerator(program, space, 3, random.Random(1))
+    generator = HypothesisGenerator(program, space, 3, random.Random(1))
 
     assert len(generator.create_population(3)) == 3
 
 
-def test_program_generator_uses_canonical_bitset_genomes():
-    generator = ProgramGenerator(
+def test_hypothesis_generator_uses_canonical_bitset_genomes():
+    generator = HypothesisGenerator(
         Program([], [], [], [], []),
         RuleSpace.from_clauses(["a.", "b.", "c.", "d."]),
         3,
@@ -440,8 +440,8 @@ def test_program_generator_uses_canonical_bitset_genomes():
     assert sorted(available) == [generator.rule_ids["b."], generator.rule_ids["d."]]
 
 
-def test_program_generator_does_not_cache_bounded_search_failures(monkeypatch):
-    generator = ProgramGenerator(
+def test_hypothesis_generator_does_not_cache_bounded_search_failures(monkeypatch):
+    generator = HypothesisGenerator(
         Program([], [], [], [], []),
         RuleSpace.from_clauses(["a."]),
         1,
@@ -462,13 +462,13 @@ def test_program_generator_does_not_cache_bounded_search_failures(monkeypatch):
     assert calls == 2
 
 
-def test_program_generator_records_one_closure_per_public_transition(monkeypatch):
+def test_hypothesis_generator_records_one_closure_per_public_transition(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "gentians.evolution.program_generators.common.add",
+        "gentians.hypotheses.common.add",
         lambda name, seconds: calls.append((name, seconds)),
     )
-    generator = ProgramGenerator(
+    generator = HypothesisGenerator(
         Program([], [], [], [], []),
         RuleSpace.from_clauses(["a.", "b.", "c."]),
         2,
@@ -535,8 +535,8 @@ def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
         search,
         "create_population",
         lambda config: lambda context: [
-            context.generator.encode(("good.",)),
-            context.generator.encode(("higher-score.",)),
+            context.hypotheses.encode(("good.",)),
+            context.hypotheses.encode(("higher-score.",)),
         ],
     )
     monkeypatch.setattr(
@@ -576,13 +576,13 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [context.generator.encode(("start.",))],
+        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
         lambda config: lambda first, second, context: (
-            context.generator.encode(("win.",)),
+            context.hypotheses.encode(("win.",)),
         ),
     )
     monkeypatch.setattr(
@@ -629,7 +629,7 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [context.generator.encode(("start.",))],
+        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
     )
     monkeypatch.setattr(
         search,
@@ -667,21 +667,21 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
         search,
         "create_population",
         lambda config: lambda context: [
-            context.generator.encode(("start.",)),
-            context.generator.encode(("loss.",)),
+            context.hypotheses.encode(("start.",)),
+            context.hypotheses.encode(("loss.",)),
         ],
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
         lambda config: lambda first, second, context: (
-            context.generator.encode(("win.",)),
+            context.hypotheses.encode(("win.",)),
         ),
     )
 
     def destructive_mutation(genome, context):
         mutation_calls.append(genome)
-        return MutationProposal(context.generator.encode(("loss.",)))
+        return MutationProposal(context.hypotheses.encode(("loss.",)))
 
     monkeypatch.setattr(
         search,
@@ -731,22 +731,22 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
         search,
         "create_population",
         lambda config: lambda context: [
-            context.generator.encode(("start.",)),
-            context.generator.encode(("other.",)),
+            context.hypotheses.encode(("start.",)),
+            context.hypotheses.encode(("other.",)),
         ],
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
         lambda config: lambda first, second, context: (
-            context.generator.encode(("cross.",)),
+            context.hypotheses.encode(("cross.",)),
         ),
     )
     monkeypatch.setattr(
         search,
         "create_mutation",
         lambda config: lambda genome, context: MutationProposal(
-            context.generator.encode(("mutated.",))
+            context.hypotheses.encode(("mutated.",))
         ),
     )
     scores = {"start.": 1.0, "other.": 0.0, "cross.": 2.0, "mutated.": 1.5}
@@ -782,14 +782,14 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [context.generator.encode(("start.",))],
+        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
         lambda config: lambda first, second, context: (
-            context.generator.encode(("cross.",)),
-            context.generator.encode(("cross.",)),
+            context.hypotheses.encode(("cross.",)),
+            context.hypotheses.encode(("cross.",)),
         ),
     )
     monkeypatch.setattr(
@@ -826,7 +826,7 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [context.generator.encode(("start.",))],
+        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
     )
     monkeypatch.setattr(
         search,
@@ -839,7 +839,7 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
         search,
         "create_crossover",
         lambda config: lambda first, second, context: (
-            context.generator.encode(("cross.",)),
+            context.hypotheses.encode(("cross.",)),
         ),
     )
     monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))

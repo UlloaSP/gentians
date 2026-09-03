@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .program_generators import ProgramGenerator
+    from ..hypotheses import HypothesisGenerator
 
 
 @dataclass(frozen=True, slots=True)
 class EvolutionContext:
-    generator: ProgramGenerator
+    hypotheses: HypothesisGenerator
     rng: random.Random

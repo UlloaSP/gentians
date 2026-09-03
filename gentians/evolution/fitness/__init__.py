@@ -1,4 +1,4 @@
-from ...rule_generation.program import Program
+from ...clauses.program import Program
 from .cov_balanced import CovBalanced
 from .cov_program import CovProgram
 

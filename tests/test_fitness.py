@@ -14,9 +14,9 @@ from gentians.evolution.fitness.coverage_common import (
     balanced_coverage_score,
     coverage_score,
 )
-from gentians.rule_generation.example import Example
-from gentians.rule_generation.program import Program
-from gentians.rule_generation.rule_space import RuleSpace
+from gentians.clauses.example import Example
+from gentians.clauses.program import Program
+from gentians.clauses.rule_space import RuleSpace
 
 
 def _program() -> Program:

@@ -26,7 +26,7 @@ from benchmarks.catalog import (
 from gentians import Arguments
 from gentians import main as gentians_main
 from gentians.asp.coverage_program import build_coverage_static_program
-from gentians.rule_generation.reader import read_program
+from gentians.clauses.reader import read_program
 
 
 @dataclass

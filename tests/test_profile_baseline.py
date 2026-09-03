@@ -23,8 +23,8 @@ from benchmarks.profile_baseline import (
 from gentians import timing
 from gentians.arguments import Arguments
 from gentians.gentians import solve
-from gentians.rule_generation.program import Program
-from gentians.rule_generation.rule_space import RuleSpace
+from gentians.clauses.program import Program
+from gentians.clauses.rule_space import RuleSpace
 
 
 def test_profile_worker_applies_seed_to_arguments(monkeypatch):

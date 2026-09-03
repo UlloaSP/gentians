@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ..rule_generation.example import Example
+from ..clauses.example import Example
 from .coverage import generate_clauses_for_coverage_interpretations, guard_context
 from .coverage_symbols import ACTIVE_CONTEXT_PREDICATE
 

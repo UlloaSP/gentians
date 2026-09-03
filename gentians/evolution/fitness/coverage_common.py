@@ -1,7 +1,7 @@
 import math
 
 from ...asp.coverage import Coverage
-from ...rule_generation.program import Program
+from ...clauses.program import Program
 from ...timing import instrumentation, metric_enabled, record_metric
 
 

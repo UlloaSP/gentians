@@ -2,11 +2,11 @@ import time
 from collections.abc import Callable
 from functools import wraps
 
-from ...rule_generation.parser import Predicate, clause_predicates
-from ...rule_generation.program import Program
-from ...rule_generation.rule_entry import RuleEntry
-from ...rule_generation.rule_space import RuleSpace
-from ...timing import add, current_phase
+from ..clauses.parser import Predicate, clause_predicates
+from ..clauses.program import Program
+from ..clauses.rule_entry import RuleEntry
+from ..clauses.rule_space import RuleSpace
+from ..timing import add, current_phase
 
 
 def record_generation_time(method: Callable) -> Callable:

@@ -28,7 +28,7 @@ task file
   -> Clingo enumera y poda cláusulas
   -> decode + canonicalización
   -> RuleSpace
-  -> ProgramGenerator construye genomas cerrados
+  -> HypothesisGenerator construye genomas cerrados
   -> search_solver aplica estrategias evolutivas
   -> fitness evalúa cada programa completo con Clingo
   -> mejor hipótesis + score + best_found
@@ -39,7 +39,7 @@ instrumentación -> artefactos de benchmark -> preview Vite
 La distinción entre reglas e hipótesis es obligatoria:
 
 - `HypothesisSpaceGenerator` tiene un nombre histórico. En la implementación actual genera el espacio finito de reglas individuales, un `RuleSpace`.
-- `ProgramGenerator` construye hipótesis completas a partir de ese `RuleSpace`, mantiene cierre de dependencias y las codifica como bitsets.
+- `HypothesisGenerator` construye hipótesis completas a partir de ese `RuleSpace`, mantiene cierre de dependencias y las codifica como bitsets.
 - Una regla no tiene cobertura o fitness estable por sí sola. ASP es no monótono y añadir una regla puede cambiar los modelos del programa completo.
 
 No introduzcas optimizaciones que asuman contribuciones aditivas, cobertura fija por regla o equivalencia global a partir de los ejemplos. Una firma de cobertura solo expresa comportamiento sobre la tarea observada.
@@ -93,9 +93,9 @@ Estos son límites del producto, aunque algunos todavía compartan paquete:
 
 | Módulo | Responsabilidad | Ubicación actual |
 |---|---|---|
-| Reader, grammar, bias, entities y ASP AST | Parsear una tarea una sola vez, validar en el boundary y construir IR tipado. Usar `clingo.ast` para sintaxis y transformaciones ASP, no manipulación textual frágil. | `gentians/rule_generation/reader.py`, `parser.py`, entidades pequeñas de `rule_generation/` |
-| Generación de reglas | Compilar bias y análisis estático a facts, enumerar cláusulas mediante metaprograma ASP, podar ilegalidad y redundancia, decodificar y canonicalizar. | `gentians/rule_generation/hypothesis_space.py`, `rule_generation/rules/**/*.lp`, `RuleSpace` |
-| Generación de hipótesis | Construir programas candidatos mediante metaprograma ASP, aplicar pruning mientras nacen y cerrar dependencias bajo `#maxpl` y bundles. Hoy esa responsabilidad usa un bitset engine en Python. | `gentians/evolution/program_generators/` |
+| Reader, grammar, bias, entities y ASP AST | Parsear una tarea una sola vez, validar en el boundary y construir IR tipado. Usar `clingo.ast` para sintaxis y transformaciones ASP, no manipulación textual frágil. | `gentians/clauses/reader.py`, `parser.py`, entidades pequeñas de `clauses/` |
+| Generación de reglas | Compilar bias y análisis estático a facts, enumerar cláusulas mediante metaprograma ASP, podar ilegalidad y redundancia, decodificar y canonicalizar. | `gentians/clauses/hypothesis_space.py`, `clauses/rules/**/*.lp`, `RuleSpace` |
+| Generación de hipótesis | Construir programas candidatos, aplicar pruning mientras nacen y cerrar dependencias bajo `#maxpl` y bundles. | `gentians/hypotheses/` |
 | Solver evolutivo | Un único algoritmo central con población, selección, crossover, mutación, replacement y fitness intercambiables. | `gentians/evolution/algorithms/search.py` y subpaquetes de estrategias |
 | Evaluación ASP | Traducir ejemplos a cobertura y usar Clingo como oracle semántico. | `gentians/asp/`, `gentians/evolution/fitness/` |
 | Docs | Mantener lenguaje, decisiones, arquitectura y experimentos con resultados. | `docs/`, `README.md` |
@@ -105,7 +105,7 @@ Estos son límites del producto, aunque algunos todavía compartan paquete:
 
 No crees paquetes vacíos para imitar esta tabla. Haz aparecer un límite físico cuando tenga lógica propia y reduzca acoplamiento real. Si mueves una frontera, conecta directamente todos los usos y elimina la ubicación anterior.
 
-La tabla mezcla destino y estado real a propósito. El front-end todavía vive dentro de `rule_generation`; la generación de hipótesis completas todavía no usa metaprograma ASP; logging no tiene aún un módulo general separado de timing, métricas y callbacks. Trátalos como límites de producto pendientes, no como funciones ya implementadas ni como permiso para un refactor masivo no solicitado.
+La tabla mezcla destino y estado real a propósito. La generación de hipótesis completas usa un bitset engine en Python; logging no tiene aún un módulo general separado de timing, métricas y callbacks. Trátalos como límites de producto pendientes, no como funciones ya implementadas ni como permiso para un refactor masivo no solicitado.
 
 ## Cómo se genera una regla
 
@@ -128,7 +128,7 @@ Un cambio de lenguaje suele tocar reader, entidades, compilación de modes/facts
 
 ## Cómo se genera y busca una hipótesis
 
-`ProgramGenerator` es la única autoridad para construir o transformar genomas. Prepara el `RuleSpace`, elimina reglas imposibles de cerrar y mantiene índices de heads, dependencies y bundles. Creación, append, remove, replace y crossover terminan en `_build()` y `_complete()`.
+`HypothesisGenerator` es la única autoridad para construir o transformar genomas. Prepara el `RuleSpace`, elimina reglas imposibles de cerrar y mantiene índices de heads, dependencies y bundles. Creación, append, remove, replace y crossover terminan en `_build()` y `_complete()`.
 
 Invariantes del candidato:
 
@@ -139,7 +139,7 @@ Invariantes del candidato:
 - Todas sus dependencias tienen proveedor en background o en el candidato.
 - Una transición destructiva no puede reintroducir la regla o bundle marcado como forbidden para reparar su propia eliminación.
 
-Las estrategias no editan bits arbitrariamente. Selección opera sobre `Individual`; population, crossover y mutation piden genomas válidos a `ProgramGenerator`; replacement conserva tamaño y orden por score. Los protocolos viven en `evolution/operator_types.py` y el estado compartido mínimo en `EvolutionContext`.
+Las estrategias no editan bits arbitrariamente. Selección opera sobre `Individual`; population, crossover y mutation piden genomas válidos a `HypothesisGenerator`; replacement conserva tamaño y orden por score. Los protocolos viven en `evolution/operator_types.py` y el estado compartido mínimo en `EvolutionContext`.
 
 `search_solver` es el único bucle central. Construye factories desde `Arguments`, crea o acepta un `RuleSpace`, inicializa población, memoiza evaluaciones, registra generación 0, aplica selección, crossover, mutación y replacement, y termina al encontrar una hipótesis perfecta o agotar generaciones. `iterations_genetic=0` significa búsqueda sin límite de generaciones.
 
@@ -148,7 +148,7 @@ Al añadir una estrategia:
 - Implementa un archivo y una clase top-level. `tests/test_strategy_layout.py` protege ese layout.
 - Cumple el callable type existente. Extiende el protocolo solo si la categoría completa necesita datos nuevos.
 - Regístrala en la factory de su subpaquete.
-- Delega construcción y cierre a `ProgramGenerator`.
+- Delega construcción y cierre a `HypothesisGenerator`.
 - Usa el `random.Random` inyectado para reproducibilidad.
 - Añade tests del comportamiento observable y de los invariantes, no tests que copien la implementación.
 
@@ -241,9 +241,9 @@ No cambies estas gráficas salvo petición explícita:
 
 - `gentians/gentians.py`: entry points `main`, `program_from_arguments` y `solve`.
 - `gentians/arguments.py`: configuración pública del SDK y defaults evolutivos.
-- `gentians/rule_generation/`: front-end de la tarea, IR, compilación, metaprograma y representación canónica de reglas.
-- `gentians/rule_generation/rules/`: pruning ASP separado por core, safety, operators, aggregates y properties. El orden de carga es explícito.
-- `gentians/evolution/program_generators/`: representación de genomas, cierre y transiciones válidas.
+- `gentians/clauses/`: front-end de la tarea, IR, compilación, metaprograma y representación canónica de reglas.
+- `gentians/clauses/rules/`: pruning ASP separado por core, safety, operators, aggregates y properties. El orden de carga es explícito.
+- `gentians/hypotheses/`: plumbing de representación de genomas, cierre y transiciones válidas que usan las estrategias evolutivas.
 - `gentians/evolution/algorithms/search.py`: orquestación evolutiva, caché de evaluaciones y archivo semántico.
 - `gentians/evolution/{populations,selections,crossovers,mutations,replacements,fitness}/`: estrategias y factories.
 - `gentians/asp/`: programa de cobertura, isolation de contexts, solvers y stats.
@@ -263,7 +263,7 @@ Antes de editar, clasifica el cambio:
 
 - Sintaxis o significado del task file: reader, entidad tipada, language spec, compilación, tests.
 - Legalidad de una regla: análisis estático o metaprograma ASP, decoder/canonicalización si aplica.
-- Legalidad de un programa candidato: `ProgramGenerator`, nunca guards repartidos entre operadores.
+- Legalidad de un programa candidato: `HypothesisGenerator`, nunca guards repartidos entre operadores.
 - Política evolutiva: estrategia y factory. Mantén `search_solver` agnóstico cuando el contrato existente alcanza.
 - Semántica o score: cobertura compartida y fitness. Demuestra equivalencia entre ejecuciones cuando no pretendes cambiar significado.
 - Medición: `timing.py`, productor del dashboard, schema y preview como una cadena.

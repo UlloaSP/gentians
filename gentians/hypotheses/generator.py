@@ -1,16 +1,16 @@
 import random
 
-from ...rule_generation.parser import fragment_atoms
-from ...rule_generation.program import Program
-from ...rule_generation.rule_space import RuleSpace
-from ..operator_types import MutationProposal
-from ..types import Genome, ProgramText
+from ..clauses.parser import fragment_atoms
+from ..clauses.program import Program
+from ..clauses.rule_space import RuleSpace
+from ..evolution.operator_types import MutationProposal
+from ..evolution.types import Genome, ProgramText
 from .common import bits, defined_predicates, prepare_space, record_generation_time
 
 _CACHE_SIZE = 65536
 
 
-class ProgramGenerator:
+class HypothesisGenerator:
     def __init__(
         self,
         program: Program,

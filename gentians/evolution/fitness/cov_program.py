@@ -1,7 +1,7 @@
 from typing import Any
 
 from ...asp.normal_coverage_solver import NormalCoverageSolver
-from ...rule_generation.program import Program
+from ...clauses.program import Program
 from ..types import FitnessResult
 from .coverage_common import coverage_score, record_fitness_metric
 

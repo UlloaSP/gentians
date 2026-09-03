@@ -7,4 +7,4 @@ class RandomPopulation:
         self.size = size
 
     def __call__(self, context: EvolutionContext) -> list[Genome]:
-        return context.generator.create_population(self.size)
+        return context.hypotheses.create_population(self.size)

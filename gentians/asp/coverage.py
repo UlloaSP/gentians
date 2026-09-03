@@ -1,7 +1,7 @@
 from clingo import ast
 
-from ..rule_generation.example import Example
-from ..rule_generation.parser import split_top_level_args
+from ..clauses.example import Example
+from ..clauses.parser import split_top_level_args
 from .coverage_symbols import ACTIVE_CONTEXT_PREDICATE
 
 

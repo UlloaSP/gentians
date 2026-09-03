@@ -2,14 +2,14 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "Generación del espacio de hipótesis en Gentians",
+    "title": "Generación de cláusulas y RuleSpace en Gentians",
     "quality_profile": "showcase",
     "output": "docs/hypothesis-generation.html",
     "viewBox": [1700, 700]
   },
   "lanes": [
     { "id": "input", "label": "Task file, Reader e IR" },
-    { "id": "compiler", "label": "Compilación del espacio" },
+    { "id": "compiler", "label": "Compilación de cláusulas" },
     { "id": "asp", "label": "Solver y salida" },
     { "id": "post", "label": "Decodificación y forma canónica" }
   ],

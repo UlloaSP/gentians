@@ -3,9 +3,9 @@ import time
 from gentians.evolution.algorithms.search import search_solver
 
 from .arguments import Arguments
-from .rule_generation.program import Program
-from .rule_generation.reader import read_program
-from .rule_generation.rule_space import RuleSpace
+from .clauses.program import Program
+from .clauses.reader import read_program
+from .clauses.rule_space import RuleSpace
 from .timing import (
     export as export_timings,
 )

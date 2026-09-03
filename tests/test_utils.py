@@ -1,5 +1,5 @@
 import pytest
-from gentians.rule_generation.parser import clause_predicates, fragment_atoms
+from gentians.clauses.parser import clause_predicates, fragment_atoms
 
 
 class TestUnit:

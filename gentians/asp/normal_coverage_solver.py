@@ -1,6 +1,6 @@
 import clingo
 
-from ..rule_generation.example import Example
+from ..clauses.example import Example
 from ..timing import (
     add,
     current_phase,

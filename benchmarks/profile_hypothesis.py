@@ -13,7 +13,7 @@ from benchmarks.catalog import DEFAULT_DATASETS, case_names
 from benchmarks.profile_baseline import profile_arguments
 from gentians import timing
 from gentians.gentians import program_from_arguments
-from gentians.rule_generation.hypothesis_space import build_hypothesis_space
+from gentians.clauses.hypothesis_space import build_hypothesis_space
 
 
 def main() -> None:

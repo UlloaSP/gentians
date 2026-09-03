@@ -2,12 +2,12 @@ import random
 from itertools import count
 
 from ...arguments import Arguments
-from ...rule_generation.hypothesis_space import (
+from ...clauses.hypothesis_space import (
     build_hypothesis_space,
     hypothesis_space_metrics,
 )
-from ...rule_generation.program import Program
-from ...rule_generation.rule_space import RuleSpace
+from ...clauses.program import Program
+from ...clauses.rule_space import RuleSpace
 from ...timing import (
     instrumentation,
     metric_enabled,
@@ -24,7 +24,7 @@ from ..individual import Individual
 from ..mutations import create_mutation
 from ..operator_types import MutationProposal
 from ..populations import create_population
-from ..program_generators import ProgramGenerator
+from ...hypotheses import HypothesisGenerator
 from ..replacements import create_replacement
 from ..selections import create_selection
 from ..types import Genome
@@ -61,16 +61,16 @@ def search_solver(
     max_program_clauses = (
         len(space) if program.max_program_clauses is None else program.max_program_clauses
     )
-    generator = ProgramGenerator(
+    hypotheses = HypothesisGenerator(
         program,
         space,
         max_program_clauses,
         rng,
     )
-    space = generator.space
+    space = hypotheses.space
     if not space:
-        raise ValueError("No clauses satisfy the program generator")
-    context = EvolutionContext(generator, rng)
+        raise ValueError("No clauses satisfy the hypothesis generator")
+    context = EvolutionContext(hypotheses, rng)
 
     with phase("initialization"):
         evaluate_score = create_fitness(program, args.fitness)
@@ -84,7 +84,7 @@ def search_solver(
         if candidate in evaluated:
             return None
         evaluations += 1
-        result = evaluate_score(generator.render(candidate))
+        result = evaluate_score(hypotheses.render(candidate))
         individual = Individual(
             candidate, result.score, result.is_best, result.behavior
         )
@@ -112,7 +112,7 @@ def search_solver(
             fitness_evaluations=evaluations,
         )
         return (
-            generator.render(winner.program),
+            hypotheses.render(winner.program),
             winner.score,
             True,
         )
@@ -199,7 +199,7 @@ def search_solver(
                     fitness_evaluations=evaluations,
                 )
                 return (
-                    generator.render(child.program),
+                    hypotheses.render(child.program),
                     child.score,
                     True,
                 )
@@ -249,7 +249,7 @@ def search_solver(
                     fitness_evaluations=evaluations,
                 )
                 return (
-                    generator.render(mutated.program),
+                    hypotheses.render(mutated.program),
                     mutated.score,
                     True,
                 )
@@ -301,7 +301,7 @@ def search_solver(
     population.sort(key=lambda item: item.score, reverse=True)
     best_overall = _better(best_overall, population[0])
     return (
-        generator.render(best_overall.program),
+        hypotheses.render(best_overall.program),
         best_overall.score,
         best_overall.is_best,
     )

@@ -9,47 +9,47 @@ from benchmarks.catalog import CASES
 from gentians.arguments import Arguments
 from gentians.asp.normal_coverage_solver import NormalCoverageSolver
 from gentians import timing
-from gentians.rule_generation import hypothesis_space
-from gentians.rule_generation.parser import (
+from gentians.clauses import hypothesis_space
+from gentians.clauses.parser import (
     clause_predicates,
     extract_name_arity,
     fragment_atoms,
     parse_atom,
 )
-from gentians.rule_generation.reader import read_program
-from gentians.rule_generation.hypothesis_space import (
+from gentians.clauses.reader import read_program
+from gentians.clauses.hypothesis_space import (
     HypothesisSpaceGenerator,
     _hypothesis_space_args,
     build_hypothesis_space,
 )
-from gentians.evolution.program_generators.program_generator import ProgramGenerator
-from gentians.rule_generation.arithmetic_expression import ArithmeticExpression
-from gentians.rule_generation.arithmetic_system import (
+from gentians.hypotheses.generator import HypothesisGenerator
+from gentians.clauses.arithmetic_expression import ArithmeticExpression
+from gentians.clauses.arithmetic_system import (
     ArithmeticSystem,
     canonical_arithmetic_clause,
 )
-from gentians.rule_generation.linear_constraint import LinearConstraint
-from gentians.rule_generation.literal_template import render_literal
-from gentians.rule_generation.aggregate_declaration import AggregateDeclaration
-from gentians.rule_generation.expression_constraint import ExpressionConstraint
-from gentians.rule_generation.example import Example
-from gentians.rule_generation.aggregate_literal import AggregateLiteral
-from gentians.rule_generation.arithmetic_literal import ArithmeticLiteral
-from gentians.rule_generation.atom_literal import AtomLiteral
-from gentians.rule_generation.atom_template import AtomTemplate
-from gentians.rule_generation.comparison_literal import ComparisonLiteral
-from gentians.rule_generation.conditional_literal import ConditionalLiteral
-from gentians.rule_generation.head_declaration import HeadDeclaration
-from gentians.rule_generation.head_template import HeadTemplate
-from gentians.rule_generation.hypothesis_mode import HypothesisMode
-from gentians.rule_generation.mode_declaration import ModeDeclaration
-from gentians.rule_generation.operator_declaration import OperatorDeclaration
-from gentians.rule_generation.program import Program
-from gentians.rule_generation.reified_clause import ReifiedClause
-from gentians.rule_generation.reified_literal import ReifiedLiteral
-from gentians.rule_generation.rule_space import RuleSpace
-from gentians.rule_generation.rule_entry import RuleEntry
-from gentians.rule_generation.term_template import TermTemplate
+from gentians.clauses.linear_constraint import LinearConstraint
+from gentians.clauses.literal_template import render_literal
+from gentians.clauses.aggregate_declaration import AggregateDeclaration
+from gentians.clauses.expression_constraint import ExpressionConstraint
+from gentians.clauses.example import Example
+from gentians.clauses.aggregate_literal import AggregateLiteral
+from gentians.clauses.arithmetic_literal import ArithmeticLiteral
+from gentians.clauses.atom_literal import AtomLiteral
+from gentians.clauses.atom_template import AtomTemplate
+from gentians.clauses.comparison_literal import ComparisonLiteral
+from gentians.clauses.conditional_literal import ConditionalLiteral
+from gentians.clauses.head_declaration import HeadDeclaration
+from gentians.clauses.head_template import HeadTemplate
+from gentians.clauses.hypothesis_mode import HypothesisMode
+from gentians.clauses.mode_declaration import ModeDeclaration
+from gentians.clauses.operator_declaration import OperatorDeclaration
+from gentians.clauses.program import Program
+from gentians.clauses.reified_clause import ReifiedClause
+from gentians.clauses.reified_literal import ReifiedLiteral
+from gentians.clauses.rule_space import RuleSpace
+from gentians.clauses.rule_entry import RuleEntry
+from gentians.clauses.term_template import TermTemplate
 
 
 def _generate(program, max_body_literals=3, max_variables=3):
@@ -692,7 +692,7 @@ def test_parser_preserves_strong_negation_in_atoms_and_rule_dependencies():
 
 
 def test_dependency_closure_does_not_confuse_positive_and_strong_providers():
-    from gentians.evolution.program_generators.common import prepare_space
+    from gentians.hypotheses.common import prepare_space
 
     space = RuleSpace.from_clauses(["target(X) :- -source(X)."])
     positive_background = Program(["source(a)."], [], [], [], [])
@@ -4688,7 +4688,7 @@ def test_second_order_metarule_instantiates_atomic_rule_bundle(tmp_path):
     }
     assert len({entry.bundle for entry in metarules}) == 1
 
-    generator = ProgramGenerator(program, space, 2, random.Random(0))
+    generator = HypothesisGenerator(program, space, 2, random.Random(0))
     population = generator.create_population(1)
     assert population
     assert len(generator.render(population[0])) == 2
@@ -4878,7 +4878,7 @@ def test_dependency_completion_closes_a_provider_bundle():
             entry("target :- p."),
         )
     )
-    generator = ProgramGenerator(
+    generator = HypothesisGenerator(
         Program(["b.", "c."], [], [], [], []), space, 3, random.Random(0)
     )
 

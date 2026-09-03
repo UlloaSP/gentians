@@ -5,10 +5,6 @@
     "title": "Arquitectura de GENTIANS",
     "output": "gentians-architecture.html",
     "quality_profile": "showcase",
-    "repository": {
-      "url": "https://github.com/UlloaSP/gentians.git",
-      "revision": "aba4970d71373d90e5f2289e3bbd58529d1134f4"
-    },
     "viewBox": [1190, 720]
   },
   "components": [
@@ -18,8 +14,7 @@
       "label": "Tarea inductiva",
       "sublabel": "ASP + ejemplos + bias",
       "pos": [30, 320],
-      "size": [130, 72],
-      "sources": [{ "path": "README.md", "line": 20, "label": "Formato de entrada" }]
+      "size": [130, 72]
     },
     {
       "id": "reader",
@@ -27,23 +22,15 @@
       "label": "Reader + Program",
       "sublabel": "parsea y valida directivas",
       "pos": [200, 320],
-      "size": [140, 72],
-      "sources": [
-        { "path": "gentians/rule_generation/reader.py", "line": 115, "label": "read_program" },
-        { "path": "gentians/rule_generation/program.py", "line": 12, "label": "Program" }
-      ]
+      "size": [140, 72]
     },
     {
-      "id": "hypothesis",
+      "id": "clauses",
       "type": "backend",
-      "label": "Hypothesis Space",
+      "label": "Generación de cláusulas",
       "sublabel": "Clingo enumera RuleSpace",
       "pos": [390, 320],
-      "size": [170, 72],
-      "sources": [
-        { "path": "gentians/rule_generation/hypothesis_space.py", "line": 117, "label": "Generador" },
-        { "path": "gentians/rule_generation/rule_space.py", "line": 7, "label": "RuleSpace" }
-      ]
+      "size": [170, 72]
     },
     {
       "id": "search",
@@ -52,8 +39,7 @@
       "sublabel": "orquesta generaciones",
       "pos": [620, 320],
       "size": [150, 72],
-      "tag": "search_solver",
-      "sources": [{ "path": "gentians/evolution/algorithms/search.py", "line": 34, "label": "Bucle de búsqueda" }]
+      "tag": "search_solver"
     },
     {
       "id": "fitness",
@@ -61,8 +47,7 @@
       "label": "Fitness",
       "sublabel": "cov_program o cov_balanced",
       "pos": [830, 320],
-      "size": [150, 72],
-      "sources": [{ "path": "gentians/evolution/fitness/__init__.py", "line": 11, "label": "Factory de fitness" }]
+      "size": [150, 72]
     },
     {
       "id": "clingo",
@@ -70,8 +55,7 @@
       "label": "Clingo",
       "sublabel": "grounding y solving",
       "pos": [1050, 320],
-      "size": [120, 72],
-      "sources": [{ "path": "gentians/asp/normal_coverage_solver.py", "line": 17, "label": "Solver de cobertura" }]
+      "size": [120, 72]
     },
     {
       "id": "result",
@@ -79,30 +63,23 @@
       "label": "Programa aprendido",
       "sublabel": "reglas, score y best_found",
       "pos": [620, 520],
-      "size": [160, 72],
-      "sources": [{ "path": "gentians/gentians.py", "line": 18, "label": "Resultado" }]
+      "size": [160, 72]
     },
     {
-      "id": "generator",
+      "id": "hypotheses",
       "type": "backend",
-      "label": "ProgramGenerator",
-      "sublabel": "genomas válidos y cerrados",
+      "label": "Plumbing de hipótesis",
+      "sublabel": "genomas válidos para estrategias",
       "pos": [390, 520],
-      "size": [170, 72],
-      "sources": [{ "path": "gentians/evolution/program_generators/program_generator.py", "line": 11, "label": "Constructor" }]
+      "size": [170, 72]
     },
     {
       "id": "operators",
       "type": "backend",
-      "label": "Operadores evolutivos",
-      "sublabel": "selección, cruce, mutación, reemplazo",
+      "label": "Estrategias evolutivas",
+      "sublabel": "porcelain sobre hipótesis válidas",
       "pos": [605, 80],
-      "size": [180, 78],
-      "sources": [
-        { "path": "gentians/evolution/selections/__init__.py", "line": 8, "label": "Selección" },
-        { "path": "gentians/evolution/mutations/__init__.py", "line": 8, "label": "Mutación" },
-        { "path": "gentians/evolution/replacements/__init__.py", "line": 7, "label": "Reemplazo" }
-      ]
+      "size": [180, 78]
     },
     {
       "id": "timing",
@@ -110,26 +87,25 @@
       "label": "Timing y métricas",
       "sublabel": "fases, fitness y Clingo",
       "pos": [825, 80],
-      "size": [160, 72],
-      "sources": [{ "path": "gentians/timing.py", "line": 1, "label": "Instrumentación" }]
+      "size": [160, 72]
     }
   ],
   "boundaries": [
     {
       "kind": "region",
       "label": "Paquete gentians",
-      "wraps": ["reader", "hypothesis", "search", "fitness", "generator", "operators", "timing"],
+      "wraps": ["reader", "clauses", "search", "fitness", "hypotheses", "operators", "timing"],
       "pad": 12
     }
   ],
   "connections": [
     { "id": "task-reader", "from": "task", "to": "reader" },
-    { "id": "reader-hypothesis", "from": "reader", "to": "hypothesis", "label": "Program", "labelAt": [365, 306] },
-    { "id": "hypothesis-search", "from": "hypothesis", "to": "search", "label": "RuleSpace", "labelAt": [590, 306] },
+    { "id": "reader-clauses", "from": "reader", "to": "clauses", "label": "Program", "labelAt": [365, 306] },
+    { "id": "clauses-search", "from": "clauses", "to": "search", "label": "RuleSpace", "labelAt": [590, 306] },
     { "id": "search-fitness", "from": "search", "to": "fitness", "label": "candidato", "labelAt": [800, 306] },
     { "id": "fitness-clingo", "from": "fitness", "to": "clingo", "label": "ground/solve", "variant": "emphasis", "labelAt": [1015, 306] },
-    { "id": "hypothesis-generator", "from": "hypothesis", "to": "generator", "label": "reglas", "fromSide": "bottom", "toSide": "top", "labelAt": [475, 430] },
-    { "id": "generator-search", "from": "generator", "to": "search", "fromSide": "right", "toSide": "left" },
+    { "id": "clauses-hypotheses", "from": "clauses", "to": "hypotheses", "label": "RuleSpace", "fromSide": "bottom", "toSide": "top", "labelAt": [475, 430] },
+    { "id": "search-hypotheses", "from": "search", "to": "hypotheses", "label": "plumbing para estrategias", "fromSide": "left", "toSide": "right" },
     { "id": "operators-search", "from": "operators", "to": "search", "label": "operadores", "fromSide": "bottom", "toSide": "top", "labelAt": [695, 200] },
     { "id": "search-result", "from": "search", "to": "result", "label": "mejor candidato", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [695, 420] },
     { "id": "fitness-timing", "from": "fitness", "to": "timing", "label": "métricas", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "labelAt": [905, 200] }

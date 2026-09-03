@@ -51,9 +51,10 @@ semantics.
 
 ### Search configuration
 
-GENTIANS always searches the generated hypothesis space. The mandatory
-`ProgramGenerator` constructs every initial, mutated, and crossed program while preserving its
-size, membership, and dependency invariants.
+GENTIANS searches candidate hypotheses built from a generated `RuleSpace`.
+`gentians.clauses` owns task parsing and clause generation. The mandatory
+`HypothesisGenerator` in `gentians.hypotheses` is plumbing used by evolutionary
+strategies to preserve size, membership, bundle, and dependency invariants.
 
 ```python
 arguments = Arguments(
@@ -377,5 +378,5 @@ Here we list only the main ones:
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
 - `fitness.name`: `cov_program` or `cov_balanced`.
-- `ProgramGenerator` is mandatory infrastructure: every initialization,
+- `HypothesisGenerator` is mandatory infrastructure: every initialization,
   mutation, and crossover returns an already dependency-closed valid program.

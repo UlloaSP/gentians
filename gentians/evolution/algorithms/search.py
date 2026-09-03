@@ -6,7 +6,6 @@ from ...clauses import (
     ClauseSpace,
     generate_clause_space,
 )
-from ...clauses.generator import _clause_space_metrics
 from ...language.ir.inductive_task import InductiveTask
 from ...timing import (
     instrumentation,
@@ -30,6 +29,27 @@ from ..selections import create_selection
 from ..types import Genome
 
 
+def _record_clause_space_metrics(task: InductiveTask, space: ClauseSpace) -> None:
+    if not metric_enabled("candidate"):
+        return
+    invented = set(task.invented_predicates)
+    with instrumentation():
+        record_metric(
+            "candidate",
+            {
+                "metric": "clause_generation",
+                "clauses": len(space),
+                "invented_predicates": len(invented),
+                "invented_definition_clauses": sum(
+                    bool(entry.heads & invented) for entry in space.entries
+                ),
+                "invented_consumer_clauses": sum(
+                    bool(entry.deps & invented) for entry in space.entries
+                ),
+            },
+        )
+
+
 @profile_phase("search")
 def search_solver(
     args: Arguments,
@@ -50,12 +70,7 @@ def search_solver(
         if supplied_space is not None
         else generate_clause_space(task, args)
     )
-    if supplied_space is not None and metric_enabled("candidate"):
-        with instrumentation():
-            record_metric(
-                "candidate",
-                _clause_space_metrics(task, space),
-            )
+    _record_clause_space_metrics(task, space)
     if not space:
         raise ValueError("No clauses found")
     max_program_clauses = (

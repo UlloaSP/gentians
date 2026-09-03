@@ -9,9 +9,8 @@ from ..language.asp import (
     Predicate,
 )
 from .extensions import (
-    AstKey,
+    GroundTerm,
     GroundTuple,
-    _ast_key,
     _closed_world_extensions,
     _defined_predicates,
     _integer_value,
@@ -303,7 +302,7 @@ def _choice_key(
     output_args: list[int] = []
     for index in range(arity):
         terms = [arguments[index] for _, arguments in atoms]
-        text = [_ast_key(term) for term in terms]
+        text = list(terms)
         variables = set().union(*(_term_variables(term) for term in terms), set())
         if len(set(text)) == 1 and variables <= body_vars:
             input_args.append(index)
@@ -351,9 +350,9 @@ def _collect_atom_projection(
 ) -> None:
     projection: list[int] = []
     for target_arg in target[1]:
-        target_text = _ast_key(target_arg)
+        target_text = target_arg
         for index, source_arg in enumerate(source_args):
-            if _ast_key(source_arg) == target_text:
+            if source_arg == target_text:
                 projection.append(index)
                 break
         else:
@@ -424,21 +423,19 @@ def _clause_head_args_distinct(node: ast.AST) -> bool:
     return _terms_known_distinct(head[1][0], head[1][1], inequalities)
 
 
-def _inequality_terms(literal: ast.AST) -> tuple[AstKey, AstKey] | None:
+def _inequality_terms(literal: ast.AST) -> tuple[ast.AST, ast.AST] | None:
     terms = _comparison_terms(literal, ast.ComparisonOperator.NotEqual)
     if terms is None:
         return None
-    return _ast_key(terms[0]), _ast_key(terms[1])
+    return terms
 
 
 def _terms_known_distinct(
     left: ast.AST,
     right: ast.AST,
-    inequalities: set[tuple[AstKey, AstKey]],
+    inequalities: set[tuple[ast.AST, ast.AST]],
 ) -> bool:
-    left_text = _ast_key(left)
-    right_text = _ast_key(right)
-    if (left_text, right_text) in inequalities or (right_text, left_text) in inequalities:
+    if (left, right) in inequalities or (right, left) in inequalities:
         return True
     left_parts = _tuple_parts(left)
     right_parts = _tuple_parts(right)
@@ -476,7 +473,7 @@ def _clause_head_args_symmetric(node: ast.AST) -> bool:
 
 
 def _term_pair_mapping(left: ast.AST, right: ast.AST) -> dict[str, str] | None:
-    if _ast_key(left) == _ast_key(right):
+    if left == right:
         return {}
     if left.ast_type == right.ast_type == ast.ASTType.Variable:
         left_name = str(left.name)
@@ -513,11 +510,11 @@ def _substitute_variables(node: ast.AST, mapping: dict[str, str]) -> ast.AST:
 def _canonical_literal_key(literal: ast.AST) -> object:
     terms = _comparison_terms(literal, ast.ComparisonOperator.NotEqual)
     if terms is not None:
-        return "inequality", frozenset((_ast_key(terms[0]), _ast_key(terms[1])))
-    return _ast_key(literal)
+        return "inequality", frozenset(terms)
+    return literal
 
 
-def _square_equality(literal: ast.AST) -> tuple[AstKey, AstKey] | None:
+def _square_equality(literal: ast.AST) -> tuple[ast.AST, ast.AST] | None:
     terms = _comparison_terms(literal, ast.ComparisonOperator.Equal)
     if terms is None:
         return None
@@ -530,7 +527,7 @@ def _square_equality(literal: ast.AST) -> tuple[AstKey, AstKey] | None:
         and expression.right.ast_type == ast.ASTType.Variable
         and expression.left.name == expression.right.name
     ):
-        return _ast_key(output), _ast_key(expression.left)
+        return output, expression.left
     return None
 
 
@@ -552,13 +549,13 @@ def _propagate_key_through_clause(
     head: tuple[str, tuple[ast.AST, ...]],
     body_atom: tuple[str, tuple[ast.AST, ...]],
     body_key: set[int],
-    equalities: list[tuple[AstKey, AstKey]],
+    equalities: list[tuple[ast.AST, ast.AST]],
     functional: set[tuple[Predicate, int, int]],
     functional_set: set[tuple[Predicate, tuple[int, ...], int]],
     keys: set[tuple[Predicate, tuple[int, ...]]],
 ) -> None:
-    head_args = [_ast_key(argument) for argument in head[1]]
-    body_args = [_ast_key(argument) for argument in body_atom[1]]
+    head_args = list(head[1])
+    body_args = list(body_atom[1])
     head_predicate = (head[0], len(head[1]))
     determinant_vars = {body_args[arg] for arg in body_key}
     determinant_vars |= {
@@ -645,7 +642,7 @@ def _collect_functional_properties(
         for output_arg in range(predicate[1]):
             if input_arg == output_arg:
                 continue
-            outputs: dict[AstKey, AstKey] = {}
+            outputs: dict[GroundTerm, GroundTerm] = {}
             valid = True
             for values in tuples:
                 previous = outputs.setdefault(values[input_arg], values[output_arg])
@@ -669,7 +666,7 @@ def _collect_composite_functional_properties(
             for output_arg in range(arity):
                 if output_arg in input_args:
                     continue
-                outputs: dict[GroundTuple, AstKey] = {}
+                outputs: dict[GroundTuple, GroundTerm] = {}
                 valid = True
                 for values in tuples:
                     key = tuple(values[arg] for arg in input_args)
@@ -920,14 +917,14 @@ def _is_total_order(tuples: set[GroundTuple]) -> bool:
 
 
 def _is_acyclic(tuples: set[GroundTuple]) -> bool:
-    graph: dict[AstKey, set[AstKey]] = {}
+    graph: dict[GroundTerm, set[GroundTerm]] = {}
     for left, right in tuples:
         graph.setdefault(left, set()).add(right)
         graph.setdefault(right, set())
-    visiting: set[AstKey] = set()
-    visited: set[AstKey] = set()
+    visiting: set[GroundTerm] = set()
+    visited: set[GroundTerm] = set()
 
-    def visit(node: AstKey) -> bool:
+    def visit(node: GroundTerm) -> bool:
         if node in visiting:
             return False
         if node in visited:

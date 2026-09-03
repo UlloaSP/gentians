@@ -30,7 +30,6 @@ from gentians.language.asp import (
 )
 from gentians.language import parse_file
 from gentians.clauses.generator import (
-    _ClauseGenerator as ClauseGenerator,
     _clause_space_args,
     generate_clause_space,
 )
@@ -66,7 +65,7 @@ from tests.task_helpers import example, inductive_task, make_clause_space
 def _generate(program, max_body_literals=3, max_variables=3):
     program.max_body_literals = max_body_literals
     program.max_variables = max_variables
-    return ClauseGenerator(program, Arguments()).generate()
+    return generate_clause_space(program, Arguments())
 
 
 def _asp(sources: list[str]):
@@ -225,7 +224,7 @@ def test_clause_generator_decodes_models_without_shown_symbols(monkeypatch):
         max_body_literals=2,
     )
 
-    clauses = ClauseGenerator(program, Arguments()).generate().clauses
+    clauses = generate_clause_space(program, Arguments()).clauses
 
     assert "target(V0) :- edge(V0,V1)." in clauses
 
@@ -284,7 +283,7 @@ def test_clause_generator_batches_dynamic_and_output_parsing(monkeypatch):
         max_body_literals=2,
     )
 
-    ClauseGenerator(task, Arguments()).generate()
+    generate_clause_space(task, Arguments())
 
     assert len(fact_sources) == 1
     assert "default_variable_identity." in fact_sources[0]
@@ -493,7 +492,7 @@ def test_clause_generation_is_generated_each_time(monkeypatch):
     assert generated == [True, True]
 
 
-def test_clause_generation_clingo_times_use_current_phase(monkeypatch):
+def test_clause_generation_owns_its_clingo_timing_phase(monkeypatch):
     _reset_timing_state()
     monkeypatch.setattr(timing, "_enabled", True)
     program = inductive_task(
@@ -505,11 +504,11 @@ def test_clause_generation_clingo_times_use_current_phase(monkeypatch):
     )
 
     with timing.phase("outer"):
-        ClauseGenerator(program, Arguments()).generate()
+        generate_clause_space(program, Arguments())
 
-    assert "outer.grounding" in timing._totals
-    assert "outer.solving" in timing._totals
-    assert "clause_generation.solving" not in timing._totals
+    assert "clause_generation.grounding" in timing._totals
+    assert "clause_generation.solving" in timing._totals
+    assert "outer.grounding" not in timing._totals
     _reset_timing_state()
 
 
@@ -524,7 +523,7 @@ def test_unbalanced_aggregate_variants_share_recall():
         max_variables=8,
         max_body_literals=6,
     )
-    clauses = ClauseGenerator(program, Arguments()).generate().clauses
+    clauses = generate_clause_space(program, Arguments()).clauses
 
     assert not any("#sum{V0:el(V0,V0)}" in clause for clause in clauses)
     assert any("#sum{V0:el(V0,V1)}" in clause for clause in clauses)
@@ -748,7 +747,7 @@ def test_parser_keeps_strong_and_default_negation_independent(tmp_path):
     assert default_negative_body.atom.signature == ("-r", 1)
     assert default_negative_body.default_negated
     assert default_negative_body.render(iter(("V0",))) == "not -r(V0)"
-    generator = ClauseGenerator(program, Arguments())
+    generator = clause_generation._ClauseGenerator(program, Arguments())
     assert generator.predicate_arg_types[("p", 1, 0)] == "person"
     assert ("-p", 1, 0) not in generator.predicate_arg_types
 
@@ -826,7 +825,7 @@ def test_constant_modes_expand_declared_ground_terms_without_variables(tmp_path)
     )
 
     program = parse_file(str(task))
-    clauses = ClauseGenerator(program, Arguments()).generate().clauses
+    clauses = generate_clause_space(program, Arguments()).clauses
 
     assert program.constants == {"symbol": ("a", "b")}
     assert set(clauses) == {
@@ -860,7 +859,7 @@ def test_unbounded_section_requires_finite_mode_recalls():
     )
 
     with pytest.raises(ValueError, match=r"#maxbl\(\*\)"):
-        ClauseGenerator(program, Arguments())
+        generate_clause_space(program, Arguments())
 
 
 def test_all_structural_limits_accept_star_with_finite_recalls(tmp_path):
@@ -880,12 +879,14 @@ def test_all_structural_limits_accept_star_with_finite_recalls(tmp_path):
         encoding="utf-8",
     )
     program = parse_file(str(task))
-    generator = ClauseGenerator(program, Arguments())
+    generator = clause_generation._ClauseGenerator(program, Arguments())
 
     assert generator.head_slots == 1
     assert generator.body_slots == 1
     assert generator.max_variables == 2
-    assert "target(V0) :- p(V0)." in generator.generate().clauses
+    assert "target(V0) :- p(V0)." in generate_clause_space(
+        program, Arguments()
+    ).clauses
 
 
 def test_parser_deduplicates_equal_directives(tmp_path):
@@ -976,7 +977,7 @@ def test_invent_rejects_observed_predicate(tmp_path):
     program = parse_file(str(task))
 
     with pytest.raises(ValueError, match="must not be observed"):
-        ClauseGenerator(program, Arguments()).generate()
+        generate_clause_space(program, Arguments())
 
 
 def test_invented_predicates_are_stratified_and_excluded_from_constraints(tmp_path):
@@ -1099,8 +1100,8 @@ def test_clause_generation_keeps_task_declared_unobserved_body_modes():
         ],
     )
 
-    generator = ClauseGenerator(program, Arguments())
-    clauses = generator.generate().clauses
+    generator = clause_generation._ClauseGenerator(program, Arguments())
+    clauses = generate_clause_space(program, Arguments()).clauses
 
     assert "target(V0) :- base(V0)." in clauses
     assert any(
@@ -1279,7 +1280,7 @@ def test_count_aggregate_tuple_variables_are_canonicalized():
 def test_clause_generation_prunes_arithmetic_identities():
     args = copy.deepcopy(CASES["4queens"])
     clauses = (
-        ClauseGenerator(parse_file(args.filename), args).generate().clauses
+        generate_clause_space(parse_file(args.filename), args).clauses
     )
 
     assert clauses
@@ -1331,8 +1332,7 @@ def test_nested_constants_expand_and_structured_modes_render(tmp_path):
     )
 
     clauses = set(
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -1359,8 +1359,7 @@ def test_empty_and_singleton_tuples_render_as_asp_tuples(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -1385,7 +1384,7 @@ def test_flat_constants_keep_outer_argument_positions(tmp_path):
     )
 
     program = parse_file(str(task))
-    generator = ClauseGenerator(program, Arguments())
+    generator = clause_generation._ClauseGenerator(program, Arguments())
     body_mode = next(mode for mode in generator.modes if mode.section == "body")
     facts = clause_facts._facts(
         program,
@@ -1397,7 +1396,9 @@ def test_flat_constants_keep_outer_argument_positions(tmp_path):
     )
 
     assert f"mode_variable_arg({body_mode.id},1)." in facts
-    assert "target(V0) :- source(a,V0)." in generator.generate().clauses
+    assert "target(V0) :- source(a,V0)." in generate_clause_space(
+        program, Arguments()
+    ).clauses
 
 
 def test_nested_constant_requires_declaration(tmp_path):
@@ -1435,7 +1436,7 @@ def test_linear_canonicalization_normalizes_sub_only_bias(recall):
         max_head_literals=0,
     )
 
-    generator = ClauseGenerator(program, Arguments())
+    generator = clause_generation._ClauseGenerator(program, Arguments())
     arithmetic_modes = [
         mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
     ]
@@ -1443,7 +1444,10 @@ def test_linear_canonicalization_normalizes_sub_only_bias(recall):
     assert arithmetic_modes[0].recall == recall
     assert arithmetic_modes[0].literal.operator == "+"
     assert arithmetic_modes[0].literal.coefficients == (1, 1, -1)
-    assert any("V0-V1-V2=0" in clause for clause in generator.generate().clauses)
+    assert any(
+        "V0-V1-V2=0" in clause
+        for clause in generate_clause_space(program, Arguments()).clauses
+    )
 
 
 def test_invention_preserves_structured_argument_templates(tmp_path):
@@ -1503,7 +1507,7 @@ def test_additive_modes_share_one_canonical_mode_with_combined_recall(
         max_head_literals=0,
     )
 
-    generator = ClauseGenerator(program, Arguments())
+    generator = clause_generation._ClauseGenerator(program, Arguments())
     arithmetic_modes = [
         mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
     ]
@@ -1528,7 +1532,7 @@ def test_inverse_comparisons_share_one_mode_with_combined_recall():
 
     comparisons = [
         mode
-        for mode in ClauseGenerator(program, Arguments()).modes
+        for mode in clause_generation._ClauseGenerator(program, Arguments()).modes
         if isinstance(mode.literal, ComparisonLiteral)
     ]
 
@@ -1541,7 +1545,7 @@ def test_inverse_comparisons_share_one_mode_with_combined_recall():
 def test_linear_canonicalization_reduces_complete_nqueens_systems():
     args = copy.deepcopy(CASES["5queens"])
     clauses = (
-        ClauseGenerator(parse_file(args.filename), args).generate().clauses
+        generate_clause_space(parse_file(args.filename), args).clauses
     )
 
     assert len(clauses) == 4797
@@ -1554,7 +1558,7 @@ def test_linear_canonicalization_reduces_complete_nqueens_systems():
 def test_nonlinear_canonicalization_keeps_lexicographic_render():
     args = copy.deepcopy(CASES["subset_sum_double_and_prod"])
     clauses = (
-        ClauseGenerator(parse_file(args.filename), args).generate().clauses
+        generate_clause_space(parse_file(args.filename), args).clauses
     )
 
     assert (
@@ -1580,7 +1584,7 @@ def test_linear_modes_render_direct_equations_with_bounded_complexity():
         max_body_literals=3,
         max_variables=5,
     )
-    generator = ClauseGenerator(program, Arguments())
+    generator = clause_generation._ClauseGenerator(program, Arguments())
     assert (
         len(
             [
@@ -1591,7 +1595,10 @@ def test_linear_modes_render_direct_equations_with_bounded_complexity():
         )
         == 1
     )
-    assert any("V0+V1-V2-V3=0" in clause for clause in generator.generate().clauses)
+    assert any(
+        "V0+V1-V2-V3=0" in clause
+        for clause in generate_clause_space(program, Arguments()).clauses
+    )
 
 
 def test_linear_mode_complexity_is_capped_by_body_limit():
@@ -1606,7 +1613,7 @@ def test_linear_mode_complexity_is_capped_by_body_limit():
         max_body_literals=3,
     )
 
-    generator = ClauseGenerator(program, Arguments())
+    generator = clause_generation._ClauseGenerator(program, Arguments())
 
     arithmetic_modes = [
         mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
@@ -1643,7 +1650,7 @@ def test_direct_linear_equation_can_safely_produce_a_head_variable():
         max_variables=5,
     )
 
-    clauses = ClauseGenerator(program, Arguments()).generate().clauses
+    clauses = generate_clause_space(program, Arguments()).clauses
 
     assert "target(V3) :- q(V0,V1,V2),V0+V1=V3." in clauses
 
@@ -1965,12 +1972,12 @@ def test_division_guard_does_not_consume_another_body_slot():
         max_body_literals=None,
     )
 
-    generator = ClauseGenerator(program, Arguments())
+    generator = clause_generation._ClauseGenerator(program, Arguments())
 
     assert generator.body_slots == 2
     guarded = [
         entry
-        for entry in generator.generate().entries
+        for entry in generate_clause_space(program, Arguments()).entries
         if "/" in entry.text and "!=0" in entry.text
     ]
     assert guarded
@@ -2200,7 +2207,7 @@ def test_aggregate_condition_keeps_inference_and_inherits_declared_normal_type()
         aggregate_modes=[AggregateDeclaration(1, "count", (("edge", 2),), True)],
     )
 
-    generator = ClauseGenerator(program, Arguments())
+    generator = clause_generation._ClauseGenerator(program, Arguments())
     aggregate = next(
         mode for mode in generator.modes if isinstance(mode.literal, AggregateLiteral)
     )
@@ -2564,6 +2571,10 @@ def test_closed_world_extensions_keep_distinct_string_terms():
         (_ground_term('"a b"'),),
         (_ground_term('"ab"'),),
     }
+    assert all(
+        isinstance(arguments[0], ast.AST)
+        for arguments in extensions[("p", 1)]
+    )
 
 
 def test_closed_world_extensions_do_not_derive_double_negation_as_negation():
@@ -3133,8 +3144,7 @@ def test_complete_head_forms_are_alternatives_not_implicit_combinations(tmp_path
     )
 
     clauses = set(
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3185,8 +3195,7 @@ def test_complete_heads_render_as_declared(tmp_path, head, expected):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3213,8 +3222,7 @@ def test_strong_negation_is_rendered_in_heads_and_default_negated_bodies(tmp_pat
     )
 
     clauses = set(
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3245,10 +3253,10 @@ def test_recursion_uses_signed_predicate_identity(tmp_path):
         encoding="utf-8",
     )
 
-    assert ClauseGenerator(
+    assert clause_generation._ClauseGenerator(
         parse_file(str(matching)), Arguments()
     ).capabilities.allow_recursion
-    assert not ClauseGenerator(
+    assert not clause_generation._ClauseGenerator(
         parse_file(str(opposite)), Arguments()
     ).capabilities.allow_recursion
 
@@ -3274,8 +3282,7 @@ def test_positive_strong_complements_are_pruned_from_same_body_tuple(tmp_path):
         encoding="utf-8",
     )
 
-    generator = ClauseGenerator(parse_file(str(task)), Arguments())
-    clauses = generator.generate().clauses
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert any(re.search(r"(?<!-)p\(V0\)", clause) for clause in clauses)
     assert any("-p(V0)" in clause for clause in clauses)
@@ -3310,8 +3317,7 @@ def test_structured_shapes_keep_distinct_functors_and_prune_exact_complements(
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3343,8 +3349,7 @@ def test_two_default_negated_strong_complements_remain_legal(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3358,7 +3363,7 @@ def test_strong_negation_is_preserved_in_aggregate_conditions(tmp_path):
         encoding="utf-8",
     )
 
-    generator = ClauseGenerator(parse_file(str(task)), Arguments())
+    generator = clause_generation._ClauseGenerator(parse_file(str(task)), Arguments())
     aggregates = [
         mode.literal
         for mode in generator.modes
@@ -3388,8 +3393,7 @@ def test_distinct_head_labels_require_distinct_variables(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3413,8 +3417,7 @@ def test_learnable_ground_facts_have_no_empty_rule_body(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3438,8 +3441,7 @@ def test_bodyless_complete_heads_keep_their_declared_asp_form(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3450,8 +3452,7 @@ def test_bodyless_complete_heads_keep_their_declared_asp_form(tmp_path):
 
 def test_completely_empty_clause_is_not_learnable():
     clauses = (
-        ClauseGenerator(inductive_task([], [], [], [], []), Arguments())
-        .generate()
+        generate_clause_space(inductive_task([], [], [], [], []), Arguments())
         .clauses
     )
 
@@ -3466,8 +3467,7 @@ def test_maxbl_zero_declares_a_facts_only_clause_space(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3490,8 +3490,7 @@ def test_positive_head_condition_can_safely_ground_a_bodyless_rule(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3516,7 +3515,7 @@ bias_active.
     )
 
     program = parse_file(str(task))
-    clauses = ClauseGenerator(program, Arguments()).generate().clauses
+    clauses = generate_clause_space(program, Arguments()).clauses
 
     assert render_program(program.bias) == ("bias_active.",)
     assert "p(V0);q(V1) :- edge(V0,V1)." in clauses
@@ -3547,8 +3546,7 @@ bias_same_label_var(F,L,V) :-
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3578,8 +3576,7 @@ bias_uses_edge :-
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3650,8 +3647,7 @@ def test_nested_head_labels_control_flattened_placeholders(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3734,8 +3730,7 @@ def test_condition_modes_generate_head_and_body_conditional_literals(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3778,8 +3773,7 @@ def test_condition_modes_attach_to_disjunction_and_choice_elements(
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3807,8 +3801,7 @@ def test_positive_condition_binds_each_local_conditional_variable(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3836,8 +3829,7 @@ def test_body_conditional_uses_unambiguous_semicolon_separators(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
     clause = "target :- base(V0);p(V1):q(V1)."
@@ -3870,8 +3862,7 @@ def test_conditional_local_names_can_be_reused_between_scopes(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3896,8 +3887,7 @@ def test_conditional_global_output_requires_an_external_producer(tmp_path):
             encoding="utf-8",
         )
         return (
-            ClauseGenerator(parse_file(str(task)), Arguments())
-            .generate()
+            generate_clause_space(parse_file(str(task)), Arguments())
             .clauses
         )
 
@@ -3925,8 +3915,7 @@ def test_condition_recall_and_body_budget_cover_all_attachments(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -3957,7 +3946,7 @@ def test_multiple_conditions_preserve_negation_terms_and_dependencies(tmp_path):
         encoding="utf-8",
     )
 
-    space = ClauseGenerator(parse_file(str(task)), Arguments()).generate()
+    space = generate_clause_space(parse_file(str(task)), Arguments())
     clause = "target(V0):node(box(V0,red)),not blocked(V0) :- base(V0)."
     entry = next(entry for entry in space.entries if entry.text == clause)
 
@@ -3984,8 +3973,7 @@ def test_negative_body_conclusion_can_be_grounded_by_its_condition(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -4008,7 +3996,7 @@ def test_unbounded_body_requires_finite_condition_recalls(tmp_path):
     )
 
     with pytest.raises(ValueError, match="finite recalls"):
-        ClauseGenerator(parse_file(str(task)), Arguments())
+        generate_clause_space(parse_file(str(task)), Arguments())
 
 
 def test_conditional_literal_ir_renders_variables_in_syntax_order():
@@ -4044,7 +4032,7 @@ def test_complete_head_width_must_fit_maxhl(tmp_path):
     )
 
     with pytest.raises(ValueError, match="#maxhl"):
-        ClauseGenerator(parse_file(str(task)), Arguments())
+        generate_clause_space(parse_file(str(task)), Arguments())
 
 
 def test_language_bias_is_not_generated_when_bias_is_missing():
@@ -4149,7 +4137,7 @@ def test_ast_atom_extraction_handles_choice_rules():
 def _benchmark_clauses(name: str) -> set[str]:
     args = copy.deepcopy(CASES[name])
     return set(
-        ClauseGenerator(parse_file(args.filename), args).generate().clauses
+        generate_clause_space(parse_file(args.filename), args).clauses
     )
 
 
@@ -4225,7 +4213,7 @@ def test_even_odd_clause_generation_contains_mutual_recursion():
 def test_grandparent_clause_generation_contains_invented_predicate_solution():
     args = copy.deepcopy(CASES["grandparent"])
     program = parse_file(args.filename)
-    clauses = set(ClauseGenerator(program, args).generate().clauses)
+    clauses = set(generate_clause_space(program, args).clauses)
 
     assert program.invented_predicates == (("target_1", 2),)
     assert len(program.positive_examples) == 7
@@ -4241,7 +4229,7 @@ def test_grandparent_clause_generation_contains_invented_predicate_solution():
 def test_latin_square_clause_generation_contains_covering_target_program():
     args = copy.deepcopy(CASES["latin_square"])
     program = parse_file(args.filename)
-    clauses = set(ClauseGenerator(program, args).generate().clauses)
+    clauses = set(generate_clause_space(program, args).clauses)
     target = (
         "count_row(V0,V3) :- cell(V0),#count{V1:x(V0,V2,V1)}=V3.",
         "count_col(V0,V3) :- cell(V0),#count{V1:x(V2,V0,V1)}=V3.",
@@ -4323,7 +4311,7 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     ]
     definition_program.arithmetic_modes = []
     definition_clauses = set(
-        ClauseGenerator(definition_program, args).generate().clauses
+        generate_clause_space(definition_program, args).clauses
     )
     constraint_program = copy.deepcopy(program)
     constraint_program.language_bias_body = [
@@ -4333,7 +4321,7 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     ]
     constraint_program.aggregate_modes = []
     constraint_clauses = set(
-        ClauseGenerator(constraint_program, args).generate().clauses
+        generate_clause_space(constraint_program, args).clauses
     )
 
     assert {clause for clause in target if "#sum{" in clause} <= definition_clauses
@@ -4408,7 +4396,7 @@ def test_coloring_complete_head_never_generates_partial_disjunctions():
 def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     args = copy.deepcopy(CASES["subset_sum_double_and_prod_unbalanced"])
     program = parse_file(args.filename)
-    clauses = ClauseGenerator(program, args).generate()
+    clauses = generate_clause_space(program, args)
     random.seed(1)
     candidate = tuple(
         sorted(random.sample(clauses.clauses, program.max_program_clauses))
@@ -4534,8 +4522,7 @@ def test_modeha_generates_nonredundant_cardinality_heads(tmp_path):
     )
 
     clauses = set(
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -4572,8 +4559,7 @@ def test_modeha_recall_and_minhl_bound_generated_width(tmp_path):
     )
 
     clauses = set(
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -4602,8 +4588,7 @@ def test_modeha_reuses_one_template_for_distinct_compatible_variables(tmp_path):
     )
 
     clauses = set(
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -4619,7 +4604,7 @@ def test_unbounded_modeha_requires_finite_maxhl(tmp_path):
     )
 
     with pytest.raises(ValueError, match=r"#maxhl\(\*\).+#modeha"):
-        ClauseGenerator(parse_file(str(task)), Arguments())
+        generate_clause_space(parse_file(str(task)), Arguments())
 
 
 def test_ground_modeha_caps_impossible_repeated_elements_before_grounding(tmp_path):
@@ -4688,7 +4673,7 @@ def test_modeha_elements_accept_generated_conditions(tmp_path):
     )
 
     program = parse_file(str(task))
-    clauses = set(ClauseGenerator(program, Arguments()).generate().clauses)
+    clauses = set(generate_clause_space(program, Arguments()).clauses)
 
     assert "0{p(V0):allowed(V0)}1 :- node(V0)." in clauses
     control = clingo.Control(["0"])
@@ -4738,8 +4723,7 @@ def test_modearith_accepts_exact_nested_relations(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -4763,8 +4747,7 @@ def test_complete_head_keeps_exact_conditional_attachment(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -4788,8 +4771,7 @@ def test_modehd_combines_declared_disjunction_elements(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -4848,8 +4830,7 @@ def test_modearith_exact_equality_can_produce_its_declared_output(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -4921,8 +4902,7 @@ def test_modec_accepts_an_exact_comparison_condition(tmp_path):
     )
 
     clauses = (
-        ClauseGenerator(parse_file(str(task)), Arguments())
-        .generate()
+        generate_clause_space(parse_file(str(task)), Arguments())
         .clauses
     )
 
@@ -4945,7 +4925,7 @@ def test_exact_comparison_condition_can_share_a_locally_grounded_variable(tmp_pa
         encoding="utf-8",
     )
 
-    clauses = ClauseGenerator(parse_file(str(task)), Arguments()).generate().clauses
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "target :- p(V0):q(V0),V0<3." in clauses
 
@@ -5044,7 +5024,7 @@ def test_exact_simple_modearith_relation_is_not_algebraically_rewritten(tmp_path
         encoding="utf-8",
     )
 
-    clauses = ClauseGenerator(parse_file(str(task)), Arguments()).generate().clauses
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert any("V0<V1" in clause for clause in clauses)
     assert not any("V0-V1<0" in clause for clause in clauses)

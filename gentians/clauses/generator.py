@@ -56,22 +56,6 @@ def _clause_head_width(clause: ast.AST) -> int:
     return 0
 
 
-def _clause_space_metrics(
-    task: InductiveTask, clause_space: ClauseSpace
-) -> dict[str, object]:
-    invented = set(task.invented_predicates)
-    return {
-        "metric": "clause_generation",
-        "clauses": len(clause_space),
-        "invented_predicates": len(invented),
-        "invented_definition_clauses": sum(
-            bool(entry.heads & invented) for entry in clause_space.entries
-        ),
-        "invented_consumer_clauses": sum(
-            bool(entry.deps & invented) for entry in clause_space.entries
-        ),
-    }
-
 CLAUSE_METAPROGRAM_MODULES = (
     "core/slots.lp",
     "core/limits.lp",
@@ -338,12 +322,6 @@ def generate_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSp
                     )
                 )
         clause_space = ClauseSpace(entries)
-    if metric_enabled("candidate"):
-        with instrumentation():
-            record_metric(
-                "candidate",
-                _clause_space_metrics(task, clause_space),
-            )
     return clause_space
 
 def _clause_space_args(args: Arguments) -> list[str]:

@@ -1,7 +1,7 @@
 import clingo
 from clingo import ast
 
-from .extensions import AstKey, _ast_key, _has_variable, _iter_atoms, _task_nodes
+from .extensions import _has_variable, _iter_atoms, _task_nodes
 from ..language.ir.aggregate_declaration import AggregateDeclaration
 from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.atom_template import AtomTemplate
@@ -141,7 +141,9 @@ def _predicate_arg_types(
         for atom in declared_atoms
         for arg in range(len(atom.terms))
     }
-    constants_by_position: dict[tuple[str, int, int], set[tuple[AstKey, bool]]] = {
+    constants_by_position: dict[
+        tuple[str, int, int], set[tuple[ast.AST, bool]]
+    ] = {
         position: set() for position in positions
     }
     variable_position_groups: list[list[tuple[str, int, int]]] = []
@@ -161,7 +163,7 @@ def _predicate_arg_types(
                     continue
                 else:
                     constants_by_position.setdefault(position, set()).add(
-                        (_ast_key(argument), _is_numeric_term(argument))
+                        (argument, _is_numeric_term(argument))
                     )
         variable_position_groups.extend(
             group for group in positions_by_variable.values() if len(group) > 1
@@ -185,7 +187,9 @@ def _predicate_arg_types(
         for other in shared_positions[1:]:
             union(shared_positions[0], other)
 
-    constants_by_root: dict[tuple[str, int, int], set[tuple[AstKey, bool]]] = {}
+    constants_by_root: dict[
+        tuple[str, int, int], set[tuple[ast.AST, bool]]
+    ] = {}
     for position in positions:
         root = find(position)
         constants_by_root.setdefault(root, set()).update(

@@ -7,10 +7,10 @@ from clingo import ast
 from ..language.asp import Predicate, clause_predicates, symbolic_function
 from ..language.ir.inductive_task import InductiveTask
 
-type AstKey = tuple[object, ...]
-type GroundTuple = tuple[AstKey, ...]
+type GroundTerm = ast.AST | clingo.Symbol
+type GroundTuple = tuple[GroundTerm, ...]
 Atom = tuple[str, tuple[ast.AST, ...], ast.Sign]
-AtomPattern = tuple[str, tuple[tuple[AstKey | str, bool], ...]]
+AtomPattern = tuple[str, tuple[tuple[GroundTerm | str, bool], ...]]
 
 
 def _numeric_domain_values(task: InductiveTask) -> set[int]:
@@ -108,12 +108,12 @@ def _derive_closed_world_clause(
     if negative and (negative[0][0], len(negative[0][1])) not in extensions:
         return {}
 
-    assignments: list[dict[str, AstKey]] = [{}]
+    assignments: list[dict[str, GroundTerm]] = [{}]
     for name, arguments in positive:
         tuples = extensions.get((name, len(arguments)))
         if tuples is None:
             return {}
-        next_assignments: list[dict[str, AstKey]] = []
+        next_assignments: list[dict[str, GroundTerm]] = []
         for assignment in assignments:
             for values in tuples:
                 merged = _merge_assignment(assignment, arguments, values)
@@ -150,17 +150,17 @@ def _literal_atom(literal: ast.AST) -> Atom | None:
 
 def _term_pattern(
     term: ast.AST, constants: dict[str, int]
-) -> tuple[AstKey | str, bool]:
+) -> tuple[GroundTerm | str, bool]:
     if term.ast_type == ast.ASTType.Variable:
         return str(term.name), True
     return _ground_key(term, constants), False
 
 
 def _merge_assignment(
-    assignment: dict[str, AstKey],
-    arguments: tuple[tuple[AstKey | str, bool], ...],
+    assignment: dict[str, GroundTerm],
+    arguments: tuple[tuple[GroundTerm | str, bool], ...],
     values: GroundTuple,
-) -> dict[str, AstKey] | None:
+) -> dict[str, GroundTerm] | None:
     merged = dict(assignment)
     for (argument, variable), value in zip(arguments, values, strict=True):
         if variable:
@@ -175,11 +175,11 @@ def _merge_assignment(
 
 def _negative_atom_holds(
     atom: AtomPattern,
-    assignment: dict[str, AstKey],
+    assignment: dict[str, GroundTerm],
     extensions: dict[Predicate, set[GroundTuple]],
 ) -> bool:
     name, arguments = atom
-    values: list[AstKey] = []
+    values: list[GroundTerm] = []
     for argument, variable in arguments:
         if variable:
             variable_name = str(argument)
@@ -187,7 +187,7 @@ def _negative_atom_holds(
                 return False
             values.append(assignment[variable_name])
         else:
-            assert isinstance(argument, tuple)
+            assert not isinstance(argument, str)
             values.append(argument)
     return tuple(values) in extensions.get((name, len(arguments)), set())
 
@@ -197,7 +197,7 @@ def _expand_ground_arguments(
     constants: dict[str, int],
     limit: int = 10000,
 ) -> list[GroundTuple]:
-    domains: list[list[AstKey]] = []
+    domains: list[list[GroundTerm]] = []
     size = 1
     for argument in arguments:
         values = _expand_ground_argument(argument, constants)
@@ -212,13 +212,13 @@ def _expand_ground_arguments(
 
 def _expand_ground_argument(
     argument: ast.AST, constants: dict[str, int]
-) -> list[AstKey] | None:
+) -> list[GroundTerm] | None:
     if argument.ast_type == ast.ASTType.Interval:
         start = _integer_value(argument.left, constants)
         end = _integer_value(argument.right, constants)
         if start is None or end is None or start > end or end - start > 10000:
             return None
-        return [_number_key(value) for value in range(start, end + 1)]
+        return [clingo.Number(value) for value in range(start, end + 1)]
     if _has_variable(argument) or _contains(argument, ast.ASTType.Interval):
         return None
     return [_ground_key(argument, constants)]
@@ -235,8 +235,8 @@ def _defined_predicates(nodes: tuple[ast.AST, ...]) -> set[Predicate]:
 def _type_domains(
     nodes: tuple[ast.AST, ...],
     predicate_arg_types: dict[tuple[str, int, int], str],
-) -> dict[str, set[AstKey]]:
-    domains: dict[str, set[AstKey]] = {}
+) -> dict[str, set[GroundTerm]]:
+    domains: dict[str, set[GroundTerm]] = {}
     constants = _numeric_constants(nodes)
     for name, arguments, _sign in _iter_atoms(nodes):
         if any(_has_variable(argument) for argument in arguments):
@@ -255,12 +255,12 @@ def _type_domains(
 def _universal_predicates(
     extensions: dict[Predicate, set[GroundTuple]],
     predicate_arg_types: dict[tuple[str, int, int], str],
-    type_domains: dict[str, set[AstKey]],
-    unary_type_domains: dict[str, dict[Predicate, set[AstKey]]],
+    type_domains: dict[str, set[GroundTerm]],
+    unary_type_domains: dict[str, dict[Predicate, set[GroundTerm]]],
 ) -> set[Predicate]:
     universal: set[Predicate] = set()
     for predicate, tuples in extensions.items():
-        domains: list[set[AstKey]] = []
+        domains: list[set[GroundTerm]] = []
         for index in range(predicate[1]):
             arg_type = predicate_arg_types.get(
                 (predicate[0].removeprefix("-"), predicate[1], index), "any"
@@ -289,8 +289,8 @@ def _universal_predicates(
 def _unary_type_domains(
     nodes: tuple[ast.AST, ...],
     predicate_arg_types: dict[tuple[str, int, int], str],
-) -> dict[str, dict[Predicate, set[AstKey]]]:
-    domains: dict[str, dict[Predicate, set[AstKey]]] = {}
+) -> dict[str, dict[Predicate, set[GroundTerm]]]:
+    domains: dict[str, dict[Predicate, set[GroundTerm]]] = {}
     constants = _numeric_constants(nodes)
     for name, arguments, _sign in _iter_atoms(nodes):
         if len(arguments) != 1 or _has_variable(arguments[0]):
@@ -385,29 +385,6 @@ def _children(node: ast.AST) -> Iterator[ast.AST]:
             yield from (item for item in child if isinstance(item, ast.AST))
 
 
-def _number_key(value: int) -> AstKey:
-    return (ast.ASTType.SymbolicTerm, ("symbol", clingo.Number(value)))
-
-
-def _ground_key(term: ast.AST, constants: dict[str, int]) -> AstKey:
+def _ground_key(term: ast.AST, constants: dict[str, int]) -> GroundTerm:
     number = _integer_value(term, constants)
-    return _number_key(number) if number is not None else _ast_key(term)
-
-
-def _ast_key(node: ast.AST) -> AstKey:
-    fields: list[object] = []
-    for name in node.keys():
-        if name == "location":
-            continue
-        value = getattr(node, name)
-        if isinstance(value, ast.AST):
-            encoded: object = _ast_key(value)
-        elif isinstance(value, (list, ast.ASTSequence)):
-            encoded = tuple(
-                _ast_key(item) if isinstance(item, ast.AST) else item
-                for item in value
-            )
-        else:
-            encoded = value
-        fields.append((name, encoded))
-    return (node.ast_type, *fields)
+    return clingo.Number(number) if number is not None else term

@@ -16,8 +16,7 @@ from gentians.evolution.fitness.coverage_common import (
 )
 from gentians.language.ir.inductive_task import InductiveTask
 from gentians.language.asp import parse_program, render_program
-from gentians.clauses.clause_space import ClauseSpace
-from tests.task_helpers import example, inductive_task
+from tests.task_helpers import example, inductive_task, make_clause_space
 
 
 def _program() -> InductiveTask:
@@ -104,7 +103,7 @@ def test_balanced_coverage_normalizes_positive_and_negative_examples_separately(
         [],
         [],
     )
-    rules = ClauseSpace.from_clauses(["target(p1).", "target(n1)."])
+    rules = make_clause_space(["target(p1).", "target(n1)."])
     evaluate = create_fitness(
         program,
         {"name": "cov_balanced", "clingo_arguments": []},
@@ -201,7 +200,7 @@ def test_contexts_do_not_leak_between_examples():
         [],
         [],
     )
-    rules = ClauseSpace.from_clauses(["target(a) :- ctx(b)."])
+    rules = make_clause_space(["target(a) :- ctx(b)."])
     evaluate = create_fitness(
         program,
         {"name": "cov_program", "clingo_arguments": []},
@@ -225,7 +224,7 @@ def test_context_constraint_does_not_disable_other_examples():
         [],
         [],
     )
-    rules = ClauseSpace.from_clauses(["target(a) :- ctx(a)."])
+    rules = make_clause_space(["target(a) :- ctx(a)."])
     evaluate = create_fitness(
         program,
         {"name": "cov_program", "clingo_arguments": []},
@@ -245,7 +244,7 @@ def test_positive_context_does_not_leak_into_negative_example():
         [],
         [],
     )
-    rules = ClauseSpace.from_clauses(["target(a) :- ctx(a)."])
+    rules = make_clause_space(["target(a) :- ctx(a)."])
     evaluate = create_fitness(
         program,
         {"name": "cov_program", "clingo_arguments": []},

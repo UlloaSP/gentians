@@ -1,6 +1,7 @@
-import re
+import clingo
+from clingo import ast
 
-
+from .extensions import AstKey, _ast_key, _has_variable, _iter_atoms, _task_nodes
 from ..language.ir.aggregate_declaration import AggregateDeclaration
 from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.atom_template import AtomTemplate
@@ -11,8 +12,6 @@ from ..language.ir.operator_declaration import OperatorDeclaration
 from ..language.asp import (
     AspProgram,
     Predicate,
-    fragment_atoms,
-    render_program,
 )
 from ..language.ir.inductive_task import InductiveTask
 
@@ -53,7 +52,9 @@ def _mode_atom_literals(mode: ModeDeclaration) -> tuple[AtomLiteral, ...]:
     return ()
 
 
-def _validate_invented_predicates(task: InductiveTask, fragments: list[str]) -> None:
+def _validate_invented_predicates(
+    task: InductiveTask, nodes: tuple[ast.AST, ...]
+) -> None:
     invented = set(task.invented_predicates)
     if len(invented) != len(task.invented_predicates):
         raise ValueError("duplicate invented predicate")
@@ -69,7 +70,7 @@ def _validate_invented_predicates(task: InductiveTask, fragments: list[str]) -> 
         raise ValueError(
             f"invented predicates require generated head and positive body modes: {sorted(missing)}"
         )
-    observed = invented & _observed_predicates(fragments)
+    observed = invented & _observed_predicates(nodes)
     if observed:
         raise ValueError(
             f"invented predicates must not be observed: {sorted(observed)}"
@@ -105,29 +106,27 @@ def _clause_capabilities(
 
 
 def _available_predicates(
-    task: InductiveTask, fragments: list[str]
+    task: InductiveTask, nodes: tuple[ast.AST, ...]
 ) -> set[tuple[str, int]]:
     predicates = {atom.signature for atom in _head_atoms(task)} | {
         literal.atom.signature
         for mode in (*task.language_bias_body, *task.language_bias_condition)
         for literal in _mode_atom_literals(mode)
     }
-    for fragment in fragments:
-        for name, arguments, _negative in fragment_atoms(fragment):
-            predicates.add((name, len(arguments)))
+    predicates.update(
+        (name, len(arguments)) for name, arguments, _negative in _iter_atoms(nodes)
+    )
     return predicates
 
 
-def _observed_predicates(fragments: list[str]) -> set[Predicate]:
-    predicates: set[Predicate] = set()
-    for fragment in fragments:
-        for name, arguments, _negative in fragment_atoms(fragment):
-            predicates.add((name, len(arguments)))
-    return predicates
+def _observed_predicates(nodes: tuple[ast.AST, ...]) -> set[Predicate]:
+    return {
+        (name, len(arguments)) for name, arguments, _negative in _iter_atoms(nodes)
+    }
 
 
 def _predicate_arg_types(
-    task: InductiveTask, fragments: list[str]
+    task: InductiveTask, nodes: tuple[ast.AST, ...]
 ) -> dict[tuple[str, int, int], str]:
     declared_atoms = [
         *_head_atoms(task),
@@ -142,24 +141,28 @@ def _predicate_arg_types(
         for atom in declared_atoms
         for arg in range(len(atom.terms))
     }
-    constants_by_position: dict[tuple[str, int, int], set[str]] = {
+    constants_by_position: dict[tuple[str, int, int], set[tuple[AstKey, bool]]] = {
         position: set() for position in positions
     }
     variable_position_groups: list[list[tuple[str, int, int]]] = []
-    for fragment in fragments:
+    for node in nodes:
         positions_by_variable: dict[str, list[tuple[str, int, int]]] = {}
-        for name, arguments, _negative in fragment_atoms(fragment):
+        for name, arguments, _negative in _iter_atoms((node,)):
             name = name.removeprefix("-")
             arity = len(arguments)
-            for index, value in enumerate(arguments):
+            for index, argument in enumerate(arguments):
                 position = (name, arity, index)
                 positions.add(position)
-                if _is_variable(value):
-                    positions_by_variable.setdefault(value, []).append(position)
-                elif _has_variable(value):
+                if argument.ast_type == ast.ASTType.Variable:
+                    positions_by_variable.setdefault(
+                        str(argument.name), []
+                    ).append(position)
+                elif _has_variable(argument):
                     continue
                 else:
-                    constants_by_position.setdefault(position, set()).add(value)
+                    constants_by_position.setdefault(position, set()).add(
+                        (_ast_key(argument), _is_numeric_term(argument))
+                    )
         variable_position_groups.extend(
             group for group in positions_by_variable.values() if len(group) > 1
         )
@@ -182,7 +185,7 @@ def _predicate_arg_types(
         for other in shared_positions[1:]:
             union(shared_positions[0], other)
 
-    constants_by_root: dict[tuple[str, int, int], set[str]] = {}
+    constants_by_root: dict[tuple[str, int, int], set[tuple[AstKey, bool]]] = {}
     for position in positions:
         root = find(position)
         constants_by_root.setdefault(root, set()).update(
@@ -201,7 +204,7 @@ def _predicate_arg_types(
     for root, constants in constants_by_root.items():
         if len(declared_types_by_root.get(root, ())) == 1:
             type_by_root[root] = next(iter(declared_types_by_root[root]))
-        elif constants and all(_is_numeric_constant(value) for value in constants):
+        elif constants and all(numeric for _value, numeric in constants):
             type_by_root[root] = "numeric"
         elif constants:
             type_by_root[root] = f"type_{next_type}"
@@ -212,44 +215,30 @@ def _predicate_arg_types(
     return {position: type_by_root[find(position)] for position in positions}
 
 
-def _is_numeric_constant(value: str) -> bool:
-    value = value.strip("()")
-    bound = r"[-+]?\d+|[A-Za-z_]\w*"
-    return bool(re.fullmatch(rf"[-+]?\d+(?:\.\.({bound}))?", value))
+def _is_numeric_term(term: ast.AST) -> bool:
+    if term.ast_type == ast.ASTType.SymbolicTerm:
+        return term.symbol.type == clingo.SymbolType.Number
+    if term.ast_type == ast.ASTType.Interval:
+        return _is_numeric_bound(term.left) and _is_numeric_bound(term.right)
+    if term.ast_type == ast.ASTType.UnaryOperation:
+        return _is_numeric_term(term.argument)
+    return False
 
 
-def _is_variable(value: str) -> bool:
-    return bool(re.fullmatch(r"_|[A-Z]\w*", value))
+def _is_numeric_bound(term: ast.AST) -> bool:
+    return _is_numeric_term(term) or (
+        term.ast_type == ast.ASTType.SymbolicTerm
+        and term.symbol.type == clingo.SymbolType.Function
+        and not term.symbol.arguments
+    )
 
 
-def _has_variable(value: str) -> bool:
-    return bool(re.search(r"\b[A-Z]\w*\b|_", value))
-
-
-def _task_fragments(task: InductiveTask) -> list[str]:
-    fragments = [
-        line
-        for line in render_program(task.background)
-        if line.strip() and not line.lstrip().startswith("%")
-    ]
-    for example in [*task.positive_examples, *task.negative_examples]:
-        fragments.extend(
-            [example.included_text, example.excluded_text, example.context_text]
-        )
-    return [fragment for fragment in fragments if fragment.strip()]
-
-
-def _closed_world_fragments(task: InductiveTask) -> list[str]:
-    fragments = [
-        line
-        for line in render_program(task.background)
-        if line.strip() and not line.lstrip().startswith("%")
-    ]
-    for example in task.positive_examples:
-        fragments.append(example.context_text)
-    for example in task.negative_examples:
-        fragments.append(example.context_text)
-    return [fragment for fragment in fragments if fragment.strip()]
+def _closed_world_nodes(task: InductiveTask) -> tuple[ast.AST, ...]:
+    return task.background + tuple(
+        statement
+        for example in (*task.positive_examples, *task.negative_examples)
+        for statement in example.context
+    )
 
 
 def _closed_world_program(task: InductiveTask) -> AspProgram:
@@ -262,11 +251,11 @@ def _closed_world_program(task: InductiveTask) -> AspProgram:
 
 def _valid_aggregate_specs(
     task: InductiveTask,
-    fragments: list[str] | None = None,
+    nodes: tuple[ast.AST, ...] | None = None,
 ) -> list[AggregateDeclaration]:
     if not task.aggregate_modes:
         return []
-    available = _available_predicates(task, fragments or _task_fragments(task))
+    available = _available_predicates(task, nodes or _task_nodes(task))
     valid = []
     for spec in task.aggregate_modes:
         if all(atom in available for atom in spec.atoms):

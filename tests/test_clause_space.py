@@ -6,6 +6,7 @@ import re
 import clingo
 from clingo import ast
 import pytest
+import gentians.clauses as clause_package
 from benchmarks.catalog import CASES
 from gentians.arguments import Arguments
 from gentians.asp.normal_coverage_solver import NormalCoverageSolver
@@ -29,9 +30,9 @@ from gentians.language.asp import (
 )
 from gentians.language import parse_file
 from gentians.clauses.generator import (
-    ClauseGenerator,
+    _ClauseGenerator as ClauseGenerator,
     _clause_space_args,
-    build_clause_space,
+    generate_clause_space,
 )
 from gentians.hypotheses.generator import HypothesisGenerator
 from gentians.clauses.arithmetic_expression import ArithmeticExpression
@@ -59,13 +60,24 @@ from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.clauses.clause_space import ClauseSpace
 from gentians.clauses.clause import Clause
 from gentians.language.ir.term_template import TermTemplate
-from tests.task_helpers import example, inductive_task
+from tests.task_helpers import example, inductive_task, make_clause_space
 
 
 def _generate(program, max_body_literals=3, max_variables=3):
     program.max_body_literals = max_body_literals
     program.max_variables = max_variables
     return ClauseGenerator(program, Arguments()).generate()
+
+
+def _asp(sources: list[str]):
+    return parse_program("\n".join(sources))
+
+
+def _ground_term(source: str):
+    statement = parse_rule(f"value({source}).")
+    return clause_extensions._ground_key(
+        statement.head.atom.symbol.arguments[0], {}
+    )
 
 
 def _mode(
@@ -183,7 +195,7 @@ def test_clause_generator_computes_valid_aggregate_specs_once(monkeypatch):
 
     monkeypatch.setattr(clause_generation, "_valid_aggregate_specs", aggregate_specs)
 
-    clause_generation.ClauseGenerator(
+    clause_generation._ClauseGenerator(
         inductive_task(
             ["p(1)."],
             [],
@@ -225,6 +237,25 @@ def test_clause_encoding_prunes_duplicates_without_output_atoms():
     assert ":- same_mode_literal(" in metaprogram
     assert "code_prefix(" not in metaprogram
     assert "#show lit/4." not in metaprogram
+
+
+def test_clause_space_constructor_enforces_order_and_uniqueness():
+    first = Clause("b.", parse_rule("b."), frozenset({("b", 0)}), frozenset(), 0)
+    second = Clause("a.", parse_rule("a."), frozenset({("a", 0)}), frozenset(), 0)
+
+    space = ClauseSpace((first, second, first))
+
+    assert space.entries == (second, first)
+    assert space.clauses == ("a.", "b.")
+
+
+def test_clause_package_exposes_one_generation_path():
+    assert clause_package.__all__ == [
+        "Clause",
+        "ClauseSpace",
+        "generate_clause_space",
+    ]
+    assert not hasattr(clause_package, "ClauseGenerator")
 
 
 def test_clause_generator_batches_dynamic_and_output_parsing(monkeypatch):
@@ -422,13 +453,13 @@ def test_candidate_clause_space_runs_inside_clause_generation_phase(monkeypatch)
 
         def generate(self):
             phases.append(timing.current_phase())
-            return ClauseSpace.from_clauses(["p."])
+            return make_clause_space(["p."])
 
     monkeypatch.setattr(
-        clause_generation, "ClauseGenerator", FakeClauseGenerator
+        clause_generation, "_ClauseGenerator", FakeClauseGenerator
     )
 
-    clauses = clause_generation.build_clause_space(
+    clauses = clause_generation.generate_clause_space(
         inductive_task([], [], [], [], []), Arguments()
     )
 
@@ -448,15 +479,15 @@ def test_clause_generation_is_generated_each_time(monkeypatch):
 
         def generate(self):
             generated.append(True)
-            return ClauseSpace.from_clauses(["p."])
+            return make_clause_space(["p."])
 
     monkeypatch.setattr(
-        clause_generation, "ClauseGenerator", FakeClauseGenerator
+        clause_generation, "_ClauseGenerator", FakeClauseGenerator
     )
     program = inductive_task([], [], [], [], [])
 
-    first = clause_generation.build_clause_space(program, Arguments())
-    second = clause_generation.build_clause_space(program, Arguments())
+    first = clause_generation.generate_clause_space(program, Arguments())
+    second = clause_generation.generate_clause_space(program, Arguments())
 
     assert first.clauses == second.clauses == ("p.",)
     assert generated == [True, True]
@@ -574,10 +605,10 @@ def test_parser_rejects_invalid_recursive_mode_terms(tmp_path):
 
 def test_closed_world_extensions_ignore_compound_variable_terms():
     extensions = clause_extensions._closed_world_extensions(
-        [
+        _asp([
             "cell((1..4,1..4)).",
             "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)).",
-        ]
+        ])
     )
 
     assert ("cell", 1) not in extensions
@@ -737,7 +768,7 @@ def test_parser_preserves_strong_negation_in_atoms_and_rule_dependencies():
 def test_dependency_closure_does_not_confuse_positive_and_strong_providers():
     from gentians.hypotheses.common import prepare_space
 
-    space = ClauseSpace.from_clauses(["target(X) :- -source(X)."])
+    space = make_clause_space(["target(X) :- -source(X)."])
     positive_background = inductive_task(["source(a)."], [], [], [], [])
     strong_background = inductive_task(["-source(a)."], [], [], [], [])
 
@@ -1513,7 +1544,8 @@ def test_linear_canonicalization_reduces_complete_nqueens_systems():
         ClauseGenerator(parse_file(args.filename), args).generate().clauses
     )
 
-    assert len(clauses) == 4805
+    assert len(clauses) == 4797
+    assert len(clauses) == len(set(clauses))
     assert clauses == tuple(sorted(clauses))
     assert ":- q(V0,V1),q(V2,V3),V0+V1-V2-V3=0,-V1+V3<0." in clauses
     assert ":- q(V0,V1),q(V2,V3),V0-V1-V2+V3=0,V1-V3<0." in clauses
@@ -2131,7 +2163,7 @@ def test_closed_world_properties_prune_tuple_mutex_permutation():
             _mode(2, "mother", 2, positive=True),
         ],
     )
-    fragments = clause_analysis._closed_world_fragments(program)
+    fragments = clause_analysis._closed_world_nodes(program)
     properties = clause_properties._closed_world_properties(
         fragments,
         clause_analysis._predicate_arg_types(program, fragments),
@@ -2295,7 +2327,7 @@ def test_closed_world_properties_prune_complement_negative_pair():
 
 def test_closed_world_properties_infer_generic_atom_relations():
     properties = clause_properties._closed_world_properties(
-        [
+        _asp([
             "p(a).",
             "q(a).",
             "r(b).",
@@ -2310,7 +2342,7 @@ def test_closed_world_properties_infer_generic_atom_relations():
             "le(a,a).",
             "le(a,b).",
             "le(b,b).",
-        ]
+        ])
     )
 
     assert (("p", 1), ("q", 1)) in properties.equivalent
@@ -2329,13 +2361,13 @@ def test_closed_world_properties_infer_generic_atom_relations():
 
 def test_closed_world_extensions_derive_simple_alias_rules():
     properties = clause_properties._closed_world_properties(
-        [
+        _asp([
             "edge(a,b).",
             "node(a).",
             "node(b).",
             "e(X,Y) :- edge(X,Y).",
             "e(Y,X) :- edge(X,Y).",
-        ]
+        ])
     )
 
     assert ("e", 2) in properties.symmetric
@@ -2344,13 +2376,13 @@ def test_closed_world_extensions_derive_simple_alias_rules():
 
 def test_closed_world_extensions_derive_finite_complement_rules():
     properties = clause_properties._closed_world_properties(
-        [
+        _asp([
             "v(a).",
             "v(b).",
             "e(a,b).",
             "e(b,a).",
             "ne(X,Y) :- not e(X,Y), v(X), v(Y).",
-        ]
+        ])
     )
 
     assert ("ne", 2) in properties.reflexive
@@ -2360,7 +2392,7 @@ def test_closed_world_extensions_derive_finite_complement_rules():
 
 def test_closed_world_extensions_do_not_assume_unknown_negative_empty():
     extensions = clause_extensions._closed_world_extensions(
-        ["v(a).", "p(X) :- not q(X), v(X)."]
+        _asp(["v(a).", "p(X) :- not q(X), v(X)."])
     )
 
     assert ("p", 1) not in extensions
@@ -2368,11 +2400,11 @@ def test_closed_world_extensions_do_not_assume_unknown_negative_empty():
 
 def test_rule_defined_inequality_derives_arg_distinct():
     properties = clause_properties._closed_world_properties(
-        [
+        _asp([
             "same_block(C1,C2) :- block(C1,B), block(C2,B), C1 != C2.",
             "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)), X1 != X2.",
             "parent_child(P,C) :- parent(P,C).",
-        ]
+        ])
     )
 
     assert (("same_block", 2), 0, 1) in properties.arg_distinct
@@ -2383,7 +2415,7 @@ def test_rule_defined_inequality_derives_arg_distinct():
 
 
 def test_closed_world_properties_emit_new_property_facts():
-    fragments = [
+    fragments = _asp([
         "p(a).",
         "q(a).",
         "r(b).",
@@ -2396,7 +2428,7 @@ def test_closed_world_properties_emit_new_property_facts():
         "le(a,a).",
         "le(a,b).",
         "le(b,b).",
-    ]
+    ])
     properties = clause_properties._closed_world_properties(
         fragments,
         closed_body_predicates={("rel", 3), ("other", 3)},
@@ -2436,7 +2468,7 @@ def test_partition_subsumes_pairwise_mutex_facts():
             _mode(1, "c", 1, positive=True),
         ],
     )
-    fragments = clause_analysis._closed_world_fragments(program)
+    fragments = clause_analysis._closed_world_nodes(program)
     arg_types = clause_analysis._predicate_arg_types(program, fragments)
     properties = clause_properties._closed_world_properties(
         fragments,
@@ -2456,7 +2488,7 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
         [],
         [_mode(1, "r", 4, positive=True)],
     )
-    fragments = clause_analysis._closed_world_fragments(program)
+    fragments = clause_analysis._closed_world_nodes(program)
     arg_types = clause_analysis._predicate_arg_types(program, fragments)
     properties = clause_properties._closed_world_properties(
         fragments,
@@ -2471,14 +2503,14 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
 
 def test_choice_rules_infer_modelwise_keys():
     properties = clause_properties._closed_world_properties(
-        [
+        _asp([
             "#const n = 5.",
             "number(1..n).",
             "1 { q(X,Y) : number(Y) } 1 :- number(X).",
             "1 { q(X,Y) : number(X) } 1 :- number(Y).",
             "1 { x(R,C,N) : val(N) } 1 :- cell(R), cell(C).",
             "3 { in(X) : v(X) } 3.",
-        ]
+        ])
     )
 
     assert (("q", 2), (0,)) in properties.keys
@@ -2494,27 +2526,80 @@ def test_choice_rules_infer_modelwise_keys():
 
 def test_closed_world_extensions_expand_numeric_ranges():
     extensions = clause_extensions._closed_world_extensions(
-        ["#const n = 3.", "number(1..n).", "pair(1..2,3..4)."]
+        _asp(
+            [
+                "#const n = 3.",
+                "number(1..n).",
+                "pair(1..2,3..4).",
+                "negative(-2..0).",
+                "exact(-1).",
+                "alias(n).",
+            ]
+        )
     )
 
-    assert extensions[("number", 1)] == {("1",), ("2",), ("3",)}
+    one, two, three, four = map(_ground_term, ("1", "2", "3", "4"))
+    assert extensions[("number", 1)] == {(one,), (two,), (three,)}
     assert extensions[("pair", 2)] == {
-        ("1", "3"),
-        ("1", "4"),
-        ("2", "3"),
-        ("2", "4"),
+        (one, three),
+        (one, four),
+        (two, three),
+        (two, four),
     }
+    assert extensions[("negative", 1)] == {
+        (_ground_term("-2"),),
+        (_ground_term("-1"),),
+        (_ground_term("0"),),
+    }
+    assert extensions[("exact", 1)] == {(_ground_term("-1"),)}
+    assert extensions[("alias", 1)] == {(three,)}
+
+
+def test_closed_world_extensions_keep_distinct_string_terms():
+    extensions = clause_extensions._closed_world_extensions(
+        _asp(['p("a b").', 'p("ab").'])
+    )
+
+    assert extensions[("p", 1)] == {
+        (_ground_term('"a b"'),),
+        (_ground_term('"ab"'),),
+    }
+
+
+def test_closed_world_extensions_do_not_derive_double_negation_as_negation():
+    extensions = clause_extensions._closed_world_extensions(
+        _asp(["dom(a).", "p(b).", "q(X) :- dom(X), not not p(X)."])
+    )
+
+    assert ("q", 1) not in extensions
+
+
+def test_closed_world_extensions_match_clingo_for_descending_interval():
+    source = "p(3..1)."
+    control = clingo.Control()
+    control.add("base", [], source)
+    control.ground([("base", [])])
+
+    extensions = clause_extensions._closed_world_extensions(_asp([source]))
+
+    assert not tuple(control.symbolic_atoms.by_signature("p", 1))
+    assert ("p", 1) not in extensions
+
+
+def test_ast_walk_does_not_retain_task_nodes_globally():
+    assert not hasattr(clause_extensions._node_atoms, "cache_info")
+    assert not hasattr(clause_extensions._contains, "cache_info")
 
 
 def test_rule_defined_square_properties_propagate_choice_key():
     properties = clause_properties._closed_world_properties(
-        [
+        _asp([
             "part(a).",
             "val(1).",
             "val(2).",
             "1 { p(P,V) : val(V) } 1 :- part(P).",
             "sq(P,S) :- p(P,V), S = V*V.",
-        ]
+        ])
     )
 
     assert ((("sq", 2), (0,))) in properties.keys
@@ -2523,7 +2608,7 @@ def test_rule_defined_square_properties_propagate_choice_key():
 
 def test_cardinality_upper_facts_are_emitted():
     properties = clause_properties._closed_world_properties(
-        ["val(1).", "val(2).", "1 { in(X) : val(X) } 1."]
+        _asp(["val(1).", "val(2).", "1 { in(X) : val(X) } 1."])
     )
     facts = set(
         clause_facts._closed_world_property_facts(
@@ -2688,8 +2773,8 @@ def test_universal_empty_and_complement_facts_are_emitted():
             _mode(1, "right", 1, positive=True),
         ],
     )
-    universal_fragments = clause_analysis._closed_world_fragments(universal_program)
-    domain_fragments = clause_analysis._closed_world_fragments(domain_program)
+    universal_fragments = clause_analysis._closed_world_nodes(universal_program)
+    domain_fragments = clause_analysis._closed_world_nodes(domain_program)
     universal_arg_types = clause_analysis._predicate_arg_types(
         universal_program, universal_fragments
     )
@@ -4106,7 +4191,7 @@ def test_equal_ground_values_do_not_merge_distinct_declared_types():
     )
 
     types = clause_analysis._predicate_arg_types(
-        program, clause_analysis._closed_world_fragments(program)
+        program, clause_analysis._closed_world_nodes(program)
     )
 
     assert types[("left", 1, 0)] == "node"
@@ -4731,7 +4816,7 @@ def test_second_order_metarule_instantiates_atomic_rule_bundle(tmp_path):
     )
 
     program = parse_file(str(task))
-    space = build_clause_space(program, Arguments())
+    space = generate_clause_space(program, Arguments())
     metarules = [entry for entry in space.entries if entry.bundle is not None]
 
     assert {entry.text for entry in metarules} == {
@@ -4925,7 +5010,7 @@ def test_dependency_completion_closes_a_provider_bundle():
             rule, parse_rule(rule), heads, dependencies, body_literals, bundle
         )
 
-    space = ClauseSpace.from_entries(
+    space = ClauseSpace(
         (
             entry("p :- b.", 0),
             entry("q :- c.", 0),
@@ -4983,7 +5068,7 @@ def test_metarule_respects_maximum_head_width(tmp_path):
     )
 
     with pytest.raises(ValueError, match="metarule exceeds #maxhl"):
-        build_clause_space(parse_file(str(task)), Arguments())
+        generate_clause_space(parse_file(str(task)), Arguments())
 
 
 @pytest.mark.parametrize(

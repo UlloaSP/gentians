@@ -38,7 +38,7 @@ instrumentación -> artefactos de benchmark -> preview Vite
 
 La distinción entre cláusulas e hipótesis es obligatoria:
 
-- `ClauseGenerator` genera el espacio finito de cláusulas individuales, un `ClauseSpace`.
+- `generate_clause_space()` genera el espacio finito de cláusulas individuales, un `ClauseSpace`.
 - `HypothesisGenerator` construye hipótesis completas a partir de ese `ClauseSpace`, mantiene cierre de dependencias y las codifica como bitsets.
 - Una cláusula no tiene cobertura o fitness estable por sí sola. ASP es no monótono y añadir una cláusula puede cambiar los modelos del programa completo.
 
@@ -111,7 +111,7 @@ La tabla mezcla destino y estado real a propósito. La generación de hipótesis
 
 `parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` y `metarules` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP. El background se parsea en una sola llamada preservando las líneas originales; en ejemplos solo se parsean los campos no vacíos. `InductiveTask` conserva background, átomos incluidos y excluidos, contextos, `#bias` y metarules como nodos `clingo.ast.AST`; `Clause` conserva el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
 
-`ClauseGenerator` ejecuta este pipeline:
+`generate_clause_space()` ejecuta este pipeline:
 
 1. Inspecciona background, ejemplos y declaraciones para derivar tipos, dominios, closed-world properties y capacidades permitidas.
 2. Compila declaraciones a `ClauseMode` y facts reificados.

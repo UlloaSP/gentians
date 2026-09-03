@@ -44,7 +44,8 @@ parsed directly; empty fields do not invoke Clingo. Candidate `Clause`
 values retain their parsed clause beside their canonical output text. Retained
 programs enter controls through
 `ProgramBuilder`; rendering AST back to text is limited to diagnostics,
-canonical output, and ILP-specific static analysis that consumes text.
+canonical output, and the single batched conversion of generated reified
+clauses into Clingo AST nodes. Static analysis traverses those nodes directly.
 `TASK_GRAMMAR` records top-level composition and the directive parsers enforce
 the productions below.
 

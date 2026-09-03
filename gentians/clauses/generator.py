@@ -28,10 +28,10 @@ from .canonicalizer import canonicalize_clauses
 from .task_analysis import (
     _clause_capabilities,
     _predicate_arg_types,
-    _task_fragments,
     _valid_aggregate_specs,
     _validate_invented_predicates,
 )
+from .extensions import _task_nodes
 from .properties import _term_variables
 from .decoder import _clause_from_model, _model_literal_index, _theta_reduced
 from .fact_compiler import _facts
@@ -56,7 +56,7 @@ def _clause_head_width(clause: ast.AST) -> int:
     return 0
 
 
-def clause_space_metrics(
+def _clause_space_metrics(
     task: InductiveTask, clause_space: ClauseSpace
 ) -> dict[str, object]:
     invented = set(task.invented_predicates)
@@ -131,11 +131,11 @@ CLAUSE_METAPROGRAM = parse_program(
     )
 )
 
-class ClauseGenerator:
+class _ClauseGenerator:
     def __init__(self, task: InductiveTask, args: Arguments) -> None:
         self.task = task
         self.args = args
-        self.fragments = _task_fragments(task)
+        self.nodes = _task_nodes(task)
         if task.max_head_literals is not None and any(
             head.width > task.max_head_literals
             for head in task.language_bias_head
@@ -147,9 +147,9 @@ class ClauseGenerator:
             and task.min_aggregate_head_literals > task.max_head_literals
         ):
             raise ValueError("#minhl cannot exceed #maxhl")
-        _validate_invented_predicates(task, self.fragments)
-        self.predicate_arg_types = _predicate_arg_types(task, self.fragments)
-        self.aggregate_specs = _valid_aggregate_specs(task, self.fragments)
+        _validate_invented_predicates(task, self.nodes)
+        self.predicate_arg_types = _predicate_arg_types(task, self.nodes)
+        self.aggregate_specs = _valid_aggregate_specs(task, self.nodes)
         self.capabilities = _clause_capabilities(
             task, self.predicate_arg_types, self.aggregate_specs
         )
@@ -288,8 +288,8 @@ class ClauseGenerator:
 
 
 @profile_phase("clause_generation")
-def build_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSpace:
-    clause_space = ClauseGenerator(task, arguments).generate()
+def generate_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSpace:
+    clause_space = _ClauseGenerator(task, arguments).generate()
     if task.metarule_programs:
         entries = list(clause_space.entries)
         known_clauses = {entry.text for entry in entries}
@@ -337,12 +337,12 @@ def build_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSpace
                         bundle,
                     )
                 )
-        clause_space = ClauseSpace.from_entries(entries)
+        clause_space = ClauseSpace(entries)
     if metric_enabled("candidate"):
         with instrumentation():
             record_metric(
                 "candidate",
-                clause_space_metrics(task, clause_space),
+                _clause_space_metrics(task, clause_space),
             )
     return clause_space
 

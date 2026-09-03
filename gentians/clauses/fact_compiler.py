@@ -16,7 +16,7 @@ from ..language.ir.inductive_task import InductiveTask
 from .extensions import _numeric_domain_values
 from .mode_compiler import _binding_positions, _closed_body_predicates
 from .properties import _closed_world_properties
-from .task_analysis import _closed_world_fragments, _closed_world_program
+from .task_analysis import _closed_world_nodes, _closed_world_program
 
 def _facts(
     task: InductiveTask,
@@ -26,9 +26,9 @@ def _facts(
     max_head_literals: int,
     max_body_literals: int,
 ) -> str:
-    fragments = _closed_world_fragments(task)
+    nodes = _closed_world_nodes(task)
     properties = _closed_world_properties(
-        fragments,
+        nodes,
         predicate_arg_types,
         _closed_body_predicates(task),
         _closed_world_program(task),

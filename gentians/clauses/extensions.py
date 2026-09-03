@@ -1,78 +1,70 @@
-import re
+from collections.abc import Iterable, Iterator
 from itertools import product
 
+import clingo
+from clingo import ast
 
-from ..language.asp import (
-    Predicate,
-    fragment_atoms,
-    render_program,
-)
+from ..language.asp import Predicate, clause_predicates, symbolic_function
 from ..language.ir.inductive_task import InductiveTask
-from .clause_space import ClauseSpace
-from .task_analysis import _has_variable, _is_variable
+
+type AstKey = tuple[object, ...]
+type GroundTuple = tuple[AstKey, ...]
+Atom = tuple[str, tuple[ast.AST, ...], ast.Sign]
+AtomPattern = tuple[str, tuple[tuple[AstKey | str, bool], ...]]
+
 
 def _numeric_domain_values(task: InductiveTask) -> set[int]:
-    fragments = [*render_program(task.background)]
-    for example in [*task.positive_examples, *task.negative_examples]:
-        fragments.extend(
-            [example.included_text, example.excluded_text, example.context_text]
-        )
-    constants = _numeric_constants(fragments)
-    values = set(constants.values())
-    for fragment in fragments:
-        for start, end in re.findall(r"(-?\d+)\.\.([A-Za-z_]\w*|-?\d+)", fragment):
-            if end.lstrip("-").isdigit():
-                end_value = int(end)
-            elif end in constants:
-                end_value = constants[end]
-            else:
-                continue
-            start_value = int(start)
-            if abs(end_value - start_value) <= 10000:
-                step = 1 if start_value <= end_value else -1
-                values.update(range(start_value, end_value + step, step))
-        values.update(
-            int(value) for value in re.findall(r"(?<![\w-])-?\d+(?![\w])", fragment)
-        )
-    return values
+    nodes = _task_nodes(task)
+    constants = _numeric_constants(nodes)
+    return {
+        value for node in nodes for value in _numeric_values(node, constants)
+    }
 
 
-def _numeric_constants(fragments: list[str]) -> dict[str, int]:
+def _numeric_constants(nodes: Iterable[ast.AST]) -> dict[str, int]:
     constants: dict[str, int] = {}
-    for fragment in fragments:
-        for name, value in re.findall(
-            r"#const\s+([A-Za-z_]\w*)\s*=\s*(-?\d+)\s*\.", fragment
-        ):
-            constants[name] = int(value)
+    for node in nodes:
+        if node.ast_type != ast.ASTType.Definition:
+            continue
+        value = _integer_value(node.value, constants)
+        if value is not None:
+            constants[str(node.name)] = value
     return constants
 
 
 def _closed_world_extensions(
-    fragments: list[str],
-) -> dict[Predicate, set[tuple[str, ...]]]:
-    extensions: dict[Predicate, set[tuple[str, ...]]] = {}
-    constants = _numeric_constants(fragments)
-    for fragment in fragments:
-        for name, arguments, _negative in fragment_atoms(fragment):
-            if any(_has_variable(argument) for argument in arguments):
-                continue
-            key = (name, len(arguments))
-            for values in _expand_ground_arguments(arguments, constants):
-                extensions.setdefault(key, set()).add(values)
-    _derive_closed_world_extensions(fragments, extensions)
+    nodes: tuple[ast.AST, ...],
+) -> dict[Predicate, set[GroundTuple]]:
+    extensions: dict[Predicate, set[GroundTuple]] = {}
+    constants = _numeric_constants(nodes)
+    for name, arguments, _sign in _iter_atoms(nodes):
+        if any(_has_variable(argument) for argument in arguments):
+            continue
+        key = (name, len(arguments))
+        for values in _expand_ground_arguments(arguments, constants):
+            extensions.setdefault(key, set()).add(values)
+    _derive_closed_world_extensions(nodes, extensions, constants)
     return extensions
 
 
 def _derive_closed_world_extensions(
-    fragments: list[str],
-    extensions: dict[Predicate, set[tuple[str, ...]]],
+    nodes: tuple[ast.AST, ...],
+    extensions: dict[Predicate, set[GroundTuple]],
+    constants: dict[str, int],
     limit: int = 10000,
 ) -> None:
+    clauses = tuple(
+        clause
+        for clause in nodes
+        if clause.ast_type == ast.ASTType.Rule and clause.body
+    )
     changed = True
     while changed:
         changed = False
-        for fragment in fragments:
-            derived = _derive_closed_world_clause(fragment, extensions, limit)
+        for clause in clauses:
+            derived = _derive_closed_world_clause(
+                clause, extensions, constants, limit
+            )
             for predicate, tuples in derived.items():
                 current = extensions.setdefault(predicate, set())
                 if len(current) + len(tuples - current) > limit:
@@ -83,40 +75,45 @@ def _derive_closed_world_extensions(
 
 
 def _derive_closed_world_clause(
-    clause: str,
-    extensions: dict[Predicate, set[tuple[str, ...]]],
+    clause: ast.AST,
+    extensions: dict[Predicate, set[GroundTuple]],
+    constants: dict[str, int],
     limit: int,
-) -> dict[Predicate, set[tuple[str, ...]]]:
-    text = clause.strip()
-    if not text.endswith(".") or ":-" not in text or text.startswith("#"):
+) -> dict[Predicate, set[GroundTuple]]:
+    head = _literal_atom(clause.head)
+    if head is None:
         return {}
-    head_text, body_text = text[:-1].split(":-", 1)
-    head = _simple_atom(head_text.strip())
-    if head is None or any(not _is_variable(argument) for argument in head[1]):
+    head_name, head_terms, head_negated = head
+    if head_negated != ast.Sign.NoSign or any(
+        term.ast_type != ast.ASTType.Variable for term in head_terms
+    ):
         return {}
-    positive: list[tuple[str, tuple[str, ...]]] = []
-    negative: list[tuple[str, tuple[str, ...]]] = []
-    for literal in _split_top_level(body_text):
-        if literal.startswith("not "):
-            atom = _simple_atom(literal[4:].strip())
-            if atom is None:
-                return {}
-            negative.append(atom)
-        else:
-            atom = _simple_atom(literal)
-            if atom is None:
-                return {}
-            positive.append(atom)
+
+    positive: list[AtomPattern] = []
+    negative: list[AtomPattern] = []
+    for literal in clause.body:
+        atom = _literal_atom(literal)
+        if atom is None:
+            return {}
+        name, terms, sign = atom
+        if sign == ast.Sign.DoubleNegation:
+            return {}
+        pattern = (
+            name,
+            tuple(_term_pattern(term, constants) for term in terms),
+        )
+        (negative if sign == ast.Sign.Negation else positive).append(pattern)
     if not positive or len(negative) > 1:
         return {}
     if negative and (negative[0][0], len(negative[0][1])) not in extensions:
         return {}
-    assignments = [{}]
+
+    assignments: list[dict[str, AstKey]] = [{}]
     for name, arguments in positive:
         tuples = extensions.get((name, len(arguments)))
         if tuples is None:
             return {}
-        next_assignments = []
+        next_assignments: list[dict[str, AstKey]] = []
         for assignment in assignments:
             for values in tuples:
                 merged = _merge_assignment(assignment, arguments, values)
@@ -125,87 +122,82 @@ def _derive_closed_world_clause(
                     if len(next_assignments) > limit:
                         return {}
         assignments = next_assignments
-    tuples: set[tuple[str, ...]] = set()
+
+    tuples: set[GroundTuple] = set()
+    head_variables = tuple(str(term.name) for term in head_terms)
     for assignment in assignments:
         if negative and _negative_atom_holds(negative[0], assignment, extensions):
             continue
         try:
-            tuples.add(tuple(assignment[argument] for argument in head[1]))
+            tuples.add(tuple(assignment[variable] for variable in head_variables))
         except KeyError:
             return {}
-    return {(head[0], len(head[1])): tuples}
+    return {(head_name, len(head_terms)): tuples}
 
 
-def _split_top_level(text: str) -> list[str]:
-    parts: list[str] = []
-    current: list[str] = []
-    depth = 0
-    for char in text:
-        if char == "(":
-            depth += 1
-        elif char == ")":
-            depth -= 1
-        if char == "," and depth == 0:
-            part = "".join(current).strip()
-            if part:
-                parts.append(part)
-            current = []
-        else:
-            current.append(char)
-    part = "".join(current).strip()
-    if part:
-        parts.append(part)
-    return parts
-
-
-def _simple_atom(text: str) -> tuple[str, tuple[str, ...]] | None:
-    match = re.fullmatch(r"(-?[a-z][A-Za-z0-9_]*)\((.*)\)", text)
-    if not match:
+def _literal_atom(literal: ast.AST) -> Atom | None:
+    if (
+        literal.ast_type != ast.ASTType.Literal
+        or literal.atom.ast_type != ast.ASTType.SymbolicAtom
+    ):
         return None
-    return match.group(1), tuple(
-        part.strip() for part in _split_top_level(match.group(2))
-    )
+    parsed = symbolic_function(literal.atom.symbol)
+    if parsed is None:
+        return None
+    name, arguments = parsed
+    return name, tuple(arguments), literal.sign
+
+
+def _term_pattern(
+    term: ast.AST, constants: dict[str, int]
+) -> tuple[AstKey | str, bool]:
+    if term.ast_type == ast.ASTType.Variable:
+        return str(term.name), True
+    return _ground_key(term, constants), False
 
 
 def _merge_assignment(
-    assignment: dict[str, str],
-    arguments: tuple[str, ...],
-    values: tuple[str, ...],
-) -> dict[str, str] | None:
+    assignment: dict[str, AstKey],
+    arguments: tuple[tuple[AstKey | str, bool], ...],
+    values: GroundTuple,
+) -> dict[str, AstKey] | None:
     merged = dict(assignment)
-    for argument, value in zip(arguments, values):
-        if _is_variable(argument):
-            if argument in merged and merged[argument] != value:
+    for (argument, variable), value in zip(arguments, values, strict=True):
+        if variable:
+            variable_name = str(argument)
+            if variable_name in merged and merged[variable_name] != value:
                 return None
-            merged[argument] = value
+            merged[variable_name] = value
         elif argument != value:
             return None
     return merged
 
 
 def _negative_atom_holds(
-    atom: tuple[str, tuple[str, ...]],
-    assignment: dict[str, str],
-    extensions: dict[Predicate, set[tuple[str, ...]]],
+    atom: AtomPattern,
+    assignment: dict[str, AstKey],
+    extensions: dict[Predicate, set[GroundTuple]],
 ) -> bool:
     name, arguments = atom
-    values: list[str] = []
-    for argument in arguments:
-        if _is_variable(argument):
-            if argument not in assignment:
+    values: list[AstKey] = []
+    for argument, variable in arguments:
+        if variable:
+            variable_name = str(argument)
+            if variable_name not in assignment:
                 return False
-            values.append(assignment[argument])
+            values.append(assignment[variable_name])
         else:
+            assert isinstance(argument, tuple)
             values.append(argument)
     return tuple(values) in extensions.get((name, len(arguments)), set())
 
 
 def _expand_ground_arguments(
-    arguments: tuple[str, ...],
+    arguments: tuple[ast.AST, ...],
     constants: dict[str, int],
     limit: int = 10000,
-) -> list[tuple[str, ...]]:
-    domains: list[list[str]] = []
+) -> list[GroundTuple]:
+    domains: list[list[AstKey]] = []
     size = 1
     for argument in arguments:
         values = _expand_ground_argument(argument, constants)
@@ -219,70 +211,56 @@ def _expand_ground_arguments(
 
 
 def _expand_ground_argument(
-    argument: str, constants: dict[str, int]
-) -> list[str] | None:
-    text = argument.strip()
-    if text.startswith("(") and text.endswith(")"):
-        text = text[1:-1]
-    match = re.fullmatch(r"(-?\d+)\.\.([A-Za-z_]\w*|-?\d+)", text)
-    if not match:
-        if ".." in text:
+    argument: ast.AST, constants: dict[str, int]
+) -> list[AstKey] | None:
+    if argument.ast_type == ast.ASTType.Interval:
+        start = _integer_value(argument.left, constants)
+        end = _integer_value(argument.right, constants)
+        if start is None or end is None or start > end or end - start > 10000:
             return None
-        return [argument]
-    start = int(match.group(1))
-    end_text = match.group(2)
-    if end_text.lstrip("-").isdigit():
-        end = int(end_text)
-    elif end_text in constants:
-        end = constants[end_text]
-    else:
+        return [_number_key(value) for value in range(start, end + 1)]
+    if _has_variable(argument) or _contains(argument, ast.ASTType.Interval):
         return None
-    step = 1 if start <= end else -1
-    return [str(value) for value in range(start, end + step, step)]
+    return [_ground_key(argument, constants)]
 
 
-def _defined_predicates(fragments: list[str]) -> set[Predicate]:
+def _defined_predicates(nodes: tuple[ast.AST, ...]) -> set[Predicate]:
     defined: set[Predicate] = set()
-    clauses = [
-        fragment
-        for fragment in fragments
-        if fragment.strip().endswith(".") and not fragment.lstrip().startswith("#")
-    ]
-    for entry in ClauseSpace.from_clauses(clauses).entries:
-        defined.update(entry.heads)
+    for node in nodes:
+        heads, _deps, _body_literals = clause_predicates(node)
+        defined.update(heads)
     return defined
 
 
 def _type_domains(
-    fragments: list[str],
+    nodes: tuple[ast.AST, ...],
     predicate_arg_types: dict[tuple[str, int, int], str],
-) -> dict[str, set[str]]:
-    domains: dict[str, set[str]] = {}
-    constants = _numeric_constants(fragments)
-    for fragment in fragments:
-        for name, arguments, _negative in fragment_atoms(fragment):
-            if any(_has_variable(argument) for argument in arguments):
-                continue
-            arity = len(arguments)
-            for values in _expand_ground_arguments(arguments, constants):
-                for index, value in enumerate(values):
-                    arg_type = predicate_arg_types.get(
-                        (name.removeprefix("-"), arity, index), "any"
-                    )
-                    if arg_type != "any":
-                        domains.setdefault(arg_type, set()).add(value)
+) -> dict[str, set[AstKey]]:
+    domains: dict[str, set[AstKey]] = {}
+    constants = _numeric_constants(nodes)
+    for name, arguments, _sign in _iter_atoms(nodes):
+        if any(_has_variable(argument) for argument in arguments):
+            continue
+        arity = len(arguments)
+        for values in _expand_ground_arguments(arguments, constants):
+            for index, value in enumerate(values):
+                arg_type = predicate_arg_types.get(
+                    (name.removeprefix("-"), arity, index), "any"
+                )
+                if arg_type != "any":
+                    domains.setdefault(arg_type, set()).add(value)
     return domains
 
 
 def _universal_predicates(
-    extensions: dict[Predicate, set[tuple[str, ...]]],
+    extensions: dict[Predicate, set[GroundTuple]],
     predicate_arg_types: dict[tuple[str, int, int], str],
-    type_domains: dict[str, set[str]],
-    unary_type_domains: dict[str, dict[Predicate, set[str]]],
+    type_domains: dict[str, set[AstKey]],
+    unary_type_domains: dict[str, dict[Predicate, set[AstKey]]],
 ) -> set[Predicate]:
     universal: set[Predicate] = set()
     for predicate, tuples in extensions.items():
-        domains: list[set[str]] = []
+        domains: list[set[AstKey]] = []
         for index in range(predicate[1]):
             arg_type = predicate_arg_types.get(
                 (predicate[0].removeprefix("-"), predicate[1], index), "any"
@@ -309,22 +287,127 @@ def _universal_predicates(
 
 
 def _unary_type_domains(
-    fragments: list[str],
+    nodes: tuple[ast.AST, ...],
     predicate_arg_types: dict[tuple[str, int, int], str],
-) -> dict[str, dict[Predicate, set[str]]]:
-    domains: dict[str, dict[Predicate, set[str]]] = {}
-    constants = _numeric_constants(fragments)
-    for fragment in fragments:
-        for name, arguments, _negative in fragment_atoms(fragment):
-            if len(arguments) != 1:
-                continue
-            value = arguments[0]
-            if _has_variable(value):
-                continue
-            arg_type = predicate_arg_types.get((name.removeprefix("-"), 1, 0), "any")
-            values = _expand_ground_argument(value, constants)
-            if arg_type != "any" and values is not None:
-                domains.setdefault(arg_type, {}).setdefault((name, 1), set()).update(
-                    values
-                )
+) -> dict[str, dict[Predicate, set[AstKey]]]:
+    domains: dict[str, dict[Predicate, set[AstKey]]] = {}
+    constants = _numeric_constants(nodes)
+    for name, arguments, _sign in _iter_atoms(nodes):
+        if len(arguments) != 1 or _has_variable(arguments[0]):
+            continue
+        arg_type = predicate_arg_types.get((name.removeprefix("-"), 1, 0), "any")
+        values = _expand_ground_argument(arguments[0], constants)
+        if arg_type != "any" and values is not None:
+            domains.setdefault(arg_type, {}).setdefault((name, 1), set()).update(values)
     return domains
+
+
+def _task_nodes(task: InductiveTask) -> tuple[ast.AST, ...]:
+    return task.background + tuple(
+        node
+        for example in (*task.positive_examples, *task.negative_examples)
+        for node in (*example.included, *example.excluded, *example.context)
+    )
+
+
+def _iter_atoms(nodes: Iterable[ast.AST]) -> Iterator[Atom]:
+    for node in nodes:
+        yield from _node_atoms(node)
+
+
+def _node_atoms(
+    node: ast.AST, sign: ast.Sign = ast.Sign.NoSign
+) -> tuple[Atom, ...]:
+    if node.ast_type == ast.ASTType.Literal:
+        return _node_atoms(
+            node.atom, node.sign if node.sign != ast.Sign.NoSign else sign
+        )
+    if node.ast_type == ast.ASTType.SymbolicAtom:
+        parsed = symbolic_function(node.symbol)
+        if parsed is not None:
+            name, arguments = parsed
+            return ((name, tuple(arguments), sign),)
+        return ()
+    return tuple(
+        atom
+        for child in _children(node)
+        for atom in _node_atoms(child, sign)
+    )
+
+
+def _numeric_values(node: ast.AST, constants: dict[str, int]) -> Iterator[int]:
+    value = _integer_value(node, constants)
+    if value is not None:
+        yield value
+        return
+    if node.ast_type == ast.ASTType.Interval:
+        start = _integer_value(node.left, constants)
+        end = _integer_value(node.right, constants)
+        if start is not None and end is not None and 0 <= end - start <= 10000:
+            yield from range(start, end + 1)
+        return
+    for child in _children(node):
+        yield from _numeric_values(child, constants)
+
+
+def _integer_value(term: ast.AST, constants: dict[str, int]) -> int | None:
+    if term.ast_type == ast.ASTType.SymbolicTerm:
+        symbol = term.symbol
+        if symbol.type == clingo.SymbolType.Number:
+            return int(symbol.number)
+        if symbol.type == clingo.SymbolType.Function and not symbol.arguments:
+            return constants.get(symbol.name)
+    if (
+        term.ast_type == ast.ASTType.UnaryOperation
+        and term.operator_type == ast.UnaryOperator.Minus
+    ):
+        value = _integer_value(term.argument, constants)
+        return -value if value is not None else None
+    return None
+
+
+def _has_variable(node: ast.AST) -> bool:
+    return _contains(node, ast.ASTType.Variable)
+
+
+def _contains(node: ast.AST, ast_type: ast.ASTType) -> bool:
+    return node.ast_type == ast_type or any(
+        _contains(child, ast_type) for child in _children(node)
+    )
+
+
+def _children(node: ast.AST) -> Iterator[ast.AST]:
+    for key in node.child_keys:
+        child = getattr(node, key)
+        if isinstance(child, ast.AST):
+            yield child
+        elif isinstance(child, ast.ASTSequence):
+            yield from (item for item in child if isinstance(item, ast.AST))
+
+
+def _number_key(value: int) -> AstKey:
+    return (ast.ASTType.SymbolicTerm, ("symbol", clingo.Number(value)))
+
+
+def _ground_key(term: ast.AST, constants: dict[str, int]) -> AstKey:
+    number = _integer_value(term, constants)
+    return _number_key(number) if number is not None else _ast_key(term)
+
+
+def _ast_key(node: ast.AST) -> AstKey:
+    fields: list[object] = []
+    for name in node.keys():
+        if name == "location":
+            continue
+        value = getattr(node, name)
+        if isinstance(value, ast.AST):
+            encoded: object = _ast_key(value)
+        elif isinstance(value, (list, ast.ASTSequence)):
+            encoded = tuple(
+                _ast_key(item) if isinstance(item, ast.AST) else item
+                for item in value
+            )
+        else:
+            encoded = value
+        fields.append((name, encoded))
+    return (node.ast_type, *fields)

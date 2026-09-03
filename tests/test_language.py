@@ -1,10 +1,10 @@
 import pytest
 from clingo import ast
 
-from gentians.clauses.clause_space import ClauseSpace
 from gentians.language import InductiveTask, parse_file, parse_text
 from gentians.language import parser as task_parser
 from gentians.language.lexer import lex
+from tests.task_helpers import make_clause_space
 
 
 def test_parser_accepts_multiline_directives_and_preserves_asp_ranges() -> None:
@@ -28,7 +28,7 @@ def test_parser_accepts_multiline_directives_and_preserves_asp_ranges() -> None:
 
 
 def test_clause_space_retains_clingo_ast_and_canonical_text() -> None:
-    space = ClauseSpace.from_clauses([":- p(X), X != 1."])
+    space = make_clause_space([":- p(X), X != 1."])
 
     assert space.clauses == (":- p(X), X != 1.",)
     assert space.statements[0].ast_type == ast.ASTType.Rule

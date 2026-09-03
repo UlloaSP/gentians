@@ -105,7 +105,7 @@ def _contains(node: ast.AST, ast_type: ast.ASTType) -> bool:
         child = getattr(node, key)
         if isinstance(child, ast.AST) and _contains(child, ast_type):
             return True
-        if isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
+        if isinstance(child, (list, ast.ASTSequence)):
             if any(isinstance(item, ast.AST) and _contains(item, ast_type) for item in child):
                 return True
     return False
@@ -194,7 +194,7 @@ def symbolic_literal_predicate(literal: ast.AST) -> Predicate:
         or literal.atom.ast_type != ast.ASTType.SymbolicAtom
     ):
         raise ValueError(f"expected symbolic literal: {literal}")
-    parsed = _symbolic_function(literal.atom.symbol)
+    parsed = symbolic_function(literal.atom.symbol)
     if parsed is None:
         raise ValueError(f"expected symbolic literal: {literal}")
     name, arguments = parsed
@@ -263,7 +263,7 @@ def _collect_atoms(node: ast.AST, result: list[ParsedAtom], negative: bool = Fal
         _collect_atoms(node.atom, result, negative or node.sign != ast.Sign.NoSign)
         return
     if node.ast_type == ast.ASTType.SymbolicAtom:
-        parsed = _symbolic_function(node.symbol)
+        parsed = symbolic_function(node.symbol)
         if parsed is not None:
             name, arguments = parsed
             result.append(
@@ -286,7 +286,7 @@ def _collect_atoms(node: ast.AST, result: list[ParsedAtom], negative: bool = Fal
 
 def _collect_predicates(node: ast.AST, result: set[Predicate]) -> None:
     if node.ast_type == ast.ASTType.SymbolicAtom:
-        parsed = _symbolic_function(node.symbol)
+        parsed = symbolic_function(node.symbol)
         if parsed is not None:
             name, arguments = parsed
             result.add((name, len(arguments)))
@@ -320,14 +320,14 @@ def _parse_function_cached(atom: str) -> tuple[str, tuple[ast.AST, ...]] | None:
         or literal.atom.ast_type != ast.ASTType.SymbolicAtom
     ):
         return None
-    parsed = _symbolic_function(literal.atom.symbol)
+    parsed = symbolic_function(literal.atom.symbol)
     if parsed is None:
         return None
     name, arguments = parsed
     return name, tuple(arguments)
 
 
-def _symbolic_function(symbol: ast.AST) -> tuple[str, ast.ASTSequence] | None:
+def symbolic_function(symbol: ast.AST) -> tuple[str, ast.ASTSequence] | None:
     strong = False
     if symbol.ast_type == ast.ASTType.UnaryOperation:
         if symbol.operator_type != ast.UnaryOperator.Minus:

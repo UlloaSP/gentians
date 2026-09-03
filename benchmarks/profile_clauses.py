@@ -12,7 +12,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from benchmarks.catalog import DEFAULT_DATASETS, case_names  # noqa: E402
 from benchmarks.profile_baseline import profile_arguments  # noqa: E402
 from gentians import timing  # noqa: E402
-from gentians.clauses import build_clause_space  # noqa: E402
+from gentians.clauses import generate_clause_space  # noqa: E402
 from gentians.gentians import task_from_arguments  # noqa: E402
 
 
@@ -88,7 +88,7 @@ def build_profiled_clause_space(program, arguments):
             os.environ.update(env)
             timing.reset()
             timing.set_enabled(True)
-            clause_space = build_clause_space(program, arguments)
+            clause_space = generate_clause_space(program, arguments)
             timing.export()
             metrics = {
                 "timings": read_json_rows(timings_path),

@@ -25,7 +25,7 @@ def record_generation_time(method: Callable) -> Callable:
 def prepare_space(task: InductiveTask, space: ClauseSpace) -> ClauseSpace:
     background = defined_predicates(task.background)
     entries = prune_uncloseable_clauses(space.entries, background)
-    return ClauseSpace.from_entries(entries)
+    return ClauseSpace(entries)
 
 
 def defined_predicates(statements: Iterable[ast.AST]) -> set[Predicate]:

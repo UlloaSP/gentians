@@ -4,9 +4,9 @@ from itertools import count
 from ...arguments import Arguments
 from ...clauses import (
     ClauseSpace,
-    build_clause_space,
-    clause_space_metrics,
+    generate_clause_space,
 )
+from ...clauses.generator import _clause_space_metrics
 from ...language.ir.inductive_task import InductiveTask
 from ...timing import (
     instrumentation,
@@ -48,13 +48,13 @@ def search_solver(
     space = (
         supplied_space
         if supplied_space is not None
-        else build_clause_space(task, args)
+        else generate_clause_space(task, args)
     )
     if supplied_space is not None and metric_enabled("candidate"):
         with instrumentation():
             record_metric(
                 "candidate",
-                clause_space_metrics(task, space),
+                _clause_space_metrics(task, space),
             )
     if not space:
         raise ValueError("No clauses found")

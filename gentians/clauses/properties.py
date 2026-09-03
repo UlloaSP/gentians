@@ -1,4 +1,4 @@
-import re
+from collections import Counter
 from itertools import combinations, permutations
 
 from clingo import ast
@@ -7,25 +7,29 @@ from .closed_world_properties import ClosedWorldProperties
 from ..language.asp import (
     AspProgram,
     Predicate,
-    parse_program,
 )
 from .extensions import (
+    AstKey,
+    GroundTuple,
+    _ast_key,
     _closed_world_extensions,
     _defined_predicates,
-    _split_top_level,
+    _integer_value,
     _type_domains,
     _unary_type_domains,
     _universal_predicates,
 )
-from .task_analysis import _is_variable
 
 def _closed_world_properties(
-    fragments: list[str],
+    nodes: tuple[ast.AST, ...],
     predicate_arg_types: dict[tuple[str, int, int], str] | None = None,
     closed_body_predicates: set[Predicate] | None = None,
     statements: AspProgram | None = None,
 ) -> ClosedWorldProperties:
-    extensions = _closed_world_extensions(fragments)
+    extensions = _closed_world_extensions(nodes)
+    property_program = statements or tuple(
+        node for node in nodes if node.ast_type == ast.ASTType.Rule
+    )
     symmetric: set[Predicate] = set()
     asymmetric: set[Predicate] = set()
     antisymmetric: set[Predicate] = set()
@@ -51,14 +55,14 @@ def _closed_world_properties(
     keys: set[tuple[Predicate, tuple[int, ...]]] = set()
     cardinality_upper: set[tuple[Predicate, int]] = set()
     transitive: set[Predicate] = set()
-    tuple_universe_by_arity: dict[int, set[tuple[str, ...]]] = {}
+    tuple_universe_by_arity: dict[int, set[GroundTuple]] = {}
     (
         choice_functional,
         choice_functional_set,
         choice_keys,
         choice_project_implies,
         choice_cardinality_upper,
-    ) = _choice_clause_properties(fragments, statements)
+    ) = _choice_clause_properties(property_program)
     for predicate, tuples in extensions.items():
         tuple_universe_by_arity.setdefault(predicate[1], set()).update(tuples)
 
@@ -124,18 +128,17 @@ def _closed_world_properties(
     project_implies.update(choice_project_implies)
     cardinality_upper.update(choice_cardinality_upper)
     _collect_clause_defined_properties(
-        fragments,
         keys,
         functional,
         functional_set,
         arg_distinct,
         symmetric,
-        statements,
+        property_program,
     )
     partitions.update(_partition_properties(extensions, tuple_universe_by_arity))
     if predicate_arg_types:
-        type_domains = _type_domains(fragments, predicate_arg_types)
-        unary_type_domains = _unary_type_domains(fragments, predicate_arg_types)
+        type_domains = _type_domains(nodes, predicate_arg_types)
+        unary_type_domains = _unary_type_domains(nodes, predicate_arg_types)
         universal.update(
             _universal_predicates(
                 extensions,
@@ -149,7 +152,7 @@ def _closed_world_properties(
             predicate
             for predicate in closed_body_predicates
             if predicate not in extensions
-            and predicate not in _defined_predicates(fragments)
+            and predicate not in _defined_predicates(nodes)
         )
     asymmetric -= acyclic | strict_order | total_order
     acyclic -= strict_order
@@ -196,8 +199,7 @@ def _closed_world_properties(
 
 
 def _choice_clause_properties(
-    fragments: list[str],
-    statements: AspProgram | None = None,
+    statements: AspProgram,
 ) -> tuple[
     set[tuple[Predicate, int, int]],
     set[tuple[Predicate, tuple[int, ...], int]],
@@ -241,7 +243,7 @@ def _choice_clause_properties(
             else:
                 functional_set.add((predicate, inputs, output))
 
-    for statement in statements or _fragment_program(fragments):
+    for statement in statements:
         collect(statement)
     return (
         functional,
@@ -274,8 +276,7 @@ def _aggregate_upper(head: ast.AST) -> int | None:
 
 
 def _numeric_term_value(term: ast.AST) -> int | None:
-    text = str(term)
-    return int(text) if re.fullmatch(r"-?\d+", text) else None
+    return _integer_value(term, {})
 
 
 def _choice_key(
@@ -302,7 +303,7 @@ def _choice_key(
     output_args: list[int] = []
     for index in range(arity):
         terms = [arguments[index] for _, arguments in atoms]
-        text = [_term_text(term) for term in terms]
+        text = [_ast_key(term) for term in terms]
         variables = set().union(*(_term_variables(term) for term in terms), set())
         if len(set(text)) == 1 and variables <= body_vars:
             input_args.append(index)
@@ -350,9 +351,9 @@ def _collect_atom_projection(
 ) -> None:
     projection: list[int] = []
     for target_arg in target[1]:
-        target_text = _term_text(target_arg)
+        target_text = _ast_key(target_arg)
         for index, source_arg in enumerate(source_args):
-            if _term_text(source_arg) == target_text:
+            if _ast_key(source_arg) == target_text:
                 projection.append(index)
                 break
         else:
@@ -361,13 +362,12 @@ def _collect_atom_projection(
 
 
 def _collect_clause_defined_properties(
-    fragments: list[str],
     keys: set[tuple[Predicate, tuple[int, ...]]],
     functional: set[tuple[Predicate, int, int]],
     functional_set: set[tuple[Predicate, tuple[int, ...], int]],
     arg_distinct: set[tuple[Predicate, int, int]],
     symmetric: set[Predicate],
-    statements: AspProgram | None = None,
+    statements: AspProgram,
 ) -> None:
     key_by_predicate = _key_sets_by_predicate(keys)
     clauses_by_head: dict[Predicate, list[ast.AST]] = {}
@@ -380,7 +380,7 @@ def _collect_clause_defined_properties(
             return
         clauses_by_head.setdefault((head[0], len(head[1])), []).append(node)
 
-    for statement in statements or _fragment_program(fragments):
+    for statement in statements:
         collect(statement)
 
     for clauses in clauses_by_head.values():
@@ -410,15 +410,6 @@ def _collect_clause_defined_properties(
             symmetric.add(predicate)
 
 
-def _fragment_program(fragments: list[str]) -> AspProgram:
-    source = "\n".join(
-        fragment if fragment.rstrip().endswith((".", "]")) else f"{fragment}."
-        for fragment in fragments
-        if not fragment.lstrip().startswith("#")
-    )
-    return parse_program(source)
-
-
 def _clause_head_args_distinct(node: ast.AST) -> bool:
     head = _positive_symbolic_atom(node.head)
     if head is None or len(head[1]) != 2:
@@ -430,24 +421,24 @@ def _clause_head_args_distinct(node: ast.AST) -> bool:
     }
     if not inequalities:
         return False
-    left = _term_text(head[1][0])
-    right = _term_text(head[1][1])
-    return _terms_known_distinct(left, right, inequalities)
+    return _terms_known_distinct(head[1][0], head[1][1], inequalities)
 
 
-def _inequality_terms(literal: ast.AST) -> tuple[str, str] | None:
-    match = re.fullmatch(r"(.+)!=(.+)", _term_text(literal))
-    if not match:
+def _inequality_terms(literal: ast.AST) -> tuple[AstKey, AstKey] | None:
+    terms = _comparison_terms(literal, ast.ComparisonOperator.NotEqual)
+    if terms is None:
         return None
-    return match.group(1), match.group(2)
+    return _ast_key(terms[0]), _ast_key(terms[1])
 
 
 def _terms_known_distinct(
-    left: str,
-    right: str,
-    inequalities: set[tuple[str, str]],
+    left: ast.AST,
+    right: ast.AST,
+    inequalities: set[tuple[AstKey, AstKey]],
 ) -> bool:
-    if (left, right) in inequalities or (right, left) in inequalities:
+    left_text = _ast_key(left)
+    right_text = _ast_key(right)
+    if (left_text, right_text) in inequalities or (right_text, left_text) in inequalities:
         return True
     left_parts = _tuple_parts(left)
     right_parts = _tuple_parts(right)
@@ -462,10 +453,10 @@ def _terms_known_distinct(
     )
 
 
-def _tuple_parts(text: str) -> list[str] | None:
-    if not text.startswith("(") or not text.endswith(")"):
+def _tuple_parts(term: ast.AST) -> tuple[ast.AST, ...] | None:
+    if term.ast_type != ast.ASTType.Function or term.name:
         return None
-    parts = _split_top_level(text[1:-1])
+    parts = tuple(term.arguments)
     return parts if len(parts) > 1 else None
 
 
@@ -473,22 +464,24 @@ def _clause_head_args_symmetric(node: ast.AST) -> bool:
     head = _positive_symbolic_atom(node.head)
     if head is None or len(head[1]) != 2:
         return False
-    mapping = _term_pair_mapping(_term_text(head[1][0]), _term_text(head[1][1]))
+    mapping = _term_pair_mapping(head[1][0], head[1][1])
     if mapping is None:
         return False
-    body = sorted(_canonical_literal_text(_term_text(literal)) for literal in node.body)
-    swapped = sorted(
-        _canonical_literal_text(_substitute_variables(_term_text(literal), mapping))
+    body = Counter(_canonical_literal_key(literal) for literal in node.body)
+    swapped = Counter(
+        _canonical_literal_key(_substitute_variables(literal, mapping))
         for literal in node.body
     )
     return body == swapped
 
 
-def _term_pair_mapping(left: str, right: str) -> dict[str, str] | None:
-    if left == right:
+def _term_pair_mapping(left: ast.AST, right: ast.AST) -> dict[str, str] | None:
+    if _ast_key(left) == _ast_key(right):
         return {}
-    if _is_variable(left) and _is_variable(right):
-        return {left: right, right: left}
+    if left.ast_type == right.ast_type == ast.ASTType.Variable:
+        left_name = str(left.name)
+        right_name = str(right.name)
+        return {left_name: right_name, right_name: left_name}
     left_parts = _tuple_parts(left)
     right_parts = _tuple_parts(right)
     if left_parts is None or right_parts is None or len(left_parts) != len(right_parts):
@@ -505,38 +498,67 @@ def _term_pair_mapping(left: str, right: str) -> dict[str, str] | None:
     return mapping
 
 
-def _substitute_variables(text: str, mapping: dict[str, str]) -> str:
-    return re.sub(
-        r"\b[A-Z]\w*\b", lambda match: mapping.get(match.group(0), match.group(0)), text
-    )
+class _VariableSubstitution(ast.Transformer):
+    def __init__(self, mapping: dict[str, str]) -> None:
+        self.mapping = mapping
+
+    def visit_Variable(self, node: ast.AST) -> ast.AST:
+        return node.update(name=self.mapping.get(str(node.name), str(node.name)))
 
 
-def _canonical_literal_text(text: str) -> str:
-    match = re.fullmatch(r"(.+)!=(.+)", text)
-    if match:
-        return "!=".join(sorted((match.group(1), match.group(2))))
-    return text
+def _substitute_variables(node: ast.AST, mapping: dict[str, str]) -> ast.AST:
+    return _VariableSubstitution(mapping).visit(node)
 
 
-def _square_equality(literal: ast.AST) -> tuple[str, str] | None:
-    text = _term_text(literal)
-    match = re.fullmatch(r"([A-Z]\w*)=\(?([A-Z]\w*)\*\2\)?", text)
-    if match:
-        return match.group(1), match.group(2)
+def _canonical_literal_key(literal: ast.AST) -> object:
+    terms = _comparison_terms(literal, ast.ComparisonOperator.NotEqual)
+    if terms is not None:
+        return "inequality", frozenset((_ast_key(terms[0]), _ast_key(terms[1])))
+    return _ast_key(literal)
+
+
+def _square_equality(literal: ast.AST) -> tuple[AstKey, AstKey] | None:
+    terms = _comparison_terms(literal, ast.ComparisonOperator.Equal)
+    if terms is None:
+        return None
+    output, expression = terms
+    if (
+        output.ast_type == ast.ASTType.Variable
+        and expression.ast_type == ast.ASTType.BinaryOperation
+        and expression.operator_type == ast.BinaryOperator.Multiplication
+        and expression.left.ast_type == ast.ASTType.Variable
+        and expression.right.ast_type == ast.ASTType.Variable
+        and expression.left.name == expression.right.name
+    ):
+        return _ast_key(output), _ast_key(expression.left)
     return None
+
+
+def _comparison_terms(
+    literal: ast.AST, operator: ast.ComparisonOperator
+) -> tuple[ast.AST, ast.AST] | None:
+    if (
+        literal.ast_type != ast.ASTType.Literal
+        or literal.sign != ast.Sign.NoSign
+        or literal.atom.ast_type != ast.ASTType.Comparison
+        or len(literal.atom.guards) != 1
+        or literal.atom.guards[0].comparison != operator
+    ):
+        return None
+    return literal.atom.term, literal.atom.guards[0].term
 
 
 def _propagate_key_through_clause(
     head: tuple[str, tuple[ast.AST, ...]],
     body_atom: tuple[str, tuple[ast.AST, ...]],
     body_key: set[int],
-    equalities: list[tuple[str, str]],
+    equalities: list[tuple[AstKey, AstKey]],
     functional: set[tuple[Predicate, int, int]],
     functional_set: set[tuple[Predicate, tuple[int, ...], int]],
     keys: set[tuple[Predicate, tuple[int, ...]]],
 ) -> None:
-    head_args = [_term_text(argument) for argument in head[1]]
-    body_args = [_term_text(argument) for argument in body_atom[1]]
+    head_args = [_ast_key(argument) for argument in head[1]]
+    body_args = [_ast_key(argument) for argument in body_atom[1]]
     head_predicate = (head[0], len(head[1]))
     determinant_vars = {body_args[arg] for arg in body_key}
     determinant_vars |= {
@@ -583,10 +605,6 @@ def _positive_symbolic_atom(literal: ast.AST) -> tuple[str, tuple[ast.AST, ...]]
     return name, tuple(symbol.arguments)
 
 
-def _term_text(term: ast.AST) -> str:
-    return str(term).replace(" ", "")
-
-
 def _term_variables(node: ast.AST) -> set[str]:
     variables: set[str] = set()
     if node.ast_type == ast.ASTType.Variable:
@@ -596,7 +614,7 @@ def _term_variables(node: ast.AST) -> set[str]:
         child = getattr(node, key)
         if isinstance(child, ast.AST):
             variables.update(_term_variables(child))
-        elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
+        elif isinstance(child, (list, ast.ASTSequence)):
             for item in child:
                 if isinstance(item, ast.AST):
                     variables.update(_term_variables(item))
@@ -605,7 +623,7 @@ def _term_variables(node: ast.AST) -> set[str]:
 
 def _collect_argument_properties(
     predicate: Predicate,
-    tuples: set[tuple[str, ...]],
+    tuples: set[GroundTuple],
     arg_equal: set[tuple[Predicate, int, int]],
     arg_distinct: set[tuple[Predicate, int, int]],
 ) -> None:
@@ -618,7 +636,7 @@ def _collect_argument_properties(
 
 def _collect_functional_properties(
     predicate: Predicate,
-    tuples: set[tuple[str, ...]],
+    tuples: set[GroundTuple],
     functional: set[tuple[Predicate, int, int]],
 ) -> None:
     for input_arg in range(predicate[1]):
@@ -627,7 +645,7 @@ def _collect_functional_properties(
         for output_arg in range(predicate[1]):
             if input_arg == output_arg:
                 continue
-            outputs: dict[str, str] = {}
+            outputs: dict[AstKey, AstKey] = {}
             valid = True
             for values in tuples:
                 previous = outputs.setdefault(values[input_arg], values[output_arg])
@@ -640,7 +658,7 @@ def _collect_functional_properties(
 
 def _collect_composite_functional_properties(
     predicate: Predicate,
-    tuples: set[tuple[str, ...]],
+    tuples: set[GroundTuple],
     functional_set: set[tuple[Predicate, tuple[int, ...], int]],
 ) -> None:
     arity = predicate[1]
@@ -651,7 +669,7 @@ def _collect_composite_functional_properties(
             for output_arg in range(arity):
                 if output_arg in input_args:
                     continue
-                outputs: dict[tuple[str, ...], str] = {}
+                outputs: dict[GroundTuple, AstKey] = {}
                 valid = True
                 for values in tuples:
                     key = tuple(values[arg] for arg in input_args)
@@ -763,7 +781,7 @@ def _key_sets_by_predicate(
 
 def _collect_key_properties(
     predicate: Predicate,
-    tuples: set[tuple[str, ...]],
+    tuples: set[GroundTuple],
     keys: set[tuple[Predicate, tuple[int, ...]]],
 ) -> None:
     arity = predicate[1]
@@ -782,9 +800,9 @@ def _collect_key_properties(
 
 def _collect_disjoint_projections(
     left: Predicate,
-    left_tuples: set[tuple[str, ...]],
+    left_tuples: set[GroundTuple],
     right: Predicate,
-    right_tuples: set[tuple[str, ...]],
+    right_tuples: set[GroundTuple],
     disjoint_projection: set[tuple[Predicate, int, Predicate, int]],
 ) -> None:
     if not left_tuples or not right_tuples:
@@ -801,8 +819,8 @@ def _collect_disjoint_projections(
 
 
 def _partition_properties(
-    extensions: dict[Predicate, set[tuple[str, ...]]],
-    tuple_universe_by_arity: dict[int, set[tuple[str, ...]]],
+    extensions: dict[Predicate, set[GroundTuple]],
+    tuple_universe_by_arity: dict[int, set[GroundTuple]],
 ) -> set[tuple[Predicate, ...]]:
     partitions: set[tuple[Predicate, ...]] = set()
     for arity, universe in tuple_universe_by_arity.items():
@@ -813,7 +831,7 @@ def _partition_properties(
         ]
         for size in range(3, min(len(predicates), 6) + 1):
             for group in combinations(predicates, size):
-                covered: set[tuple[str, ...]] = set()
+                covered: set[GroundTuple] = set()
                 valid = True
                 for predicate in group:
                     tuples = extensions[predicate]
@@ -831,7 +849,7 @@ def _partition_properties(
 
 
 def _collect_tuple_mutex(
-    extensions: dict[Predicate, set[tuple[str, ...]]],
+    extensions: dict[Predicate, set[GroundTuple]],
     closed_body_predicates: set[Predicate],
     tuple_mutex: set[tuple[Predicate, Predicate, tuple[int, ...]]],
 ) -> None:
@@ -856,9 +874,9 @@ def _collect_tuple_mutex(
 
 def _collect_projection_implications(
     source: Predicate,
-    source_tuples: set[tuple[str, ...]],
+    source_tuples: set[GroundTuple],
     target: Predicate,
-    target_tuples: set[tuple[str, ...]],
+    target_tuples: set[GroundTuple],
     project_implies: set[tuple[Predicate, Predicate, tuple[int, ...]]],
 ) -> None:
     if source[1] <= target[1] or not target_tuples:
@@ -871,7 +889,7 @@ def _collect_projection_implications(
             project_implies.add((source, target, projection))
 
 
-def _is_transitive(tuples: set[tuple[str, ...]] | set[tuple[str, str]]) -> bool:
+def _is_transitive(tuples: set[GroundTuple]) -> bool:
     if len(tuples) < 3:
         return False
     for left, middle in tuples:
@@ -881,12 +899,12 @@ def _is_transitive(tuples: set[tuple[str, ...]] | set[tuple[str, str]]) -> bool:
     return True
 
 
-def _is_reflexive(tuples: set[tuple[str, ...]]) -> bool:
+def _is_reflexive(tuples: set[GroundTuple]) -> bool:
     domain = {value for row in tuples for value in row}
     return bool(domain) and all((value, value) in tuples for value in domain)
 
 
-def _is_total_order(tuples: set[tuple[str, ...]]) -> bool:
+def _is_total_order(tuples: set[GroundTuple]) -> bool:
     domain = {value for row in tuples for value in row}
     if (
         len(domain) < 2
@@ -901,15 +919,15 @@ def _is_total_order(tuples: set[tuple[str, ...]]) -> bool:
     return True
 
 
-def _is_acyclic(tuples: set[tuple[str, ...]]) -> bool:
-    graph: dict[str, set[str]] = {}
+def _is_acyclic(tuples: set[GroundTuple]) -> bool:
+    graph: dict[AstKey, set[AstKey]] = {}
     for left, right in tuples:
         graph.setdefault(left, set()).add(right)
         graph.setdefault(right, set())
-    visiting: set[str] = set()
-    visited: set[str] = set()
+    visiting: set[AstKey] = set()
+    visited: set[AstKey] = set()
 
-    def visit(node: str) -> bool:
+    def visit(node: AstKey) -> bool:
         if node in visiting:
             return False
         if node in visited:

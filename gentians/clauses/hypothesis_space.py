@@ -431,7 +431,9 @@ def hypothesis_space_metrics(
 def _numeric_domain_values(task: InductiveTask) -> set[int]:
     fragments = [*render_program(task.background)]
     for example in [*task.positive_examples, *task.negative_examples]:
-        fragments.extend([example.included, example.excluded, example.context])
+        fragments.extend(
+            [example.included_text, example.excluded_text, example.context_text]
+        )
     constants = _numeric_constants(fragments)
     values = set(constants.values())
     for fragment in fragments:
@@ -1868,7 +1870,9 @@ def _task_fragments(task: InductiveTask) -> list[str]:
         if line.strip() and not line.lstrip().startswith("%")
     ]
     for example in [*task.positive_examples, *task.negative_examples]:
-        fragments.extend([example.included, example.excluded, example.context])
+        fragments.extend(
+            [example.included_text, example.excluded_text, example.context_text]
+        )
     return [fragment for fragment in fragments if fragment.strip()]
 
 
@@ -1879,9 +1883,9 @@ def _closed_world_fragments(task: InductiveTask) -> list[str]:
         if line.strip() and not line.lstrip().startswith("%")
     ]
     for example in task.positive_examples:
-        fragments.append(example.context)
+        fragments.append(example.context_text)
     for example in task.negative_examples:
-        fragments.append(example.context)
+        fragments.append(example.context_text)
     return [fragment for fragment in fragments if fragment.strip()]
 
 

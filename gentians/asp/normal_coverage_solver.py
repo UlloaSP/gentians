@@ -56,7 +56,7 @@ class NormalCoverageSolver:
 
     def _ground(self, program: AspProgram):
         ctl = clingo.Control(self.clingo_arguments, logger=coverage_logger)
-        ctl.add("base", [], self.coverage_static_program)
+        add_program(ctl, self.coverage_static_program)
         add_program(ctl, self.background)
         add_program(ctl, program)
         start = net_time()
@@ -113,7 +113,10 @@ class NormalCoverageSolver:
                     "operation_category": "grounding",
                     "seconds": grounding_seconds,
                     "input_clauses": len(self.background) + len(program),
-                    "program_chars": len(self.coverage_static_program)
+                    "program_chars": sum(
+                        len(str(statement))
+                        for statement in self.coverage_static_program
+                    )
                     + sum(len(str(statement)) for statement in self.background)
                     + sum(len(str(statement)) for statement in program),
                     "positive_examples": self.positive_examples,

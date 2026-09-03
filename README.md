@@ -53,10 +53,13 @@ semantics.
 
 GENTIANS searches candidate hypotheses built from a generated `RuleSpace`.
 `gentians.language` owns task I/O, lexical framing, parsing, ASP syntax helpers,
-and the typed `InductiveTask` IR. Standard ASP stays as Clingo AST nodes and
-enters controls through `ProgramBuilder`. Candidate `RuleEntry` values retain
-their AST beside canonical output text. `gentians.clauses` compiles task IR
-into candidate clauses.
+and the typed `InductiveTask` IR. Background, examples, contexts, bias, and
+candidate rules stay as Clingo AST nodes and enter controls through
+`ProgramBuilder`. The background is parsed once; only non-empty example fields
+invoke Clingo. The static coverage program is retained as AST instead of being
+reparsed for every candidate. Candidate `RuleEntry` values retain their AST
+beside canonical output text. `gentians.clauses` compiles task IR into candidate
+clauses.
 Clingo validates background ASP. Task files do not accept `#script` blocks.
 The mandatory
 `HypothesisGenerator` in `gentians.hypotheses` is plumbing used by evolutionary
@@ -76,8 +79,9 @@ main(arguments)
 
 `fitness.name` is `cov_program` or `cov_balanced`. `cov_balanced` evaluates the
 whole program like `cov_program`, but scores balanced accuracy linearly from 0
-to 1. Evolutionary individuals may have variable sizes. Every fitness evaluation
-creates a fresh Clingo control, grounds its candidate program, then solves it.
+to 1. Evolutionary individuals may have variable sizes. Every normal fitness
+evaluation creates a fresh Clingo control, adds retained AST, grounds its
+candidate program, then solves it.
 Whole-program fitness uses brave consequences.
 
 Mutation defaults to `random_group`. `structural_neighbor` remains available as

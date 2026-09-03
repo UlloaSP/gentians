@@ -24,7 +24,7 @@ from .ir.mode_declaration import ModeDeclaration
 from .ir.operator_declaration import OperatorDeclaration
 from .ir.inductive_task import InductiveTask
 from .ir.term_template import TermTemplate
-from .lexer import lex
+from .lexer import Statement, lex
 from .metarules import _get_bias, _get_metarule, _instantiate_metarules
 from .modes import (
     _get_aggregate_head_declaration,
@@ -41,7 +41,7 @@ def parse_file(filename: str) -> InductiveTask:
 
 def parse_text(source: str) -> InductiveTask:
     """Parse an inductive task from source text."""
-    bg: list[ast.AST] = []
+    background_statements: list[Statement] = []
     pe: list[Example] = []
     ne: list[Example] = []
     lbh: list[HeadDeclaration] = []
@@ -110,12 +110,12 @@ def parse_text(source: str) -> InductiveTask:
                 lbb.append(md)
         elif directive == "#pos":
             res = _get_pos_neg_examples(lc)
-            ex = Example(res, True)
+            ex = Example.parse(res, True, statement.line)
             if ex not in pe:
                 pe.append(ex)
         elif directive == "#neg":
             res = _get_pos_neg_examples(lc)
-            ex = Example(res, False)
+            ex = Example.parse(res, False, statement.line)
             if ex not in ne:
                 ne.append(ex)
         elif directive == "#modeagg":
@@ -152,7 +152,7 @@ def parse_text(source: str) -> InductiveTask:
             if value not in values:
                 values.append(value)
         else:
-            bg.extend(parse_program(lc, statement.line))
+            background_statements.append(statement)
 
     invented_predicates = tuple(
         (name, len(arguments)) for _recall, name, arguments in inventions
@@ -221,7 +221,7 @@ def parse_text(source: str) -> InductiveTask:
     ):
         raise ValueError("#minhl cannot exceed #maxhl")
     return InductiveTask(
-        background=tuple(bg),
+        background=parse_program(_background_source(background_statements)),
         positive_examples=pe,
         negative_examples=ne,
         language_bias_head=lbh,
@@ -243,3 +243,13 @@ def parse_text(source: str) -> InductiveTask:
             metarule_definitions, predicate_pools, modem_declarations
         ),
     )
+
+
+def _background_source(statements: list[Statement]) -> str:
+    parts: list[str] = []
+    line = 1
+    for statement in statements:
+        parts.append("\n" * max(0, statement.line - line))
+        parts.append(statement.text)
+        line = statement.line + statement.text.count("\n")
+    return "".join(parts)

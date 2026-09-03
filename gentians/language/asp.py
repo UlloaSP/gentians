@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from functools import lru_cache
+import re
 
 import clingo
 from clingo import ast
@@ -16,10 +17,27 @@ def parse_program(source: str, line: int = 1) -> AspProgram:
     try:
         ast.parse_string(source, statements.append)
     except RuntimeError:
-        raise ValueError(f"line {line}: invalid ASP program: {source}") from None
+        error_line = _parse_error_line(source, line)
+        raise ValueError(
+            f"line {error_line}: invalid ASP program: {source.strip()}"
+        ) from None
     if statements and _is_implicit_base(statements[0]):
         statements.pop(0)
     return tuple(statements)
+
+
+def _parse_error_line(source: str, line: int) -> int:
+    diagnostics: list[str] = []
+    try:
+        ast.parse_string(
+            source,
+            lambda _statement: None,
+            logger=lambda _code, message: diagnostics.append(message),
+        )
+    except RuntimeError:
+        pass
+    match = re.search(r"<string>:(\d+):", "\n".join(diagnostics))
+    return line + int(match.group(1)) - 1 if match else line
 
 
 def parse_rule(source: str) -> ast.AST:
@@ -27,6 +45,38 @@ def parse_rule(source: str) -> ast.AST:
     if len(statements) != 1 or statements[0].ast_type != ast.ASTType.Rule:
         raise ValueError(f"expected one ASP rule: {source}")
     return statements[0]
+
+
+def parse_example_fields(
+    included_source: str,
+    excluded_source: str,
+    context_source: str,
+) -> tuple[tuple[ast.AST, ...], tuple[ast.AST, ...], AspProgram]:
+    """Parse each non-empty ASP-owned field of one example with Clingo."""
+    return (
+        _parse_ground_atoms(included_source),
+        _parse_ground_atoms(excluded_source),
+        parse_program(context_source) if context_source else (),
+    )
+
+
+def _parse_ground_atoms(source: str) -> tuple[ast.AST, ...]:
+    if not source.strip():
+        return ()
+    atoms = tuple(parse_rule(f":- {source}.").body)
+    _validate_ground_atoms(atoms, source)
+    return atoms
+
+
+def _validate_ground_atoms(atoms: tuple[ast.AST, ...], source: str) -> None:
+    if any(
+        literal.ast_type != ast.ASTType.Literal
+        or literal.sign != ast.Sign.NoSign
+        or literal.atom.ast_type != ast.ASTType.SymbolicAtom
+        or _contains(literal, ast.ASTType.Variable)
+        for literal in atoms
+    ):
+        raise ValueError(f"examples require ground symbolic atoms: {source}")
 
 
 def add_program(control: clingo.Control, statements: Iterable[ast.AST]) -> None:
@@ -40,8 +90,25 @@ def render_program(statements: Iterable[ast.AST]) -> tuple[str, ...]:
     return tuple(str(statement) for statement in statements)
 
 
+def render_literals(literals: Iterable[ast.AST]) -> str:
+    return ",".join(str(literal) for literal in literals)
+
+
 def _is_implicit_base(statement: ast.AST) -> bool:
     return statement.ast_type == ast.ASTType.Program and str(statement) == "#program base."
+
+
+def _contains(node: ast.AST, ast_type: ast.ASTType) -> bool:
+    if node.ast_type == ast_type:
+        return True
+    for key in node.child_keys:
+        child = getattr(node, key)
+        if isinstance(child, ast.AST) and _contains(child, ast_type):
+            return True
+        if isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
+            if any(isinstance(item, ast.AST) and _contains(item, ast_type) for item in child):
+                return True
+    return False
 
 
 def signed_predicate(name: str, arity: int, strong: bool = False) -> Predicate:
@@ -118,6 +185,20 @@ def clause_predicates(
     if isinstance(rule, ast.AST):
         return _clause_predicates_ast(rule)
     return _clause_predicates_cached(rule.strip())
+
+
+def symbolic_literal_predicate(literal: ast.AST) -> Predicate:
+    """Return the signed predicate of a validated symbolic literal."""
+    if (
+        literal.ast_type != ast.ASTType.Literal
+        or literal.atom.ast_type != ast.ASTType.SymbolicAtom
+    ):
+        raise ValueError(f"expected symbolic literal: {literal}")
+    parsed = _symbolic_function(literal.atom.symbol)
+    if parsed is None:
+        raise ValueError(f"expected symbolic literal: {literal}")
+    name, arguments = parsed
+    return name, len(arguments)
 
 
 def _normal_atom_text(atom: str) -> str:

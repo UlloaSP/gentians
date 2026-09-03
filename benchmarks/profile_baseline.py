@@ -437,7 +437,7 @@ def write_debug_clingo_program(
         "\n".join(
             (
                 *render_program(task.background),
-                static_program,
+                *render_program(static_program),
                 *(str(rule) for rule in best_program),
             )
         ),

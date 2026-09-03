@@ -69,6 +69,8 @@ def lex(source: str) -> tuple[Statement, ...]:
         if block_comment_depth:
             if char == "\n":
                 line += 1
+                if buffer:
+                    buffer.append("\n")
             elif char == "%" and source[index + 1 : index + 2] == "*":
                 block_comment_depth += 1
             elif char == "*" and source[index + 1 : index + 2] == "%":

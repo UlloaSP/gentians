@@ -1,7 +1,9 @@
+from functools import lru_cache
+
 from clingo import ast
 
 from ..language.ir.example import Example
-from ..language.asp import split_top_level_args
+from ..language.asp import AspProgram, parse_rule
 from .coverage_symbols import ACTIVE_CONTEXT_PREDICATE
 
 
@@ -31,12 +33,16 @@ def generate_clauses_for_coverage_interpretations(
     suffix: str = "cp" if positive else "cn"
     for cl_index, example in enumerate(interpretations):
         guard = (
-            f"{ACTIVE_CONTEXT_PREDICATE}({context_ids[example.context]})"
+            f"{ACTIVE_CONTEXT_PREDICATE}({context_ids[example.context_text]})"
             if context_ids is not None
             else ""
         )
-        if len(example.included) > 0:
-            body = f"{example.included}, {guard}" if guard else example.included
+        if example.included:
+            body = (
+                f"{example.included_text}, {guard}"
+                if guard
+                else example.included_text
+            )
             parts.append(f"{suffix}i({cl_index}):- {body}.")
         else:
             parts.append(
@@ -45,44 +51,23 @@ def generate_clauses_for_coverage_interpretations(
                 else f"{suffix}i({cl_index})."
             )
 
-        if len(example.excluded) > 0:
-            for atom in split_top_level_args(example.excluded):
+        if example.excluded:
+            for literal in example.excluded:
+                atom = str(literal)
                 body = f"{atom}, {guard}" if guard else atom
                 parts.append(f"{suffix}e({cl_index}):- {body}.")
 
     return "\n".join(parts) + "\n\n"
 
 
-def guard_context(context: str, context_id: int) -> str:
+def guard_context(context: AspProgram, context_id: int) -> AspProgram:
     """Add an active-context condition to every contextual ASP statement."""
-    statements: list[ast.AST] = []
-    source = context if context.rstrip().endswith((".", "]")) else f"{context}."
-    ast.parse_string(source, statements.append)
-
-    guard_statements: list[ast.AST] = []
-    ast.parse_string(
-        f":- {ACTIVE_CONTEXT_PREDICATE}({context_id}).",
-        guard_statements.append,
-    )
-    guard = next(
-        statement.body[0]
-        for statement in guard_statements
-        if statement.ast_type == ast.ASTType.Rule
+    guard = _context_guard(context_id)
+    return tuple(
+        statement.update(body=[*statement.body, guard]) for statement in context
     )
 
-    guarded: list[str] = []
-    seen_program = False
-    for statement in statements:
-        if statement.ast_type == ast.ASTType.Program:
-            if seen_program:
-                raise ValueError(
-                    f"unsupported statement in example context: {statement.ast_type}"
-                )
-            seen_program = True
-            continue
-        if statement.ast_type != ast.ASTType.Rule:
-            raise ValueError(
-                f"unsupported statement in example context: {statement.ast_type}"
-            )
-        guarded.append(str(statement.update(body=[*statement.body, guard])))
-    return "\n".join(guarded)
+
+@lru_cache(maxsize=None)
+def _context_guard(context_id: int) -> ast.AST:
+    return parse_rule(f":- {ACTIVE_CONTEXT_PREDICATE}({context_id}).").body[0]

@@ -52,7 +52,7 @@ Usa estos términos en código, docs y conversación:
 - **`InductiveTask`**: IR parseado de la tarea inductiva. No es la hipótesis aprendida.
 - **Language bias**: lenguaje finito permitido para las hipótesis. Incluye modes, recalls, tipos, direcciones, constantes, límites, metarules, invención y `#bias` explícito.
 - **Regla o cláusula**: una regla ASP aprendible ya instanciada y canónica.
-- **`RuleEntry`**: texto de una regla junto a predicados definidos, dependencias, tamaño de cuerpo y bundle opcional.
+- **`RuleEntry`**: AST y texto canónico de una regla junto a predicados definidos, dependencias, tamaño de cuerpo y bundle opcional.
 - **`RuleSpace`**: conjunto ordenado y sin duplicados de reglas candidatas.
 - **Hipótesis o programa candidato**: conjunto de reglas del `RuleSpace` evaluado como una unidad bajo stable-model semantics.
 - **`Genome`**: entero bitset que representa una hipótesis. El bit `i` selecciona la regla `i` del `RuleSpace` preparado.
@@ -109,7 +109,7 @@ La tabla mezcla destino y estado real a propósito. La generación de hipótesis
 
 ## Cómo se genera una regla
 
-`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` y `metarules` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP. `InductiveTask` conserva background, `#bias` y metarules como nodos `clingo.ast.AST`; `RuleEntry` conserva el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
+`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` y `metarules` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP. El background se parsea en una sola llamada preservando las líneas originales; en ejemplos solo se parsean los campos no vacíos. `InductiveTask` conserva background, átomos incluidos y excluidos, contextos, `#bias` y metarules como nodos `clingo.ast.AST`; `RuleEntry` conserva el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
 
 `HypothesisSpaceGenerator` ejecuta este pipeline:
 
@@ -163,7 +163,7 @@ El archivo semántico agrupa por `Behavior` y conserva los `k` programas más co
 
 Ambas estrategias reciben `Coverage` y devuelven `FitnessResult`. La condición de éxito es compartida. Mantén scoring separado de grounding/solving para poder comparar solvers sin cambiar el objetivo.
 
-El solver normal recompone el programa estático de cobertura más el candidato en cada evaluación. El pregrounded transforma cada regla con `clingo.ast`, añade un external reservado y alterna activaciones sobre un solo `Control`. El coste de un universo groundeado grande puede superar el ahorro de ground calls. Decide con datos.
+El solver normal crea un `Control` por evaluación, pero añade background, programa estático de cobertura y candidato desde AST ya retenido antes de groundear. El pregrounded añade un external reservado y alterna activaciones sobre un solo `Control`. El coste de un universo groundeado grande puede superar el ahorro de ground calls. Decide con datos.
 
 Antes de cambiar cobertura, prueba al menos inclusión, exclusión, tarea vacía en uno de los lados, contexts aislados, negación por defecto y varias activaciones del solver pregrounded.
 

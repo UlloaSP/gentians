@@ -1,6 +1,6 @@
 import random
 
-from ..language.asp import AspProgram, fragment_atoms
+from ..language.asp import AspProgram, symbolic_literal_predicate
 from ..language.ir.inductive_task import InductiveTask
 from ..clauses.rule_space import RuleSpace
 from ..evolution.operator_types import MutationProposal
@@ -38,10 +38,9 @@ class HypothesisGenerator:
         self.background_mask = self._predicate_mask(background)
         self.invented_mask = self._predicate_mask(set(task.invented_predicates))
         target_predicates = {
-            (name, len(arguments))
+            symbolic_literal_predicate(literal)
             for example in [*task.positive_examples, *task.negative_examples]
-            for fragment in (example.included, example.excluded)
-            for name, arguments, _negative in fragment_atoms(fragment)
+            for literal in (*example.included, *example.excluded)
         }
         self.target_mask = self._predicate_mask(target_predicates)
         self.head_masks = tuple(

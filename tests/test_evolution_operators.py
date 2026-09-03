@@ -20,9 +20,8 @@ from gentians.evolution.selections.behavior_tournament_selection import (
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
 from gentians.evolution.types import FitnessResult
-from gentians.language.ir.example import Example
 from gentians.clauses.rule_space import RuleSpace
-from tests.task_helpers import inductive_task
+from tests.task_helpers import example, inductive_task
 
 
 def _context(rules, *, max_clauses=3):
@@ -339,7 +338,7 @@ def test_hypothesis_generator_builds_invented_definition_module():
     constraint = ":- helper(V0,V1),bad(V0)."
     program = inductive_task(
         ["mother(a,b).", "father(b,c).", "bad(d)."],
-        [Example(("target(a,c)", ""), True)],
+        [example(("target(a,c)", ""), True)],
         [],
         [],
         [],
@@ -365,7 +364,7 @@ def test_population_accepts_closure_larger_than_sampled_size(monkeypatch):
     provider = "helper(V0) :- base(V0)."
     program = inductive_task(
         ["base(a)."],
-        [Example(("target(a)", ""), True)],
+        [example(("target(a)", ""), True)],
         [],
         [],
         [],

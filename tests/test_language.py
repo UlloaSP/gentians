@@ -3,6 +3,7 @@ from clingo import ast
 
 from gentians.clauses.rule_space import RuleSpace
 from gentians.language import InductiveTask, parse_file, parse_text
+from gentians.language import parser as task_parser
 from gentians.language.lexer import lex
 
 
@@ -94,6 +95,40 @@ def test_parse_file_reads_utf8_and_parses_the_task(tmp_path) -> None:
 
     assert tuple(map(str, parsed.background)) == ("fact(a).",)
     assert parsed.max_program_clauses == 2
+
+
+def test_parser_parses_all_background_statements_in_one_clingo_call(monkeypatch) -> None:
+    calls: list[str] = []
+    parse_program = task_parser.parse_program
+
+    def record(source: str, line: int = 1):
+        calls.append(source)
+        return parse_program(source, line)
+
+    monkeypatch.setattr(task_parser, "parse_program", record)
+
+    parsed = task_parser.parse_text("a.\n#maxpl(2).\nb.")
+
+    assert tuple(map(str, parsed.background)) == ("a.", "b.")
+    assert len(calls) == 1
+
+
+def test_background_ast_preserves_task_source_lines() -> None:
+    parsed = parse_text(
+        "\n#maxpl(2).\n%* comment\ncontinued *%\np(a).\n#modeh(1,p).\nq(a)."
+    )
+
+    assert [statement.location.begin.line for statement in parsed.background] == [5, 7]
+
+
+def test_background_parse_error_reports_original_task_line() -> None:
+    with pytest.raises(ValueError, match="line 3: invalid ASP program"):
+        parse_text("a.\n#maxpl(2).\np(,).")
+
+
+def test_example_parse_error_reports_original_task_line() -> None:
+    with pytest.raises(ValueError, match="line 2: invalid example"):
+        parse_text("a.\n#pos({p(X)},{}).")
 
 
 @pytest.mark.parametrize(

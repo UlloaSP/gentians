@@ -96,7 +96,7 @@ def test_profile_baseline_writes_debug_clingo_program(tmp_path):
         encoding="utf-8"
     )
     assert "base." in dump
-    assert "pos_exs(0..0)." in dump
+    assert "pos_exs((0..0))." in dump
     assert "target." in dump
     assert "python -m clingo 0 " in args
     assert "--enum-mode=brave" not in args

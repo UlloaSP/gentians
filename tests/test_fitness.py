@@ -14,18 +14,17 @@ from gentians.evolution.fitness.coverage_common import (
     balanced_coverage_score,
     coverage_score,
 )
-from gentians.language.ir.example import Example
 from gentians.language.ir.inductive_task import InductiveTask
-from gentians.language.asp import parse_program
+from gentians.language.asp import parse_program, render_program
 from gentians.clauses.rule_space import RuleSpace
-from tests.task_helpers import inductive_task
+from tests.task_helpers import example, inductive_task
 
 
 def _program() -> InductiveTask:
     return inductive_task(
         [],
-        [Example(("target(p)", ""), True)],
-        [Example(("target(n)", ""), False)],
+        [example(("target(p)", ""), True)],
+        [example(("target(n)", ""), False)],
         [],
         [],
     )
@@ -93,14 +92,14 @@ def test_balanced_coverage_normalizes_positive_and_negative_examples_separately(
     program = inductive_task(
         [],
         [
-            Example(("target(p1)", ""), True),
-            Example(("target(p2)", ""), True),
+            example(("target(p1)", ""), True),
+            example(("target(p2)", ""), True),
         ],
         [
-            Example(("target(n1)", ""), False),
-            Example(("target(n2)", ""), False),
-            Example(("target(n3)", ""), False),
-            Example(("target(n4)", ""), False),
+            example(("target(n1)", ""), False),
+            example(("target(n2)", ""), False),
+            example(("target(n3)", ""), False),
+            example(("target(n4)", ""), False),
         ],
         [],
         [],
@@ -120,8 +119,8 @@ def test_balanced_coverage_normalizes_positive_and_negative_examples_separately(
 def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
     program = inductive_task(
         [],
-        [Example((f"positive({index})", ""), True) for index in range(10)],
-        [Example((f"negative({index})", ""), False) for index in range(35)],
+        [example((f"positive({index})", ""), True) for index in range(10)],
+        [example((f"negative({index})", ""), False) for index in range(35)],
         [],
         [],
     )
@@ -175,7 +174,7 @@ def test_undefined_atoms_are_false_without_log_noise(capsys):
 
 def test_excluded_atoms_are_checked_individually():
     clauses = generate_clauses_for_coverage_interpretations(
-        [Example(("ok", "bad(1), bad(f(2,3))"), True)],
+        [example(("ok", "bad(1), bad(f(2,3))"), True)],
         True,
     )
     assert "cpe(0):- bad(1)." in clauses
@@ -185,18 +184,18 @@ def test_excluded_atoms_are_checked_individually():
 
 def test_static_program_builder_includes_examples():
     dump = build_coverage_static_program(
-        [Example(("target", ""), True)],
+        [example(("target", ""), True)],
         [],
     )
-    assert "pos_exs(0..0)." in dump
+    assert "pos_exs((0..0))." in render_program(dump)
 
 
 def test_contexts_do_not_leak_between_examples():
     program = inductive_task(
         [],
         [
-            Example(("target(a)", "", "seed(a). ctx(X) :- seed(X)."), True),
-            Example(("target(b)", "", "seed(b). ctx(X) :- seed(X)."), True),
+            example(("target(a)", "", "seed(a). ctx(X) :- seed(X)."), True),
+            example(("target(b)", "", "seed(b). ctx(X) :- seed(X)."), True),
         ],
         [],
         [],
@@ -219,8 +218,8 @@ def test_context_constraint_does_not_disable_other_examples():
     program = inductive_task(
         [],
         [
-            Example(("target(a)", "", "ctx(a)"), True),
-            Example(("target(b)", "", "ctx(b). :- ctx(b)."), True),
+            example(("target(a)", "", "ctx(a)"), True),
+            example(("target(b)", "", "ctx(b). :- ctx(b)."), True),
         ],
         [],
         [],
@@ -241,8 +240,8 @@ def test_context_constraint_does_not_disable_other_examples():
 def test_positive_context_does_not_leak_into_negative_example():
     program = inductive_task(
         [],
-        [Example(("target(a)", "", "ctx(a)"), True)],
-        [Example(("target(a)", "", "ctx(b)"), False)],
+        [example(("target(a)", "", "ctx(a)"), True)],
+        [example(("target(a)", "", "ctx(b)"), False)],
         [],
         [],
     )
@@ -263,7 +262,7 @@ def test_positive_context_does_not_leak_into_negative_example():
 def test_example_with_empty_inclusion_is_covered(context):
     program = inductive_task(
         [],
-        [Example(("", "", context), True)],
+        [example(("", "", context), True)],
         [],
         [],
         [],
@@ -284,8 +283,8 @@ def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
     program = inductive_task(
         [],
         [
-            Example(("", "", ""), True),
-            Example(("target", "", "ctx(a)"), True),
+            example(("", "", ""), True),
+            example(("target", "", "ctx(a)"), True),
         ],
         [],
         [],
@@ -306,6 +305,6 @@ def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
 def test_context_rejects_non_isolatable_statements(context):
     with pytest.raises(ValueError, match="unsupported statement"):
         build_coverage_static_program(
-            [Example(("target", "", context), True)],
+            [example(("target", "", context), True)],
             [],
         )

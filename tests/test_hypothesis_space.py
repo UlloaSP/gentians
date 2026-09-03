@@ -4,6 +4,7 @@ import random
 import re
 
 import clingo
+from clingo import ast
 import pytest
 from benchmarks.catalog import CASES
 from gentians.arguments import Arguments
@@ -35,7 +36,6 @@ from gentians.clauses.linear_constraint import LinearConstraint
 from gentians.language.ir.literal_template import render_literal
 from gentians.language.ir.aggregate_declaration import AggregateDeclaration
 from gentians.clauses.expression_constraint import ExpressionConstraint
-from gentians.language.ir.example import Example
 from gentians.language.ir.aggregate_literal import AggregateLiteral
 from gentians.language.ir.arithmetic_literal import ArithmeticLiteral
 from gentians.language.ir.atom_literal import AtomLiteral
@@ -52,7 +52,7 @@ from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.clauses.rule_space import RuleSpace
 from gentians.clauses.rule_entry import RuleEntry
 from gentians.language.ir.term_template import TermTemplate
-from tests.task_helpers import inductive_task
+from tests.task_helpers import example, inductive_task
 
 
 def _generate(program, max_body_literals=3, max_variables=3):
@@ -1018,7 +1018,7 @@ def test_explicit_body_bias_enables_recursion():
 def test_hypothesis_space_keeps_task_declared_unobserved_body_modes():
     program = inductive_task(
         ["base(a)."],
-        [Example(("target(a)", ""), True)],
+        [example(("target(a)", ""), True)],
         [],
         [_mode(1, "target", 1, head=True)],
         [
@@ -2936,10 +2936,15 @@ def test_parser_parses_directives_without_regex_space_loss(tmp_path):
     program = parse_file(str(task))
 
     assert render_program(program.background) == ("edge(1,2).",)
-    assert program.positive_examples[0].included == "red(1), blue(f(2,3))"
-    assert program.positive_examples[0].excluded == "green(1)"
-    assert program.positive_examples[0].context == "ctx((1,2))"
-    assert program.negative_examples[0].included == "bad(1)"
+    assert program.positive_examples[0].included_text == "red(1),blue(f(2,3))"
+    assert program.positive_examples[0].excluded_text == "green(1)"
+    assert program.positive_examples[0].context_text == "ctx((1,2))."
+    assert all(
+        literal.ast_type == ast.ASTType.Literal
+        for literal in program.positive_examples[0].included
+    )
+    assert program.positive_examples[0].context[0].ast_type == ast.ASTType.Rule
+    assert program.negative_examples[0].included_text == "bad(1)"
     assert program.language_bias_head[0].template.elements[0].name == "red"
     assert program.language_bias_body[0].literal.atom.name == "edge"
     assert program.aggregate_modes == [
@@ -3095,8 +3100,8 @@ def test_strongly_negated_hypothesis_covers_strongly_negated_example():
     coverage = NormalCoverageSolver(
         parse_program("node(a)."),
         ["0", "--enum-mode=brave"],
-        [Example(("-target(a)", ""), True)],
-        [Example(("target(a)", ""), False)],
+        [example(("-target(a)", ""), True)],
+        [example(("target(a)", ""), False)],
     ).extract_fixed_coverage(parse_program("-target(X) :- node(X)."))
 
     assert coverage.pos_mask == 1
@@ -3933,7 +3938,7 @@ def test_language_bias_is_not_generated_when_bias_is_missing():
 def test_language_bias_keeps_explicit_head_without_generating_body():
     program = inductive_task(
         ["coin(c1)."],
-        [Example(("heads(c1)", "tails(c1)"), True)],
+        [example(("heads(c1)", "tails(c1)"), True)],
         [],
         [
             _mode(1, "heads", 1, head=True),
@@ -4144,7 +4149,7 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     def example_cells(example):
         return {
             (int(arguments[0]), int(arguments[1])): int(arguments[2])
-            for name, arguments, _negative in fragment_atoms(example.included)
+            for name, arguments, _negative in fragment_atoms(example.included_text)
             if name == "x"
         }
 

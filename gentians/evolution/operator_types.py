@@ -9,7 +9,7 @@ from ..hypotheses import Genome
 
 @dataclass(frozen=True, slots=True)
 class MutationProposal:
-    program: Genome
+    genome: Genome
     operation: str | None = None
     local: bool | None = None
     skipped: bool = False

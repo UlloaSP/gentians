@@ -3,6 +3,7 @@ import random
 import pytest
 
 from gentians.arguments import Arguments
+from gentians.evolution import metrics as evolution_metrics
 from gentians.evolution.algorithms import search
 from gentians.evolution.algorithms.search import search_solver
 from gentians.evolution.crossovers import create_crossover
@@ -32,7 +33,7 @@ def _context(rules, *, max_clauses=3):
     ]
     program = inductive_task(background, [], [], [], [])
     rng = random.Random(7)
-    hypothesis_generator = HypothesisGenerator(program, space, max_clauses, rng)
+    hypothesis_generator = HypothesisGenerator(program, space, max_clauses)
     return EvolutionContext(hypothesis_generator, rng)
 
 
@@ -44,8 +45,8 @@ def _render(context, genome):
     return context.hypotheses.render(genome)
 
 
-def _population(generator, size):
-    context = EvolutionContext(generator, generator.rng)
+def _population(generator, size, rng=None):
+    context = EvolutionContext(generator, rng or random.Random(1))
     return create_population({"name": "random", "size": size})(context)
 
 
@@ -57,8 +58,8 @@ def test_all_mutations_share_genome_contract():
     )(
         genome, context
     )
-    assert isinstance(result.program, int)
-    assert set(_render(context, result.program)) <= set(context.hypotheses.space.clauses)
+    assert isinstance(result.genome, int)
+    assert set(_render(context, result.genome)) <= set(context.hypotheses.space.clauses)
 
 
 def test_structural_neighbor_replaces_with_same_head():
@@ -76,7 +77,7 @@ def test_structural_neighbor_replaces_with_same_head():
 
     result = mutation(_encode(context, source), context)
 
-    assert _render(context, result.program) == (same_head,)
+    assert _render(context, result.genome) == (same_head,)
     assert result.local is True
 
 
@@ -87,9 +88,9 @@ def test_structural_neighbor_does_not_materialize_available_rules(monkeypatch):
     program = _encode(context, source)
     random_ids = context.hypotheses._random_ids
 
-    def only_program_ids(mask):
+    def only_program_ids(mask, rng):
         assert mask == program
-        return random_ids(mask)
+        return random_ids(mask, rng)
 
     monkeypatch.setattr(context.hypotheses, "_random_ids", only_program_ids)
     mutation = create_mutation(
@@ -102,7 +103,7 @@ def test_structural_neighbor_does_not_materialize_available_rules(monkeypatch):
 
     result = mutation(program, context)
 
-    assert _render(context, result.program) == (same_head,)
+    assert _render(context, result.genome) == (same_head,)
 
 
 def test_structural_neighbor_random_jump_can_change_head():
@@ -119,24 +120,26 @@ def test_structural_neighbor_random_jump_can_change_head():
 
     result = mutation(_encode(context, source), context)
 
-    assert _render(context, result.program) == (other_head,)
+    assert _render(context, result.genome) == (other_head,)
     assert result.local is False
 
 
 def test_mutation_metrics_include_local_and_program_distance(monkeypatch):
     rows = []
-    monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
+    monkeypatch.setattr(
+        evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
+    )
     parent = Individual(0b011, 1.0, False)
     child = Individual(0b101, 2.0, False)
     proposal = MutationProposal(
-        child.program,
+        child.genome,
         operation="replace",
         local=True,
     )
 
-    search._mutation_metric(
-        {"name": "structural_neighbor"},
-        parent.program,
+    evolution_metrics.record_mutation(
+        "structural_neighbor",
+        parent.genome,
         parent,
         child,
         proposal,
@@ -172,7 +175,7 @@ def test_crossover_generates_closed_programs_directly():
         [consumer, first_provider, second_provider]
     )
     rng = random.Random(3)
-    generator = HypothesisGenerator(program, space, 2, rng)
+    generator = HypothesisGenerator(program, space, 2)
     context = EvolutionContext(generator, rng)
 
     children = create_crossover({"name": "set_mix", "probability": 1.0})(
@@ -327,7 +330,7 @@ def test_hypothesis_generator_creates_only_closed_programs():
     )
     program = inductive_task(["coin(c1)."], [], [], [], [])
     space = make_clause_space(list(rules))
-    generator = HypothesisGenerator(program, space, 2, random.Random(1))
+    generator = HypothesisGenerator(program, space, 2)
 
     assert [generator.render(genome) for genome in _population(generator, 1)] == [
         tuple(sorted(rules))
@@ -351,10 +354,11 @@ def test_hypothesis_generator_builds_invented_definition_module():
     space = make_clause_space(
         [consumer, mother, father, recursive, constraint]
     )
-    generator = HypothesisGenerator(program, space, 3, random.Random(1))
-    generator.rng.randint = lambda _start, end: end
+    generator = HypothesisGenerator(program, space, 3)
+    rng = random.Random(1)
+    rng.randint = lambda _start, end: end
 
-    [generated] = _population(generator, 1)
+    [generated] = _population(generator, 1, rng)
 
     assert generated is not None
     rendered = generator.render(generated)
@@ -378,11 +382,11 @@ def test_population_accepts_closure_larger_than_sampled_size(monkeypatch):
         program,
         make_clause_space([consumer, provider]),
         2,
-        random.Random(1),
     )
-    monkeypatch.setattr(generator.rng, "randint", lambda _start, _end: 1)
+    rng = random.Random(1)
+    monkeypatch.setattr(rng, "randint", lambda _start, _end: 1)
 
-    [generated] = _population(generator, 1)
+    [generated] = _population(generator, 1, rng)
 
     assert generator.render(generated) == tuple(sorted((consumer, provider)))
 
@@ -397,15 +401,14 @@ def test_hypothesis_generator_applies_mutation_atomically():
         program,
         make_clause_space([seed, consumer, provider, alternative]),
         3,
-        random.Random(1),
     )
 
-    context = EvolutionContext(generator, generator.rng)
+    context = EvolutionContext(generator, random.Random(1))
     result = create_mutation({"name": "random_group", "probability": 1.0})(
         generator.encode((seed, consumer, provider)), context
     )
 
-    rendered = generator.render(result.program)
+    rendered = generator.render(result.genome)
     assert rendered != tuple(sorted((seed, consumer, provider)))
     assert consumer not in rendered or provider in rendered or alternative in rendered
 
@@ -413,7 +416,7 @@ def test_hypothesis_generator_applies_mutation_atomically():
 def test_generator_prunes_uncloseable_rules():
     program = inductive_task(["base."], [], [], [], [])
     space = make_clause_space(["base.", "target :- missing."])
-    generator = HypothesisGenerator(program, space, 2, random.Random(1))
+    generator = HypothesisGenerator(program, space, 2)
 
     assert generator.space.clauses == ("base.",)
     assert [generator.render(genome) for genome in _population(generator, 2)] == [
@@ -424,7 +427,7 @@ def test_generator_prunes_uncloseable_rules():
 def test_hypothesis_generator_creates_requested_population_size():
     program = inductive_task([], [], [], [], [])
     space = make_clause_space(["a.", "b.", "c."])
-    generator = HypothesisGenerator(program, space, 3, random.Random(1))
+    generator = HypothesisGenerator(program, space, 3)
 
     assert len(_population(generator, 3)) == 3
 
@@ -434,11 +437,10 @@ def test_hypothesis_generator_uses_canonical_bitset_genomes():
         inductive_task([], [], [], [], []),
         make_clause_space(["a.", "b.", "c.", "d."]),
         3,
-        random.Random(1),
     )
 
     genome = generator.encode(("c.", "a.", "c."))
-    available = list(generator._random_available(genome))
+    available = list(generator._random_available(genome, random.Random(1)))
 
     assert isinstance(genome, int)
     assert genome.bit_count() == 2
@@ -451,20 +453,20 @@ def test_hypothesis_generator_does_not_cache_bounded_search_failures(monkeypatch
         inductive_task([], [], [], [], []),
         make_clause_space(["a."]),
         1,
-        random.Random(1),
     )
     proposal = generator.encode(("a.",))
     calls = 0
 
-    def fail(_proposal, _forbidden):
+    def fail(_proposal, _forbidden, _rng):
         nonlocal calls
         calls += 1
         return None
 
     monkeypatch.setattr(generator, "_complete", fail)
 
-    assert generator._build(proposal, 0) is None
-    assert generator._build(proposal, 0) is None
+    rng = random.Random(1)
+    assert generator._build(proposal, 0, rng) is None
+    assert generator._build(proposal, 0, rng) is None
     assert calls == 2
 
 
@@ -478,16 +480,17 @@ def test_hypothesis_generator_records_closure_for_each_public_transition(monkeyp
         inductive_task([], [], [], [], []),
         make_clause_space(["a.", "b.", "c."]),
         2,
-        random.Random(1),
     )
 
-    created = generator.create()
+    rng = random.Random(1)
+    created = generator.create(rng)
     assert created is not None
-    generator.append(generator.encode(("a.",)))
+    generator.append(generator.encode(("a.",)), rng)
     generator.mix(
         generator.encode(("a.",)),
         generator.encode(("b.",)),
         ((0.7, 0.3), (0.3, 0.7)),
+        rng,
     )
 
     assert len(calls) == 3
@@ -499,7 +502,7 @@ def test_evolution_strategies_choose_operations_and_delegate_validity():
         def __init__(self):
             self.calls = []
 
-        def create(self):
+        def create(self, _rng):
             candidate = len([call for call in self.calls if call[0] == "create"]) + 1
             self.calls.append(("create", candidate))
             return candidate
@@ -508,11 +511,11 @@ def test_evolution_strategies_choose_operations_and_delegate_validity():
             self.calls.append(("operations", program))
             return ["append"]
 
-        def append(self, program):
+        def append(self, program, _rng):
             self.calls.append(("append", program))
             return program | 4
 
-        def mix(self, first, second, probabilities):
+        def mix(self, first, second, probabilities, _rng):
             self.calls.append(("crossover", first, second, probabilities))
             return ()
 
@@ -577,6 +580,42 @@ def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
     assert score == 1.0
     assert best is True
     assert generations == [(0, 2.0, [2.0, 1.0])]
+
+
+def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
+    orders = []
+    monkeypatch.setattr(
+        search,
+        "create_population",
+        lambda config: lambda context: [
+            context.hypotheses.encode(("first.",)),
+            context.hypotheses.encode(("second.",)),
+        ],
+    )
+    monkeypatch.setattr(
+        search,
+        "create_fitness",
+        lambda task, config: lambda candidate: FitnessResult(
+            1.0,
+            tuple(map(str, candidate)) == ("first.",),
+            (1, 0),
+        ),
+    )
+    monkeypatch.setattr(
+        search,
+        "record_ga_generation",
+        lambda generation, best, population, **kwargs: orders.append(
+            [individual.birth_order for individual in population]
+        ),
+    )
+    args = Arguments(random_seed=7, population={"name": "random", "size": 2})
+    task = inductive_task([], [], [], [], [], max_program_clauses=1)
+    space = make_clause_space(["first.", "second."])
+
+    search_solver(args, task, space)
+    search_solver(args, task, space)
+
+    assert orders == [[1, 2], [1, 2]]
 
 
 def test_default_unlimited_generations_run_until_winner(monkeypatch):
@@ -773,7 +812,9 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
             )
         ),
     )
-    monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
+    monkeypatch.setattr(
+        evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
+    )
 
     search_solver(
         args,
@@ -815,7 +856,9 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
             lambda candidate: FitnessResult(1.0, False, (0, 0))
         ),
     )
-    monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
+    monkeypatch.setattr(
+        evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
+    )
 
     search_solver(
         args,
@@ -858,7 +901,9 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
             context.hypotheses.encode(("cross.",)),
         ),
     )
-    monkeypatch.setattr(search, "record_metric", lambda _kind, row: rows.append(row))
+    monkeypatch.setattr(
+        evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
+    )
 
     search_solver(
         args,
@@ -874,10 +919,10 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
 
 def test_equal_novel_candidate_replaces_an_existing_individual():
     population = [
-        Individual(1, 0.0, False, generated_timestamp=1.0),
-        Individual(2, 0.0, False, generated_timestamp=2.0),
+        Individual(1, 0.0, False, birth_order=1),
+        Individual(2, 0.0, False, birth_order=2),
     ]
-    candidate = Individual(4, 0.0, False, generated_timestamp=3.0)
+    candidate = Individual(4, 0.0, False, birth_order=3)
 
     result = OldestOrWorstReplacement(0.0)(population, candidate, random.Random(1))
 
@@ -887,12 +932,12 @@ def test_equal_novel_candidate_replaces_an_existing_individual():
 
 def test_equal_score_new_behavior_evicts_repeated_behavior():
     population = [
-        Individual(1, 2.0, False, behavior=(1, 1), generated_timestamp=1.0),
-        Individual(2, 2.0, False, behavior=(1, 1), generated_timestamp=2.0),
-        Individual(4, 2.0, False, behavior=(2, 1), generated_timestamp=3.0),
+        Individual(1, 2.0, False, behavior=(1, 1), birth_order=1),
+        Individual(2, 2.0, False, behavior=(1, 1), birth_order=2),
+        Individual(4, 2.0, False, behavior=(2, 1), birth_order=3),
     ]
     candidate = Individual(
-        8, 2.0, False, behavior=(2, 0), generated_timestamp=4.0
+        8, 2.0, False, behavior=(2, 0), birth_order=4
     )
 
     result = OldestOrWorstReplacement(0.0, behavior_tiebreak=True)(
@@ -900,5 +945,5 @@ def test_equal_score_new_behavior_evicts_repeated_behavior():
     )
 
     assert candidate in result
-    assert Individual(1, 2.0, False, behavior=(1, 1), generated_timestamp=1.0) not in result
+    assert Individual(1, 2.0, False, behavior=(1, 1), birth_order=1) not in result
     assert {item.behavior for item in result} == {(1, 1), (2, 1), (2, 0)}

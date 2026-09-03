@@ -4807,8 +4807,8 @@ def test_second_order_metarule_instantiates_atomic_rule_bundle(tmp_path):
     }
     assert len({entry.bundle for entry in metarules}) == 1
 
-    generator = HypothesisGenerator(program, space, 2, random.Random(0))
-    hypothesis = generator.create()
+    generator = HypothesisGenerator(program, space, 2)
+    hypothesis = generator.create(random.Random(0))
     assert hypothesis is not None
     assert len(generator.render(hypothesis)) == 2
 
@@ -4998,10 +4998,12 @@ def test_dependency_completion_closes_a_provider_bundle():
         )
     )
     generator = HypothesisGenerator(
-        inductive_task(["b.", "c."], [], [], [], []), space, 3, random.Random(0)
+        inductive_task(["b.", "c."], [], [], [], []), space, 3
     )
 
-    completed = generator._build(1 << generator.clause_ids["target :- p."], 0)
+    completed = generator._build(
+        1 << generator.clause_ids["target :- p."], 0, random.Random(0)
+    )
 
     assert completed is not None
     assert set(generator.render(completed)) == {"p :- b.", "q :- c.", "target :- p."}

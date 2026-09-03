@@ -460,7 +460,7 @@ def test_ga_metrics_have_one_generation_coordinate(monkeypatch):
     timing.record_ga_generation(
         0,
         1.0,
-        [SimpleNamespace(score=1.0, program=1)],
+        [SimpleNamespace(score=1.0, genome=1)],
     )
 
     assert timing._ga_rows[0]["generation"] == 0

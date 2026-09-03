@@ -37,10 +37,8 @@ class HypothesisGenerator:
         task: InductiveTask,
         space: ClauseSpace,
         max_clauses: int,
-        rng: random.Random,
     ) -> None:
         self.max_clauses = max_clauses
-        self.rng = rng
         self.space = prepare_space(task, space)
         self.clauses = self.space.clauses
         self.statements = self.space.statements
@@ -120,12 +118,12 @@ class HypothesisGenerator:
         return tuple(self.statements[clause_id] for clause_id in self._ids(genome))
 
     @_record_closure_time
-    def create(self) -> Genome | None:
+    def create(self, rng: random.Random) -> Genome | None:
         if not self.clause_count:
             return None
         limit = min(self.max_clauses, self.clause_count)
-        size = self.rng.randint(1, limit)
-        return self._build(self._sample_clauses(size), 0)
+        size = rng.randint(1, limit)
+        return self._build(self._sample_clauses(size, rng), 0, rng)
 
     @_record_closure_time
     def mix(
@@ -133,13 +131,14 @@ class HypothesisGenerator:
         first: Genome,
         second: Genome,
         probabilities: tuple[tuple[float, float], ...],
+        rng: random.Random,
     ) -> tuple[Genome, ...]:
         return tuple(
             child
             for first_probability, second_probability in probabilities
             if (
                 child := self._mix_one(
-                    first, second, first_probability, second_probability
+                    first, second, first_probability, second_probability, rng
                 )
             )
             is not None
@@ -151,6 +150,7 @@ class HypothesisGenerator:
         second: Genome,
         first_probability: float,
         second_probability: float,
+        rng: random.Random,
     ) -> Genome | None:
         """
         Mezcla dos genomas en cuatro fases: toma primero las cláusulas
@@ -168,72 +168,76 @@ class HypothesisGenerator:
         """
         preferred = first & second
         for clause_id in self._ids(first & ~second):
-            if self.rng.random() < first_probability:
+            if rng.random() < first_probability:
                 preferred |= 1 << clause_id
         for clause_id in self._ids(second & ~first):
-            if self.rng.random() < second_probability:
+            if rng.random() < second_probability:
                 preferred |= 1 << clause_id
         if not preferred:
-            preferred = self._random_clause(first | second)
+            preferred = self._random_clause(first | second, rng)
         selected = 0
         for clause_id in self._ids(preferred):
-            expanded = self._complete(selected | (1 << clause_id), 0)
+            expanded = self._complete(selected | (1 << clause_id), 0, rng)
             if expanded is not None and expanded.bit_count() <= self.max_clauses:
                 selected = expanded
         if not selected:
             return None
         return selected
 
-    def operations(self, program: Genome) -> list[str]:
-        size = program.bit_count()
+    def operations(self, genome: Genome) -> list[str]:
+        size = genome.bit_count()
         operations = []
         if size < self.max_clauses:
             operations.append("append")
         if size > 1:
             operations.append("remove")
-        if program and self.all_clauses & ~program:
+        if genome and self.all_clauses & ~genome:
             operations.append("replace")
         return operations
 
     @_record_closure_time
-    def append(self, program: Genome) -> Genome | None:
-        for clause_id in self._random_available(program):
-            if candidate := self._build(program | (1 << clause_id), 0):
+    def append(self, genome: Genome, rng: random.Random) -> Genome | None:
+        for clause_id in self._random_available(genome, rng):
+            if candidate := self._build(genome | (1 << clause_id), 0, rng):
                 return candidate
         return None
 
     @_record_closure_time
-    def remove(self, program: Genome) -> Genome | None:
-        for clause_id in self._random_ids(program):
+    def remove(self, genome: Genome, rng: random.Random) -> Genome | None:
+        for clause_id in self._random_ids(genome, rng):
             clause_bit = self.clause_bundle_masks[clause_id]
-            if candidate := self._build(program & ~clause_bit, clause_bit):
+            if candidate := self._build(genome & ~clause_bit, clause_bit, rng):
                 return candidate
         return None
 
     @_record_closure_time
-    def replace(self, program: Genome, *, same_head: bool = False) -> Genome | None:
-        for source_id in self._random_ids(program):
+    def replace(
+        self, genome: Genome, rng: random.Random, *, same_head: bool = False
+    ) -> Genome | None:
+        for source_id in self._random_ids(genome, rng):
             source_bit = self.clause_bundle_masks[source_id]
-            base = program & ~source_bit
+            base = genome & ~source_bit
             replacements = (
                 (
                     clause_id
-                    for clause_id in self._random_available(program)
+                    for clause_id in self._random_available(genome, rng)
                     if self.head_masks[clause_id] == self.head_masks[source_id]
                 )
                 if same_head
-                else self._random_available(program)
+                else self._random_available(genome, rng)
             )
             for replacement_id in replacements:
-                if candidate := self._build(base | (1 << replacement_id), source_bit):
+                if candidate := self._build(
+                    base | (1 << replacement_id), source_bit, rng
+                ):
                     return candidate
         return None
 
-    def _sample_clauses(self, size: int) -> Genome:
+    def _sample_clauses(self, size: int, rng: random.Random) -> Genome:
         if not self.invented_mask or not self.target_clauses:
             return sum(
                 1 << clause_id
-                for clause_id in self.rng.sample(range(self.clause_count), size)
+                for clause_id in rng.sample(range(self.clause_count), size)
             )
         invented_consumers = sum(
             1 << clause_id
@@ -241,12 +245,14 @@ class HypothesisGenerator:
             if self.dep_masks[clause_id] & self.invented_mask
         )
         seeds = invented_consumers or self.target_clauses
-        seed = self._random_clause(seeds)
+        seed = self._random_clause(seeds, rng)
         remaining = size - 1
-        others = self._sample_ids(self.all_clauses & ~seed, remaining)
+        others = self._sample_ids(self.all_clauses & ~seed, remaining, rng)
         return seed | sum(1 << clause_id for clause_id in others)
 
-    def _build(self, proposal: Genome, forbidden: Genome) -> Genome | None:
+    def _build(
+        self, proposal: Genome, forbidden: Genome, rng: random.Random
+    ) -> Genome | None:
         key = proposal, forbidden
         if key in self._build_cache:
             return self._build_cache[key]
@@ -259,12 +265,14 @@ class HypothesisGenerator:
         if invalid:
             result = None
         else:
-            result = self._complete(proposal, forbidden)
+            result = self._complete(proposal, forbidden, rng)
         if result is not None or invalid:
             self._remember(self._build_cache, key, result)
         return result
 
-    def _complete(self, candidate: Genome, forbidden: Genome) -> Genome | None:
+    def _complete(
+        self, candidate: Genome, forbidden: Genome, rng: random.Random
+    ) -> Genome | None:
         candidate = self._bundle_closure(candidate)
         if candidate & forbidden or candidate.bit_count() > self.max_clauses:
             return None
@@ -308,7 +316,7 @@ class HypothesisGenerator:
                     )
                     score_groups[score] = score_groups.get(score, 0) | (1 << clause_id)
                 for score in sorted(score_groups, reverse=True):
-                    for clause_id in self._random_ids(score_groups[score]):
+                    for clause_id in self._random_ids(score_groups[score], rng):
                         if result := search(completed | (1 << clause_id)):
                             return result
             failed.add(completed)
@@ -332,22 +340,22 @@ class HypothesisGenerator:
             self._remember(self._summary_cache, genome, (heads, deps))
         return self._summary_cache[genome]
 
-    def _random_clause(self, mask: int) -> int:
-        return 1 << self.rng.choice(tuple(self._ids(mask)))
+    def _random_clause(self, mask: int, rng: random.Random) -> int:
+        return 1 << rng.choice(tuple(self._ids(mask)))
 
-    def _random_ids(self, mask: int):
+    def _random_ids(self, mask: int, rng: random.Random):
         clause_ids = list(self._ids(mask))
         while clause_ids:
-            index = self.rng.randrange(len(clause_ids))
+            index = rng.randrange(len(clause_ids))
             clause_ids[index], clause_ids[-1] = clause_ids[-1], clause_ids[index]
             yield clause_ids.pop()
 
-    def _random_available(self, excluded: Genome):
+    def _random_available(self, excluded: Genome, rng: random.Random):
         excluded_ids = tuple(self._ids(excluded))
         remaining = self.clause_count - len(excluded_ids)
         swaps: dict[int, int] = {}
         while remaining:
-            compressed = self.rng.randrange(remaining)
+            compressed = rng.randrange(remaining)
             selected = swaps.get(compressed, compressed)
             remaining -= 1
             swaps[compressed] = swaps.get(remaining, remaining)
@@ -358,9 +366,11 @@ class HypothesisGenerator:
                 clause_id += 1
             yield clause_id
 
-    def _sample_ids(self, mask: int, size: int) -> list[int]:
+    def _sample_ids(
+        self, mask: int, size: int, rng: random.Random
+    ) -> list[int]:
         available = tuple(self._ids(mask))
-        return self.rng.sample(available, min(size, len(available)))
+        return rng.sample(available, min(size, len(available)))
 
     @staticmethod
     def _ids(mask: int):

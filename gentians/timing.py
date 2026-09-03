@@ -248,10 +248,9 @@ def record_ga_generation(
             score = float(getattr(element, "score", 0.0))
             score_total += score
             max_fitness = max(max_fitness, score)
-            program = getattr(element, "program", None)
-            if program is not None:
-                signatures.add(program)
-            size_total += element.program.bit_count()
+            genome = element.genome
+            signatures.add(genome)
+            size_total += genome.bit_count()
             if score == float("-inf"):
                 invalid += 1
         population_size = len(population)

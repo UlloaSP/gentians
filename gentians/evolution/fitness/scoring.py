@@ -1,9 +1,7 @@
 import math
 
 from ...asp.coverage import Coverage
-from ...language.asp import AspProgram
 from ...language.ir.inductive_task import InductiveTask
-from ...timing import instrumentation, metric_enabled, record_metric
 
 
 def coverage_score(task: InductiveTask, coverage: Coverage) -> float:
@@ -41,29 +39,3 @@ def balanced_coverage_score(task: InductiveTask, coverage: Coverage) -> float:
     if negative_total:
         return (negative_total - covered_negative) / negative_total
     return 1.0
-
-
-def record_fitness_metric(
-    task: InductiveTask,
-    candidate_program: AspProgram,
-    coverage: Coverage,
-    score: float,
-    best_found: bool,
-) -> None:
-    if not metric_enabled("quality"):
-        return
-    with instrumentation():
-        covered_positive = coverage.pos_mask.bit_count()
-        covered_negative = coverage.neg_mask.bit_count()
-        record_metric(
-            "quality",
-            {
-                "program_size": len(candidate_program),
-                "score": score,
-                "best_found": best_found,
-                "covered_positive": covered_positive,
-                "covered_negative": covered_negative,
-                "total_positive": len(task.positive_examples),
-                "total_negative": len(task.negative_examples),
-            },
-        )

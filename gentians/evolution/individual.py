@@ -1,5 +1,4 @@
-import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ..hypotheses import Genome
 from .types import Behavior
@@ -7,8 +6,8 @@ from .types import Behavior
 
 @dataclass(slots=True)
 class Individual:
-    program: Genome
+    genome: Genome
     score: float
-    is_best: bool  # does this cover everything positive and no negative?
+    is_solution: bool
     behavior: Behavior = (0, 0)
-    generated_timestamp: float = field(default_factory=time.time)
+    birth_order: int = 0

@@ -64,6 +64,8 @@ Clingo validates background ASP. Task files do not accept `#script` blocks.
 The mandatory
 `HypothesisGenerator` in `gentians.hypotheses` is plumbing used by evolutionary
 strategies to preserve size, membership, bundle, and dependency invariants.
+`Genome` is the bitset genotype, the rendered ASP hypothesis is its phenotype,
+and `Individual` couples one genome to its evaluation and logical birth order.
 
 ```python
 arguments = Arguments(
@@ -79,9 +81,9 @@ main(arguments)
 
 `fitness.name` is `cov_program` or `cov_balanced`. `cov_balanced` evaluates the
 whole program like `cov_program`, but scores balanced accuracy linearly from 0
-to 1. Evolutionary individuals may have variable sizes. Every normal fitness
-evaluation creates a fresh Clingo control, adds retained AST, grounds its
-candidate program, then solves it.
+to 1. Evolutionary individuals may have variable sizes. Every fitness
+evaluation uses the normal solver: it creates a fresh Clingo control, adds
+retained AST, grounds its candidate program, then solves it.
 Whole-program fitness uses brave consequences.
 
 Mutation defaults to `random_group`. `structural_neighbor` remains available as

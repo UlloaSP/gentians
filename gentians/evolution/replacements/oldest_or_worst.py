@@ -45,7 +45,7 @@ class OldestOrWorstReplacement:
         # ranked reliably. A candidate below the admission threshold cannot
         # replace anyone without decreasing the population's score profile.
         if (
-            any(item.program == candidate.program for item in population)
+            any(item.genome == candidate.genome for item in population)
             or not math.isfinite(candidate.score)
             or population
             and candidate.score < population[-1].score
@@ -79,13 +79,13 @@ class OldestOrWorstReplacement:
                     for item in worst
                     if frequencies[item.behavior] == crowded
                 ),
-                key=lambda item: item.generated_timestamp,
+                key=lambda item: item.birth_order,
             )
         else:
-            # Lower timestamps are older. The injected RNG makes this policy
+            # Lower birth orders are older. The injected RNG makes this policy
             # reproducible under the search's configured random seed.
             victim = (
-                min(ranked, key=lambda item: item.generated_timestamp)
+                min(ranked, key=lambda item: item.birth_order)
                 if rng.random() < self.probability
                 else ranked[-1]
             )

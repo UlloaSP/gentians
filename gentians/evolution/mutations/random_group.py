@@ -14,11 +14,11 @@ class RandomGroupMutation:
         context.rng.shuffle(operations)
         for operation in operations:
             if operation == "append":
-                candidate = context.hypotheses.append(genome)
+                candidate = context.hypotheses.append(genome, context.rng)
             elif operation == "remove":
-                candidate = context.hypotheses.remove(genome)
+                candidate = context.hypotheses.remove(genome, context.rng)
             else:
-                candidate = context.hypotheses.replace(genome)
+                candidate = context.hypotheses.replace(genome, context.rng)
             if candidate is not None:
                 return MutationProposal(candidate, operation=operation, local=False)
         return MutationProposal(genome)

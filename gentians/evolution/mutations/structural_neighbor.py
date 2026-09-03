@@ -23,14 +23,14 @@ class StructuralNeighborMutation:
             if operation == "replace":
                 random_jump = context.rng.random() < self.random_jump_probability
                 candidate = context.hypotheses.replace(
-                    genome, same_head=not random_jump
+                    genome, context.rng, same_head=not random_jump
                 )
                 local = not random_jump
             elif operation == "append":
-                candidate = context.hypotheses.append(genome)
+                candidate = context.hypotheses.append(genome, context.rng)
                 local = False
             else:
-                candidate = context.hypotheses.remove(genome)
+                candidate = context.hypotheses.remove(genome, context.rng)
                 local = False
             if candidate is not None:
                 return MutationProposal(candidate, operation=operation, local=local)

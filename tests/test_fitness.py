@@ -8,9 +8,8 @@ from gentians.asp.coverage import (
 )
 from gentians.asp.coverage_program import build_coverage_static_program
 from gentians.evolution.fitness import create_fitness
-from gentians.evolution.fitness.cov_balanced import CovBalanced
-from gentians.evolution.fitness.cov_program import CovProgram
-from gentians.evolution.fitness.coverage_common import (
+from gentians.evolution.fitness.evaluator import FitnessEvaluator
+from gentians.evolution.fitness.scoring import (
     balanced_coverage_score,
     coverage_score,
 )
@@ -49,12 +48,9 @@ def _asp(*rules: str):
     return parse_program("\n".join(rules))
 
 
-@pytest.mark.parametrize(
-    ("name", "strategy"),
-    [("cov_program", CovProgram), ("cov_balanced", CovBalanced)],
-)
-def test_factory_dispatches_complete_coverages(name, strategy):
-    assert isinstance(_fitness(name), strategy)
+@pytest.mark.parametrize("name", ["cov_program", "cov_balanced"])
+def test_factory_builds_shared_evaluator(name):
+    assert isinstance(_fitness(name), FitnessEvaluator)
 
 
 def test_factory_rejects_unknown_strategy():
@@ -67,7 +63,7 @@ def test_whole_program_scores_only_individual():
     result = _fitness("cov_program")(_asp(*candidate))
 
     assert result.score == 1.0
-    assert result.is_best is False
+    assert result.is_solution is False
     assert result.behavior == (1, 1)
 
 
@@ -84,7 +80,7 @@ def test_balanced_coverage_uses_balanced_accuracy(candidate, score, perfect):
     result = _fitness("cov_balanced")(_asp(*candidate))
 
     assert result.score == pytest.approx(score)
-    assert result.is_best is perfect
+    assert result.is_solution is perfect
 
 
 def test_balanced_coverage_normalizes_positive_and_negative_examples_separately():
@@ -209,7 +205,7 @@ def test_contexts_do_not_leak_between_examples():
     result = evaluate(rules.statements)
 
     assert result.score == pytest.approx(1.0)
-    assert result.is_best is False
+    assert result.is_solution is False
     assert result.behavior == (0, 0)
 
 
@@ -253,7 +249,7 @@ def test_positive_context_does_not_leak_into_negative_example():
     result = evaluate(rules.statements)
 
     assert result.score == pytest.approx(math.exp(10))
-    assert result.is_best is True
+    assert result.is_solution is True
     assert result.behavior == (1, 0)
 
 
@@ -274,7 +270,7 @@ def test_example_with_empty_inclusion_is_covered(context):
     result = evaluate(())
 
     assert result.score == pytest.approx(math.exp(10))
-    assert result.is_best is True
+    assert result.is_solution is True
     assert result.behavior == (1, 0)
 
 

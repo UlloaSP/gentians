@@ -15,4 +15,5 @@ class SetMixCrossover:
             first,
             second,
             ((0.7, 0.3), (0.3, 0.7)),
+            context.rng,
         )

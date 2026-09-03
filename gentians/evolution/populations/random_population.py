@@ -11,7 +11,7 @@ class RandomPopulation:
         seen: set[Genome] = set()
         failed_attempts = 0
         while len(population) < self.size and failed_attempts < 64:
-            candidate = context.hypotheses.create()
+            candidate = context.hypotheses.create(context.rng)
             if candidate is not None and candidate not in seen:
                 population.append(candidate)
                 seen.add(candidate)

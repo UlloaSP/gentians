@@ -8,46 +8,28 @@ from ...clauses import (
 )
 from ...language.ir.inductive_task import InductiveTask
 from ...timing import (
-    instrumentation,
-    metric_enabled,
     net_time,
     phase,
     profile_phase,
     record_ga_generation,
-    record_metric,
 )
 from ..crossovers import create_crossover
 from ..evolution_context import EvolutionContext
 from ..fitness import create_fitness
 from ..individual import Individual
+from ..metrics import (
+    record_clause_space,
+    record_crossover,
+    record_mutation,
+    record_replacement,
+    record_selection,
+    record_skipped_crossover,
+)
 from ..mutations import create_mutation
-from ..operator_types import MutationProposal
 from ..populations import create_population
 from ...hypotheses import Genome, HypothesisGenerator
 from ..replacements import create_replacement
 from ..selections import create_selection
-
-
-def _record_clause_space_metrics(task: InductiveTask, space: ClauseSpace) -> None:
-    if not metric_enabled("candidate"):
-        return
-    invented = set(task.invented_predicates)
-    with instrumentation():
-        record_metric(
-            "candidate",
-            {
-                "metric": "clause_generation",
-                "clauses": len(space),
-                "invented_predicates": len(invented),
-                "invented_definition_clauses": sum(
-                    bool(entry.heads & invented) for entry in space.entries
-                ),
-                "invented_consumer_clauses": sum(
-                    bool(entry.deps & invented) for entry in space.entries
-                ),
-            },
-        )
-
 
 @profile_phase("search")
 def search_solver(
@@ -69,7 +51,7 @@ def search_solver(
         if supplied_space is not None
         else generate_clause_space(task, args)
     )
-    _record_clause_space_metrics(task, space)
+    record_clause_space(task, space)
     if not space:
         raise ValueError("No clauses found")
     max_program_clauses = (
@@ -79,7 +61,6 @@ def search_solver(
         task,
         space,
         max_program_clauses,
-        rng,
     )
     space = hypotheses.space
     if not space:
@@ -93,6 +74,28 @@ def search_solver(
     evaluations = 0
     started = net_time()
 
+    def finish(
+        solution: Individual,
+        population: list[Individual],
+        generation: int,
+    ) -> tuple[tuple[str, ...], float, bool]:
+        record_ga_generation(
+            generation,
+            best_overall.score,
+            population,
+            elapsed_seconds=net_time() - started,
+            fitness_evaluations=evaluations,
+        )
+        return hypotheses.render(solution.genome), solution.score, True
+
+    def population_with(solution: Individual) -> list[Individual]:
+        updated = replacement(list(population), solution, rng)
+        return (
+            updated
+            if any(item is solution for item in updated)
+            else [*population[:-1], solution]
+        )
+
     def admit(candidate: Genome):
         nonlocal evaluations
         if candidate in evaluated:
@@ -100,7 +103,11 @@ def search_solver(
         evaluations += 1
         result = evaluate_score(hypotheses.program(candidate))
         individual = Individual(
-            candidate, result.score, result.is_best, result.behavior
+            candidate,
+            result.score,
+            result.is_solution,
+            result.behavior,
+            evaluations,
         )
         evaluated[candidate] = individual
         return individual
@@ -116,20 +123,9 @@ def search_solver(
         raise RuntimeError("Could not initialize population")
     population.sort(key=lambda item: item.score, reverse=True)
     best_overall = population[0]
-    winner = next((item for item in population if item.is_best), None)
+    winner = next((item for item in population if item.is_solution), None)
     if winner is not None:
-        record_ga_generation(
-            0,
-            best_overall.score,
-            population,
-            elapsed_seconds=net_time() - started,
-            fitness_evaluations=evaluations,
-        )
-        return (
-            hypotheses.render(winner.program),
-            winner.score,
-            True,
-        )
+        return finish(winner, population, 0)
 
     record_ga_generation(
         0,
@@ -143,43 +139,15 @@ def search_solver(
         best_overall = _better(best_overall, population[0])
         with phase("selection"):
             first, second = selection(population, rng)
-            with instrumentation():
-                record_metric(
-                    "operator",
-                    {
-                        "operator": "selection",
-                        "strategy": str(args.selection["name"]),
-                        "applied": True,
-                        "skipped": False,
-                        "slots": 1,
-                        "parent_a_score": first.score,
-                        "parent_b_score": second.score,
-                        "population_size": len(population),
-                    },
-                )
+            record_selection(
+                str(args.selection["name"]), first, second, len(population)
+            )
         with phase("crossover"):
-            proposals = crossover(first.program, second.program, context)
+            proposals = crossover(first.genome, second.genome, context)
             if not proposals:
-                with instrumentation():
-                    record_metric(
-                        "operator",
-                        {
-                            "operator": "crossover",
-                            "strategy": str(args.crossover["name"]),
-                            "applied": False,
-                            "skipped": True,
-                            "slots": 1,
-                            "valid_new": False,
-                            "duplicate": False,
-                            "changed": False,
-                            "invalid": False,
-                            "original_score": "",
-                            "new_score": "",
-                            "improved": False,
-                            "is_best": False,
-                            "population_size": len(population),
-                        },
-                    )
+                record_skipped_crossover(
+                    str(args.crossover["name"]), len(population)
+                )
                 children = []
             else:
                 children = []
@@ -192,47 +160,32 @@ def search_solver(
             best_parent = first if first.score >= second.score else second
             crossover_improved = crossed and child.score > best_parent.score
             if crossed:
-                _operator_metric(
-                    "crossover",
-                    args.crossover,
+                record_crossover(
+                    str(args.crossover["name"]),
                     best_parent,
                     child,
-                    child.program,
+                    child.genome,
                     duplicate=not base_is_new,
                 )
-            if child.is_best:
+            if child.is_solution:
                 best_overall = _better(best_overall, child)
-                terminal_population = replacement(list(population), child, rng)
-                if all(item is not child for item in terminal_population):
-                    terminal_population = [*population[:-1], child]
-                record_ga_generation(
-                    generation + 1,
-                    best_overall.score,
-                    terminal_population,
-                    elapsed_seconds=net_time() - started,
-                    fitness_evaluations=evaluations,
-                )
-                return (
-                    hypotheses.render(child.program),
-                    child.score,
-                    True,
-                )
+                return finish(child, population_with(child), generation + 1)
             with phase("mutation"):
-                proposal = mutation(child.program, context)
-                duplicate = not proposal.skipped and proposal.program in evaluated
-                unchanged = proposal.program == child.program
+                proposal = mutation(child.genome, context)
+                duplicate = not proposal.skipped and proposal.genome in evaluated
+                unchanged = proposal.genome == child.genome
                 if unchanged:
                     mutated = child
                 elif duplicate:
                     mutated = None
                 else:
-                    mutated = admit(proposal.program)
+                    mutated = admit(proposal.genome)
             scored_mutation = (
-                evaluated.get(proposal.program) if mutated is None else mutated
+                evaluated.get(proposal.genome) if mutated is None else mutated
             )
-            _mutation_metric(
-                args.mutation,
-                child.program,
+            record_mutation(
+                str(args.mutation["name"]),
+                child.genome,
                 child,
                 mutated,
                 proposal,
@@ -243,66 +196,22 @@ def search_solver(
                     crossover_improved
                     and scored_mutation is not None
                     and scored_mutation.score < child.score
-                    and all(item.program != child.program for item in population)
+                    and all(item.genome != child.genome for item in population)
                 ),
             )
             if mutated is None:
                 continue
             if unchanged and not base_is_new:
                 continue
-            if mutated.is_best:
+            if mutated.is_solution:
                 best_overall = _better(best_overall, mutated)
-                terminal_population = replacement(list(population), mutated, rng)
-                if all(item is not mutated for item in terminal_population):
-                    terminal_population = [*population[:-1], mutated]
-                record_ga_generation(
-                    generation + 1,
-                    best_overall.score,
-                    terminal_population,
-                    elapsed_seconds=net_time() - started,
-                    fitness_evaluations=evaluations,
-                )
-                return (
-                    hypotheses.render(mutated.program),
-                    mutated.score,
-                    True,
-                )
+                return finish(mutated, population_with(mutated), generation + 1)
             with phase("replacement"):
                 before = list(population)
                 population = replacement(population, mutated, rng)
-            accepted = any(item is mutated for item in population)
-            duplicate = any(item.program == mutated.program for item in before)
-            victim = next(
-                (
-                    item
-                    for item in before
-                    if all(item is not kept for kept in population)
-                ),
-                None,
+            record_replacement(
+                str(args.replacement["name"]), before, population, mutated
             )
-            with instrumentation():
-                record_metric(
-                    "operator",
-                    {
-                        "operator": "replacement",
-                        "strategy": str(args.replacement["name"]),
-                        "applied": True,
-                        "skipped": False,
-                        "slots": 1,
-                        "candidate_score": mutated.score,
-                        "accepted": accepted,
-                        "duplicate": duplicate,
-                        "invalid": False,
-                        "not_competitive": not accepted and not duplicate,
-                        "victim_score": victim.score if victim is not None else "",
-                        "improved_victim": (
-                            accepted
-                            and victim is not None
-                            and mutated.score > victim.score
-                        ),
-                        "population_size": len(population),
-                    },
-                )
         population.sort(key=lambda item: item.score, reverse=True)
         best_overall = _better(best_overall, population[0])
         record_ga_generation(
@@ -315,91 +224,11 @@ def search_solver(
     population.sort(key=lambda item: item.score, reverse=True)
     best_overall = _better(best_overall, population[0])
     return (
-        hypotheses.render(best_overall.program),
+        hypotheses.render(best_overall.genome),
         best_overall.score,
-        best_overall.is_best,
+        best_overall.is_solution,
     )
 
 
 def _better(current: Individual | None, candidate: Individual) -> Individual:
     return candidate if current is None or candidate.score > current.score else current
-
-
-def _operator_metric(
-    operator: str,
-    config: dict[str, object],
-    parent: Individual,
-    child: Individual | None,
-    child_program: Genome,
-    *,
-    duplicate: bool,
-) -> None:
-    with instrumentation():
-        changed = child_program != parent.program
-        record_metric(
-            "operator",
-            {
-                "operator": operator,
-                "strategy": str(config["name"]),
-                "applied": changed,
-                "skipped": False,
-                "slots": 1,
-                "valid_new": changed and not duplicate,
-                "duplicate": duplicate,
-                "changed": changed,
-                "original_score": parent.score,
-                "new_score": child.score if child is not None else "",
-                "improved": child is not None and child.score > parent.score,
-                "is_best": child.is_best if child is not None else False,
-            },
-        )
-
-
-def _mutation_metric(
-    config: dict[str, object],
-    parent_program: Genome,
-    parent: Individual | None,
-    child: Individual | None,
-    proposal: MutationProposal,
-    *,
-    duplicate: bool,
-    crossover_strategy: str,
-    crossover_improved: bool,
-    lost_crossover_gain: bool,
-) -> None:
-    with instrumentation():
-        changed = proposal.program != parent_program
-        record_metric(
-            "operator",
-            {
-                "operator": "mutation",
-                "strategy": str(config["name"]),
-                "crossover_strategy": crossover_strategy,
-                "crossover_improved": crossover_improved,
-                "lost_crossover_gain": lost_crossover_gain,
-                "operation": proposal.operation or "",
-                "local": proposal.local if proposal.local is not None else "",
-                "program_distance": _program_distance(parent_program, proposal.program),
-                "changed_rules": (parent_program ^ proposal.program).bit_count(),
-                "applied": changed,
-                "skipped": proposal.skipped,
-                "slots": 1,
-                "valid_new": changed and not duplicate,
-                "duplicate": duplicate,
-                "changed": changed,
-                "invalid": False,
-                "original_score": parent.score if parent is not None else "",
-                "new_score": child.score if child is not None else "",
-                "improved": (
-                    child is not None
-                    and parent is not None
-                    and child.score > parent.score
-                ),
-                "is_best": child.is_best if child is not None else False,
-            },
-        )
-
-
-def _program_distance(first: Genome, second: Genome) -> float:
-    union = (first | second).bit_count()
-    return 0.0 if not union else 1.0 - (first & second).bit_count() / union

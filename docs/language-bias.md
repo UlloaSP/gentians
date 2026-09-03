@@ -36,6 +36,11 @@ nested delimiters, ranges, and annotations. Declaration parsing lives in
 `InductiveTask` IR in `gentians.language.ir`: types, directions, recalls,
 labels, and task limits. Generic ASP fragments keep Clingo's AST through
 `gentians.language.asp`; Gentians does not define a competing ASP AST.
+Background, `#bias`, and instantiated metarules remain as `clingo.ast.AST`
+nodes inside `InductiveTask` and enter controls through `ProgramBuilder`.
+Each candidate `RuleEntry` also retains its parsed rule beside its canonical
+output text. Rendering task AST back to text is limited to diagnostics and
+ILP-specific static analysis.
 `TASK_GRAMMAR` records top-level composition and the directive parsers enforce
 the productions below.
 

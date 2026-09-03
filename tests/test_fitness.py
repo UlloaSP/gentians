@@ -16,11 +16,13 @@ from gentians.evolution.fitness.coverage_common import (
 )
 from gentians.language.ir.example import Example
 from gentians.language.ir.inductive_task import InductiveTask
+from gentians.language.asp import parse_program
 from gentians.clauses.rule_space import RuleSpace
+from tests.task_helpers import inductive_task
 
 
 def _program() -> InductiveTask:
-    return InductiveTask(
+    return inductive_task(
         [],
         [Example(("target(p)", ""), True)],
         [Example(("target(n)", ""), False)],
@@ -45,6 +47,10 @@ def _coverage(positive, negative) -> Coverage:
     return coverage
 
 
+def _asp(*rules: str):
+    return parse_program("\n".join(rules))
+
+
 @pytest.mark.parametrize(
     ("name", "strategy"),
     [("cov_program", CovProgram), ("cov_balanced", CovBalanced)],
@@ -60,7 +66,7 @@ def test_factory_rejects_unknown_strategy():
 
 def test_whole_program_scores_only_individual():
     candidate = ("target(n).", "target(p).")
-    result = _fitness("cov_program")(candidate)
+    result = _fitness("cov_program")(_asp(*candidate))
 
     assert result.score == 1.0
     assert result.is_best is False
@@ -77,14 +83,14 @@ def test_whole_program_scores_only_individual():
     ],
 )
 def test_balanced_coverage_uses_balanced_accuracy(candidate, score, perfect):
-    result = _fitness("cov_balanced")(candidate)
+    result = _fitness("cov_balanced")(_asp(*candidate))
 
     assert result.score == pytest.approx(score)
     assert result.is_best is perfect
 
 
 def test_balanced_coverage_normalizes_positive_and_negative_examples_separately():
-    program = InductiveTask(
+    program = inductive_task(
         [],
         [
             Example(("target(p1)", ""), True),
@@ -105,14 +111,14 @@ def test_balanced_coverage_normalizes_positive_and_negative_examples_separately(
         {"name": "cov_balanced", "clingo_arguments": []},
     )
 
-    result = evaluate(rules.clauses)
+    result = evaluate(rules.statements)
 
     assert result.score == pytest.approx(0.625)
 
 
 @pytest.mark.parametrize("score", [balanced_coverage_score, coverage_score])
 def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
-    program = InductiveTask(
+    program = inductive_task(
         [],
         [Example((f"positive({index})", ""), True) for index in range(10)],
         [Example((f"negative({index})", ""), False) for index in range(35)],
@@ -139,8 +145,8 @@ def test_normal_solver_grounds_each_evaluation(monkeypatch):
 
     monkeypatch.setattr(solver, "_ground", counted)
 
-    assert evaluate(("target(p).",)).score == pytest.approx(math.exp(10))
-    assert evaluate(("target(n).",)).score == pytest.approx(math.exp(-10))
+    assert evaluate(_asp("target(p).")).score == pytest.approx(math.exp(10))
+    assert evaluate(_asp("target(n).")).score == pytest.approx(math.exp(-10))
     assert calls == 2
 
 
@@ -163,7 +169,7 @@ def test_fitness_discards_split_enum_mode_override(name):
 
 
 def test_undefined_atoms_are_false_without_log_noise(capsys):
-    _fitness("cov_program")(("target(n).",))
+    _fitness("cov_program")(_asp("target(n)."))
     assert capsys.readouterr().err == ""
 
 
@@ -177,18 +183,16 @@ def test_excluded_atoms_are_checked_individually():
     assert "cpe(0):- bad(1), bad(f(2,3))." not in clauses
 
 
-def test_static_program_builder_includes_background_and_examples():
+def test_static_program_builder_includes_examples():
     dump = build_coverage_static_program(
-        ["base."],
         [Example(("target", ""), True)],
         [],
     )
-    assert "base." in dump
     assert "pos_exs(0..0)." in dump
 
 
 def test_contexts_do_not_leak_between_examples():
-    program = InductiveTask(
+    program = inductive_task(
         [],
         [
             Example(("target(a)", "", "seed(a). ctx(X) :- seed(X)."), True),
@@ -204,7 +208,7 @@ def test_contexts_do_not_leak_between_examples():
         {"name": "cov_program", "clingo_arguments": []},
     )
 
-    result = evaluate(rules.clauses)
+    result = evaluate(rules.statements)
 
     assert result.score == pytest.approx(1.0)
     assert result.is_best is False
@@ -212,7 +216,7 @@ def test_contexts_do_not_leak_between_examples():
 
 
 def test_context_constraint_does_not_disable_other_examples():
-    program = InductiveTask(
+    program = inductive_task(
         [],
         [
             Example(("target(a)", "", "ctx(a)"), True),
@@ -228,14 +232,14 @@ def test_context_constraint_does_not_disable_other_examples():
         {"name": "cov_program", "clingo_arguments": []},
     )
 
-    result = evaluate(rules.clauses)
+    result = evaluate(rules.statements)
 
     assert result.score == pytest.approx(math.exp(5))
     assert result.behavior == (1, 0)
 
 
 def test_positive_context_does_not_leak_into_negative_example():
-    program = InductiveTask(
+    program = inductive_task(
         [],
         [Example(("target(a)", "", "ctx(a)"), True)],
         [Example(("target(a)", "", "ctx(b)"), False)],
@@ -248,7 +252,7 @@ def test_positive_context_does_not_leak_into_negative_example():
         {"name": "cov_program", "clingo_arguments": []},
     )
 
-    result = evaluate(rules.clauses)
+    result = evaluate(rules.statements)
 
     assert result.score == pytest.approx(math.exp(10))
     assert result.is_best is True
@@ -257,7 +261,7 @@ def test_positive_context_does_not_leak_into_negative_example():
 
 @pytest.mark.parametrize("context", ["", "ctx(a)"])
 def test_example_with_empty_inclusion_is_covered(context):
-    program = InductiveTask(
+    program = inductive_task(
         [],
         [Example(("", "", context), True)],
         [],
@@ -277,7 +281,7 @@ def test_example_with_empty_inclusion_is_covered(context):
 
 
 def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
-    program = InductiveTask(
+    program = inductive_task(
         [],
         [
             Example(("", "", ""), True),
@@ -302,7 +306,6 @@ def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
 def test_context_rejects_non_isolatable_statements(context):
     with pytest.raises(ValueError, match="unsupported statement"):
         build_coverage_static_program(
-            [],
             [Example(("target", "", context), True)],
             [],
         )

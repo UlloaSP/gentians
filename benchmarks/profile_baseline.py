@@ -27,6 +27,7 @@ from gentians import Arguments  # noqa: E402
 from gentians import main as gentians_main  # noqa: E402
 from gentians.asp.coverage_program import build_coverage_static_program  # noqa: E402
 from gentians.language import parse_file  # noqa: E402
+from gentians.language.asp import render_program  # noqa: E402
 
 
 @dataclass
@@ -430,10 +431,16 @@ def write_debug_clingo_program(
     args_path = directory / f"{safe_filename(dataset)}.args.txt"
     directory.mkdir(parents=True, exist_ok=True)
     static_program = build_coverage_static_program(
-        task.background, task.positive_examples, task.negative_examples
+        task.positive_examples, task.negative_examples
     )
     lp_path.write_text(
-        static_program + "\n" + "\n".join(str(rule) for rule in best_program),
+        "\n".join(
+            (
+                *render_program(task.background),
+                static_program,
+                *(str(rule) for rule in best_program),
+            )
+        ),
         encoding="utf-8",
     )
     args_path.write_text(

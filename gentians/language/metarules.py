@@ -4,7 +4,7 @@ from itertools import product
 import clingo
 from clingo import ast
 
-from .asp import clause_predicates, split_top_level_args
+from .asp import add_program, clause_predicates, parse_program, split_top_level_args
 
 _BIAS_DIRECTIVE = re.compile(
     r'^\s*#bias\s*\(\s*"((?:\\.|[^"\\])*)"\s*\)\s*\.\s*$',
@@ -17,7 +17,7 @@ _METARULE_DIRECTIVE = re.compile(
 )
 
 
-def _get_bias(declaration: str) -> str:
+def _get_bias(declaration: str) -> tuple[ast.AST, ...]:
     match = _BIAS_DIRECTIVE.fullmatch(declaration)
     if match is None:
         raise ValueError("invalid #bias declaration")
@@ -28,10 +28,9 @@ def _get_bias(declaration: str) -> str:
     ).strip()
     if not payload:
         raise ValueError("#bias requires a non-empty ASP program")
-    nodes: list[ast.AST] = []
     try:
-        ast.parse_string(payload, nodes.append)
-    except RuntimeError as exc:
+        nodes = parse_program(payload)
+    except ValueError as exc:
         raise ValueError("invalid ASP program in #bias") from exc
     unsupported = {
         node.ast_type.name
@@ -43,15 +42,12 @@ def _get_bias(declaration: str) -> str:
             "#bias supports only ASP rules and hard constraints, not "
             f"{sorted(unsupported)}"
         )
-    program_directives = [
-        node for node in nodes if node.ast_type == ast.ASTType.Program
-    ]
-    if len(program_directives) != 1 or str(program_directives[0]) != "#program base.":
+    if any(node.ast_type == ast.ASTType.Program for node in nodes):
         raise ValueError("#bias cannot contain #program directives")
     rules = [node for node in nodes if node.ast_type == ast.ASTType.Rule]
     if not rules:
         raise ValueError("#bias requires at least one ASP rule or hard constraint")
-    defined = set().union(*(clause_predicates(str(rule))[0] for rule in rules))
+    defined = set().union(*(clause_predicates(rule)[0] for rule in rules))
     invalid = {
         predicate for predicate in defined if not predicate[0].startswith("bias_")
     }
@@ -60,7 +56,7 @@ def _get_bias(declaration: str) -> str:
             "predicates defined by #bias must use the bias_ namespace: "
             f"{sorted(invalid)}"
         )
-    return payload
+    return tuple(rules)
 
 
 def _get_metarule(declaration: str) -> tuple[str, str]:
@@ -82,11 +78,11 @@ def _instantiate_metarules(
     definitions: dict[str, str],
     predicates: dict[str, list[tuple[str, int]]],
     declarations: list[tuple[str, tuple[tuple[str, int], ...]]],
-) -> tuple[tuple[str, ...], ...]:
+) -> tuple[tuple[ast.AST, ...], ...]:
     unused = definitions.keys() - {name for name, _specs in declarations}
     if unused:
         raise ValueError(f"unused metarule declaration: {min(unused)}")
-    programs: list[tuple[str, ...]] = []
+    programs: list[tuple[ast.AST, ...]] = []
     for name, specs in declarations:
         template = definitions.get(name)
         if template is None:
@@ -119,24 +115,21 @@ def _instantiate_metarules(
                 rendered = re.sub(
                     rf"\b{re.escape(variable)}(?=\s*\()", predicate, rendered
                 )
-            nodes: list[ast.AST] = []
             try:
-                ast.parse_string(rendered, nodes.append)
-            except RuntimeError as exc:
+                nodes = parse_program(rendered)
+            except ValueError as exc:
                 raise ValueError(f"invalid instantiated metarule {name}") from exc
             if any(
                 node.ast_type not in {ast.ASTType.Program, ast.ASTType.Rule}
                 for node in nodes
             ):
                 raise ValueError(f"metarule {name} may contain only rules")
-            rules = tuple(
-                str(node) for node in nodes if node.ast_type == ast.ASTType.Rule
-            )
+            rules = tuple(node for node in nodes if node.ast_type == ast.ASTType.Rule)
             if not rules:
                 raise ValueError(f"metarule {name} contains no rules")
             try:
                 control = clingo.Control(["--warn=none"])
-                control.add("base", [], rendered)
+                add_program(control, rules)
                 control.ground([("base", [])])
             except RuntimeError as exc:
                 raise ValueError(f"unsafe instantiated metarule {name}") from exc

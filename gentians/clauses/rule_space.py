@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 
-from ..language.asp import clause_predicates
+from ..language.asp import clause_predicates, parse_rule
 from .rule_entry import RuleEntry
 
 
@@ -8,6 +8,7 @@ class RuleSpace:
     def __init__(self, entries: list[RuleEntry]) -> None:
         self.entries = tuple(entries)
         self.clauses = tuple(entry.text for entry in entries)
+        self.statements = tuple(entry.statement for entry in entries)
 
     @classmethod
     def from_clauses(cls, clauses: list[str]) -> RuleSpace:
@@ -28,5 +29,6 @@ class RuleSpace:
 
 
 def _entry_from_clause(rule: str) -> RuleEntry:
-    heads, deps, body_literals = clause_predicates(rule)
-    return RuleEntry(rule, heads, deps, body_literals)
+    statement = parse_rule(rule)
+    heads, deps, body_literals = clause_predicates(statement)
+    return RuleEntry(rule, statement, heads, deps, body_literals)

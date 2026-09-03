@@ -80,7 +80,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "clingo", specifier = ">=5.5" }]
+requires-dist = [{ name = "clingo", specifier = ">=5.8,<6" }]
 
 [package.metadata.requires-dev]
 dev = [

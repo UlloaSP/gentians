@@ -23,7 +23,7 @@ from benchmarks.profile_baseline import (
 from gentians import timing
 from gentians.arguments import Arguments
 from gentians.gentians import solve
-from gentians.language.ir.inductive_task import InductiveTask
+from tests.task_helpers import inductive_task
 
 
 def test_profile_worker_applies_seed_to_arguments(monkeypatch):
@@ -351,7 +351,7 @@ def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
     monkeypatch.setattr("gentians.gentians.export_timings", export)
 
     solve(
-        InductiveTask([], [], [], [], []),
+        inductive_task([], [], [], [], []),
         Arguments(population={"name": "random", "size": 1}),
     )
 
@@ -371,7 +371,7 @@ def test_total_execution_excludes_result_output(monkeypatch):
     monkeypatch.setattr("builtins.print", lambda *args, **kwargs: time.sleep(0.02))
 
     solve(
-        InductiveTask([], [], [], [], []),
+        inductive_task([], [], [], [], []),
         Arguments(population={"name": "random", "size": 1}),
     )
 
@@ -399,7 +399,7 @@ def test_fallback_total_excludes_result_output(monkeypatch):
     monkeypatch.setattr("builtins.print", print_result)
 
     solve(
-        InductiveTask([], [], [], [], []),
+        inductive_task([], [], [], [], []),
         Arguments(population={"name": "random", "size": 1}),
         start_total_time=10.0,
     )

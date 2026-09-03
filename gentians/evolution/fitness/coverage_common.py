@@ -1,6 +1,7 @@
 import math
 
 from ...asp.coverage import Coverage
+from ...language.asp import AspProgram
 from ...language.ir.inductive_task import InductiveTask
 from ...timing import instrumentation, metric_enabled, record_metric
 
@@ -44,7 +45,7 @@ def balanced_coverage_score(task: InductiveTask, coverage: Coverage) -> float:
 
 def record_fitness_metric(
     task: InductiveTask,
-    candidate_program: tuple[str, ...],
+    candidate_program: AspProgram,
     coverage: Coverage,
     score: float,
     best_found: bool,

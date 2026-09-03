@@ -84,7 +84,7 @@ def search_solver(
         if candidate in evaluated:
             return None
         evaluations += 1
-        result = evaluate_score(hypotheses.render(candidate))
+        result = evaluate_score(hypotheses.program(candidate))
         individual = Individual(
             candidate, result.score, result.is_best, result.behavior
         )

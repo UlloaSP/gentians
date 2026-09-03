@@ -8,11 +8,10 @@ COVERAGE_RULES = (Path(__file__).with_name("rules") / "coverage.lp").read_text()
 
 
 def build_coverage_static_program(
-    background: list[str],
     interpretation_pos: list[Example],
     interpretation_neg: list[Example],
 ) -> str:
-    parts = list(background)
+    parts: list[str] = []
     context_ids = _context_ids(interpretation_pos, interpretation_neg)
     if context_ids is not None:
         parts.append(

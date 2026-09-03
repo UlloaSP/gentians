@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
 
+from clingo import ast
+
 from .aggregate_declaration import AggregateDeclaration
 from .example import Example
 from .head_declaration import HeadDeclaration
@@ -13,7 +15,7 @@ Signature = tuple[str, int]
 class InductiveTask:
     """Parsed inductive task: background ASP, examples, bias, and limits."""
 
-    background: list[str]
+    background: tuple[ast.AST, ...]
     positive_examples: list[Example]
     negative_examples: list[Example]
     language_bias_head: list[HeadDeclaration]
@@ -32,5 +34,5 @@ class InductiveTask:
     language_bias_aggregate_head: list[ModeDeclaration] = field(default_factory=list)
     language_bias_disjunctive_head: list[ModeDeclaration] = field(default_factory=list)
     min_aggregate_head_literals: int = 1
-    bias: tuple[str, ...] = ()
-    metarule_programs: tuple[tuple[str, ...], ...] = ()
+    bias: tuple[ast.AST, ...] = ()
+    metarule_programs: tuple[tuple[ast.AST, ...], ...] = ()

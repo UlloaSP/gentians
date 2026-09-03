@@ -15,6 +15,9 @@ from gentians.language.asp import (
     extract_name_arity,
     fragment_atoms,
     parse_atom,
+    parse_program,
+    parse_rule,
+    render_program,
 )
 from gentians.language import parse_file
 from gentians.clauses.hypothesis_space import (
@@ -44,12 +47,12 @@ from gentians.language.ir.head_template import HeadTemplate
 from gentians.clauses.hypothesis_mode import HypothesisMode
 from gentians.language.ir.mode_declaration import ModeDeclaration
 from gentians.language.ir.operator_declaration import OperatorDeclaration
-from gentians.language.ir.inductive_task import InductiveTask
 from gentians.clauses.reified_clause import ReifiedClause
 from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.clauses.rule_space import RuleSpace
 from gentians.clauses.rule_entry import RuleEntry
 from gentians.language.ir.term_template import TermTemplate
+from tests.task_helpers import inductive_task
 
 
 def _generate(program, max_body_literals=3, max_variables=3):
@@ -158,7 +161,7 @@ def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypat
     monkeypatch.setattr(hypothesis_space, "_available_predicates", fail_if_called)
 
     assert (
-        hypothesis_space._valid_aggregate_specs(InductiveTask(["p(1)."], [], [], [], []))
+        hypothesis_space._valid_aggregate_specs(inductive_task(["p(1)."], [], [], [], []))
         == []
     )
 
@@ -174,7 +177,7 @@ def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
     monkeypatch.setattr(hypothesis_space, "_valid_aggregate_specs", aggregate_specs)
 
     hypothesis_space.HypothesisSpaceGenerator(
-        InductiveTask(
+        inductive_task(
             ["p(1)."],
             [],
             [],
@@ -193,7 +196,7 @@ def test_hypothesis_generator_decodes_models_without_shown_symbols(monkeypatch):
         raise AssertionError("hypothesis generation must not materialize shown symbols")
 
     monkeypatch.setattr(clingo.Model, "symbols", fail_if_called)
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(1,2)."],
         [],
         [],
@@ -257,7 +260,7 @@ def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
 
 def test_facts_do_not_emit_redundant_control_flags():
     facts = hypothesis_space._facts(
-        InductiveTask([], [], [], [], []),
+        inductive_task([], [], [], [], []),
         [],
         {},
         3,
@@ -273,7 +276,7 @@ def test_facts_do_not_emit_redundant_control_flags():
 
 
 def test_facts_do_not_emit_redundant_strict_comparison_mode():
-    program = InductiveTask(
+    program = inductive_task(
         [],
         [],
         [],
@@ -318,7 +321,7 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
 def test_facts_do_not_emit_redundant_arithmetic_mode():
     modes = [_arithmetic_hypothesis_mode(0, 3, "+")]
     facts = hypothesis_space._facts(
-        InductiveTask([], [], [], [], [], [], [*([]), *([OperatorDeclaration(1, "add")])]),
+        inductive_task([], [], [], [], [], [], [*([]), *([OperatorDeclaration(1, "add")])]),
         modes,
         {},
         3,
@@ -334,7 +337,7 @@ def test_facts_do_not_emit_redundant_arithmetic_mode():
 
 def test_facts_do_not_emit_derived_numeric_domain_args():
     facts = hypothesis_space._facts(
-        InductiveTask([], [], [], [], []),
+        inductive_task([], [], [], [], []),
         [_normal_hypothesis_mode(0, 0, "body", "p", 2, 1, types=("numeric", "any"))],
         {("p", 2, 0): "numeric"},
         3,
@@ -351,7 +354,7 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
 
 def test_facts_emit_only_strong_positive_numeric_domain_property():
     facts = hypothesis_space._facts(
-        InductiveTask(["p(1).", "p(2)."], [], [], [], []),
+        inductive_task(["p(1).", "p(2)."], [], [], [], []),
         [],
         {},
         3,
@@ -386,7 +389,7 @@ def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
     )
 
     clauses = hypothesis_space.build_hypothesis_space(
-        InductiveTask([], [], [], [], []), Arguments()
+        inductive_task([], [], [], [], []), Arguments()
     )
 
     assert phases == ["hypothesis_space"]
@@ -410,7 +413,7 @@ def test_hypothesis_space_is_generated_each_time(monkeypatch):
     monkeypatch.setattr(
         hypothesis_space, "HypothesisSpaceGenerator", FakeHypothesisSpaceGenerator
     )
-    program = InductiveTask([], [], [], [], [])
+    program = inductive_task([], [], [], [], [])
 
     first = hypothesis_space.build_hypothesis_space(program, Arguments())
     second = hypothesis_space.build_hypothesis_space(program, Arguments())
@@ -422,7 +425,7 @@ def test_hypothesis_space_is_generated_each_time(monkeypatch):
 def test_hypothesis_space_clingo_times_use_current_phase(monkeypatch):
     _reset_timing_state()
     monkeypatch.setattr(timing, "_enabled", True)
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1)."],
         [],
         [],
@@ -440,7 +443,7 @@ def test_hypothesis_space_clingo_times_use_current_phase(monkeypatch):
 
 
 def test_unbalanced_aggregate_variants_share_recall():
-    program = InductiveTask(
+    program = inductive_task(
         ["el(1,2).", "el(2,3)."],
         [],
         [],
@@ -566,7 +569,7 @@ def test_hypothesis_space_args_reject_string():
 def test_star_recall_uses_section_limit():
     mode = _mode(-1, "p", 1)
     facts = hypothesis_space._facts(
-        InductiveTask([], [], [], [], [mode]),
+        inductive_task([], [], [], [], [mode]),
         [_normal_hypothesis_mode(0, 0, "body", "p", 1, mode.recall)],
         {},
         2,
@@ -583,7 +586,7 @@ def test_star_recall_uses_section_limit():
 
 def test_group_recall_uses_tightest_mode_recall():
     facts = hypothesis_space._facts(
-        InductiveTask([], [], [], [], []),
+        inductive_task([], [], [], [], []),
         [
             _normal_hypothesis_mode(0, 7, "body", "p", 1, 3),
             _normal_hypothesis_mode(1, 7, "body", "q", 1, 1),
@@ -695,8 +698,8 @@ def test_dependency_closure_does_not_confuse_positive_and_strong_providers():
     from gentians.hypotheses.common import prepare_space
 
     space = RuleSpace.from_clauses(["target(X) :- -source(X)."])
-    positive_background = InductiveTask(["source(a)."], [], [], [], [])
-    strong_background = InductiveTask(["-source(a)."], [], [], [], [])
+    positive_background = inductive_task(["source(a)."], [], [], [], [])
+    strong_background = inductive_task(["-source(a)."], [], [], [], [])
 
     assert not prepare_space(positive_background, space)
     assert prepare_space(strong_background, space).clauses == space.clauses
@@ -776,7 +779,7 @@ def test_constant_mode_requires_declared_values(tmp_path):
 
 
 def test_unbounded_section_requires_finite_mode_recalls():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1)."],
         [],
         [],
@@ -959,7 +962,7 @@ def test_invented_definition_cannot_call_target_through_aggregate(tmp_path):
 
 
 def test_hypothesis_space_prunes_arg_distinct_modes_before_rendering():
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(1,2)."],
         [],
         [],
@@ -973,7 +976,7 @@ def test_hypothesis_space_prunes_arg_distinct_modes_before_rendering():
 
 
 def test_arg_distinct_still_prunes_body_self_pair_without_irreflexive_property():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(a,b).", "p(b,a).", "guard(a).", "guard(b)."],
         [],
         [],
@@ -989,7 +992,7 @@ def test_arg_distinct_still_prunes_body_self_pair_without_irreflexive_property()
 
 
 def test_missing_bias_is_not_inferred_from_background():
-    program = InductiveTask(["p(1,2)."], [], [], [], [])
+    program = inductive_task(["p(1,2)."], [], [], [], [])
 
     clauses = _generate(program, 2, 2).clauses
 
@@ -999,7 +1002,7 @@ def test_missing_bias_is_not_inferred_from_background():
 
 
 def test_explicit_body_bias_enables_recursion():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1,2)."],
         [],
         [],
@@ -1013,7 +1016,7 @@ def test_explicit_body_bias_enables_recursion():
 
 
 def test_hypothesis_space_keeps_task_declared_unobserved_body_modes():
-    program = InductiveTask(
+    program = inductive_task(
         ["base(a)."],
         [Example(("target(a)", ""), True)],
         [],
@@ -1037,7 +1040,7 @@ def test_hypothesis_space_keeps_task_declared_unobserved_body_modes():
 
 
 def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1).", "p(2)."],
         [],
         [],
@@ -1053,7 +1056,7 @@ def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering
 
 
 def test_hypothesis_space_prunes_comparison_redundancy_before_rendering():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1).", "p(2)."],
         [],
         [],
@@ -1074,7 +1077,7 @@ def test_hypothesis_space_prunes_comparison_redundancy_before_rendering():
 
 
 def test_hypothesis_space_does_not_generate_equality_comparison():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1)."],
         [],
         [],
@@ -1091,7 +1094,7 @@ def test_hypothesis_space_does_not_generate_equality_comparison():
 
 
 def test_hypothesis_space_prunes_leq_neq_when_strict_comparison_exists():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1).", "p(2)."],
         [],
         [],
@@ -1110,7 +1113,7 @@ def test_hypothesis_space_prunes_leq_neq_when_strict_comparison_exists():
 
 
 def test_hypothesis_space_prunes_transitive_comparison_redundancy():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1).", "p(2).", "p(3)."],
         [],
         [],
@@ -1132,7 +1135,7 @@ def test_hypothesis_space_prunes_transitive_comparison_redundancy():
 
 
 def test_hypothesis_space_prunes_duplicate_arithmetic_inputs_before_rendering():
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2)."],
         [],
         [],
@@ -1147,7 +1150,7 @@ def test_hypothesis_space_prunes_duplicate_arithmetic_inputs_before_rendering():
 
 
 def test_positive_domain_prunes_impossible_mul_and_div_comparisons():
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,1,1).", "q(2,2,2).", "q(3,3,3)."],
         [],
         [],
@@ -1167,7 +1170,7 @@ def test_positive_domain_prunes_impossible_mul_and_div_comparisons():
 
 
 def test_hypothesis_space_prunes_duplicate_aggregate_inputs_before_rendering():
-    program = InductiveTask(
+    program = inductive_task(
         ["el(1).", "el(2)."],
         [],
         [],
@@ -1184,7 +1187,7 @@ def test_hypothesis_space_prunes_duplicate_aggregate_inputs_before_rendering():
 
 
 def test_count_aggregate_tuple_variables_are_canonicalized():
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(a,b).", "edge(b,a)."],
         [],
         [],
@@ -1213,7 +1216,7 @@ def test_hypothesis_space_prunes_arithmetic_identities():
 
 
 def test_linear_canonicalization_merges_equivalent_add_sub_equations():
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2,3)."],
         [],
         [],
@@ -1350,7 +1353,7 @@ def test_default_negated_structured_mode_cannot_hide_output(tmp_path):
 
 @pytest.mark.parametrize("recall", [1, -1])
 def test_linear_canonicalization_normalizes_sub_only_bias(recall):
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2,3)."],
         [],
         [],
@@ -1418,7 +1421,7 @@ def test_invention_preserves_structured_argument_templates(tmp_path):
 def test_additive_modes_share_one_canonical_mode_with_combined_recall(
     declarations, expected_recalls
 ):
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2,3)."],
         [],
         [],
@@ -1438,7 +1441,7 @@ def test_additive_modes_share_one_canonical_mode_with_combined_recall(
 
 
 def test_inverse_comparisons_share_one_mode_with_combined_recall():
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2)."],
         [],
         [],
@@ -1493,7 +1496,7 @@ def test_nonlinear_canonicalization_keeps_lexicographic_render():
 
 
 def test_linear_modes_render_direct_equations_with_bounded_complexity():
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2,3,4)."],
         [],
         [],
@@ -1520,7 +1523,7 @@ def test_linear_modes_render_direct_equations_with_bounded_complexity():
 
 
 def test_linear_mode_complexity_is_capped_by_body_limit():
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2,3)."],
         [],
         [],
@@ -1542,7 +1545,7 @@ def test_linear_mode_complexity_is_capped_by_body_limit():
 
 
 def test_direct_linear_equation_can_safely_produce_a_head_variable():
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2,3)."],
         [],
         [],
@@ -1879,7 +1882,7 @@ def test_arithmetic_expression_parenthesizes_composite_abs_operands():
 
 
 def test_division_guard_does_not_consume_another_body_slot():
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2,3)."],
         [],
         [],
@@ -1903,7 +1906,7 @@ def test_division_guard_does_not_consume_another_body_slot():
 
 
 def test_symbolic_disequality_is_not_rewritten_as_subtraction():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(a).", "p(b)."],
         [],
         [],
@@ -1920,7 +1923,7 @@ def test_symbolic_disequality_is_not_rewritten_as_subtraction():
 
 
 def test_mixed_numeric_system_keeps_cross_type_disequality_symbolic():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(a).", "p(b).", "n(1).", "n(2)."],
         [],
         [],
@@ -1943,7 +1946,7 @@ def test_mixed_numeric_system_keeps_cross_type_disequality_symbolic():
 
 
 def test_canonicalization_prevents_reversed_add_operands_by_default():
-    program_without_zero = InductiveTask(
+    program_without_zero = inductive_task(
         ["#const n = 2.", "number(1..n).", "q(1,1)."],
         [],
         [],
@@ -1963,7 +1966,7 @@ def test_canonicalization_prevents_reversed_add_operands_by_default():
 
 
 def test_canonical_additive_bias_drops_subtraction_zero_equations():
-    program_without_zero = InductiveTask(
+    program_without_zero = inductive_task(
         ["#const n = 2.", "number(1..n).", "q(1,1)."],
         [],
         [],
@@ -1972,7 +1975,7 @@ def test_canonical_additive_bias_drops_subtraction_zero_equations():
         [],
         [*([]), *([OperatorDeclaration(1, "sub")])],
     )
-    program_with_zero = InductiveTask(
+    program_with_zero = inductive_task(
         ["number(0..2).", "q(0,0)."],
         [],
         [],
@@ -1993,7 +1996,7 @@ def test_canonical_additive_bias_drops_subtraction_zero_equations():
 
 
 def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
-    program = InductiveTask(
+    program = inductive_task(
         ["#const n = 2.", "number(1..n).", "q(1,1)."],
         [],
         [],
@@ -2013,7 +2016,7 @@ def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
 
 
 def test_closed_world_properties_prune_symmetric_predicate_orientation():
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(1,2).", "edge(2,1)."],
         [],
         [],
@@ -2027,7 +2030,7 @@ def test_closed_world_properties_prune_symmetric_predicate_orientation():
 
 
 def test_closed_world_properties_prune_implied_and_mutex_literals():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1).", "q(1).", "q(2).", "r(2)."],
         [],
         [],
@@ -2047,7 +2050,7 @@ def test_closed_world_properties_prune_implied_and_mutex_literals():
 
 
 def test_closed_world_properties_prune_functional_dependency():
-    program = InductiveTask(
+    program = inductive_task(
         ["parent(a,b).", "parent(c,d)."],
         [],
         [],
@@ -2060,7 +2063,7 @@ def test_closed_world_properties_prune_functional_dependency():
 
 
 def test_closed_world_properties_prune_projection_implication():
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(a,b).", "edge(b,c).", "node(a).", "node(b).", "node(c)."],
         [],
         [],
@@ -2078,7 +2081,7 @@ def test_closed_world_properties_prune_projection_implication():
 
 
 def test_closed_world_properties_prune_tuple_mutex_permutation():
-    program = InductiveTask(
+    program = inductive_task(
         ["father(a,b).", "mother(c,a)."],
         [],
         [],
@@ -2101,7 +2104,7 @@ def test_closed_world_properties_prune_tuple_mutex_permutation():
 
 
 def test_count_aggregate_full_local_condition_is_canonical():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(a,b).", "p(a,c).", "p(d,b).", "p(d,c)."],
         [],
         [],
@@ -2116,7 +2119,7 @@ def test_count_aggregate_full_local_condition_is_canonical():
 
 
 def test_aggregate_condition_keeps_inference_and_inherits_declared_normal_type():
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(a,b)."],
         [],
         [],
@@ -2138,7 +2141,7 @@ def test_aggregate_condition_keeps_inference_and_inherits_declared_normal_type()
 
 
 def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
-    program = InductiveTask(
+    program = inductive_task(
         [
             "p(1,3,5).",
             "p(1,3,6).",
@@ -2163,7 +2166,7 @@ def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
 
 
 def test_unbalanced_aggregate_prunes_key_determined_discriminator():
-    program = InductiveTask(
+    program = inductive_task(
         [
             "val(1).",
             "val(2).",
@@ -2184,7 +2187,7 @@ def test_unbalanced_aggregate_prunes_key_determined_discriminator():
 
 
 def test_balanced_aggregate_keeps_key_determined_discriminator():
-    program = InductiveTask(
+    program = inductive_task(
         [
             "val(1).",
             "val(2).",
@@ -2204,7 +2207,7 @@ def test_balanced_aggregate_keeps_key_determined_discriminator():
 
 
 def test_closed_world_properties_prune_composite_functional_dependency():
-    program = InductiveTask(
+    program = inductive_task(
         [
             "assign(r1,c1,v1).",
             "assign(r1,c2,v2).",
@@ -2221,7 +2224,7 @@ def test_closed_world_properties_prune_composite_functional_dependency():
 
 
 def test_closed_world_properties_prune_acyclic_body_cycle():
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(a,b).", "edge(b,c).", "edge(c,d)."],
         [],
         [],
@@ -2234,7 +2237,7 @@ def test_closed_world_properties_prune_acyclic_body_cycle():
 
 
 def test_closed_world_properties_prune_complement_negative_pair():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(a).", "q(b).", "safe(a,a).", "safe(b,b)."],
         [],
         [],
@@ -2382,7 +2385,7 @@ def test_closed_world_properties_emit_new_property_facts():
 
 
 def test_partition_subsumes_pairwise_mutex_facts():
-    program = InductiveTask(
+    program = inductive_task(
         ["a(1).", "b(2).", "c(3)."],
         [],
         [],
@@ -2406,7 +2409,7 @@ def test_partition_subsumes_pairwise_mutex_facts():
 
 
 def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
-    program = InductiveTask(
+    program = inductive_task(
         ["r(1,a,x,z).", "r(1,a,y,z).", "r(1,b,q,z).", "r(2,a,x,w)."],
         [],
         [],
@@ -2496,7 +2499,7 @@ def test_cardinality_upper_facts_are_emitted():
 
 
 def test_choice_rule_keys_prune_conflicting_positive_literals():
-    program = InductiveTask(
+    program = inductive_task(
         [
             "number(1..5).",
             "1 { q(X,Y) : number(Y) } 1 :- number(X).",
@@ -2514,7 +2517,7 @@ def test_choice_rule_keys_prune_conflicting_positive_literals():
 
 
 def test_choice_projection_prunes_redundant_domain_literal():
-    program = InductiveTask(
+    program = inductive_task(
         [
             "number(1..5).",
             "1 { q(X,Y) : number(Y) } 1 :- number(X).",
@@ -2533,7 +2536,7 @@ def test_choice_projection_prunes_redundant_domain_literal():
 
 
 def test_partition_prunes_all_negative_partition_literals():
-    program = InductiveTask(
+    program = inductive_task(
         [
             "red(a).",
             "green(b).",
@@ -2559,7 +2562,7 @@ def test_partition_prunes_all_negative_partition_literals():
 
 
 def test_mutex_complement_and_partition_prune_positive_negative_redundancy():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(a).", "q(b).", "safe(a).", "safe(b)."],
         [],
         [],
@@ -2579,7 +2582,7 @@ def test_mutex_complement_and_partition_prune_positive_negative_redundancy():
 
 
 def test_inverse_and_transitive_negative_closure_prune():
-    inverse = InductiveTask(
+    inverse = inductive_task(
         ["p(a,b).", "q(b,a)."],
         [],
         [],
@@ -2589,7 +2592,7 @@ def test_inverse_and_transitive_negative_closure_prune():
             _mode(1, "q", 2, positive=False),
         ],
     )
-    transitive = InductiveTask(
+    transitive = inductive_task(
         ["p(a,b).", "p(b,c).", "p(a,c)."],
         [],
         [],
@@ -2608,7 +2611,7 @@ def test_inverse_and_transitive_negative_closure_prune():
 
 
 def test_acyclic_negative_back_edge_prune():
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(a,b).", "edge(b,c)."],
         [],
         [],
@@ -2624,7 +2627,7 @@ def test_acyclic_negative_back_edge_prune():
 
 
 def test_universal_empty_and_complement_facts_are_emitted():
-    universal_program = InductiveTask(
+    universal_program = inductive_task(
         ["dom(a).", "dom(b).", "p(a).", "p(b)."],
         [],
         [],
@@ -2635,7 +2638,7 @@ def test_universal_empty_and_complement_facts_are_emitted():
             _mode(1, "missing", 1, positive=True),
         ],
     )
-    domain_program = InductiveTask(
+    domain_program = inductive_task(
         ["left(a).", "right(b)."],
         [],
         [],
@@ -2708,7 +2711,7 @@ mode(body,0,1,2,1).
 
 
 def test_empty_predicate_prunes_positive_and_negative_literals():
-    program = InductiveTask(
+    program = inductive_task(
         ["safe(a)."],
         [],
         [],
@@ -2725,7 +2728,7 @@ def test_empty_predicate_prunes_positive_and_negative_literals():
 
 
 def test_functional_negative_redundancy_with_inequality_prunes():
-    program = InductiveTask(
+    program = inductive_task(
         ["parent(a,b).", "parent(c,d).", "child(b).", "child(d)."],
         [],
         [],
@@ -2750,7 +2753,7 @@ def test_functional_negative_redundancy_with_inequality_prunes():
 
 
 def test_functional_negative_redundancy_uses_strict_comparison():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1,1).", "p(2,2).", "value(1).", "value(2)."],
         [],
         [],
@@ -2775,7 +2778,7 @@ def test_functional_negative_redundancy_uses_strict_comparison():
 
 
 def test_cardinality_upper_prunes_pairwise_distinct_positive_tuples():
-    program = InductiveTask(
+    program = inductive_task(
         ["value(a).", "value(b).", "1 { in(X) : value(X) } 1."],
         [],
         [],
@@ -2790,7 +2793,7 @@ def test_cardinality_upper_prunes_pairwise_distinct_positive_tuples():
 
 
 def test_empty_join_and_total_order_prune_impossible_bodies():
-    empty_join = InductiveTask(
+    empty_join = inductive_task(
         ["p(a).", "q(b).", "safe(a).", "safe(b)."],
         [],
         [],
@@ -2801,7 +2804,7 @@ def test_empty_join_and_total_order_prune_impossible_bodies():
             _mode(1, "q", 1, positive=True),
         ],
     )
-    order = InductiveTask(
+    order = inductive_task(
         ["le(a,a).", "le(a,b).", "le(b,b).", "pair(a,b)."],
         [],
         [],
@@ -2820,7 +2823,7 @@ def test_empty_join_and_total_order_prune_impossible_bodies():
 
 
 def test_reflexive_key_antisymmetric_and_subsumption_prunes():
-    reflexive = InductiveTask(
+    reflexive = inductive_task(
         ["le(a,a).", "le(a,b).", "le(b,b).", "node(a).", "node(b)."],
         [],
         [],
@@ -2831,14 +2834,14 @@ def test_reflexive_key_antisymmetric_and_subsumption_prunes():
             _mode(1, "le", 2, positive=False),
         ],
     )
-    key = InductiveTask(
+    key = inductive_task(
         ["rel(a,b,c).", "rel(d,e,f)."],
         [],
         [],
         [],
         [_mode(2, "rel", 3, positive=True)],
     )
-    subsumption = InductiveTask(
+    subsumption = inductive_task(
         ["p(a,a).", "p(a,b)."],
         [],
         [],
@@ -2858,7 +2861,7 @@ def test_reflexive_key_antisymmetric_and_subsumption_prunes():
 
 
 def test_equivalent_head_body_redundancy_is_pruned():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(a).", "q(a)."],
         [],
         [],
@@ -2871,7 +2874,7 @@ def test_equivalent_head_body_redundancy_is_pruned():
 
 
 def test_closed_world_properties_apply_to_aggregate_condition_atoms():
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(a,b).", "edge(b,a)."],
         [],
         [],
@@ -2887,7 +2890,7 @@ def test_closed_world_properties_apply_to_aggregate_condition_atoms():
 
 
 def test_mul_and_abs_operands_are_canonicalized():
-    program = InductiveTask(
+    program = inductive_task(
         ["q(1,2)."],
         [],
         [],
@@ -2932,7 +2935,7 @@ def test_parser_parses_directives_without_regex_space_loss(tmp_path):
 
     program = parse_file(str(task))
 
-    assert program.background == ["edge(1,2)."]
+    assert render_program(program.background) == ("edge(1,2).",)
     assert program.positive_examples[0].included == "red(1), blue(f(2,3))"
     assert program.positive_examples[0].excluded == "green(1)"
     assert program.positive_examples[0].context == "ctx((1,2))"
@@ -3090,11 +3093,11 @@ def test_strong_negation_is_rendered_in_heads_and_default_negated_bodies(tmp_pat
 
 def test_strongly_negated_hypothesis_covers_strongly_negated_example():
     coverage = NormalCoverageSolver(
-        ["node(a)."],
+        parse_program("node(a)."),
         ["0", "--enum-mode=brave"],
         [Example(("-target(a)", ""), True)],
         [Example(("target(a)", ""), False)],
-    ).extract_fixed_coverage(("-target(X) :- node(X).",))
+    ).extract_fixed_coverage(parse_program("-target(X) :- node(X)."))
 
     assert coverage.pos_mask == 1
     assert coverage.neg_mask == 0
@@ -3317,7 +3320,7 @@ def test_bodyless_complete_heads_keep_their_declared_asp_form(tmp_path):
 
 def test_completely_empty_clause_is_not_learnable():
     clauses = (
-        HypothesisSpaceGenerator(InductiveTask([], [], [], [], []), Arguments())
+        HypothesisSpaceGenerator(inductive_task([], [], [], [], []), Arguments())
         .generate()
         .clauses
     )
@@ -3385,7 +3388,7 @@ bias_active.
     program = parse_file(str(task))
     clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
 
-    assert program.bias == ("bias_active.",)
+    assert render_program(program.bias) == ("bias_active.",)
     assert "p(V0);q(V1) :- edge(V0,V1)." in clauses
     assert "r(V0);s(V0) :- edge(V0,V1)." in clauses
 
@@ -3915,7 +3918,7 @@ def test_complete_head_width_must_fit_maxhl(tmp_path):
 
 
 def test_language_bias_is_not_generated_when_bias_is_missing():
-    program = InductiveTask(
+    program = inductive_task(
         ["a :- b, not c."],
         [],
         [],
@@ -3928,7 +3931,7 @@ def test_language_bias_is_not_generated_when_bias_is_missing():
 
 
 def test_language_bias_keeps_explicit_head_without_generating_body():
-    program = InductiveTask(
+    program = inductive_task(
         ["coin(c1)."],
         [Example(("heads(c1)", "tails(c1)"), True)],
         [],
@@ -3951,7 +3954,7 @@ def test_language_bias_keeps_explicit_head_without_generating_body():
 
 
 def test_language_bias_keeps_explicit_body_without_generating_head():
-    program = InductiveTask(
+    program = inductive_task(
         ["target(1)."],
         [],
         [],
@@ -3970,7 +3973,7 @@ def test_language_bias_keeps_explicit_body_without_generating_head():
 
 
 def test_positive_body_singleton_is_available_as_existential_projection():
-    program = InductiveTask(
+    program = inductive_task(
         ["edge(1,2)."],
         [],
         [],
@@ -3984,7 +3987,7 @@ def test_positive_body_singleton_is_available_as_existential_projection():
 
 
 def test_negative_body_singleton_remains_rejected():
-    program = InductiveTask(
+    program = inductive_task(
         ["node(1).", "edge(1,2)."],
         [],
         [],
@@ -4046,7 +4049,7 @@ def test_constant_colour_benchmark_contains_both_concrete_mode_expansions():
 
 
 def test_equal_ground_values_do_not_merge_distinct_declared_types():
-    program = InductiveTask(
+    program = inductive_task(
         ["left(1).", "right(1)."],
         [],
         [],
@@ -4128,7 +4131,7 @@ def test_latin_square_hypothesis_space_contains_covering_target_program():
         ["0", "--enum-mode=brave"],
         program.positive_examples,
         program.negative_examples,
-    ).extract_fixed_coverage(target)
+    ).extract_fixed_coverage(parse_program("\n".join(target)))
 
     assert coverage.pos_mask == (1 << len(program.positive_examples)) - 1
     assert coverage.neg_mask == 0
@@ -4222,9 +4225,13 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
         "sum_col(C,S) :- size(C),#sum{V:x(R,C,V)}=S.",
         ":- sum_col(C0,S0),sum_col(C1,S1),C0!=C1,S0!=S1.",
     )
-    full_coverage = solver.extract_fixed_coverage(row_program + column_program)
-    row_coverage = solver.extract_fixed_coverage(row_program)
-    column_coverage = solver.extract_fixed_coverage(column_program)
+    full_coverage = solver.extract_fixed_coverage(
+        parse_program("\n".join(row_program + column_program))
+    )
+    row_coverage = solver.extract_fixed_coverage(parse_program("\n".join(row_program)))
+    column_coverage = solver.extract_fixed_coverage(
+        parse_program("\n".join(column_program))
+    )
 
     assert full_coverage.pos_mask.bit_count() == 72
     assert full_coverage.neg_mask == 0
@@ -4282,11 +4289,11 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
         args.fitness["clingo_arguments"],
         program.positive_examples,
         program.negative_examples,
-    ).extract_fixed_coverage(candidate)
+    ).extract_fixed_coverage(parse_program("\n".join(candidate)))
 
 
 def test_linkedness_rejects_disconnected_literal_components():
-    program = InductiveTask(
+    program = inductive_task(
         ["p(1).", "p(2).", "q(1).", "q(3).", "r(1).", "r(4)."],
         [],
         [],
@@ -4555,7 +4562,7 @@ def test_modeha_elements_accept_generated_conditions(tmp_path):
 
     assert "0{p(V0):allowed(V0)}1 :- node(V0)." in clauses
     control = clingo.Control(["0"])
-    control.add("base", [], "\n".join([*program.background, *clauses]))
+    control.add("base", [], "\n".join([*render_program(program.background), *clauses]))
     control.ground([("base", [])])
 
 
@@ -4869,7 +4876,9 @@ def test_metarule_rejects_unsafe_instantiation(tmp_path):
 def test_dependency_completion_closes_a_provider_bundle():
     def entry(rule: str, bundle: int | None = None) -> RuleEntry:
         heads, dependencies, body_literals = clause_predicates(rule)
-        return RuleEntry(rule, heads, dependencies, body_literals, bundle)
+        return RuleEntry(
+            rule, parse_rule(rule), heads, dependencies, body_literals, bundle
+        )
 
     space = RuleSpace.from_entries(
         (
@@ -4879,7 +4888,7 @@ def test_dependency_completion_closes_a_provider_bundle():
         )
     )
     generator = HypothesisGenerator(
-        InductiveTask(["b.", "c."], [], [], [], []), space, 3, random.Random(0)
+        inductive_task(["b.", "c."], [], [], [], []), space, 3, random.Random(0)
     )
 
     completed = generator._build(1 << generator.rule_ids["target :- p."], 0)
@@ -4973,4 +4982,6 @@ def test_nullary_second_order_predicate_uses_explicit_application(tmp_path):
         encoding="utf-8",
     )
 
-    assert parse_file(str(task)).metarule_programs == (("ready :- enabled.",),)
+    assert tuple(
+        render_program(bundle) for bundle in parse_file(str(task)).metarule_programs
+    ) == (("ready :- enabled.",),)

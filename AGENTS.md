@@ -109,7 +109,7 @@ La tabla mezcla destino y estado real a propósito. La generación de hipótesis
 
 ## Cómo se genera una regla
 
-`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` y `metarules` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP.
+`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` y `metarules` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP. `InductiveTask` conserva background, `#bias` y metarules como nodos `clingo.ast.AST`; `RuleEntry` conserva el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
 
 `HypothesisSpaceGenerator` ejecuta este pipeline:
 

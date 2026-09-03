@@ -1,6 +1,8 @@
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from functools import wraps
+
+from clingo import ast
 
 from ..language.asp import Predicate, clause_predicates
 from ..language.ir.inductive_task import InductiveTask
@@ -27,10 +29,10 @@ def prepare_space(task: InductiveTask, space: RuleSpace) -> RuleSpace:
     return RuleSpace.from_entries(entries)
 
 
-def defined_predicates(lines: list[str]) -> set[Predicate]:
+def defined_predicates(statements: Iterable[ast.AST]) -> set[Predicate]:
     defined: set[Predicate] = set()
-    for line in lines:
-        heads, _deps, _body = clause_predicates(line)
+    for statement in statements:
+        heads, _deps, _body = clause_predicates(statement)
         defined.update(heads)
     return defined
 

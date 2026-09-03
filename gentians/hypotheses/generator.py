@@ -1,6 +1,6 @@
 import random
 
-from ..language.asp import fragment_atoms
+from ..language.asp import AspProgram, fragment_atoms
 from ..language.ir.inductive_task import InductiveTask
 from ..clauses.rule_space import RuleSpace
 from ..evolution.operator_types import MutationProposal
@@ -22,6 +22,7 @@ class HypothesisGenerator:
         self.rng = rng
         self.space = prepare_space(task, space)
         self.rules = self.space.clauses
+        self.statements = self.space.statements
         self.rule_count = len(self.rules)
         self.all_rules = (1 << self.rule_count) - 1
         self.rule_ids = {rule: index for index, rule in enumerate(self.rules)}
@@ -75,6 +76,7 @@ class HypothesisGenerator:
                     self.rules_by_head.get(predicate_bit, 0) | rule_bit
                 )
         self._render_cache: dict[Genome, ProgramText] = {}
+        self._program_cache: dict[Genome, AspProgram] = {}
         self._summary_cache: dict[Genome, tuple[int, int]] = {}
         self._build_cache: dict[tuple[Genome, Genome], Genome | None] = {}
 
@@ -92,6 +94,15 @@ class HypothesisGenerator:
                 tuple(self.rules[rule_id] for rule_id in self._ids(genome)),
             )
         return self._render_cache[genome]
+
+    def program(self, genome: Genome) -> AspProgram:
+        if genome not in self._program_cache:
+            self._remember(
+                self._program_cache,
+                genome,
+                tuple(self.statements[rule_id] for rule_id in self._ids(genome)),
+            )
+        return self._program_cache[genome]
 
     @record_generation_time
     def create_population(self, size: int) -> list[Genome]:

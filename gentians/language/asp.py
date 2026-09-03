@@ -1,18 +1,47 @@
-import re
+from collections.abc import Iterable
 from functools import lru_cache
 
+import clingo
 from clingo import ast
+from clingo.ast import ProgramBuilder
 
 Predicate = tuple[str, int]
 ParsedAtom = tuple[str, tuple[str, ...], bool]
+AspProgram = tuple[ast.AST, ...]
 
 
-def validate_statement(statement: str, line: int) -> None:
-    """Validate one background ASP statement with Clingo's parser."""
+def parse_program(source: str, line: int = 1) -> AspProgram:
+    """Parse ASP with Clingo and discard its implicit ``#program base`` node."""
+    statements: list[ast.AST] = []
     try:
-        ast.parse_string(statement, lambda _node: None)
+        ast.parse_string(source, statements.append)
     except RuntimeError:
-        raise ValueError(f"line {line}: invalid ASP statement: {statement}") from None
+        raise ValueError(f"line {line}: invalid ASP program: {source}") from None
+    if statements and _is_implicit_base(statements[0]):
+        statements.pop(0)
+    return tuple(statements)
+
+
+def parse_rule(source: str) -> ast.AST:
+    statements = parse_program(source)
+    if len(statements) != 1 or statements[0].ast_type != ast.ASTType.Rule:
+        raise ValueError(f"expected one ASP rule: {source}")
+    return statements[0]
+
+
+def add_program(control: clingo.Control, statements: Iterable[ast.AST]) -> None:
+    """Add already parsed ASP statements to a control without reparsing text."""
+    with ProgramBuilder(control) as builder:
+        for statement in statements:
+            builder.add(statement)
+
+
+def render_program(statements: Iterable[ast.AST]) -> tuple[str, ...]:
+    return tuple(str(statement) for statement in statements)
+
+
+def _is_implicit_base(statement: ast.AST) -> bool:
+    return statement.ast_type == ast.ASTType.Program and str(statement) == "#program base."
 
 
 def signed_predicate(name: str, arity: int, strong: bool = False) -> Predicate:
@@ -67,25 +96,27 @@ def extract_name_arity(atom: str) -> tuple[str, int]:
 
 
 def parse_atom(atom: str) -> tuple[str, list[str]] | None:
-    normalized = _normal_atom_text(atom)
-    if not normalized or normalized.startswith("#"):
-        return None
-    match = re.match(r"^([A-Za-z_]\w*)(?:\((.*)\))?$", normalized)
-    if match:
-        args = match.group(2)
-        return match.group(1), split_top_level_args(args) if args else []
-    parsed = _parse_atom_cached(normalized)
+    parsed = parse_function(atom)
     if parsed is not None:
         name, arguments = parsed
-        return name, list(arguments)
+        return name, [str(argument).replace(" ", "") for argument in arguments]
     return None
+
+
+def parse_function(atom: str) -> tuple[str, tuple[ast.AST, ...]] | None:
+    """Parse one symbolic atom using Clingo's grammar."""
+    return _parse_function_cached(_normal_atom_text(atom))
 
 
 def fragment_atoms(fragment: str) -> tuple[ParsedAtom, ...]:
     return _fragment_atoms_cached(fragment.strip())
 
 
-def clause_predicates(rule: str) -> tuple[frozenset[Predicate], frozenset[Predicate], int]:
+def clause_predicates(
+    rule: str | ast.AST,
+) -> tuple[frozenset[Predicate], frozenset[Predicate], int]:
+    if isinstance(rule, ast.AST):
+        return _clause_predicates_ast(rule)
     return _clause_predicates_cached(rule.strip())
 
 
@@ -107,12 +138,7 @@ def _fragment_atoms_cached(fragment: str) -> tuple[ParsedAtom, ...]:
     try:
         ast.parse_string(source, lambda node: _collect_atoms(node, found))
     except RuntimeError:
-        for part in split_top_level_args(fragment):
-            parsed = parse_atom(part)
-            if parsed is None:
-                continue
-            name, arguments = parsed
-            found.append((name, tuple(arguments), part.strip().startswith("not ")))
+        return ()
     return tuple(found)
 
 
@@ -122,24 +148,33 @@ def _clause_predicates_cached(
 ) -> tuple[frozenset[Predicate], frozenset[Predicate], int]:
     if not rule or rule.startswith("%"):
         return frozenset(), frozenset(), 0
-    heads: set[Predicate] = set()
-    deps: set[Predicate] = set()
-    body_literals = 0
-
-    def collect(stm: ast.AST) -> None:
-        nonlocal body_literals
-        if "head" in stm.child_keys:
-            _collect_predicates(stm.head, heads)
-        if "body" in stm.child_keys:
-            body_literals = len(stm.body)
-            for literal in stm.body:
-                _collect_predicates(literal, deps)
-
+    statements: list[ast.AST] = []
     try:
-        ast.parse_string(rule, collect)
+        ast.parse_string(rule, statements.append)
     except RuntimeError:
         return frozenset(), frozenset(), 0
-    return frozenset(heads), frozenset(deps), body_literals
+    parsed = next(
+        (statement for statement in statements if statement.ast_type == ast.ASTType.Rule),
+        None,
+    )
+    return (
+        _clause_predicates_ast(parsed)
+        if parsed is not None
+        else (frozenset(), frozenset(), 0)
+    )
+
+
+def _clause_predicates_ast(
+    statement: ast.AST,
+) -> tuple[frozenset[Predicate], frozenset[Predicate], int]:
+    if statement.ast_type != ast.ASTType.Rule:
+        return frozenset(), frozenset(), 0
+    heads: set[Predicate] = set()
+    deps: set[Predicate] = set()
+    _collect_predicates(statement.head, heads)
+    for literal in statement.body:
+        _collect_predicates(literal, deps)
+    return frozenset(heads), frozenset(deps), len(statement.body)
 
 
 def _collect_atoms(node: ast.AST, result: list[ParsedAtom], negative: bool = False) -> None:
@@ -186,38 +221,29 @@ def _collect_predicates(node: ast.AST, result: set[Predicate]) -> None:
 
 
 @lru_cache(maxsize=None)
-def _parse_atom_cached(atom: str) -> tuple[str, tuple[str, ...]] | None:
-    found: list[tuple[str, tuple[str, ...]]] = []
-
-    def collect(node: ast.AST) -> None:
-        if node.ast_type == ast.ASTType.SymbolicAtom:
-            parsed = _symbolic_function(node.symbol)
-            if parsed is not None:
-                name, arguments = parsed
-                found.append(
-                    (
-                        name,
-                        tuple(
-                            str(argument).replace(" ", "")
-                            for argument in arguments
-                        ),
-                    )
-                )
-            return
-        for key in node.child_keys:
-            child = getattr(node, key)
-            if isinstance(child, ast.AST):
-                collect(child)
-            elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
-                for item in child:
-                    if isinstance(item, ast.AST):
-                        collect(item)
-
+def _parse_function_cached(atom: str) -> tuple[str, tuple[ast.AST, ...]] | None:
+    if not atom or atom.startswith("#"):
+        return None
     try:
-        ast.parse_string(f":- {atom}.", collect)
+        statements = parse_program(f":- {atom}.")
     except RuntimeError:
         return None
-    return found[0] if len(found) == 1 else None
+    except ValueError:
+        return None
+    rules = [node for node in statements if node.ast_type == ast.ASTType.Rule]
+    if len(rules) != 1 or len(rules[0].body) != 1:
+        return None
+    literal = rules[0].body[0]
+    if (
+        literal.ast_type != ast.ASTType.Literal
+        or literal.atom.ast_type != ast.ASTType.SymbolicAtom
+    ):
+        return None
+    parsed = _symbolic_function(literal.atom.symbol)
+    if parsed is None:
+        return None
+    name, arguments = parsed
+    return name, tuple(arguments)
 
 
 def _symbolic_function(symbol: ast.AST) -> tuple[str, ast.ASTSequence] | None:

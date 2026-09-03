@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "clingo>=5.5",
+    "clingo>=5.8,<6",
 ]
 
 [project.urls]

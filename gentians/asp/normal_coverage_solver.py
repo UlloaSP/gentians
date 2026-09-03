@@ -1,5 +1,6 @@
 import clingo
 
+from ..language.asp import AspProgram, add_program
 from ..language.ir.example import Example
 from ..timing import (
     add,
@@ -21,22 +22,21 @@ class NormalCoverageSolver:
 
     def __init__(
         self,
-        lines: list[str],
+        background: AspProgram,
         clingo_arguments: list[str],
         interpretation_pos: list[Example],
         interpretation_neg: list[Example],
     ) -> None:
-        self.lines = lines
+        self.background = background
         self.clingo_arguments = clingo_arguments
         self.positive_examples = len(interpretation_pos)
         self.negative_examples = len(interpretation_neg)
         self.coverage_static_program = build_coverage_static_program(
-            lines, interpretation_pos, interpretation_neg
+            interpretation_pos, interpretation_neg
         )
 
-    def extract_fixed_coverage(self, program: tuple[str, ...]) -> Coverage:
-        generated = self.coverage_static_program + "\n" + "\n".join(program)
-        ctl, grounding_seconds, phase = self._ground(generated)
+    def extract_fixed_coverage(self, program: AspProgram) -> Coverage:
+        ctl, grounding_seconds, phase = self._ground(program)
         coverage = Coverage()
         solving_seconds = self._solve(
             ctl,
@@ -46,7 +46,6 @@ class NormalCoverageSolver:
         )
         self._record(
             ctl,
-            generated,
             program,
             coverage,
             grounding_seconds,
@@ -55,9 +54,11 @@ class NormalCoverageSolver:
         )
         return coverage
 
-    def _ground(self, generated: str):
+    def _ground(self, program: AspProgram):
         ctl = clingo.Control(self.clingo_arguments, logger=coverage_logger)
-        ctl.add("base", [], generated)
+        ctl.add("base", [], self.coverage_static_program)
+        add_program(ctl, self.background)
+        add_program(ctl, program)
         start = net_time()
         ctl.ground([("base", [])])
         seconds = net_time() - start
@@ -89,8 +90,7 @@ class NormalCoverageSolver:
     def _record(
         self,
         ctl,
-        generated: str,
-        program: tuple[str, ...],
+        program: AspProgram,
         coverage: Coverage,
         grounding_seconds: float,
         solving_seconds: float,
@@ -112,8 +112,10 @@ class NormalCoverageSolver:
                     **common,
                     "operation_category": "grounding",
                     "seconds": grounding_seconds,
-                    "input_clauses": len(self.lines) + len(program),
-                    "program_chars": len(generated),
+                    "input_clauses": len(self.background) + len(program),
+                    "program_chars": len(self.coverage_static_program)
+                    + sum(len(str(statement)) for statement in self.background)
+                    + sum(len(str(statement)) for statement in program),
                     "positive_examples": self.positive_examples,
                     "negative_examples": self.negative_examples,
                     "stats_atoms": grounded["atoms"],

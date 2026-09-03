@@ -1,5 +1,7 @@
 import pytest
+from clingo import ast
 
+from gentians.clauses.rule_space import RuleSpace
 from gentians.language import InductiveTask, parse_file, parse_text
 from gentians.language.lexer import lex
 
@@ -17,10 +19,18 @@ def test_parser_accepts_multiline_directives_and_preserves_asp_ranges() -> None:
         """
     )
 
-    assert task.background == ["node(1..3)."]
+    assert tuple(map(str, task.background)) == ("node((1..3)).",)
+    assert task.background[0].ast_type == ast.ASTType.Rule
     assert isinstance(task, InductiveTask)
     assert task.language_bias_head[0].recall == 1
     assert task.language_bias_head[0].template.elements[0].name == "target"
+
+
+def test_rule_space_retains_clingo_ast_and_canonical_text() -> None:
+    space = RuleSpace.from_clauses([":- p(X), X != 1."])
+
+    assert space.clauses == (":- p(X), X != 1.",)
+    assert space.statements[0].ast_type == ast.ASTType.Rule
 
 
 def test_lexer_separates_multiple_statements_and_weak_constraints() -> None:
@@ -72,7 +82,8 @@ def test_bias_payload_can_span_lines_and_contain_comment_characters() -> None:
         '''
     )
 
-    assert task.bias == ("bias_active :- selected(head,0,0).",)
+    assert tuple(map(str, task.bias)) == ("bias_active :- selected(head,0,0).",)
+    assert task.bias[0].ast_type == ast.ASTType.Rule
 
 
 def test_parse_file_reads_utf8_and_parses_the_task(tmp_path) -> None:
@@ -81,7 +92,7 @@ def test_parse_file_reads_utf8_and_parses_the_task(tmp_path) -> None:
 
     parsed = parse_file(str(task))
 
-    assert parsed.background == ["fact(a)."]
+    assert tuple(map(str, parsed.background)) == ("fact(a).",)
     assert parsed.max_program_clauses == 2
 
 
@@ -100,7 +111,7 @@ def test_language_errors_reject_malformed_statements(source: str, message: str) 
 
 @pytest.mark.parametrize("source", ["p(,).", "p(a) :- not.", "#unknown(foo)."])
 def test_parser_rejects_invalid_background_asp(source: str) -> None:
-    with pytest.raises(ValueError, match="line 1: invalid ASP statement"):
+    with pytest.raises(ValueError, match="line 1: invalid ASP program"):
         parse_text(source)
 
 

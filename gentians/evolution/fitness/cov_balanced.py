@@ -1,6 +1,7 @@
 from typing import Any
 
 from ...asp.normal_coverage_solver import NormalCoverageSolver
+from ...language.asp import AspProgram
 from ...language.ir.inductive_task import InductiveTask
 from ..types import FitnessResult
 from .coverage_common import balanced_coverage_score, record_fitness_metric
@@ -30,7 +31,7 @@ class CovBalanced:
             ),
         )
 
-    def __call__(self, candidate: tuple[str, ...]) -> FitnessResult:
+    def __call__(self, candidate: AspProgram) -> FitnessResult:
         coverage = self.solver.extract_fixed_coverage(candidate)
         score = balanced_coverage_score(self.task, coverage)
         best_found = (

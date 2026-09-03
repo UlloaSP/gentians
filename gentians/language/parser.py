@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from .asp import validate_statement
+from clingo import ast
+
+from .asp import parse_program
 from .declarations import (
     _get_aggregate_declaration,
     _get_arithmetic_declaration,
@@ -39,7 +41,7 @@ def parse_file(filename: str) -> InductiveTask:
 
 def parse_text(source: str) -> InductiveTask:
     """Parse an inductive task from source text."""
-    bg: list[str] = []
+    bg: list[ast.AST] = []
     pe: list[Example] = []
     ne: list[Example] = []
     lbh: list[HeadDeclaration] = []
@@ -59,7 +61,7 @@ def parse_text(source: str) -> InductiveTask:
     }
     min_head_literals = 1
     declared_limits: set[str] = set()
-    bias: list[str] = []
+    bias: list[ast.AST] = []
     metarule_definitions: dict[str, str] = {}
     predicate_pools: dict[str, list[tuple[str, int]]] = {}
     modem_declarations: list[tuple[str, tuple[tuple[str, int], ...]]] = []
@@ -84,7 +86,7 @@ def parse_text(source: str) -> InductiveTask:
             else:
                 limits[limit] = value
         elif directive == "#bias":
-            bias.append(_get_bias(lc))
+            bias.extend(_get_bias(lc))
         elif directive == "#metarule":
             name, payload = _get_metarule(lc)
             if name in metarule_definitions:
@@ -150,8 +152,7 @@ def parse_text(source: str) -> InductiveTask:
             if value not in values:
                 values.append(value)
         else:
-            validate_statement(lc, statement.line)
-            bg.append(lc)
+            bg.extend(parse_program(lc, statement.line))
 
     invented_predicates = tuple(
         (name, len(arguments)) for _recall, name, arguments in inventions
@@ -220,7 +221,7 @@ def parse_text(source: str) -> InductiveTask:
     ):
         raise ValueError("#minhl cannot exceed #maxhl")
     return InductiveTask(
-        background=bg,
+        background=tuple(bg),
         positive_examples=pe,
         negative_examples=ne,
         language_bias_head=lbh,

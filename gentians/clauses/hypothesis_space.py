@@ -34,7 +34,14 @@ from .hypothesis_mode import HypothesisMode
 from .linear_constraint import LinearConstraint
 from ..language.ir.mode_declaration import ModeDeclaration
 from ..language.ir.operator_declaration import OperatorDeclaration
-from ..language.asp import Predicate, clause_predicates, fragment_atoms
+from ..language.asp import (
+    Predicate,
+    add_program,
+    clause_predicates,
+    fragment_atoms,
+    parse_rule,
+    render_program,
+)
 from ..language.ir.inductive_task import InductiveTask
 from .reified_clause import ReifiedClause
 from .reified_literal import ReifiedLiteral
@@ -134,7 +141,13 @@ def _rule_entry_from_clause(
         modes[literal.mode_id].condition_count
         for literal in (*clause.head, *clause.body)
     )
-    return RuleEntry(rendered, frozenset(heads), frozenset(deps), body_literals)
+    return RuleEntry(
+        rendered,
+        parse_rule(rendered),
+        frozenset(heads),
+        frozenset(deps),
+        body_literals,
+    )
 
 
 class HypothesisSpaceGenerator:
@@ -208,10 +221,11 @@ class HypothesisSpaceGenerator:
         )
         if not self.task.bias:
             facts += "\ndefault_variable_identity."
-        asp_program = "\n".join((facts, HYPOTHESIS_SPACE_RULES, *self.task.bias))
+        asp_program = "\n".join((facts, HYPOTHESIS_SPACE_RULES))
         solver_arguments = ["0", *_hypothesis_space_args(self.args)]
         ctl = clingo.Control(solver_arguments, logger=wrapper_exit_callback)
         ctl.add("base", [], asp_program)
+        add_program(ctl, self.task.bias)
         start = net_time()
         ctl.ground([("base", [])])
         grounding_seconds = net_time() - start
@@ -287,7 +301,8 @@ class HypothesisSpaceGenerator:
                         "phase_context": phase,
                         "seconds": grounding_seconds,
                         "program_size": 1,
-                        "program_chars": len(asp_program),
+                        "program_chars": len(asp_program)
+                        + sum(len(str(statement)) for statement in self.task.bias),
                         "stats_atoms": grounded["atoms"],
                         "stats_rules": grounded["rules"],
                         "clingo_arguments": clingo_arguments,
@@ -344,14 +359,15 @@ def build_hypothesis_space(task: InductiveTask, arguments: Arguments) -> RuleSpa
             + 1
         )
         for bundle, rules in enumerate(task.metarule_programs, bundle_offset):
-            for rule in rules:
+            for rule_ast in rules:
+                rule = str(rule_ast)
                 if rule in known_rules:
                     raise ValueError(
                         f"metarule rule duplicates another hypothesis rule: {rule}"
                     )
                 known_rules.add(rule)
-                heads, deps, body_literals = clause_predicates(rule)
-                head_literals = _rule_head_width(rule)
+                heads, deps, body_literals = clause_predicates(rule_ast)
+                head_literals = _rule_head_width(rule_ast)
                 if (
                     task.max_head_literals is not None
                     and head_literals > task.max_head_literals
@@ -362,13 +378,15 @@ def build_hypothesis_space(task: InductiveTask, arguments: Arguments) -> RuleSpa
                     and body_literals > task.max_body_literals
                 ):
                     raise ValueError(f"metarule exceeds #maxbl: {rule}")
-                variables = set(re.findall(r"\b[A-Z][A-Za-z0-9_]*\b", rule))
+                variables = _term_variables(rule_ast)
                 if (
                     task.max_variables is not None
                     and len(variables) > task.max_variables
                 ):
                     raise ValueError(f"metarule exceeds #maxv: {rule}")
-                entries.append(RuleEntry(rule, heads, deps, body_literals, bundle))
+                entries.append(
+                    RuleEntry(rule, rule_ast, heads, deps, body_literals, bundle)
+                )
         rule_space = RuleSpace.from_entries(entries)
     if metric_enabled("candidate"):
         with instrumentation():
@@ -379,11 +397,8 @@ def build_hypothesis_space(task: InductiveTask, arguments: Arguments) -> RuleSpa
     return rule_space
 
 
-def _rule_head_width(rule: str) -> int:
-    nodes: list[ast.AST] = []
-    ast.parse_string(rule, nodes.append)
-    parsed = next(node for node in nodes if node.ast_type == ast.ASTType.Rule)
-    head = parsed.head
+def _rule_head_width(rule: ast.AST) -> int:
+    head = rule.head
     if (
         head.ast_type == ast.ASTType.Literal
         and head.atom.ast_type == ast.ASTType.BooleanConstant
@@ -414,7 +429,7 @@ def hypothesis_space_metrics(
 
 
 def _numeric_domain_values(task: InductiveTask) -> set[int]:
-    fragments = [*task.background]
+    fragments = [*render_program(task.background)]
     for example in [*task.positive_examples, *task.negative_examples]:
         fragments.extend([example.included, example.excluded, example.context])
     constants = _numeric_constants(fragments)
@@ -1849,7 +1864,7 @@ def _has_variable(value: str) -> bool:
 def _task_fragments(task: InductiveTask) -> list[str]:
     fragments = [
         line
-        for line in task.background
+        for line in render_program(task.background)
         if line.strip() and not line.lstrip().startswith("%")
     ]
     for example in [*task.positive_examples, *task.negative_examples]:
@@ -1860,7 +1875,7 @@ def _task_fragments(task: InductiveTask) -> list[str]:
 def _closed_world_fragments(task: InductiveTask) -> list[str]:
     fragments = [
         line
-        for line in task.background
+        for line in render_program(task.background)
         if line.strip() and not line.lstrip().startswith("%")
     ]
     for example in task.positive_examples:

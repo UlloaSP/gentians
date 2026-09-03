@@ -53,8 +53,10 @@ semantics.
 
 GENTIANS searches candidate hypotheses built from a generated `RuleSpace`.
 `gentians.language` owns task I/O, lexical framing, parsing, ASP syntax helpers,
-and the typed `InductiveTask` IR. `gentians.clauses` compiles that IR into
-candidate clauses.
+and the typed `InductiveTask` IR. Standard ASP stays as Clingo AST nodes and
+enters controls through `ProgramBuilder`. Candidate `RuleEntry` values retain
+their AST beside canonical output text. `gentians.clauses` compiles task IR
+into candidate clauses.
 Clingo validates background ASP. Task files do not accept `#script` blocks.
 The mandatory
 `HypothesisGenerator` in `gentians.hypotheses` is plumbing used by evolutionary

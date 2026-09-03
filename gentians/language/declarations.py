@@ -2,7 +2,9 @@ import re
 
 import clingo
 
-from .asp import parse_aggregate_spec, parse_atom, split_top_level_args
+from clingo import ast
+
+from .asp import parse_aggregate_spec, parse_function, split_top_level_args
 from .directives import _directive_args, _parse_recall, _strip_outer_braces
 from .ir.aggregate_declaration import AggregateDeclaration
 from .ir.comparison_literal import ComparisonLiteral
@@ -97,16 +99,22 @@ def _get_predicate_declaration(s: str) -> tuple[str, tuple[str, int]]:
 
 def _get_modem_declaration(s: str) -> tuple[str, tuple[tuple[str, int], ...]]:
     raw = _directive_args(s, "#modem").strip()
-    parsed = parse_atom(raw)
+    parsed = parse_function(raw)
     if parsed is None:
         raise ValueError(f"invalid #modem declaration: {s}")
     name, specs = parsed
     result: list[tuple[str, int]] = []
     for spec in specs:
         try:
-            type_name, arity = spec.rsplit("/", 1)
-            result.append((type_name.strip(), int(arity)))
-        except ValueError as exc:
+            if (
+                spec.ast_type != ast.ASTType.BinaryOperation
+                or spec.operator_type != ast.BinaryOperator.Division
+            ):
+                raise ValueError
+            type_name = str(spec.left)
+            arity = int(str(spec.right))
+            result.append((type_name, arity))
+        except (AttributeError, ValueError) as exc:
             raise ValueError(f"invalid #modem declaration: {s}") from exc
     return name, tuple(result)
 

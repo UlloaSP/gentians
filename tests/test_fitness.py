@@ -7,9 +7,9 @@ from gentians.asp.coverage import (
     generate_clauses_for_coverage_interpretations,
 )
 from gentians.asp.coverage_program import build_coverage_static_program
-from gentians.evolution.fitness import create_fitness
-from gentians.evolution.fitness.evaluator import FitnessEvaluator
-from gentians.evolution.fitness.scoring import (
+from gentians.fitness import create_fitness
+from gentians.fitness.evaluator import FitnessEvaluator
+from gentians.fitness.scoring import (
     balanced_coverage_score,
     coverage_score,
 )

@@ -3,11 +3,11 @@ import random
 import pytest
 
 from gentians.arguments import Arguments
+from gentians.algorithms import steady_state_genetic_search
+from gentians.algorithms import steady_state_genetic as search
 from gentians.evolution import metrics as evolution_metrics
-from gentians.evolution.algorithms import search
-from gentians.evolution.algorithms.search import search_solver
 from gentians.evolution.crossovers import create_crossover
-from gentians.evolution.evolution_context import EvolutionContext
+from gentians.evolution.context import EvolutionContext
 from gentians.evolution.individual import Individual
 from gentians.evolution.mutations import create_mutation
 from gentians.evolution.operator_types import MutationProposal
@@ -20,7 +20,7 @@ from gentians.evolution.selections.behavior_tournament_selection import (
 )
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
-from gentians.evolution.types import FitnessResult
+from gentians.fitness.result import FitnessResult
 from tests.task_helpers import example, inductive_task, make_clause_space
 
 
@@ -126,6 +126,7 @@ def test_structural_neighbor_random_jump_can_change_head():
 
 def test_mutation_metrics_include_local_and_program_distance(monkeypatch):
     rows = []
+    monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")
     monkeypatch.setattr(
         evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
     )
@@ -155,6 +156,72 @@ def test_mutation_metrics_include_local_and_program_distance(monkeypatch):
     assert row["program_distance"] == pytest.approx(2 / 3)
     assert row["changed_rules"] == 2
     assert row["valid_new"] is True
+
+
+def test_disabled_operator_metrics_skip_payload_work(monkeypatch):
+    monkeypatch.delenv("GENTIANS_OPERATOR_METRICS_PATH", raising=False)
+    monkeypatch.setattr(
+        evolution_metrics,
+        "_program_distance",
+        lambda *_args: pytest.fail("disabled metrics built a payload"),
+    )
+
+    evolution_metrics.record_mutation(
+        "random_group",
+        0b01,
+        Individual(0b01, 1.0, False),
+        Individual(0b10, 2.0, False),
+        MutationProposal(0b10),
+        duplicate=False,
+        crossover_strategy="set_mix",
+        crossover_improved=False,
+        lost_crossover_gain=False,
+    )
+
+
+def test_search_skips_mutation_metric_derivations_when_disabled(monkeypatch):
+    args = Arguments(
+        iterations_genetic=1,
+        population={"name": "random", "size": 1},
+    )
+    monkeypatch.setattr(
+        search,
+        "create_population",
+        lambda _config: lambda context: [
+            context.hypotheses.encode(("start.",))
+        ],
+    )
+    monkeypatch.setattr(
+        search,
+        "create_crossover",
+        lambda _config: lambda _first, _second, context: (
+            context.hypotheses.encode(("child.",)),
+        ),
+    )
+    monkeypatch.setattr(
+        search,
+        "create_mutation",
+        lambda _config: lambda genome, _context: MutationProposal(genome),
+    )
+    monkeypatch.setattr(
+        search,
+        "create_fitness",
+        lambda _task, _config: lambda _candidate: FitnessResult(
+            0.0, False, (0, 0)
+        ),
+    )
+    monkeypatch.setattr(search, "operator_metrics_enabled", lambda: False)
+    monkeypatch.setattr(
+        search,
+        "record_mutation",
+        lambda *_args, **_kwargs: pytest.fail("disabled mutation metrics ran"),
+    )
+
+    steady_state_genetic_search(
+        args,
+        inductive_task([], [], [], [], [], max_program_clauses=1),
+        make_clause_space(["start.", "child."]),
+    )
 
 
 def test_all_crossovers_share_genome_contract():
@@ -557,7 +624,7 @@ def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
         ],
     )
     monkeypatch.setattr(
-        "gentians.evolution.algorithms.search.create_fitness",
+        "gentians.algorithms.steady_state_genetic.create_fitness",
         lambda program, config: lambda candidate: FitnessResult(
             1.0 if tuple(map(str, candidate)) == ("good.",) else 2.0,
             tuple(map(str, candidate)) == ("good.",),
@@ -571,14 +638,14 @@ def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
             (generation, best_so_far, [item.score for item in population])
         ),
     )
-    result, score, best = search_solver(
+    result = steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
         make_clause_space(["good.", "higher_score."]),
     )
-    assert result == ("good.",)
-    assert score == 1.0
-    assert best is True
+    assert result.hypothesis == ("good.",)
+    assert result.score == 1.0
+    assert result.is_solution is True
     assert generations == [(0, 2.0, [2.0, 1.0])]
 
 
@@ -612,8 +679,8 @@ def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
     task = inductive_task([], [], [], [], [], max_program_clauses=1)
     space = make_clause_space(["first.", "second."])
 
-    search_solver(args, task, space)
-    search_solver(args, task, space)
+    steady_state_genetic_search(args, task, space)
+    steady_state_genetic_search(args, task, space)
 
     assert orders == [[1, 2], [1, 2]]
 
@@ -658,15 +725,15 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
         ),
     )
 
-    result, score, best = search_solver(
+    result = steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
         make_clause_space(["start.", "win."]),
     )
 
-    assert result == ("win.",)
-    assert score == 1.0
-    assert best is True
+    assert result.hypothesis == ("win.",)
+    assert result.score == 1.0
+    assert result.is_solution is True
     assert generations == [(0, 0.0, [0.0]), (1, 1.0, [1.0])]
 
 
@@ -699,7 +766,7 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
         ),
     )
 
-    search_solver(
+    steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
         make_clause_space(["start."]),
@@ -760,21 +827,22 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
             (generation, best_so_far, [item.score for item in population])
         ),
     )
-    result, score, best = search_solver(
+    result = steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], []),
         make_clause_space(["start.", "win.", "loss."]),
     )
 
-    assert result == ("win.",)
-    assert score == -1.0
-    assert best is True
+    assert result.hypothesis == ("win.",)
+    assert result.score == -1.0
+    assert result.is_solution is True
     assert mutation_calls == []
     assert generations == [(0, 0.0, [0.0, 0.0]), (1, 0.0, [0.0, -1.0])]
 
 
 def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
     rows = []
+    monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")
     args = Arguments(
         random_seed=3,
         iterations_genetic=1,
@@ -816,7 +884,7 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
         evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
     )
 
-    search_solver(
+    steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
         make_clause_space(["start.", "other.", "cross.", "mutated."]),
@@ -830,6 +898,7 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
 
 def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     rows = []
+    monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")
     args = Arguments(
         random_seed=3,
         iterations_genetic=1,
@@ -860,7 +929,7 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
         evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
     )
 
-    search_solver(
+    steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
         make_clause_space(["start.", "cross."]),
@@ -875,6 +944,7 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     monkeypatch, mutation_name
 ):
     rows = []
+    monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")
     args = Arguments(
         random_seed=3,
         iterations_genetic=1,
@@ -905,7 +975,7 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
         evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
     )
 
-    search_solver(
+    steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
         make_clause_space(["start.", "other.", "cross."]),

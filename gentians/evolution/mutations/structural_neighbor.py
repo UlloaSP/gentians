@@ -1,4 +1,4 @@
-from ..evolution_context import EvolutionContext
+from ..context import EvolutionContext
 from ..operator_types import MutationProposal
 from ...hypotheses import Genome
 

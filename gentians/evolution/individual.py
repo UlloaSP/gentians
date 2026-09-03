@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
+from ..fitness.result import Behavior
 from ..hypotheses import Genome
-from .types import Behavior
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class Individual:
     genome: Genome
     score: float

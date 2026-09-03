@@ -1,5 +1,5 @@
-from ...asp.normal_coverage_solver import NormalCoverageSolver
-from ...language.ir.inductive_task import InductiveTask
+from ..asp.normal_coverage_solver import NormalCoverageSolver
+from ..language.ir.inductive_task import InductiveTask
 from .evaluator import FitnessEvaluator
 from .scoring import balanced_coverage_score, coverage_score
 

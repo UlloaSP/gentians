@@ -1,11 +1,11 @@
 from collections.abc import Callable
 
-from ...asp.coverage import Coverage
-from ...asp.normal_coverage_solver import NormalCoverageSolver
-from ...language.asp import AspProgram
-from ...language.ir.inductive_task import InductiveTask
-from ..types import FitnessResult
+from ..asp.coverage import Coverage
+from ..asp.normal_coverage_solver import NormalCoverageSolver
+from ..language.asp import AspProgram
+from ..language.ir.inductive_task import InductiveTask
 from .metrics import record_fitness_metric
+from .result import FitnessResult
 
 
 class FitnessEvaluator:

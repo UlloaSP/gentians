@@ -29,7 +29,7 @@ task file
   -> decode + canonicalización
   -> ClauseSpace
   -> HypothesisGenerator construye genomas cerrados
-  -> search_solver aplica estrategias evolutivas
+  -> steady_state_genetic_search aplica estrategias evolutivas
   -> fitness evalúa cada programa completo con Clingo
   -> mejor hipótesis + score + best_found
 
@@ -57,13 +57,13 @@ Usa estos términos en código, docs y conversación:
 - **Hipótesis o programa candidato**: conjunto de cláusulas del `ClauseSpace` evaluado como una unidad bajo stable-model semantics.
 - **`Genome`**: entero bitset que representa una hipótesis. El bit `i` selecciona la cláusula `i` del `ClauseSpace` preparado.
 - **`Individual`**: genoma evaluado con score, marca de solución, firma de comportamiento y edad.
+- **`SearchResult`**: hipótesis elegida, score y marca de solución devueltos por cualquier algoritmo completo.
 - **Comportamiento**: pareja de máscaras `(pos_mask, neg_mask)`. La primera marca positivos cubiertos; la segunda, negativos cubiertos.
 - **Hipótesis perfecta**: cubre todos los ejemplos positivos y ningún negativo. Esto produce `best_found=True`.
 - **Cierre de dependencias**: toda dependencia de una cláusula queda definida por el background o por alguna cabeza del mismo candidato.
 - **Bundle**: grupo de cláusulas producido por una metarule. Es atómico durante generación y operadores.
 - **Pruning**: exclusión de cláusulas o hipótesis inválidas, redundantes o imposibles antes de gastar evaluaciones de fitness.
 - **Solver normal**: crea, groundea y resuelve un `clingo.Control` por candidato.
-- **Solver pregrounded**: groundea una vez el universo de reglas guardadas y activa el candidato mediante externals.
 
 Usa `ClauseSpace` para cláusulas candidatas. Usa hipótesis o programa candidato para el conjunto evaluado por fitness.
 
@@ -83,7 +83,7 @@ Reglas semánticas que deben sobrevivir cualquier refactor:
 - `#bias` admite reglas y constraints duros y define predicados reservados `bias_*`. No admite weak constraints ni directivas globales.
 - Contextos de ejemplos se aíslan por selector. Un contexto nunca filtra hechos o constraints hacia otro ejemplo.
 - Fitness fuerza consecuencias brave. Evalúa el programa candidato completo.
-- Solver normal y pregrounded deben producir la misma cobertura en activaciones sucesivas.
+- Cada evaluación usa el solver normal y un `clingo.Control` nuevo.
 - Canonicalización preserva semántica ASP. Deduplicar texto, renombrado de variables o sistemas aritméticos no autoriza aproximaciones semánticas.
 - Dependencias con negación fuerte conservan el signo. `p/n` y `-p/n` son predicados distintos para cierre y recursión.
 
@@ -96,8 +96,9 @@ Estos son límites del producto, aunque algunos todavía compartan paquete:
 | Lenguaje de tareas | Leer UTF-8, separar sentencias completas, parsear directivas, delegar ASP a `clingo.ast` y construir un IR tipado. | `gentians/language/parser.py`, `lexer.py`, `grammar.py`, `asp.py`, `directives.py`, `declarations.py`, `modes.py`, `metarules.py`, `language/ir/` |
 | Generación de cláusulas | Compilar bias y análisis estático a facts, enumerar cláusulas mediante metaprograma ASP, podar ilegalidad y redundancia, decodificar y canonicalizar. | `gentians/clauses/generator.py`, `clauses/metaprogram/**/*.lp`, `ClauseSpace` |
 | Generación de hipótesis | Construir programas candidatos, aplicar pruning mientras nacen y cerrar dependencias bajo `#maxpl` y bundles. | `gentians/hypotheses/` |
-| Solver evolutivo | Un único algoritmo central con población, selección, crossover, mutación, replacement y fitness intercambiables. | `gentians/evolution/algorithms/search.py` y subpaquetes de estrategias |
-| Evaluación ASP | Traducir ejemplos a cobertura y usar Clingo como oracle semántico. | `gentians/asp/`, `gentians/evolution/fitness/` |
+| Algoritmos de búsqueda | Resolver una tarea completa y devolver `SearchResult`. Cada algoritmo posee su bucle; la implementación actual es un GA de estado estable. | `gentians/algorithms/` |
+| Evolución | Proveer individuo, contexto, operadores y estrategias usados por algoritmos evolutivos. | `gentians/evolution/` |
+| Evaluación ASP | Traducir ejemplos a cobertura, calcular fitness y usar Clingo como oracle semántico. | `gentians/asp/`, `gentians/fitness/` |
 | Docs | Mantener lenguaje, decisiones, arquitectura y experimentos con resultados. | `docs/`, `README.md` |
 | Profiling y logging | Medir tiempo neto, fases, calidad, operadores y estadísticas Clingo sin contaminar la métrica observada. | `gentians/timing.py`, `gentians/asp/stats.py` |
 | Benchmarks y runners | Definir datasets, matrices reproducibles, aislamiento, fingerprints y agregación. | `benchmarks/`, `benchmarks/gentians/` |
@@ -141,7 +142,7 @@ Invariantes del candidato:
 
 Las estrategias no editan bits arbitrariamente. Selección opera sobre `Individual`; population, crossover y mutation piden genomas válidos a `HypothesisGenerator`; replacement conserva tamaño y orden por score. Los protocolos viven en `evolution/operator_types.py` y el estado compartido mínimo en `EvolutionContext`.
 
-`search_solver` es el único bucle central. Construye factories desde `Arguments`, crea o acepta un `ClauseSpace`, inicializa población, memoiza evaluaciones, registra generación 0, aplica selección, crossover, mutación y replacement, y termina al encontrar una hipótesis perfecta o agotar generaciones. `iterations_genetic=0` significa búsqueda sin límite de generaciones.
+`steady_state_genetic_search` es el bucle del GA de estado estable. Construye factories desde `Arguments`, crea o acepta un `ClauseSpace`, inicializa población, memoiza evaluaciones, registra generación 0, aplica selección, crossover, mutación y replacement, y termina al encontrar una hipótesis perfecta o agotar generaciones. `iterations_genetic=0` significa búsqueda sin límite de generaciones.
 
 Al añadir una estrategia:
 
@@ -156,16 +157,11 @@ El archivo semántico agrupa por `Behavior` y conserva los `k` programas más co
 
 ## Fitness y Clingo
 
-`create_fitness()` separa dos decisiones:
+`create_fitness()` elige la estrategia de score `cov_program` o `cov_balanced`. Ambas reciben `Coverage` y devuelven `FitnessResult`; comparten condición de éxito y solver normal.
 
-- Estrategia de score: `cov_program` o `cov_balanced`.
-- Ejecución: solver `normal` o `pregrounded`.
+El solver normal crea un `Control` por evaluación, añade background, programa estático de cobertura y candidato desde AST ya retenido, groundea y resuelve.
 
-Ambas estrategias reciben `Coverage` y devuelven `FitnessResult`. La condición de éxito es compartida. Mantén scoring separado de grounding/solving para poder comparar solvers sin cambiar el objetivo.
-
-El solver normal crea un `Control` por evaluación, pero añade background, programa estático de cobertura y candidato desde AST ya retenido antes de groundear. El pregrounded añade un external reservado y alterna activaciones sobre un solo `Control`. El coste de un universo groundeado grande puede superar el ahorro de ground calls. Decide con datos.
-
-Antes de cambiar cobertura, prueba al menos inclusión, exclusión, tarea vacía en uno de los lados, contexts aislados, negación por defecto y varias activaciones del solver pregrounded.
+Antes de cambiar cobertura, prueba al menos inclusión, exclusión, tarea vacía en uno de los lados, contexts aislados y negación por defecto.
 
 ## Profiling y logging
 
@@ -245,8 +241,9 @@ No cambies estas gráficas salvo petición explícita:
 - `gentians/clauses/`: compilación, metaprograma, pruning y representación canónica de cláusulas.
 - `gentians/clauses/metaprogram/`: pruning ASP separado por core, safety, operators, aggregates y properties. El orden de carga es explícito.
 - `gentians/hypotheses/`: plumbing de representación de genomas, cierre y transiciones válidas que usan las estrategias evolutivas.
-- `gentians/evolution/algorithms/search.py`: orquestación evolutiva, caché de evaluaciones y archivo semántico.
-- `gentians/evolution/{populations,selections,crossovers,mutations,replacements,fitness}/`: estrategias y factories.
+- `gentians/algorithms/`: algoritmos completos de búsqueda y su resultado común; `steady_state_genetic.py` contiene el GA actual.
+- `gentians/evolution/{populations,selections,crossovers,mutations,replacements}/`: plumbing evolutivo, estrategias y factories.
+- `gentians/fitness/`: evaluación común de hipótesis y estrategias de score.
 - `gentians/asp/`: programa de cobertura, isolation de contexts, solvers y stats.
 - `gentians/timing.py`: fases y export de métricas.
 - `tests/test_clause_space.py`: contrato principal del lenguaje y generación de cláusulas.
@@ -265,7 +262,8 @@ Antes de editar, clasifica el cambio:
 - Sintaxis o significado del task file: lexer, parser, IR tipado, language spec, compilación, tests.
 - Legalidad de una regla: análisis estático o metaprograma ASP, decoder/canonicalización si aplica.
 - Legalidad de un programa candidato: `HypothesisGenerator`, nunca guards repartidos entre operadores.
-- Política evolutiva: estrategia y factory. Mantén `search_solver` agnóstico cuando el contrato existente alcanza.
+- Algoritmo completo: `gentians/algorithms/`; comparte `SearchResult`, no el estado interno ni el bucle.
+- Política evolutiva: estrategia y factory bajo `gentians/evolution/`. Mantén `steady_state_genetic_search` agnóstico cuando el contrato existente alcanza.
 - Semántica o score: cobertura compartida y fitness. Demuestra equivalencia entre ejecuciones cuando no pretendes cambiar significado.
 - Medición: `timing.py`, productor del dashboard, schema y preview como una cadena.
 - Optimización: benchmark controlado antes y después. Conserva la versión simple si el efecto no se sostiene.

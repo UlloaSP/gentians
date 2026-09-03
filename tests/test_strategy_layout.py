@@ -39,3 +39,21 @@ def test_hypothesis_plumbing_does_not_import_evolution():
         ):
             offenders.add(path.name)
     assert offenders == set()
+
+
+def test_shared_fitness_does_not_import_evolution():
+    root = Path(__file__).parents[1] / "gentians" / "fitness"
+    offenders = set()
+    for path in root.glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        if any(
+            isinstance(node, ast.ImportFrom)
+            and node.module is not None
+            and (
+                node.module.startswith("evolution")
+                or node.module.startswith("gentians.evolution")
+            )
+            for node in ast.walk(tree)
+        ):
+            offenders.add(path.name)
+    assert offenders == set()

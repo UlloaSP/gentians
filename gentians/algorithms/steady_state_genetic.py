@@ -1,42 +1,45 @@
 import random
 from itertools import count
 
-from ...arguments import Arguments
-from ...clauses import (
+from ..arguments import Arguments
+from ..clauses import (
     ClauseSpace,
     generate_clause_space,
 )
-from ...language.ir.inductive_task import InductiveTask
-from ...timing import (
+from ..clauses.metrics import record_clause_space
+from ..language.ir.inductive_task import InductiveTask
+from ..timing import (
     net_time,
     phase,
     profile_phase,
     record_ga_generation,
 )
-from ..crossovers import create_crossover
-from ..evolution_context import EvolutionContext
-from ..fitness import create_fitness
-from ..individual import Individual
-from ..metrics import (
-    record_clause_space,
+from ..evolution.crossovers import create_crossover
+from ..evolution.context import EvolutionContext
+from ..evolution.individual import Individual
+from ..evolution.metrics import (
+    operator_metrics_enabled,
     record_crossover,
     record_mutation,
     record_replacement,
     record_selection,
     record_skipped_crossover,
 )
-from ..mutations import create_mutation
-from ..populations import create_population
-from ...hypotheses import Genome, HypothesisGenerator
-from ..replacements import create_replacement
-from ..selections import create_selection
+from ..evolution.mutations import create_mutation
+from ..evolution.populations import create_population
+from ..evolution.replacements import create_replacement
+from ..evolution.selections import create_selection
+from ..fitness import create_fitness
+from ..hypotheses import Genome, HypothesisGenerator
+from .result import SearchResult
+
 
 @profile_phase("search")
-def search_solver(
+def steady_state_genetic_search(
     args: Arguments,
     task: InductiveTask,
     supplied_space: ClauseSpace | None = None,
-) -> tuple[tuple[str, ...], float, bool]:
+) -> SearchResult:
     rng = random.Random(args.random_seed)
     population_strategy = create_population(args.population)
     selection = create_selection(args.selection)
@@ -78,7 +81,7 @@ def search_solver(
         solution: Individual,
         population: list[Individual],
         generation: int,
-    ) -> tuple[tuple[str, ...], float, bool]:
+    ) -> SearchResult:
         record_ga_generation(
             generation,
             best_overall.score,
@@ -86,7 +89,9 @@ def search_solver(
             elapsed_seconds=net_time() - started,
             fitness_evaluations=evaluations,
         )
-        return hypotheses.render(solution.genome), solution.score, True
+        return SearchResult(
+            hypotheses.render(solution.genome), solution.score, is_solution=True
+        )
 
     def population_with(solution: Individual) -> list[Individual]:
         updated = replacement(list(population), solution, rng)
@@ -158,7 +163,6 @@ def search_solver(
                         children.append((child, existing is None, True))
         for child, base_is_new, crossed in children:
             best_parent = first if first.score >= second.score else second
-            crossover_improved = crossed and child.score > best_parent.score
             if crossed:
                 record_crossover(
                     str(args.crossover["name"]),
@@ -180,25 +184,27 @@ def search_solver(
                     mutated = None
                 else:
                     mutated = admit(proposal.genome)
-            scored_mutation = (
-                evaluated.get(proposal.genome) if mutated is None else mutated
-            )
-            record_mutation(
-                str(args.mutation["name"]),
-                child.genome,
-                child,
-                mutated,
-                proposal,
-                duplicate=duplicate,
-                crossover_strategy=str(args.crossover["name"]),
-                crossover_improved=crossover_improved,
-                lost_crossover_gain=(
-                    crossover_improved
-                    and scored_mutation is not None
-                    and scored_mutation.score < child.score
-                    and all(item.genome != child.genome for item in population)
-                ),
-            )
+            if operator_metrics_enabled():
+                scored_mutation = (
+                    evaluated.get(proposal.genome) if mutated is None else mutated
+                )
+                crossover_improved = crossed and child.score > best_parent.score
+                record_mutation(
+                    str(args.mutation["name"]),
+                    child.genome,
+                    child,
+                    mutated,
+                    proposal,
+                    duplicate=duplicate,
+                    crossover_strategy=str(args.crossover["name"]),
+                    crossover_improved=crossover_improved,
+                    lost_crossover_gain=(
+                        crossover_improved
+                        and scored_mutation is not None
+                        and scored_mutation.score < child.score
+                        and all(item.genome != child.genome for item in population)
+                    ),
+                )
             if mutated is None:
                 continue
             if unchanged and not base_is_new:
@@ -207,7 +213,7 @@ def search_solver(
                 best_overall = _better(best_overall, mutated)
                 return finish(mutated, population_with(mutated), generation + 1)
             with phase("replacement"):
-                before = list(population)
+                before = population
                 population = replacement(population, mutated, rng)
             record_replacement(
                 str(args.replacement["name"]), before, population, mutated
@@ -223,7 +229,7 @@ def search_solver(
         )
     population.sort(key=lambda item: item.score, reverse=True)
     best_overall = _better(best_overall, population[0])
-    return (
+    return SearchResult(
         hypotheses.render(best_overall.genome),
         best_overall.score,
         best_overall.is_solution,

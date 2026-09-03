@@ -86,6 +86,12 @@ evaluation uses the normal solver: it creates a fresh Clingo control, adds
 retained AST, grounds its candidate program, then solves it.
 Whole-program fitness uses brave consequences.
 
+Complete search algorithms live in `gentians.algorithms` and return a
+`SearchResult`. The current implementation is `steady_state_genetic_search`:
+it replaces population members after each offspring. GA-specific state and
+operators live in `gentians.evolution`; fitness remains shared so exact or
+greedy algorithms can reuse it.
+
 Mutation defaults to `random_group`. `structural_neighbor` remains available as
 an alternative that replaces clauses with others sharing the same head:
 

@@ -1,30 +1,11 @@
-from ..clauses import ClauseSpace
 from ..hypotheses import Genome
-from ..language.ir.inductive_task import InductiveTask
 from ..timing import instrumentation, metric_enabled, record_metric
 from .individual import Individual
 from .operator_types import MutationProposal
 
 
-def record_clause_space(task: InductiveTask, space: ClauseSpace) -> None:
-    if not metric_enabled("candidate"):
-        return
-    invented = set(task.invented_predicates)
-    with instrumentation():
-        record_metric(
-            "candidate",
-            {
-                "metric": "clause_generation",
-                "clauses": len(space),
-                "invented_predicates": len(invented),
-                "invented_definition_clauses": sum(
-                    bool(entry.heads & invented) for entry in space.entries
-                ),
-                "invented_consumer_clauses": sum(
-                    bool(entry.deps & invented) for entry in space.entries
-                ),
-            },
-        )
+def operator_metrics_enabled() -> bool:
+    return metric_enabled("operator")
 
 
 def record_selection(
@@ -33,6 +14,8 @@ def record_selection(
     second: Individual,
     population_size: int,
 ) -> None:
+    if not operator_metrics_enabled():
+        return
     with instrumentation():
         record_metric(
             "operator",
@@ -50,6 +33,8 @@ def record_selection(
 
 
 def record_skipped_crossover(strategy: str, population_size: int) -> None:
+    if not operator_metrics_enabled():
+        return
     with instrumentation():
         record_metric(
             "operator",
@@ -80,6 +65,8 @@ def record_crossover(
     *,
     duplicate: bool,
 ) -> None:
+    if not operator_metrics_enabled():
+        return
     with instrumentation():
         changed = genome != parent.genome
         record_metric(
@@ -113,6 +100,8 @@ def record_mutation(
     crossover_improved: bool,
     lost_crossover_gain: bool,
 ) -> None:
+    if not operator_metrics_enabled():
+        return
     with instrumentation():
         changed = proposal.genome != parent_genome
         record_metric(
@@ -150,6 +139,8 @@ def record_replacement(
     after: list[Individual],
     candidate: Individual,
 ) -> None:
+    if not operator_metrics_enabled():
+        return
     accepted = any(item is candidate for item in after)
     duplicate = any(item.genome == candidate.genome for item in before)
     victim = next(

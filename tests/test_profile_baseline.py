@@ -21,6 +21,7 @@ from benchmarks.profile_baseline import (
     write_debug_clingo_program,
 )
 from gentians import timing
+from gentians.algorithms import SearchResult
 from gentians.arguments import Arguments
 from gentians.gentians import solve
 from tests.task_helpers import inductive_task
@@ -341,8 +342,8 @@ def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
     exported = {}
 
     monkeypatch.setattr(
-        "gentians.gentians.search_solver",
-        lambda *args, **kwargs: (("rule.",), 1.0, True),
+        "gentians.gentians.steady_state_genetic_search",
+        lambda *args, **kwargs: SearchResult(("rule.",), 1.0, True),
     )
 
     def export():
@@ -364,8 +365,8 @@ def test_total_execution_excludes_result_output(monkeypatch):
     timing.reset()
     monkeypatch.setattr(timing, "_enabled", True)
     monkeypatch.setattr(
-        "gentians.gentians.search_solver",
-        lambda *args, **kwargs: (("rule.",), 1.0, True),
+        "gentians.gentians.steady_state_genetic_search",
+        lambda *args, **kwargs: SearchResult(("rule.",), 1.0, True),
     )
     monkeypatch.setattr("gentians.gentians.export_timings", lambda: None)
     monkeypatch.setattr("builtins.print", lambda *args, **kwargs: time.sleep(0.02))
@@ -387,13 +388,13 @@ def test_fallback_total_excludes_result_output(monkeypatch):
 
     def search(*_args, **_kwargs):
         clock[0] += 5.0
-        return ("rule.",), 1.0, True
+        return SearchResult(("rule.",), 1.0, True)
 
     def print_result(*args, **_kwargs):
         output.append(args)
         clock[0] += 20.0
 
-    monkeypatch.setattr("gentians.gentians.search_solver", search)
+    monkeypatch.setattr("gentians.gentians.steady_state_genetic_search", search)
     monkeypatch.setattr("gentians.gentians.export_timings", lambda: None)
     monkeypatch.setattr("gentians.gentians.time.time", lambda: clock[0])
     monkeypatch.setattr("builtins.print", print_result)

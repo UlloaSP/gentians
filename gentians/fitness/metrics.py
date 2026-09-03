@@ -1,7 +1,7 @@
-from ...asp.coverage import Coverage
-from ...language.asp import AspProgram
-from ...language.ir.inductive_task import InductiveTask
-from ...timing import instrumentation, metric_enabled, record_metric
+from ..asp.coverage import Coverage
+from ..language.asp import AspProgram
+from ..language.ir.inductive_task import InductiveTask
+from ..timing import instrumentation, metric_enabled, record_metric
 
 
 def record_fitness_metric(

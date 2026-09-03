@@ -35,11 +35,11 @@
     {
       "id": "search",
       "type": "backend",
-      "label": "Evolution Search",
-      "sublabel": "orquesta generaciones",
+      "label": "Algoritmo genético",
+      "sublabel": "GA de estado estable",
       "pos": [620, 320],
       "size": [150, 72],
-      "tag": "search_solver"
+      "tag": "steady_state_genetic_search"
     },
     {
       "id": "fitness",
@@ -60,8 +60,8 @@
     {
       "id": "result",
       "type": "external",
-      "label": "Programa aprendido",
-      "sublabel": "reglas, score y best_found",
+      "label": "SearchResult",
+      "sublabel": "hipótesis, score e is_solution",
       "pos": [620, 520],
       "size": [160, 72]
     },

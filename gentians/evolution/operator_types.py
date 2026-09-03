@@ -2,7 +2,7 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .evolution_context import EvolutionContext
+from .context import EvolutionContext
 from .individual import Individual
 from ..hypotheses import Genome
 

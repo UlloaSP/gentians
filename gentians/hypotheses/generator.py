@@ -1,13 +1,34 @@
 import random
+import time
+from collections.abc import Callable
+from functools import wraps
 
 from ..language.asp import AspProgram, symbolic_literal_predicate
 from ..language.ir.inductive_task import InductiveTask
 from ..clauses import ClauseSpace
-from ..evolution.operator_types import MutationProposal
-from ..evolution.types import Genome, ProgramText
-from .common import bits, defined_predicates, prepare_space, record_generation_time
+from ..timing import add, current_phase
+from .space import defined_predicates, prepare_space
+from .types import Genome, ProgramText
 
 _CACHE_SIZE = 65536
+
+
+def _record_closure_time(method: Callable) -> Callable:
+    @wraps(method)
+    def measured(*args, **kwargs):
+        started = time.perf_counter()
+        result = method(*args, **kwargs)
+        add(f"{current_phase()}.closure", time.perf_counter() - started)
+        return result
+
+    return measured
+
+
+def _bits(mask: int):
+    while mask:
+        bit = mask & -mask
+        yield bit
+        mask ^= bit
 
 
 class HypothesisGenerator:
@@ -72,12 +93,11 @@ class HypothesisGenerator:
         self.clauses_by_head: dict[int, int] = {}
         for clause_id, heads in enumerate(self.head_masks):
             clause_bit = 1 << clause_id
-            for predicate_bit in bits(heads):
+            for predicate_bit in _bits(heads):
                 self.clauses_by_head[predicate_bit] = (
                     self.clauses_by_head.get(predicate_bit, 0) | clause_bit
                 )
         self._render_cache: dict[Genome, ProgramText] = {}
-        self._program_cache: dict[Genome, AspProgram] = {}
         self._summary_cache: dict[Genome, tuple[int, int]] = {}
         self._build_cache: dict[tuple[Genome, Genome], Genome | None] = {}
 
@@ -97,64 +117,17 @@ class HypothesisGenerator:
         return self._render_cache[genome]
 
     def program(self, genome: Genome) -> AspProgram:
-        if genome not in self._program_cache:
-            self._remember(
-                self._program_cache,
-                genome,
-                tuple(self.statements[clause_id] for clause_id in self._ids(genome)),
-            )
-        return self._program_cache[genome]
+        return tuple(self.statements[clause_id] for clause_id in self._ids(genome))
 
-    @record_generation_time
-    def create_population(self, size: int) -> list[Genome]:
-        population: list[Genome] = []
-        seen: set[Genome] = set()
-        failed_attempts = 0
-        while len(population) < size and failed_attempts < 64:
-            candidate = self._create()
-            if candidate is not None and candidate not in seen:
-                population.append(candidate)
-                seen.add(candidate)
-                failed_attempts = 0
-            else:
-                failed_attempts += 1
-        return population
-
-    def _create(self) -> Genome | None:
+    @_record_closure_time
+    def create(self) -> Genome | None:
         if not self.clause_count:
             return None
         limit = min(self.max_clauses, self.clause_count)
         size = self.rng.randint(1, limit)
         return self._build(self._sample_clauses(size), 0)
 
-    @record_generation_time
-    def mutate_random(self, program: Genome) -> MutationProposal:
-        operations = self._possible_operations(program)
-        self.rng.shuffle(operations)
-        for operation in operations:
-            if candidate := self._apply_random_operation(program, operation):
-                return MutationProposal(candidate, operation=operation, local=False)
-        return MutationProposal(program)
-
-    @record_generation_time
-    def mutate_structural(
-        self,
-        program: Genome,
-        random_jump_probability: float,
-    ) -> MutationProposal:
-        operations = self._possible_operations(program)
-        self.rng.shuffle(operations)
-        for operation in operations:
-            if operation == "replace":
-                if result := self._structural_replacement(
-                    program, random_jump_probability
-                ):
-                    return result
-            elif candidate := self._apply_random_operation(program, operation):
-                return MutationProposal(candidate, operation=operation, local=False)
-        return MutationProposal(program)
-
-    @record_generation_time
+    @_record_closure_time
     def mix(
         self,
         first: Genome,
@@ -211,7 +184,7 @@ class HypothesisGenerator:
             return None
         return selected
 
-    def _possible_operations(self, program: Genome) -> list[str]:
+    def operations(self, program: Genome) -> list[str]:
         size = program.bit_count()
         operations = []
         if size < self.max_clauses:
@@ -222,50 +195,38 @@ class HypothesisGenerator:
             operations.append("replace")
         return operations
 
-    def _apply_random_operation(self, program: Genome, operation: str) -> Genome | None:
-        if operation == "append":
-            for clause_id in self._random_available(program):
-                if candidate := self._build(program | (1 << clause_id), 0):
-                    return candidate
-            return None
-        if operation == "remove":
-            for clause_id in self._random_ids(program):
-                clause_bit = self.clause_bundle_masks[clause_id]
-                if candidate := self._build(program & ~clause_bit, clause_bit):
-                    return candidate
-            return None
-        if operation == "replace":
-            for source_id in self._random_ids(program):
-                source_bit = self.clause_bundle_masks[source_id]
-                base = program & ~source_bit
-                for replacement_id in self._random_available(program):
-                    if candidate := self._build(
-                        base | (1 << replacement_id), source_bit
-                    ):
-                        return candidate
+    @_record_closure_time
+    def append(self, program: Genome) -> Genome | None:
+        for clause_id in self._random_available(program):
+            if candidate := self._build(program | (1 << clause_id), 0):
+                return candidate
         return None
 
-    def _structural_replacement(
-        self,
-        program: Genome,
-        random_jump_probability: float,
-    ) -> MutationProposal | None:
+    @_record_closure_time
+    def remove(self, program: Genome) -> Genome | None:
+        for clause_id in self._random_ids(program):
+            clause_bit = self.clause_bundle_masks[clause_id]
+            if candidate := self._build(program & ~clause_bit, clause_bit):
+                return candidate
+        return None
+
+    @_record_closure_time
+    def replace(self, program: Genome, *, same_head: bool = False) -> Genome | None:
         for source_id in self._random_ids(program):
-            random_jump = self.rng.random() < random_jump_probability
             source_bit = self.clause_bundle_masks[source_id]
             base = program & ~source_bit
             replacements = (
-                self._random_available(program)
-                if random_jump
-                else (
+                (
                     clause_id
                     for clause_id in self._random_available(program)
                     if self.head_masks[clause_id] == self.head_masks[source_id]
                 )
+                if same_head
+                else self._random_available(program)
             )
             for replacement_id in replacements:
                 if candidate := self._build(base | (1 << replacement_id), source_bit):
-                    return MutationProposal(candidate, "replace", not random_jump)
+                    return candidate
         return None
 
     def _sample_clauses(self, size: int) -> Genome:
@@ -324,7 +285,7 @@ class HypothesisGenerator:
                 return completed
             if completed.bit_count() < self.max_clauses:
                 missing_bit = min(
-                    bits(missing),
+                    _bits(missing),
                     key=lambda bit: (
                         self.clauses_by_head.get(bit, 0) & ~completed & ~forbidden
                     ).bit_count(),

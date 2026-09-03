@@ -1,5 +1,5 @@
 from ..evolution_context import EvolutionContext
-from ..types import Genome
+from ...hypotheses import Genome
 
 
 class SetMixCrossover:

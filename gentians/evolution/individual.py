@@ -1,7 +1,8 @@
 import time
 from dataclasses import dataclass, field
 
-from .types import Behavior, Genome
+from ..hypotheses import Genome
+from .types import Behavior
 
 
 @dataclass(slots=True)

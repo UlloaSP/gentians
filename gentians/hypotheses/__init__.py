@@ -1,4 +1,5 @@
 from .generator import HypothesisGenerator
+from .types import Genome, ProgramText
 
 
-__all__ = ["HypothesisGenerator"]
+__all__ = ["Genome", "HypothesisGenerator", "ProgramText"]

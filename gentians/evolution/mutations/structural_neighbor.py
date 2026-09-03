@@ -1,6 +1,6 @@
 from ..evolution_context import EvolutionContext
 from ..operator_types import MutationProposal
-from ..types import Genome
+from ...hypotheses import Genome
 
 
 class StructuralNeighborMutation:
@@ -17,6 +17,21 @@ class StructuralNeighborMutation:
     def __call__(self, genome: Genome, context: EvolutionContext) -> MutationProposal:
         if context.rng.random() >= self.probability:
             return MutationProposal(genome, skipped=True)
-        return context.hypotheses.mutate_structural(
-            genome, self.random_jump_probability
-        )
+        operations = context.hypotheses.operations(genome)
+        context.rng.shuffle(operations)
+        for operation in operations:
+            if operation == "replace":
+                random_jump = context.rng.random() < self.random_jump_probability
+                candidate = context.hypotheses.replace(
+                    genome, same_head=not random_jump
+                )
+                local = not random_jump
+            elif operation == "append":
+                candidate = context.hypotheses.append(genome)
+                local = False
+            else:
+                candidate = context.hypotheses.remove(genome)
+                local = False
+            if candidate is not None:
+                return MutationProposal(candidate, operation=operation, local=local)
+        return MutationProposal(genome)

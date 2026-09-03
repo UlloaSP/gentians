@@ -765,7 +765,7 @@ def test_parser_preserves_strong_negation_in_atoms_and_rule_dependencies():
 
 
 def test_dependency_closure_does_not_confuse_positive_and_strong_providers():
-    from gentians.hypotheses.common import prepare_space
+    from gentians.hypotheses.space import prepare_space
 
     space = make_clause_space(["target(X) :- -source(X)."])
     positive_background = inductive_task(["source(a)."], [], [], [], [])
@@ -4808,9 +4808,9 @@ def test_second_order_metarule_instantiates_atomic_rule_bundle(tmp_path):
     assert len({entry.bundle for entry in metarules}) == 1
 
     generator = HypothesisGenerator(program, space, 2, random.Random(0))
-    population = generator.create_population(1)
-    assert population
-    assert len(generator.render(population[0])) == 2
+    hypothesis = generator.create()
+    assert hypothesis is not None
+    assert len(generator.render(hypothesis)) == 2
 
 
 def test_modearith_exact_equality_can_produce_its_declared_output(tmp_path):

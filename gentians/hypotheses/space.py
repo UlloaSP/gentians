@@ -1,31 +1,15 @@
-import time
-from collections.abc import Callable, Iterable
-from functools import wraps
+from collections.abc import Iterable
 
 from clingo import ast
 
+from ..clauses import Clause, ClauseSpace
 from ..language.asp import Predicate, clause_predicates
 from ..language.ir.inductive_task import InductiveTask
-from ..clauses import Clause, ClauseSpace
-from ..timing import add, current_phase
-
-
-def record_generation_time(method: Callable) -> Callable:
-    @wraps(method)
-    def measured(*args, **kwargs):
-        started = time.perf_counter()
-        result = method(*args, **kwargs)
-        # Benchmark schema keeps "closure" as the invariant-work time category.
-        add(f"{current_phase()}.closure", time.perf_counter() - started)
-        return result
-
-    return measured
 
 
 def prepare_space(task: InductiveTask, space: ClauseSpace) -> ClauseSpace:
     background = defined_predicates(task.background)
-    entries = prune_uncloseable_clauses(space.entries, background)
-    return ClauseSpace(entries)
+    return ClauseSpace(_prune_uncloseable_clauses(space.entries, background))
 
 
 def defined_predicates(statements: Iterable[ast.AST]) -> set[Predicate]:
@@ -36,7 +20,7 @@ def defined_predicates(statements: Iterable[ast.AST]) -> set[Predicate]:
     return defined
 
 
-def prune_uncloseable_clauses(
+def _prune_uncloseable_clauses(
     entries: tuple[Clause, ...], background: set[Predicate]
 ) -> list[Clause]:
     kept = list(entries)
@@ -57,10 +41,3 @@ def prune_uncloseable_clauses(
         if len(filtered) == len(kept):
             return kept
         kept = filtered
-
-
-def bits(mask: int):
-    while mask:
-        bit = mask & -mask
-        yield bit
-        mask ^= bit

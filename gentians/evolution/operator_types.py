@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from .evolution_context import EvolutionContext
 from .individual import Individual
-from .types import Genome
+from ..hypotheses import Genome
 
 
 @dataclass(frozen=True, slots=True)

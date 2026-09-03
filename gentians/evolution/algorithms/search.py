@@ -23,10 +23,9 @@ from ..individual import Individual
 from ..mutations import create_mutation
 from ..operator_types import MutationProposal
 from ..populations import create_population
-from ...hypotheses import HypothesisGenerator
+from ...hypotheses import Genome, HypothesisGenerator
 from ..replacements import create_replacement
 from ..selections import create_selection
-from ..types import Genome
 
 
 def _record_clause_space_metrics(task: InductiveTask, space: ClauseSpace) -> None:

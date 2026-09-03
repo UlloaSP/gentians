@@ -1,5 +1,5 @@
 from ..evolution_context import EvolutionContext
-from ..types import Genome
+from ...hypotheses import Genome
 
 
 class RandomPopulation:
@@ -7,4 +7,15 @@ class RandomPopulation:
         self.size = size
 
     def __call__(self, context: EvolutionContext) -> list[Genome]:
-        return context.hypotheses.create_population(self.size)
+        population: list[Genome] = []
+        seen: set[Genome] = set()
+        failed_attempts = 0
+        while len(population) < self.size and failed_attempts < 64:
+            candidate = context.hypotheses.create()
+            if candidate is not None and candidate not in seen:
+                population.append(candidate)
+                seen.add(candidate)
+                failed_attempts = 0
+            else:
+                failed_attempts += 1
+        return population

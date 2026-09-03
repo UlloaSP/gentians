@@ -44,6 +44,11 @@ def _render(context, genome):
     return context.hypotheses.render(genome)
 
 
+def _population(generator, size):
+    context = EvolutionContext(generator, generator.rng)
+    return create_population({"name": "random", "size": size})(context)
+
+
 def test_all_mutations_share_genome_contract():
     context = _context(["a.", "b.", "c."])
     genome = _encode(context, "a.", "b.")
@@ -324,7 +329,7 @@ def test_hypothesis_generator_creates_only_closed_programs():
     space = make_clause_space(list(rules))
     generator = HypothesisGenerator(program, space, 2, random.Random(1))
 
-    assert [generator.render(genome) for genome in generator.create_population(1)] == [
+    assert [generator.render(genome) for genome in _population(generator, 1)] == [
         tuple(sorted(rules))
     ]
 
@@ -349,7 +354,7 @@ def test_hypothesis_generator_builds_invented_definition_module():
     generator = HypothesisGenerator(program, space, 3, random.Random(1))
     generator.rng.randint = lambda _start, end: end
 
-    [generated] = generator.create_population(1)
+    [generated] = _population(generator, 1)
 
     assert generated is not None
     rendered = generator.render(generated)
@@ -377,7 +382,7 @@ def test_population_accepts_closure_larger_than_sampled_size(monkeypatch):
     )
     monkeypatch.setattr(generator.rng, "randint", lambda _start, _end: 1)
 
-    [generated] = generator.create_population(1)
+    [generated] = _population(generator, 1)
 
     assert generator.render(generated) == tuple(sorted((consumer, provider)))
 
@@ -395,7 +400,10 @@ def test_hypothesis_generator_applies_mutation_atomically():
         random.Random(1),
     )
 
-    result = generator.mutate_random(generator.encode((seed, consumer, provider)))
+    context = EvolutionContext(generator, generator.rng)
+    result = create_mutation({"name": "random_group", "probability": 1.0})(
+        generator.encode((seed, consumer, provider)), context
+    )
 
     rendered = generator.render(result.program)
     assert rendered != tuple(sorted((seed, consumer, provider)))
@@ -408,7 +416,7 @@ def test_generator_prunes_uncloseable_rules():
     generator = HypothesisGenerator(program, space, 2, random.Random(1))
 
     assert generator.space.clauses == ("base.",)
-    assert [generator.render(genome) for genome in generator.create_population(2)] == [
+    assert [generator.render(genome) for genome in _population(generator, 2)] == [
         ("base.",)
     ]
 
@@ -418,7 +426,7 @@ def test_hypothesis_generator_creates_requested_population_size():
     space = make_clause_space(["a.", "b.", "c."])
     generator = HypothesisGenerator(program, space, 3, random.Random(1))
 
-    assert len(generator.create_population(3)) == 3
+    assert len(_population(generator, 3)) == 3
 
 
 def test_hypothesis_generator_uses_canonical_bitset_genomes():
@@ -460,10 +468,10 @@ def test_hypothesis_generator_does_not_cache_bounded_search_failures(monkeypatch
     assert calls == 2
 
 
-def test_hypothesis_generator_records_one_closure_per_public_transition(monkeypatch):
+def test_hypothesis_generator_records_closure_for_each_public_transition(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "gentians.hypotheses.common.add",
+        "gentians.hypotheses.generator.add",
         lambda name, seconds: calls.append((name, seconds)),
     )
     generator = HypothesisGenerator(
@@ -473,8 +481,9 @@ def test_hypothesis_generator_records_one_closure_per_public_transition(monkeypa
         random.Random(1),
     )
 
-    generator.create_population(2)
-    generator.mutate_random(generator.encode(("a.",)))
+    created = generator.create()
+    assert created is not None
+    generator.append(generator.encode(("a.",)))
     generator.mix(
         generator.encode(("a.",)),
         generator.encode(("b.",)),
@@ -485,18 +494,23 @@ def test_hypothesis_generator_records_one_closure_per_public_transition(monkeypa
     assert all(name.endswith(".closure") for name, _seconds in calls)
 
 
-def test_generation_consumers_make_one_high_level_generator_call():
+def test_evolution_strategies_choose_operations_and_delegate_validity():
     class GeneratorSpy:
         def __init__(self):
             self.calls = []
 
-        def create_population(self, size):
-            self.calls.append(("population", size))
-            return []
+        def create(self):
+            candidate = len([call for call in self.calls if call[0] == "create"]) + 1
+            self.calls.append(("create", candidate))
+            return candidate
 
-        def mutate_random(self, program):
-            self.calls.append(("random", program))
-            return MutationProposal(program)
+        def operations(self, program):
+            self.calls.append(("operations", program))
+            return ["append"]
+
+        def append(self, program):
+            self.calls.append(("append", program))
+            return program | 4
 
         def mix(self, first, second, probabilities):
             self.calls.append(("crossover", first, second, probabilities))
@@ -515,8 +529,11 @@ def test_generation_consumers_make_one_high_level_generator_call():
     )
 
     assert [call[0] for call in generator.calls] == [
-        "population",
-        "random",
+        "create",
+        "create",
+        "create",
+        "operations",
+        "append",
         "crossover",
     ]
 

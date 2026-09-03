@@ -27,6 +27,7 @@ sweeps/
 .benchmarks/ga_profile/
 .benchmarks/experiments.json
 .benchmarks/profile_*/
+.benchmarks/search-representations/
 
 # Generated analysis
 graphify-out/

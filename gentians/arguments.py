@@ -84,8 +84,8 @@ class Arguments:
         }
     )
 
-    # Hypothesis-space candidate-source details.
-    hypothesis_space: dict[str, object] = field(
+    # Clause-generation solver details.
+    clause_generation: dict[str, object] = field(
         default_factory=lambda: {
             # Extra Clingo CLI arguments used to enumerate generated clauses.
             "clingo_arguments": ["--parallel-mode=5,split"],

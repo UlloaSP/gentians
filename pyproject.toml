@@ -39,7 +39,7 @@ include = ["gentians*"]
 
 [tool.setuptools.package-data]
 "gentians.asp" = ["rules/*.lp"]
-"gentians.clauses" = ["rules/*/*.lp"]
+"gentians.clauses" = ["metaprogram/*/*.lp"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

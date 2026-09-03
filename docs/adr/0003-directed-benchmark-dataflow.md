@@ -5,7 +5,7 @@ Status: accepted.
 ## Context
 
 Initial migration to typed mode arguments used `any` in bundled tasks. That
-preserved their previous broad hypothesis spaces but did not encode intended
+preserved their previous broad clause spaces but did not encode intended
 dataflow. Replacing `any` only in normal modes was insufficient: aggregate and
 arithmetic results are legitimate producers, while comparisons are consumers.
 
@@ -44,7 +44,7 @@ changing established task semantics.
 - Intended aggregate and arithmetic target rules remain expressible.
 - Bundled tasks contain no accidental `any` directions.
 - Reusing `1` in unrelated domains no longer collapses their nominal types.
-- Hypothesis cache schema advances because legal rule spaces change.
+- Hypothesis cache schema advances because legal clause spaces change.
 - `constant_colour` is catalogued but excluded from default experiment sets;
   it is a feature regression task, not a replacement performance baseline.
 

@@ -5,7 +5,7 @@ import { ChartSection } from "../components/Layout";
 import { fmt, fmtInt, num } from "../metrics";
 
 const PHASES = {
-  hypothesis_space: { label: "hypothesis", color: "#8E63BE", order: 0 },
+  clause_generation: { label: "clauses", color: "#8E63BE", order: 0 },
   pregrounding: { label: "pregrounding", color: "#6D4AA5", order: 1 },
   population: { label: "initialization", color: "#4C78A8", order: 2 },
   selection: { label: "selection", color: "#72B7B2", order: 3 },

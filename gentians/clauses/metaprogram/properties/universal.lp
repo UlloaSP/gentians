@@ -21,10 +21,10 @@
 % - universal_pred(Pred): emitted by Python when predicate id Pred is true for
 %   every tuple in its observed typed domain.
 % - mode(Section,Mode,Pred,Arity,Recall): emitted by Python for every available
-%   hypothesis mode. Arity=2 means Pred is binary and can be reflexive.
+%   clause mode. Arity=2 means Pred is binary and can be reflexive.
 % Python fact detail: universal_pred(Pred) marks predicate id Pred as true for every tuple in observed typed domain.
 #defined universal_pred/1.
-% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Arity identifies binary predicates for reflexive derivation.
+% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per clause mode; Arity identifies binary predicates for reflexive derivation.
 #defined mode/5.
 
 % Rule: binary universal predicates are reflexive.

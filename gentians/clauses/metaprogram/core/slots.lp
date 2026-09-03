@@ -25,7 +25,7 @@
 % - max_head(Max): emitted from task #maxhl. Max is
 %   number of available head slots.
 % - mode(Section,Mode,Pred,Arity,Recall): emitted by Python for every available
-%   hypothesis mode. Section is head/body; Mode is unique mode id; Pred is
+%   clause mode. Section is head/body; Mode is unique mode id; Pred is
 %   predicate id for normal modes; Arity is rendered arity; Recall is mode cap.
 % Python fact detail: max_vars(Max) comes from task #maxv; Max is count of available generated variables V0..V(Max-1).
 #defined max_vars/1.
@@ -33,7 +33,7 @@
 #defined max_body/1.
 % Python fact detail: max_head(Max) comes from task #maxhl.
 #defined max_head/1.
-% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
+% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per clause mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
 #defined mode/5.
 #defined head_form_member/3.
 

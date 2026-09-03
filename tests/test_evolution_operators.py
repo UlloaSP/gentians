@@ -20,12 +20,12 @@ from gentians.evolution.selections.behavior_tournament_selection import (
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
 from gentians.evolution.types import FitnessResult
-from gentians.clauses.rule_space import RuleSpace
+from gentians.clauses.clause_space import ClauseSpace
 from tests.task_helpers import example, inductive_task
 
 
 def _context(rules, *, max_clauses=3):
-    space = RuleSpace.from_clauses(list(rules))
+    space = ClauseSpace.from_clauses(list(rules))
     dependencies = set().union(*(entry.deps for entry in space.entries), set())
     background = [
         f"{name}({','.join('c' for _ in range(arity))})." if arity else f"{name}."
@@ -164,7 +164,7 @@ def test_crossover_generates_closed_programs_directly():
     first_provider = "tails(V0) :- coin(V0)."
     second_provider = "tails(V0) :- marked(V0)."
     program = inductive_task(["coin(c1).", "marked(c1)."], [], [], [], [])
-    space = RuleSpace.from_clauses(
+    space = ClauseSpace.from_clauses(
         [consumer, first_provider, second_provider]
     )
     rng = random.Random(3)
@@ -322,7 +322,7 @@ def test_hypothesis_generator_creates_only_closed_programs():
         "tails(V0):- coin(V0),not heads(V0).",
     )
     program = inductive_task(["coin(c1)."], [], [], [], [])
-    space = RuleSpace.from_clauses(list(rules))
+    space = ClauseSpace.from_clauses(list(rules))
     generator = HypothesisGenerator(program, space, 2, random.Random(1))
 
     assert [generator.render(genome) for genome in generator.create_population(1)] == [
@@ -344,7 +344,7 @@ def test_hypothesis_generator_builds_invented_definition_module():
         [],
         invented_predicates=(("helper", 2),),
     )
-    space = RuleSpace.from_clauses(
+    space = ClauseSpace.from_clauses(
         [consumer, mother, father, recursive, constraint]
     )
     generator = HypothesisGenerator(program, space, 3, random.Random(1))
@@ -372,7 +372,7 @@ def test_population_accepts_closure_larger_than_sampled_size(monkeypatch):
     )
     generator = HypothesisGenerator(
         program,
-        RuleSpace.from_clauses([consumer, provider]),
+        ClauseSpace.from_clauses([consumer, provider]),
         2,
         random.Random(1),
     )
@@ -391,7 +391,7 @@ def test_hypothesis_generator_applies_mutation_atomically():
     program = inductive_task(["coin(c1).", "marked(c1)."], [], [], [], [])
     generator = HypothesisGenerator(
         program,
-        RuleSpace.from_clauses([seed, consumer, provider, alternative]),
+        ClauseSpace.from_clauses([seed, consumer, provider, alternative]),
         3,
         random.Random(1),
     )
@@ -405,7 +405,7 @@ def test_hypothesis_generator_applies_mutation_atomically():
 
 def test_generator_prunes_uncloseable_rules():
     program = inductive_task(["base."], [], [], [], [])
-    space = RuleSpace.from_clauses(["base.", "target :- missing."])
+    space = ClauseSpace.from_clauses(["base.", "target :- missing."])
     generator = HypothesisGenerator(program, space, 2, random.Random(1))
 
     assert generator.space.clauses == ("base.",)
@@ -416,7 +416,7 @@ def test_generator_prunes_uncloseable_rules():
 
 def test_hypothesis_generator_creates_requested_population_size():
     program = inductive_task([], [], [], [], [])
-    space = RuleSpace.from_clauses(["a.", "b.", "c."])
+    space = ClauseSpace.from_clauses(["a.", "b.", "c."])
     generator = HypothesisGenerator(program, space, 3, random.Random(1))
 
     assert len(generator.create_population(3)) == 3
@@ -425,7 +425,7 @@ def test_hypothesis_generator_creates_requested_population_size():
 def test_hypothesis_generator_uses_canonical_bitset_genomes():
     generator = HypothesisGenerator(
         inductive_task([], [], [], [], []),
-        RuleSpace.from_clauses(["a.", "b.", "c.", "d."]),
+        ClauseSpace.from_clauses(["a.", "b.", "c.", "d."]),
         3,
         random.Random(1),
     )
@@ -436,13 +436,13 @@ def test_hypothesis_generator_uses_canonical_bitset_genomes():
     assert isinstance(genome, int)
     assert genome.bit_count() == 2
     assert generator.render(genome) == ("a.", "c.")
-    assert sorted(available) == [generator.rule_ids["b."], generator.rule_ids["d."]]
+    assert sorted(available) == [generator.clause_ids["b."], generator.clause_ids["d."]]
 
 
 def test_hypothesis_generator_does_not_cache_bounded_search_failures(monkeypatch):
     generator = HypothesisGenerator(
         inductive_task([], [], [], [], []),
-        RuleSpace.from_clauses(["a."]),
+        ClauseSpace.from_clauses(["a."]),
         1,
         random.Random(1),
     )
@@ -469,7 +469,7 @@ def test_hypothesis_generator_records_one_closure_per_public_transition(monkeypa
     )
     generator = HypothesisGenerator(
         inductive_task([], [], [], [], []),
-        RuleSpace.from_clauses(["a.", "b.", "c."]),
+        ClauseSpace.from_clauses(["a.", "b.", "c."]),
         2,
         random.Random(1),
     )
@@ -522,7 +522,7 @@ def test_generation_consumers_make_one_high_level_generator_call():
     ]
 
 
-def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
+def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
     generations = []
     args = Arguments(
         random_seed=3,
@@ -555,7 +555,7 @@ def test_single_engine_accepts_supplied_hypothesis_space(monkeypatch):
     result, score, best = search_solver(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        RuleSpace.from_clauses(["good.", "higher_score."]),
+        ClauseSpace.from_clauses(["good.", "higher_score."]),
     )
     assert result == ("good.",)
     assert score == 1.0
@@ -606,7 +606,7 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     result, score, best = search_solver(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        RuleSpace.from_clauses(["start.", "win."]),
+        ClauseSpace.from_clauses(["start.", "win."]),
     )
 
     assert result == ("win.",)
@@ -647,7 +647,7 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     search_solver(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        RuleSpace.from_clauses(["start."]),
+        ClauseSpace.from_clauses(["start."]),
     )
 
     assert mutation_calls == []
@@ -708,7 +708,7 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     result, score, best = search_solver(
         args,
         inductive_task([], [], [], [], []),
-        RuleSpace.from_clauses(["start.", "win.", "loss."]),
+        ClauseSpace.from_clauses(["start.", "win.", "loss."]),
     )
 
     assert result == ("win.",)
@@ -762,7 +762,7 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
     search_solver(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        RuleSpace.from_clauses(["start.", "other.", "cross.", "mutated."]),
+        ClauseSpace.from_clauses(["start.", "other.", "cross.", "mutated."]),
     )
 
     [mutation] = [row for row in rows if row["operator"] == "mutation"]
@@ -804,7 +804,7 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     search_solver(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        RuleSpace.from_clauses(["start.", "cross."]),
+        ClauseSpace.from_clauses(["start.", "cross."]),
     )
 
     crossover_rows = [row for row in rows if row["operator"] == "crossover"]
@@ -847,7 +847,7 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     search_solver(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        RuleSpace.from_clauses(["start.", "other.", "cross."]),
+        ClauseSpace.from_clauses(["start.", "other.", "cross."]),
     )
 
     mutation_rows = [row for row in rows if row["operator"] == "mutation"]

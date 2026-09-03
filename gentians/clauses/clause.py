@@ -6,7 +6,7 @@ from ..language.asp import Predicate
 
 
 @dataclass(frozen=True, slots=True)
-class RuleEntry:
+class Clause:
     text: str
     statement: ast.AST = field(compare=False, repr=False)
     heads: frozenset[Predicate]

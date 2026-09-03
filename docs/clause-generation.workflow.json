@@ -2,9 +2,9 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "Generación de cláusulas y RuleSpace en Gentians",
+    "title": "Generación de cláusulas y ClauseSpace en Gentians",
     "quality_profile": "showcase",
-    "output": "docs/hypothesis-generation.html",
+    "output": "docs/clause-generation.html",
     "viewBox": [1700, 700]
   },
   "lanes": [
@@ -33,14 +33,14 @@
     "clingo",
     "decoder",
     "arithmetic_system",
-    "rule_space"
+    "clause_space"
   ],
   "semanticChecks": {
     "allowedRoots": ["task_file"],
-    "allowedTerminals": ["rule_space"],
+    "allowedTerminals": ["clause_space"],
     "requiredPaths": [
       { "from": "task_file", "to": "clingo" },
-      { "from": "clingo", "to": "rule_space" }
+      { "from": "clingo", "to": "clause_space" }
     ]
   },
   "nodes": [
@@ -89,7 +89,7 @@
       "lane": "compiler",
       "col": 3,
       "type": "backend",
-      "label": "HypothesisMode compiler",
+      "label": "ClauseMode compiler",
       "width": 185
     },
     {
@@ -125,11 +125,11 @@
       "width": 190
     },
     {
-      "id": "rule_space",
+      "id": "clause_space",
       "lane": "asp",
       "col": 5,
       "type": "database",
-      "label": "RuleSpace",
+      "label": "ClauseSpace",
       "width": 175
     }
   ],
@@ -144,7 +144,7 @@
     { "id": "solve-space", "from": "asp_facts", "to": "clingo", "label": "programa ASP completo", "variant": "emphasis", "role": "main" },
     { "id": "decode-model", "from": "clingo", "to": "decoder", "label": "selected/3 + var_at/4", "variant": "default", "role": "main" },
     { "id": "canonicalize", "from": "decoder", "to": "arithmetic_system", "label": "ReifiedClause theta-reduced", "variant": "emphasis", "role": "main" },
-    { "id": "deduplicate", "from": "arithmetic_system", "to": "rule_space", "label": "canonical.key → representante", "variant": "emphasis", "role": "main" }
+    { "id": "deduplicate", "from": "arithmetic_system", "to": "clause_space", "label": "canonical.key → representante", "variant": "emphasis", "role": "main" }
   ],
   "cards": [
     {
@@ -162,7 +162,7 @@
       "title": "Compilación y poda ASP previa al modelo",
       "items": [
         "Análisis estático valida #minhl/#maxhl, recalls de #modeha, inventions, tipos nominales y capacidades",
-        "HypothesisMode asigna IDs, recall groups, posiciones y roles; marca formularios #modeha para linkedness estructural",
+        "ClauseMode asigna IDs, recall groups, posiciones y roles; marca formularios #modeha para linkedness estructural",
         "ASP poda slots, orden, recall, límites, linkedness, typing, safety y flujo",
         "Módulos de operadores y propiedades podan redundancias y contradicciones"
       ]
@@ -174,7 +174,7 @@
         "selected/3 + var_at/4 se decodifican como ReifiedClause; _theta_reduced elimina subcuerpos equivalentes",
         "Operaciones conectadas forman ArithmeticSystem con ecuaciones residuales y condiciones",
         "Outputs inseguros conservan asignación; div/mod incluyen divisor != 0 sin recall extra",
-        "RuleEntry guarda texto, heads, dependencies, tamaño y bundle; RuleSpace ordena y deduplica"
+        "Clause guarda texto, heads, dependencies, tamaño y bundle; ClauseSpace ordena y deduplica"
       ]
     }
   ]

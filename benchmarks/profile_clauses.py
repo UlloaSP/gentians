@@ -9,26 +9,26 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.catalog import DEFAULT_DATASETS, case_names
-from benchmarks.profile_baseline import profile_arguments
-from gentians import timing
-from gentians.gentians import task_from_arguments
-from gentians.clauses.hypothesis_space import build_hypothesis_space
+from benchmarks.catalog import DEFAULT_DATASETS, case_names  # noqa: E402
+from benchmarks.profile_baseline import profile_arguments  # noqa: E402
+from gentians import timing  # noqa: E402
+from gentians.clauses import build_clause_space  # noqa: E402
+from gentians.gentians import task_from_arguments  # noqa: E402
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate benchmark hypothesis spaces."
+        description="Generate benchmark clause spaces."
     )
     parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
-    parser.add_argument("--out-dir", type=Path, default=Path(".debug") / "hypothesis")
+    parser.add_argument("--out-dir", type=Path, default=Path(".debug") / "clauses")
     parser.add_argument(
         "--set",
         action="append",
         default=[],
         metavar="PATH=JSON",
         help=(
-            "Override Arguments field, e.g. --set hypothesis_space.clingo_arguments=[]"
+            "Override Arguments field, e.g. --set clause_generation.clingo_arguments=[]"
         ),
     )
     parser.add_argument(
@@ -49,7 +49,7 @@ def main() -> None:
             raise SystemExit(f"Invalid arguments for dataset {dataset}: {exc}") from exc
         started = time.perf_counter()
         task = task_from_arguments(arguments)
-        rule_space, metrics = build_profiled_hypothesis(task, arguments)
+        clause_space, metrics = build_profiled_clause_space(task, arguments)
         path = args.out_dir / f"{safe_filename(dataset)}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -62,7 +62,7 @@ def main() -> None:
                             "deps": [list(value) for value in sorted(entry.deps)],
                             "body_literals": entry.body_literals,
                         }
-                        for entry in rule_space.entries
+                        for entry in clause_space.entries
                     ],
                     "metrics": metrics,
                 },
@@ -71,10 +71,10 @@ def main() -> None:
             encoding="utf-8",
         )
         elapsed = time.perf_counter() - started
-        print(f"{dataset}: {len(rule_space)} rules -> ({elapsed:.2f}s)")
+        print(f"{dataset}: {len(clause_space)} clauses -> ({elapsed:.2f}s)")
 
 
-def build_profiled_hypothesis(program, arguments):
+def build_profiled_clause_space(program, arguments):
     with tempfile.TemporaryDirectory() as raw_tmp:
         tmp = Path(raw_tmp)
         timings_path = tmp / "timings.json"
@@ -88,13 +88,13 @@ def build_profiled_hypothesis(program, arguments):
             os.environ.update(env)
             timing.reset()
             timing.set_enabled(True)
-            rule_space = build_hypothesis_space(program, arguments)
+            clause_space = build_clause_space(program, arguments)
             timing.export()
             metrics = {
                 "timings": read_json_rows(timings_path),
                 "clingoMetrics": read_jsonl_rows(clingo_metrics_path),
             }
-            return rule_space, metrics
+            return clause_space, metrics
         finally:
             for key, value in old_env.items():
                 if value is None:

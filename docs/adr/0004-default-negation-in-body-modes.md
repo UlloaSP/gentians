@@ -42,5 +42,5 @@ ASP `positive_mode/1` and `negative_mode/1` relations remain unchanged.
 ## Rejected alternative
 
 Automatically enabling the positive form when a negated mode is declared was
-rejected because it would silently enlarge the hypothesis space and make recall
+rejected because it would silently enlarge the clause space and make recall
 ownership ambiguous.

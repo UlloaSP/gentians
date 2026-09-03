@@ -11,7 +11,7 @@ A task file therefore did not fully describe its hypothesis language. Running
 the same file with different Python configuration silently changed the rules
 and programs GENTIANS could learn.
 
-Three limits feed rule-space generation. `max_program_clauses` feeds the
+Three limits feed clause-space generation. `max_program_clauses` feeds the
 evolutionary program generator and fitness setup. Despite different consumers,
 all four constrain legal hypotheses rather than search strategy.
 
@@ -55,13 +55,13 @@ exact clause-count ceiling.
 
 ## Why `*` is not infinity
 
-GENTIANS enumerates a finite rule space with Clingo. A literal interpretation of
+GENTIANS enumerates a finite clause space with Clingo. A literal interpretation of
 unbounded variables and unbounded clause lengths can produce infinitely many
 rules, so enumeration cannot start.
 
 `*` therefore removes only that directive's explicit cap. Other structural
 facts must still provide a finite natural maximum. `#maxpl(*)` naturally means
-the whole finite rule space. Head/body `*` values require finite recalls for
+the whole finite clause space. Head/body `*` values require finite recalls for
 their respective mode declarations. An underbounded task is rejected early.
 
 This keeps `*` useful without introducing arbitrary implementation limits whose
@@ -95,7 +95,7 @@ tasks demonstrate the need.
 
 - Task files become self-contained and reproducible.
 - `Arguments` contains execution policy only.
-- `max_candidate_clauses` disappears; rule-space enumeration always requests
+- `max_candidate_clauses` disappears; clause-space enumeration always requests
   every candidate.
 - Catalog entries become smaller and stop being a second source of task bias.
 - `--set max_depth=...` and equivalent JSON fields become invalid breaking API.

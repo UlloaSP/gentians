@@ -40,8 +40,8 @@ The complete background is parsed in one Clingo call while preserving original
 task line locations. Background, `#bias`, instantiated metarules, and every
 example's included atoms, excluded atoms, and context remain as
 `clingo.ast.AST` nodes inside `InductiveTask`. Each non-empty example field is
-parsed directly; empty fields do not invoke Clingo. Candidate `RuleEntry`
-values retain their parsed rule beside their canonical output text. Retained
+parsed directly; empty fields do not invoke Clingo. Candidate `Clause`
+values retain their parsed clause beside their canonical output text. Retained
 programs enter controls through
 `ProgramBuilder`; rendering AST back to text is limited to diagnostics,
 canonical output, and ILP-specific static analysis that consumes text.
@@ -83,11 +83,11 @@ GENTIANS must still derive a finite search space before grounding.
 - `#maxhl(*).`: head length is derived from the widest complete `#modeh` and
   the finite recall capacities of `#modeha` and `#modehd`.
 - `#maxpl(*).`: a candidate may contain every clause in the finite generated
-  rule space.
+  clause space.
 
 All four directives may contain `*` when mode recalls still imply finite head
 and body capacities. A section containing both an unbounded length and a mode
-with recall `*` is invalid because it describes an infinite rule space:
+with recall `*` is invalid because it describes an infinite clause space:
 
 ```prolog
 % Invalid combination: no finite body bound.
@@ -112,7 +112,7 @@ Use a finite global length or a finite recall to make that task enumerable.
 
 This permits clauses with at most three distinct variables, two body literals,
 and one head atom. Candidate hypotheses may use any number of clauses from the
-finite rule space.
+finite clause space.
 
 ## Normal modes
 
@@ -200,7 +200,7 @@ An empty body is legal when the selected complete head is ASP-safe:
 #modeh(1,seed(const(node))).
 ```
 
-These declarations include `ready.` and `seed(a).` in the rule space. The same
+These declarations include `ready.` and `seed(a).` in the clause space. The same
 applies to ground disjunctions, choices, and cardinality heads. A variable in a
 bodyless head is still rejected unless its head-conditional scope grounds it;
 Gentians does not turn nominal types into hidden domain literals. The empty
@@ -299,7 +299,7 @@ an atomic bundle: initialization, mutation, crossover, replacement, and
 dependency pruning either keep all its rules or none. `#maxv` and `#maxbl`
 validate each rule independently. `#maxpl` counts physical rules, so a bundle
 larger than that limit cannot enter a candidate. Metarule instances do not
-silently merge with mode-generated rules; a duplicate is rejected because it
+silently merge with mode-generated clauses; a duplicate is rejected because it
 would destroy bundle ownership.
 
 ## Aggregate head modes
@@ -554,6 +554,6 @@ population size, evolutionary operators, Clingo arguments, and enumeration
 strategy remain runtime configuration because they change execution rather than
 the legal hypothesis language.
 
-GENTIANS always enumerates the complete finite rule space. There is no
+GENTIANS always enumerates the complete finite clause space. There is no
 `max_candidate_clauses` runtime option: its only supported value was `0` (all),
 so exposing it would create configuration without a real choice.

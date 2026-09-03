@@ -7,7 +7,7 @@ Status: accepted.
 Normal modes previously declared predicate name and arity separately, with an
 optional direction tuple. Every generated argument was a variable. Types were
 inferred from background facts and examples, so data changes could silently
-change the legal hypothesis space. Adding constant placeholders would also
+change the legal clause space. Adding constant placeholders would also
 make a separate arity-aligned direction tuple ambiguous.
 
 ILASP's `var(type)`, `const(type)`, and `#constant(type,value)` make term kind
@@ -72,7 +72,7 @@ tasks preserve their previous broad spaces while making that choice explicit.
   `#const` macros stay unchanged; bundled ILASP tasks already use their own
   native syntax and stay unchanged.
 - Hypothesis cache schema changes because generated mode identities and legal
-  rule spaces change.
+  clause spaces change.
 
 ## Rejected alternatives
 

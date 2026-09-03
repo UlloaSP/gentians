@@ -10,7 +10,14 @@ from benchmarks.catalog import CASES
 from gentians.arguments import Arguments
 from gentians.asp.normal_coverage_solver import NormalCoverageSolver
 from gentians import timing
-from gentians.clauses import hypothesis_space
+from gentians.clauses import canonicalizer as clause_canonicalizer
+from gentians.clauses import decoder as clause_decoder
+from gentians.clauses import extensions as clause_extensions
+from gentians.clauses import fact_compiler as clause_facts
+from gentians.clauses import generator as clause_generation
+from gentians.clauses import mode_compiler as clause_modes
+from gentians.clauses import properties as clause_properties
+from gentians.clauses import task_analysis as clause_analysis
 from gentians.language.asp import (
     clause_predicates,
     extract_name_arity,
@@ -21,10 +28,10 @@ from gentians.language.asp import (
     render_program,
 )
 from gentians.language import parse_file
-from gentians.clauses.hypothesis_space import (
-    HypothesisSpaceGenerator,
-    _hypothesis_space_args,
-    build_hypothesis_space,
+from gentians.clauses.generator import (
+    ClauseGenerator,
+    _clause_space_args,
+    build_clause_space,
 )
 from gentians.hypotheses.generator import HypothesisGenerator
 from gentians.clauses.arithmetic_expression import ArithmeticExpression
@@ -44,13 +51,13 @@ from gentians.language.ir.comparison_literal import ComparisonLiteral
 from gentians.language.ir.conditional_literal import ConditionalLiteral
 from gentians.language.ir.head_declaration import HeadDeclaration
 from gentians.language.ir.head_template import HeadTemplate
-from gentians.clauses.hypothesis_mode import HypothesisMode
+from gentians.clauses.clause_mode import ClauseMode
 from gentians.language.ir.mode_declaration import ModeDeclaration
 from gentians.language.ir.operator_declaration import OperatorDeclaration
 from gentians.clauses.reified_clause import ReifiedClause
 from gentians.clauses.reified_literal import ReifiedLiteral
-from gentians.clauses.rule_space import RuleSpace
-from gentians.clauses.rule_entry import RuleEntry
+from gentians.clauses.clause_space import ClauseSpace
+from gentians.clauses.clause import Clause
 from gentians.language.ir.term_template import TermTemplate
 from tests.task_helpers import example, inductive_task
 
@@ -58,7 +65,7 @@ from tests.task_helpers import example, inductive_task
 def _generate(program, max_body_literals=3, max_variables=3):
     program.max_body_literals = max_body_literals
     program.max_variables = max_variables
-    return HypothesisSpaceGenerator(program, Arguments()).generate()
+    return ClauseGenerator(program, Arguments()).generate()
 
 
 def _mode(
@@ -81,7 +88,7 @@ def _mode(
     )
 
 
-def _normal_hypothesis_mode(
+def _normal_clause_mode(
     id: int,
     recall_group: int,
     section: str,
@@ -93,7 +100,7 @@ def _normal_hypothesis_mode(
     types: tuple[str, ...] = (),
     fixed: tuple[str | None, ...] = (),
     head_form: int | None = None,
-) -> HypothesisMode:
+) -> ClauseMode:
     terms = tuple(
         TermTemplate.fixed(value)
         if value is not None
@@ -105,7 +112,7 @@ def _normal_hypothesis_mode(
         if section == "head"
         else None
     )
-    return HypothesisMode(
+    return ClauseMode(
         id,
         recall_group,
         section,
@@ -117,14 +124,14 @@ def _normal_hypothesis_mode(
     )
 
 
-def _arithmetic_hypothesis_mode(
+def _arithmetic_clause_mode(
     id: int,
     arity: int,
     operator: str,
     recall: int = 1,
-) -> HypothesisMode:
+) -> ClauseMode:
     assert arity == 3
-    return HypothesisMode(
+    return ClauseMode(
         id,
         id,
         "body",
@@ -143,9 +150,9 @@ def _arithmetic_hypothesis_mode(
     )
 
 
-def _comparison_hypothesis_mode(id: int, operator: str) -> HypothesisMode:
+def _comparison_clause_mode(id: int, operator: str) -> ClauseMode:
     term = TermTemplate.variable("any", "")
-    return HypothesisMode(
+    return ClauseMode(
         id,
         id,
         "body",
@@ -158,15 +165,15 @@ def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypat
     def fail_if_called(program):
         raise AssertionError("predicate scan should not run without aggregate specs")
 
-    monkeypatch.setattr(hypothesis_space, "_available_predicates", fail_if_called)
+    monkeypatch.setattr(clause_analysis, "_available_predicates", fail_if_called)
 
     assert (
-        hypothesis_space._valid_aggregate_specs(inductive_task(["p(1)."], [], [], [], []))
+        clause_analysis._valid_aggregate_specs(inductive_task(["p(1)."], [], [], [], []))
         == []
     )
 
 
-def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
+def test_clause_generator_computes_valid_aggregate_specs_once(monkeypatch):
     calls = 0
 
     def aggregate_specs(program, fragments):
@@ -174,9 +181,9 @@ def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
         calls += 1
         return [AggregateDeclaration(1, "sum", (("p", 1),), False)]
 
-    monkeypatch.setattr(hypothesis_space, "_valid_aggregate_specs", aggregate_specs)
+    monkeypatch.setattr(clause_generation, "_valid_aggregate_specs", aggregate_specs)
 
-    hypothesis_space.HypothesisSpaceGenerator(
+    clause_generation.ClauseGenerator(
         inductive_task(
             ["p(1)."],
             [],
@@ -191,9 +198,9 @@ def test_hypothesis_generator_computes_valid_aggregate_specs_once(monkeypatch):
     assert calls == 1
 
 
-def test_hypothesis_generator_decodes_models_without_shown_symbols(monkeypatch):
+def test_clause_generator_decodes_models_without_shown_symbols(monkeypatch):
     def fail_if_called(*_args, **_kwargs):
-        raise AssertionError("hypothesis generation must not materialize shown symbols")
+        raise AssertionError("clause generation must not materialize shown symbols")
 
     monkeypatch.setattr(clingo.Model, "symbols", fail_if_called)
     program = inductive_task(
@@ -206,18 +213,51 @@ def test_hypothesis_generator_decodes_models_without_shown_symbols(monkeypatch):
         max_body_literals=2,
     )
 
-    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
+    clauses = ClauseGenerator(program, Arguments()).generate().clauses
 
     assert "target(V0) :- edge(V0,V1)." in clauses
 
 
-def test_hypothesis_encoding_prunes_duplicates_without_output_atoms():
-    rules = hypothesis_space.HYPOTHESIS_SPACE_RULES
+def test_clause_encoding_prunes_duplicates_without_output_atoms():
+    metaprogram = "\n".join(render_program(clause_generation.CLAUSE_METAPROGRAM))
 
-    assert ":- same_normal_literal(" in rules
-    assert ":- same_mode_literal(" in rules
-    assert "code_prefix(" not in rules
-    assert "#show lit/4." not in rules
+    assert ":- same_normal_literal(" in metaprogram
+    assert ":- same_mode_literal(" in metaprogram
+    assert "code_prefix(" not in metaprogram
+    assert "#show lit/4." not in metaprogram
+
+
+def test_clause_generator_batches_dynamic_and_output_parsing(monkeypatch):
+    fact_sources: list[str] = []
+    output_sources: list[str] = []
+    original_facts_parse = clause_generation.parse_program
+    original_output_parse = clause_canonicalizer.parse_program
+
+    def record_facts_parse(source: str):
+        fact_sources.append(source)
+        return original_facts_parse(source)
+
+    def record_output_parse(source: str):
+        output_sources.append(source)
+        return original_output_parse(source)
+
+    monkeypatch.setattr(clause_generation, "parse_program", record_facts_parse)
+    monkeypatch.setattr(clause_canonicalizer, "parse_program", record_output_parse)
+    task = inductive_task(
+        ["edge(1,2)."],
+        [],
+        [],
+        [_mode(1, "target", 1, head=True)],
+        [_mode(1, "edge", 2, positive=True)],
+        max_variables=2,
+        max_body_literals=2,
+    )
+
+    ClauseGenerator(task, Arguments()).generate()
+
+    assert len(fact_sources) == 1
+    assert "default_variable_identity." in fact_sources[0]
+    assert len(output_sources) == 1
 
 
 def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
@@ -248,7 +288,7 @@ def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
         ("body", 3, ((3, (), 133),), ()),
     )
 
-    clause = hypothesis_space._clause_from_model(model, index)
+    clause = clause_decoder._clause_from_model(model, index)
 
     assert [(literal.mode_id, literal.variables) for literal in clause.body] == [
         (2, (1, 0)),
@@ -259,7 +299,7 @@ def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
 
 
 def test_facts_do_not_emit_redundant_control_flags():
-    facts = hypothesis_space._facts(
+    facts = clause_facts._facts(
         inductive_task([], [], [], [], []),
         [],
         {},
@@ -286,7 +326,7 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
         [OperatorDeclaration(1, "lt")],
     )
     modes = [
-        HypothesisMode(
+        ClauseMode(
             0,
             0,
             "body",
@@ -300,7 +340,7 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
             ),
         )
     ]
-    facts = hypothesis_space._facts(
+    facts = clause_facts._facts(
         program,
         modes,
         {},
@@ -319,8 +359,8 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
 
 
 def test_facts_do_not_emit_redundant_arithmetic_mode():
-    modes = [_arithmetic_hypothesis_mode(0, 3, "+")]
-    facts = hypothesis_space._facts(
+    modes = [_arithmetic_clause_mode(0, 3, "+")]
+    facts = clause_facts._facts(
         inductive_task([], [], [], [], [], [], [*([]), *([OperatorDeclaration(1, "add")])]),
         modes,
         {},
@@ -336,9 +376,9 @@ def test_facts_do_not_emit_redundant_arithmetic_mode():
 
 
 def test_facts_do_not_emit_derived_numeric_domain_args():
-    facts = hypothesis_space._facts(
+    facts = clause_facts._facts(
         inductive_task([], [], [], [], []),
-        [_normal_hypothesis_mode(0, 0, "body", "p", 2, 1, types=("numeric", "any"))],
+        [_normal_clause_mode(0, 0, "body", "p", 2, 1, types=("numeric", "any"))],
         {("p", 2, 0): "numeric"},
         3,
         1,
@@ -353,7 +393,7 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
 
 
 def test_facts_emit_only_strong_positive_numeric_domain_property():
-    facts = hypothesis_space._facts(
+    facts = clause_facts._facts(
         inductive_task(["p(1).", "p(2)."], [], [], [], []),
         [],
         {},
@@ -371,58 +411,58 @@ def _reset_timing_state() -> None:
     timing.reset()
 
 
-def test_candidate_rule_space_runs_inside_hypothesis_space_phase(monkeypatch):
+def test_candidate_clause_space_runs_inside_clause_generation_phase(monkeypatch):
     _reset_timing_state()
     monkeypatch.setattr(timing, "_enabled", True)
     phases = []
 
-    class FakeHypothesisSpaceGenerator:
+    class FakeClauseGenerator:
         def __init__(self, program, args):
             pass
 
         def generate(self):
             phases.append(timing.current_phase())
-            return RuleSpace.from_clauses(["p."])
+            return ClauseSpace.from_clauses(["p."])
 
     monkeypatch.setattr(
-        hypothesis_space, "HypothesisSpaceGenerator", FakeHypothesisSpaceGenerator
+        clause_generation, "ClauseGenerator", FakeClauseGenerator
     )
 
-    clauses = hypothesis_space.build_hypothesis_space(
+    clauses = clause_generation.build_clause_space(
         inductive_task([], [], [], [], []), Arguments()
     )
 
-    assert phases == ["hypothesis_space"]
+    assert phases == ["clause_generation"]
     assert clauses.clauses == ("p.",)
-    assert "hypothesis_space" in timing._totals
+    assert "clause_generation" in timing._totals
     assert "total_execution.grounding" not in timing._totals
     _reset_timing_state()
 
 
-def test_hypothesis_space_is_generated_each_time(monkeypatch):
+def test_clause_generation_is_generated_each_time(monkeypatch):
     generated = []
 
-    class FakeHypothesisSpaceGenerator:
+    class FakeClauseGenerator:
         def __init__(self, program, args):
             pass
 
         def generate(self):
             generated.append(True)
-            return RuleSpace.from_clauses(["p."])
+            return ClauseSpace.from_clauses(["p."])
 
     monkeypatch.setattr(
-        hypothesis_space, "HypothesisSpaceGenerator", FakeHypothesisSpaceGenerator
+        clause_generation, "ClauseGenerator", FakeClauseGenerator
     )
     program = inductive_task([], [], [], [], [])
 
-    first = hypothesis_space.build_hypothesis_space(program, Arguments())
-    second = hypothesis_space.build_hypothesis_space(program, Arguments())
+    first = clause_generation.build_clause_space(program, Arguments())
+    second = clause_generation.build_clause_space(program, Arguments())
 
     assert first.clauses == second.clauses == ("p.",)
     assert generated == [True, True]
 
 
-def test_hypothesis_space_clingo_times_use_current_phase(monkeypatch):
+def test_clause_generation_clingo_times_use_current_phase(monkeypatch):
     _reset_timing_state()
     monkeypatch.setattr(timing, "_enabled", True)
     program = inductive_task(
@@ -434,11 +474,11 @@ def test_hypothesis_space_clingo_times_use_current_phase(monkeypatch):
     )
 
     with timing.phase("outer"):
-        HypothesisSpaceGenerator(program, Arguments()).generate()
+        ClauseGenerator(program, Arguments()).generate()
 
     assert "outer.grounding" in timing._totals
     assert "outer.solving" in timing._totals
-    assert "hypothesis_space.solving" not in timing._totals
+    assert "clause_generation.solving" not in timing._totals
     _reset_timing_state()
 
 
@@ -453,7 +493,7 @@ def test_unbalanced_aggregate_variants_share_recall():
         max_variables=8,
         max_body_literals=6,
     )
-    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
+    clauses = ClauseGenerator(program, Arguments()).generate().clauses
 
     assert not any("#sum{V0:el(V0,V0)}" in clause for clause in clauses)
     assert any("#sum{V0:el(V0,V1)}" in clause for clause in clauses)
@@ -533,7 +573,7 @@ def test_parser_rejects_invalid_recursive_mode_terms(tmp_path):
 
 
 def test_closed_world_extensions_ignore_compound_variable_terms():
-    extensions = hypothesis_space._closed_world_extensions(
+    extensions = clause_extensions._closed_world_extensions(
         [
             "cell((1..4,1..4)).",
             "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)).",
@@ -549,17 +589,17 @@ def test_atom_parser_does_not_treat_not_prefix_as_negation():
     assert parse_atom("not notable(X)") == ("notable", ["X"])
 
 
-def test_hypothesis_space_args_keep_numeric_strings():
-    args = Arguments(hypothesis_space={"clingo_arguments": ["0", "--project"]})
+def test_clause_space_args_keep_numeric_strings():
+    args = Arguments(clause_generation={"clingo_arguments": ["0", "--project"]})
 
-    assert _hypothesis_space_args(args) == ["0", "--project"]
+    assert _clause_space_args(args) == ["0", "--project"]
 
 
-def test_hypothesis_space_args_reject_string():
-    args = Arguments(hypothesis_space={"clingo_arguments": "--project"})
+def test_clause_space_args_reject_string():
+    args = Arguments(clause_generation={"clingo_arguments": "--project"})
 
     try:
-        _hypothesis_space_args(args)
+        _clause_space_args(args)
     except ValueError as exc:
         assert "clingo_arguments" in str(exc)
     else:
@@ -568,9 +608,9 @@ def test_hypothesis_space_args_reject_string():
 
 def test_star_recall_uses_section_limit():
     mode = _mode(-1, "p", 1)
-    facts = hypothesis_space._facts(
+    facts = clause_facts._facts(
         inductive_task([], [], [], [], [mode]),
-        [_normal_hypothesis_mode(0, 0, "body", "p", 1, mode.recall)],
+        [_normal_clause_mode(0, 0, "body", "p", 1, mode.recall)],
         {},
         2,
         2,
@@ -585,11 +625,11 @@ def test_star_recall_uses_section_limit():
 
 
 def test_group_recall_uses_tightest_mode_recall():
-    facts = hypothesis_space._facts(
+    facts = clause_facts._facts(
         inductive_task([], [], [], [], []),
         [
-            _normal_hypothesis_mode(0, 7, "body", "p", 1, 3),
-            _normal_hypothesis_mode(1, 7, "body", "q", 1, 1),
+            _normal_clause_mode(0, 7, "body", "p", 1, 3),
+            _normal_clause_mode(1, 7, "body", "q", 1, 1),
         ],
         {("p", 1): 0, ("q", 1): 1},
         3,
@@ -677,7 +717,7 @@ def test_parser_keeps_strong_and_default_negation_independent(tmp_path):
     assert default_negative_body.atom.signature == ("-r", 1)
     assert default_negative_body.default_negated
     assert default_negative_body.render(iter(("V0",))) == "not -r(V0)"
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
     assert generator.predicate_arg_types[("p", 1, 0)] == "person"
     assert ("-p", 1, 0) not in generator.predicate_arg_types
 
@@ -697,7 +737,7 @@ def test_parser_preserves_strong_negation_in_atoms_and_rule_dependencies():
 def test_dependency_closure_does_not_confuse_positive_and_strong_providers():
     from gentians.hypotheses.common import prepare_space
 
-    space = RuleSpace.from_clauses(["target(X) :- -source(X)."])
+    space = ClauseSpace.from_clauses(["target(X) :- -source(X)."])
     positive_background = inductive_task(["source(a)."], [], [], [], [])
     strong_background = inductive_task(["-source(a)."], [], [], [], [])
 
@@ -755,7 +795,7 @@ def test_constant_modes_expand_declared_ground_terms_without_variables(tmp_path)
     )
 
     program = parse_file(str(task))
-    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
+    clauses = ClauseGenerator(program, Arguments()).generate().clauses
 
     assert program.constants == {"symbol": ("a", "b")}
     assert set(clauses) == {
@@ -789,7 +829,7 @@ def test_unbounded_section_requires_finite_mode_recalls():
     )
 
     with pytest.raises(ValueError, match=r"#maxbl\(\*\)"):
-        HypothesisSpaceGenerator(program, Arguments())
+        ClauseGenerator(program, Arguments())
 
 
 def test_all_structural_limits_accept_star_with_finite_recalls(tmp_path):
@@ -809,7 +849,7 @@ def test_all_structural_limits_accept_star_with_finite_recalls(tmp_path):
         encoding="utf-8",
     )
     program = parse_file(str(task))
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
 
     assert generator.head_slots == 1
     assert generator.body_slots == 1
@@ -905,7 +945,7 @@ def test_invent_rejects_observed_predicate(tmp_path):
     program = parse_file(str(task))
 
     with pytest.raises(ValueError, match="must not be observed"):
-        HypothesisSpaceGenerator(program, Arguments()).generate()
+        ClauseGenerator(program, Arguments()).generate()
 
 
 def test_invented_predicates_are_stratified_and_excluded_from_constraints(tmp_path):
@@ -961,7 +1001,7 @@ def test_invented_definition_cannot_call_target_through_aggregate(tmp_path):
     )
 
 
-def test_hypothesis_space_prunes_arg_distinct_modes_before_rendering():
+def test_clause_generation_prunes_arg_distinct_modes_before_rendering():
     program = inductive_task(
         ["edge(1,2)."],
         [],
@@ -1015,7 +1055,7 @@ def test_explicit_body_bias_enables_recursion():
     assert "p(V1,V0) :- p(V0,V1)." in clauses
 
 
-def test_hypothesis_space_keeps_task_declared_unobserved_body_modes():
+def test_clause_generation_keeps_task_declared_unobserved_body_modes():
     program = inductive_task(
         ["base(a)."],
         [example(("target(a)", ""), True)],
@@ -1028,7 +1068,7 @@ def test_hypothesis_space_keeps_task_declared_unobserved_body_modes():
         ],
     )
 
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
     clauses = generator.generate().clauses
 
     assert "target(V0) :- base(V0)." in clauses
@@ -1039,7 +1079,7 @@ def test_hypothesis_space_keeps_task_declared_unobserved_body_modes():
     assert not any("ghost(" in clause for clause in clauses)
 
 
-def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering():
+def test_clause_generation_prunes_reversed_symmetric_comparisons_before_rendering():
     program = inductive_task(
         ["p(1).", "p(2)."],
         [],
@@ -1055,7 +1095,7 @@ def test_hypothesis_space_prunes_reversed_symmetric_comparisons_before_rendering
     assert any("V0-V1!=0" in clause for clause in clauses)
 
 
-def test_hypothesis_space_prunes_comparison_redundancy_before_rendering():
+def test_clause_generation_prunes_comparison_redundancy_before_rendering():
     program = inductive_task(
         ["p(1).", "p(2)."],
         [],
@@ -1076,7 +1116,7 @@ def test_hypothesis_space_prunes_comparison_redundancy_before_rendering():
     assert not any("V0<=V1,V1<=V0" in clause for clause in clauses)
 
 
-def test_hypothesis_space_does_not_generate_equality_comparison():
+def test_clause_generation_does_not_generate_equality_comparison():
     program = inductive_task(
         ["p(1)."],
         [],
@@ -1093,7 +1133,7 @@ def test_hypothesis_space_does_not_generate_equality_comparison():
     assert "target(V0) :- p(V0)." in clauses
 
 
-def test_hypothesis_space_prunes_leq_neq_when_strict_comparison_exists():
+def test_clause_generation_prunes_leq_neq_when_strict_comparison_exists():
     program = inductive_task(
         ["p(1).", "p(2)."],
         [],
@@ -1112,7 +1152,7 @@ def test_hypothesis_space_prunes_leq_neq_when_strict_comparison_exists():
     assert not any("V0<=V1" in clause and "V0!=V1" in clause for clause in clauses)
 
 
-def test_hypothesis_space_prunes_transitive_comparison_redundancy():
+def test_clause_generation_prunes_transitive_comparison_redundancy():
     program = inductive_task(
         ["p(1).", "p(2).", "p(3)."],
         [],
@@ -1134,7 +1174,7 @@ def test_hypothesis_space_prunes_transitive_comparison_redundancy():
     )
 
 
-def test_hypothesis_space_prunes_duplicate_arithmetic_inputs_before_rendering():
+def test_clause_generation_prunes_duplicate_arithmetic_inputs_before_rendering():
     program = inductive_task(
         ["q(1,2)."],
         [],
@@ -1169,7 +1209,7 @@ def test_positive_domain_prunes_impossible_mul_and_div_comparisons():
     assert not any("V0/V1=V2" in clause and "V0<V2" in clause for clause in clauses)
 
 
-def test_hypothesis_space_prunes_duplicate_aggregate_inputs_before_rendering():
+def test_clause_generation_prunes_duplicate_aggregate_inputs_before_rendering():
     program = inductive_task(
         ["el(1).", "el(2)."],
         [],
@@ -1205,10 +1245,10 @@ def test_count_aggregate_tuple_variables_are_canonicalized():
     )
 
 
-def test_hypothesis_space_prunes_arithmetic_identities():
+def test_clause_generation_prunes_arithmetic_identities():
     args = copy.deepcopy(CASES["4queens"])
     clauses = (
-        HypothesisSpaceGenerator(parse_file(args.filename), args).generate().clauses
+        ClauseGenerator(parse_file(args.filename), args).generate().clauses
     )
 
     assert clauses
@@ -1260,7 +1300,7 @@ def test_nested_constants_expand_and_structured_modes_render(tmp_path):
     )
 
     clauses = set(
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -1288,7 +1328,7 @@ def test_empty_and_singleton_tuples_render_as_asp_tuples(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -1314,9 +1354,9 @@ def test_flat_constants_keep_outer_argument_positions(tmp_path):
     )
 
     program = parse_file(str(task))
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
     body_mode = next(mode for mode in generator.modes if mode.section == "body")
-    facts = hypothesis_space._facts(
+    facts = clause_facts._facts(
         program,
         generator.modes,
         generator.predicate_arg_types,
@@ -1364,7 +1404,7 @@ def test_linear_canonicalization_normalizes_sub_only_bias(recall):
         max_head_literals=0,
     )
 
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
     arithmetic_modes = [
         mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
     ]
@@ -1432,7 +1472,7 @@ def test_additive_modes_share_one_canonical_mode_with_combined_recall(
         max_head_literals=0,
     )
 
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
     arithmetic_modes = [
         mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
     ]
@@ -1457,7 +1497,7 @@ def test_inverse_comparisons_share_one_mode_with_combined_recall():
 
     comparisons = [
         mode
-        for mode in HypothesisSpaceGenerator(program, Arguments()).modes
+        for mode in ClauseGenerator(program, Arguments()).modes
         if isinstance(mode.literal, ComparisonLiteral)
     ]
 
@@ -1470,7 +1510,7 @@ def test_inverse_comparisons_share_one_mode_with_combined_recall():
 def test_linear_canonicalization_reduces_complete_nqueens_systems():
     args = copy.deepcopy(CASES["5queens"])
     clauses = (
-        HypothesisSpaceGenerator(parse_file(args.filename), args).generate().clauses
+        ClauseGenerator(parse_file(args.filename), args).generate().clauses
     )
 
     assert len(clauses) == 4805
@@ -1482,7 +1522,7 @@ def test_linear_canonicalization_reduces_complete_nqueens_systems():
 def test_nonlinear_canonicalization_keeps_lexicographic_render():
     args = copy.deepcopy(CASES["subset_sum_double_and_prod"])
     clauses = (
-        HypothesisSpaceGenerator(parse_file(args.filename), args).generate().clauses
+        ClauseGenerator(parse_file(args.filename), args).generate().clauses
     )
 
     assert (
@@ -1508,7 +1548,7 @@ def test_linear_modes_render_direct_equations_with_bounded_complexity():
         max_body_literals=3,
         max_variables=5,
     )
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
     assert (
         len(
             [
@@ -1534,7 +1574,7 @@ def test_linear_mode_complexity_is_capped_by_body_limit():
         max_body_literals=3,
     )
 
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
 
     arithmetic_modes = [
         mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
@@ -1571,16 +1611,16 @@ def test_direct_linear_equation_can_safely_produce_a_head_variable():
         max_variables=5,
     )
 
-    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
+    clauses = ClauseGenerator(program, Arguments()).generate().clauses
 
     assert "target(V3) :- q(V0,V1,V2),V0+V1=V3." in clauses
 
 
 def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "body", "q", 3, 1),
-        1: _arithmetic_hypothesis_mode(1, 3, "+"),
-        2: _comparison_hypothesis_mode(2, "<"),
+        0: _normal_clause_mode(0, 0, "body", "q", 3, 1),
+        1: _arithmetic_clause_mode(1, 3, "+"),
+        2: _comparison_clause_mode(2, "<"),
     }
     clause = ReifiedClause(
         (),
@@ -1598,7 +1638,7 @@ def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
 
     equivalent_modes = {
         **modes,
-        3: _arithmetic_hypothesis_mode(3, 3, "-"),
+        3: _arithmetic_clause_mode(3, 3, "-"),
     }
     equivalent = ReifiedClause(
         (),
@@ -1616,7 +1656,7 @@ def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
 
     disequality_modes = {
         **modes,
-        2: _comparison_hypothesis_mode(2, "!="),
+        2: _comparison_clause_mode(2, "!="),
     }
     disequality = canonical_arithmetic_clause(clause, disequality_modes, 4)
 
@@ -1626,10 +1666,10 @@ def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
 
 def test_linear_canonicalization_keeps_disconnected_constraints_separate():
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "body", "q", 5, 1),
-        1: _arithmetic_hypothesis_mode(1, 3, "+"),
-        2: _comparison_hypothesis_mode(2, "<"),
-        3: _comparison_hypothesis_mode(3, "!="),
+        0: _normal_clause_mode(0, 0, "body", "q", 5, 1),
+        1: _arithmetic_clause_mode(1, 3, "+"),
+        2: _comparison_clause_mode(2, "<"),
+        3: _comparison_clause_mode(3, "!="),
     }
     clause = ReifiedClause(
         (),
@@ -1649,9 +1689,9 @@ def test_linear_canonicalization_keeps_disconnected_constraints_separate():
 
 def test_linear_canonicalization_preserves_unsafe_output_assignment():
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "head", "target", 1, 1, head_form=0),
-        1: _normal_hypothesis_mode(1, 1, "body", "p", 1, 1),
-        2: _arithmetic_hypothesis_mode(2, 3, "+"),
+        0: _normal_clause_mode(0, 0, "head", "target", 1, 1, head_form=0),
+        1: _normal_clause_mode(1, 1, "body", "p", 1, 1),
+        2: _arithmetic_clause_mode(2, 3, "+"),
     }
     clause = ReifiedClause(
         (ReifiedLiteral("head", 0, 0, (1,)),),
@@ -1670,9 +1710,9 @@ def test_linear_canonicalization_preserves_unsafe_output_assignment():
 
 def test_linear_canonicalization_preserves_components_with_multiplication():
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "body", "q", 4, 1),
-        1: _arithmetic_hypothesis_mode(1, 3, "+"),
-        2: _arithmetic_hypothesis_mode(2, 3, "*"),
+        0: _normal_clause_mode(0, 0, "body", "q", 4, 1),
+        1: _arithmetic_clause_mode(1, 3, "+"),
+        2: _arithmetic_clause_mode(2, 3, "*"),
     }
     clause = ReifiedClause(
         (),
@@ -1696,10 +1736,10 @@ def test_linear_canonicalization_preserves_components_with_multiplication():
 
 def test_arithmetic_system_inlines_mixed_nonlinear_auxiliaries():
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "head", "target", 1, 1, head_form=0),
-        1: _normal_hypothesis_mode(1, 1, "body", "q", 3, 1),
-        2: _arithmetic_hypothesis_mode(2, 3, "+"),
-        3: _arithmetic_hypothesis_mode(3, 3, "*"),
+        0: _normal_clause_mode(0, 0, "head", "target", 1, 1, head_form=0),
+        1: _normal_clause_mode(1, 1, "body", "q", 3, 1),
+        2: _arithmetic_clause_mode(2, 3, "+"),
+        3: _arithmetic_clause_mode(3, 3, "*"),
     }
     clause = ReifiedClause(
         (ReifiedLiteral("head", 0, 0, (4,)),),
@@ -1731,10 +1771,10 @@ def test_arithmetic_expression_key_normalizes_associativity_and_signs():
 
 def test_arithmetic_system_preserves_multiple_definitions_of_an_auxiliary():
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "body", "q", 4, 1),
-        1: _arithmetic_hypothesis_mode(1, 3, "+"),
-        2: _arithmetic_hypothesis_mode(2, 3, "*"),
-        3: _comparison_hypothesis_mode(3, "<"),
+        0: _normal_clause_mode(0, 0, "body", "q", 4, 1),
+        1: _arithmetic_clause_mode(1, 3, "+"),
+        2: _arithmetic_clause_mode(2, 3, "*"),
+        3: _comparison_clause_mode(3, "<"),
     }
     clause = ReifiedClause(
         (),
@@ -1756,8 +1796,8 @@ def test_arithmetic_system_preserves_multiple_definitions_of_an_auxiliary():
 
 def test_arithmetic_system_eliminates_repeated_auxiliary_coefficients():
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "body", "q", 2, 1),
-        1: _arithmetic_hypothesis_mode(1, 3, "+", 2),
+        0: _normal_clause_mode(0, 0, "body", "q", 2, 1),
+        1: _arithmetic_clause_mode(1, 3, "+", 2),
     }
     clause = ReifiedClause(
         (),
@@ -1776,8 +1816,8 @@ def test_arithmetic_system_eliminates_repeated_auxiliary_coefficients():
 
 def test_arithmetic_system_preserves_independent_rows_in_one_component():
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "body", "q", 3, 1),
-        1: _arithmetic_hypothesis_mode(1, 3, "+", 2),
+        0: _normal_clause_mode(0, 0, "body", "q", 3, 1),
+        1: _arithmetic_clause_mode(1, 3, "+", 2),
     }
     clause = ReifiedClause(
         (),
@@ -1800,8 +1840,8 @@ def test_arithmetic_system_preserves_independent_rows_in_one_component():
 )
 def test_arithmetic_system_carries_nonzero_domain_guards(operator, rendered):
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "body", "q", 3, 1),
-        1: _arithmetic_hypothesis_mode(1, 3, operator),
+        0: _normal_clause_mode(0, 0, "body", "q", 3, 1),
+        1: _arithmetic_clause_mode(1, 3, operator),
     }
     clause = ReifiedClause(
         (),
@@ -1893,7 +1933,7 @@ def test_division_guard_does_not_consume_another_body_slot():
         max_body_literals=None,
     )
 
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
 
     assert generator.body_slots == 2
     guarded = [
@@ -2091,11 +2131,11 @@ def test_closed_world_properties_prune_tuple_mutex_permutation():
             _mode(2, "mother", 2, positive=True),
         ],
     )
-    fragments = hypothesis_space._closed_world_fragments(program)
-    properties = hypothesis_space._closed_world_properties(
+    fragments = clause_analysis._closed_world_fragments(program)
+    properties = clause_properties._closed_world_properties(
         fragments,
-        hypothesis_space._predicate_arg_types(program, fragments),
-        hypothesis_space._closed_body_predicates(program),
+        clause_analysis._predicate_arg_types(program, fragments),
+        clause_modes._closed_body_predicates(program),
     )
     clauses = _generate(program, 2, 2).clauses
 
@@ -2128,7 +2168,7 @@ def test_aggregate_condition_keeps_inference_and_inherits_declared_normal_type()
         aggregate_modes=[AggregateDeclaration(1, "count", (("edge", 2),), True)],
     )
 
-    generator = HypothesisSpaceGenerator(program, Arguments())
+    generator = ClauseGenerator(program, Arguments())
     aggregate = next(
         mode for mode in generator.modes if isinstance(mode.literal, AggregateLiteral)
     )
@@ -2254,7 +2294,7 @@ def test_closed_world_properties_prune_complement_negative_pair():
 
 
 def test_closed_world_properties_infer_generic_atom_relations():
-    properties = hypothesis_space._closed_world_properties(
+    properties = clause_properties._closed_world_properties(
         [
             "p(a).",
             "q(a).",
@@ -2288,7 +2328,7 @@ def test_closed_world_properties_infer_generic_atom_relations():
 
 
 def test_closed_world_extensions_derive_simple_alias_rules():
-    properties = hypothesis_space._closed_world_properties(
+    properties = clause_properties._closed_world_properties(
         [
             "edge(a,b).",
             "node(a).",
@@ -2303,7 +2343,7 @@ def test_closed_world_extensions_derive_simple_alias_rules():
 
 
 def test_closed_world_extensions_derive_finite_complement_rules():
-    properties = hypothesis_space._closed_world_properties(
+    properties = clause_properties._closed_world_properties(
         [
             "v(a).",
             "v(b).",
@@ -2319,7 +2359,7 @@ def test_closed_world_extensions_derive_finite_complement_rules():
 
 
 def test_closed_world_extensions_do_not_assume_unknown_negative_empty():
-    extensions = hypothesis_space._closed_world_extensions(
+    extensions = clause_extensions._closed_world_extensions(
         ["v(a).", "p(X) :- not q(X), v(X)."]
     )
 
@@ -2327,7 +2367,7 @@ def test_closed_world_extensions_do_not_assume_unknown_negative_empty():
 
 
 def test_rule_defined_inequality_derives_arg_distinct():
-    properties = hypothesis_space._closed_world_properties(
+    properties = clause_properties._closed_world_properties(
         [
             "same_block(C1,C2) :- block(C1,B), block(C2,B), C1 != C2.",
             "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)), X1 != X2.",
@@ -2357,7 +2397,7 @@ def test_closed_world_properties_emit_new_property_facts():
         "le(a,b).",
         "le(b,b).",
     ]
-    properties = hypothesis_space._closed_world_properties(
+    properties = clause_properties._closed_world_properties(
         fragments,
         closed_body_predicates={("rel", 3), ("other", 3)},
     )
@@ -2372,7 +2412,7 @@ def test_closed_world_properties_emit_new_property_facts():
         ("other", 3): 7,
         ("le", 2): 8,
     }
-    facts = set(hypothesis_space._closed_world_property_facts(properties, ids))
+    facts = set(clause_facts._closed_world_property_facts(properties, ids))
 
     assert "equivalent_pred(0,1)." in facts
     assert "disjoint_arg(0,0,6,1)." in facts
@@ -2396,12 +2436,12 @@ def test_partition_subsumes_pairwise_mutex_facts():
             _mode(1, "c", 1, positive=True),
         ],
     )
-    fragments = hypothesis_space._closed_world_fragments(program)
-    arg_types = hypothesis_space._predicate_arg_types(program, fragments)
-    properties = hypothesis_space._closed_world_properties(
+    fragments = clause_analysis._closed_world_fragments(program)
+    arg_types = clause_analysis._predicate_arg_types(program, fragments)
+    properties = clause_properties._closed_world_properties(
         fragments,
         arg_types,
-        hypothesis_space._closed_body_predicates(program),
+        clause_modes._closed_body_predicates(program),
     )
 
     assert properties.partitions == frozenset({(("a", 1), ("b", 1), ("c", 1))})
@@ -2416,12 +2456,12 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
         [],
         [_mode(1, "r", 4, positive=True)],
     )
-    fragments = hypothesis_space._closed_world_fragments(program)
-    arg_types = hypothesis_space._predicate_arg_types(program, fragments)
-    properties = hypothesis_space._closed_world_properties(
+    fragments = clause_analysis._closed_world_fragments(program)
+    arg_types = clause_analysis._predicate_arg_types(program, fragments)
+    properties = clause_properties._closed_world_properties(
         fragments,
         arg_types,
-        hypothesis_space._closed_body_predicates(program),
+        clause_modes._closed_body_predicates(program),
     )
 
     assert (("r", 4), 0, 3) in properties.functional
@@ -2430,7 +2470,7 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
 
 
 def test_choice_rules_infer_modelwise_keys():
-    properties = hypothesis_space._closed_world_properties(
+    properties = clause_properties._closed_world_properties(
         [
             "#const n = 5.",
             "number(1..n).",
@@ -2453,7 +2493,7 @@ def test_choice_rules_infer_modelwise_keys():
 
 
 def test_closed_world_extensions_expand_numeric_ranges():
-    extensions = hypothesis_space._closed_world_extensions(
+    extensions = clause_extensions._closed_world_extensions(
         ["#const n = 3.", "number(1..n).", "pair(1..2,3..4)."]
     )
 
@@ -2467,7 +2507,7 @@ def test_closed_world_extensions_expand_numeric_ranges():
 
 
 def test_rule_defined_square_properties_propagate_choice_key():
-    properties = hypothesis_space._closed_world_properties(
+    properties = clause_properties._closed_world_properties(
         [
             "part(a).",
             "val(1).",
@@ -2482,11 +2522,11 @@ def test_rule_defined_square_properties_propagate_choice_key():
 
 
 def test_cardinality_upper_facts_are_emitted():
-    properties = hypothesis_space._closed_world_properties(
+    properties = clause_properties._closed_world_properties(
         ["val(1).", "val(2).", "1 { in(X) : val(X) } 1."]
     )
     facts = set(
-        hypothesis_space._closed_world_property_facts(
+        clause_facts._closed_world_property_facts(
             properties,
             {
                 ("in", 1): 0,
@@ -2648,23 +2688,23 @@ def test_universal_empty_and_complement_facts_are_emitted():
             _mode(1, "right", 1, positive=True),
         ],
     )
-    universal_fragments = hypothesis_space._closed_world_fragments(universal_program)
-    domain_fragments = hypothesis_space._closed_world_fragments(domain_program)
-    universal_arg_types = hypothesis_space._predicate_arg_types(
+    universal_fragments = clause_analysis._closed_world_fragments(universal_program)
+    domain_fragments = clause_analysis._closed_world_fragments(domain_program)
+    universal_arg_types = clause_analysis._predicate_arg_types(
         universal_program, universal_fragments
     )
-    domain_arg_types = hypothesis_space._predicate_arg_types(
+    domain_arg_types = clause_analysis._predicate_arg_types(
         domain_program, domain_fragments
     )
-    universal_properties = hypothesis_space._closed_world_properties(
+    universal_properties = clause_properties._closed_world_properties(
         universal_fragments,
         universal_arg_types,
-        hypothesis_space._closed_body_predicates(universal_program),
+        clause_modes._closed_body_predicates(universal_program),
     )
-    domain_properties = hypothesis_space._closed_world_properties(
+    domain_properties = clause_properties._closed_world_properties(
         domain_fragments,
         domain_arg_types,
-        hypothesis_space._closed_body_predicates(domain_program),
+        clause_modes._closed_body_predicates(domain_program),
     )
     universal_ids = {
         ("dom", 1): 0,
@@ -2676,11 +2716,11 @@ def test_universal_empty_and_complement_facts_are_emitted():
         ("right", 1): 3,
     }
     facts = set(
-        hypothesis_space._closed_world_property_facts(
+        clause_facts._closed_world_property_facts(
             universal_properties, universal_ids
         )
     ) | set(
-        hypothesis_space._closed_world_property_facts(domain_properties, domain_ids)
+        clause_facts._closed_world_property_facts(domain_properties, domain_ids)
     )
 
     assert "universal_pred(1)." in facts
@@ -2689,9 +2729,9 @@ def test_universal_empty_and_complement_facts_are_emitted():
 
 
 def test_universal_binary_predicate_derives_reflexive_property():
-    rule_dir = Path(hypothesis_space.__file__).with_name("rules")
-    rules = (
-        (rule_dir / "properties" / "universal.lp").read_text()
+    metaprogram_dir = Path(clause_generation.__file__).with_name("metaprogram")
+    metaprogram = (
+        (metaprogram_dir / "properties" / "universal.lp").read_text()
         + """
 universal_pred(1).
 mode(body,0,1,2,1).
@@ -2699,7 +2739,7 @@ mode(body,0,1,2,1).
 """
     )
     ctl = clingo.Control(["--warn=none"])
-    ctl.add("base", [], rules)
+    ctl.add("base", [], metaprogram)
     ctl.ground([("base", [])])
 
     with ctl.solve(yield_=True) as handle:
@@ -3008,7 +3048,7 @@ def test_complete_head_forms_are_alternatives_not_implicit_combinations(tmp_path
     )
 
     clauses = set(
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3060,7 +3100,7 @@ def test_complete_heads_render_as_declared(tmp_path, head, expected):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3088,7 +3128,7 @@ def test_strong_negation_is_rendered_in_heads_and_default_negated_bodies(tmp_pat
     )
 
     clauses = set(
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3120,10 +3160,10 @@ def test_recursion_uses_signed_predicate_identity(tmp_path):
         encoding="utf-8",
     )
 
-    assert HypothesisSpaceGenerator(
+    assert ClauseGenerator(
         parse_file(str(matching)), Arguments()
     ).capabilities.allow_recursion
-    assert not HypothesisSpaceGenerator(
+    assert not ClauseGenerator(
         parse_file(str(opposite)), Arguments()
     ).capabilities.allow_recursion
 
@@ -3149,7 +3189,7 @@ def test_positive_strong_complements_are_pruned_from_same_body_tuple(tmp_path):
         encoding="utf-8",
     )
 
-    generator = HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+    generator = ClauseGenerator(parse_file(str(task)), Arguments())
     clauses = generator.generate().clauses
 
     assert any(re.search(r"(?<!-)p\(V0\)", clause) for clause in clauses)
@@ -3185,7 +3225,7 @@ def test_structured_shapes_keep_distinct_functors_and_prune_exact_complements(
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3218,7 +3258,7 @@ def test_two_default_negated_strong_complements_remain_legal(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3233,7 +3273,7 @@ def test_strong_negation_is_preserved_in_aggregate_conditions(tmp_path):
         encoding="utf-8",
     )
 
-    generator = HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+    generator = ClauseGenerator(parse_file(str(task)), Arguments())
     aggregates = [
         mode.literal
         for mode in generator.modes
@@ -3263,7 +3303,7 @@ def test_distinct_head_labels_require_distinct_variables(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3288,7 +3328,7 @@ def test_learnable_ground_facts_have_no_empty_rule_body(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3313,7 +3353,7 @@ def test_bodyless_complete_heads_keep_their_declared_asp_form(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3325,7 +3365,7 @@ def test_bodyless_complete_heads_keep_their_declared_asp_form(tmp_path):
 
 def test_completely_empty_clause_is_not_learnable():
     clauses = (
-        HypothesisSpaceGenerator(inductive_task([], [], [], [], []), Arguments())
+        ClauseGenerator(inductive_task([], [], [], [], []), Arguments())
         .generate()
         .clauses
     )
@@ -3333,7 +3373,7 @@ def test_completely_empty_clause_is_not_learnable():
     assert clauses == ()
 
 
-def test_maxbl_zero_declares_a_facts_only_rule_space(tmp_path):
+def test_maxbl_zero_declares_a_facts_only_clause_space(tmp_path):
     task = tmp_path / "facts-only.las"
     task.write_text(
         "#maxv(0).\n#maxbl(0).\n#modeh(1,ready).\n#modeb(1,source).\n",
@@ -3341,7 +3381,7 @@ def test_maxbl_zero_declares_a_facts_only_rule_space(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3365,7 +3405,7 @@ def test_positive_head_condition_can_safely_ground_a_bodyless_rule(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3391,7 +3431,7 @@ bias_active.
     )
 
     program = parse_file(str(task))
-    clauses = HypothesisSpaceGenerator(program, Arguments()).generate().clauses
+    clauses = ClauseGenerator(program, Arguments()).generate().clauses
 
     assert render_program(program.bias) == ("bias_active.",)
     assert "p(V0);q(V1) :- edge(V0,V1)." in clauses
@@ -3422,7 +3462,7 @@ bias_same_label_var(F,L,V) :-
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3453,7 +3493,7 @@ bias_uses_edge :-
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3525,7 +3565,7 @@ def test_nested_head_labels_control_flattened_placeholders(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3609,7 +3649,7 @@ def test_condition_modes_generate_head_and_body_conditional_literals(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3653,7 +3693,7 @@ def test_condition_modes_attach_to_disjunction_and_choice_elements(
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3682,7 +3722,7 @@ def test_positive_condition_binds_each_local_conditional_variable(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3711,7 +3751,7 @@ def test_body_conditional_uses_unambiguous_semicolon_separators(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3745,7 +3785,7 @@ def test_conditional_local_names_can_be_reused_between_scopes(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3771,7 +3811,7 @@ def test_conditional_global_output_requires_an_external_producer(tmp_path):
             encoding="utf-8",
         )
         return (
-            HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+            ClauseGenerator(parse_file(str(task)), Arguments())
             .generate()
             .clauses
         )
@@ -3800,7 +3840,7 @@ def test_condition_recall_and_body_budget_cover_all_attachments(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3832,7 +3872,7 @@ def test_multiple_conditions_preserve_negation_terms_and_dependencies(tmp_path):
         encoding="utf-8",
     )
 
-    space = HypothesisSpaceGenerator(parse_file(str(task)), Arguments()).generate()
+    space = ClauseGenerator(parse_file(str(task)), Arguments()).generate()
     clause = "target(V0):node(box(V0,red)),not blocked(V0) :- base(V0)."
     entry = next(entry for entry in space.entries if entry.text == clause)
 
@@ -3859,7 +3899,7 @@ def test_negative_body_conclusion_can_be_grounded_by_its_condition(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -3883,7 +3923,7 @@ def test_unbounded_body_requires_finite_condition_recalls(tmp_path):
     )
 
     with pytest.raises(ValueError, match="finite recalls"):
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
 
 
 def test_conditional_literal_ir_renders_variables_in_syntax_order():
@@ -3919,7 +3959,7 @@ def test_complete_head_width_must_fit_maxhl(tmp_path):
     )
 
     with pytest.raises(ValueError, match="#maxhl"):
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
 
 
 def test_language_bias_is_not_generated_when_bias_is_missing():
@@ -4024,7 +4064,7 @@ def test_ast_atom_extraction_handles_choice_rules():
 def _benchmark_clauses(name: str) -> set[str]:
     args = copy.deepcopy(CASES[name])
     return set(
-        HypothesisSpaceGenerator(parse_file(args.filename), args).generate().clauses
+        ClauseGenerator(parse_file(args.filename), args).generate().clauses
     )
 
 
@@ -4065,15 +4105,15 @@ def test_equal_ground_values_do_not_merge_distinct_declared_types():
         ],
     )
 
-    types = hypothesis_space._predicate_arg_types(
-        program, hypothesis_space._closed_world_fragments(program)
+    types = clause_analysis._predicate_arg_types(
+        program, clause_analysis._closed_world_fragments(program)
     )
 
     assert types[("left", 1, 0)] == "node"
     assert types[("right", 1, 0)] == "numeric"
 
 
-def test_coloring_hypothesis_space_contains_target_rules():
+def test_coloring_clause_generation_contains_target_clauses():
     clauses = _benchmark_clauses("coloring")
 
     assert len(clauses) == 59
@@ -4083,24 +4123,24 @@ def test_coloring_hypothesis_space_contains_target_rules():
     assert ":- e(V0,V1),blue(V0),blue(V1)." in clauses
 
 
-def test_coin_hypothesis_space_contains_target_rules():
+def test_coin_clause_generation_contains_target_clauses():
     clauses = _benchmark_clauses("coin")
 
     assert "heads(V0) :- coin(V0),not tails(V0)." in clauses
     assert "tails(V0) :- coin(V0),not heads(V0)." in clauses
 
 
-def test_even_odd_hypothesis_space_contains_mutual_recursion():
+def test_even_odd_clause_generation_contains_mutual_recursion():
     clauses = _benchmark_clauses("even_odd")
 
     assert "even(V1) :- odd(V0),prev(V1,V0)." in clauses
     assert "odd(V1) :- even(V0),prev(V1,V0)." in clauses
 
 
-def test_grandparent_hypothesis_space_contains_invented_predicate_solution():
+def test_grandparent_clause_generation_contains_invented_predicate_solution():
     args = copy.deepcopy(CASES["grandparent"])
     program = parse_file(args.filename)
-    clauses = set(HypothesisSpaceGenerator(program, args).generate().clauses)
+    clauses = set(ClauseGenerator(program, args).generate().clauses)
 
     assert program.invented_predicates == (("target_1", 2),)
     assert len(program.positive_examples) == 7
@@ -4113,10 +4153,10 @@ def test_grandparent_hypothesis_space_contains_invented_predicate_solution():
     )
 
 
-def test_latin_square_hypothesis_space_contains_covering_target_program():
+def test_latin_square_clause_generation_contains_covering_target_program():
     args = copy.deepcopy(CASES["latin_square"])
     program = parse_file(args.filename)
-    clauses = set(HypothesisSpaceGenerator(program, args).generate().clauses)
+    clauses = set(ClauseGenerator(program, args).generate().clauses)
     target = (
         "count_row(V0,V3) :- cell(V0),#count{V1:x(V0,V2,V1)}=V3.",
         "count_col(V0,V3) :- cell(V0),#count{V1:x(V2,V0,V1)}=V3.",
@@ -4198,7 +4238,7 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     ]
     definition_program.arithmetic_modes = []
     definition_clauses = set(
-        HypothesisSpaceGenerator(definition_program, args).generate().clauses
+        ClauseGenerator(definition_program, args).generate().clauses
     )
     constraint_program = copy.deepcopy(program)
     constraint_program.language_bias_body = [
@@ -4208,7 +4248,7 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     ]
     constraint_program.aggregate_modes = []
     constraint_clauses = set(
-        HypothesisSpaceGenerator(constraint_program, args).generate().clauses
+        ClauseGenerator(constraint_program, args).generate().clauses
     )
 
     assert {clause for clause in target if "#sum{" in clause} <= definition_clauses
@@ -4283,7 +4323,7 @@ def test_coloring_complete_head_never_generates_partial_disjunctions():
 def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
     args = copy.deepcopy(CASES["subset_sum_double_and_prod_unbalanced"])
     program = parse_file(args.filename)
-    clauses = HypothesisSpaceGenerator(program, args).generate()
+    clauses = ClauseGenerator(program, args).generate()
     random.seed(1)
     candidate = tuple(
         sorted(random.sample(clauses.clauses, program.max_program_clauses))
@@ -4342,9 +4382,9 @@ def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
 
 def test_theta_reduction_rejects_clause_equivalent_to_proper_subclause():
     modes = {
-        0: _normal_hypothesis_mode(0, 0, "head", "target", 1, 1, head_form=0),
-        1: _normal_hypothesis_mode(1, 1, "body", "edge", 2, 2),
-        2: _normal_hypothesis_mode(2, 2, "body", "other", 2, 1),
+        0: _normal_clause_mode(0, 0, "head", "target", 1, 1, head_form=0),
+        1: _normal_clause_mode(1, 1, "body", "edge", 2, 2),
+        2: _normal_clause_mode(2, 2, "body", "other", 2, 1),
     }
     reducible = ReifiedClause(
         (ReifiedLiteral("head", 0, 0, (0,)),),
@@ -4361,8 +4401,8 @@ def test_theta_reduction_rejects_clause_equivalent_to_proper_subclause():
         ),
     )
 
-    assert not hypothesis_space._theta_reduced(reducible, modes)
-    assert hypothesis_space._theta_reduced(reduced, modes)
+    assert not clause_decoder._theta_reduced(reducible, modes)
+    assert clause_decoder._theta_reduced(reduced, modes)
 
 
 def test_parser_parses_aggregate_head_modes_with_optional_recall(tmp_path):
@@ -4409,7 +4449,7 @@ def test_modeha_generates_nonredundant_cardinality_heads(tmp_path):
     )
 
     clauses = set(
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -4447,7 +4487,7 @@ def test_modeha_recall_and_minhl_bound_generated_width(tmp_path):
     )
 
     clauses = set(
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -4477,7 +4517,7 @@ def test_modeha_reuses_one_template_for_distinct_compatible_variables(tmp_path):
     )
 
     clauses = set(
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -4494,7 +4534,7 @@ def test_unbounded_modeha_requires_finite_maxhl(tmp_path):
     )
 
     with pytest.raises(ValueError, match=r"#maxhl\(\*\).+#modeha"):
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
 
 
 def test_ground_modeha_caps_impossible_repeated_elements_before_grounding(tmp_path):
@@ -4504,7 +4544,7 @@ def test_ground_modeha_caps_impossible_repeated_elements_before_grounding(tmp_pa
         encoding="utf-8",
     )
 
-    templates = hypothesis_space._aggregate_head_templates(parse_file(str(task)))
+    templates = clause_modes._aggregate_head_templates(parse_file(str(task)))
 
     assert len(templates) == 1
     assert templates[0].width == 1
@@ -4517,7 +4557,7 @@ def test_bodyless_condition_budget_expands_ground_modeha_capacity(tmp_path):
         encoding="utf-8",
     )
 
-    templates = hypothesis_space._aggregate_head_templates(parse_file(str(task)))
+    templates = clause_modes._aggregate_head_templates(parse_file(str(task)))
 
     assert len(templates) == 4
     assert {template.width for template in templates} == {1, 2}
@@ -4538,7 +4578,7 @@ def test_modeha_capacity_deduplicates_equal_constant_expansions(tmp_path):
         encoding="utf-8",
     )
 
-    templates = hypothesis_space._aggregate_head_templates(parse_file(str(task)))
+    templates = clause_modes._aggregate_head_templates(parse_file(str(task)))
 
     assert len(templates) == 1
     assert templates[0].width == 1
@@ -4563,7 +4603,7 @@ def test_modeha_elements_accept_generated_conditions(tmp_path):
     )
 
     program = parse_file(str(task))
-    clauses = set(HypothesisSpaceGenerator(program, Arguments()).generate().clauses)
+    clauses = set(ClauseGenerator(program, Arguments()).generate().clauses)
 
     assert "0{p(V0):allowed(V0)}1 :- node(V0)." in clauses
     control = clingo.Control(["0"])
@@ -4613,7 +4653,7 @@ def test_modearith_accepts_exact_nested_relations(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -4638,7 +4678,7 @@ def test_complete_head_keeps_exact_conditional_attachment(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -4663,7 +4703,7 @@ def test_modehd_combines_declared_disjunction_elements(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -4691,7 +4731,7 @@ def test_second_order_metarule_instantiates_atomic_rule_bundle(tmp_path):
     )
 
     program = parse_file(str(task))
-    space = build_hypothesis_space(program, Arguments())
+    space = build_clause_space(program, Arguments())
     metarules = [entry for entry in space.entries if entry.bundle is not None]
 
     assert {entry.text for entry in metarules} == {
@@ -4723,7 +4763,7 @@ def test_modearith_exact_equality_can_produce_its_declared_output(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -4796,7 +4836,7 @@ def test_modec_accepts_an_exact_comparison_condition(tmp_path):
     )
 
     clauses = (
-        HypothesisSpaceGenerator(parse_file(str(task)), Arguments())
+        ClauseGenerator(parse_file(str(task)), Arguments())
         .generate()
         .clauses
     )
@@ -4820,7 +4860,7 @@ def test_exact_comparison_condition_can_share_a_locally_grounded_variable(tmp_pa
         encoding="utf-8",
     )
 
-    clauses = HypothesisSpaceGenerator(parse_file(str(task)), Arguments()).generate().clauses
+    clauses = ClauseGenerator(parse_file(str(task)), Arguments()).generate().clauses
 
     assert "target :- p(V0):q(V0),V0<3." in clauses
 
@@ -4879,13 +4919,13 @@ def test_metarule_rejects_unsafe_instantiation(tmp_path):
 
 
 def test_dependency_completion_closes_a_provider_bundle():
-    def entry(rule: str, bundle: int | None = None) -> RuleEntry:
+    def entry(rule: str, bundle: int | None = None) -> Clause:
         heads, dependencies, body_literals = clause_predicates(rule)
-        return RuleEntry(
+        return Clause(
             rule, parse_rule(rule), heads, dependencies, body_literals, bundle
         )
 
-    space = RuleSpace.from_entries(
+    space = ClauseSpace.from_entries(
         (
             entry("p :- b.", 0),
             entry("q :- c.", 0),
@@ -4896,7 +4936,7 @@ def test_dependency_completion_closes_a_provider_bundle():
         inductive_task(["b.", "c."], [], [], [], []), space, 3, random.Random(0)
     )
 
-    completed = generator._build(1 << generator.rule_ids["target :- p."], 0)
+    completed = generator._build(1 << generator.clause_ids["target :- p."], 0)
 
     assert completed is not None
     assert set(generator.render(completed)) == {"p :- b.", "q :- c.", "target :- p."}
@@ -4919,7 +4959,7 @@ def test_exact_simple_modearith_relation_is_not_algebraically_rewritten(tmp_path
         encoding="utf-8",
     )
 
-    clauses = HypothesisSpaceGenerator(parse_file(str(task)), Arguments()).generate().clauses
+    clauses = ClauseGenerator(parse_file(str(task)), Arguments()).generate().clauses
 
     assert any("V0<V1" in clause for clause in clauses)
     assert not any("V0-V1<0" in clause for clause in clauses)
@@ -4943,7 +4983,7 @@ def test_metarule_respects_maximum_head_width(tmp_path):
     )
 
     with pytest.raises(ValueError, match="metarule exceeds #maxhl"):
-        build_hypothesis_space(parse_file(str(task)), Arguments())
+        build_clause_space(parse_file(str(task)), Arguments())
 
 
 @pytest.mark.parametrize(

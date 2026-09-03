@@ -6,8 +6,7 @@ from clingo import ast
 
 from ..language.asp import Predicate, clause_predicates
 from ..language.ir.inductive_task import InductiveTask
-from ..clauses.rule_entry import RuleEntry
-from ..clauses.rule_space import RuleSpace
+from ..clauses import Clause, ClauseSpace
 from ..timing import add, current_phase
 
 
@@ -23,10 +22,10 @@ def record_generation_time(method: Callable) -> Callable:
     return measured
 
 
-def prepare_space(task: InductiveTask, space: RuleSpace) -> RuleSpace:
+def prepare_space(task: InductiveTask, space: ClauseSpace) -> ClauseSpace:
     background = defined_predicates(task.background)
-    entries = prune_uncloseable_rules(space.entries, background)
-    return RuleSpace.from_entries(entries)
+    entries = prune_uncloseable_clauses(space.entries, background)
+    return ClauseSpace.from_entries(entries)
 
 
 def defined_predicates(statements: Iterable[ast.AST]) -> set[Predicate]:
@@ -37,9 +36,9 @@ def defined_predicates(statements: Iterable[ast.AST]) -> set[Predicate]:
     return defined
 
 
-def prune_uncloseable_rules(
-    entries: tuple[RuleEntry, ...], background: set[Predicate]
-) -> list[RuleEntry]:
+def prune_uncloseable_clauses(
+    entries: tuple[Clause, ...], background: set[Predicate]
+) -> list[Clause]:
     kept = list(entries)
     while True:
         providers = set(background)

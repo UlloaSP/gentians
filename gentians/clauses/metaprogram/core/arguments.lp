@@ -18,7 +18,7 @@
 %   Arity describes rendered syntax; mode_variable_arg/2 defines bindable slots.
 % - mode_variable_arg(Mode,Arg): emitted for each variable placeholder.
 % - mode_arg_type(Mode,Arg,Type): emitted for variable argument types.
-% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
+% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per clause mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
 #defined mode/5.
 % Python fact detail: mode_arg_type(Mode,Arg,Type) gives declared type for zero-based argument Arg of mode Mode.
 #defined mode_arg_type/3.

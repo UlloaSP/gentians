@@ -9,7 +9,7 @@ from ..language.ir.term_binding import TermBinding
 
 
 @dataclass(frozen=True, slots=True)
-class HypothesisMode:
+class ClauseMode:
     id: int
     recall_group: int
     section: str
@@ -27,7 +27,7 @@ class HypothesisMode:
 
     def __post_init__(self) -> None:
         if self.section not in {"head", "body"}:
-            raise ValueError(f"invalid hypothesis section: {self.section}")
+            raise ValueError(f"invalid clause section: {self.section}")
         if self.section == "head":
             conclusion = (
                 self.literal.conclusion

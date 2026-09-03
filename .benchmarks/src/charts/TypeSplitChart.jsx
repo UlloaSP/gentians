@@ -4,7 +4,7 @@ import { ChartSection } from "../components/Layout";
 import { colors, measuredTotal, phaseTypeTotal, typeOrder } from "../metrics";
 
 const BLOCKS = [
-  ["Hypothesis", ["hypothesisSpace"]],
+  ["Clauses", ["clauseGeneration"]],
   [
     "Evolution",
     [

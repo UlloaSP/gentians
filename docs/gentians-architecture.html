@@ -5035,10 +5035,10 @@
         <!-- Connection paths (before components for correct z-order) -->
         <path data-edge-from="task" data-edge-to="reader" data-edge-label="UTF-8" data-edge-key="0" data-edge-id="task-reader" data-composition-points="160,356;200,356" d="M 160 356 L 200 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="reader" data-edge-to="clauses" data-edge-label="InductiveTask" data-edge-key="1" data-edge-id="reader-clauses" data-composition-points="340,356;390,356" d="M 340 356 L 390 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="clauses" data-edge-to="search" data-edge-label="RuleSpace" data-edge-key="2" data-edge-id="clauses-search" data-composition-points="560,356;620,356" d="M 560 356 L 620 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="clauses" data-edge-to="search" data-edge-label="ClauseSpace" data-edge-key="2" data-edge-id="clauses-search" data-composition-points="560,356;620,356" d="M 560 356 L 620 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="search" data-edge-to="fitness" data-edge-label="candidato" data-edge-key="3" data-edge-id="search-fitness" data-composition-points="770,356;830,356" d="M 770 356 L 830 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="fitness" data-edge-to="clingo" data-edge-label="ground/solve" data-edge-key="4" data-edge-id="fitness-clingo" data-composition-points="980,356;1050,356" d="M 980 356 L 1050 356" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="clauses" data-edge-to="hypotheses" data-edge-label="RuleSpace" data-edge-key="5" data-edge-id="clauses-hypotheses" data-composition-points="475,392;475,520" d="M 475 392 L 475 520" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="clauses" data-edge-to="hypotheses" data-edge-label="ClauseSpace" data-edge-key="5" data-edge-id="clauses-hypotheses" data-composition-points="475,392;475,520" d="M 475 392 L 475 520" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="search" data-edge-to="hypotheses" data-edge-label="plumbing para estrategias" data-edge-key="6" data-edge-id="search-hypotheses" data-composition-points="620,356;590,356;590,556;560,556" d="M 620 356 L 598 356 Q 590 356 590 364 L 590 548 Q 590 556 582 556 L 560 556" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="operators" data-edge-to="search" data-edge-label="operadores" data-edge-key="7" data-edge-id="operators-search" data-composition-points="695,158;695,320" d="M 695 158 L 695 320" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="search" data-edge-to="result" data-edge-label="mejor candidato" data-edge-key="8" data-edge-id="search-result" data-composition-points="695,392;695,416;716,416;716,496;700,496;700,520" d="M 695 392 L 695 408 Q 695 416 703 416 L 708 416 Q 716 416 716 424 L 716 488 Q 716 496 708 496 L 708 496 Q 700 496 700 504 L 700 520" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
@@ -5068,15 +5068,15 @@
         <text data-detail="context" x="270" y="370" class="t-muted" font-size="9" text-anchor="middle">lexer · parser · IR</text>
         </g>
 
-        <g id="node-clauses" data-node-id="clauses" data-node-label="Generación de cláusulas" tabindex="0" role="button" aria-label="Focus Generación de cláusulas, Clingo enumera RuleSpace, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Clingo enumera RuleSpace" data-node-context="Paquete gentians">
-          <title>Generación de cláusulas · Clingo enumera RuleSpace · Paquete gentians</title>
+        <g id="node-clauses" data-node-id="clauses" data-node-label="Generación de cláusulas" tabindex="0" role="button" aria-label="Focus Generación de cláusulas, Clingo enumera ClauseSpace, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Clingo enumera ClauseSpace" data-node-context="Paquete gentians">
+          <title>Generación de cláusulas · Clingo enumera ClauseSpace · Paquete gentians</title>
           <rect x="390" y="320" width="170" height="72" rx="6" class="c-mask"/>
           <rect x="390" y="320" width="170" height="72" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(396 326) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="475" y="354" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Generación de cláusulas</text>
-        <text data-detail="context" x="475" y="370" class="t-muted" font-size="9" text-anchor="middle">Clingo enumera RuleSpace</text>
+        <text data-detail="context" x="475" y="370" class="t-muted" font-size="9" text-anchor="middle">Clingo enumera ClauseSpace</text>
         </g>
 
         <g id="node-search" data-node-id="search" data-node-label="Evolution Search" tabindex="0" role="button" aria-label="Focus Evolution Search, orquesta generaciones, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="orquesta generaciones" data-node-tag="search_solver" data-node-context="Paquete gentians">
@@ -5168,9 +5168,9 @@
           <rect x="328.8" y="296" width="72.4" height="14" rx="3" class="c-mask"/>
           <text x="365" y="306" class="t-muted" font-size="8" text-anchor="middle">InductiveTask</text>
         </g>
-        <g data-detail="context" data-edge-from="clauses" data-edge-to="search" data-edge-label="RuleSpace" data-edge-key="2" data-edge-id="clauses-search">
+        <g data-detail="context" data-edge-from="clauses" data-edge-to="search" data-edge-label="ClauseSpace" data-edge-key="2" data-edge-id="clauses-search">
           <rect x="563.4" y="296" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
-          <text x="590" y="306" class="t-muted" font-size="8" text-anchor="middle">RuleSpace</text>
+          <text x="590" y="306" class="t-muted" font-size="8" text-anchor="middle">ClauseSpace</text>
         </g>
         <g data-detail="context" data-edge-from="search" data-edge-to="fitness" data-edge-label="candidato" data-edge-key="3" data-edge-id="search-fitness">
           <rect x="773.4" y="296" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
@@ -5180,9 +5180,9 @@
           <rect x="981.2" y="296" width="67.6" height="14" rx="3" class="c-mask"/>
           <text x="1015" y="306" class="t-backend" font-size="8" text-anchor="middle">ground/solve</text>
         </g>
-        <g data-detail="context" data-edge-from="clauses" data-edge-to="hypotheses" data-edge-label="RuleSpace" data-edge-key="5" data-edge-id="clauses-hypotheses">
+        <g data-detail="context" data-edge-from="clauses" data-edge-to="hypotheses" data-edge-label="ClauseSpace" data-edge-key="5" data-edge-id="clauses-hypotheses">
           <rect x="448.4" y="420" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
-          <text x="475" y="430" class="t-muted" font-size="8" text-anchor="middle">RuleSpace</text>
+          <text x="475" y="430" class="t-muted" font-size="8" text-anchor="middle">ClauseSpace</text>
         </g>
         <g data-detail="context" data-edge-from="search" data-edge-to="hypotheses" data-edge-label="plumbing para estrategias" data-edge-key="6" data-edge-id="search-hypotheses">
           <rect x="525" y="436" width="130" height="14" rx="3" class="c-mask"/>

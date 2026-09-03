@@ -45,7 +45,7 @@ const SEGMENT_STYLES = [
   { opacity: 0.32, decal: { symbol: "circle", dashArrayX: [1, 6], dashArrayY: [1, 6] } },
 ];
 const PHASES = {
-  hypothesis_space: ["hypothesis", 0],
+  clause_generation: ["clauses", 0],
   pregrounding: ["pregrounding", 1],
   population: ["initialization", 2],
   selection: ["selection", 3],
@@ -55,7 +55,7 @@ const PHASES = {
   search: ["search orchestration", 7],
 };
 const TYPE_BLOCKS = [
-  ["Hypothesis", ["hypothesisSpace", "pregrounding"]],
+  ["Clauses", ["clauseGeneration", "pregrounding"]],
   [
     "Evolution",
     ["initialization", "selection", "crossover", "mutation", "replacement", "gaPython"],

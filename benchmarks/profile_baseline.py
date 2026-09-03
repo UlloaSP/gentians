@@ -639,7 +639,7 @@ def write_dashboard_data(
         candidates = mean(
             candidate_clause_count(row)
             for row in candidate_metrics_by_dataset.get(dataset, [])
-            if is_hypothesis_space_metric(row)
+            if is_clause_generation_metric(row)
         )
         benchmarks.append(
             {
@@ -666,7 +666,7 @@ def write_dashboard_data(
                 "clingoSummary": dataset_clingo_summary,
             }
         )
-    payload = {"schemaVersion": 7, "benchmarks": benchmarks}
+    payload = {"schemaVersion": 8, "benchmarks": benchmarks}
     (out_dir / "dashboard_data.json").write_text(
         json.dumps(json_safe(payload), separators=(",", ":"), allow_nan=False),
         encoding="utf-8",
@@ -734,7 +734,7 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
         }
 
     phases = {
-        "hypothesisSpace": phase("hypothesis_space"),
+        "clauseGeneration": phase("clause_generation"),
         "pregrounding": phase("pregrounding"),
         "initialization": phase("initialization"),
         "selection": phase("selection"),
@@ -1130,8 +1130,8 @@ def operator_best_count(rows: list[dict[str, object]], operator: str) -> float:
     return sum(to_float(row.get("is_best")) for row in rows)
 
 
-def is_hypothesis_space_metric(row: dict[str, object]) -> bool:
-    return row.get("metric") == "hypothesis_space"
+def is_clause_generation_metric(row: dict[str, object]) -> bool:
+    return row.get("metric") == "clause_generation"
 
 
 def candidate_clause_count(row: dict[str, object]) -> float:

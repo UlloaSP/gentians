@@ -28,7 +28,7 @@
       "id": "clauses",
       "type": "backend",
       "label": "Generación de cláusulas",
-      "sublabel": "Clingo enumera RuleSpace",
+      "sublabel": "Clingo enumera ClauseSpace",
       "pos": [390, 320],
       "size": [170, 72]
     },
@@ -101,10 +101,10 @@
   "connections": [
     { "id": "task-reader", "from": "task", "to": "reader", "label": "UTF-8" },
     { "id": "reader-clauses", "from": "reader", "to": "clauses", "label": "InductiveTask", "labelAt": [365, 306] },
-    { "id": "clauses-search", "from": "clauses", "to": "search", "label": "RuleSpace", "labelAt": [590, 306] },
+    { "id": "clauses-search", "from": "clauses", "to": "search", "label": "ClauseSpace", "labelAt": [590, 306] },
     { "id": "search-fitness", "from": "search", "to": "fitness", "label": "candidato", "labelAt": [800, 306] },
     { "id": "fitness-clingo", "from": "fitness", "to": "clingo", "label": "ground/solve", "variant": "emphasis", "labelAt": [1015, 306] },
-    { "id": "clauses-hypotheses", "from": "clauses", "to": "hypotheses", "label": "RuleSpace", "fromSide": "bottom", "toSide": "top", "labelAt": [475, 430] },
+    { "id": "clauses-hypotheses", "from": "clauses", "to": "hypotheses", "label": "ClauseSpace", "fromSide": "bottom", "toSide": "top", "labelAt": [475, 430] },
     { "id": "search-hypotheses", "from": "search", "to": "hypotheses", "label": "plumbing para estrategias", "fromSide": "left", "toSide": "right" },
     { "id": "operators-search", "from": "operators", "to": "search", "label": "operadores", "fromSide": "bottom", "toSide": "top", "labelAt": [695, 200] },
     { "id": "search-result", "from": "search", "to": "result", "label": "mejor candidato", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [695, 420] },

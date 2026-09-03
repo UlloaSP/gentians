@@ -12,10 +12,10 @@ import {
 } from "./metrics";
 
 describe("dashboard schema", () => {
-  it("accepts v7 and rejects stale dashboards", () => {
-    expect(() => assertDashboardSchema({ schemaVersion: 7 })).not.toThrow();
-    expect(() => assertDashboardSchema({ schemaVersion: 6 }, "old")).toThrow(
-      "old: schema 6; vuelve a ejecutar el experimento",
+  it("accepts v8 and rejects stale dashboards", () => {
+    expect(() => assertDashboardSchema({ schemaVersion: 8 })).not.toThrow();
+    expect(() => assertDashboardSchema({ schemaVersion: 7 }, "old")).toThrow(
+      "old: schema 7; vuelve a ejecutar el experimento",
     );
   });
 });

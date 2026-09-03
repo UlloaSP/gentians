@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .hypothesis_mode import HypothesisMode
+from .clause_mode import ClauseMode
 from ..language.ir.conditional_literal import ConditionalLiteral
 from .reified_clause import _render_literal, render_head
 from .reified_literal import ReifiedLiteral
@@ -24,7 +24,7 @@ class CanonicalArithmeticClause:
             tuple(system.key for system in self.systems),
         )
 
-    def render(self, modes: dict[int, HypothesisMode]) -> str:
+    def render(self, modes: dict[int, ClauseMode]) -> str:
         head = render_head(self.head, modes)
         body = [
             _render_literal(literal, modes[literal.mode_id])

@@ -30,7 +30,7 @@ const COLORS = [
 ];
 const METRICS = [
   ["total_execution", totalSeconds],
-  ["hypothesis", (benchmark) => phaseTotal(benchmark, "hypothesisSpace")],
+  ["clauses", (benchmark) => phaseTotal(benchmark, "clauseGeneration")],
   ["tiempo evolutivo", evolutionarySeconds],
   ["grounding", groundingSeconds],
   ["solving", solvingSeconds],

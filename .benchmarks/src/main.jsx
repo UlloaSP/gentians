@@ -166,7 +166,7 @@ function Detail({ benchmark }) {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
         <Stat label="runs" value={runCount(benchmark)} />
         <Stat label="total" value={`${fmt(totalSeconds(benchmark), 2)}s`} />
-        <Stat label="hypothesis" value={`${fmt(phaseTotal(benchmark, "hypothesisSpace"), 2)}s`} />
+        <Stat label="clauses" value={`${fmt(phaseTotal(benchmark, "clauseGeneration"), 2)}s`} />
         <Stat label="tiempo evolutivo" value={`${fmt(evolutionarySeconds(benchmark), 2)}s`} />
         <Stat label="clingo" value={`${fmt(clingoSeconds(benchmark), 2)}s`} />
         <Stat label="python" value={`${fmt(pythonSeconds(benchmark), 2)}s`} />

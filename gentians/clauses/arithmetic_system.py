@@ -11,7 +11,7 @@ from .canonical_arithmetic_clause import CanonicalArithmeticClause
 from .comparison_constraint import ComparisonConstraint
 from ..language.ir.comparison_literal import ComparisonLiteral
 from .expression_constraint import ExpressionConstraint
-from .hypothesis_mode import HypothesisMode
+from .clause_mode import ClauseMode
 from .linear_constraint import LinearConstraint
 from .reified_clause import ReifiedClause
 from .reified_literal import ReifiedLiteral
@@ -23,17 +23,17 @@ ArithmeticSystemKey = tuple[object, ...]
 SystemRelation = LinearConstraint | ExpressionConstraint | ComparisonConstraint
 
 
-def _is_builtin(mode: HypothesisMode) -> bool:
+def _is_builtin(mode: ClauseMode) -> bool:
     return isinstance(mode.literal, ArithmeticLiteral) or (
         isinstance(mode.literal, ComparisonLiteral) and mode.literal.canonicalizable
     )
 
 
-def _is_positive_atom(mode: HypothesisMode) -> bool:
+def _is_positive_atom(mode: ClauseMode) -> bool:
     return isinstance(mode.literal, AtomLiteral) and not mode.literal.default_negated
 
 
-def _is_numeric_builtin(mode: HypothesisMode) -> bool:
+def _is_numeric_builtin(mode: ClauseMode) -> bool:
     return isinstance(mode.literal, ArithmeticLiteral) or (
         isinstance(mode.literal, ComparisonLiteral) and mode.literal.operator != "!="
     )
@@ -81,7 +81,7 @@ class ArithmeticSystem:
 
 def canonical_arithmetic_clause(
     clause: ReifiedClause,
-    modes: dict[int, HypothesisMode],
+    modes: dict[int, ClauseMode],
     max_variables: int,
 ) -> CanonicalArithmeticClause | None:
     builtin = [
@@ -226,7 +226,7 @@ def _literal_key(literal: ReifiedLiteral) -> tuple[int, tuple[int, ...]]:
 
 def _numeric_variables(
     clause: ReifiedClause,
-    modes: dict[int, HypothesisMode],
+    modes: dict[int, ClauseMode],
 ) -> set[int]:
     numeric: set[int] = set()
     for literal in (*clause.head, *clause.body):
@@ -243,7 +243,7 @@ def _numeric_variables(
 
 def _arithmetic_relation(
     literal: ReifiedLiteral,
-    modes: dict[int, HypothesisMode],
+    modes: dict[int, ClauseMode],
     safe: set[int],
 ) -> SystemRelation:
     mode = modes[literal.mode_id]
@@ -272,7 +272,7 @@ def _arithmetic_relation(
 
 def _expression_system(
     literals: list[ReifiedLiteral],
-    modes: dict[int, HypothesisMode],
+    modes: dict[int, ClauseMode],
     external: set[int],
     safe: set[int],
     numeric_variables: set[int],
@@ -369,7 +369,7 @@ def _expression_system(
 
 def _mode_expression(
     literal: ReifiedLiteral,
-    mode: HypothesisMode,
+    mode: ClauseMode,
     known: dict[int, ArithmeticExpression],
 ) -> ArithmeticExpression:
     if not isinstance(mode.literal, ArithmeticLiteral):
@@ -465,7 +465,7 @@ def _fold_expression(
     return result
 
 
-def _is_linear(mode: HypothesisMode, allow_disequality: bool) -> bool:
+def _is_linear(mode: ClauseMode, allow_disequality: bool) -> bool:
     syntax = mode.literal
     return (isinstance(syntax, ArithmeticLiteral) and syntax.linear) or (
         isinstance(syntax, ComparisonLiteral)
@@ -479,7 +479,7 @@ def _is_linear(mode: HypothesisMode, allow_disequality: bool) -> bool:
 @lru_cache(maxsize=8192)
 def _constraint(
     literal: ReifiedLiteral,
-    mode: HypothesisMode,
+    mode: ClauseMode,
     width: int,
 ) -> LinearConstraint:
     coefficients = [Fraction(0) for _ in range(width)]

@@ -1,6 +1,6 @@
 # Gentians
 
-Gentians es un solver de Inductive Logic Programming para aprender programas ASP. Su objetivo es buscar hipótesis no monótonas expresadas con sintaxis ASP mediante una heurística evolutiva. Clingo cumple dos papeles distintos: enumera reglas legales a partir del language bias y evalúa la semántica del programa candidato completo.
+Gentians es un solver de Inductive Logic Programming para aprender programas ASP. Su objetivo es buscar hipótesis no monótonas expresadas con sintaxis ASP mediante una heurística evolutiva. Clingo cumple dos papeles distintos: enumera cláusulas legales a partir del language bias y evalúa la semántica del programa candidato completo.
 
 Gentians no es una librería genética genérica ni un wrapper genérico de Clingo. El algoritmo evolutivo existe para explorar programas ASP válidos sin perder sus invariantes sintácticos y semánticos.
 
@@ -27,7 +27,7 @@ task file
   -> facts + metaprograma ASP
   -> Clingo enumera y poda cláusulas
   -> decode + canonicalización
-  -> RuleSpace
+  -> ClauseSpace
   -> HypothesisGenerator construye genomas cerrados
   -> search_solver aplica estrategias evolutivas
   -> fitness evalúa cada programa completo con Clingo
@@ -36,11 +36,11 @@ task file
 instrumentación -> artefactos de benchmark -> preview Vite
 ```
 
-La distinción entre reglas e hipótesis es obligatoria:
+La distinción entre cláusulas e hipótesis es obligatoria:
 
-- `HypothesisSpaceGenerator` tiene un nombre histórico. En la implementación actual genera el espacio finito de reglas individuales, un `RuleSpace`.
-- `HypothesisGenerator` construye hipótesis completas a partir de ese `RuleSpace`, mantiene cierre de dependencias y las codifica como bitsets.
-- Una regla no tiene cobertura o fitness estable por sí sola. ASP es no monótono y añadir una regla puede cambiar los modelos del programa completo.
+- `ClauseGenerator` genera el espacio finito de cláusulas individuales, un `ClauseSpace`.
+- `HypothesisGenerator` construye hipótesis completas a partir de ese `ClauseSpace`, mantiene cierre de dependencias y las codifica como bitsets.
+- Una cláusula no tiene cobertura o fitness estable por sí sola. ASP es no monótono y añadir una cláusula puede cambiar los modelos del programa completo.
 
 No introduzcas optimizaciones que asuman contribuciones aditivas, cobertura fija por regla o equivalencia global a partir de los ejemplos. Una firma de cobertura solo expresa comportamiento sobre la tarea observada.
 
@@ -51,21 +51,21 @@ Usa estos términos en código, docs y conversación:
 - **Tarea inductiva**: archivo que contiene background ASP, ejemplos y language bias. También posee los límites estructurales.
 - **`InductiveTask`**: IR parseado de la tarea inductiva. No es la hipótesis aprendida.
 - **Language bias**: lenguaje finito permitido para las hipótesis. Incluye modes, recalls, tipos, direcciones, constantes, límites, metarules, invención y `#bias` explícito.
-- **Regla o cláusula**: una regla ASP aprendible ya instanciada y canónica.
-- **`RuleEntry`**: AST y texto canónico de una regla junto a predicados definidos, dependencias, tamaño de cuerpo y bundle opcional.
-- **`RuleSpace`**: conjunto ordenado y sin duplicados de reglas candidatas.
-- **Hipótesis o programa candidato**: conjunto de reglas del `RuleSpace` evaluado como una unidad bajo stable-model semantics.
-- **`Genome`**: entero bitset que representa una hipótesis. El bit `i` selecciona la regla `i` del `RuleSpace` preparado.
+- **Cláusula**: una cláusula ASP aprendible ya instanciada y canónica.
+- **`Clause`**: AST y texto canónico de una cláusula junto a predicados definidos, dependencias, tamaño de cuerpo y bundle opcional.
+- **`ClauseSpace`**: conjunto ordenado y sin duplicados de cláusulas candidatas.
+- **Hipótesis o programa candidato**: conjunto de cláusulas del `ClauseSpace` evaluado como una unidad bajo stable-model semantics.
+- **`Genome`**: entero bitset que representa una hipótesis. El bit `i` selecciona la cláusula `i` del `ClauseSpace` preparado.
 - **`Individual`**: genoma evaluado con score, marca de solución, firma de comportamiento y edad.
 - **Comportamiento**: pareja de máscaras `(pos_mask, neg_mask)`. La primera marca positivos cubiertos; la segunda, negativos cubiertos.
 - **Hipótesis perfecta**: cubre todos los ejemplos positivos y ningún negativo. Esto produce `best_found=True`.
-- **Cierre de dependencias**: toda dependencia de una regla queda definida por el background o por alguna cabeza del mismo candidato.
-- **Bundle**: grupo de reglas producido por una metarule. Es atómico durante generación y operadores.
-- **Pruning**: exclusión de reglas o hipótesis inválidas, redundantes o imposibles antes de gastar evaluaciones de fitness.
+- **Cierre de dependencias**: toda dependencia de una cláusula queda definida por el background o por alguna cabeza del mismo candidato.
+- **Bundle**: grupo de cláusulas producido por una metarule. Es atómico durante generación y operadores.
+- **Pruning**: exclusión de cláusulas o hipótesis inválidas, redundantes o imposibles antes de gastar evaluaciones de fitness.
 - **Solver normal**: crea, groundea y resuelve un `clingo.Control` por candidato.
 - **Solver pregrounded**: groundea una vez el universo de reglas guardadas y activa el candidato mediante externals.
 
-No uses "hypothesis space" sin indicar si hablas de reglas candidatas o de programas candidatos. En código actual, `RuleSpace` elimina la ambigüedad.
+Usa `ClauseSpace` para cláusulas candidatas. Usa hipótesis o programa candidato para el conjunto evaluado por fitness.
 
 ## Semántica del producto
 
@@ -94,7 +94,7 @@ Estos son límites del producto, aunque algunos todavía compartan paquete:
 | Módulo | Responsabilidad | Ubicación actual |
 |---|---|---|
 | Lenguaje de tareas | Leer UTF-8, separar sentencias completas, parsear directivas, delegar ASP a `clingo.ast` y construir un IR tipado. | `gentians/language/parser.py`, `lexer.py`, `grammar.py`, `asp.py`, `directives.py`, `declarations.py`, `modes.py`, `metarules.py`, `language/ir/` |
-| Generación de reglas | Compilar bias y análisis estático a facts, enumerar cláusulas mediante metaprograma ASP, podar ilegalidad y redundancia, decodificar y canonicalizar. | `gentians/clauses/hypothesis_space.py`, `clauses/rules/**/*.lp`, `RuleSpace` |
+| Generación de cláusulas | Compilar bias y análisis estático a facts, enumerar cláusulas mediante metaprograma ASP, podar ilegalidad y redundancia, decodificar y canonicalizar. | `gentians/clauses/generator.py`, `clauses/metaprogram/**/*.lp`, `ClauseSpace` |
 | Generación de hipótesis | Construir programas candidatos, aplicar pruning mientras nacen y cerrar dependencias bajo `#maxpl` y bundles. | `gentians/hypotheses/` |
 | Solver evolutivo | Un único algoritmo central con población, selección, crossover, mutación, replacement y fitness intercambiables. | `gentians/evolution/algorithms/search.py` y subpaquetes de estrategias |
 | Evaluación ASP | Traducir ejemplos a cobertura y usar Clingo como oracle semántico. | `gentians/asp/`, `gentians/evolution/fitness/` |
@@ -107,20 +107,20 @@ No crees paquetes vacíos para imitar esta tabla. Haz aparecer un límite físic
 
 La tabla mezcla destino y estado real a propósito. La generación de hipótesis completas usa un bitset engine en Python; logging no tiene aún un módulo general separado de timing, métricas y callbacks. Trátalos como límites de producto pendientes, no como funciones ya implementadas ni como permiso para un refactor masivo no solicitado.
 
-## Cómo se genera una regla
+## Cómo se genera una cláusula
 
-`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` y `metarules` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP. El background se parsea en una sola llamada preservando las líneas originales; en ejemplos solo se parsean los campos no vacíos. `InductiveTask` conserva background, átomos incluidos y excluidos, contextos, `#bias` y metarules como nodos `clingo.ast.AST`; `RuleEntry` conserva el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
+`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` y `metarules` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP. El background se parsea en una sola llamada preservando las líneas originales; en ejemplos solo se parsean los campos no vacíos. `InductiveTask` conserva background, átomos incluidos y excluidos, contextos, `#bias` y metarules como nodos `clingo.ast.AST`; `Clause` conserva el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
 
-`HypothesisSpaceGenerator` ejecuta este pipeline:
+`ClauseGenerator` ejecuta este pipeline:
 
 1. Inspecciona background, ejemplos y declaraciones para derivar tipos, dominios, closed-world properties y capacidades permitidas.
-2. Compila declaraciones a `HypothesisMode` y facts reificados.
-3. Carga los módulos `.lp` en el orden de `HYPOTHESIS_SPACE_RULE_MODULES`.
+2. Compila declaraciones a `ClauseMode` y facts reificados.
+3. Carga los módulos `.lp` en el orden de `CLAUSE_METAPROGRAM_MODULES`.
 4. Clingo aplica límites, recall, linkedness, typing, ASP safety, flujo dirigido, coherencia y propiedades de pruning durante enumeración.
 5. Python decodifica `selected/3` y `var_at/4` como `ReifiedClause`.
 6. `_theta_reduced` elimina cuerpos con subcláusulas theta-equivalentes.
 7. `ArithmeticSystem` normaliza relaciones conectadas y `canonical.key` elige un representante.
-8. `RuleSpace` ordena y deduplica `RuleEntry`.
+8. `ClauseSpace` ordena y deduplica `Clause`.
 
 Prefiere pruning declarativo en los módulos `.lp` cuando la condición depende de la selección reificada. Usa Python para análisis estático de la tarea, AST, decodificación o canonicalización que no conviene recomputar dentro del solver. Evita generar un dominio enorme para filtrarlo después.
 
@@ -128,12 +128,12 @@ Un cambio de lenguaje suele tocar lexer, parser, IR, compilación de modes/facts
 
 ## Cómo se genera y busca una hipótesis
 
-`HypothesisGenerator` es la única autoridad para construir o transformar genomas. Prepara el `RuleSpace`, elimina reglas imposibles de cerrar y mantiene índices de heads, dependencies y bundles. Creación, append, remove, replace y crossover terminan en `_build()` y `_complete()`.
+`HypothesisGenerator` es la única autoridad para construir o transformar genomas. Prepara el `ClauseSpace`, elimina cláusulas imposibles de cerrar y mantiene índices de heads, dependencies y bundles. Creación, append, remove, replace y crossover terminan en `_build()` y `_complete()`.
 
 Invariantes del candidato:
 
 - No está vacío.
-- Solo contiene reglas del espacio preparado.
+- Solo contiene cláusulas del espacio preparado.
 - No excede `#maxpl`.
 - Incluye bundles completos.
 - Todas sus dependencias tienen proveedor en background o en el candidato.
@@ -141,7 +141,7 @@ Invariantes del candidato:
 
 Las estrategias no editan bits arbitrariamente. Selección opera sobre `Individual`; population, crossover y mutation piden genomas válidos a `HypothesisGenerator`; replacement conserva tamaño y orden por score. Los protocolos viven en `evolution/operator_types.py` y el estado compartido mínimo en `EvolutionContext`.
 
-`search_solver` es el único bucle central. Construye factories desde `Arguments`, crea o acepta un `RuleSpace`, inicializa población, memoiza evaluaciones, registra generación 0, aplica selección, crossover, mutación y replacement, y termina al encontrar una hipótesis perfecta o agotar generaciones. `iterations_genetic=0` significa búsqueda sin límite de generaciones.
+`search_solver` es el único bucle central. Construye factories desde `Arguments`, crea o acepta un `ClauseSpace`, inicializa población, memoiza evaluaciones, registra generación 0, aplica selección, crossover, mutación y replacement, y termina al encontrar una hipótesis perfecta o agotar generaciones. `iterations_genetic=0` significa búsqueda sin límite de generaciones.
 
 Al añadir una estrategia:
 
@@ -186,7 +186,7 @@ El resultado canónico de tiempo es `total_execution`, cerrado antes de imprimir
 
 - Los task files viven en `benchmarks/gentians/`. Cambiarlos modifica el problema, no solo un fixture.
 - `benchmarks/catalog.py` asigna nombres de dataset a `Arguments`.
-- `benchmarks/profile_hypothesis.py` mide generación de `RuleSpace` aislada.
+- `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada.
 - `benchmarks/profile_baseline.py` ejecuta runs, recoge JSON/JSONL, CSV y `.prof`, y genera `dashboard_data.json`.
 - `benchmarks/run_experiments.py` carga TOML, aplica overrides, fingerprinta configuración y marca resultados stale cuando deja de coincidir.
 - `benchmarks/experiments.toml` es la matriz ordinaria. Configs de investigación separadas deben declarar una sola diferencia interpretable frente al control.
@@ -201,7 +201,7 @@ Comandos habituales:
 uv sync
 uv run python benchmarks/run_experiments.py --list
 uv run python benchmarks/run_experiments.py <experiment-id>
-uv run python benchmarks/profile_hypothesis.py --datasets <dataset>
+uv run python benchmarks/profile_clauses.py --datasets <dataset>
 ```
 
 Usa `--force` solo cuando se pretende reemplazar el resultado del experimento. El runner borra el directorio exacto de salida antes de repetirlo.
@@ -227,11 +227,11 @@ No cambies estas gráficas salvo petición explícita:
 
 - Progreso de búsqueda: `max`, `best` y `avg`; eje inicial `generación`, empezando en generación `0`. Puede alternar a evaluaciones de fitness o segundos.
 - Resultado de operadores: una sola categoría por pareja `operador:estrategia`. `duplicate` significa resultado repetido tras normalizar/cerrar, no una categoría duplicada.
-- Cards de tiempos: deben mostrar `total`, `hypothesis`, `clingo` y `python`; `total` es la media de `total_execution`, nunca wall-clock. `hypothesis` y `tiempo evolutivo` van juntas.
-- Fases: `hypothesis space`, `pregrounding`, `initialization`, `selection`, `crossover`, `mutation`, `replacement` y `search orchestration`. No existe fase separada `fitness evaluation`: su coste pertenece a la fase que solicitó la evaluación.
+- Cards de tiempos: deben mostrar `total`, `clauses`, `clingo` y `python`; `total` es la media de `total_execution`, nunca wall-clock. `clauses` y `tiempo evolutivo` van juntas.
+- Fases: `clause generation`, `pregrounding`, `initialization`, `selection`, `crossover`, `mutation`, `replacement` y `search orchestration`. No existe fase separada `fitness evaluation`: su coste pertenece a la fase que solicitó la evaluación.
 - Tipos horizontales de tiempo: exactamente `python`, `grounding`, `solving` y `closure`.
 - `pregrounding` solo mide creación y grounding del solver pregenerado; ejecución normal no inventa esa fase.
-- Modelos solve por etapa: usa fases reales; `hypothesis_space` se muestra como `hypothesis`. No agrupa fases conocidas como `search setup`, `fitness search` ni `other`.
+- Modelos solve por etapa: usa fases reales; `clause_generation` se muestra como `clauses`. No agrupa fases conocidas como `search setup`, `fitness search` ni `other`.
 - Los títulos de charts identifican la métrica y son funcionales. No añadas títulos de página, hero copy ni texto ornamental.
 - Comparación conserva todas las gráficas y divisiones de la vista individual. Cada experimento añade sus líneas, grupos, stacks o anillos; no se reemplazan por resúmenes distintos.
 - En comparación, el color identifica siempre al experimento; métricas y divisiones usan líneas, símbolos, opacidad o trama. Las leyendas no multiplican `experimento × división` y todo debe distinguirse sin hover.
@@ -243,13 +243,13 @@ No cambies estas gráficas salvo petición explícita:
 - `gentians/arguments.py`: configuración pública del SDK y defaults evolutivos.
 - `gentians/language/`: lexer, gramática de alto nivel, parser, parsers de declaraciones, utilidades `clingo.ast` e IR tipado de la tarea.
 - `gentians/clauses/`: compilación, metaprograma, pruning y representación canónica de cláusulas.
-- `gentians/clauses/rules/`: pruning ASP separado por core, safety, operators, aggregates y properties. El orden de carga es explícito.
+- `gentians/clauses/metaprogram/`: pruning ASP separado por core, safety, operators, aggregates y properties. El orden de carga es explícito.
 - `gentians/hypotheses/`: plumbing de representación de genomas, cierre y transiciones válidas que usan las estrategias evolutivas.
 - `gentians/evolution/algorithms/search.py`: orquestación evolutiva, caché de evaluaciones y archivo semántico.
 - `gentians/evolution/{populations,selections,crossovers,mutations,replacements,fitness}/`: estrategias y factories.
 - `gentians/asp/`: programa de cobertura, isolation de contexts, solvers y stats.
 - `gentians/timing.py`: fases y export de métricas.
-- `tests/test_hypothesis_space.py`: contrato principal del lenguaje y generación de reglas.
+- `tests/test_clause_space.py`: contrato principal del lenguaje y generación de cláusulas.
 - `tests/test_evolution_operators.py`: genomas, cierre, operadores y search loop.
 - `tests/test_fitness.py`: cobertura, contexts y equivalencia de solvers.
 - `tests/test_profile_baseline.py`: semántica de tiempos y schema del dashboard.
@@ -277,7 +277,7 @@ Una regla colocada en la capa equivocada suele duplicarse. Si crossover, mutatio
 Usa la prueba más pequeña que pueda fallar por el cambio:
 
 ```powershell
-uv run pytest tests/test_hypothesis_space.py -q
+uv run pytest tests/test_clause_space.py -q
 uv run pytest tests/test_evolution_operators.py -q
 uv run pytest tests/test_fitness.py -q
 uv run pytest tests/test_profile_baseline.py -q

@@ -1,5 +1,5 @@
 export const phaseOrder = [
-  ["hypothesisSpace", "hypothesis space"],
+  ["clauseGeneration", "clause generation"],
   ["pregrounding", "pregrounding"],
   ["initialization", "initialization"],
   ["selection", "selection"],
@@ -26,7 +26,7 @@ export const colors = {
 };
 
 const POINT_INDEX = { max: 3, avg: 4, bestSoFar: 5 };
-export const DASHBOARD_SCHEMA_VERSION = 7;
+export const DASHBOARD_SCHEMA_VERSION = 8;
 
 export function assertDashboardSchema(payload, source = "") {
   if (payload.schemaVersion === DASHBOARD_SCHEMA_VERSION) return;

@@ -51,13 +51,13 @@ semantics.
 
 ### Search configuration
 
-GENTIANS searches candidate hypotheses built from a generated `RuleSpace`.
+GENTIANS searches candidate hypotheses built from a generated `ClauseSpace`.
 `gentians.language` owns task I/O, lexical framing, parsing, ASP syntax helpers,
 and the typed `InductiveTask` IR. Background, examples, contexts, bias, and
-candidate rules stay as Clingo AST nodes and enter controls through
+candidate clauses stay as Clingo AST nodes and enter controls through
 `ProgramBuilder`. The background is parsed once; only non-empty example fields
 invoke Clingo. The static coverage program is retained as AST instead of being
-reparsed for every candidate. Candidate `RuleEntry` values retain their AST
+reparsed for every candidate. Candidate `Clause` values retain their AST
 beside canonical output text. `gentians.clauses` compiles task IR into candidate
 clauses.
 Clingo validates background ASP. Task files do not accept `#script` blocks.
@@ -85,7 +85,7 @@ candidate program, then solves it.
 Whole-program fitness uses brave consequences.
 
 Mutation defaults to `random_group`. `structural_neighbor` remains available as
-an alternative that replaces rules with others sharing the same head:
+an alternative that replaces clauses with others sharing the same head:
 
 ```python
 mutation={
@@ -96,9 +96,9 @@ mutation={
 ```
 
 `random_jump_probability` preserves global exploration by allowing replacement
-with a rule that has a different head.
+with a clause that has a different head.
 
-Benchmark output records hypothesis generation, genetic generations, elapsed
+Benchmark output records clause generation, genetic generations, elapsed
 search time, fitness evaluations, operator metrics, and Clingo phases.
 `benchmarks/profile_baseline.py --cprofile` also writes one `.prof` per run.
 
@@ -384,7 +384,7 @@ Here we list only the main ones:
 - `#maxhl`: maximum head atoms in one clause. Default 1.
 - `#maxpl`: maximum clauses in one candidate program. Default 6.
 - Any structural limit accepts `*` when remaining mode recalls still make the
-  hypothesis space finite.
+  clause space finite.
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
 - `fitness.name`: `cov_program` or `cov_balanced`.

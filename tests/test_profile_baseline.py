@@ -504,9 +504,9 @@ def test_dashboard_attributes_fitness_cost_to_operator_phase():
     phases = dashboard_phases(
         [
             TimingMetric("d", 1, "total_execution", 20.0, 1),
-            TimingMetric("d", 1, "hypothesis_space.self", 5.0, 1),
-            TimingMetric("d", 1, "hypothesis_space.grounding", 1.0, 1),
-            TimingMetric("d", 1, "hypothesis_space.solving", 2.0, 1),
+            TimingMetric("d", 1, "clause_generation.self", 5.0, 1),
+            TimingMetric("d", 1, "clause_generation.grounding", 1.0, 1),
+            TimingMetric("d", 1, "clause_generation.solving", 2.0, 1),
             TimingMetric("d", 1, "initialization.self", 10.0, 2),
             TimingMetric("d", 1, "initialization.grounding", 3.0, 2),
             TimingMetric("d", 1, "initialization.solving", 4.0, 2),
@@ -515,7 +515,7 @@ def test_dashboard_attributes_fitness_cost_to_operator_phase():
         ]
     )
 
-    assert phases["hypothesisSpace"] == {
+    assert phases["clauseGeneration"] == {
         "python": 2.0,
         "grounding": 1.0,
         "solving": 2.0,
@@ -764,7 +764,7 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
             {
                 "dataset": "d",
                 "run": 1,
-                "metric": "hypothesis_space",
+                "metric": "clause_generation",
                 "clauses": 100,
                 "invented_predicates": 1,
                 "invented_definition_clauses": 20,
@@ -773,7 +773,7 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
             {
                 "dataset": "d",
                 "run": 2,
-                "metric": "hypothesis_space",
+                "metric": "clause_generation",
                 "clauses": 300,
                 "invented_predicates": 1,
                 "invented_definition_clauses": 40,
@@ -876,7 +876,7 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 7
+    assert payload["schemaVersion"] == 8
     assert benchmark["total"] == 3.0
     assert benchmark["instrumentedRuns"] == 1
     assert "wall" not in benchmark

@@ -2,12 +2,12 @@ import random
 from itertools import count
 
 from ...arguments import Arguments
-from ...clauses.hypothesis_space import (
-    build_hypothesis_space,
-    hypothesis_space_metrics,
+from ...clauses import (
+    ClauseSpace,
+    build_clause_space,
+    clause_space_metrics,
 )
 from ...language.ir.inductive_task import InductiveTask
-from ...clauses.rule_space import RuleSpace
 from ...timing import (
     instrumentation,
     metric_enabled,
@@ -34,7 +34,7 @@ from ..types import Genome
 def search_solver(
     args: Arguments,
     task: InductiveTask,
-    supplied_space: RuleSpace | None = None,
+    supplied_space: ClauseSpace | None = None,
 ) -> tuple[tuple[str, ...], float, bool]:
     rng = random.Random(args.random_seed)
     population_strategy = create_population(args.population)
@@ -48,13 +48,13 @@ def search_solver(
     space = (
         supplied_space
         if supplied_space is not None
-        else build_hypothesis_space(task, args)
+        else build_clause_space(task, args)
     )
     if supplied_space is not None and metric_enabled("candidate"):
         with instrumentation():
             record_metric(
                 "candidate",
-                hypothesis_space_metrics(task, space),
+                clause_space_metrics(task, space),
             )
     if not space:
         raise ValueError("No clauses found")

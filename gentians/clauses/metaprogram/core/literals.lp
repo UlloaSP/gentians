@@ -19,7 +19,7 @@
 %   Pred/Arity identify rendered normal predicate literals.
 % - negative_mode(Mode): emitted by Python when Mode renders with default
 %   negation in the body.
-% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per hypothesis mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
+% Python fact detail: mode(Section,Mode,Pred,Arity,Recall) is emitted per clause mode; Section=head/body, Mode=id, Pred=predicate id for normal modes, Arity=argument count, Recall=mode cap.
 #defined mode/5.
 % Python fact detail: negative_mode(Mode) marks modes rendered with default negation in body.
 #defined negative_mode/1.

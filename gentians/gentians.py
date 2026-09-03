@@ -5,7 +5,7 @@ from gentians.evolution.algorithms.search import search_solver
 from .arguments import Arguments
 from .language.ir.inductive_task import InductiveTask
 from .language import parse_file
-from .clauses.rule_space import RuleSpace
+from .clauses import ClauseSpace
 from .timing import (
     export as export_timings,
 )
@@ -18,7 +18,7 @@ from .timing import (
 def solve(
     task: InductiveTask,
     arguments: Arguments,
-    rule_space: RuleSpace | None = None,
+    clause_space: ClauseSpace | None = None,
     start_total_time: float | None = None,
 ) -> None:
     """
@@ -33,7 +33,7 @@ def solve(
 
     try:
         with phase("total_execution"):
-            prg, score, best_found = search_solver(arguments, task, rule_space)
+            prg, score, best_found = search_solver(arguments, task, clause_space)
         total_seconds = recorded_seconds("total_execution")
         if total_seconds is None:
             total_seconds = time.time() - start_total_time

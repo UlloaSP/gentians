@@ -1,15 +1,15 @@
 import json
 import sys
 
-from benchmarks.profile_hypothesis import main
+from benchmarks.profile_clauses import main
 
 
-def test_profile_hypothesis_runs_standalone(monkeypatch, tmp_path):
+def test_profile_clauses_runs_standalone(monkeypatch, tmp_path):
     monkeypatch.setattr(
         sys,
         "argv",
         [
-            "profile_hypothesis.py",
+            "profile_clauses.py",
             "--datasets",
             "grandparent",
             "--out-dir",

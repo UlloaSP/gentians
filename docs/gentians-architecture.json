@@ -42,10 +42,10 @@
       "tag": "steady_state_genetic_search"
     },
     {
-      "id": "fitness",
+      "id": "evaluation",
       "type": "backend",
-      "label": "Fitness",
-      "sublabel": "cov_program o cov_balanced",
+      "label": "Evaluación",
+      "sublabel": "cobertura + scoring",
       "pos": [830, 320],
       "size": [150, 72]
     },
@@ -85,7 +85,7 @@
       "id": "timing",
       "type": "backend",
       "label": "Timing y métricas",
-      "sublabel": "fases, fitness y Clingo",
+      "sublabel": "fases, evaluación y Clingo",
       "pos": [825, 80],
       "size": [160, 72]
     }
@@ -94,7 +94,7 @@
     {
       "kind": "region",
       "label": "Paquete gentians",
-      "wraps": ["reader", "clauses", "search", "fitness", "hypotheses", "operators", "timing"],
+      "wraps": ["reader", "clauses", "search", "evaluation", "hypotheses", "operators", "timing"],
       "pad": 12
     }
   ],
@@ -102,12 +102,12 @@
     { "id": "task-reader", "from": "task", "to": "reader", "label": "UTF-8" },
     { "id": "reader-clauses", "from": "reader", "to": "clauses", "label": "InductiveTask", "labelAt": [365, 306] },
     { "id": "clauses-search", "from": "clauses", "to": "search", "label": "ClauseSpace", "labelAt": [590, 306] },
-    { "id": "search-fitness", "from": "search", "to": "fitness", "label": "candidato", "labelAt": [800, 306] },
-    { "id": "fitness-clingo", "from": "fitness", "to": "clingo", "label": "ground/solve", "variant": "emphasis", "labelAt": [1015, 306] },
+    { "id": "search-evaluation", "from": "search", "to": "evaluation", "label": "candidato", "labelAt": [800, 306] },
+    { "id": "evaluation-clingo", "from": "evaluation", "to": "clingo", "label": "ground/solve", "variant": "emphasis", "labelAt": [1015, 306] },
     { "id": "clauses-hypotheses", "from": "clauses", "to": "hypotheses", "label": "ClauseSpace", "fromSide": "bottom", "toSide": "top", "labelAt": [475, 430] },
     { "id": "search-hypotheses", "from": "search", "to": "hypotheses", "label": "plumbing para estrategias", "fromSide": "left", "toSide": "right" },
     { "id": "operators-search", "from": "operators", "to": "search", "label": "operadores", "fromSide": "bottom", "toSide": "top", "labelAt": [695, 200] },
     { "id": "search-result", "from": "search", "to": "result", "label": "mejor candidato", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [695, 420] },
-    { "id": "fitness-timing", "from": "fitness", "to": "timing", "label": "métricas", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "labelAt": [905, 200] }
+    { "id": "evaluation-timing", "from": "evaluation", "to": "timing", "label": "métricas", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "labelAt": [905, 200] }
   ]
 }

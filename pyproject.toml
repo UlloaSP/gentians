@@ -38,7 +38,7 @@ dev = [
 include = ["gentians*"]
 
 [tool.setuptools.package-data]
-"gentians.asp" = ["rules/*.lp"]
+"gentians.evaluation" = ["rules/*.lp"]
 "gentians.clauses" = ["metaprogram/*/*.lp"]
 
 [tool.pytest.ini_options]

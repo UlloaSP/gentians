@@ -25,7 +25,7 @@ from benchmarks.catalog import (  # noqa: E402
 )
 from gentians import Arguments  # noqa: E402
 from gentians import main as gentians_main  # noqa: E402
-from gentians.asp.coverage_program import build_coverage_static_program  # noqa: E402
+from gentians.evaluation.compiler import compile_coverage_program  # noqa: E402
 from gentians.language import parse_file  # noqa: E402
 from gentians.language.asp import render_program  # noqa: E402
 
@@ -91,7 +91,7 @@ def parse_profile_args(
         action="append",
         default=[],
         metavar="PATH=JSON",
-        help="Override Arguments field, e.g. --set iterations_genetic=1000 --set fitness.name=cov_program",
+        help="Override Arguments field, e.g. --set iterations_genetic=1000 --set evaluation.scoring=cov_program",
     )
     parser.add_argument(
         "--arguments-json",
@@ -430,7 +430,7 @@ def write_debug_clingo_program(
     lp_path = directory / f"{safe_filename(dataset)}.lp"
     args_path = directory / f"{safe_filename(dataset)}.args.txt"
     directory.mkdir(parents=True, exist_ok=True)
-    static_program = build_coverage_static_program(
+    static_program = compile_coverage_program(
         task.positive_examples, task.negative_examples
     )
     lp_path.write_text(
@@ -444,16 +444,16 @@ def write_debug_clingo_program(
         encoding="utf-8",
     )
     args_path.write_text(
-        f"python -m clingo {' '.join(fitness_clingo_arguments(arguments))} {lp_path}\n",
+        f"python -m clingo {' '.join(evaluation_clingo_arguments(arguments))} {lp_path}\n",
         encoding="utf-8",
     )
 
 
-def fitness_clingo_arguments(arguments: Arguments) -> list[str]:
-    fitness = arguments.fitness
-    if not isinstance(fitness, dict):
-        fitness = {}
-    clingo_args = fitness.get("clingo_arguments", [])
+def evaluation_clingo_arguments(arguments: Arguments) -> list[str]:
+    evaluation = arguments.evaluation
+    if not isinstance(evaluation, dict):
+        evaluation = {}
+    clingo_args = evaluation.get("clingo_arguments", [])
     if isinstance(clingo_args, str):
         clingo_args = [clingo_args]
     return ["0", *[str(arg) for arg in clingo_args]]

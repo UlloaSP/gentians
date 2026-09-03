@@ -18,12 +18,12 @@ class Arguments:
     # Number of genetic generations. 0 means unlimited.
     iterations_genetic: int = 0
 
-    # Fitness operator config.
-    fitness: dict[str, object] = field(
+    # Candidate evaluation config.
+    evaluation: dict[str, object] = field(
         default_factory=lambda: {
             # cov_program or cov_balanced.
-            "name": "cov_program",
-            # Clingo CLI arguments used by the fitness evaluator.
+            "scoring": "cov_program",
+            # Clingo CLI arguments used to obtain candidate coverage.
             "clingo_arguments": [],
         }
     )

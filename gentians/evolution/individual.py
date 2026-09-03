@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from ..fitness.result import Behavior
+from ..evaluation.result import Behavior
 from ..hypotheses import Genome
 
 

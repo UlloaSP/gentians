@@ -1,7 +1,7 @@
 import math
 
-from ..asp.coverage import Coverage
 from ..language.ir.inductive_task import InductiveTask
+from .coverage import Coverage
 
 
 def coverage_score(task: InductiveTask, coverage: Coverage) -> float:

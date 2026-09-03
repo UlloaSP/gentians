@@ -11,7 +11,10 @@ def create_replacement(config: dict[str, Any]) -> ReplacementFn:
         strategy = strategies[name]
     except KeyError:
         raise ValueError(f"Unknown replacement strategy: {name}") from None
-    return strategy(
-        float(config["prob_replacing_oldest"]),
-        bool(config.get("behavior_tiebreak", False)),
-    )
+    behavior_tiebreak = config.get("behavior_tiebreak", False)
+    if not isinstance(behavior_tiebreak, bool):
+        raise ValueError("behavior_tiebreak must be a boolean")
+    probability = config["prob_replacing_oldest"]
+    if not isinstance(probability, (int, float)) or isinstance(probability, bool):
+        raise ValueError("replacement probability must be a number between 0 and 1")
+    return strategy(float(probability), behavior_tiebreak)

@@ -29,7 +29,7 @@ from ..evolution.mutations import create_mutation
 from ..evolution.populations import create_population
 from ..evolution.replacements import create_replacement
 from ..evolution.selections import create_selection
-from ..fitness import create_fitness
+from ..evaluation import create_evaluator
 from ..hypotheses import Genome, HypothesisGenerator
 from .result import SearchResult
 
@@ -71,7 +71,7 @@ def steady_state_genetic_search(
     context = EvolutionContext(hypotheses, rng)
 
     with phase("initialization"):
-        evaluate_score = create_fitness(task, args.fitness)
+        evaluate_candidate = create_evaluator(task, args.evaluation)
 
     evaluated: dict[Genome, Individual] = {}
     evaluations = 0
@@ -106,7 +106,7 @@ def steady_state_genetic_search(
         if candidate in evaluated:
             return None
         evaluations += 1
-        result = evaluate_score(hypotheses.program(candidate))
+        result = evaluate_candidate(hypotheses.program(candidate))
         individual = Individual(
             candidate,
             result.score,
@@ -150,9 +150,7 @@ def steady_state_genetic_search(
         with phase("crossover"):
             proposals = crossover(first.genome, second.genome, context)
             if not proposals:
-                record_skipped_crossover(
-                    str(args.crossover["name"]), len(population)
-                )
+                record_skipped_crossover(str(args.crossover["name"]), len(population))
                 children = []
             else:
                 children = []

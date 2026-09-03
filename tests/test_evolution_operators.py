@@ -13,6 +13,7 @@ from gentians.evolution.mutations import create_mutation
 from gentians.evolution.operator_types import MutationProposal
 from gentians.evolution.populations import create_population
 from gentians.hypotheses import HypothesisGenerator
+from gentians.evolution.replacements import create_replacement
 from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.evolution.selections import create_selection
 from gentians.evolution.selections.behavior_tournament_selection import (
@@ -20,7 +21,7 @@ from gentians.evolution.selections.behavior_tournament_selection import (
 )
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
-from gentians.fitness.result import FitnessResult
+from gentians.evaluation.result import EvaluationResult
 from tests.task_helpers import example, inductive_task, make_clause_space
 
 
@@ -35,6 +36,51 @@ def _context(rules, *, max_clauses=3):
     rng = random.Random(7)
     hypothesis_generator = HypothesisGenerator(program, space, max_clauses)
     return EvolutionContext(hypothesis_generator, rng)
+
+
+@pytest.mark.parametrize(
+    ("factory", "config"),
+    [
+        (create_crossover, {"name": "set_mix", "probability": 1.1}),
+        (create_crossover, {"name": "set_mix", "probability": True}),
+        (create_crossover, {"name": "set_mix", "probability": "0.5"}),
+        (create_mutation, {"name": "random_group", "probability": -0.1}),
+        (
+            create_mutation,
+            {
+                "name": "structural_neighbor",
+                "probability": 0.5,
+                "random_jump_probability": True,
+            },
+        ),
+        (
+            create_selection,
+            {
+                "name": "tournament",
+                "tournament_percentage": 0.5,
+                "prob_selecting_fittest": 1.1,
+            },
+        ),
+        (create_population, {"name": "random", "size": 0}),
+        (create_population, {"name": "random", "size": 1.5}),
+        (
+            create_replacement,
+            {
+                "name": "oldest_or_worst",
+                "prob_replacing_oldest": 0.5,
+                "behavior_tiebreak": "false",
+            },
+        ),
+    ],
+)
+def test_operator_factories_reject_invalid_configuration(factory, config):
+    with pytest.raises(ValueError):
+        factory(config)
+
+
+def test_unknown_mutation_is_reported_before_strategy_parameters():
+    with pytest.raises(ValueError, match="Unknown mutation strategy: unknown"):
+        create_mutation({"name": "unknown"})
 
 
 def _encode(context, *rules):
@@ -53,9 +99,7 @@ def _population(generator, size, rng=None):
 def test_all_mutations_share_genome_contract():
     context = _context(["a.", "b.", "c."])
     genome = _encode(context, "a.", "b.")
-    result = create_mutation(
-        {"name": "random_group", "probability": 1.0}
-    )(
+    result = create_mutation({"name": "random_group", "probability": 1.0})(
         genome, context
     )
     assert isinstance(result.genome, int)
@@ -187,15 +231,13 @@ def test_search_skips_mutation_metric_derivations_when_disabled(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda _config: lambda context: [
-            context.hypotheses.encode(("start.",))
-        ],
+        lambda _config: lambda context: [context.hypotheses.encode(("start.",))],
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
-        lambda _config: lambda _first, _second, context: (
-            context.hypotheses.encode(("child.",)),
+        lambda _config: (
+            lambda _first, _second, context: (context.hypotheses.encode(("child.",)),)
         ),
     )
     monkeypatch.setattr(
@@ -205,10 +247,8 @@ def test_search_skips_mutation_metric_derivations_when_disabled(monkeypatch):
     )
     monkeypatch.setattr(
         search,
-        "create_fitness",
-        lambda _task, _config: lambda _candidate: FitnessResult(
-            0.0, False, (0, 0)
-        ),
+        "create_evaluator",
+        lambda _task, _config: lambda _candidate: EvaluationResult(0.0, False, (0, 0)),
     )
     monkeypatch.setattr(search, "operator_metrics_enabled", lambda: False)
     monkeypatch.setattr(
@@ -238,9 +278,7 @@ def test_crossover_generates_closed_programs_directly():
     first_provider = "tails(V0) :- coin(V0)."
     second_provider = "tails(V0) :- marked(V0)."
     program = inductive_task(["coin(c1).", "marked(c1)."], [], [], [], [])
-    space = make_clause_space(
-        [consumer, first_provider, second_provider]
-    )
+    space = make_clause_space([consumer, first_provider, second_provider])
     rng = random.Random(3)
     generator = HypothesisGenerator(program, space, 2)
     context = EvolutionContext(generator, rng)
@@ -418,9 +456,7 @@ def test_hypothesis_generator_builds_invented_definition_module():
         [],
         invented_predicates=(("helper", 2),),
     )
-    space = make_clause_space(
-        [consumer, mother, father, recursive, constraint]
-    )
+    space = make_clause_space([consumer, mother, father, recursive, constraint])
     generator = HypothesisGenerator(program, space, 3)
     rng = random.Random(1)
     rng.randint = lambda _start, end: end
@@ -591,12 +627,8 @@ def test_evolution_strategies_choose_operations_and_delegate_validity():
     genome = 1
 
     create_population({"name": "random", "size": 3})(context)
-    create_mutation({"name": "random_group", "probability": 1.0})(
-        genome, context
-    )
-    create_crossover({"name": "set_mix", "probability": 1.0})(
-        genome, 2, context
-    )
+    create_mutation({"name": "random_group", "probability": 1.0})(genome, context)
+    create_crossover({"name": "set_mix", "probability": 1.0})(genome, 2, context)
 
     assert [call[0] for call in generator.calls] == [
         "create",
@@ -618,17 +650,21 @@ def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [
-            context.hypotheses.encode(("good.",)),
+        lambda config: (
+            lambda context: [
+                context.hypotheses.encode(("good.",)),
                 context.hypotheses.encode(("higher_score.",)),
-        ],
+            ]
+        ),
     )
     monkeypatch.setattr(
-        "gentians.algorithms.steady_state_genetic.create_fitness",
-        lambda program, config: lambda candidate: FitnessResult(
-            1.0 if tuple(map(str, candidate)) == ("good.",) else 2.0,
-            tuple(map(str, candidate)) == ("good.",),
-            (1, 0) if tuple(map(str, candidate)) == ("good.",) else (0, 0),
+        "gentians.algorithms.steady_state_genetic.create_evaluator",
+        lambda program, config: (
+            lambda candidate: EvaluationResult(
+                1.0 if tuple(map(str, candidate)) == ("good.",) else 2.0,
+                tuple(map(str, candidate)) == ("good.",),
+                (1, 0) if tuple(map(str, candidate)) == ("good.",) else (0, 0),
+            )
         ),
     )
     monkeypatch.setattr(
@@ -654,18 +690,22 @@ def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [
-            context.hypotheses.encode(("first.",)),
-            context.hypotheses.encode(("second.",)),
-        ],
+        lambda config: (
+            lambda context: [
+                context.hypotheses.encode(("first.",)),
+                context.hypotheses.encode(("second.",)),
+            ]
+        ),
     )
     monkeypatch.setattr(
         search,
-        "create_fitness",
-        lambda task, config: lambda candidate: FitnessResult(
-            1.0,
-            tuple(map(str, candidate)) == ("first.",),
-            (1, 0),
+        "create_evaluator",
+        lambda task, config: (
+            lambda candidate: EvaluationResult(
+                1.0,
+                tuple(map(str, candidate)) == ("first.",),
+                (1, 0),
+            )
         ),
     )
     monkeypatch.setattr(
@@ -701,15 +741,15 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_crossover",
-        lambda config: lambda first, second, context: (
-            context.hypotheses.encode(("win.",)),
+        lambda config: (
+            lambda first, second, context: (context.hypotheses.encode(("win.",)),)
         ),
     )
     monkeypatch.setattr(
         search,
-        "create_fitness",
+        "create_evaluator",
         lambda program, config: (
-            lambda candidate: FitnessResult(
+            lambda candidate: EvaluationResult(
                 1.0 if tuple(map(str, candidate)) == ("win.",) else 0.0,
                 tuple(map(str, candidate)) == ("win.",),
                 (1, 0) if tuple(map(str, candidate)) == ("win.",) else (0, 0),
@@ -754,16 +794,16 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_mutation",
-        lambda config: lambda genome, context: (
-            mutation_calls.append(genome) or MutationProposal(genome)
+        lambda config: (
+            lambda genome, context: (
+                mutation_calls.append(genome) or MutationProposal(genome)
+            )
         ),
     )
     monkeypatch.setattr(
         search,
-        "create_fitness",
-        lambda program, config: (
-            lambda candidate: FitnessResult(0.0, False, (0, 0))
-        ),
+        "create_evaluator",
+        lambda program, config: lambda candidate: EvaluationResult(0.0, False, (0, 0)),
     )
 
     steady_state_genetic_search(
@@ -786,16 +826,18 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [
-            context.hypotheses.encode(("start.",)),
-            context.hypotheses.encode(("loss.",)),
-        ],
+        lambda config: (
+            lambda context: [
+                context.hypotheses.encode(("start.",)),
+                context.hypotheses.encode(("loss.",)),
+            ]
+        ),
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
-        lambda config: lambda first, second, context: (
-            context.hypotheses.encode(("win.",)),
+        lambda config: (
+            lambda first, second, context: (context.hypotheses.encode(("win.",)),)
         ),
     )
 
@@ -810,9 +852,9 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     )
     monkeypatch.setattr(
         search,
-        "create_fitness",
+        "create_evaluator",
         lambda program, config: (
-            lambda candidate: FitnessResult(
+            lambda candidate: EvaluationResult(
                 -1.0 if tuple(map(str, candidate)) == ("win.",) else 0.0,
                 tuple(map(str, candidate)) == ("win.",),
                 (1, 0) if tuple(map(str, candidate)) == ("win.",) else (0, 0),
@@ -851,33 +893,35 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [
-            context.hypotheses.encode(("start.",)),
-            context.hypotheses.encode(("other.",)),
-        ],
+        lambda config: (
+            lambda context: [
+                context.hypotheses.encode(("start.",)),
+                context.hypotheses.encode(("other.",)),
+            ]
+        ),
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
-        lambda config: lambda first, second, context: (
-            context.hypotheses.encode(("cross.",)),
+        lambda config: (
+            lambda first, second, context: (context.hypotheses.encode(("cross.",)),)
         ),
     )
     monkeypatch.setattr(
         search,
         "create_mutation",
-        lambda config: lambda genome, context: MutationProposal(
-            context.hypotheses.encode(("mutated.",))
+        lambda config: (
+            lambda genome, context: MutationProposal(
+                context.hypotheses.encode(("mutated.",))
+            )
         ),
     )
     scores = {"start.": 1.0, "other.": 0.0, "cross.": 2.0, "mutated.": 1.5}
     monkeypatch.setattr(
         search,
-        "create_fitness",
+        "create_evaluator",
         lambda program, config: (
-            lambda candidate: FitnessResult(
-                scores[str(candidate[0])], False, (0, 0)
-            )
+            lambda candidate: EvaluationResult(scores[str(candidate[0])], False, (0, 0))
         ),
     )
     monkeypatch.setattr(
@@ -913,17 +957,17 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_crossover",
-        lambda config: lambda first, second, context: (
-            context.hypotheses.encode(("cross.",)),
-            context.hypotheses.encode(("cross.",)),
+        lambda config: (
+            lambda first, second, context: (
+                context.hypotheses.encode(("cross.",)),
+                context.hypotheses.encode(("cross.",)),
+            )
         ),
     )
     monkeypatch.setattr(
         search,
-        "create_fitness",
-        lambda program, config: (
-            lambda candidate: FitnessResult(1.0, False, (0, 0))
-        ),
+        "create_evaluator",
+        lambda program, config: lambda candidate: EvaluationResult(1.0, False, (0, 0)),
     )
     monkeypatch.setattr(
         evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
@@ -959,16 +1003,14 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     )
     monkeypatch.setattr(
         search,
-        "create_fitness",
-        lambda program, config: (
-            lambda candidate: FitnessResult(1.0, False, (0, 0))
-        ),
+        "create_evaluator",
+        lambda program, config: lambda candidate: EvaluationResult(1.0, False, (0, 0)),
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
-        lambda config: lambda first, second, context: (
-            context.hypotheses.encode(("cross.",)),
+        lambda config: (
+            lambda first, second, context: (context.hypotheses.encode(("cross.",)),)
         ),
     )
     monkeypatch.setattr(
@@ -1006,9 +1048,7 @@ def test_equal_score_new_behavior_evicts_repeated_behavior():
         Individual(2, 2.0, False, behavior=(1, 1), birth_order=2),
         Individual(4, 2.0, False, behavior=(2, 1), birth_order=3),
     ]
-    candidate = Individual(
-        8, 2.0, False, behavior=(2, 0), birth_order=4
-    )
+    candidate = Individual(8, 2.0, False, behavior=(2, 0), birth_order=4)
 
     result = OldestOrWorstReplacement(0.0, behavior_tiebreak=True)(
         population, candidate, random.Random(1)

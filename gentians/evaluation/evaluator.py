@@ -1,33 +1,33 @@
 from collections.abc import Callable
 
-from ..asp.coverage import Coverage
-from ..asp.normal_coverage_solver import NormalCoverageSolver
 from ..language.asp import AspProgram
 from ..language.ir.inductive_task import InductiveTask
-from .metrics import record_fitness_metric
-from .result import FitnessResult
+from .coverage import Coverage
+from .metrics import record_evaluation_metric
+from .result import EvaluationResult
+from .solver import CoverageSolver
 
 
-class FitnessEvaluator:
+class CandidateEvaluator:
     def __init__(
         self,
         task: InductiveTask,
-        solver: NormalCoverageSolver,
+        solver: CoverageSolver,
         score: Callable[[InductiveTask, Coverage], float],
     ) -> None:
         self.task = task
         self.solver = solver
         self.score = score
 
-    def __call__(self, candidate: AspProgram) -> FitnessResult:
-        coverage = self.solver.extract_fixed_coverage(candidate)
+    def __call__(self, candidate: AspProgram) -> EvaluationResult:
+        coverage = self.solver.extract_coverage(candidate)
         score = self.score(self.task, coverage)
         is_solution = (
             coverage.pos_mask.bit_count() == len(self.task.positive_examples)
             and coverage.neg_mask == 0
         )
-        record_fitness_metric(self.task, candidate, coverage, score, is_solution)
-        return FitnessResult(
+        record_evaluation_metric(self.task, candidate, coverage, score, is_solution)
+        return EvaluationResult(
             score,
             is_solution,
             (coverage.pos_mask, coverage.neg_mask),

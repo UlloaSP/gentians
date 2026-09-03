@@ -4,8 +4,7 @@ import clingo
 from clingo import ast
 
 from ..arguments import Arguments
-from ..asp.callbacks import wrapper_exit_callback
-from ..asp.stats import clingo_stat, ground_stats
+from ..clingo_stats import clingo_stat, ground_stats
 from ..timing import (
     add,
     current_phase,
@@ -41,6 +40,12 @@ from .mode_compiler import (
     _section_capacity,
     _variable_arity,
 )
+
+
+def _raise_on_clingo_error(code, message):
+    if "error" in message:
+        raise RuntimeError(f"{code}\n{message}")
+
 
 def _clause_head_width(clause: ast.AST) -> int:
     head = clause.head
@@ -115,14 +120,14 @@ CLAUSE_METAPROGRAM = parse_program(
     )
 )
 
+
 class _ClauseGenerator:
     def __init__(self, task: InductiveTask, args: Arguments) -> None:
         self.task = task
         self.args = args
         self.nodes = _task_nodes(task)
         if task.max_head_literals is not None and any(
-            head.width > task.max_head_literals
-            for head in task.language_bias_head
+            head.width > task.max_head_literals for head in task.language_bias_head
         ):
             raise ValueError("#modeh element count exceeds #maxhl")
         if (
@@ -144,12 +149,8 @@ class _ClauseGenerator:
             self.aggregate_specs,
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
-        self.head_slots = _section_capacity(
-            task.max_head_literals, self.modes, "head"
-        )
-        self.body_slots = _section_capacity(
-            task.max_body_literals, self.modes, "body"
-        )
+        self.head_slots = _section_capacity(task.max_head_literals, self.modes, "head")
+        self.body_slots = _section_capacity(task.max_body_literals, self.modes, "body")
         if task.max_body_literals is None:
             self.body_slots += _condition_limit(task)
         self.max_variables = (
@@ -188,7 +189,7 @@ class _ClauseGenerator:
             facts += "\ndefault_variable_identity."
         fact_program = parse_program(facts)
         solver_arguments = ["0", *_clause_space_args(self.args)]
-        ctl = clingo.Control(solver_arguments, logger=wrapper_exit_callback)
+        ctl = clingo.Control(solver_arguments, logger=_raise_on_clingo_error)
         add_program(ctl, fact_program)
         add_program(ctl, CLAUSE_METAPROGRAM)
         add_program(ctl, self.task.bias)
@@ -265,9 +266,7 @@ class _ClauseGenerator:
                     },
                 )
 
-        entries = canonicalize_clauses(
-            clauses, self.modes_by_id, self.max_variables
-        )
+        entries = canonicalize_clauses(clauses, self.modes_by_id, self.max_variables)
         return ClauseSpace(entries)
 
 
@@ -323,6 +322,7 @@ def generate_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSp
                 )
         clause_space = ClauseSpace(entries)
     return clause_space
+
 
 def _clause_space_args(args: Arguments) -> list[str]:
     value = args.clause_generation.get("clingo_arguments", [])

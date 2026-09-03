@@ -27,11 +27,11 @@ class OldestOrWorstReplacement:
     Rejected candidates return the supplied population unchanged.
     """
 
-    def __init__(
-        self, probability: float, behavior_tiebreak: bool = False
-    ) -> None:
-        # Expected range is [0, 1]: 0 always targets the worst, 1 first tries
-        # the oldest. Intermediate values trade exploitation for turnover.
+    def __init__(self, probability: float, behavior_tiebreak: bool = False) -> None:
+        if isinstance(probability, bool) or not 0.0 <= probability <= 1.0:
+            raise ValueError("replacement probability must be between 0 and 1")
+        if not isinstance(behavior_tiebreak, bool):
+            raise ValueError("behavior_tiebreak must be a boolean")
         self.probability = probability
         self.behavior_tiebreak = behavior_tiebreak
 
@@ -74,11 +74,7 @@ class OldestOrWorstReplacement:
             # breaks the tie so long-lived material yields to the newcomer.
             crowded = max(frequencies[item.behavior] for item in worst)
             victim = min(
-                (
-                    item
-                    for item in worst
-                    if frequencies[item.behavior] == crowded
-                ),
+                (item for item in worst if frequencies[item.behavior] == crowded),
                 key=lambda item: item.birth_order,
             )
         else:

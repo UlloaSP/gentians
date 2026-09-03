@@ -28,12 +28,15 @@ def test_default_config_defines_comparable_experiment_matrix():
     assert all(experiment["runs"] == 10 for experiment in experiments)
     assert all(experiment["timeout_seconds"] == 100 for experiment in experiments)
     assert all(experiment["cprofile"] is False for experiment in experiments)
-    assert all("fitness.grounding" not in experiment["overrides"] for experiment in experiments)
+    assert all(
+        "evaluation.grounding" not in experiment["overrides"]
+        for experiment in experiments
+    )
 
 
 def test_default_experiments_have_no_pregrounding_strategy_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
-    assert all("fitness.grounding" not in item["overrides"] for item in experiments)
+    assert all("evaluation.grounding" not in item["overrides"] for item in experiments)
     assert len(experiments) == 7
 
 
@@ -70,7 +73,7 @@ def test_default_experiments_cover_configured_mutation_population_matrix():
 def test_default_experiments_cover_all_fitness_operators():
     _, experiments = load_config(DEFAULT_CONFIG)
     names = {
-        experiment["overrides"].get("fitness.name", "cov_program")
+        experiment["overrides"].get("evaluation.scoring", "cov_program")
         for experiment in experiments
     }
     assert names == {"cov_program", "cov_balanced"}
@@ -82,8 +85,8 @@ def test_balanced_coverage_matches_random_group_baseline_conditions():
     baseline = dict(indexed["cov_program_random_group_pop10_mut09"]["overrides"])
     balanced = dict(indexed["cov_balanced"]["overrides"])
 
-    assert baseline.pop("fitness.name") == "cov_program"
-    assert balanced.pop("fitness.name") == "cov_balanced"
+    assert baseline.pop("evaluation.scoring") == "cov_program"
+    assert balanced.pop("evaluation.scoring") == "cov_balanced"
     assert balanced == baseline
     assert indexed["cov_program_random_group_pop10_mut09"]["runs"] == 10
     assert indexed["cov_balanced"]["runs"] == 10
@@ -94,7 +97,7 @@ def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):
     config.write_text(
         '[suite]\noutput_root = ".benchmarks"\ndatasets = ["coin"]\nruns = 10\n'
         '[[experiment]]\nid = "whole_program"\n'
-        'overrides = { "fitness.name" = "cov_program" }\n',
+        'overrides = { "evaluation.scoring" = "cov_program" }\n',
         encoding="utf-8",
     )
 
@@ -104,7 +107,7 @@ def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):
     assert output_root.name == ".benchmarks"
     assert experiment["runs"] == 10
     assert command[command.index("--datasets") + 1] == "coin"
-    assert "fitness.name=\"cov_program\"" in command
+    assert 'evaluation.scoring="cov_program"' in command
 
 
 def test_load_config_rejects_path_like_and_duplicate_ids(tmp_path):
@@ -127,7 +130,7 @@ def test_index_points_to_each_dashboard_for_comparison(tmp_path):
         "description": "",
         "datasets": ["coin"],
         "runs": 2,
-        "overrides": {"fitness.name": "cov_program"},
+        "overrides": {"evaluation.scoring": "cov_program"},
     }
     out_dir = tmp_path / experiment["id"]
     out_dir.mkdir()
@@ -151,7 +154,7 @@ def test_index_marks_results_stale_when_config_changed(tmp_path):
         "id": "whole_program",
         "datasets": ["coin"],
         "runs": 2,
-        "overrides": {"fitness.name": "cov_program"},
+        "overrides": {"evaluation.scoring": "cov_program"},
     }
     out_dir = tmp_path / experiment["id"]
     out_dir.mkdir()
@@ -174,7 +177,7 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
         "description": "current",
         "datasets": ["coin"],
         "runs": 2,
-        "overrides": {"fitness.name": "cov_program"},
+        "overrides": {"evaluation.scoring": "cov_program"},
     }
     out_dir = tmp_path / experiment["id"]
     out_dir.mkdir()
@@ -182,7 +185,7 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
     experiment.update(
         runs=10,
         label="New label",
-        overrides={"fitness.name": "cov_program"},
+        overrides={"evaluation.scoring": "cov_program"},
     )
 
     write_index(tmp_path, [experiment])
@@ -191,4 +194,4 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
     assert indexed["status"] == "stale"
     assert indexed["runs"] == 10
     assert indexed["label"] == "New label"
-    assert indexed["overrides"] == {"fitness.name": "cov_program"}
+    assert indexed["overrides"] == {"evaluation.scoring": "cov_program"}

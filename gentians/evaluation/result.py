@@ -4,7 +4,7 @@ Behavior = tuple[int, int]
 
 
 @dataclass(frozen=True, slots=True)
-class FitnessResult:
+class EvaluationResult:
     score: float
     is_solution: bool
     behavior: Behavior

@@ -6,7 +6,7 @@ from ..individual import Individual
 
 class BehaviorTournamentSelection:
     def __init__(self, percentage: float) -> None:
-        if not 0.0 < percentage <= 1.0:
+        if isinstance(percentage, bool) or not 0.0 < percentage <= 1.0:
             raise ValueError(
                 "tournament_percentage must be greater than 0 and at most 1"
             )

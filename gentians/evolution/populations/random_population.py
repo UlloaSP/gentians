@@ -4,6 +4,8 @@ from ...hypotheses import Genome
 
 class RandomPopulation:
     def __init__(self, size: int) -> None:
+        if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
+            raise ValueError("population size must be a positive integer")
         self.size = size
 
     def __call__(self, context: EvolutionContext) -> list[Genome]:

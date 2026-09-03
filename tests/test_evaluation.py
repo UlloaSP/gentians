@@ -1,15 +1,13 @@
 import math
+from dataclasses import FrozenInstanceError
 
 import pytest
 
-from gentians.asp.coverage import (
-    Coverage,
-    generate_clauses_for_coverage_interpretations,
-)
-from gentians.asp.coverage_program import build_coverage_static_program
-from gentians.fitness import create_fitness
-from gentians.fitness.evaluator import FitnessEvaluator
-from gentians.fitness.scoring import (
+from gentians.evaluation import create_evaluator
+from gentians.evaluation.compiler import compile_coverage_program
+from gentians.evaluation.coverage import Coverage
+from gentians.evaluation.evaluator import CandidateEvaluator
+from gentians.evaluation.scoring import (
     balanced_coverage_score,
     coverage_score,
 )
@@ -28,39 +26,44 @@ def _program() -> InductiveTask:
     )
 
 
-def _fitness(name: str):
-    return create_fitness(
+def _evaluator(name: str):
+    return create_evaluator(
         _program(),
-        {"name": name, "clingo_arguments": []},
+        {"scoring": name, "clingo_arguments": []},
     )
 
 
 def _coverage(positive, negative) -> Coverage:
-    coverage = Coverage()
-    coverage.extend_masks(
+    return Coverage(
         sum(1 << value for value in positive),
         sum(1 << value for value in negative),
     )
-    return coverage
 
 
 def _asp(*rules: str):
     return parse_program("\n".join(rules))
 
 
+def test_coverage_is_an_immutable_value():
+    coverage = Coverage(1, 0)
+
+    with pytest.raises(FrozenInstanceError):
+        coverage.pos_mask = 0
+
+
 @pytest.mark.parametrize("name", ["cov_program", "cov_balanced"])
 def test_factory_builds_shared_evaluator(name):
-    assert isinstance(_fitness(name), FitnessEvaluator)
+    assert isinstance(_evaluator(name), CandidateEvaluator)
 
 
 def test_factory_rejects_unknown_strategy():
-    with pytest.raises(ValueError, match="Unknown fitness strategy"):
-        _fitness("coverage")
+    with pytest.raises(ValueError, match="Unknown scoring strategy"):
+        _evaluator("coverage")
 
 
 def test_whole_program_scores_only_individual():
     candidate = ("target(n).", "target(p).")
-    result = _fitness("cov_program")(_asp(*candidate))
+    result = _evaluator("cov_program")(_asp(*candidate))
 
     assert result.score == 1.0
     assert result.is_solution is False
@@ -77,7 +80,7 @@ def test_whole_program_scores_only_individual():
     ],
 )
 def test_balanced_coverage_uses_balanced_accuracy(candidate, score, perfect):
-    result = _fitness("cov_balanced")(_asp(*candidate))
+    result = _evaluator("cov_balanced")(_asp(*candidate))
 
     assert result.score == pytest.approx(score)
     assert result.is_solution is perfect
@@ -100,9 +103,9 @@ def test_balanced_coverage_normalizes_positive_and_negative_examples_separately(
         [],
     )
     rules = make_clause_space(["target(p1).", "target(n1)."])
-    evaluate = create_fitness(
+    evaluate = create_evaluator(
         program,
-        {"name": "cov_balanced", "clingo_arguments": []},
+        {"scoring": "cov_balanced", "clingo_arguments": []},
     )
 
     result = evaluate(rules.statements)
@@ -127,7 +130,7 @@ def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
 
 
 def test_normal_solver_grounds_each_evaluation(monkeypatch):
-    evaluate = _fitness("cov_program")
+    evaluate = _evaluator("cov_program")
     solver = evaluate.solver
     calls = 0
     ground = solver._ground
@@ -145,16 +148,16 @@ def test_normal_solver_grounds_each_evaluation(monkeypatch):
 
 
 def test_whole_program_forces_brave_consequences():
-    solver = _fitness("cov_program").solver
+    solver = _evaluator("cov_program").solver
     assert "--enum-mode=brave" in solver.clingo_arguments
 
 
 @pytest.mark.parametrize("name", ["cov_program", "cov_balanced"])
-def test_fitness_discards_split_enum_mode_override(name):
-    evaluate = create_fitness(
+def test_evaluator_discards_split_enum_mode_override(name):
+    evaluate = create_evaluator(
         _program(),
         {
-            "name": name,
+            "scoring": name,
             "clingo_arguments": ["--enum-mode", "cautious"],
         },
     )
@@ -163,22 +166,24 @@ def test_fitness_discards_split_enum_mode_override(name):
 
 
 def test_undefined_atoms_are_false_without_log_noise(capsys):
-    _fitness("cov_program")(_asp("target(n)."))
+    _evaluator("cov_program")(_asp("target(n)."))
     assert capsys.readouterr().err == ""
 
 
 def test_excluded_atoms_are_checked_individually():
-    clauses = generate_clauses_for_coverage_interpretations(
-        [example(("ok", "bad(1), bad(f(2,3))"), True)],
-        True,
+    clauses = render_program(
+        compile_coverage_program(
+            [example(("ok", "bad(1), bad(f(2,3))"), True)],
+            [],
+        )
     )
-    assert "cpe(0):- bad(1)." in clauses
-    assert "cpe(0):- bad(f(2,3))." in clauses
-    assert "cpe(0):- bad(1), bad(f(2,3))." not in clauses
+    assert "cpe(0) :- bad(1)." in clauses
+    assert "cpe(0) :- bad(f(2,3))." in clauses
+    assert "cpe(0) :- bad(1); bad(f(2,3))." not in clauses
 
 
 def test_static_program_builder_includes_examples():
-    dump = build_coverage_static_program(
+    dump = compile_coverage_program(
         [example(("target", ""), True)],
         [],
     )
@@ -197,9 +202,9 @@ def test_contexts_do_not_leak_between_examples():
         [],
     )
     rules = make_clause_space(["target(a) :- ctx(b)."])
-    evaluate = create_fitness(
+    evaluate = create_evaluator(
         program,
-        {"name": "cov_program", "clingo_arguments": []},
+        {"scoring": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(rules.statements)
@@ -221,9 +226,9 @@ def test_context_constraint_does_not_disable_other_examples():
         [],
     )
     rules = make_clause_space(["target(a) :- ctx(a)."])
-    evaluate = create_fitness(
+    evaluate = create_evaluator(
         program,
-        {"name": "cov_program", "clingo_arguments": []},
+        {"scoring": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(rules.statements)
@@ -241,9 +246,9 @@ def test_positive_context_does_not_leak_into_negative_example():
         [],
     )
     rules = make_clause_space(["target(a) :- ctx(a)."])
-    evaluate = create_fitness(
+    evaluate = create_evaluator(
         program,
-        {"name": "cov_program", "clingo_arguments": []},
+        {"scoring": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(rules.statements)
@@ -262,9 +267,9 @@ def test_example_with_empty_inclusion_is_covered(context):
         [],
         [],
     )
-    evaluate = create_fitness(
+    evaluate = create_evaluator(
         program,
-        {"name": "cov_program", "clingo_arguments": []},
+        {"scoring": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(())
@@ -285,9 +290,9 @@ def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
         [],
         [],
     )
-    evaluate = create_fitness(
+    evaluate = create_evaluator(
         program,
-        {"name": "cov_program", "clingo_arguments": []},
+        {"scoring": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(())
@@ -299,7 +304,7 @@ def test_context_free_empty_inclusion_stays_covered_in_mixed_task():
 @pytest.mark.parametrize("context", [":~ cost(X). [1@1,X]", "#const n=1."])
 def test_context_rejects_non_isolatable_statements(context):
     with pytest.raises(ValueError, match="unsupported statement"):
-        build_coverage_static_program(
+        compile_coverage_program(
             [example(("target", "", context), True)],
             [],
         )

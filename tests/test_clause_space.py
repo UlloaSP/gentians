@@ -9,7 +9,7 @@ import pytest
 import gentians.clauses as clause_package
 from benchmarks.catalog import CASES
 from gentians.arguments import Arguments
-from gentians.asp.normal_coverage_solver import NormalCoverageSolver
+from gentians.evaluation.solver import CoverageSolver
 from gentians import timing
 from gentians.clauses import canonicalizer as clause_canonicalizer
 from gentians.clauses import decoder as clause_decoder
@@ -74,9 +74,7 @@ def _asp(sources: list[str]):
 
 def _ground_term(source: str):
     statement = parse_rule(f"value({source}).")
-    return clause_extensions._ground_key(
-        statement.head.atom.symbol.arguments[0], {}
-    )
+    return clause_extensions._ground_key(statement.head.atom.symbol.arguments[0], {})
 
 
 def _mode(
@@ -179,7 +177,9 @@ def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypat
     monkeypatch.setattr(clause_analysis, "_available_predicates", fail_if_called)
 
     assert (
-        clause_analysis._valid_aggregate_specs(inductive_task(["p(1)."], [], [], [], []))
+        clause_analysis._valid_aggregate_specs(
+            inductive_task(["p(1)."], [], [], [], [])
+        )
         == []
     )
 
@@ -391,7 +391,9 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
 def test_facts_do_not_emit_redundant_arithmetic_mode():
     modes = [_arithmetic_clause_mode(0, 3, "+")]
     facts = clause_facts._facts(
-        inductive_task([], [], [], [], [], [], [*([]), *([OperatorDeclaration(1, "add")])]),
+        inductive_task(
+            [], [], [], [], [], [], [*([]), *([OperatorDeclaration(1, "add")])]
+        ),
         modes,
         {},
         3,
@@ -454,9 +456,7 @@ def test_candidate_clause_space_runs_inside_clause_generation_phase(monkeypatch)
             phases.append(timing.current_phase())
             return make_clause_space(["p."])
 
-    monkeypatch.setattr(
-        clause_generation, "_ClauseGenerator", FakeClauseGenerator
-    )
+    monkeypatch.setattr(clause_generation, "_ClauseGenerator", FakeClauseGenerator)
 
     clauses = clause_generation.generate_clause_space(
         inductive_task([], [], [], [], []), Arguments()
@@ -480,9 +480,7 @@ def test_clause_generation_is_generated_each_time(monkeypatch):
             generated.append(True)
             return make_clause_space(["p."])
 
-    monkeypatch.setattr(
-        clause_generation, "_ClauseGenerator", FakeClauseGenerator
-    )
+    monkeypatch.setattr(clause_generation, "_ClauseGenerator", FakeClauseGenerator)
     program = inductive_task([], [], [], [], [])
 
     first = clause_generation.generate_clause_space(program, Arguments())
@@ -604,10 +602,12 @@ def test_parser_rejects_invalid_recursive_mode_terms(tmp_path):
 
 def test_closed_world_extensions_ignore_compound_variable_terms():
     extensions = clause_extensions._closed_world_extensions(
-        _asp([
-            "cell((1..4,1..4)).",
-            "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)).",
-        ])
+        _asp(
+            [
+                "cell((1..4,1..4)).",
+                "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)).",
+            ]
+        )
     )
 
     assert ("cell", 1) not in extensions
@@ -884,9 +884,7 @@ def test_all_structural_limits_accept_star_with_finite_recalls(tmp_path):
     assert generator.head_slots == 1
     assert generator.body_slots == 1
     assert generator.max_variables == 2
-    assert "target(V0) :- p(V0)." in generate_clause_space(
-        program, Arguments()
-    ).clauses
+    assert "target(V0) :- p(V0)." in generate_clause_space(program, Arguments()).clauses
 
 
 def test_parser_deduplicates_equal_directives(tmp_path):
@@ -1279,9 +1277,7 @@ def test_count_aggregate_tuple_variables_are_canonicalized():
 
 def test_clause_generation_prunes_arithmetic_identities():
     args = copy.deepcopy(CASES["4queens"])
-    clauses = (
-        generate_clause_space(parse_file(args.filename), args).clauses
-    )
+    clauses = generate_clause_space(parse_file(args.filename), args).clauses
 
     assert clauses
     assert not any("V0+V1=V2,V2-V0=V1" in clause for clause in clauses)
@@ -1331,10 +1327,7 @@ def test_nested_constants_expand_and_structured_modes_render(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = set(
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
     assert "target(box(V0,red)) :- source(box(V0,red))." in clauses
     assert "target(box(V0,red)) :- source(box(V0,blue))." in clauses
@@ -1358,10 +1351,7 @@ def test_empty_and_singleton_tuples_render_as_asp_tuples(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "target((V0,),()) :- source((V0,),())." in clauses
 
@@ -1396,9 +1386,10 @@ def test_flat_constants_keep_outer_argument_positions(tmp_path):
     )
 
     assert f"mode_variable_arg({body_mode.id},1)." in facts
-    assert "target(V0) :- source(a,V0)." in generate_clause_space(
-        program, Arguments()
-    ).clauses
+    assert (
+        "target(V0) :- source(a,V0)."
+        in generate_clause_space(program, Arguments()).clauses
+    )
 
 
 def test_nested_constant_requires_declaration(tmp_path):
@@ -1544,9 +1535,7 @@ def test_inverse_comparisons_share_one_mode_with_combined_recall():
 
 def test_linear_canonicalization_reduces_complete_nqueens_systems():
     args = copy.deepcopy(CASES["5queens"])
-    clauses = (
-        generate_clause_space(parse_file(args.filename), args).clauses
-    )
+    clauses = generate_clause_space(parse_file(args.filename), args).clauses
 
     assert len(clauses) == 4797
     assert len(clauses) == len(set(clauses))
@@ -1557,17 +1546,11 @@ def test_linear_canonicalization_reduces_complete_nqueens_systems():
 
 def test_nonlinear_canonicalization_keeps_lexicographic_render():
     args = copy.deepcopy(CASES["subset_sum_double_and_prod"])
-    clauses = (
-        generate_clause_space(parse_file(args.filename), args).clauses
-    )
+    clauses = generate_clause_space(parse_file(args.filename), args).clauses
 
+    assert (":- #sum{V3,V4:el(V3,V4)}=V2,((V2*V2)+(V2*V2))+(V2*V2)-V2=0.") in clauses
     assert (
-        ":- #sum{V3,V4:el(V3,V4)}=V2,"
-        "((V2*V2)+(V2*V2))+(V2*V2)-V2=0."
-    ) in clauses
-    assert (
-        ":- #sum{V3,V4:el(V3,V4)}=V2,"
-        "(V2*V2)+((V2*V2)+(V2*V2))-V2=0."
+        ":- #sum{V3,V4:el(V3,V4)}=V2,(V2*V2)+((V2*V2)+(V2*V2))-V2=0."
     ) not in clauses
 
 
@@ -2334,22 +2317,24 @@ def test_closed_world_properties_prune_complement_negative_pair():
 
 def test_closed_world_properties_infer_generic_atom_relations():
     properties = clause_properties._closed_world_properties(
-        _asp([
-            "p(a).",
-            "q(a).",
-            "r(b).",
-            "color_red(a).",
-            "color_green(b).",
-            "color_blue(c).",
-            "rel(a,b,c).",
-            "rel(d,e,f).",
-            "before(a,b).",
-            "before(b,c).",
-            "before(a,c).",
-            "le(a,a).",
-            "le(a,b).",
-            "le(b,b).",
-        ])
+        _asp(
+            [
+                "p(a).",
+                "q(a).",
+                "r(b).",
+                "color_red(a).",
+                "color_green(b).",
+                "color_blue(c).",
+                "rel(a,b,c).",
+                "rel(d,e,f).",
+                "before(a,b).",
+                "before(b,c).",
+                "before(a,c).",
+                "le(a,a).",
+                "le(a,b).",
+                "le(b,b).",
+            ]
+        )
     )
 
     assert (("p", 1), ("q", 1)) in properties.equivalent
@@ -2368,13 +2353,15 @@ def test_closed_world_properties_infer_generic_atom_relations():
 
 def test_closed_world_extensions_derive_simple_alias_rules():
     properties = clause_properties._closed_world_properties(
-        _asp([
-            "edge(a,b).",
-            "node(a).",
-            "node(b).",
-            "e(X,Y) :- edge(X,Y).",
-            "e(Y,X) :- edge(X,Y).",
-        ])
+        _asp(
+            [
+                "edge(a,b).",
+                "node(a).",
+                "node(b).",
+                "e(X,Y) :- edge(X,Y).",
+                "e(Y,X) :- edge(X,Y).",
+            ]
+        )
     )
 
     assert ("e", 2) in properties.symmetric
@@ -2383,13 +2370,15 @@ def test_closed_world_extensions_derive_simple_alias_rules():
 
 def test_closed_world_extensions_derive_finite_complement_rules():
     properties = clause_properties._closed_world_properties(
-        _asp([
-            "v(a).",
-            "v(b).",
-            "e(a,b).",
-            "e(b,a).",
-            "ne(X,Y) :- not e(X,Y), v(X), v(Y).",
-        ])
+        _asp(
+            [
+                "v(a).",
+                "v(b).",
+                "e(a,b).",
+                "e(b,a).",
+                "ne(X,Y) :- not e(X,Y), v(X), v(Y).",
+            ]
+        )
     )
 
     assert ("ne", 2) in properties.reflexive
@@ -2407,11 +2396,13 @@ def test_closed_world_extensions_do_not_assume_unknown_negative_empty():
 
 def test_rule_defined_inequality_derives_arg_distinct():
     properties = clause_properties._closed_world_properties(
-        _asp([
-            "same_block(C1,C2) :- block(C1,B), block(C2,B), C1 != C2.",
-            "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)), X1 != X2.",
-            "parent_child(P,C) :- parent(P,C).",
-        ])
+        _asp(
+            [
+                "same_block(C1,C2) :- block(C1,B), block(C2,B), C1 != C2.",
+                "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)), X1 != X2.",
+                "parent_child(P,C) :- parent(P,C).",
+            ]
+        )
     )
 
     assert (("same_block", 2), 0, 1) in properties.arg_distinct
@@ -2422,20 +2413,22 @@ def test_rule_defined_inequality_derives_arg_distinct():
 
 
 def test_closed_world_properties_emit_new_property_facts():
-    fragments = _asp([
-        "p(a).",
-        "q(a).",
-        "r(b).",
-        "color_red(a).",
-        "color_green(b).",
-        "color_blue(c).",
-        "rel(a,b,c).",
-        "rel(d,e,f).",
-        "other(a,b,c).",
-        "le(a,a).",
-        "le(a,b).",
-        "le(b,b).",
-    ])
+    fragments = _asp(
+        [
+            "p(a).",
+            "q(a).",
+            "r(b).",
+            "color_red(a).",
+            "color_green(b).",
+            "color_blue(c).",
+            "rel(a,b,c).",
+            "rel(d,e,f).",
+            "other(a,b,c).",
+            "le(a,a).",
+            "le(a,b).",
+            "le(b,b).",
+        ]
+    )
     properties = clause_properties._closed_world_properties(
         fragments,
         closed_body_predicates={("rel", 3), ("other", 3)},
@@ -2510,14 +2503,16 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
 
 def test_choice_rules_infer_modelwise_keys():
     properties = clause_properties._closed_world_properties(
-        _asp([
-            "#const n = 5.",
-            "number(1..n).",
-            "1 { q(X,Y) : number(Y) } 1 :- number(X).",
-            "1 { q(X,Y) : number(X) } 1 :- number(Y).",
-            "1 { x(R,C,N) : val(N) } 1 :- cell(R), cell(C).",
-            "3 { in(X) : v(X) } 3.",
-        ])
+        _asp(
+            [
+                "#const n = 5.",
+                "number(1..n).",
+                "1 { q(X,Y) : number(Y) } 1 :- number(X).",
+                "1 { q(X,Y) : number(X) } 1 :- number(Y).",
+                "1 { x(R,C,N) : val(N) } 1 :- cell(R), cell(C).",
+                "3 { in(X) : v(X) } 3.",
+            ]
+        )
     )
 
     assert (("q", 2), (0,)) in properties.keys
@@ -2571,10 +2566,7 @@ def test_closed_world_extensions_keep_distinct_string_terms():
         (_ground_term('"a b"'),),
         (_ground_term('"ab"'),),
     }
-    assert all(
-        isinstance(arguments[0], ast.AST)
-        for arguments in extensions[("p", 1)]
-    )
+    assert all(isinstance(arguments[0], ast.AST) for arguments in extensions[("p", 1)])
 
 
 def test_closed_world_extensions_do_not_derive_double_negation_as_negation():
@@ -2604,13 +2596,15 @@ def test_ast_walk_does_not_retain_task_nodes_globally():
 
 def test_rule_defined_square_properties_propagate_choice_key():
     properties = clause_properties._closed_world_properties(
-        _asp([
-            "part(a).",
-            "val(1).",
-            "val(2).",
-            "1 { p(P,V) : val(V) } 1 :- part(P).",
-            "sq(P,S) :- p(P,V), S = V*V.",
-        ])
+        _asp(
+            [
+                "part(a).",
+                "val(1).",
+                "val(2).",
+                "1 { p(P,V) : val(V) } 1 :- part(P).",
+                "sq(P,S) :- p(P,V), S = V*V.",
+            ]
+        )
     )
 
     assert ((("sq", 2), (0,))) in properties.keys
@@ -2812,12 +2806,8 @@ def test_universal_empty_and_complement_facts_are_emitted():
         ("right", 1): 3,
     }
     facts = set(
-        clause_facts._closed_world_property_facts(
-            universal_properties, universal_ids
-        )
-    ) | set(
-        clause_facts._closed_world_property_facts(domain_properties, domain_ids)
-    )
+        clause_facts._closed_world_property_facts(universal_properties, universal_ids)
+    ) | set(clause_facts._closed_world_property_facts(domain_properties, domain_ids))
 
     assert "universal_pred(1)." in facts
     assert "empty_pred(2)." in facts
@@ -3143,10 +3133,7 @@ def test_complete_head_forms_are_alternatives_not_implicit_combinations(tmp_path
         encoding="utf-8",
     )
 
-    clauses = set(
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
     assert "p(V0) :- node(V0)." in clauses
     assert "q(V0) :- node(V0)." in clauses
@@ -3194,10 +3181,7 @@ def test_complete_heads_render_as_declared(tmp_path, head, expected):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert expected in clauses
 
@@ -3221,21 +3205,18 @@ def test_strong_negation_is_rendered_in_heads_and_default_negated_bodies(tmp_pat
         encoding="utf-8",
     )
 
-    clauses = set(
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
     assert "-target(V0) :- node(V0),not -blocked(V0)." in clauses
 
 
 def test_strongly_negated_hypothesis_covers_strongly_negated_example():
-    coverage = NormalCoverageSolver(
+    coverage = CoverageSolver(
         parse_program("node(a)."),
         ["0", "--enum-mode=brave"],
         [example(("-target(a)", ""), True)],
         [example(("target(a)", ""), False)],
-    ).extract_fixed_coverage(parse_program("-target(X) :- node(X)."))
+    ).extract_coverage(parse_program("-target(X) :- node(X)."))
 
     assert coverage.pos_mask == 1
     assert coverage.neg_mask == 0
@@ -3316,10 +3297,7 @@ def test_structured_shapes_keep_distinct_functors_and_prune_exact_complements(
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert any("p(f(V0))" in clause and "-p(g(V0))" in clause for clause in clauses)
     assert any("p(f(V0))" in clause and "p(g(V0))" in clause for clause in clauses)
@@ -3348,10 +3326,7 @@ def test_two_default_negated_strong_complements_remain_legal(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert ":- node(V0),not p(V0),not -p(V0)." in clauses
 
@@ -3392,10 +3367,7 @@ def test_distinct_head_labels_require_distinct_variables(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "p(V0);q(V1) :- edge(V0,V1)." in clauses
     assert "p(V0);q(V0) :- edge(V0,V1)." not in clauses
@@ -3416,10 +3388,7 @@ def test_learnable_ground_facts_have_no_empty_rule_body(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "ready(a)." in clauses
     assert all(":- ." not in clause for clause in clauses)
@@ -3440,10 +3409,7 @@ def test_bodyless_complete_heads_keep_their_declared_asp_form(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "a;b." in clauses
     assert "1{c;d}1." in clauses
@@ -3451,10 +3417,9 @@ def test_bodyless_complete_heads_keep_their_declared_asp_form(tmp_path):
 
 
 def test_completely_empty_clause_is_not_learnable():
-    clauses = (
-        generate_clause_space(inductive_task([], [], [], [], []), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(
+        inductive_task([], [], [], [], []), Arguments()
+    ).clauses
 
     assert clauses == ()
 
@@ -3466,10 +3431,7 @@ def test_maxbl_zero_declares_a_facts_only_clause_space(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert clauses == ("ready.",)
 
@@ -3489,10 +3451,7 @@ def test_positive_head_condition_can_safely_ground_a_bodyless_rule(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "p(V0):node(V0)." in clauses
 
@@ -3545,10 +3504,7 @@ bias_same_label_var(F,L,V) :-
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "p(V0);q(V0) :- edge(V0,V1)." in clauses
     assert "p(V0);q(V1) :- edge(V0,V1)." not in clauses
@@ -3575,10 +3531,7 @@ bias_uses_edge :-
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "p(V0) :- edge(V0)." in clauses
     assert "p(V0) :- node(V0)." not in clauses
@@ -3646,10 +3599,7 @@ def test_nested_head_labels_control_flattened_placeholders(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "p(f(V0));q(g(V0)) :- edge(V0,V1)." in clauses
     assert "p(f(V0));q(g(V1)) :- edge(V0,V1)." not in clauses
@@ -3729,10 +3679,7 @@ def test_condition_modes_generate_head_and_body_conditional_literals(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "target(V0):node(V0) :- base(V0)." in clauses
     assert "target(V0):node(V1) :- base(V0)." in clauses
@@ -3772,10 +3719,7 @@ def test_condition_modes_attach_to_disjunction_and_choice_elements(
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert expected in clauses
     control = clingo.Control(["0"])
@@ -3800,10 +3744,7 @@ def test_positive_condition_binds_each_local_conditional_variable(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "target :- p(V0):q(V0)." in clauses
     assert "target :- p(V0):q(V1)." not in clauses
@@ -3828,10 +3769,7 @@ def test_body_conditional_uses_unambiguous_semicolon_separators(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
     clause = "target :- base(V0);p(V1):q(V1)."
 
     assert clause in clauses
@@ -3861,10 +3799,7 @@ def test_conditional_local_names_can_be_reused_between_scopes(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "target :- p(V0):q(V0);r(V0):s(V0)." in clauses
 
@@ -3886,10 +3821,7 @@ def test_conditional_global_output_requires_an_external_producer(tmp_path):
             ),
             encoding="utf-8",
         )
-        return (
-            generate_clause_space(parse_file(str(task)), Arguments())
-            .clauses
-        )
+        return generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     clause = "target(V0):node(V0) :- source(V0)."
 
@@ -3914,10 +3846,7 @@ def test_condition_recall_and_body_budget_cover_all_attachments(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert clauses
     assert all(clause.count(":node(") <= 1 for clause in clauses)
@@ -3972,10 +3901,7 @@ def test_negative_body_conclusion_can_be_grounded_by_its_condition(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "target :- not p(V0):q(V0)." in clauses
     assert "target :- not p(V0):q(V1)." not in clauses
@@ -4136,9 +4062,7 @@ def test_ast_atom_extraction_handles_choice_rules():
 
 def _benchmark_clauses(name: str) -> set[str]:
     args = copy.deepcopy(CASES[name])
-    return set(
-        generate_clause_space(parse_file(args.filename), args).clauses
-    )
+    return set(generate_clause_space(parse_file(args.filename), args).clauses)
 
 
 def test_bundled_benchmarks_use_explicit_non_any_directions():
@@ -4244,12 +4168,12 @@ def test_latin_square_clause_generation_contains_covering_target_program():
     assert len(program.negative_examples) == 20
     assert set(target) <= clauses
 
-    coverage = NormalCoverageSolver(
+    coverage = CoverageSolver(
         program.background,
         ["0", "--enum-mode=brave"],
         program.positive_examples,
         program.negative_examples,
-    ).extract_fixed_coverage(parse_program("\n".join(target)))
+    ).extract_coverage(parse_program("\n".join(target)))
 
     assert coverage.pos_mask == (1 << len(program.positive_examples)) - 1
     assert coverage.neg_mask == 0
@@ -4310,9 +4234,7 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
         if mode.literal.atom.name == "size"
     ]
     definition_program.arithmetic_modes = []
-    definition_clauses = set(
-        generate_clause_space(definition_program, args).clauses
-    )
+    definition_clauses = set(generate_clause_space(definition_program, args).clauses)
     constraint_program = copy.deepcopy(program)
     constraint_program.language_bias_body = [
         mode
@@ -4320,16 +4242,14 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
         if mode.literal.atom.name in {"sum_row", "sum_col"}
     ]
     constraint_program.aggregate_modes = []
-    constraint_clauses = set(
-        generate_clause_space(constraint_program, args).clauses
-    )
+    constraint_clauses = set(generate_clause_space(constraint_program, args).clauses)
 
     assert {clause for clause in target if "#sum{" in clause} <= definition_clauses
     assert {
         clause for clause in target if clause.startswith(":-")
     } <= constraint_clauses
 
-    solver = NormalCoverageSolver(
+    solver = CoverageSolver(
         program.background,
         ["0", "--enum-mode=brave"],
         program.positive_examples,
@@ -4343,13 +4263,11 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
         "sum_col(C,S) :- size(C),#sum{V:x(R,C,V)}=S.",
         ":- sum_col(C0,S0),sum_col(C1,S1),C0!=C1,S0!=S1.",
     )
-    full_coverage = solver.extract_fixed_coverage(
+    full_coverage = solver.extract_coverage(
         parse_program("\n".join(row_program + column_program))
     )
-    row_coverage = solver.extract_fixed_coverage(parse_program("\n".join(row_program)))
-    column_coverage = solver.extract_fixed_coverage(
-        parse_program("\n".join(column_program))
-    )
+    row_coverage = solver.extract_coverage(parse_program("\n".join(row_program)))
+    column_coverage = solver.extract_coverage(parse_program("\n".join(column_program)))
 
     assert full_coverage.pos_mask.bit_count() == 72
     assert full_coverage.neg_mask == 0
@@ -4402,12 +4320,12 @@ def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
         sorted(random.sample(clauses.clauses, program.max_program_clauses))
     )
 
-    NormalCoverageSolver(
+    CoverageSolver(
         program.background,
-        args.fitness["clingo_arguments"],
+        args.evaluation["clingo_arguments"],
         program.positive_examples,
         program.negative_examples,
-    ).extract_fixed_coverage(parse_program("\n".join(candidate)))
+    ).extract_coverage(parse_program("\n".join(candidate)))
 
 
 def test_linkedness_rejects_disconnected_literal_components():
@@ -4521,10 +4439,7 @@ def test_modeha_generates_nonredundant_cardinality_heads(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = set(
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
     assert "0{p(a)}1 :- seed(a)." in clauses
     assert "0{p(b)}1 :- seed(a)." in clauses
@@ -4558,10 +4473,7 @@ def test_modeha_recall_and_minhl_bound_generated_width(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = set(
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
     assert clauses
     choice_clauses = {clause for clause in clauses if not clause.startswith(":-")}
@@ -4587,10 +4499,7 @@ def test_modeha_reuses_one_template_for_distinct_compatible_variables(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = set(
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
     assert "0{p(V0);p(V1)}1 :- node(V0),node(V1)." in clauses
     assert not any("p(V0);p(V0)" in clause for clause in clauses)
@@ -4722,10 +4631,7 @@ def test_modearith_accepts_exact_nested_relations(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert any("V1+(2*V1)<=V0" in clause for clause in clauses)
 
@@ -4746,10 +4652,7 @@ def test_complete_head_keeps_exact_conditional_attachment(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "p(V0):node(V0) :- base(V0)." in clauses
 
@@ -4770,10 +4673,7 @@ def test_modehd_combines_declared_disjunction_elements(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "p(a);p(b)." in clauses
     assert not any("{" in clause for clause in clauses)
@@ -4829,10 +4729,7 @@ def test_modearith_exact_equality_can_produce_its_declared_output(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert any("V0+1=V1" in clause and clause.startswith("p(V1)") for clause in clauses)
 
@@ -4901,10 +4798,7 @@ def test_modec_accepts_an_exact_comparison_condition(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = (
-        generate_clause_space(parse_file(str(task)), Arguments())
-        .clauses
-    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert any(":V0<3" in clause for clause in clauses)
 

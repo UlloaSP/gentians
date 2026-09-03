@@ -35,7 +35,7 @@ cprofile = false
 #label = "Whole program"
 #description = "Whole-program score using per-candidate grounding and brave consequences."
 #[experiment.overrides]
-#"fitness.name" = "cov_program"
+#"evaluation.scoring" = "cov_program"
 
 [[experiment]]
 id = "cov_program_random_group_pop10_mut09"
@@ -43,7 +43,7 @@ label = "Whole program · random · population 10 · mutation 0.9"
 description = "Random-group mutation with population 10 and mutation probability 0.9."
 runs = 10
 [experiment.overrides]
-"fitness.name" = "cov_program"
+"evaluation.scoring" = "cov_program"
 "selection.name" = "tournament"
 "mutation.name" = "random_group"
 "population.size" = 10
@@ -56,7 +56,7 @@ id = "cov_program_random_group_pop100_mut09"
 label = "Whole program · random · population 100 · mutation 0.9"
 description = "Random-group mutation with population 100 and mutation probability 0.9."
 [experiment.overrides]
-"fitness.name" = "cov_program"
+"evaluation.scoring" = "cov_program"
 "selection.name" = "tournament"
 "mutation.name" = "random_group"
 "population.size" = 100
@@ -69,7 +69,7 @@ label = "Whole program · lexicase · population 10 · mutation 0.9"
 description = "Lexicase selection under the random-group population-10 baseline conditions."
 runs = 10
 [experiment.overrides]
-"fitness.name" = "cov_program"
+"evaluation.scoring" = "cov_program"
 "selection.name" = "lexicase"
 "mutation.name" = "random_group"
 "population.size" = 10
@@ -82,7 +82,7 @@ id = "cov_program_behavior_tournament_pop10"
 label = "Whole program · behavior tournament · population 10"
 description = "Behavior-tournament selection with population 10 and random-group mutation."
 [experiment.overrides]
-"fitness.name" = "cov_program"
+"evaluation.scoring" = "cov_program"
 "selection.name" = "behavior_tournament"
 "selection.tournament_percentage" = 0.3
 "mutation.name" = "random_group"
@@ -94,7 +94,7 @@ id = "cov_program_behavior_tournament_pop100"
 label = "Whole program · behavior tournament · population 100"
 description = "Behavior-tournament selection with population 100 and random-group mutation."
 [experiment.overrides]
-"fitness.name" = "cov_program"
+"evaluation.scoring" = "cov_program"
 "selection.name" = "behavior_tournament"
 "selection.tournament_percentage" = 0.3
 "mutation.name" = "random_group"
@@ -107,7 +107,7 @@ label = "Balanced coverage · random · population 10 · mutation 0.9"
 description = "Balanced-accuracy coverage under the random-group baseline conditions."
 runs = 10
 [experiment.overrides]
-"fitness.name" = "cov_balanced"
+"evaluation.scoring" = "cov_balanced"
 "selection.name" = "tournament"
 "mutation.name" = "random_group"
 "population.size" = 10
@@ -121,7 +121,7 @@ label = "Balanced coverage · structural · population 10 · mutation 0.9"
 description = "Balanced-accuracy coverage under the structural-group baseline conditions."
 runs = 10
 [experiment.overrides]
-"fitness.name" = "cov_balanced"
+"evaluation.scoring" = "cov_balanced"
 "selection.name" = "tournament"
 "mutation.name" = "structural_neighbor"
 "mutation.random_jump_probability" = 0.0
@@ -135,7 +135,7 @@ runs = 10
 #label = "Whole program · structural · population 10 · mutation 0.9"
 #description = "Structural-neighbor mutation with population 10 and mutation probability 0.9."
 #[experiment.overrides]
-#"fitness.name" = "cov_program"
+#"evaluation.scoring" = "cov_program"
 #"mutation.name" = "structural_neighbor"
 #"population.size" = 10
 #"mutation.probability" = 0.9
@@ -146,7 +146,7 @@ runs = 10
 #label = "Whole program · structural · population 100 · mutation 0.9"
 #description = "Structural-neighbor mutation with population 100 and mutation probability 0.9."
 #[experiment.overrides]
-#"fitness.name" = "cov_program"
+#"evaluation.scoring" = "cov_program"
 #"mutation.name" = "structural_neighbor"
 #"population.size" = 100
 #"mutation.probability" = 0.9

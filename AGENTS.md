@@ -30,7 +30,7 @@ task file
   -> ClauseSpace
   -> HypothesisGenerator construye genomas cerrados
   -> steady_state_genetic_search aplica estrategias evolutivas
-  -> fitness evalúa cada programa completo con Clingo
+  -> CandidateEvaluator obtiene cobertura y score del programa completo
   -> mejor hipótesis + score + best_found
 
 instrumentación -> artefactos de benchmark -> preview Vite
@@ -59,11 +59,13 @@ Usa estos términos en código, docs y conversación:
 - **`Individual`**: genoma evaluado con score, marca de solución, firma de comportamiento y edad.
 - **`SearchResult`**: hipótesis elegida, score y marca de solución devueltos por cualquier algoritmo completo.
 - **Comportamiento**: pareja de máscaras `(pos_mask, neg_mask)`. La primera marca positivos cubiertos; la segunda, negativos cubiertos.
+- **`Coverage`**: valor inmutable con las máscaras de comportamiento producidas por Clingo.
+- **`EvaluationResult`**: score, marca de solución y comportamiento de un programa candidato evaluado.
 - **Hipótesis perfecta**: cubre todos los ejemplos positivos y ningún negativo. Esto produce `best_found=True`.
 - **Cierre de dependencias**: toda dependencia de una cláusula queda definida por el background o por alguna cabeza del mismo candidato.
 - **Bundle**: grupo de cláusulas producido por una metarule. Es atómico durante generación y operadores.
 - **Pruning**: exclusión de cláusulas o hipótesis inválidas, redundantes o imposibles antes de gastar evaluaciones de fitness.
-- **Solver normal**: crea, groundea y resuelve un `clingo.Control` por candidato.
+- **`CoverageSolver`**: crea, groundea y resuelve un `clingo.Control` por candidato para obtener `Coverage`.
 
 Usa `ClauseSpace` para cláusulas candidatas. Usa hipótesis o programa candidato para el conjunto evaluado por fitness.
 
@@ -98,9 +100,9 @@ Estos son límites del producto, aunque algunos todavía compartan paquete:
 | Generación de hipótesis | Construir programas candidatos, aplicar pruning mientras nacen y cerrar dependencias bajo `#maxpl` y bundles. | `gentians/hypotheses/` |
 | Algoritmos de búsqueda | Resolver una tarea completa y devolver `SearchResult`. Cada algoritmo posee su bucle; la implementación actual es un GA de estado estable. | `gentians/algorithms/` |
 | Evolución | Proveer individuo, contexto, operadores y estrategias usados por algoritmos evolutivos. | `gentians/evolution/` |
-| Evaluación ASP | Traducir ejemplos a cobertura, calcular fitness y usar Clingo como oracle semántico. | `gentians/asp/`, `gentians/fitness/` |
+| Evaluación | Compilar ejemplos, obtener cobertura con Clingo y convertirla en score y condición de solución. | `gentians/evaluation/` |
 | Docs | Mantener lenguaje, decisiones, arquitectura y experimentos con resultados. | `docs/`, `README.md` |
-| Profiling y logging | Medir tiempo neto, fases, calidad, operadores y estadísticas Clingo sin contaminar la métrica observada. | `gentians/timing.py`, `gentians/asp/stats.py` |
+| Profiling y logging | Medir tiempo neto, fases, calidad, operadores y estadísticas Clingo sin contaminar la métrica observada. | `gentians/timing.py`, `gentians/clingo_stats.py` |
 | Benchmarks y runners | Definir datasets, matrices reproducibles, aislamiento, fingerprints y agregación. | `benchmarks/`, `benchmarks/gentians/` |
 | Preview de benchmarks | Leer artefactos generados y mostrar detalle y comparación sin reinterpretar métricas. | `.benchmarks/` |
 
@@ -155,9 +157,9 @@ Al añadir una estrategia:
 
 El archivo semántico agrupa por `Behavior` y conserva los `k` programas más cortos. Es una poda respecto a ejemplos presentes, no equivalencia ASP. `module_mix` transfiere cierres sintácticos de soporte, no módulos semánticos ASP.
 
-## Fitness y Clingo
+## Evaluación y Clingo
 
-`create_fitness()` elige la estrategia de score `cov_program` o `cov_balanced`. Ambas reciben `Coverage` y devuelven `FitnessResult`; comparten condición de éxito y solver normal.
+`create_evaluator()` elige la estrategia de score `cov_program` o `cov_balanced`. Ambas reciben `Coverage`; `CandidateEvaluator` devuelve `EvaluationResult` y comparte condición de éxito y `CoverageSolver`.
 
 El solver normal crea un `Control` por evaluación, añade background, programa estático de cobertura y candidato desde AST ya retenido, groundea y resuelve.
 
@@ -243,12 +245,12 @@ No cambies estas gráficas salvo petición explícita:
 - `gentians/hypotheses/`: plumbing de representación de genomas, cierre y transiciones válidas que usan las estrategias evolutivas.
 - `gentians/algorithms/`: algoritmos completos de búsqueda y su resultado común; `steady_state_genetic.py` contiene el GA actual.
 - `gentians/evolution/{populations,selections,crossovers,mutations,replacements}/`: plumbing evolutivo, estrategias y factories.
-- `gentians/fitness/`: evaluación común de hipótesis y estrategias de score.
-- `gentians/asp/`: programa de cobertura, isolation de contexts, solvers y stats.
+- `gentians/evaluation/`: compilación de cobertura, `CoverageSolver`, scoring y resultado de evaluación.
+- `gentians/clingo_stats.py`: lectura compartida de estadísticas Clingo.
 - `gentians/timing.py`: fases y export de métricas.
 - `tests/test_clause_space.py`: contrato principal del lenguaje y generación de cláusulas.
 - `tests/test_evolution_operators.py`: genomas, cierre, operadores y search loop.
-- `tests/test_fitness.py`: cobertura, contexts y equivalencia de solvers.
+- `tests/test_evaluation.py`: cobertura, contexts, scoring y solver.
 - `tests/test_profile_baseline.py`: semántica de tiempos y schema del dashboard.
 - `tests/test_run_experiments.py`: manifests, fingerprints y matrices.
 - `tests/test_strategy_layout.py`: forma de módulos de estrategias.
@@ -277,7 +279,7 @@ Usa la prueba más pequeña que pueda fallar por el cambio:
 ```powershell
 uv run pytest tests/test_clause_space.py -q
 uv run pytest tests/test_evolution_operators.py -q
-uv run pytest tests/test_fitness.py -q
+uv run pytest tests/test_evaluation.py -q
 uv run pytest tests/test_profile_baseline.py -q
 uv run ruff check <paths-tocados>
 uv run ty check

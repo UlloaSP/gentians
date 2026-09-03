@@ -5036,13 +5036,13 @@
         <path data-edge-from="task" data-edge-to="reader" data-edge-label="UTF-8" data-edge-key="0" data-edge-id="task-reader" data-composition-points="160,356;200,356" d="M 160 356 L 200 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="reader" data-edge-to="clauses" data-edge-label="InductiveTask" data-edge-key="1" data-edge-id="reader-clauses" data-composition-points="340,356;390,356" d="M 340 356 L 390 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="clauses" data-edge-to="search" data-edge-label="ClauseSpace" data-edge-key="2" data-edge-id="clauses-search" data-composition-points="560,356;620,356" d="M 560 356 L 620 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="search" data-edge-to="fitness" data-edge-label="candidato" data-edge-key="3" data-edge-id="search-fitness" data-composition-points="770,356;830,356" d="M 770 356 L 830 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="fitness" data-edge-to="clingo" data-edge-label="ground/solve" data-edge-key="4" data-edge-id="fitness-clingo" data-composition-points="980,356;1050,356" d="M 980 356 L 1050 356" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="search" data-edge-to="evaluation" data-edge-label="candidato" data-edge-key="3" data-edge-id="search-evaluation" data-composition-points="770,356;830,356" d="M 770 356 L 830 356" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="evaluation" data-edge-to="clingo" data-edge-label="ground/solve" data-edge-key="4" data-edge-id="evaluation-clingo" data-composition-points="980,356;1050,356" d="M 980 356 L 1050 356" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="clauses" data-edge-to="hypotheses" data-edge-label="ClauseSpace" data-edge-key="5" data-edge-id="clauses-hypotheses" data-composition-points="475,392;475,520" d="M 475 392 L 475 520" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="search" data-edge-to="hypotheses" data-edge-label="plumbing para estrategias" data-edge-key="6" data-edge-id="search-hypotheses" data-composition-points="620,356;590,356;590,556;560,556" d="M 620 356 L 598 356 Q 590 356 590 364 L 590 548 Q 590 556 582 556 L 560 556" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="operators" data-edge-to="search" data-edge-label="operadores" data-edge-key="7" data-edge-id="operators-search" data-composition-points="695,158;695,320" d="M 695 158 L 695 320" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="search" data-edge-to="result" data-edge-label="mejor candidato" data-edge-key="8" data-edge-id="search-result" data-composition-points="695,392;695,416;716,416;716,496;700,496;700,520" d="M 695 392 L 695 408 Q 695 416 703 416 L 708 416 Q 716 416 716 424 L 716 488 Q 716 496 708 496 L 708 496 Q 700 496 700 504 L 700 520" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="fitness" data-edge-to="timing" data-edge-label="métricas" data-edge-key="9" data-edge-id="fitness-timing" data-composition-points="905,320;905,152" d="M 905 320 L 905 152" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="evaluation" data-edge-to="timing" data-edge-label="métricas" data-edge-key="9" data-edge-id="evaluation-timing" data-composition-points="905,320;905,152" d="M 905 320 L 905 152" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
 
         <!-- Components -->
         <g id="node-task" data-node-id="task" data-node-label="Tarea inductiva" tabindex="0" role="button" aria-label="Focus Tarea inductiva, ASP + ejemplos + bias, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="ASP + ejemplos + bias" data-node-context="Architecture component">
@@ -5091,15 +5091,15 @@
         <text data-detail="fine" x="695" y="384" class="t-backend" font-size="7" text-anchor="middle">steady_state_genetic_search</text>
         </g>
 
-        <g id="node-fitness" data-node-id="fitness" data-node-label="Fitness" tabindex="0" role="button" aria-label="Focus Fitness, cov_program o cov_balanced, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="cov_program o cov_balanced" data-node-context="Paquete gentians">
-          <title>Fitness · cov_program o cov_balanced · Paquete gentians</title>
+        <g id="node-evaluation" data-node-id="evaluation" data-node-label="Evaluación" tabindex="0" role="button" aria-label="Focus Evaluación, cobertura + scoring, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="cobertura + scoring" data-node-context="Paquete gentians">
+          <title>Evaluación · cobertura + scoring · Paquete gentians</title>
           <rect x="830" y="320" width="150" height="72" rx="6" class="c-mask"/>
           <rect x="830" y="320" width="150" height="72" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(836 326) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="905" y="354" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Fitness</text>
-        <text data-detail="context" x="905" y="370" class="t-muted" font-size="9" text-anchor="middle">cov_program o cov_balanced</text>
+          <text data-node-label="" data-detail-anchor="" x="905" y="354" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Evaluación</text>
+        <text data-detail="context" x="905" y="370" class="t-muted" font-size="9" text-anchor="middle">cobertura + scoring</text>
         </g>
 
         <g id="node-clingo" data-node-id="clingo" data-node-label="Clingo" tabindex="0" role="button" aria-label="Focus Clingo, grounding y solving, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="grounding y solving" data-node-context="Architecture component">
@@ -5148,15 +5148,15 @@
         <text data-detail="context" x="695" y="133" class="t-muted" font-size="8.6" text-anchor="middle">porcelain sobre hipótesis válidas</text>
         </g>
 
-        <g id="node-timing" data-node-id="timing" data-node-label="Timing y métricas" tabindex="0" role="button" aria-label="Focus Timing y métricas, fases, fitness y Clingo, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="fases, fitness y Clingo" data-node-context="Paquete gentians">
-          <title>Timing y métricas · fases, fitness y Clingo · Paquete gentians</title>
+        <g id="node-timing" data-node-id="timing" data-node-label="Timing y métricas" tabindex="0" role="button" aria-label="Focus Timing y métricas, fases, evaluación y Clingo, Paquete gentians" aria-pressed="false" data-node-kind="backend" data-node-sublabel="fases, evaluación y Clingo" data-node-context="Paquete gentians">
+          <title>Timing y métricas · fases, evaluación y Clingo · Paquete gentians</title>
           <rect x="825" y="80" width="160" height="72" rx="6" class="c-mask"/>
           <rect x="825" y="80" width="160" height="72" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(831 86) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="905" y="114" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Timing y métricas</text>
-        <text data-detail="context" x="905" y="130" class="t-muted" font-size="9" text-anchor="middle">fases, fitness y Clingo</text>
+        <text data-detail="context" x="905" y="130" class="t-muted" font-size="9" text-anchor="middle">fases, evaluación y Clingo</text>
         </g>
 
         <!-- Connection labels -->
@@ -5172,11 +5172,11 @@
           <rect x="563.4" y="296" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
           <text x="590" y="306" class="t-muted" font-size="8" text-anchor="middle">ClauseSpace</text>
         </g>
-        <g data-detail="context" data-edge-from="search" data-edge-to="fitness" data-edge-label="candidato" data-edge-key="3" data-edge-id="search-fitness">
+        <g data-detail="context" data-edge-from="search" data-edge-to="evaluation" data-edge-label="candidato" data-edge-key="3" data-edge-id="search-evaluation">
           <rect x="773.4" y="296" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
           <text x="800" y="306" class="t-muted" font-size="8" text-anchor="middle">candidato</text>
         </g>
-        <g data-detail="context" data-edge-from="fitness" data-edge-to="clingo" data-edge-label="ground/solve" data-edge-key="4" data-edge-id="fitness-clingo">
+        <g data-detail="context" data-edge-from="evaluation" data-edge-to="clingo" data-edge-label="ground/solve" data-edge-key="4" data-edge-id="evaluation-clingo">
           <rect x="981.2" y="296" width="67.6" height="14" rx="3" class="c-mask"/>
           <text x="1015" y="306" class="t-backend" font-size="8" text-anchor="middle">ground/solve</text>
         </g>
@@ -5196,7 +5196,7 @@
           <rect x="654" y="410" width="82" height="14" rx="3" class="c-mask"/>
           <text x="695" y="420" class="t-backend" font-size="8" text-anchor="middle">mejor candidato</text>
         </g>
-        <g data-detail="context" data-edge-from="fitness" data-edge-to="timing" data-edge-label="métricas" data-edge-key="9" data-edge-id="fitness-timing">
+        <g data-detail="context" data-edge-from="evaluation" data-edge-to="timing" data-edge-label="métricas" data-edge-key="9" data-edge-id="evaluation-timing">
           <rect x="880.8" y="190" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="905" y="200" class="t-messagebus" font-size="8" text-anchor="middle">métricas</text>
         </g>

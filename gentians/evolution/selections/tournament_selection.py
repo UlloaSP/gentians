@@ -6,10 +6,12 @@ from ..individual import Individual
 
 class TournamentSelection:
     def __init__(self, percentage: float, probability: float) -> None:
-        if not 0.0 < percentage <= 1.0:
+        if isinstance(percentage, bool) or not 0.0 < percentage <= 1.0:
             raise ValueError(
                 "tournament_percentage must be greater than 0 and at most 1"
             )
+        if isinstance(probability, bool) or not 0.0 <= probability <= 1.0:
+            raise ValueError("prob_selecting_fittest must be between 0 and 1")
         self.percentage = percentage
         self.probability = probability
 

@@ -5,6 +5,8 @@ from ...hypotheses import Genome
 
 class RandomGroupMutation:
     def __init__(self, probability: float) -> None:
+        if isinstance(probability, bool) or not 0.0 <= probability <= 1.0:
+            raise ValueError("mutation probability must be between 0 and 1")
         self.probability = probability
 
     def __call__(self, genome: Genome, context: EvolutionContext) -> MutationProposal:

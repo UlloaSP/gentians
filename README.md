@@ -71,26 +71,26 @@ and `Individual` couples one genome to its evaluation and logical birth order.
 arguments = Arguments(
     filename="benchmarks/gentians/coin.txt",
     iterations_genetic=0,
-    fitness={
-        "name": "cov_program",
+    evaluation={
+        "scoring": "cov_program",
         "clingo_arguments": [],
     },
 )
 main(arguments)
 ```
 
-`fitness.name` is `cov_program` or `cov_balanced`. `cov_balanced` evaluates the
+`evaluation.scoring` is `cov_program` or `cov_balanced`. `cov_balanced` evaluates the
 whole program like `cov_program`, but scores balanced accuracy linearly from 0
-to 1. Evolutionary individuals may have variable sizes. Every fitness
+to 1. Evolutionary individuals may have variable sizes. Every candidate
 evaluation uses the normal solver: it creates a fresh Clingo control, adds
 retained AST, grounds its candidate program, then solves it.
-Whole-program fitness uses brave consequences.
+Whole-program evaluation uses brave consequences.
 
 Complete search algorithms live in `gentians.algorithms` and return a
 `SearchResult`. The current implementation is `steady_state_genetic_search`:
 it replaces population members after each offspring. GA-specific state and
-operators live in `gentians.evolution`; fitness remains shared so exact or
-greedy algorithms can reuse it.
+operators live in `gentians.evolution`; candidate evaluation lives in
+`gentians.evaluation` so exact or greedy algorithms can reuse it.
 
 Mutation defaults to `random_group`. `structural_neighbor` remains available as
 an alternative that replaces clauses with others sharing the same head:
@@ -395,6 +395,6 @@ Here we list only the main ones:
   clause space finite.
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
-- `fitness.name`: `cov_program` or `cov_balanced`.
+- `evaluation.scoring`: `cov_program` or `cov_balanced`.
 - `HypothesisGenerator` is mandatory infrastructure: every initialization,
   mutation, and crossover returns an already dependency-closed valid program.

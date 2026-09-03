@@ -1,5 +1,8 @@
+import sys
+
 import clingo
 
+from ..clingo_stats import clingo_stat, ground_stats
 from ..language.asp import AspProgram, add_program
 from ..language.ir.example import Example
 from ..timing import (
@@ -10,40 +13,31 @@ from ..timing import (
     net_time,
     record_metric,
 )
-from .callbacks import coverage_logger
 from .coverage import Coverage
-from .coverage_program import build_coverage_static_program
-from .coverage_symbols import parse_coverage_symbol_masks
-from .stats import clingo_stat, ground_stats
+from .compiler import compile_coverage_program
 
 
-class NormalCoverageSolver:
-    """Create, ground, and solve one Clingo control per fitness evaluation."""
+class CoverageSolver:
+    """Create, ground, and solve one Clingo control per candidate."""
 
     def __init__(
         self,
         background: AspProgram,
         clingo_arguments: list[str],
-        interpretation_pos: list[Example],
-        interpretation_neg: list[Example],
+        positive_examples: list[Example],
+        negative_examples: list[Example],
     ) -> None:
         self.background = background
         self.clingo_arguments = clingo_arguments
-        self.positive_examples = len(interpretation_pos)
-        self.negative_examples = len(interpretation_neg)
-        self.coverage_static_program = build_coverage_static_program(
-            interpretation_pos, interpretation_neg
+        self.positive_examples = len(positive_examples)
+        self.negative_examples = len(negative_examples)
+        self.coverage_program = compile_coverage_program(
+            positive_examples, negative_examples
         )
 
-    def extract_fixed_coverage(self, program: AspProgram) -> Coverage:
+    def extract_coverage(self, program: AspProgram) -> Coverage:
         ctl, grounding_seconds, phase = self._ground(program)
-        coverage = Coverage()
-        solving_seconds = self._solve(
-            ctl,
-            lambda symbols: coverage.extend_masks(
-                *parse_coverage_symbol_masks(symbols)
-            ),
-        )
+        solving_seconds, coverage = self._solve(ctl)
         self._record(
             ctl,
             program,
@@ -55,8 +49,8 @@ class NormalCoverageSolver:
         return coverage
 
     def _ground(self, program: AspProgram):
-        ctl = clingo.Control(self.clingo_arguments, logger=coverage_logger)
-        add_program(ctl, self.coverage_static_program)
+        ctl = clingo.Control(self.clingo_arguments, logger=_coverage_logger)
+        add_program(ctl, self.coverage_program)
         add_program(ctl, self.background)
         add_program(ctl, program)
         start = net_time()
@@ -67,8 +61,10 @@ class NormalCoverageSolver:
         return ctl, seconds, phase
 
     @staticmethod
-    def _solve(ctl, collect) -> float:
+    def _solve(ctl) -> tuple[float, Coverage]:
         seconds = 0.0
+        pos_mask = 0
+        neg_mask = 0
         start = net_time()
         with ctl.solve(yield_=True) as handle:
             seconds += net_time() - start
@@ -81,11 +77,13 @@ class NormalCoverageSolver:
                     seconds += net_time() - start
                     break
                 seconds += net_time() - start
-                collect(model.symbols(shown=True))
+                positive, negative = _coverage_masks(model.symbols(shown=True))
+                pos_mask |= positive
+                neg_mask |= negative
             start = net_time()
         seconds += net_time() - start
         add(f"{current_phase()}.solving", seconds)
-        return seconds
+        return seconds, Coverage(pos_mask, neg_mask)
 
     def _record(
         self,
@@ -114,8 +112,7 @@ class NormalCoverageSolver:
                     "seconds": grounding_seconds,
                     "input_clauses": len(self.background) + len(program),
                     "program_chars": sum(
-                        len(str(statement))
-                        for statement in self.coverage_static_program
+                        len(str(statement)) for statement in self.coverage_program
                     )
                     + sum(len(str(statement)) for statement in self.background)
                     + sum(len(str(statement)) for statement in program),
@@ -142,3 +139,23 @@ class NormalCoverageSolver:
                     ),
                 },
             )
+
+
+def _coverage_masks(symbols) -> tuple[int, int]:
+    pos_mask = 0
+    neg_mask = 0
+    for symbol in symbols:
+        if len(symbol.arguments) != 1:
+            continue
+        value = symbol.arguments[0].number
+        if symbol.name == "extended_p":
+            pos_mask |= 1 << value
+        elif symbol.name == "extended_n":
+            neg_mask |= 1 << value
+    return pos_mask, neg_mask
+
+
+def _coverage_logger(code, message):
+    with instrumentation():
+        if code != clingo.MessageCode.AtomUndefined:
+            print(message, file=sys.stderr, end="" if message.endswith("\n") else "\n")

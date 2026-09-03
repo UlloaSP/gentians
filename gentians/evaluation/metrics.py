@@ -1,10 +1,10 @@
-from ..asp.coverage import Coverage
 from ..language.asp import AspProgram
 from ..language.ir.inductive_task import InductiveTask
 from ..timing import instrumentation, metric_enabled, record_metric
+from .coverage import Coverage
 
 
-def record_fitness_metric(
+def record_evaluation_metric(
     task: InductiveTask,
     candidate: AspProgram,
     coverage: Coverage,

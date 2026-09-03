@@ -9,7 +9,12 @@ class StructuralNeighborMutation:
         probability: float,
         random_jump_probability: float,
     ) -> None:
-        if not 0.0 <= random_jump_probability <= 1.0:
+        if isinstance(probability, bool) or not 0.0 <= probability <= 1.0:
+            raise ValueError("mutation probability must be between 0 and 1")
+        if (
+            isinstance(random_jump_probability, bool)
+            or not 0.0 <= random_jump_probability <= 1.0
+        ):
             raise ValueError("random_jump_probability must be between 0 and 1")
         self.probability = probability
         self.random_jump_probability = random_jump_probability

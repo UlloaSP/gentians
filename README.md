@@ -81,7 +81,10 @@ main(arguments)
 
 `evaluation.scoring` is `cov_program` or `cov_balanced`. `cov_balanced` evaluates the
 whole program like `cov_program`, but scores balanced accuracy linearly from 0
-to 1. Evolutionary individuals may have variable sizes. Every candidate
+to 1. Evolutionary individuals record whether they cover every positive example
+and avoid every negative example. Replacement has no behavior-specific
+tie-break. The benchmark dashboard reports complete, incomplete, consistent,
+inconsistent, and perfect candidate rates. Every candidate
 evaluation uses the normal solver: it creates a fresh Clingo control, adds
 retained AST, grounds its candidate program, then solves it.
 Whole-program evaluation uses brave consequences.

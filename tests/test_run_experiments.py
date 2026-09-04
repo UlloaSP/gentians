@@ -18,7 +18,7 @@ def test_default_config_defines_comparable_experiment_matrix():
     assert output_root.name == ".benchmarks"
     assert {experiment["id"] for experiment in experiments} == {
         "cov_program_random_group_pop10_mut09",
-        "cov_program_random_group_pop100_mut09",
+        "cov_program",
         "cov_program_lexicase_pop10_mut09",
         "cov_program_behavior_tournament_pop10",
         "cov_program_behavior_tournament_pop100",

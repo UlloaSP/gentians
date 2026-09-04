@@ -26,7 +26,7 @@ export const colors = {
 };
 
 const POINT_INDEX = { max: 3, avg: 4, bestSoFar: 5 };
-export const DASHBOARD_SCHEMA_VERSION = 8;
+export const DASHBOARD_SCHEMA_VERSION = 9;
 
 export function assertDashboardSchema(payload, source = "") {
   if (payload.schemaVersion === DASHBOARD_SCHEMA_VERSION) return;
@@ -61,7 +61,9 @@ export const coveragePoints = (quality) => quality?.coveragePoints || [];
 
 const CRITERIA = {
   complete: ["complete", "cubre todos los positivos; ignora negativos"],
+  incomplete: ["incomplete", "no cubre todos los positivos; ignora negativos"],
   consistent: ["consistent", "no cubre negativos; ignora positivos"],
+  inconsistent: ["inconsistent", "cubre al menos un negativo; ignora positivos"],
   both: ["complete + consistent", "cubre todos los positivos y ningún negativo"],
 };
 

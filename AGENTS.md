@@ -159,7 +159,7 @@ El archivo semántico agrupa por `Behavior` y conserva los `k` programas más co
 
 ## Evaluación y Clingo
 
-`create_evaluator()` elige la estrategia de score `cov_program` o `cov_balanced`. Ambas reciben `Coverage`; `CandidateEvaluator` devuelve `EvaluationResult` y comparte condición de éxito y `CoverageSolver`.
+`create_evaluator()` elige la estrategia de score `cov_program` o `cov_balanced`. Ambas reciben `Coverage`; `CandidateEvaluator` devuelve `EvaluationResult` con score, comportamiento y estados de completitud y consistencia, y comparte condición de éxito y `CoverageSolver`.
 
 El solver normal crea un `Control` por evaluación, añade background, programa estático de cobertura y candidato desde AST ya retenido, groundea y resuelve.
 

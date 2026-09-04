@@ -666,7 +666,7 @@ def write_dashboard_data(
                 "clingoSummary": dataset_clingo_summary,
             }
         )
-    payload = {"schemaVersion": 8, "benchmarks": benchmarks}
+    payload = {"schemaVersion": 9, "benchmarks": benchmarks}
     (out_dir / "dashboard_data.json").write_text(
         json.dumps(json_safe(payload), separators=(",", ":"), allow_nan=False),
         encoding="utf-8",
@@ -815,13 +815,23 @@ def dashboard_quality(rows: list[dict[str, object]]) -> dict[str, object]:
         point["best"] = bool(point["best"]) or best
 
         counts = criteria_by_run.setdefault(
-            run, {"total": 0, "complete": 0, "consistent": 0, "both": 0}
+            run,
+            {
+                "total": 0,
+                "complete": 0,
+                "incomplete": 0,
+                "consistent": 0,
+                "inconsistent": 0,
+                "both": 0,
+            },
         )
-        complete = positive == total_positive
-        consistent = negative == 0
+        complete = bool(row["complete"])
+        consistent = bool(row["consistent"])
         counts["total"] += 1
         counts["complete"] += int(complete)
+        counts["incomplete"] += int(not complete)
         counts["consistent"] += int(consistent)
+        counts["inconsistent"] += int(not consistent)
         counts["both"] += int(complete and consistent)
 
         evaluated_sizes[size] = evaluated_sizes.get(size, 0) + 1
@@ -849,7 +859,13 @@ def dashboard_quality(rows: list[dict[str, object]]) -> dict[str, object]:
 
     criteria = []
     if run_count:
-        for key in ("complete", "consistent", "both"):
+        for key in (
+            "complete",
+            "incomplete",
+            "consistent",
+            "inconsistent",
+            "both",
+        ):
             counts = [values[key] for values in criteria_by_run.values()]
             criteria.append(
                 {

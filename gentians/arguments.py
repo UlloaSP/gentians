@@ -79,8 +79,6 @@ class Arguments:
             "name": "oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
             "prob_replacing_oldest": 0.1,
-            # Prefer behavior diversity when scores tie.
-            "behavior_tiebreak": False,
         }
     )
 

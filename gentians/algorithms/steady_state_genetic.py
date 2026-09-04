@@ -108,11 +108,13 @@ def steady_state_genetic_search(
         evaluations += 1
         result = evaluate_candidate(hypotheses.program(candidate))
         individual = Individual(
-            candidate,
-            result.score,
-            result.is_solution,
-            result.behavior,
-            evaluations,
+            genome=candidate,
+            score=result.score,
+            is_solution=result.is_solution,
+            behavior=result.behavior,
+            birth_order=evaluations,
+            is_complete=result.is_complete,
+            is_consistent=result.is_consistent,
         )
         evaluated[candidate] = individual
         return individual

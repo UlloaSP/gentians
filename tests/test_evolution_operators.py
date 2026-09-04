@@ -13,7 +13,6 @@ from gentians.evolution.mutations import create_mutation
 from gentians.evolution.operator_types import MutationProposal
 from gentians.evolution.populations import create_population
 from gentians.hypotheses import HypothesisGenerator
-from gentians.evolution.replacements import create_replacement
 from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.evolution.selections import create_selection
 from gentians.evolution.selections.behavior_tournament_selection import (
@@ -63,14 +62,6 @@ def _context(rules, *, max_clauses=3):
         ),
         (create_population, {"name": "random", "size": 0}),
         (create_population, {"name": "random", "size": 1.5}),
-        (
-            create_replacement,
-            {
-                "name": "oldest_or_worst",
-                "prob_replacing_oldest": 0.5,
-                "behavior_tiebreak": "false",
-            },
-        ),
     ],
 )
 def test_operator_factories_reject_invalid_configuration(factory, config):
@@ -248,7 +239,9 @@ def test_search_skips_mutation_metric_derivations_when_disabled(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda _task, _config: lambda _candidate: EvaluationResult(0.0, False, (0, 0)),
+        lambda _task, _config: lambda _candidate: EvaluationResult(
+            0.0, False, (0, 0), False, False
+        ),
     )
     monkeypatch.setattr(search, "operator_metrics_enabled", lambda: False)
     monkeypatch.setattr(
@@ -664,6 +657,8 @@ def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
                 1.0 if tuple(map(str, candidate)) == ("good.",) else 2.0,
                 tuple(map(str, candidate)) == ("good.",),
                 (1, 0) if tuple(map(str, candidate)) == ("good.",) else (0, 0),
+                tuple(map(str, candidate)) == ("good.",),
+                True,
             )
         ),
     )
@@ -705,6 +700,8 @@ def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
                 1.0,
                 tuple(map(str, candidate)) == ("first.",),
                 (1, 0),
+                True,
+                True,
             )
         ),
     )
@@ -753,6 +750,8 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
                 1.0 if tuple(map(str, candidate)) == ("win.",) else 0.0,
                 tuple(map(str, candidate)) == ("win.",),
                 (1, 0) if tuple(map(str, candidate)) == ("win.",) else (0, 0),
+                tuple(map(str, candidate)) == ("win.",),
+                True,
             )
         ),
     )
@@ -803,7 +802,9 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda program, config: lambda candidate: EvaluationResult(0.0, False, (0, 0)),
+        lambda program, config: lambda candidate: EvaluationResult(
+            0.0, False, (0, 0), False, False
+        ),
     )
 
     steady_state_genetic_search(
@@ -858,6 +859,8 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
                 -1.0 if tuple(map(str, candidate)) == ("win.",) else 0.0,
                 tuple(map(str, candidate)) == ("win.",),
                 (1, 0) if tuple(map(str, candidate)) == ("win.",) else (0, 0),
+                tuple(map(str, candidate)) == ("win.",),
+                True,
             )
         ),
     )
@@ -921,7 +924,13 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
         search,
         "create_evaluator",
         lambda program, config: (
-            lambda candidate: EvaluationResult(scores[str(candidate[0])], False, (0, 0))
+            lambda candidate: EvaluationResult(
+                scores[str(candidate[0])],
+                False,
+                (0, 0),
+                False,
+                False,
+            )
         ),
     )
     monkeypatch.setattr(
@@ -967,7 +976,9 @@ def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda program, config: lambda candidate: EvaluationResult(1.0, False, (0, 0)),
+        lambda program, config: lambda candidate: EvaluationResult(
+            1.0, False, (0, 0), False, False
+        ),
     )
     monkeypatch.setattr(
         evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
@@ -1004,7 +1015,9 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda program, config: lambda candidate: EvaluationResult(1.0, False, (0, 0)),
+        lambda program, config: lambda candidate: EvaluationResult(
+            1.0, False, (0, 0), False, False
+        ),
     )
     monkeypatch.setattr(
         search,
@@ -1040,20 +1053,3 @@ def test_equal_novel_candidate_replaces_an_existing_individual():
 
     assert candidate in result
     assert len(result) == len(population)
-
-
-def test_equal_score_new_behavior_evicts_repeated_behavior():
-    population = [
-        Individual(1, 2.0, False, behavior=(1, 1), birth_order=1),
-        Individual(2, 2.0, False, behavior=(1, 1), birth_order=2),
-        Individual(4, 2.0, False, behavior=(2, 1), birth_order=3),
-    ]
-    candidate = Individual(8, 2.0, False, behavior=(2, 0), birth_order=4)
-
-    result = OldestOrWorstReplacement(0.0, behavior_tiebreak=True)(
-        population, candidate, random.Random(1)
-    )
-
-    assert candidate in result
-    assert Individual(1, 2.0, False, behavior=(1, 1), birth_order=1) not in result
-    assert {item.behavior for item in result} == {(1, 1), (2, 1), (2, 0)}

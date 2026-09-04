@@ -11,3 +11,5 @@ class Individual:
     is_solution: bool
     behavior: Behavior = (0, 0)
     birth_order: int = 0
+    is_complete: bool = False
+    is_consistent: bool = False

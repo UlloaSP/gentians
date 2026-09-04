@@ -12,10 +12,10 @@ import {
 } from "./metrics";
 
 describe("dashboard schema", () => {
-  it("accepts v8 and rejects stale dashboards", () => {
-    expect(() => assertDashboardSchema({ schemaVersion: 8 })).not.toThrow();
-    expect(() => assertDashboardSchema({ schemaVersion: 7 }, "old")).toThrow(
-      "old: schema 7; vuelve a ejecutar el experimento",
+  it("accepts v9 and rejects stale dashboards", () => {
+    expect(() => assertDashboardSchema({ schemaVersion: 9 })).not.toThrow();
+    expect(() => assertDashboardSchema({ schemaVersion: 8 }, "old")).toThrow(
+      "old: schema 8; vuelve a ejecutar el experimento",
     );
   });
 });
@@ -27,7 +27,9 @@ const quality = {
   ],
   criteria: [
     { key: "complete", rate: 75, meanCount: 1, count: 2, runs: 2 },
+    { key: "incomplete", rate: 25, meanCount: 0.5, count: 1, runs: 2 },
     { key: "consistent", rate: 75, meanCount: 1, count: 2, runs: 2 },
+    { key: "inconsistent", rate: 25, meanCount: 0.5, count: 1, runs: 2 },
     { key: "both", rate: 75, meanCount: 1, count: 2, runs: 2 },
   ],
   extent: { positive: 1, negative: 2 },
@@ -82,12 +84,30 @@ describe("quality metrics", () => {
         runs: 2,
       },
       {
+        key: "incomplete",
+        label: "incomplete",
+        detail: "no cubre todos los positivos; ignora negativos",
+        rate: 25,
+        meanCount: 0.5,
+        count: 1,
+        runs: 2,
+      },
+      {
         key: "consistent",
         label: "consistent",
         detail: "no cubre negativos; ignora positivos",
         rate: 75,
         meanCount: 1,
         count: 2,
+        runs: 2,
+      },
+      {
+        key: "inconsistent",
+        label: "inconsistent",
+        detail: "cubre al menos un negativo; ignora positivos",
+        rate: 25,
+        meanCount: 0.5,
+        count: 1,
         runs: 2,
       },
       {

@@ -8,3 +8,5 @@ class EvaluationResult:
     score: float
     is_solution: bool
     behavior: Behavior
+    is_complete: bool
+    is_consistent: bool

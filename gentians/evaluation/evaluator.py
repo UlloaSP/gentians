@@ -22,13 +22,24 @@ class CandidateEvaluator:
     def __call__(self, candidate: AspProgram) -> EvaluationResult:
         coverage = self.solver.extract_coverage(candidate)
         score = self.score(self.task, coverage)
-        is_solution = (
-            coverage.pos_mask.bit_count() == len(self.task.positive_examples)
-            and coverage.neg_mask == 0
+        is_complete = coverage.pos_mask.bit_count() == len(
+            self.task.positive_examples
         )
-        record_evaluation_metric(self.task, candidate, coverage, score, is_solution)
+        is_consistent = coverage.neg_mask == 0
+        is_solution = is_complete and is_consistent
+        record_evaluation_metric(
+            self.task,
+            candidate,
+            coverage,
+            score,
+            is_solution,
+            is_complete,
+            is_consistent,
+        )
         return EvaluationResult(
             score,
             is_solution,
             (coverage.pos_mask, coverage.neg_mask),
+            is_complete,
+            is_consistent,
         )

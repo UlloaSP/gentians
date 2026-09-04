@@ -282,6 +282,8 @@ def test_dashboard_quality_preaggregates_without_changing_metrics():
                 "total_positive": 1,
                 "total_negative": 2,
                 "program_size": 2,
+                "complete": False,
+                "consistent": False,
             },
             {
                 "run": 1,
@@ -292,6 +294,8 @@ def test_dashboard_quality_preaggregates_without_changing_metrics():
                 "total_negative": 2,
                 "program_size": 3,
                 "best_found": True,
+                "complete": True,
+                "consistent": True,
             },
             {
                 "run": 2,
@@ -302,6 +306,8 @@ def test_dashboard_quality_preaggregates_without_changing_metrics():
                 "total_negative": 2,
                 "program_size": 3,
                 "best_found": True,
+                "complete": True,
+                "consistent": True,
             },
         ]
     )
@@ -314,10 +320,24 @@ def test_dashboard_quality_preaggregates_without_changing_metrics():
     assert quality["criteria"] == [
         {"key": "complete", "rate": 75, "meanCount": 1, "count": 2, "runs": 2},
         {
+            "key": "incomplete",
+            "rate": 25,
+            "meanCount": 0.5,
+            "count": 1,
+            "runs": 2,
+        },
+        {
             "key": "consistent",
             "rate": 75,
             "meanCount": 1,
             "count": 2,
+            "runs": 2,
+        },
+        {
+            "key": "inconsistent",
+            "rate": 25,
+            "meanCount": 0.5,
+            "count": 1,
             "runs": 2,
         },
         {"key": "both", "rate": 75, "meanCount": 1, "count": 2, "runs": 2},
@@ -334,6 +354,31 @@ def test_dashboard_quality_has_no_criteria_without_measured_runs():
     assert quality["coveragePoints"] == []
     assert quality["criteria"] == []
     assert quality["programSizes"] == []
+
+
+def test_dashboard_quality_uses_evaluation_status_flags():
+    quality = dashboard_quality(
+        [
+            {
+                "run": 1,
+                "covered_positive": 1,
+                "covered_negative": 0,
+                "total_positive": 1,
+                "total_negative": 1,
+                "complete": False,
+                "consistent": False,
+            }
+        ]
+    )
+
+    rates = {criterion["key"]: criterion["rate"] for criterion in quality["criteria"]}
+    assert rates == {
+        "complete": 0,
+        "incomplete": 100,
+        "consistent": 0,
+        "inconsistent": 100,
+        "both": 0,
+    }
 
 
 def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
@@ -877,7 +922,7 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 8
+    assert payload["schemaVersion"] == 9
     assert benchmark["total"] == 3.0
     assert benchmark["instrumentedRuns"] == 1
     assert "wall" not in benchmark

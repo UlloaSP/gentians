@@ -1,6 +1,5 @@
 import math
 import random
-from collections import Counter
 
 from ..individual import Individual
 
@@ -18,22 +17,14 @@ class OldestOrWorstReplacement:
     oldest is fitter than the candidate, the worst is selected instead. This
     fallback keeps age-based turnover from reducing population fitness.
 
-    With ``behavior_tiebreak`` enabled, a candidate tied with the worst score
-    and carrying a behavior absent from the population bypasses the random
-    policy. It evicts the oldest worst-scoring member of the most frequent
-    behavior, preserving fitness while increasing behavioral diversity.
-
     Accepted replacements return a new score-sorted list with the same size.
     Rejected candidates return the supplied population unchanged.
     """
 
-    def __init__(self, probability: float, behavior_tiebreak: bool = False) -> None:
+    def __init__(self, probability: float) -> None:
         if isinstance(probability, bool) or not 0.0 <= probability <= 1.0:
             raise ValueError("replacement probability must be between 0 and 1")
-        if not isinstance(behavior_tiebreak, bool):
-            raise ValueError("behavior_tiebreak must be a boolean")
         self.probability = probability
-        self.behavior_tiebreak = behavior_tiebreak
 
     def __call__(
         self,
@@ -55,36 +46,13 @@ class OldestOrWorstReplacement:
         # Work on a copy. Besides locating the worst member, sorting restores
         # the ordering contract before the updated population reaches callers.
         ranked = sorted(population, key=lambda item: item.score, reverse=True)
-        worst_score = ranked[-1].score
-
-        # Behavioral diversity is only a tie-break. Restricting victims to the
-        # worst score prevents diversity from sacrificing a fitter individual.
-        # The candidate must introduce a new behavior; otherwise normal
-        # oldest-or-worst replacement remains the intended policy.
-        if (
-            self.behavior_tiebreak
-            and candidate.score == worst_score
-            and all(item.behavior != candidate.behavior for item in ranked)
-        ):
-            worst = [item for item in ranked if item.score == worst_score]
-            frequencies = Counter(item.behavior for item in ranked)
-
-            # Remove from the behavior occupying the most population slots.
-            # If several eligible members share that behavior frequency, age
-            # breaks the tie so long-lived material yields to the newcomer.
-            crowded = max(frequencies[item.behavior] for item in worst)
-            victim = min(
-                (item for item in worst if frequencies[item.behavior] == crowded),
-                key=lambda item: item.birth_order,
-            )
-        else:
-            # Lower birth orders are older. The injected RNG makes this policy
-            # reproducible under the search's configured random seed.
-            victim = (
-                min(ranked, key=lambda item: item.birth_order)
-                if rng.random() < self.probability
-                else ranked[-1]
-            )
+        # Lower birth orders are older. The injected RNG makes this policy
+        # reproducible under the search's configured random seed.
+        victim = (
+            min(ranked, key=lambda item: item.birth_order)
+            if rng.random() < self.probability
+            else ranked[-1]
+        )
 
         # An age-selected victim may be better than the admitted candidate.
         # Fall back to the worst member to retain elitism and population size.

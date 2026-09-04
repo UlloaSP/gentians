@@ -49,15 +49,14 @@ runs = 10
 "population.size" = 10
 "mutation.probability" = 0.9
 "selection.tournament_percentage" = 0.3
-"replacement.behavior_tiebreak" = true
 
 [[experiment]]
-id = "cov_program_random_group_pop100_mut09"
+id = "cov_program"
 label = "Whole program · random · population 100 · mutation 0.9"
 description = "Random-group mutation with population 100 and mutation probability 0.9."
 [experiment.overrides]
 "evaluation.scoring" = "cov_program"
-"selection.name" = "tournament"
+"selection.name" = "lexicase"
 "mutation.name" = "random_group"
 "population.size" = 100
 "mutation.probability" = 0.9
@@ -75,7 +74,6 @@ runs = 10
 "population.size" = 10
 "mutation.probability" = 0.9
 "selection.tournament_percentage" = 0.3
-"replacement.behavior_tiebreak" = true
 
 [[experiment]]
 id = "cov_program_behavior_tournament_pop10"
@@ -113,7 +111,6 @@ runs = 10
 "population.size" = 10
 "mutation.probability" = 0.9
 "selection.tournament_percentage" = 0.3
-"replacement.behavior_tiebreak" = true
 
 [[experiment]]
 id = "cov_balanced_structural"
@@ -128,7 +125,6 @@ runs = 10
 "population.size" = 10
 "mutation.probability" = 0.9
 "selection.tournament_percentage" = 0.3
-"replacement.behavior_tiebreak" = true
 
 #[[experiment]]
 #id = "cov_program_structural_neighbor_pop10_mut09"

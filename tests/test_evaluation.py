@@ -68,6 +68,27 @@ def test_whole_program_scores_only_individual():
     assert result.score == 1.0
     assert result.is_solution is False
     assert result.behavior == (1, 1)
+    assert result.is_complete is True
+    assert result.is_consistent is False
+
+
+@pytest.mark.parametrize(
+    ("candidate", "is_complete", "is_consistent"),
+    [
+        (("target(p).",), True, True),
+        ((), False, True),
+        (("target(n).", "target(p)."), True, False),
+        (("target(n).",), False, False),
+    ],
+)
+def test_evaluation_reports_completeness_and_consistency(
+    candidate, is_complete, is_consistent
+):
+    result = _evaluator("cov_program")(_asp(*candidate))
+
+    assert result.is_complete is is_complete
+    assert result.is_consistent is is_consistent
+    assert result.is_solution is (is_complete and is_consistent)
 
 
 @pytest.mark.parametrize(
@@ -255,6 +276,8 @@ def test_positive_context_does_not_leak_into_negative_example():
 
     assert result.score == pytest.approx(math.exp(10))
     assert result.is_solution is True
+    assert result.is_complete is True
+    assert result.is_consistent is True
     assert result.behavior == (1, 0)
 
 

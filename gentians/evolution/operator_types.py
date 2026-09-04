@@ -17,7 +17,7 @@ class MutationProposal:
 
 PopulationInitializerFn = Callable[[EvolutionContext], list[Genome]]
 SelectionFn = Callable[[list[Individual], random.Random], tuple[Individual, Individual]]
-CrossoverFn = Callable[[Genome, Genome, EvolutionContext], tuple[Genome, ...]]
+CrossoverFn = Callable[[Genome, Genome, EvolutionContext], Genome | None]
 MutationFn = Callable[[Genome, EvolutionContext], MutationProposal]
 ReplacementFn = Callable[
     [list[Individual], Individual, random.Random], list[Individual]

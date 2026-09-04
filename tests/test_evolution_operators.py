@@ -69,6 +69,10 @@ def test_operator_factories_reject_invalid_configuration(factory, config):
         factory(config)
 
 
+def test_crossover_is_enabled_by_default():
+    assert Arguments().crossover["probability"] == 1.0
+
+
 def test_unknown_mutation_is_reported_before_strategy_parameters():
     with pytest.raises(ValueError, match="Unknown mutation strategy: unknown"):
         create_mutation({"name": "unknown"})
@@ -176,13 +180,8 @@ def test_mutation_metrics_include_local_and_program_distance(monkeypatch):
     evolution_metrics.record_mutation(
         "structural_neighbor",
         parent.genome,
-        parent,
-        child,
         proposal,
         duplicate=False,
-        crossover_strategy="set_mix",
-        crossover_improved=False,
-        lost_crossover_gain=False,
     )
 
     [row] = rows
@@ -204,66 +203,17 @@ def test_disabled_operator_metrics_skip_payload_work(monkeypatch):
     evolution_metrics.record_mutation(
         "random_group",
         0b01,
-        Individual(0b01, 1.0, False),
-        Individual(0b10, 2.0, False),
         MutationProposal(0b10),
         duplicate=False,
-        crossover_strategy="set_mix",
-        crossover_improved=False,
-        lost_crossover_gain=False,
-    )
-
-
-def test_search_skips_mutation_metric_derivations_when_disabled(monkeypatch):
-    args = Arguments(
-        iterations_genetic=1,
-        population={"name": "random", "size": 1},
-    )
-    monkeypatch.setattr(
-        search,
-        "create_population",
-        lambda _config: lambda context: [context.hypotheses.encode(("start.",))],
-    )
-    monkeypatch.setattr(
-        search,
-        "create_crossover",
-        lambda _config: (
-            lambda _first, _second, context: (context.hypotheses.encode(("child.",)),)
-        ),
-    )
-    monkeypatch.setattr(
-        search,
-        "create_mutation",
-        lambda _config: lambda genome, _context: MutationProposal(genome),
-    )
-    monkeypatch.setattr(
-        search,
-        "create_evaluator",
-        lambda _task, _config: lambda _candidate: EvaluationResult(
-            0.0, False, (0, 0), False, False
-        ),
-    )
-    monkeypatch.setattr(search, "operator_metrics_enabled", lambda: False)
-    monkeypatch.setattr(
-        search,
-        "record_mutation",
-        lambda *_args, **_kwargs: pytest.fail("disabled mutation metrics ran"),
-    )
-
-    steady_state_genetic_search(
-        args,
-        inductive_task([], [], [], [], [], max_program_clauses=1),
-        make_clause_space(["start.", "child."]),
     )
 
 
 def test_all_crossovers_share_genome_contract():
     context = _context(["a.", "b.", "c."])
-    children = create_crossover({"name": "set_mix", "probability": 1.0})(
+    child = create_crossover({"name": "set_mix", "probability": 1.0})(
         _encode(context, "a.", "b."), _encode(context, "b.", "c."), context
     )
-    assert isinstance(children, tuple)
-    assert all(isinstance(child, int) for child in children)
+    assert isinstance(child, int)
 
 
 def test_crossover_generates_closed_programs_directly():
@@ -276,19 +226,17 @@ def test_crossover_generates_closed_programs_directly():
     generator = HypothesisGenerator(program, space, 2)
     context = EvolutionContext(generator, rng)
 
-    children = create_crossover({"name": "set_mix", "probability": 1.0})(
+    child = create_crossover({"name": "set_mix", "probability": 1.0})(
         generator.encode(tuple(sorted((consumer, first_provider)))),
         generator.encode(tuple(sorted((consumer, second_provider)))),
         context,
     )
 
-    assert children
-    rendered = [generator.render(child) for child in children]
-    assert all(consumer in child for child in rendered)
-    assert all(
-        first_provider in child or second_provider in child for child in rendered
-    )
-    assert all(child.bit_count() == 2 for child in children)
+    assert child is not None
+    rendered = generator.render(child)
+    assert consumer in rendered
+    assert first_provider in rendered or second_provider in rendered
+    assert child.bit_count() == 2
 
 
 def test_tournament_has_one_canonical_strategy_name():
@@ -585,7 +533,7 @@ def test_hypothesis_generator_records_closure_for_each_public_transition(monkeyp
     generator.mix(
         generator.encode(("a.",)),
         generator.encode(("b.",)),
-        ((0.7, 0.3), (0.3, 0.7)),
+        (0.7, 0.3),
         rng,
     )
 
@@ -613,7 +561,7 @@ def test_evolution_strategies_choose_operations_and_delegate_validity():
 
         def mix(self, first, second, probabilities, _rng):
             self.calls.append(("crossover", first, second, probabilities))
-            return ()
+            return None
 
     generator = GeneratorSpy()
     context = EvolutionContext(generator, random.Random(1))
@@ -728,7 +676,7 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
         random_seed=3,
         population={"name": "random", "size": 1},
         crossover={"name": "set_mix", "probability": 1.0},
-        mutation={"name": "random_group", "probability": 1.0},
+        mutation={"name": "random_group", "probability": 0.0},
     )
     monkeypatch.setattr(
         search,
@@ -739,7 +687,7 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
         search,
         "create_crossover",
         lambda config: (
-            lambda first, second, context: (context.hypotheses.encode(("win.",)),)
+            lambda first, second, context: context.hypotheses.encode(("win.",))
         ),
     )
     monkeypatch.setattr(
@@ -778,6 +726,7 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
 
 def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     mutation_calls = []
+    generations = []
     args = Arguments(
         random_seed=3,
         iterations_genetic=1,
@@ -806,6 +755,11 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
             0.0, False, (0, 0), False, False
         ),
     )
+    monkeypatch.setattr(
+        search,
+        "record_ga_generation",
+        lambda generation, *_args, **_kwargs: generations.append(generation),
+    )
 
     steady_state_genetic_search(
         args,
@@ -814,10 +768,12 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     )
 
     assert mutation_calls == []
+    assert generations == [0, 1]
 
 
-def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
+def test_crossover_child_is_mutated_before_single_evaluation(monkeypatch):
     mutation_calls = []
+    evaluated_programs = []
     generations = []
     args = Arguments(
         random_seed=3,
@@ -838,13 +794,13 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
         search,
         "create_crossover",
         lambda config: (
-            lambda first, second, context: (context.hypotheses.encode(("win.",)),)
+            lambda first, second, context: context.hypotheses.encode(("win.",))
         ),
     )
 
     def destructive_mutation(genome, context):
         mutation_calls.append(genome)
-        return MutationProposal(context.hypotheses.encode(("loss.",)))
+        return MutationProposal(context.hypotheses.encode(("mutated.",)))
 
     monkeypatch.setattr(
         search,
@@ -855,12 +811,15 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
         search,
         "create_evaluator",
         lambda program, config: (
-            lambda candidate: EvaluationResult(
-                -1.0 if tuple(map(str, candidate)) == ("win.",) else 0.0,
-                tuple(map(str, candidate)) == ("win.",),
-                (1, 0) if tuple(map(str, candidate)) == ("win.",) else (0, 0),
-                tuple(map(str, candidate)) == ("win.",),
-                True,
+            lambda candidate: (
+                evaluated_programs.append(tuple(map(str, candidate)))
+                or EvaluationResult(
+                    1.0 if tuple(map(str, candidate)) == ("mutated.",) else 0.0,
+                    tuple(map(str, candidate)) == ("win.",),
+                    (0, 0),
+                    False,
+                    True,
+                )
             )
         ),
     )
@@ -875,18 +834,21 @@ def test_winning_crossover_child_is_evaluated_before_mutation(monkeypatch):
     result = steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], []),
-        make_clause_space(["start.", "win.", "loss."]),
+        make_clause_space(["start.", "win.", "loss.", "mutated."]),
     )
 
-    assert result.hypothesis == ("win.",)
-    assert result.score == -1.0
-    assert result.is_solution is True
-    assert mutation_calls == []
-    assert generations == [(0, 0.0, [0.0, 0.0]), (1, 0.0, [0.0, -1.0])]
+    assert result.hypothesis == ("mutated.",)
+    assert result.score == 1.0
+    assert result.is_solution is False
+    assert mutation_calls
+    assert ("win.",) not in evaluated_programs
+    assert evaluated_programs == [("start.",), ("loss.",), ("mutated.",)]
+    assert generations == [(0, 0.0, [0.0, 0.0]), (1, 1.0, [1.0, 0.0])]
 
 
-def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
+def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch):
     rows = []
+    evaluated_programs = []
     monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")
     args = Arguments(
         random_seed=3,
@@ -896,18 +858,13 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: (
-            lambda context: [
-                context.hypotheses.encode(("start.",)),
-                context.hypotheses.encode(("other.",)),
-            ]
-        ),
+        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
     )
     monkeypatch.setattr(
         search,
         "create_crossover",
         lambda config: (
-            lambda first, second, context: (context.hypotheses.encode(("cross.",)),)
+            lambda first, second, context: context.hypotheses.encode(("start.",))
         ),
     )
     monkeypatch.setattr(
@@ -919,17 +876,19 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
             )
         ),
     )
-    scores = {"start.": 1.0, "other.": 0.0, "cross.": 2.0, "mutated.": 1.5}
     monkeypatch.setattr(
         search,
         "create_evaluator",
         lambda program, config: (
-            lambda candidate: EvaluationResult(
-                scores[str(candidate[0])],
-                False,
-                (0, 0),
-                False,
-                False,
+            lambda candidate: (
+                evaluated_programs.append(tuple(map(str, candidate)))
+                or EvaluationResult(
+                    1.0 if tuple(map(str, candidate)) == ("mutated.",) else 0.0,
+                    False,
+                    (0, 0),
+                    False,
+                    True,
+                )
             )
         ),
     )
@@ -940,58 +899,16 @@ def test_destructive_mutation_records_lost_crossover_gain(monkeypatch):
     steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        make_clause_space(["start.", "other.", "cross.", "mutated."]),
+        make_clause_space(["start.", "mutated."]),
     )
 
+    [crossover] = [row for row in rows if row["operator"] == "crossover"]
     [mutation] = [row for row in rows if row["operator"] == "mutation"]
-    assert mutation["crossover_strategy"] == "set_mix"
-    assert mutation["crossover_improved"] is True
-    assert mutation["lost_crossover_gain"] is True
-
-
-def test_repeated_crossover_child_is_recorded_as_duplicate(monkeypatch):
-    rows = []
-    monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")
-    args = Arguments(
-        random_seed=3,
-        iterations_genetic=1,
-        population={"name": "random", "size": 1},
-        mutation={"name": "random_group", "probability": 0.0},
-    )
-    monkeypatch.setattr(
-        search,
-        "create_population",
-        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
-    )
-    monkeypatch.setattr(
-        search,
-        "create_crossover",
-        lambda config: (
-            lambda first, second, context: (
-                context.hypotheses.encode(("cross.",)),
-                context.hypotheses.encode(("cross.",)),
-            )
-        ),
-    )
-    monkeypatch.setattr(
-        search,
-        "create_evaluator",
-        lambda program, config: lambda candidate: EvaluationResult(
-            1.0, False, (0, 0), False, False
-        ),
-    )
-    monkeypatch.setattr(
-        evolution_metrics, "record_metric", lambda _kind, row: rows.append(row)
-    )
-
-    steady_state_genetic_search(
-        args,
-        inductive_task([], [], [], [], [], max_program_clauses=1),
-        make_clause_space(["start.", "cross."]),
-    )
-
-    crossover_rows = [row for row in rows if row["operator"] == "crossover"]
-    assert [row["duplicate"] for row in crossover_rows] == [False, True]
+    assert crossover["duplicate"] is True
+    assert mutation["valid_new"] is True
+    assert "new_score" not in crossover
+    assert "new_score" not in mutation
+    assert evaluated_programs == [("start.",), ("mutated.",)]
 
 
 @pytest.mark.parametrize("mutation_name", ["random_group", "structural_neighbor"])
@@ -1023,7 +940,7 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
         search,
         "create_crossover",
         lambda config: (
-            lambda first, second, context: (context.hypotheses.encode(("cross.",)),)
+            lambda first, second, context: context.hypotheses.encode(("cross.",))
         ),
     )
     monkeypatch.setattr(

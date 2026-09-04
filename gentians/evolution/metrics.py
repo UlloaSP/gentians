@@ -59,8 +59,7 @@ def record_skipped_crossover(strategy: str, population_size: int) -> None:
 
 def record_crossover(
     strategy: str,
-    parent: Individual,
-    child: Individual,
+    parent_genome: Genome,
     genome: Genome,
     *,
     duplicate: bool,
@@ -68,7 +67,7 @@ def record_crossover(
     if not operator_metrics_enabled():
         return
     with instrumentation():
-        changed = genome != parent.genome
+        changed = genome != parent_genome
         record_metric(
             "operator",
             {
@@ -80,10 +79,6 @@ def record_crossover(
                 "valid_new": changed and not duplicate,
                 "duplicate": duplicate,
                 "changed": changed,
-                "original_score": parent.score,
-                "new_score": child.score,
-                "improved": child.score > parent.score,
-                "is_best": child.is_solution,
             },
         )
 
@@ -91,14 +86,9 @@ def record_crossover(
 def record_mutation(
     strategy: str,
     parent_genome: Genome,
-    parent: Individual,
-    child: Individual | None,
     proposal: MutationProposal,
     *,
     duplicate: bool,
-    crossover_strategy: str,
-    crossover_improved: bool,
-    lost_crossover_gain: bool,
 ) -> None:
     if not operator_metrics_enabled():
         return
@@ -109,9 +99,6 @@ def record_mutation(
             {
                 "operator": "mutation",
                 "strategy": strategy,
-                "crossover_strategy": crossover_strategy,
-                "crossover_improved": crossover_improved,
-                "lost_crossover_gain": lost_crossover_gain,
                 "operation": proposal.operation or "",
                 "local": proposal.local if proposal.local is not None else "",
                 "program_distance": _program_distance(
@@ -125,10 +112,6 @@ def record_mutation(
                 "duplicate": duplicate,
                 "changed": changed,
                 "invalid": False,
-                "original_score": parent.score,
-                "new_score": child.score if child is not None else "",
-                "improved": child is not None and child.score > parent.score,
-                "is_best": child.is_solution if child is not None else False,
             },
         )
 

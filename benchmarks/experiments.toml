@@ -30,42 +30,10 @@ cprofile = false
 # Controls shared by all fitness experiments.
 [suite.overrides]
 
-#[[experiment]]
-#id = "cov_program"
-#label = "Whole program"
-#description = "Whole-program score using per-candidate grounding and brave consequences."
-#[experiment.overrides]
-#"evaluation.scoring" = "cov_program"
-
 [[experiment]]
 id = "cov_program_random_group_pop10_mut09"
-label = "Whole program · random · population 10 · mutation 0.9"
+label = "Random · population 10 · mutation 0.9"
 description = "Random-group mutation with population 10 and mutation probability 0.9."
-runs = 10
-[experiment.overrides]
-"evaluation.scoring" = "cov_program"
-"selection.name" = "tournament"
-"mutation.name" = "random_group"
-"population.size" = 10
-"mutation.probability" = 0.9
-"selection.tournament_percentage" = 0.3
-
-[[experiment]]
-id = "cov_program"
-label = "Whole program · random · population 100 · mutation 0.9"
-description = "Random-group mutation with population 100 and mutation probability 0.9."
-[experiment.overrides]
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"mutation.name" = "random_group"
-"population.size" = 100
-"mutation.probability" = 0.9
-"selection.tournament_percentage" = 0.3
-
-[[experiment]]
-id = "cov_program_lexicase_pop10_mut09"
-label = "Whole program · lexicase · population 10 · mutation 0.9"
-description = "Lexicase selection under the random-group population-10 baseline conditions."
 runs = 10
 [experiment.overrides]
 "evaluation.scoring" = "cov_program"

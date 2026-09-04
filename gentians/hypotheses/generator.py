@@ -130,18 +130,15 @@ class HypothesisGenerator:
         self,
         first: Genome,
         second: Genome,
-        probabilities: tuple[tuple[float, float], ...],
+        probabilities: tuple[float, float],
         rng: random.Random,
-    ) -> tuple[Genome, ...]:
-        return tuple(
-            child
-            for first_probability, second_probability in probabilities
-            if (
-                child := self._mix_one(
-                    first, second, first_probability, second_probability, rng
-                )
-            )
-            is not None
+    ) -> Genome | None:
+        return self._mix_one(
+            first,
+            second,
+            probabilities[0],
+            probabilities[1],
+            rng,
         )
 
     def _mix_one(

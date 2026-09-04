@@ -18,7 +18,6 @@ from ..evolution.crossovers import create_crossover
 from ..evolution.context import EvolutionContext
 from ..evolution.individual import Individual
 from ..evolution.metrics import (
-    operator_metrics_enabled,
     record_crossover,
     record_mutation,
     record_replacement,
@@ -150,74 +149,40 @@ def steady_state_genetic_search(
                 str(args.selection["name"]), first, second, len(population)
             )
         with phase("crossover"):
-            proposals = crossover(first.genome, second.genome, context)
-            if not proposals:
-                record_skipped_crossover(str(args.crossover["name"]), len(population))
-                children = []
-            else:
-                children = []
-                for proposal in proposals:
-                    existing = evaluated.get(proposal)
-                    child = existing or admit(proposal)
-                    if child is not None:
-                        children.append((child, existing is None, True))
-        for child, base_is_new, crossed in children:
+            crossed = crossover(first.genome, second.genome, context)
+        if crossed is None:
+            record_skipped_crossover(str(args.crossover["name"]), len(population))
+        else:
             best_parent = first if first.score >= second.score else second
-            if crossed:
-                record_crossover(
-                    str(args.crossover["name"]),
-                    best_parent,
-                    child,
-                    child.genome,
-                    duplicate=not base_is_new,
-                )
-            if child.is_solution:
-                best_overall = _better(best_overall, child)
-                return finish(child, population_with(child), generation + 1)
-            with phase("mutation"):
-                proposal = mutation(child.genome, context)
-                duplicate = not proposal.skipped and proposal.genome in evaluated
-                unchanged = proposal.genome == child.genome
-                if unchanged:
-                    mutated = child
-                elif duplicate:
-                    mutated = None
-                else:
-                    mutated = admit(proposal.genome)
-            if operator_metrics_enabled():
-                scored_mutation = (
-                    evaluated.get(proposal.genome) if mutated is None else mutated
-                )
-                crossover_improved = crossed and child.score > best_parent.score
-                record_mutation(
-                    str(args.mutation["name"]),
-                    child.genome,
-                    child,
-                    mutated,
-                    proposal,
-                    duplicate=duplicate,
-                    crossover_strategy=str(args.crossover["name"]),
-                    crossover_improved=crossover_improved,
-                    lost_crossover_gain=(
-                        crossover_improved
-                        and scored_mutation is not None
-                        and scored_mutation.score < child.score
-                        and all(item.genome != child.genome for item in population)
-                    ),
-                )
-            if mutated is None:
-                continue
-            if unchanged and not base_is_new:
-                continue
-            if mutated.is_solution:
-                best_overall = _better(best_overall, mutated)
-                return finish(mutated, population_with(mutated), generation + 1)
-            with phase("replacement"):
-                before = population
-                population = replacement(population, mutated, rng)
-            record_replacement(
-                str(args.replacement["name"]), before, population, mutated
+            record_crossover(
+                str(args.crossover["name"]),
+                best_parent.genome,
+                crossed,
+                duplicate=crossed in evaluated,
             )
+            with phase("mutation"):
+                proposal = mutation(crossed, context)
+            final_genome = proposal.genome
+            mutation_changed = final_genome != crossed
+            duplicate = final_genome in evaluated
+            with phase("mutation" if mutation_changed else "crossover"):
+                child = None if duplicate else admit(final_genome)
+            record_mutation(
+                str(args.mutation["name"]),
+                crossed,
+                proposal,
+                duplicate=mutation_changed and duplicate,
+            )
+            if child is not None:
+                if child.is_solution:
+                    best_overall = _better(best_overall, child)
+                    return finish(child, population_with(child), generation + 1)
+                with phase("replacement"):
+                    before = population
+                    population = replacement(population, child, rng)
+                record_replacement(
+                    str(args.replacement["name"]), before, population, child
+                )
         population.sort(key=lambda item: item.score, reverse=True)
         best_overall = _better(best_overall, population[0])
         record_ga_generation(

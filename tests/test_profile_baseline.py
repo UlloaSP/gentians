@@ -172,6 +172,25 @@ def test_operator_summary_separates_skipped_mutations_from_duplicates():
     assert summary["duplicate_rate"] == 0.5
 
 
+def test_operator_summary_marks_unobserved_score_outcomes():
+    [summary] = operator_summary(
+        [
+            {
+                "dataset": "d",
+                "operator": "mutation",
+                "strategy": "random_group",
+                "slots": 1,
+                "applied": True,
+                "valid_new": True,
+            }
+        ]
+    )
+
+    assert summary["improvement_rate"] is None
+    assert summary["worse_or_equal_rate"] is None
+    assert summary["mean_score_delta"] is None
+
+
 def test_operator_summary_uses_run_means():
     [summary] = operator_summary(
         [
@@ -228,47 +247,8 @@ def test_operator_summary_uses_run_means():
     assert summary["events"] == 1.5
     assert summary["changed_rate"] == 0.5
     assert summary["valid_rate"] == 0.5
-    assert summary["improvement_rate"] == 0.5
-    assert summary["mean_score_delta"] == 1.0
-
-
-def test_operator_summary_measures_lost_crossover_gain_per_run():
-    [summary] = operator_summary(
-        [
-            {
-                "dataset": "d",
-                "run": 1,
-                "operator": "mutation",
-                "strategy": "random_group",
-                "crossover_strategy": "set_mix",
-                "crossover_improved": True,
-                "lost_crossover_gain": True,
-            },
-            {
-                "dataset": "d",
-                "run": 2,
-                "operator": "mutation",
-                "strategy": "random_group",
-                "crossover_strategy": "set_mix",
-                "crossover_improved": True,
-                "lost_crossover_gain": False,
-            },
-            {
-                "dataset": "d",
-                "run": 2,
-                "operator": "mutation",
-                "strategy": "random_group",
-                "crossover_strategy": "set_mix",
-                "crossover_improved": True,
-                "lost_crossover_gain": False,
-            },
-        ]
-    )
-
-    assert summary["crossover_strategy"] == "set_mix"
-    assert summary["crossover_gain_events"] == 1.5
-    assert summary["lost_crossover_gain_rate"] == 0.5
-    assert summary["retained_crossover_gain_rate"] == 0.5
+    assert summary["improvement_rate"] == 1.0
+    assert summary["mean_score_delta"] == 2.0
 
 
 def test_dashboard_quality_preaggregates_without_changing_metrics():

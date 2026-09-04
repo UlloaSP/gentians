@@ -10,12 +10,12 @@ class SetMixCrossover:
 
     def __call__(
         self, first: Genome, second: Genome, context: EvolutionContext
-    ) -> tuple[Genome, ...]:
+    ) -> Genome | None:
         if context.rng.random() >= self.probability:
-            return ()
+            return None
         return context.hypotheses.mix(
             first,
             second,
-            ((0.7, 0.3), (0.3, 0.7)),
+            context.rng.choice(((0.7, 0.3), (0.3, 0.7))),
             context.rng,
         )

@@ -964,10 +964,10 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "invalid_rate": mean_optional(
                     row["invalid_rate"] for row in run_summaries
                 ),
-                "improvement_rate": mean(
+                "improvement_rate": mean_optional(
                     row["improvement_rate"] for row in run_summaries
                 ),
-                "worse_or_equal_rate": mean(
+                "worse_or_equal_rate": mean_optional(
                     row["worse_or_equal_rate"] for row in run_summaries
                 ),
                 "best_rate": mean(row["best_rate"] for row in run_summaries),
@@ -979,33 +979,10 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "mean_score_delta": mean_optional(
                     row["mean_score_delta"] for row in run_summaries
                 ),
-                "crossover_strategy": next(
-                    (
-                        str(row.get("crossover_strategy"))
-                        for row in selected
-                        if row.get("crossover_strategy")
-                    ),
-                    "",
-                ),
-                "crossover_gain_events": (
-                    mean(row["crossover_gain_events"] for row in run_summaries)
-                    if operator == "mutation"
-                    else None
-                ),
-                "lost_crossover_gain_rate": (
-                    mean_optional(
-                        row["lost_crossover_gain_rate"] for row in run_summaries
-                    )
-                    if operator == "mutation"
-                    else None
-                ),
-                "retained_crossover_gain_rate": (
-                    mean_optional(
-                        row["retained_crossover_gain_rate"] for row in run_summaries
-                    )
-                    if operator == "mutation"
-                    else None
-                ),
+                "crossover_strategy": "",
+                "crossover_gain_events": None,
+                "lost_crossover_gain_rate": None,
+                "retained_crossover_gain_rate": None,
             }
         )
     return summary
@@ -1033,18 +1010,6 @@ def operator_run_summary(
     improved_count = operator_improved_count(selected, operator)
     best_count = operator_best_count(selected, operator)
     replacement_operator = operator == "replacement"
-    crossover_gain_events = sum(
-        to_float(row.get("crossover_improved")) for row in selected
-    )
-    lost_crossover_gain_events = sum(
-        to_float(row.get("lost_crossover_gain")) for row in selected
-    )
-    improvement_denominator = (
-        accepted_count + not_competitive_count
-        if replacement_operator
-        else valid_new_count
-    )
-    worse_or_equal_count = max(improvement_denominator - improved_count, 0.0)
     score_deltas = [
         to_float(row.get("new_score")) - to_float(row.get("original_score"))
         for row in selected
@@ -1057,8 +1022,18 @@ def operator_run_summary(
         for row in selected
         if row.get("accepted") is True and row.get("victim_score") not in (None, "")
     ]
+    improvement_denominator = (
+        accepted_count + not_competitive_count
+        if replacement_operator
+        else float(len(score_deltas)) if score_deltas else None
+    )
+    worse_or_equal_count = (
+        max(improvement_denominator - improved_count, 0.0)
+        if improvement_denominator is not None
+        else None
+    )
     if operator in {"crossover", "mutation"}:
-        mean_score_delta = mean(score_deltas)
+        mean_score_delta = mean(score_deltas) if score_deltas else None
     elif replacement_operator:
         mean_score_delta = mean(replacement_deltas)
     else:
@@ -1078,29 +1053,21 @@ def operator_run_summary(
         "improvement_rate": (
             improved_count / improvement_denominator
             if improvement_denominator
-            else 0.0
+            else 0.0 if improvement_denominator == 0.0 else None
         ),
         "worse_or_equal_rate": (
             worse_or_equal_count / improvement_denominator
             if improvement_denominator
-            else 0.0
+            else 0.0 if improvement_denominator == 0.0 else None
         ),
         "best_rate": best_count / slots if slots else 0.0,
         "changed_rate": mean_bool(selected, "changed")
         if operator == "mutation"
         else None,
         "mean_score_delta": mean_score_delta,
-        "crossover_gain_events": crossover_gain_events,
-        "lost_crossover_gain_rate": (
-            lost_crossover_gain_events / crossover_gain_events
-            if crossover_gain_events
-            else None
-        ),
-        "retained_crossover_gain_rate": (
-            1.0 - lost_crossover_gain_events / crossover_gain_events
-            if crossover_gain_events
-            else None
-        ),
+        "crossover_gain_events": None,
+        "lost_crossover_gain_rate": None,
+        "retained_crossover_gain_rate": None,
     }
 
 

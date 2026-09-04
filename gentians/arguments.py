@@ -46,7 +46,7 @@ class Arguments:
             # Crossover implementation.
             "name": "set_mix",
             # Probability of applying crossover to selected parents.
-            "probability": 0.6,
+            "probability": 1.0,
         }
     )
 

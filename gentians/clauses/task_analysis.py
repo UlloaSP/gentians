@@ -1,7 +1,7 @@
 import clingo
 from clingo import ast
 
-from .extensions import _has_variable, _iter_atoms, _task_nodes
+from .extensions import _children, _has_variable, _iter_atoms, _task_nodes
 from ..language.ir.aggregate_declaration import AggregateDeclaration
 from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.atom_template import AtomTemplate
@@ -12,8 +12,60 @@ from ..language.ir.operator_declaration import OperatorDeclaration
 from ..language.asp import (
     AspProgram,
     Predicate,
+    clause_predicates,
+    symbolic_function,
+    symbolic_literal_predicate,
 )
 from ..language.ir.inductive_task import InductiveTask
+
+
+def _prune_optional_constraints(task: InductiveTask) -> bool:
+    """Prove that a perfect nonempty hypothesis must contain a learned head.
+
+    Pure constraints only remove stable models, so without negative examples
+    they are optional in a hypothesis that already contains headed clauses.
+    Absence of negatives alone is insufficient: a constraint-only program can
+    be the only legal solution when the background already covers the positives.
+    Use a missing positive predicate as a cheap sufficient proof, not a coverage
+    approximation. Unknown directives keep their full space.
+    """
+    if (task.negative_examples or not task.positive_examples
+            or task.max_head_literals == 0):
+        return False
+    # Predicate extraction does not expand pooled symbolic heads such as
+    # q(a;b). Never mistake an unrecognized head for a missing definition.
+    if any(
+        node.ast_type != ast.ASTType.Rule or not _known_head(node.head)
+        for node in task.background
+    ):
+        return False
+    if not _head_atoms(task):
+        return False
+    background_heads = set().union(*(clause_predicates(node)[0] for node in task.background))
+    for example in task.positive_examples:
+        # Inspect each isolated context separately. In particular, do not treat
+        # externals or #const substitutions as ordinary rule definitions.
+        if any(
+            node.ast_type != ast.ASTType.Rule or not _known_head(node.head)
+            for node in example.context
+        ):
+            continue
+        providers = background_heads.union(
+            *(clause_predicates(node)[0] for node in example.context)
+        )
+        if any(symbolic_literal_predicate(atom) not in providers for atom in example.included):
+            return True
+    return False
+
+
+def _known_head(node: ast.AST) -> bool:
+    """Whether predicate extraction understands every symbolic head element."""
+    if node.ast_type == ast.ASTType.SymbolicAtom:
+        return symbolic_function(node.symbol) is not None
+    if node.ast_type == ast.ASTType.TheoryAtom:
+        return False
+    return all(_known_head(child) for child in _children(node))
+
 
 def _recursive_predicates(task: InductiveTask) -> set[Predicate]:
     head_predicates = {atom.signature for atom in _head_atoms(task)}

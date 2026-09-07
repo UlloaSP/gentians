@@ -14,6 +14,9 @@ htmlcov/
 node_modules/
 .benchmarks/node_modules/
 .benchmarks/dist/
+.benchmarks/block-mutation/
+.benchmarks/block-mutation-no-relax/
+
 .vite-dev*.log
 .benchmarks/.vite-dev*.log
 .benchmarks/vp-*.log
@@ -28,6 +31,11 @@ sweeps/
 .benchmarks/experiments.json
 .benchmarks/profile_*/
 .benchmarks/search-representations/
+.benchmarks/epoch-pool/
+.benchmarks/pool-policy/
+.benchmarks/pool-evaluator/
+.benchmarks/sampled-roles/
+.benchmarks/shared-variation/
 
 # Generated analysis
 graphify-out/

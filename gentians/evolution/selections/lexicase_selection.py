@@ -9,8 +9,7 @@ class LexicaseSelection:
     ) -> tuple[Individual, Individual]:
         return self._one(population, rng), self._one(population, rng)
 
-    @staticmethod
-    def _one(population: list[Individual], rng: random.Random) -> Individual:
+    def _one(self, population: list[Individual], rng: random.Random) -> Individual:
         positive = 0
         negative = 0
         for item in population:
@@ -32,6 +31,9 @@ class LexicaseSelection:
                 candidates = passing
             if len(candidates) == 1:
                 return candidates[0]
+        return self._choose(candidates, rng)
+
+    def _choose(self, candidates: list[Individual], rng: random.Random) -> Individual:
         return rng.choice(candidates)
 
 

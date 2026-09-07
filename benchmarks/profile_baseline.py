@@ -85,6 +85,10 @@ def parse_profile_args(
     parser.add_argument("--runs", type=int, default=10)
     parser.add_argument("--out-dir", type=Path, default=default_out_dir)
     parser.add_argument("--timeout-seconds", type=int, default=100)
+    parser.add_argument(
+        "--stop-on-timeout", action="store_true",
+        help="Stop this configuration after its first timed-out run; retain completed results.",
+    )
     parser.add_argument("--python", default=_default_python())
     parser.add_argument(
         "--set",
@@ -99,6 +103,7 @@ def parse_profile_args(
     )
     parser.add_argument("--list-datasets", action="store_true")
     parser.add_argument("--seed-base", type=int, default=1)
+    parser.add_argument("--instrumentation", choices=("full", "light"), default="full")
     parser.add_argument(
         "--cprofile",
         action="store_true",
@@ -165,6 +170,7 @@ def run_benchmark_suite(
             )
             log_path = out_dir / "runs" / f"{dataset}_run_{run}.log"
             cprofile_path = out_dir / "runs" / f"{dataset}_run_{run}.prof"
+            pool_metrics_path = out_dir / "runs" / f"{dataset}_run_{run}_pool_metrics.jsonl"
             reset_run_outputs(
                 [
                     timings_path,
@@ -175,6 +181,7 @@ def run_benchmark_suite(
                     clingo_metrics_path,
                     log_path,
                     cprofile_path,
+                    pool_metrics_path,
                 ]
             )
             cmd, arguments_json = build_command(
@@ -212,6 +219,7 @@ def run_benchmark_suite(
                 run,
                 seed,
                 run_env(dataset, dataset_arguments) if run_env is not None else None,
+                instrumentation_level=getattr(args, "instrumentation", "full"),
             )
             elapsed = time.perf_counter() - started
             status = "timeout" if timed_out else "ok" if returncode == 0 else "failed"
@@ -261,6 +269,11 @@ def run_benchmark_suite(
                 f"[{completed}/{total}] {dataset} run {run} {status} {elapsed:.2f}s\n",
                 flush=True,
             )
+            if timed_out and getattr(args, "stop_on_timeout", False):
+                print("Stopping configuration after first timeout.", flush=True)
+                break
+        if results and results[-1].status == "timeout" and getattr(args, "stop_on_timeout", False):
+            break
     write_outputs(
         out_dir,
         results,
@@ -270,6 +283,7 @@ def run_benchmark_suite(
         candidate_metrics,
         quality_metrics,
         clingo_metrics,
+        instrumentation_level=getattr(args, "instrumentation", "full"),
     )
 
 
@@ -323,6 +337,7 @@ def run_streamed(
     run: int,
     seed: int,
     extra_env: dict[str, str] | None = None,
+    instrumentation_level: str = "full",
 ) -> tuple[int | None, bool]:
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
@@ -333,12 +348,20 @@ def run_streamed(
     env["GENTIANS_RUN_NUMBER"] = str(run)
     env["GENTIANS_TIMINGS_PATH"] = str(timings_path.resolve())
     env["GENTIANS_GA_METRICS_PATH"] = str(ga_metrics_path.resolve())
+    env["GENTIANS_POOL_METRICS_PATH"] = str(
+        ga_metrics_path.with_name(
+            ga_metrics_path.name.replace("_ga_metrics.json", "_pool_metrics.jsonl")
+        ).resolve()
+    )
     env["GENTIANS_OPERATOR_METRICS_PATH"] = str(operator_metrics_path.resolve())
     env["GENTIANS_CANDIDATE_METRICS_PATH"] = str(candidate_metrics_path.resolve())
     env["GENTIANS_QUALITY_METRICS_PATH"] = str(quality_metrics_path.resolve())
     env["GENTIANS_CLINGO_METRICS_PATH"] = str(clingo_metrics_path.resolve())
     if extra_env:
         env.update(extra_env)
+    if instrumentation_level == "light":
+        for category in ("OPERATOR", "CANDIDATE", "QUALITY", "CLINGO"):
+            env.pop(f"GENTIANS_{category}_METRICS_PATH", None)
     with log_path.open("w", encoding="utf-8") as log:
         process = subprocess.Popen(
             cmd,
@@ -538,10 +561,22 @@ def write_outputs(
     candidate_metrics: list[dict[str, object]],
     quality_metrics: list[dict[str, object]],
     clingo_metrics: list[dict[str, object]],
+    instrumentation_level: str = "full",
 ) -> None:
     write_csv(out_dir / "runs.csv", [asdict(r) for r in results])
     write_csv(out_dir / "timings_raw.csv", [asdict(t) for t in timings])
     write_csv(out_dir / "ga_fitness.csv", [asdict(p) for p in ga_metrics])
+    if instrumentation_level == "light":
+        (out_dir / "dashboard_data.json").unlink(missing_ok=True)
+        (out_dir / "measurement.json").write_text(
+            json.dumps({
+                "instrumentation": "light",
+                "available": ["runs", "timings", "ga", "pool_epoch_jsonl"],
+                "unmeasured": ["operator", "candidate", "quality", "clingo"],
+                "dashboard": False,
+            }, indent=2), encoding="utf-8",
+        )
+        return
     write_csv(out_dir / "operator_metrics.csv", normalize_rows(operator_metrics))
     write_csv(out_dir / "operator_summary.csv", operator_summary(operator_metrics))
     write_csv(out_dir / "candidate_metrics.csv", normalize_rows(candidate_metrics))

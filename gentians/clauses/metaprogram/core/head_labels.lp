@@ -2,7 +2,6 @@
 
 #defined head_arg_label/4.
 #defined mode_arg_label/3.
-#defined default_variable_identity/0.
 
 head_label_var(Form,Label,Var):-
     selected_head_form(Form),
@@ -15,22 +14,18 @@ mode_label_var(Section,Slot,Label,Var):-
     mode_arg_label(Mode,Arg,Label),
     var_at(Section,Slot,Arg,Var).
 
-:- default_variable_identity,
-    head_label_var(Form,Label,Left),
+:- head_label_var(Form,Label,Left),
     head_label_var(Form,Label,Right),
     Left != Right.
 
-:- default_variable_identity,
-    head_label_var(Form,LeftLabel,Var),
+:- head_label_var(Form,LeftLabel,Var),
     head_label_var(Form,RightLabel,Var),
     LeftLabel < RightLabel.
 
-:- default_variable_identity,
-    mode_label_var(Section,Slot,Label,Left),
+:- mode_label_var(Section,Slot,Label,Left),
     mode_label_var(Section,Slot,Label,Right),
     Left != Right.
 
-:- default_variable_identity,
-    mode_label_var(Section,Slot,LeftLabel,Var),
+:- mode_label_var(Section,Slot,LeftLabel,Var),
     mode_label_var(Section,Slot,RightLabel,Var),
     LeftLabel < RightLabel.

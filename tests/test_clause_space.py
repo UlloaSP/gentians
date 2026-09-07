@@ -33,7 +33,6 @@ from gentians.clauses.generator import (
     _clause_space_args,
     generate_clause_space,
 )
-from gentians.hypotheses.generator import HypothesisGenerator
 from gentians.clauses.arithmetic_expression import ArithmeticExpression
 from gentians.clauses.arithmetic_system import (
     ArithmeticSystem,
@@ -248,11 +247,12 @@ def test_clause_space_constructor_enforces_order_and_uniqueness():
     assert space.clauses == ("a.", "b.")
 
 
-def test_clause_package_exposes_one_generation_path():
+def test_clause_package_exposes_full_and_sampled_generation():
     assert clause_package.__all__ == [
         "Clause",
         "ClauseSpace",
         "generate_clause_space",
+        "sample_clause_space",
     ]
     assert not hasattr(clause_package, "ClauseGenerator")
 
@@ -286,7 +286,6 @@ def test_clause_generator_batches_dynamic_and_output_parsing(monkeypatch):
     generate_clause_space(task, Arguments())
 
     assert len(fact_sources) == 1
-    assert "default_variable_identity." in fact_sources[0]
     assert len(output_sources) == 1
 
 
@@ -450,7 +449,7 @@ def test_candidate_clause_space_runs_inside_clause_generation_phase(monkeypatch)
 
     class FakeClauseGenerator:
         def __init__(self, program, args):
-            pass
+            self.prune_constraints = False
 
         def generate(self):
             phases.append(timing.current_phase())
@@ -474,7 +473,7 @@ def test_clause_generation_is_generated_each_time(monkeypatch):
 
     class FakeClauseGenerator:
         def __init__(self, program, args):
-            pass
+            self.prune_constraints = False
 
         def generate(self):
             generated.append(True)
@@ -3456,88 +3455,6 @@ def test_positive_head_condition_can_safely_ground_a_bodyless_rule(tmp_path):
     assert "p(V0):node(V0)." in clauses
 
 
-def test_bias_is_multiline_meta_asp_and_disables_implicit_head_identity(tmp_path):
-    task = tmp_path / "explicit-bias.las"
-    task.write_text(
-        """edge(1,2).
-#maxhl(2).
-#maxbl(1).
-#maxv(2).
-#modeh(1,p(var(node,input,x));q(var(node,input,x))).
-#modeh(1,r(var(node,input,x));s(var(node,input,y))).
-#modeb(1,edge(var(node,output),var(node,output))).
-#bias("
-bias_active.
-").
-""",
-        encoding="utf-8",
-    )
-
-    program = parse_file(str(task))
-    clauses = generate_clause_space(program, Arguments()).clauses
-
-    assert render_program(program.bias) == ("bias_active.",)
-    assert "p(V0);q(V1) :- edge(V0,V1)." in clauses
-    assert "r(V0);s(V0) :- edge(V0,V1)." in clauses
-
-
-def test_bias_meta_rule_can_restore_variable_identity_explicitly(tmp_path):
-    task = tmp_path / "identity-metarule.las"
-    task.write_text(
-        """edge(1,2).
-#maxhl(2).
-#maxbl(1).
-#maxv(2).
-#modeh(1,p(var(node,input,x));q(var(node,input,x))).
-#modeh(1,r(var(node,input,x));s(var(node,input,y))).
-#modeb(1,edge(var(node,output),var(node,output))).
-#bias("
-bias_same_label_var(F,L,V) :-
-    selected_head_form(F),
-    head_arg_label(F,M,A,L),
-    selected(head,S,M),
-    var_at(head,S,A,V).
-:- bias_same_label_var(F,L,X), bias_same_label_var(F,L,Y), X != Y.
-:- bias_same_label_var(F,L,V), bias_same_label_var(F,R,V), L < R.
-").
-""",
-        encoding="utf-8",
-    )
-
-    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
-
-    assert "p(V0);q(V0) :- edge(V0,V1)." in clauses
-    assert "p(V0);q(V1) :- edge(V0,V1)." not in clauses
-    assert "r(V0);s(V1) :- edge(V0,V1)." in clauses
-    assert "r(V0);s(V0) :- edge(V0,V1)." not in clauses
-
-
-def test_bias_meta_rule_can_require_a_named_predicate_pattern(tmp_path):
-    task = tmp_path / "named-predicate-metarule.las"
-    task.write_text(
-        """edge(1).
-node(1).
-#maxv(1).
-#maxbl(1).
-#modeh(1,p(var(node,input))).
-#modeb(1,edge(var(node,output))).
-#modeb(1,node(var(node,output))).
-#bias("
-bias_uses_edge :-
-    selected_atom(body,_,\\"edge\\",1,positive).
-:- selected_slot(head,_), not bias_uses_edge.
-").
-""",
-        encoding="utf-8",
-    )
-
-    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
-
-    assert "p(V0) :- edge(V0)." in clauses
-    assert "p(V0) :- node(V0)." not in clauses
-    assert "p(V0)." not in clauses
-
-
 def test_parser_rejects_invalid_or_empty_bias(tmp_path):
     for index, declaration in enumerate(('#bias("").', '#bias(":-").')):
         task = tmp_path / f"invalid-bias-{index}.las"
@@ -3545,42 +3462,6 @@ def test_parser_rejects_invalid_or_empty_bias(tmp_path):
 
         with pytest.raises(ValueError, match="#bias|ASP"):
             parse_file(str(task))
-
-
-def test_bias_cannot_redefine_generator_relations(tmp_path):
-    task = tmp_path / "redefined-bias-relation.las"
-    task.write_text('#bias("selected(head,0,0).").', encoding="utf-8")
-
-    with pytest.raises(ValueError, match="bias_ namespace"):
-        parse_file(str(task))
-
-
-@pytest.mark.parametrize(
-    "payload",
-    (
-        "% comment before the forbidden definition\nselected(head,0,0).",
-        "safe_var(0).",
-        ":~ selected(body,S,M). [1@1,S,M]",
-        "% comment only",
-        "#program foo. bias_active.",
-    ),
-)
-def test_bias_rejects_internal_definitions_optimization_and_comments_only(
-    tmp_path, payload
-):
-    task = tmp_path / "invalid-meta-program.las"
-    escaped = payload.replace('"', '\\"')
-    task.write_text(f'#bias("{escaped}").', encoding="utf-8")
-
-    with pytest.raises(ValueError, match="#bias|bias_ namespace|rules and hard"):
-        parse_file(str(task))
-
-
-def test_commented_bias_does_not_enable_explicit_identity(tmp_path):
-    task = tmp_path / "commented-bias.las"
-    task.write_text('% #bias("enabled.").\n#modeh(1,p).\n', encoding="utf-8")
-
-    assert parse_file(str(task)).bias == ()
 
 
 def test_nested_head_labels_control_flattened_placeholders(tmp_path):
@@ -4679,40 +4560,6 @@ def test_modehd_combines_declared_disjunction_elements(tmp_path):
     assert not any("{" in clause for clause in clauses)
 
 
-def test_second_order_metarule_instantiates_atomic_rule_bundle(tmp_path):
-    task = tmp_path / "closure-metarule.las"
-    task.write_text(
-        "\n".join(
-            (
-                "edge(a,b).",
-                "#maxv(3).",
-                "#maxbl(2).",
-                "#maxpl(2).",
-                '#metarule(closure,"P(X,Y) :- Q(X,Y). P(X,Z) :- P(X,Y),Q(Y,Z).").',
-                "#predicate(target,path/2).",
-                "#predicate(base,edge/2).",
-                "#modem(closure(target/2,base/2)).",
-            )
-        ),
-        encoding="utf-8",
-    )
-
-    program = parse_file(str(task))
-    space = generate_clause_space(program, Arguments())
-    metarules = [entry for entry in space.entries if entry.bundle is not None]
-
-    assert {entry.text for entry in metarules} == {
-        "path(X,Y) :- edge(X,Y).",
-        "path(X,Z) :- path(X,Y); edge(Y,Z).",
-    }
-    assert len({entry.bundle for entry in metarules}) == 1
-
-    generator = HypothesisGenerator(program, space, 2)
-    hypothesis = generator.create(random.Random(0))
-    assert hypothesis is not None
-    assert len(generator.render(hypothesis)) == 2
-
-
 def test_modearith_exact_equality_can_produce_its_declared_output(tmp_path):
     task = tmp_path / "exact-assignment.las"
     task.write_text(
@@ -4841,68 +4688,6 @@ def test_complete_choice_head_keeps_each_exact_condition(tmp_path):
     assert tuple(condition.atom.name for condition in head.conditions[1]) == ("right",)
 
 
-def test_metarule_rejects_predicate_arity_mismatch(tmp_path):
-    task = tmp_path / "bad-metarule-arity.las"
-    task.write_text(
-        "\n".join(
-            (
-                '#metarule(chain,"P(X) :- Q(X,Y). ").',
-                "#predicate(target,p/1).",
-                "#predicate(base,q/2).",
-                "#modem(chain(target/2,base/2)).",
-            )
-        ),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError, match="predicate P has arity 1, not 2"):
-        parse_file(str(task))
-
-
-def test_metarule_rejects_unsafe_instantiation(tmp_path):
-    task = tmp_path / "unsafe-metarule.las"
-    task.write_text(
-        "\n".join(
-            (
-                '#metarule(unsafe,"P(X) :- Q(Y). ").',
-                "#predicate(target,p/1).",
-                "#predicate(base,q/1).",
-                "#modem(unsafe(target/1,base/1)).",
-            )
-        ),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError, match="unsafe instantiated metarule"):
-        parse_file(str(task))
-
-
-def test_dependency_completion_closes_a_provider_bundle():
-    def entry(rule: str, bundle: int | None = None) -> Clause:
-        heads, dependencies, body_literals = clause_predicates(rule)
-        return Clause(
-            rule, parse_rule(rule), heads, dependencies, body_literals, bundle
-        )
-
-    space = ClauseSpace(
-        (
-            entry("p :- b.", 0),
-            entry("q :- c.", 0),
-            entry("target :- p."),
-        )
-    )
-    generator = HypothesisGenerator(
-        inductive_task(["b.", "c."], [], [], [], []), space, 3
-    )
-
-    completed = generator._build(
-        1 << generator.clause_ids["target :- p."], 0, random.Random(0)
-    )
-
-    assert completed is not None
-    assert set(generator.render(completed)) == {"p :- b.", "q :- c.", "target :- p."}
-
-
 def test_exact_simple_modearith_relation_is_not_algebraically_rewritten(tmp_path):
     task = tmp_path / "exact-symbol-order.las"
     task.write_text(
@@ -4924,27 +4709,6 @@ def test_exact_simple_modearith_relation_is_not_algebraically_rewritten(tmp_path
 
     assert any("V0<V1" in clause for clause in clauses)
     assert not any("V0-V1<0" in clause for clause in clauses)
-
-
-def test_metarule_respects_maximum_head_width(tmp_path):
-    task = tmp_path / "wide-metarule.las"
-    task.write_text(
-        "\n".join(
-            (
-                "r(a).",
-                "#maxhl(1).",
-                '#metarule(wide,"P(X);Q(X) :- R(X).").',
-                "#predicate(head,p/1).",
-                "#predicate(head,q/1).",
-                "#predicate(body,r/1).",
-                "#modem(wide(head/1,head/1,body/1)).",
-            )
-        ),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError, match="metarule exceeds #maxhl"):
-        generate_clause_space(parse_file(str(task)), Arguments())
 
 
 @pytest.mark.parametrize(
@@ -4972,22 +4736,3 @@ def test_modeb_rejects_bare_comparisons_outside_modearith(tmp_path):
 
     with pytest.raises(ValueError, match="comparisons belong in #modearith"):
         parse_file(str(task))
-
-
-def test_nullary_second_order_predicate_uses_explicit_application(tmp_path):
-    task = tmp_path / "nullary-metarule.las"
-    task.write_text(
-        "\n".join(
-            (
-                '#metarule(flag,"P() :- Q().").',
-                "#predicate(target,ready/0).",
-                "#predicate(base,enabled/0).",
-                "#modem(flag(target/0,base/0)).",
-            )
-        ),
-        encoding="utf-8",
-    )
-
-    assert tuple(
-        render_program(bundle) for bundle in parse_file(str(task)).metarule_programs
-    ) == (("ready :- enabled.",),)

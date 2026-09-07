@@ -1,7 +1,9 @@
 from pathlib import Path
+import random
+from typing import cast
 
 import clingo
-from clingo import ast
+from clingo.configuration import Configuration
 
 from ..arguments import Arguments
 from ..clingo_stats import clingo_stat, ground_stats
@@ -16,22 +18,20 @@ from ..timing import (
 )
 from ..language.asp import (
     add_program,
-    clause_predicates,
     parse_program,
 )
 from ..language.ir.inductive_task import InductiveTask
 from .reified_clause import ReifiedClause
-from .clause import Clause
 from .clause_space import ClauseSpace
 from .canonicalizer import canonicalize_clauses
 from .task_analysis import (
     _clause_capabilities,
     _predicate_arg_types,
+    _prune_optional_constraints,
     _valid_aggregate_specs,
     _validate_invented_predicates,
 )
 from .extensions import _task_nodes
-from .properties import _term_variables
 from .decoder import _clause_from_model, _model_literal_index, _theta_reduced
 from .fact_compiler import _facts
 from .mode_compiler import (
@@ -47,20 +47,6 @@ def _raise_on_clingo_error(code, message):
         raise RuntimeError(f"{code}\n{message}")
 
 
-def _clause_head_width(clause: ast.AST) -> int:
-    head = clause.head
-    if (
-        head.ast_type == ast.ASTType.Literal
-        and head.atom.ast_type == ast.ASTType.BooleanConstant
-    ):
-        return 0
-    if head.ast_type in {ast.ASTType.Literal, ast.ASTType.ConditionalLiteral}:
-        return 1
-    if head.ast_type in {ast.ASTType.Disjunction, ast.ASTType.Aggregate}:
-        return len(head.elements)
-    return 0
-
-
 CLAUSE_METAPROGRAM_MODULES = (
     "core/slots.lp",
     "core/limits.lp",
@@ -70,7 +56,6 @@ CLAUSE_METAPROGRAM_MODULES = (
     "core/head_labels.lp",
     "core/literals.lp",
     "core/conditionals.lp",
-    "core/bias.lp",
     "core/tuple_helpers.lp",
     "aggregates/roles.lp",
     "safety/linkedness.lp",
@@ -125,6 +110,7 @@ class _ClauseGenerator:
     def __init__(self, task: InductiveTask, args: Arguments) -> None:
         self.task = task
         self.args = args
+        self.prune_constraints = _prune_optional_constraints(task)
         self.nodes = _task_nodes(task)
         if task.max_head_literals is not None and any(
             head.width > task.max_head_literals for head in task.language_bias_head
@@ -176,7 +162,7 @@ class _ClauseGenerator:
             )
         )
 
-    def generate(self) -> ClauseSpace:
+    def generate(self, model_limit: int = 0, seed: int | None = None) -> ClauseSpace:
         facts = _facts(
             self.task,
             self.modes,
@@ -185,14 +171,23 @@ class _ClauseGenerator:
             self.head_slots,
             self.body_slots,
         )
-        if not self.task.bias:
-            facts += "\ndefault_variable_identity."
+        if self.prune_constraints:
+            # Prune inside ASP enumeration, before decoding/canonicalization.
+            # The static proof protects nonempty and constraint-only solutions.
+            facts += "\nprune_optional_constraints."
         fact_program = parse_program(facts)
-        solver_arguments = ["0", *_clause_space_args(self.args)]
+        solver_arguments = [str(model_limit), *_clause_space_args(self.args)]
         ctl = clingo.Control(solver_arguments, logger=_raise_on_clingo_error)
+        if seed is not None:
+            # Randomized prefixes are bounded samples, not uniform samples of clauses.
+            cast(Configuration, ctl.configuration.solve).parallel_mode = "1"
+            solver_config = cast(Configuration, ctl.configuration.solver)[0]
+            solver_config.seed = str(seed)
+            solver_config.rand_freq = "1"
+            solver_config.sign_def = "rnd"
+        cast(Configuration, ctl.configuration.solve).models = str(model_limit)
         add_program(ctl, fact_program)
         add_program(ctl, CLAUSE_METAPROGRAM)
-        add_program(ctl, self.task.bias)
         start = net_time()
         ctl.ground([("base", [])])
         grounding_seconds = net_time() - start
@@ -235,11 +230,16 @@ class _ClauseGenerator:
                         "seconds": grounding_seconds,
                         "program_size": 1,
                         "program_chars": sum(map(len, map(str, fact_program)))
-                        + sum(map(len, map(str, CLAUSE_METAPROGRAM)))
-                        + sum(len(str(statement)) for statement in self.task.bias),
+                        + sum(map(len, map(str, CLAUSE_METAPROGRAM))),
                         "stats_atoms": grounded["atoms"],
                         "stats_rules": grounded["rules"],
                         "clingo_arguments": clingo_arguments,
+                        "model_limit": model_limit,
+                        "sampling_seed": seed,
+                        "sampling_configuration": (
+                            {"parallel_mode": "1", "rand_freq": "1", "sign_def": "rnd"}
+                            if seed is not None else None
+                        ),
                     },
                 )
                 record_metric(
@@ -272,56 +272,17 @@ class _ClauseGenerator:
 
 @profile_phase("clause_generation")
 def generate_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSpace:
-    clause_space = _ClauseGenerator(task, arguments).generate()
-    if task.metarule_programs:
-        entries = list(clause_space.entries)
-        known_clauses = {entry.text for entry in entries}
-        bundle_offset = (
-            max(
-                (entry.bundle for entry in entries if entry.bundle is not None),
-                default=-1,
-            )
-            + 1
-        )
-        for bundle, clauses in enumerate(task.metarule_programs, bundle_offset):
-            for clause_ast in clauses:
-                clause_text = str(clause_ast)
-                if clause_text in known_clauses:
-                    raise ValueError(
-                        "metarule clause duplicates another generated clause: "
-                        f"{clause_text}"
-                    )
-                known_clauses.add(clause_text)
-                heads, deps, body_literals = clause_predicates(clause_ast)
-                head_literals = _clause_head_width(clause_ast)
-                if (
-                    task.max_head_literals is not None
-                    and head_literals > task.max_head_literals
-                ):
-                    raise ValueError(f"metarule exceeds #maxhl: {clause_text}")
-                if (
-                    task.max_body_literals is not None
-                    and body_literals > task.max_body_literals
-                ):
-                    raise ValueError(f"metarule exceeds #maxbl: {clause_text}")
-                variables = _term_variables(clause_ast)
-                if (
-                    task.max_variables is not None
-                    and len(variables) > task.max_variables
-                ):
-                    raise ValueError(f"metarule exceeds #maxv: {clause_text}")
-                entries.append(
-                    Clause(
-                        clause_text,
-                        clause_ast,
-                        heads,
-                        deps,
-                        body_literals,
-                        bundle,
-                    )
-                )
-        clause_space = ClauseSpace(entries)
-    return clause_space
+    return _ClauseGenerator(task, arguments).generate()
+
+
+@profile_phase("clause_generation")
+def sample_clause_space(
+    task: InductiveTask, arguments: Arguments, size: int, rng: random.Random
+) -> ClauseSpace:
+    """Decode at most size models; canonicalize only this batch, not the full space."""
+    if isinstance(size, bool) or not isinstance(size, int) or size < 1:
+        raise ValueError("clause batch size must be a positive integer")
+    return _ClauseGenerator(task, arguments).generate(size, rng.randrange(2**31))
 
 
 def _clause_space_args(args: Arguments) -> list[str]:

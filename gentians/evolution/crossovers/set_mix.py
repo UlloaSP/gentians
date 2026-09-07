@@ -1,5 +1,6 @@
 from ..context import EvolutionContext
 from ...hypotheses import Genome
+from ..variation import cross
 
 
 class SetMixCrossover:
@@ -13,9 +14,4 @@ class SetMixCrossover:
     ) -> Genome | None:
         if context.rng.random() >= self.probability:
             return None
-        return context.hypotheses.mix(
-            first,
-            second,
-            context.rng.choice(((0.7, 0.3), (0.3, 0.7))),
-            context.rng,
-        )
+        return cross(first, second, context)

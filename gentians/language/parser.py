@@ -1,16 +1,12 @@
 from pathlib import Path
 
-from clingo import ast
-
 from .asp import parse_program
 from .declarations import (
     _get_aggregate_declaration,
     _get_arithmetic_declaration,
     _get_constant_declaration,
     _get_invented_declaration,
-    _get_modem_declaration,
     _get_pos_neg_examples,
-    _get_predicate_declaration,
 )
 from .directives import _get_limit
 from .ir.aggregate_declaration import AggregateDeclaration
@@ -25,7 +21,6 @@ from .ir.operator_declaration import OperatorDeclaration
 from .ir.inductive_task import InductiveTask
 from .ir.term_template import TermTemplate
 from .lexer import Statement, lex
-from .metarules import _get_bias, _get_metarule, _instantiate_metarules
 from .modes import (
     _get_aggregate_head_declaration,
     _get_body_mode_declaration,
@@ -61,10 +56,6 @@ def parse_text(source: str) -> InductiveTask:
     }
     min_head_literals = 1
     declared_limits: set[str] = set()
-    bias: list[ast.AST] = []
-    metarule_definitions: dict[str, str] = {}
-    predicate_pools: dict[str, list[tuple[str, int]]] = {}
-    modem_declarations: list[tuple[str, tuple[tuple[str, int], ...]]] = []
     for statement in lex(source):
         lc = statement.text
         directive = statement.directive
@@ -85,13 +76,9 @@ def parse_text(source: str) -> InductiveTask:
                 min_head_literals = value
             else:
                 limits[limit] = value
-        elif directive == "#bias":
-            bias.extend(_get_bias(lc))
-        elif directive == "#metarule":
-            name, payload = _get_metarule(lc)
-            if name in metarule_definitions:
-                raise ValueError(f"duplicate #metarule declaration: {name}")
-            metarule_definitions[name] = payload
+        elif directive in {"#bias", "#metarule", "#predicate", "#modem"}:
+            # Retired task directives must fail explicitly, never become BK.
+            raise ValueError(f"line {statement.line}: {directive} is no longer supported")
         elif directive == "#modeha":
             md = _get_aggregate_head_declaration(lc)
             if md not in lbha:
@@ -132,15 +119,6 @@ def parse_text(source: str) -> InductiveTask:
             operator = _get_arithmetic_declaration(lc)
             if operator not in arithmetic:
                 arithmetic.append(operator)
-        elif directive == "#predicate":
-            pool, signature = _get_predicate_declaration(lc)
-            values = predicate_pools.setdefault(pool, [])
-            if signature not in values:
-                values.append(signature)
-        elif directive == "#modem":
-            modem = _get_modem_declaration(lc)
-            if modem not in modem_declarations:
-                modem_declarations.append(modem)
         elif directive == "#invent":
             invention = _get_invented_declaration(lc)
             if any(existing[1:] == invention[1:] for existing in inventions):
@@ -238,10 +216,6 @@ def parse_text(source: str) -> InductiveTask:
         language_bias_aggregate_head=lbha,
         language_bias_disjunctive_head=lbhd,
         min_aggregate_head_literals=min_head_literals,
-        bias=tuple(bias),
-        metarule_programs=_instantiate_metarules(
-            metarule_definitions, predicate_pools, modem_declarations
-        ),
     )
 
 

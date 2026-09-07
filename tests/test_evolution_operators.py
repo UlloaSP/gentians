@@ -47,7 +47,7 @@ def _context(rules, *, max_clauses=3):
         (
             create_mutation,
             {
-                "name": "structural_neighbor",
+                "name": "random_group",
                 "probability": 0.5,
                 "random_jump_probability": True,
             },
@@ -101,14 +101,14 @@ def test_all_mutations_share_genome_contract():
     assert set(_render(context, result.genome)) <= set(context.hypotheses.space.clauses)
 
 
-def test_structural_neighbor_replaces_with_same_head():
+def test_random_group_replaces_with_same_head():
     source = "target(X,Y) :- parent(X)."
     same_head = "target(A,B) :- parent(B)."
     other_head = "other(A,B) :- parent(B)."
     context = _context([source, same_head, other_head], max_clauses=1)
     mutation = create_mutation(
         {
-            "name": "structural_neighbor",
+            "name": "random_group",
             "probability": 1.0,
             "random_jump_probability": 0.0,
         },
@@ -120,7 +120,7 @@ def test_structural_neighbor_replaces_with_same_head():
     assert result.local is True
 
 
-def test_structural_neighbor_does_not_materialize_available_rules(monkeypatch):
+def test_random_group_does_not_materialize_available_rules(monkeypatch):
     source = "target(X,Y) :- parent(X)."
     same_head = "target(A,B) :- parent(B)."
     context = _context([source, same_head, "other(X) :- parent(X)."], max_clauses=1)
@@ -134,7 +134,7 @@ def test_structural_neighbor_does_not_materialize_available_rules(monkeypatch):
     monkeypatch.setattr(context.hypotheses, "_random_ids", only_program_ids)
     mutation = create_mutation(
         {
-            "name": "structural_neighbor",
+            "name": "random_group",
             "probability": 1.0,
             "random_jump_probability": 0.0,
         },
@@ -145,13 +145,40 @@ def test_structural_neighbor_does_not_materialize_available_rules(monkeypatch):
     assert _render(context, result.genome) == (same_head,)
 
 
-def test_structural_neighbor_random_jump_can_change_head():
+def test_hypothesis_generator_keeps_construction_inside_pool():
+    first = "target(X) :- parent(X)."
+    second = "other(X) :- parent(X)."
+    context = _context(
+        [first, "target(X) :- child(X).", second],
+        max_clauses=2,
+    )
+    pool = _encode(context, first, second)
+    context.hypotheses.set_pool(pool)
+
+    for _ in range(20):
+        candidate = context.hypotheses.create(context.rng)
+        assert candidate is None or candidate & ~pool == 0
+
+    appended = context.hypotheses.append(_encode(context, first), context.rng)
+    assert appended is None or appended & ~pool == 0
+
+
+def test_hypothesis_generator_rejects_invalid_pool_masks():
+    context = _context(["target(a)."])
+
+    with pytest.raises(ValueError, match="non-empty subset"):
+        context.hypotheses.set_pool(0)
+    with pytest.raises(ValueError, match="non-empty subset"):
+        context.hypotheses.set_pool(0b10)
+
+
+def test_random_group_random_jump_can_change_head():
     source = "target(X) :- parent(X)."
     other_head = "other(X) :- parent(X)."
     context = _context([source, other_head], max_clauses=1)
     mutation = create_mutation(
         {
-            "name": "structural_neighbor",
+            "name": "random_group",
             "probability": 1.0,
             "random_jump_probability": 1.0,
         },
@@ -178,7 +205,7 @@ def test_mutation_metrics_include_local_and_program_distance(monkeypatch):
     )
 
     evolution_metrics.record_mutation(
-        "structural_neighbor",
+        "random_group",
         parent.genome,
         proposal,
         duplicate=False,
@@ -406,7 +433,8 @@ def test_hypothesis_generator_builds_invented_definition_module():
 
     assert generated is not None
     rendered = generator.render(generated)
-    assert generated.bit_count() == 3
+    assert generated.bit_count() == 2
+    assert constraint not in rendered
     assert consumer in rendered
     assert mother in rendered or father in rendered
 
@@ -543,6 +571,11 @@ def test_hypothesis_generator_records_closure_for_each_public_transition(monkeyp
 
 def test_evolution_strategies_choose_operations_and_delegate_validity():
     class GeneratorSpy:
+        available_clauses = 7
+        constraint_clauses = 0
+        has_positive_examples = False
+        has_negative_examples = False
+
         def __init__(self):
             self.calls = []
 
@@ -555,7 +588,7 @@ def test_evolution_strategies_choose_operations_and_delegate_validity():
             self.calls.append(("operations", program))
             return ["append"]
 
-        def append(self, program, _rng):
+        def append(self, program, _rng, *, mutable=None):
             self.calls.append(("append", program))
             return program | 4
 
@@ -625,7 +658,7 @@ def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
     assert result.hypothesis == ("good.",)
     assert result.score == 1.0
     assert result.is_solution is True
-    assert generations == [(0, 2.0, [2.0, 1.0])]
+    assert generations == [(0, 1.0, [1.0])]
 
 
 def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
@@ -646,7 +679,7 @@ def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
         lambda task, config: (
             lambda candidate: EvaluationResult(
                 1.0,
-                tuple(map(str, candidate)) == ("first.",),
+                tuple(map(str, candidate)) == ("second.",),
                 (1, 0),
                 True,
                 True,
@@ -911,7 +944,7 @@ def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch):
     assert evaluated_programs == [("start.",), ("mutated.",)]
 
 
-@pytest.mark.parametrize("mutation_name", ["random_group", "structural_neighbor"])
+@pytest.mark.parametrize("mutation_name", ["random_group"])
 def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     monkeypatch, mutation_name
 ):

@@ -32,12 +32,12 @@ The executable front-end is split by responsibility. `parse_file()` performs
 UTF-8 I/O and `parse_text()` orchestrates parsing. `gentians.language.lexer`
 frames complete top-level statements while respecting strings, comments,
 nested delimiters, ranges, and annotations. Declaration parsing lives in
-`directives`, `declarations`, `modes`, and `metarules`. These modules build the
+`directives`, `declarations`, and `modes`. These modules build the
 `InductiveTask` IR in `gentians.language.ir`: types, directions, recalls,
 labels, and task limits. Generic ASP fragments keep Clingo's AST through
 `gentians.language.asp`; Gentians does not define a competing ASP AST.
 The complete background is parsed in one Clingo call while preserving original
-task line locations. Background, `#bias`, instantiated metarules, and every
+task line locations. Background and every
 example's included atoms, excluded atoms, and context remain as
 `clingo.ast.AST` nodes inside `InductiveTask`. Each non-empty example field is
 parsed directly; empty fields do not invoke Clingo. Candidate `Clause`
@@ -136,7 +136,8 @@ Every `#modeh` is an alternative complete head. Gentians selects either no
 head (a constraint) or exactly one declaration; it does not construct subsets
 or combine separate declarations. Head recall must be `1`. `#maxhl` bounds the
 number of atoms in a declaration, and `#maxhl(*)` derives that width from the
-largest declared head.
+largest declared head. The positive-only pruning rule below can exclude the
+headless alternative from enumeration without changing the declared syntax.
 
 The optional third component of a head variable is a declaration-local
 identity label. Reusing a label forces the corresponding positions to use one
@@ -207,101 +208,26 @@ bodyless head is still rejected unless its head-conditional scope grounds it;
 Gentians does not turn nominal types into hidden domain literals. The empty
 head and empty body combination is never emitted, so `:-.` cannot be learned.
 
-## Explicit meta-ASP bias and metarules
+## Removed meta-programming directives
 
-`#bias` adds ASP directly to the same meta-program that enumerates clauses. It
-may span lines, and multiple declarations are cumulative:
+`#bias`, `#metarule`, `#predicate`, and `#modem` are no longer supported.
+The parser rejects each with its source line before compiling background ASP.
+There is no compatibility mode or replacement payload in `InductiveTask`.
 
-```ebnf
-bias-directive = "#bias(\"", asp-program, "\")." ;
-```
+The language bias still consists of modes, recalls, types, variable labels,
+constants, structural limits, and `#invent`. Variable labels always enforce
+same-label equality and distinct-label inequality within their declared scope.
+Task files cannot inject rules into the clause-enumeration metaprogram.
 
-```prolog
-#bias("
-bias_uses_edge :- selected_atom(body,_,\"edge\",2,positive).
-:- selected_slot(head,_), not bias_uses_edge.
-").
-```
-
-The stable relations intended for task bias are:
-
-| Relation | Meaning |
-| --- | --- |
-| `selected(Section,Slot,Mode)` | Selected head or body mode at a slot. |
-| `selected_atom(Section,Slot,Name,Arity,Polarity)` | Selected normal or conditional atom; `Name` is a string. |
-| `selected_slot(Section,Slot)` | Occupied slot. |
-| `selected_head_form(Form)` | Selected complete `#modeh` form. |
-| `mode(Section,Mode,Pred,Arity,Recall)` | Reified mode metadata. |
-| `predicate_symbol(Pred,Name,Arity)` | Predicate id to quoted ASP name. |
-| `head_form_member(Form,Slot,Mode)` | Atom positions of a complete head. |
-| `mode_variable_arg(Mode,Arg)` | Bindable flattened argument position. |
-| `var_at(Section,Slot,Arg,Var)` | Variable assigned to that position. |
-| `head_arg_label(Form,Mode,Arg,Label)` | Label metadata declared in `#modeh`. |
-| `positive_mode(Mode)` / `negative_mode(Mode)` | Body literal polarity. |
-
-Bias helpers can name a reified structural pattern once and let constraints
-require or forbid it:
-
-```prolog
-#bias("
-bias_same_label_var(F,L,V) :-
-    selected_head_form(F),
-    head_arg_label(F,M,A,L),
-    selected(head,S,M),
-    var_at(head,S,A,V).
-
-:- bias_same_label_var(F,L,X), bias_same_label_var(F,L,Y), X != Y.
-:- bias_same_label_var(F,L,V), bias_same_label_var(F,R,V), L < R.
-").
-```
-
-The presence of any `#bias` switches variable identity to explicit control.
-Head labels remain available through `head_arg_label/4`, but Gentians stops
-enforcing equal labels as equal variables and different labels as different
-variables. The two constraints above restore both halves explicitly: equal
-labels share a variable, and distinct labels cannot share one. Without `#bias`,
-the default label semantics described in the normal-mode section remain active.
-Typing, linkedness, direction checks, and ASP safety do not turn off: they are
-validity conditions rather than identity policy.
-
-`#bias` extends and restricts the finite space declared by modes. It does not
-invent undeclared object-level predicates or bypass the mode grammar. Auxiliary
-predicates defined inside a bias must use the `bias_` prefix. Generator
-relations are read-only. Only ordinary ASP rules and hard constraints are
-accepted: weak constraints, optimization directives, and a comment-only bias
-are task errors because they would change or silently empty model enumeration.
-
-Second-order metarules are a separate object-language template mechanism:
-
-```ebnf
-metarule = "#metarule(", name, ",\"", asp-rules, "\")." ;
-predicate-member = "#predicate(", pool, ",", predicate, "/", arity, ")." ;
-metarule-mode = "#modem(", name, "(", pool, "/", arity,
-                {",", pool, "/", arity}, "))." ;
-```
-
-```prolog
-#metarule(chain,"P(X,Z) :- Q(X,Y),R(Y,Z).").
-#predicate(target,path/2).
-#predicate(base,edge/2).
-#modem(chain(target/2,base/2,base/2)).
-```
-
-Uppercase symbols used in predicate position are second-order variables,
-ordered by first appearance. `#modem` assigns each one a typed predicate pool
-and an arity. Every pool member of that arity is instantiated; mismatched
-occurrence arities, undefined or unused metarules, non-rule statements, and
-unsafe instances are task errors.
-Nullary predicate variables use an explicit application, `P()`, and are paired
-with `/0`; the instantiated ASP is normalized to `p` by Clingo.
-
-A metarule string may contain multiple ASP rules. Each concrete instance is
-an atomic bundle: initialization, mutation, crossover, replacement, and
-dependency pruning either keep all its rules or none. `#maxv` and `#maxbl`
-validate each rule independently. `#maxpl` counts physical rules, so a bundle
-larger than that limit cannot enter a candidate. Metarule instances do not
-silently merge with mode-generated clauses; a duplicate is rejected because it
-would destroy bundle ownership.
+Second-order predicate templates and their atomic multi-rule bundles have been
+removed from generation and hypothesis construction. Each learned clause is now
+selected independently, subject to whole-program dependency closure and
+`#maxpl`. Choice and disjunctive heads remain single ASP clauses, not bundles.
+To migrate an old task, express its permitted clauses with the supported modes
+and limits. Arbitrary meta-ASP restrictions have no automatic equivalent;
+do not move their contents into background ASP, which has different semantics.
+Predicate invention, aggregates, arithmetic, conditionals, strong negation, and
+default negation remain supported.
 
 ## Aggregate head modes
 
@@ -409,8 +335,7 @@ Atomic conditions support default negation, strong negation, constants, nested
 functions, and tuples using the same grammar as `#modeb`. Exact comparison
 conditions support the expression grammar of `#modearith`. Declare positive
 and default-negated atom forms separately. Labels are declaration-local by
-default and may appear in `#modeb` and `#modec` as well as head declarations;
-the presence of `#bias` disables their implicit identity constraints.
+default and may appear in `#modeb` and `#modec` as well as head declarations.
 
 ASP scoping determines conditional-variable safety. A variable used only in a
 conditional is local. One of its positive atomic conditions must ground it;
@@ -550,11 +475,65 @@ strongly negated uses can instead be declared explicitly with `#modeh` or
 
 ## Runtime boundary
 
+### Positive-only constraint pruning
+
+Pure integrity constraints remove stable models; they cannot create a brave
+positive witness. Without negative examples, they are therefore optional in a
+legal hypothesis that already has headed clauses. Positive examples may include
+excluded atoms: their satisfying witness remains when constraints are removed.
+
+Absence of negatives alone does **not** permit deleting every headless candidate.
+Gentians requires nonempty hypotheses. A constraint-only program can be the only
+solution when the background already covers the positives and all learnable
+headed programs violate them.
+
+Both exhaustive and sampled clause generation apply a conservative static test.
+Early pruning activates only when:
+
+- There is at least one positive example and no negative examples.
+- The task permits a headed mode and `#maxhl` is not zero.
+- The background contains ordinary ASP rules
+  rather than directives such as `#const` or `#external`.
+- Predicate extraction understands all background heads. Pooled
+  symbolic heads such as `q(a;b).` and theory heads disable this optimization.
+- At least one included positive atom has a signed predicate absent from every
+  head in the background and in that example's own ordinary-rule context, whose
+  heads must also be understood by predicate extraction.
+
+This missing-predicate test proves that every perfect hypothesis must learn a
+head. It is a sufficient condition, not a coverage solver or an approximation to
+stable-model semantics. Definitions are overapproximated, so uncertain cases keep
+constraints. Strong negation retains its sign, and contexts are inspected
+independently. An absent predicate in one context cannot be supplied by another.
+
+When the test succeeds, a fact enables an ASP constraint in
+`clauses/metaprogram/core/constraints.lp`, excluding headless clause models
+before decoding and canonicalization. Background and context constraints are
+never removed.
+
+Constraint-only languages, tasks without positives, and cases
+where this proof fails retain their ordinary candidate space. The existing
+hypothesis-construction normalization remains necessary for supplied
+`ClauseSpace` values and cases not covered by the early proof. It removes optional
+pure constraints only when a nonempty legal program remains.
+
+This is pruning relative to brave coverage of the observed task, not a claim of
+equivalence on unseen examples. It does not prove that all declared headed clauses
+are constructible or that a solution exists. It adds no coverage solves.
+
+### Execution options
+
 These limits do not belong in `Arguments`. Options such as random seed,
 population size, evolutionary operators, Clingo arguments, and enumeration
 strategy remain runtime configuration because they change execution rather than
 the legal hypothesis language.
 
-GENTIANS always enumerates the complete finite clause space. There is no
-`max_candidate_clauses` runtime option: its only supported value was `0` (all),
-so exposing it would create configuration without a real choice.
+The default search enumerates the finite clause space after the documented
+pruning rules. Experimental
+epoch-pool search can instead enumerate bounded randomized batches with
+`clause_pool.source="sampled"`; `"exhaustive"` preserves full enumeration.
+Sampling changes which legal clauses are visited, not their legality. Batches
+are biased prefixes of Clingo enumeration, not uniform samples. Elite hypotheses
+survive pool renewal. The pool size does not
+replace `#maxpl`: without a task-level program bound, retained hypotheses can
+grow. A sampled search can miss a solution present in the legal language.

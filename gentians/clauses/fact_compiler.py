@@ -1,6 +1,5 @@
 from collections import Counter
 
-import clingo
 
 from ..language.ir.aggregate_literal import AggregateLiteral
 from ..language.ir.arithmetic_literal import ArithmeticLiteral
@@ -82,9 +81,6 @@ def _facts(
         )
     )
     for predicate, predicate_id in predicate_ids.items():
-        parts.append(
-            f"predicate_symbol({predicate_id},{clingo.String(predicate[0])},{predicate[1]})."
-        )
         complement = (f"-{predicate[0]}", predicate[1])
         complement_id = predicate_ids.get(complement)
         if not predicate[0].startswith("-") and complement_id is not None:

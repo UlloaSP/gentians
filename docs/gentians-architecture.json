@@ -28,7 +28,7 @@
       "id": "clauses",
       "type": "backend",
       "label": "Generación de cláusulas",
-      "sublabel": "Clingo enumera ClauseSpace",
+      "sublabel": "ClauseSpace completo o por lotes",
       "pos": [390, 320],
       "size": [170, 72]
     },
@@ -36,16 +36,16 @@
       "id": "search",
       "type": "backend",
       "label": "Algoritmo genético",
-      "sublabel": "GA de estado estable",
+      "sublabel": "estándar o pool por épocas",
       "pos": [620, 320],
       "size": [150, 72],
-      "tag": "steady_state_genetic_search"
+      "tag": "steady_state · epoch_pool"
     },
     {
       "id": "evaluation",
       "type": "backend",
       "label": "Evaluación",
-      "sublabel": "cobertura + scoring",
+      "sublabel": "solver fresco o pool congelado",
       "pos": [830, 320],
       "size": [150, 72]
     },
@@ -102,8 +102,8 @@
     { "id": "task-reader", "from": "task", "to": "reader", "label": "UTF-8" },
     { "id": "reader-clauses", "from": "reader", "to": "clauses", "label": "InductiveTask", "labelAt": [365, 306] },
     { "id": "clauses-search", "from": "clauses", "to": "search", "label": "ClauseSpace", "labelAt": [590, 306] },
-    { "id": "search-evaluation", "from": "search", "to": "evaluation", "label": "candidato", "labelAt": [800, 306] },
-    { "id": "evaluation-clingo", "from": "evaluation", "to": "clingo", "label": "ground/solve", "variant": "emphasis", "labelAt": [1015, 306] },
+    { "id": "search-evaluation", "from": "search", "to": "evaluation", "label": "candidato o pool", "labelAt": [800, 306] },
+    { "id": "evaluation-clingo", "from": "evaluation", "to": "clingo", "label": "ground/solve o solve", "variant": "emphasis", "labelAt": [1015, 306] },
     { "id": "clauses-hypotheses", "from": "clauses", "to": "hypotheses", "label": "ClauseSpace", "fromSide": "bottom", "toSide": "top", "labelAt": [475, 430] },
     { "id": "search-hypotheses", "from": "search", "to": "hypotheses", "label": "plumbing para estrategias", "fromSide": "left", "toSide": "right" },
     { "id": "operators-search", "from": "operators", "to": "search", "label": "operadores", "fromSide": "bottom", "toSide": "top", "labelAt": [695, 200] },

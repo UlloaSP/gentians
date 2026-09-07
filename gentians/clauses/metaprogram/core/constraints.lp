@@ -11,6 +11,13 @@
 
 #defined invented_pred/2.
 #defined aggregate_condition_atom/5.
+#defined prune_optional_constraints/0.
+
+% Task analysis emits this fact only without negative examples and with proof
+% that some positive needs a learned head. A pure constraint cannot create that
+% missing brave witness. Exclude the headless branch before Python decodes it.
+% Constraint-only and uncertain tasks retain the ordinary space.
+:- prune_optional_constraints, not selected_slot(head,_).
 
 % Constraint: reject the empty clause while permitting learnable facts.
 :- not selected_slot(head,_), not selected_slot(body,_).

@@ -12,4 +12,3 @@ class Clause:
     heads: frozenset[Predicate]
     deps: frozenset[Predicate]
     body_literals: int
-    bundle: int | None = None

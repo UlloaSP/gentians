@@ -50,9 +50,9 @@ Usa estos términos en código, docs y conversación:
 
 - **Tarea inductiva**: archivo que contiene background ASP, ejemplos y language bias. También posee los límites estructurales.
 - **`InductiveTask`**: IR parseado de la tarea inductiva. No es la hipótesis aprendida.
-- **Language bias**: lenguaje finito permitido para las hipótesis. Incluye modes, recalls, tipos, direcciones, constantes, límites, metarules, invención y `#bias` explícito.
+- **Language bias**: lenguaje finito permitido para las hipótesis. Incluye modes, recalls, tipos, direcciones, constantes, límites e invención.
 - **Cláusula**: una cláusula ASP aprendible ya instanciada y canónica.
-- **`Clause`**: AST y texto canónico de una cláusula junto a predicados definidos, dependencias, tamaño de cuerpo y bundle opcional.
+- **`Clause`**: AST y texto canónico de una cláusula junto a predicados definidos, dependencias, tamaño de cuerpo.
 - **`ClauseSpace`**: conjunto ordenado y sin duplicados de cláusulas candidatas.
 - **Hipótesis o programa candidato**: conjunto de cláusulas del `ClauseSpace` evaluado como una unidad bajo stable-model semantics.
 - **`Genome`**: entero bitset que representa una hipótesis. El bit `i` selecciona la cláusula `i` del `ClauseSpace` preparado.
@@ -63,7 +63,6 @@ Usa estos términos en código, docs y conversación:
 - **`EvaluationResult`**: score, marca de solución y comportamiento de un programa candidato evaluado.
 - **Hipótesis perfecta**: cubre todos los ejemplos positivos y ningún negativo. Esto produce `best_found=True`.
 - **Cierre de dependencias**: toda dependencia de una cláusula queda definida por el background o por alguna cabeza del mismo candidato.
-- **Bundle**: grupo de cláusulas producido por una metarule. Es atómico durante generación y operadores.
 - **Pruning**: exclusión de cláusulas o hipótesis inválidas, redundantes o imposibles antes de gastar evaluaciones de fitness.
 - **`CoverageSolver`**: crea, groundea y resuelve un `clingo.Control` por candidato para obtener `Coverage`.
 
@@ -71,7 +70,7 @@ Usa `ClauseSpace` para cláusulas candidatas. Usa hipótesis o programa candidat
 
 ## Semántica del producto
 
-Una tarea puede declarar background ASP, ejemplos positivos y negativos con contexto opcional, límites `#maxv/#maxbl/#minhl/#maxhl/#maxpl`, heads normales, disyuntivas, choice o cardinalidad, negación fuerte, negación por defecto, variables tipadas y dirigidas, constantes, términos anidados, condicionales, aggregates, arithmetic, comparisons, predicate invention, metarules de segundo orden y meta-ASP mediante `#bias`.
+Una tarea puede declarar background ASP, ejemplos positivos y negativos con contexto opcional, límites `#maxv/#maxbl/#minhl/#maxhl/#maxpl`, heads normales, disyuntivas, choice o cardinalidad, negación fuerte, negación por defecto, variables tipadas y dirigidas, constantes, términos anidados, condicionales, aggregates, arithmetic, comparisons, predicate invention.
 
 `docs/language-bias.md` es el contrato de sintaxis y significado. Léelo completo antes de cambiar lexer, grammar, parser, modes, generación o pruning. `README.md` es el resumen de uso, no una segunda especificación.
 
@@ -82,7 +81,7 @@ Reglas semánticas que deben sobrevivir cualquier refactor:
 - `input` debe estar ligado, `output` lo produce un literal positivo y `any` desactiva deliberadamente la restricción de flujo. Negación por defecto no produce variables.
 - Los límites estructurales y recalls deben mantener finito el espacio. `*` significa ilimitado solo cuando los demás límites siguen cerrando el dominio.
 - `#modeh` describe una cabeza completa. `#modeha` combina elementos choice/cardinality. `#modehd` combina elementos disyuntivos. Un recall nunca transforma una forma en otra.
-- `#bias` admite reglas y constraints duros y define predicados reservados `bias_*`. No admite weak constraints ni directivas globales.
+- `#bias`, `#metarule`, `#predicate` y `#modem` se han retirado. El parser los rechaza explícitamente; usa modes y límites para declarar el lenguaje.
 - Contextos de ejemplos se aíslan por selector. Un contexto nunca filtra hechos o constraints hacia otro ejemplo.
 - Fitness fuerza consecuencias brave. Evalúa el programa candidato completo.
 - Cada evaluación usa el solver normal y un `clingo.Control` nuevo.
@@ -95,9 +94,9 @@ Estos son límites del producto, aunque algunos todavía compartan paquete:
 
 | Módulo | Responsabilidad | Ubicación actual |
 |---|---|---|
-| Lenguaje de tareas | Leer UTF-8, separar sentencias completas, parsear directivas, delegar ASP a `clingo.ast` y construir un IR tipado. | `gentians/language/parser.py`, `lexer.py`, `grammar.py`, `asp.py`, `directives.py`, `declarations.py`, `modes.py`, `metarules.py`, `language/ir/` |
+| Lenguaje de tareas | Leer UTF-8, separar sentencias completas, parsear directivas, delegar ASP a `clingo.ast` y construir un IR tipado. | `gentians/language/parser.py`, `lexer.py`, `grammar.py`, `asp.py`, `directives.py`, `declarations.py`, `modes.py`, `language/ir/` |
 | Generación de cláusulas | Compilar bias y análisis estático a facts, enumerar cláusulas mediante metaprograma ASP, podar ilegalidad y redundancia, decodificar y canonicalizar. | `gentians/clauses/generator.py`, `clauses/metaprogram/**/*.lp`, `ClauseSpace` |
-| Generación de hipótesis | Construir programas candidatos, aplicar pruning mientras nacen y cerrar dependencias bajo `#maxpl` y bundles. | `gentians/hypotheses/` |
+| Generación de hipótesis | Construir programas candidatos, aplicar pruning mientras nacen y cerrar dependencias bajo `#maxpl`. | `gentians/hypotheses/` |
 | Algoritmos de búsqueda | Resolver una tarea completa y devolver `SearchResult`. Cada algoritmo posee su bucle; la implementación actual es un GA de estado estable. | `gentians/algorithms/` |
 | Evolución | Proveer individuo, contexto, operadores y estrategias usados por algoritmos evolutivos. | `gentians/evolution/` |
 | Evaluación | Compilar ejemplos, obtener cobertura con Clingo y convertirla en score y condición de solución. | `gentians/evaluation/` |
@@ -112,7 +111,7 @@ La tabla mezcla destino y estado real a propósito. La generación de hipótesis
 
 ## Cómo se genera una cláusula
 
-`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` y `metarules` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP. El background se parsea en una sola llamada preservando las líneas originales; en ejemplos solo se parsean los campos no vacíos. `InductiveTask` conserva background, átomos incluidos y excluidos, contextos, `#bias` y metarules como nodos `clingo.ast.AST`; `Clause` conserva el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
+`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP. El background se parsea en una sola llamada preservando las líneas originales; en ejemplos solo se parsean los campos no vacíos. `InductiveTask` conserva background, átomos incluidos y excluidos, contextos como nodos `clingo.ast.AST`; `Clause` conserva el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
 
 `generate_clause_space()` ejecuta este pipeline:
 
@@ -131,16 +130,17 @@ Un cambio de lenguaje suele tocar lexer, parser, IR, compilación de modes/facts
 
 ## Cómo se genera y busca una hipótesis
 
-`HypothesisGenerator` es la única autoridad para construir o transformar genomas. Prepara el `ClauseSpace`, elimina cláusulas imposibles de cerrar y mantiene índices de heads, dependencies y bundles. Creación, append, remove, replace y crossover terminan en `_build()` y `_complete()`.
+`HypothesisGenerator` es la única autoridad para construir o transformar genomas. Prepara el `ClauseSpace`, elimina cláusulas imposibles de cerrar y mantiene índices de heads y dependencies. Añadir cierra los proveedores que falten. Eliminar retira en cascada los consumidores sin proveedor, sin añadir alternativas. Reemplazar considera la cabeza nueva antes de retirar consumidores y cierra el bloque añadido. Los límites y las máscaras de protección se aplican al cambio completo.
 
 Invariantes del candidato:
 
 - No está vacío.
 - Solo contiene cláusulas del espacio preparado.
 - No excede `#maxpl`.
-- Incluye bundles completos.
 - Todas sus dependencias tienen proveedor en background o en el candidato.
-- Una transición destructiva no puede reintroducir la regla o bundle marcado como forbidden para reparar su propia eliminación.
+- Una transición destructiva no puede reintroducir la regla marcada como forbidden para reparar su propia eliminación.
+
+La factory de mutación se conserva aunque solo registre `random_group`. Esta estrategia reúne los reemplazos por firma de cabeza y las operaciones por bloques. `random_jump_probability=0.1` permite cambiar de firma en un intento de reemplazo. En candidatos completos con positivos, las reglas con cabeza solo pueden eliminarse mediante el intento `complete_generator_removal_probability=0.1`; no existe fallback irrestricto en mutación. Un candidato incompleto permite cambios encabezados y eliminación de constraints; se ha retirado la búsqueda de relajaciones. Crossover conserva su política propia. `docs/variation-policy.md` documenta las garantías y los límites.
 
 Las estrategias no editan bits arbitrariamente. Selección opera sobre `Individual`; population, crossover y mutation piden genomas válidos a `HypothesisGenerator`; replacement conserva tamaño y orden por score. Los protocolos viven en `evolution/operator_types.py` y el estado compartido mínimo en `EvolutionContext`.
 
@@ -187,7 +187,7 @@ El resultado canónico de tiempo es `total_execution`, cerrado antes de imprimir
 - `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada.
 - `benchmarks/profile_baseline.py` ejecuta runs, recoge JSON/JSONL, CSV y `.prof`, y genera `dashboard_data.json`.
 - `benchmarks/run_experiments.py` carga TOML, aplica overrides, fingerprinta configuración y marca resultados stale cuando deja de coincidir.
-- `benchmarks/experiments.toml` es la matriz ordinaria. Configs de investigación separadas deben declarar una sola diferencia interpretable frente al control.
+- `benchmarks/experiments.toml` reúne todas las matrices. Añade experimentos de investigación con IDs prefijados, como `pool-policy/control`, y una diferencia interpretable frente a su control. Conserva sus parámetros en el mismo archivo; no crees TOML separados.
 - Resultados generados viven bajo `.benchmarks/<experimento>/` y están ignorados. No edites JSON o CSV generados a mano.
 - Para comparar algoritmos, fija datasets, seeds, runs, timeout y todos los parámetros salvo la variable estudiada. Registra versión de Python, Clingo, hardware y revisión del código cuando publiques conclusiones.
 - Cinco runs detectan efectos grandes, no establecen una tasa de éxito precisa. Lee éxito junto a tiempo y cobertura.

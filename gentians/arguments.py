@@ -31,7 +31,7 @@ class Arguments:
     # Parent selection operator config.
     selection: dict[str, object] = field(
         default_factory=lambda: {
-            # tournament, behavior_tournament, or lexicase.
+            # tournament, behavior_tournament, lexicase, or reproductive_lexicase.
             "name": "lexicase",
             # Population percentage sampled per tournament, expressed in (0, 1].
             "tournament_percentage": 0.1,
@@ -53,12 +53,14 @@ class Arguments:
     # Mutation operator config.
     mutation: dict[str, object] = field(
         default_factory=lambda: {
-            # random_group or structural_neighbor.
+            # Unified dependency-block mutation; factory remains the entry point.
             "name": "random_group",
             # Probability of mutating an offspring.
             "probability": 0.9,
-            # Probability of ignoring structural neighbors and jumping randomly.
-            "random_jump_probability": 0.0,
+            # Per replacement attempt: allow a different signed head signature.
+            "random_jump_probability": 0.1,
+            # Per complete-candidate mutation: try deleting a headed block.
+            "complete_generator_removal_probability": 0.1,
         }
     )
 
@@ -79,6 +81,30 @@ class Arguments:
             "name": "oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
             "prob_replacing_oldest": 0.1,
+        }
+    )
+
+    # Optional frozen clause pool used by the epoch-pool genetic search.
+    clause_pool: dict[str, object] = field(
+        default_factory=lambda: {
+            "enabled": False,
+            # sampled generates a bounded new batch each epoch; exhaustive is the control.
+            "source": "sampled",
+            # Target clause count. Elite hypotheses may require a larger pool.
+            "size": 128,
+            # Rebuild after this many generations.
+            "epoch_generations": 50,
+            # Complete hypotheses retained when rebuilding.
+            "elite_count": 10,
+            # persistent reuses grounding; fresh isolates the pool's search effect.
+            "solver": "persistent",
+            # fitness, behavior, or reproductive retention of complete hypotheses.
+            "retention": "fitness",
+            # random or neighbors, with half the extra capacity reserved for exploration.
+            "filling": "random",
+            # generations or adaptive (stagnation, novel evaluations, duplicates).
+            "renewal": "generations",
+            "epoch_evaluations": 50,
         }
     )
 

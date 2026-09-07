@@ -1,7 +1,7 @@
 import random
 import time
 from collections.abc import Callable
-from functools import wraps
+from functools import cached_property, wraps
 
 from ..language.asp import AspProgram, symbolic_literal_predicate
 from ..language.ir.inductive_task import InductiveTask
@@ -39,11 +39,15 @@ class HypothesisGenerator:
         max_clauses: int,
     ) -> None:
         self.max_clauses = max_clauses
+        self.has_positive_examples = bool(task.positive_examples)
+        self.has_negative_examples = bool(task.negative_examples)
         self.space = prepare_space(task, space)
         self.clauses = self.space.clauses
         self.statements = self.space.statements
         self.clause_count = len(self.clauses)
         self.all_clauses = (1 << self.clause_count) - 1
+        self.available_clauses = self.all_clauses
+        self._available_ids: tuple[int, ...] = ()
         self.clause_ids = {
             clause: index for index, clause in enumerate(self.clauses)
         }
@@ -71,18 +75,6 @@ class HypothesisGenerator:
             self._predicate_mask(entry.deps) for entry in self.space.entries
         )
         self.body_sizes = tuple(entry.body_literals for entry in self.space.entries)
-        self.bundle_masks: dict[int, int] = {}
-        for clause_id, entry in enumerate(self.space.entries):
-            if entry.bundle is not None:
-                self.bundle_masks[entry.bundle] = self.bundle_masks.get(
-                    entry.bundle, 0
-                ) | (1 << clause_id)
-        self.clause_bundle_masks = tuple(
-            self.bundle_masks.get(entry.bundle, 1 << clause_id)
-            if entry.bundle is not None
-            else 1 << clause_id
-            for clause_id, entry in enumerate(self.space.entries)
-        )
         self.target_clauses = sum(
             1 << clause_id
             for clause_id, heads in enumerate(self.head_masks)
@@ -97,7 +89,16 @@ class HypothesisGenerator:
                 )
         self._render_cache: dict[Genome, ProgramText] = {}
         self._summary_cache: dict[Genome, tuple[int, int]] = {}
-        self._build_cache: dict[tuple[Genome, Genome], Genome | None] = {}
+        self._build_cache: dict[tuple[Genome, Genome, Genome], Genome | None] = {}
+
+    def set_pool(self, clauses: Genome) -> None:
+        """Restrict subsequent construction to a frozen subset of the space."""
+        if not clauses or clauses & ~self.all_clauses:
+            raise ValueError("clause pool must be a non-empty subset of the space")
+        self.available_clauses = clauses
+        self._available_ids = (
+            () if clauses == self.all_clauses else tuple(self._ids(clauses))
+        )
 
     def encode(self, program: ProgramText) -> Genome:
         genome = 0
@@ -119,9 +120,10 @@ class HypothesisGenerator:
 
     @_record_closure_time
     def create(self, rng: random.Random) -> Genome | None:
-        if not self.clause_count:
+        available_count = self.available_clauses.bit_count()
+        if not available_count:
             return None
-        limit = min(self.max_clauses, self.clause_count)
+        limit = min(self.max_clauses, available_count)
         size = rng.randint(1, limit)
         return self._build(self._sample_clauses(size, rng), 0, rng)
 
@@ -148,6 +150,8 @@ class HypothesisGenerator:
         first_probability: float,
         second_probability: float,
         rng: random.Random,
+        fixed: Genome = 0,
+        forbidden: Genome = 0,
     ) -> Genome | None:
         """
         Mezcla dos genomas en cuatro fases: toma primero las cláusulas
@@ -170,16 +174,36 @@ class HypothesisGenerator:
         for clause_id in self._ids(second & ~first):
             if rng.random() < second_probability:
                 preferred |= 1 << clause_id
+        if not preferred and not (first | second):
+            return fixed or None
         if not preferred:
             preferred = self._random_clause(first | second, rng)
-        selected = 0
+        selected = fixed
         for clause_id in self._ids(preferred):
-            expanded = self._complete(selected | (1 << clause_id), 0, rng)
+            expanded = self._complete(selected | (1 << clause_id), forbidden, rng)
             if expanded is not None and expanded.bit_count() <= self.max_clauses:
                 selected = expanded
         if not selected:
             return None
         return selected
+
+    @cached_property
+    def constraint_clauses(self) -> Genome:
+        """Clauses with no defined head predicate."""
+        return sum(1 << i for i, entry in enumerate(self.space.entries) if not entry.heads)
+
+    def _mutation_space(self, genome: Genome, mutable: Genome | None) -> tuple[Genome, Genome]:
+        mutable = self.available_clauses if mutable is None else mutable & self.available_clauses
+        return mutable, self.all_clauses & ~(genome | mutable)
+
+    @_record_closure_time
+    def mix_constraints(
+        self, first: Genome, second: Genome, probabilities: tuple[float, float],
+        rng: random.Random,
+    ) -> Genome | None:
+        mutable, forbidden = self._mutation_space(first, self.constraint_clauses)
+        return self._mix_one(first & mutable, second & mutable, *probabilities, rng,
+                             fixed=first & ~mutable, forbidden=forbidden)
 
     def operations(self, genome: Genome) -> list[str]:
         size = genome.bit_count()
@@ -188,76 +212,144 @@ class HypothesisGenerator:
             operations.append("append")
         if size > 1:
             operations.append("remove")
-        if genome and self.all_clauses & ~genome:
+        if genome and self.available_clauses & ~genome:
             operations.append("replace")
         return operations
 
     @_record_closure_time
-    def append(self, genome: Genome, rng: random.Random) -> Genome | None:
+    def append(self, genome: Genome, rng: random.Random, *, mutable: Genome | None = None) -> Genome | None:
+        mutable, forbidden = self._mutation_space(genome, mutable)
+        if not mutable & ~genome:
+            return None
         for clause_id in self._random_available(genome, rng):
-            if candidate := self._build(genome | (1 << clause_id), 0, rng):
-                return candidate
+            if not mutable & (1 << clause_id):
+                continue
+            if candidate := self._build(genome | (1 << clause_id), forbidden, rng):
+                if not (candidate ^ genome) & ~mutable:
+                    return candidate
         return None
 
     @_record_closure_time
-    def remove(self, genome: Genome, rng: random.Random) -> Genome | None:
-        for clause_id in self._random_ids(genome, rng):
-            clause_bit = self.clause_bundle_masks[clause_id]
-            if candidate := self._build(genome & ~clause_bit, clause_bit, rng):
-                return candidate
+    def remove(
+        self, genome: Genome, rng: random.Random, *, mutable: Genome | None = None,
+        sources: Genome | None = None,
+    ) -> Genome | None:
+        mutable, _ = self._mutation_space(genome, mutable)
+        roots = genome & mutable
+        if sources is not None:
+            roots &= sources
+        for clause_id in self._random_ids(roots, rng):
+            clause_bit = 1 << clause_id
+            # Delete unsupported consumers transitively. Deletion never repairs
+            # itself by inserting a different provider from the clause pool.
+            remaining = self._drop_dependents(genome & ~clause_bit)
+            # remaining is already closed; no full-ClauseSpace complement is
+            # needed in the cache key to prevent insertion of new providers.
+            if candidate := self._build(remaining, genome & ~remaining, rng):
+                if not (candidate ^ genome) & ~mutable:
+                    return candidate
         return None
 
     @_record_closure_time
     def replace(
-        self, genome: Genome, rng: random.Random, *, same_head: bool = False
+        self, genome: Genome, rng: random.Random, *, same_head: bool = False,
+        mutable: Genome | None = None, headed_only: bool = False,
     ) -> Genome | None:
-        for source_id in self._random_ids(genome, rng):
-            source_bit = self.clause_bundle_masks[source_id]
+        mutable, forbidden = self._mutation_space(genome, mutable)
+        choices = mutable & ~self.constraint_clauses if headed_only else mutable
+        if not choices & ~genome:
+            return None
+        for source_id in self._random_ids(genome & choices, rng):
+            source_bit = 1 << source_id
             base = genome & ~source_bit
+            available = (i for i in self._random_available(genome, rng) if choices & (1 << i))
             replacements = (
                 (
                     clause_id
-                    for clause_id in self._random_available(genome, rng)
+                    for clause_id in available
                     if self.head_masks[clause_id] == self.head_masks[source_id]
                 )
                 if same_head
-                else self._random_available(genome, rng)
+                else available
             )
             for replacement_id in replacements:
+                # The replacement head can sustain existing consumers. Remove
+                # only those still unsupported, then close the new clause block.
+                retained = self._drop_dependents(base, self.head_masks[replacement_id])
+                removed = genome & ~retained
                 if candidate := self._build(
-                    base | (1 << replacement_id), source_bit, rng
+                    retained | (1 << replacement_id), forbidden | removed, rng
                 ):
+                    if (candidate ^ genome) & ~mutable:
+                        continue
                     return candidate
         return None
 
+    def _drop_dependents(self, candidate: Genome, extra_heads: int = 0) -> Genome:
+        """Keep the greatest dependency-closed subset, with optional new heads.
+
+        Closure is syntactic: alternative providers and signed predicates count;
+        mutually recursive clauses are not a proof of stable-model support.
+        """
+        while candidate:
+            heads, _ = self._summary(candidate)
+            provided = self.background_mask | heads | extra_heads
+            unsupported = sum(
+                1 << i for i in self._ids(candidate) if self.dep_masks[i] & ~provided
+            )
+            if not unsupported:
+                break
+            candidate &= ~unsupported
+        return candidate
+
     def _sample_clauses(self, size: int, rng: random.Random) -> Genome:
-        if not self.invented_mask or not self.target_clauses:
+        if self.available_clauses == self.all_clauses:
+            if not self.invented_mask or not self.target_clauses:
+                return sum(
+                    1 << clause_id
+                    for clause_id in rng.sample(range(self.clause_count), size)
+                )
+            invented_consumers = sum(
+                1 << clause_id
+                for clause_id in self._ids(self.target_clauses)
+                if self.dep_masks[clause_id] & self.invented_mask
+            )
+            seed = self._random_clause(
+                invented_consumers or self.target_clauses, rng
+            )
+            others = self._sample_ids(
+                self.all_clauses & ~seed, size - 1, rng
+            )
+            return seed | sum(1 << clause_id for clause_id in others)
+
+        available_targets = self.target_clauses & self.available_clauses
+        if not self.invented_mask or not available_targets:
             return sum(
                 1 << clause_id
-                for clause_id in rng.sample(range(self.clause_count), size)
+                for clause_id in self._sample_ids(self.available_clauses, size, rng)
             )
         invented_consumers = sum(
             1 << clause_id
-            for clause_id in self._ids(self.target_clauses)
+            for clause_id in self._ids(available_targets)
             if self.dep_masks[clause_id] & self.invented_mask
         )
-        seeds = invented_consumers or self.target_clauses
+        seeds = invented_consumers or available_targets
         seed = self._random_clause(seeds, rng)
         remaining = size - 1
-        others = self._sample_ids(self.all_clauses & ~seed, remaining, rng)
+        others = self._sample_ids(self.available_clauses & ~seed, remaining, rng)
         return seed | sum(1 << clause_id for clause_id in others)
 
     def _build(
         self, proposal: Genome, forbidden: Genome, rng: random.Random
     ) -> Genome | None:
-        key = proposal, forbidden
+        key = self.available_clauses, proposal, forbidden
         if key in self._build_cache:
             return self._build_cache[key]
         invalid = (
             not proposal
             or proposal.bit_count() > self.max_clauses
             or proposal & forbidden
-            or proposal & ~self.all_clauses
+            or proposal & ~self.available_clauses
         )
         if invalid:
             result = None
@@ -270,7 +362,6 @@ class HypothesisGenerator:
     def _complete(
         self, candidate: Genome, forbidden: Genome, rng: random.Random
     ) -> Genome | None:
-        candidate = self._bundle_closure(candidate)
         if candidate & forbidden or candidate.bit_count() > self.max_clauses:
             return None
         failed: set[Genome] = set()
@@ -278,7 +369,6 @@ class HypothesisGenerator:
 
         def search(completed: Genome) -> Genome | None:
             nonlocal remaining
-            completed = self._bundle_closure(completed)
             if completed & forbidden or completed.bit_count() > self.max_clauses:
                 return None
             if completed in failed or remaining == 0:
@@ -287,6 +377,10 @@ class HypothesisGenerator:
             heads, deps = self._summary(completed)
             missing = deps & ~(self.background_mask | heads)
             if not missing:
+                if not self.has_negative_examples:
+                    # Optional integrity constraints cannot add brave witnesses.
+                    # Keep the nonempty-hypothesis invariant.
+                    return completed & ~self.constraint_clauses or completed
                 return completed
             if completed.bit_count() < self.max_clauses:
                 missing_bit = min(
@@ -296,7 +390,10 @@ class HypothesisGenerator:
                     ).bit_count(),
                 )
                 providers = (
-                    self.clauses_by_head.get(missing_bit, 0) & ~completed & ~forbidden
+                    self.clauses_by_head.get(missing_bit, 0)
+                    & self.available_clauses
+                    & ~completed
+                    & ~forbidden
                 )
                 score_groups: dict[tuple[int, int, int], int] = {}
                 for clause_id in self._ids(providers):
@@ -321,12 +418,6 @@ class HypothesisGenerator:
 
         return search(candidate)
 
-    def _bundle_closure(self, genome: Genome) -> Genome:
-        expanded = genome
-        for clause_id in self._ids(genome):
-            expanded |= self.clause_bundle_masks[clause_id]
-        return expanded
-
     def _summary(self, genome: Genome) -> tuple[int, int]:
         if genome not in self._summary_cache:
             heads = 0
@@ -348,25 +439,38 @@ class HypothesisGenerator:
             yield clause_ids.pop()
 
     def _random_available(self, excluded: Genome, rng: random.Random):
-        excluded_ids = tuple(self._ids(excluded))
-        remaining = self.clause_count - len(excluded_ids)
-        swaps: dict[int, int] = {}
+        if self.available_clauses == self.all_clauses:
+            excluded_ids = tuple(self._ids(excluded))
+            remaining = self.clause_count - len(excluded_ids)
+            swaps: dict[int, int] = {}
+            while remaining:
+                compressed = rng.randrange(remaining)
+                selected = swaps.get(compressed, compressed)
+                remaining -= 1
+                swaps[compressed] = swaps.get(remaining, remaining)
+                clause_id = selected
+                for excluded_id in excluded_ids:
+                    if excluded_id > clause_id:
+                        break
+                    clause_id += 1
+                yield clause_id
+            return
+
+        remaining = [
+            clause_id for clause_id in self._available_ids
+            if not excluded & (1 << clause_id)
+        ]
         while remaining:
-            compressed = rng.randrange(remaining)
-            selected = swaps.get(compressed, compressed)
-            remaining -= 1
-            swaps[compressed] = swaps.get(remaining, remaining)
-            clause_id = selected
-            for excluded_id in excluded_ids:
-                if excluded_id > clause_id:
-                    break
-                clause_id += 1
-            yield clause_id
+            yield remaining.pop(rng.randrange(len(remaining)))
 
     def _sample_ids(
         self, mask: int, size: int, rng: random.Random
     ) -> list[int]:
-        available = tuple(self._ids(mask))
+        available = (
+            self._available_ids
+            if mask == self.available_clauses and mask != self.all_clauses
+            else tuple(self._ids(mask))
+        )
         return rng.sample(available, min(size, len(available)))
 
     @staticmethod

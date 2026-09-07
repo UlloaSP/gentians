@@ -4,6 +4,7 @@ from ..language.asp import AspProgram
 from ..language.ir.inductive_task import InductiveTask
 from .coverage import Coverage
 from .metrics import record_evaluation_metric
+from .pool_solver import EpochPoolCoverageSolver
 from .result import EvaluationResult
 from .solver import CoverageSolver
 
@@ -12,7 +13,7 @@ class CandidateEvaluator:
     def __init__(
         self,
         task: InductiveTask,
-        solver: CoverageSolver,
+        solver: CoverageSolver | EpochPoolCoverageSolver,
         score: Callable[[InductiveTask, Coverage], float],
     ) -> None:
         self.task = task

@@ -34,5 +34,3 @@ class InductiveTask:
     language_bias_aggregate_head: list[ModeDeclaration] = field(default_factory=list)
     language_bias_disjunctive_head: list[ModeDeclaration] = field(default_factory=list)
     min_aggregate_head_literals: int = 1
-    bias: tuple[ast.AST, ...] = ()
-    metarule_programs: tuple[tuple[ast.AST, ...], ...] = ()

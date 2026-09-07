@@ -174,7 +174,7 @@
         "selected/3 + var_at/4 se decodifican como ReifiedClause; _theta_reduced elimina subcuerpos equivalentes",
         "Operaciones conectadas forman ArithmeticSystem con ecuaciones residuales y condiciones",
         "Outputs inseguros conservan asignación; div/mod incluyen divisor != 0 sin recall extra",
-        "Clause guarda texto, heads, dependencies, tamaño y bundle; ClauseSpace ordena y deduplica"
+        "Clause guarda texto, heads, dependencies y tamaño; ClauseSpace ordena y deduplica"
       ]
     }
   ]

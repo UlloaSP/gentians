@@ -27,8 +27,10 @@ from ..evolution.metrics import (
 from ..evolution.mutations import create_mutation
 from ..evolution.populations import create_population
 from ..evolution.replacements import create_replacement
+from ..evolution.reproduction import ReproductiveHistory
 from ..evolution.selections import create_selection
 from ..evaluation import create_evaluator
+from ..evaluation.result import EvaluationResult
 from ..hypotheses import Genome, HypothesisGenerator
 from .result import SearchResult
 
@@ -41,7 +43,16 @@ def steady_state_genetic_search(
 ) -> SearchResult:
     rng = random.Random(args.random_seed)
     population_strategy = create_population(args.population)
-    selection = create_selection(args.selection)
+    history = (
+        ReproductiveHistory()
+        if args.selection["name"] == "reproductive_lexicase"
+        else None
+    )
+    selection = (
+        create_selection(args.selection, history)
+        if history is not None
+        else create_selection(args.selection)
+    )
     crossover = create_crossover(args.crossover)
     replacement = create_replacement(args.replacement)
     generations = (
@@ -73,6 +84,7 @@ def steady_state_genetic_search(
         evaluate_candidate = create_evaluator(task, args.evaluation)
 
     evaluated: dict[Genome, Individual] = {}
+    results: dict[Genome, EvaluationResult] = {}
     evaluations = 0
     started = net_time()
 
@@ -100,12 +112,19 @@ def steady_state_genetic_search(
             else [*population[:-1], solution]
         )
 
-    def admit(candidate: Genome):
+    def evaluate(candidate: Genome) -> EvaluationResult:
         nonlocal evaluations
+        if candidate not in results:
+            evaluations += 1
+            results[candidate] = evaluate_candidate(hypotheses.program(candidate))
+        return results[candidate]
+
+    context = EvolutionContext(hypotheses, rng, evaluate, results)
+
+    def admit(candidate: Genome):
         if candidate in evaluated:
             return None
-        evaluations += 1
-        result = evaluate_candidate(hypotheses.program(candidate))
+        result = evaluate(candidate)
         individual = Individual(
             genome=candidate,
             score=result.score,
@@ -120,11 +139,13 @@ def steady_state_genetic_search(
 
     with phase("initialization"):
         mutation = create_mutation(args.mutation)
-        population = [
-            individual
-            for proposal in population_strategy(context)
-            if (individual := admit(proposal)) is not None
-        ]
+        population = []
+        for proposal in population_strategy(context):
+            individual = admit(proposal)
+            if individual is not None:
+                population.append(individual)
+                if individual.is_solution:
+                    break
     if not population:
         raise RuntimeError("Could not initialize population")
     population.sort(key=lambda item: item.score, reverse=True)
@@ -151,6 +172,8 @@ def steady_state_genetic_search(
         with phase("crossover"):
             crossed = crossover(first.genome, second.genome, context)
         if crossed is None:
+            if history is not None:
+                history.observe(first, second, None)
             record_skipped_crossover(str(args.crossover["name"]), len(population))
         else:
             best_parent = first if first.score >= second.score else second
@@ -167,6 +190,8 @@ def steady_state_genetic_search(
             duplicate = final_genome in evaluated
             with phase("mutation" if mutation_changed else "crossover"):
                 child = None if duplicate else admit(final_genome)
+            if history is not None:
+                history.observe(first, second, child, duplicate=duplicate)
             record_mutation(
                 str(args.mutation["name"]),
                 crossed,
@@ -185,6 +210,8 @@ def steady_state_genetic_search(
                 )
         population.sort(key=lambda item: item.score, reverse=True)
         best_overall = _better(best_overall, population[0])
+        if history is not None:
+            history.retain([best_overall.genome, *(item.genome for item in population)])
         record_ga_generation(
             generation + 1,
             best_overall.score,

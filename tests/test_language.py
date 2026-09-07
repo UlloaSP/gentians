@@ -7,6 +7,32 @@ from gentians.language.lexer import lex
 from tests.task_helpers import make_clause_space
 
 
+@pytest.mark.parametrize("declaration", [
+    '#bias(":- selected_slot(head,_).").',
+    '#bias("\n bias_active.\n").',
+    '#metarule(chain,"P(X) :- Q(X).").',
+    '#predicate(target,p/1).',
+    '#modem(chain(target/1,base/1)).',
+])
+def test_removed_meta_directives_fail_before_background_parsing(monkeypatch, declaration):
+    def unexpected(*args, **kwargs):
+        pytest.fail("removed directives must not reach the background parser")
+
+    monkeypatch.setattr(task_parser, "parse_program", unexpected)
+    with pytest.raises(ValueError, match="line 2: .* is no longer supported"):
+        parse_text("fact.\n" + declaration)
+
+
+def test_removed_directive_text_in_comments_and_strings_is_ordinary_asp():
+    task = parse_text('% #bias("ignored.").\ntext("#metarule").')
+    assert tuple(map(str, task.background)) == ('text("#metarule").',)
+
+
+def test_task_ir_has_no_meta_program_payloads():
+    assert "bias" not in InductiveTask.__dataclass_fields__
+    assert "metarule_programs" not in InductiveTask.__dataclass_fields__
+
+
 def test_parser_accepts_multiline_directives_and_preserves_asp_ranges() -> None:
     task = parse_text(
         """
@@ -74,19 +100,6 @@ def test_lexer_allows_comment_before_weak_constraint_annotation() -> None:
     assert [statement.text for statement in statements] == [":~ p(X). [1@1,X]"]
 
 
-def test_bias_payload_can_span_lines_and_contain_comment_characters() -> None:
-    task = parse_text(
-        '''
-        #bias(
-            "bias_active :- selected(head,0,0).\n"
-        ).
-        '''
-    )
-
-    assert tuple(map(str, task.bias)) == ("bias_active :- selected(head,0,0).",)
-    assert task.bias[0].ast_type == ast.ASTType.Rule
-
-
 def test_parse_file_reads_utf8_and_parses_the_task(tmp_path) -> None:
     task = tmp_path / "task.lp"
     task.write_text("fact(a).\n#maxpl(2).", encoding="utf-8")
@@ -136,7 +149,7 @@ def test_example_parse_error_reports_original_task_line() -> None:
     [
         ("#modeh bad.", "invalid directive"),
         ("#modeh(1, p(var(node,input))).\n#modeb(", "line 2"),
-        ('#bias("unterminated).', "unterminated string"),
+        ('p("unterminated).', "unterminated string"),
     ],
 )
 def test_language_errors_reject_malformed_statements(source: str, message: str) -> None:

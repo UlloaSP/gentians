@@ -1,10 +1,8 @@
-import re
 
 import clingo
 
-from clingo import ast
 
-from .asp import parse_aggregate_spec, parse_function, split_top_level_args
+from .asp import parse_aggregate_spec, split_top_level_args
 from .directives import _directive_args, _parse_recall, _strip_outer_braces
 from .ir.aggregate_declaration import AggregateDeclaration
 from .ir.comparison_literal import ComparisonLiteral
@@ -81,42 +79,6 @@ def _get_arithmetic_declaration(s: str) -> OperatorDeclaration | ModeDeclaration
     if outputs and (literal.operator != "=" or outputs != 1):
         raise ValueError("only arithmetic equality may declare one output")
     return ModeDeclaration(recall, literal)
-
-
-def _get_predicate_declaration(s: str) -> tuple[str, tuple[str, int]]:
-    parts = split_top_level_args(_directive_args(s, "#predicate"))
-    if len(parts) != 2 or not re.fullmatch(r"[a-z][A-Za-z0-9_]*", parts[0].strip()):
-        raise ValueError(f"invalid #predicate declaration: {s}")
-    try:
-        name, arity = parts[1].strip().split("/", 1)
-        signature = name, int(arity)
-    except ValueError as exc:
-        raise ValueError(f"invalid #predicate declaration: {s}") from exc
-    if not re.fullmatch(r"[a-z][A-Za-z0-9_]*", signature[0]) or signature[1] < 0:
-        raise ValueError(f"invalid #predicate declaration: {s}")
-    return parts[0].strip(), signature
-
-
-def _get_modem_declaration(s: str) -> tuple[str, tuple[tuple[str, int], ...]]:
-    raw = _directive_args(s, "#modem").strip()
-    parsed = parse_function(raw)
-    if parsed is None:
-        raise ValueError(f"invalid #modem declaration: {s}")
-    name, specs = parsed
-    result: list[tuple[str, int]] = []
-    for spec in specs:
-        try:
-            if (
-                spec.ast_type != ast.ASTType.BinaryOperation
-                or spec.operator_type != ast.BinaryOperator.Division
-            ):
-                raise ValueError
-            type_name = str(spec.left)
-            arity = int(str(spec.right))
-            result.append((type_name, arity))
-        except (AttributeError, ValueError) as exc:
-            raise ValueError(f"invalid #modem declaration: {s}") from exc
-    return name, tuple(result)
 
 
 def _get_invented_declaration(s: str) -> tuple[int, str, tuple[TermTemplate, ...]]:

@@ -5,6 +5,9 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+from benchmarks import profile_baseline as profile
+
 from benchmarks.profile_baseline import (
     GAMetric,
     RunResult,
@@ -25,6 +28,30 @@ from gentians.algorithms import SearchResult
 from gentians.arguments import Arguments
 from gentians.gentians import solve
 from tests.task_helpers import inductive_task
+
+
+@pytest.mark.parametrize("stop,expected", [(True, 1), (False, 6)])
+def test_suite_stops_configuration_after_timeout_and_keeps_results(tmp_path, monkeypatch, stop, expected):
+    calls = []
+
+    def timeout(*args, **_kwargs):
+        calls.append(args)
+        args[2].write_text("", encoding="utf-8")
+        return -1, True
+
+    monkeypatch.setattr(profile, "run_streamed", timeout)
+    args = SimpleNamespace(list_datasets=False, out_dir=tmp_path,
+                           datasets=["5queens", "grandparent"], runs=3,
+                           arguments_json=None, set=[], python=sys.executable,
+                           cprofile=False, seed_base=1, timeout_seconds=1,
+                           instrumentation="light", stop_on_timeout=stop)
+    profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
+    assert len(calls) == expected
+    assert (tmp_path / "runs.csv").is_file()
+    assert (tmp_path / "runs.csv").read_text().count("timeout") == expected
+    from benchmarks.run_experiments import result_status
+    assert result_status(tmp_path, stop_on_timeout=stop) == (
+        "screened_out" if stop else "completed_with_failures")
 
 
 def test_profile_worker_applies_seed_to_arguments(monkeypatch):
@@ -773,6 +800,31 @@ def test_run_streamed_sets_dataset_and_run_env(tmp_path):
 
     assert (returncode, timed_out) == (0, False)
     assert log_path.read_text(encoding="utf-8").splitlines() == ["coin", "3"]
+
+
+def test_light_instrumentation_removes_inherited_detailed_logging(tmp_path, monkeypatch):
+    monkeypatch.setenv("GENTIANS_CLINGO_METRICS_PATH", "inherited.jsonl")
+    code = "import os,json; print(json.dumps(sorted(k for k in os.environ if k.startswith('GENTIANS_') and k.endswith('_PATH'))))"
+    log = tmp_path / "run.log"
+    result = run_streamed(
+        [sys.executable, "-c", code], "{}", log, 10,
+        *[tmp_path / name for name in ("timings.json", "x_ga_metrics.json", "operator.jsonl",
+                                      "candidate.jsonl", "quality.jsonl", "clingo.jsonl")],
+        "coin", 1, 1, instrumentation_level="light",
+    )
+    assert result == (0, False)
+    assert json.loads(log.read_text()) == [
+        "GENTIANS_GA_METRICS_PATH", "GENTIANS_POOL_METRICS_PATH", "GENTIANS_TIMINGS_PATH",
+    ]
+
+
+def test_light_outputs_do_not_publish_unmeasured_dashboard_fields(tmp_path):
+    from benchmarks.profile_baseline import write_outputs
+
+    write_outputs(tmp_path, [], [], [], [], [], [], [], instrumentation_level="light")
+    assert not (tmp_path / "dashboard_data.json").exists()
+    metadata = json.loads((tmp_path / "measurement.json").read_text())
+    assert metadata["unmeasured"] == ["operator", "candidate", "quality", "clingo"]
 
 
 def test_dashboard_uses_run_means_for_profile_counters(tmp_path):

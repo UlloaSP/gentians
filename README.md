@@ -63,7 +63,7 @@ clauses.
 Clingo validates background ASP. Task files do not accept `#script` blocks.
 The mandatory
 `HypothesisGenerator` in `gentians.hypotheses` is plumbing used by evolutionary
-strategies to preserve size, membership, bundle, and dependency invariants.
+strategies to preserve size, membership, and dependency invariants.
 `Genome` is the bitset genotype, the rendered ASP hypothesis is its phenotype,
 and `Individual` couples one genome to its evaluation and logical birth order.
 
@@ -75,6 +75,12 @@ arguments = Arguments(
         "scoring": "cov_program",
         "clingo_arguments": [],
     },
+    clause_pool={
+        "enabled": True,
+        "size": 128,
+        "epoch_generations": 50,
+        "elite_count": 10,
+    },
 )
 main(arguments)
 ```
@@ -84,30 +90,94 @@ whole program like `cov_program`, but scores balanced accuracy linearly from 0
 to 1. Evolutionary individuals record whether they cover every positive example
 and avoid every negative example. Replacement has no behavior-specific
 tie-break. The benchmark dashboard reports complete, incomplete, consistent,
-inconsistent, and perfect candidate rates. Every candidate
-evaluation uses the normal solver: it creates a fresh Clingo control, adds
-retained AST, grounds its candidate program, then solves it.
+inconsistent, and perfect candidate rates. By default, every candidate
+evaluation creates and grounds a fresh Clingo control. Enabling `clause_pool`
+selects the epoch-pool genetic search. It grounds background, contexts and a
+bounded clause pool together, then reuses that control for candidate subsets
+until the epoch is renewed. The default renewal interval is measured in
+generations; adaptive renewal is optional. Each rebuild grounds the new pool,
+background and contexts together. It does not add new clauses to an old grounding.
 Whole-program evaluation uses brave consequences.
 
+With `clause_pool.source="sampled"` (the pool default), each epoch enumerates at
+most `clause_pool.size` randomized Clingo models and canonicalizes that batch.
+It retains elite hypotheses, rebuilds local
+clause indices, and drops the preceding epoch's caches. This is a biased sample,
+not uniform sampling or exhaustive search. `source="exhaustive"` retains the old
+full-space control. A supplied `ClauseSpace` is always used as supplied.
+Pool size is a target: elite programs and dependency closures can exceed it. With
+`#maxpl(*)`, retained programs can grow between epochs. There is no preventive
+grounding budget or automatic fallback; external resource supervision remains
+necessary.
+
+Mutation adds, replaces or removes a root clause and its dependency block.
+Complete programs keep their headed clauses unchanged, except for a configurable
+10% attempt to delete a headed block. Incomplete programs can edit headed clauses
+or remove constraints. With negatives present, incomplete candidates do not add
+or replace pure constraints. Constraint relaxation has been removed.
+Without negative examples, construction removes
+optional pure constraints whenever a nonempty legal program remains.
+
+Clause generation also prunes headless models before decoding when a static
+missing-predicate proof establishes that a positive example needs a learned
+head. This applies to exhaustive enumeration and sampled batches. It preserves
+constraint-only languages and uncertain cases. Absence of negatives alone is not sufficient to
+prune every constraint because hypotheses must remain nonempty. The exact
+conditions are documented in [language bias](docs/language-bias.md#positive-only-constraint-pruning).
+
+Mutation classifies its actual input through the cached evaluator when positives
+exist, including crossover offspring and homogeneous spaces. Known solutions
+remain unchanged. Classification evaluations count toward search cost.
+Consistency alone does not freeze headed clauses; tasks without positives do not
+freeze them either. Crossover retains its existing preference for complete
+recipient heads, including its 10% unrestricted escape and fallback.
+The separate `completeness` and `structural_neighbor` mutation names have been
+removed. Use `set_mix` for crossover and `random_group` for mutation.
+See [variation policy](docs/variation-policy.md) for guarantees and exceptions.
+
+Pool retention can preserve behavioral specialists or use observed reproductive
+success. `selection={"name": "reproductive_lexicase"}` also uses reproductive
+history to weight the survivors of lexicase filtering. Credit belongs to complete
+parent hypotheses: a fresh child must improve on both parents. Duplicates and
+invalid offspring count as unsuccessful opportunities. No fixed fitness or
+causal contribution is assigned to individual clauses.
+
+Pool retention and reproductive selection remain experimental and disabled by
+default. The controlled
+matrix and evaluator replay are described in
+[`docs/pool-policy-experiment.md`](docs/pool-policy-experiment.md).
+Bounded generation, completeness operators, and the measured comparison against
+the original tasks are documented in
+[`docs/sampled-pool-experiment.md`](docs/sampled-pool-experiment.md).
+
 Complete search algorithms live in `gentians.algorithms` and return a
-`SearchResult`. The current implementation is `steady_state_genetic_search`:
-it replaces population members after each offspring. GA-specific state and
+`SearchResult`. `steady_state_genetic_search` replaces population members after
+each offspring. `epoch_pool_genetic_search` uses the same operators while
+restricting each epoch to a grounded clause pool. GA-specific state and
 operators live in `gentians.evolution`; candidate evaluation lives in
 `gentians.evaluation` so exact or greedy algorithms can reuse it.
 
-Mutation defaults to `random_group`. `structural_neighbor` remains available as
-an alternative that replaces clauses with others sharing the same head:
+Mutation has one implementation, `random_group`, selected through the existing
+mutation factory. Replacement normally preserves the set of signed head
+predicate signatures, not the exact head expression or body:
 
 ```python
 mutation={
-    "name": "structural_neighbor",
+    "name": "random_group",
     "probability": 0.9,
     "random_jump_probability": 0.1,
+    "complete_generator_removal_probability": 0.1,
 }
 ```
 
-`random_jump_probability` preserves global exploration by allowing replacement
-with a clause that has a different head.
+`random_jump_probability` permits a different head on 10% of replacement
+attempts. It does not override complete-candidate protection.
+`complete_generator_removal_probability` reserves a separate 10% chance to try
+deleting a headed dependency block. Its offspring still requires evaluation;
+deletion is not proof of redundancy. Both defaults are configurable. If a complete
+candidate has no legal constraint edit or allowed deletion, mutation leaves it
+unchanged. This restriction can block candidates whose solution requires a headed
+replacement. Historical benchmark results do not measure this new policy.
 
 Benchmark output records clause generation, genetic generations, elapsed
 search time, fitness evaluations, operator metrics, and Clingo phases.
@@ -118,16 +188,28 @@ search time, fitness evaluations, operator metrics, and Clingo phases.
 Edit `benchmarks/experiments.toml` to define datasets, run count, timeout, common
 overrides, and named experiments. Results are isolated in `.benchmarks/<id>` and
 indexed by `.benchmarks/experiments.json` for multi-experiment comparison.
+All 26 configurations share this file. IDs use `epoch-pool/`, `pool-policy/`,
+`sampled-roles/`, and `shared-variation/` prefixes for the research matrices;
+the five ordinary IDs remain unchanged. Prefixes preserve existing output
+folders, not separate configuration layers. Each entry keeps its own timeout,
+instrumentation and overrides.
 
 ```powershell
 uv run python benchmarks/run_experiments.py --list
 uv run python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09
+uv run python benchmarks/run_experiments.py pool-policy/control pool-policy/reproductive_retention
+uv run python benchmarks/run_experiments.py shared-variation/new
 uv run python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09 --force
 uv run python benchmarks/run_experiments.py  # all configured experiments
 ```
 
 An existing matching experiment is skipped. A changed config is marked stale and
 requires `--force`, preventing accidental comparison with obsolete results.
+Namespaced IDs change configuration fingerprints, so their former manifests are
+stale even though the worker arguments and output folders were preserved.
+Consolidation does not rewrite historical manifests or results. Use `--force`
+only when replacing that exact experiment's results is intended. Omitting IDs
+selects all 26 configurations, not just the ordinary matrix.
 
 If instead you prefer to define your own program and domain, keep reading.
 
@@ -161,16 +243,10 @@ Safe empty bodies are learnable. Ground normal heads, disjunctions, choices,
 and cardinality heads therefore produce facts; a variable head without a safe
 source remains rejected, and the empty constraint `:-.` is never generated.
 
-`#bias("...").` injects explicit ASP rules and constraints into the clause
-generator. Bias rules can derive task-specific metarule predicates from
-`selected/3`, `var_at/4`, `mode/5`, `predicate_symbol/3`, and the other reified
-mode relations. Derived names use the reserved `bias_` namespace; weak
-constraints and optimization directives are rejected. Once
-any `#bias` is present, head variable labels are metadata only: equality or
-inequality must be stated explicitly by a bias constraint over
-`head_arg_label/4` and `var_at/4`. Without `#bias`, labels keep their default
-identity semantics. See [the language-bias reference](docs/language-bias.md)
-for the complete contract and examples.
+Variable labels always retain their declared identity semantics.
+`#bias`, `#metarule`, `#predicate`, and `#modem` have been removed and now
+raise explicit task errors. Modes and `#invent` remain supported. See
+[the language contract and migration notes](docs/language-bias.md#removed-meta-programming-directives).
 
 ILASP-style aggregate head modes build choice/cardinality heads by combining
 compatible atoms:
@@ -352,24 +428,6 @@ Examples:
 #modearith(1, sub).
 ```
 
-## Second-order metarules
-
-Metarules instantiate predicate variables from explicit typed pools:
-
-```prolog
-#metarule(chain,"P(X,Z) :- Q(X,Y),R(Y,Z).").
-#predicate(target,path/2).
-#predicate(base,edge/2).
-#modem(chain(target/2,base/2,base/2)).
-```
-
-Predicate variables are ordered by first appearance and their declared arity
-must match every occurrence. A quoted metarule may contain several rules; one
-instantiation is then an atomic rule bundle during initialization, mutation,
-crossover, replacement, and dependency pruning. `#maxv` and `#maxbl` apply to
-each rule, while `#maxpl` counts every rule in the bundle.
-Use `P()` with a `/0` pool specification for a nullary predicate variable.
-
 ## Predicate Invention
 Declare an invented predicate once with `#invent(BODY_RECALL, ATOM_TEMPLATE)`.
 It is generated in rule heads with recall 1 and in positive rule bodies with the
@@ -399,5 +457,21 @@ Here we list only the main ones:
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
 - `evaluation.scoring`: `cov_program` or `cov_balanced`.
+- `clause_pool.enabled`: select epoch-pool search. Default `false`.
+- `clause_pool.source`: `sampled` (default) or `exhaustive`.
+- `clause_pool.size`: target number of clauses in the pool. Default `128`.
+- `clause_pool.epoch_generations`: generations between rebuilds. Default `50`.
+- `clause_pool.elite_count`: complete hypotheses retained at rebuild. Default `10`.
+- `clause_pool.solver`: `persistent` (default) or `fresh`, for a matched search control.
+- `clause_pool.retention`: `fitness` (default), `behavior`, or `reproductive`.
+- `clause_pool.filling`: `random` (default) or `neighbors`, mixing legal local moves with global samples.
+- `clause_pool.renewal`: `generations` (default) or `adaptive`.
+- `clause_pool.epoch_evaluations`: adaptive renewal's minimum fresh-evaluation budget. Default `50`.
+- Adaptive renewal requires stagnation for `epoch_generations` transitions and
+  either the evaluation budget or at least 80% duplicate transitions. It always
+  renews after ten times that interval. These limits renew the pool; they do not
+  terminate the search.
+- Pool size is a target, not a hard cap: retained hypotheses and complete
+  dependency closures can exceed it.
 - `HypothesisGenerator` is mandatory infrastructure: every initialization,
   mutation, and crossover returns an already dependency-closed valid program.

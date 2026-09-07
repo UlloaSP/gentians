@@ -1,12 +1,16 @@
 from typing import Any
 
 from ..operator_types import SelectionFn
+from ..reproduction import ReproductiveHistory
 from .behavior_tournament_selection import BehaviorTournamentSelection
 from .lexicase_selection import LexicaseSelection
+from .reproductive_lexicase_selection import ReproductiveLexicaseSelection
 from .tournament_selection import TournamentSelection
 
 
-def create_selection(config: dict[str, Any]) -> SelectionFn:
+def create_selection(
+    config: dict[str, Any], history: ReproductiveHistory | None = None
+) -> SelectionFn:
     name = str(config["name"])
     if name == "tournament":
         percentage = config["tournament_percentage"]
@@ -29,4 +33,8 @@ def create_selection(config: dict[str, Any]) -> SelectionFn:
         return BehaviorTournamentSelection(float(percentage))
     if name == "lexicase":
         return LexicaseSelection()
+    if name == "reproductive_lexicase":
+        if history is None:
+            raise ValueError("reproductive_lexicase requires shared reproductive history")
+        return ReproductiveLexicaseSelection(history)
     raise ValueError(f"Unknown selection strategy: {name}")

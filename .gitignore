@@ -43,6 +43,9 @@ sweeps/
 .benchmarks/shared-variation/
 
 # Generated analysis
+.benchmarks/semantic-repair/
+.benchmarks/recommended/
+.benchmarks/population-diversity/
 .benchmarks/semantic-inheritance/
 graphify-out/
 .graphify*

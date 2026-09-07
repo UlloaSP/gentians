@@ -28,6 +28,8 @@ class Arguments:
             # Reuse exact coverage bounds under pure integrity-constraint edits.
             # Opt-in until end-to-end measurements justify the extra bookkeeping.
             "constraint_inheritance": False,
+            # Diagnose incomplete candidates without learned constraints.
+            "constraint_diagnosis": False,
         }
     )
 
@@ -73,13 +75,15 @@ class Arguments:
             # Opt-in: original random edits for pools containing only constraints.
             # Allows constraint additions even when positives remain uncovered.
             "constraint_only_random": False,
+            # Prefer diagnosed repair on already classified mutation inputs.
+            "repair_probability": 0.0,
         }
     )
 
     # Population initialization operator config.
     population: dict[str, object] = field(
         default_factory=lambda: {
-            # Population initialization implementation.
+            # random or structural_diverse, which samples without extra fitness calls.
             "name": "random",
             # Number of individuals kept in the population.
             "size": 10,

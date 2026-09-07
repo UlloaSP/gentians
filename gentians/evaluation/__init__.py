@@ -19,6 +19,9 @@ def create_evaluator(
     space: ClauseSpace | None = None,
 ) -> CandidateEvaluator:
     score, clingo_arguments = _evaluation_config(config)
+    diagnosis = config.get("constraint_diagnosis", False)
+    if not isinstance(diagnosis, bool):
+        raise ValueError("evaluation.constraint_diagnosis must be a boolean")
     inheritance = config.get("constraint_inheritance", False)
     if not isinstance(inheritance, bool):
         raise ValueError("evaluation.constraint_inheritance must be a boolean")
@@ -33,7 +36,9 @@ def create_evaluator(
         task.negative_examples,
         constraint_inheritance=inheritance,
     )
-    return CandidateEvaluator(task, solver, score)
+    if diagnosis:
+        solver._require_exhaustive = True
+    return CandidateEvaluator(task, solver, score, constraint_diagnosis=diagnosis)
 
 
 def create_epoch_pool_evaluator(
@@ -43,6 +48,8 @@ def create_epoch_pool_evaluator(
     *,
     coverage_program: AspProgram | None = None,
 ) -> CandidateEvaluator:
+    if config.get("constraint_diagnosis", False) is not False:
+        raise ValueError("constraint_diagnosis requires the normal coverage solver")
     if config.get("constraint_inheritance", False) is not False:
         raise ValueError("constraint_inheritance requires the normal coverage solver")
     score, clingo_arguments = _evaluation_config(config)

@@ -397,6 +397,8 @@ def epoch_pool_genetic_search(
                 crossed,
                 proposal,
                 duplicate=mutation_changed and duplicate,
+                before=results.get(crossed),
+                after=results.get(final_genome),
             )
             if child is not None:
                 if child.score > best_overall.score or child.behavior not in behaviors:

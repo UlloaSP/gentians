@@ -16,4 +16,5 @@ def create_mutation(config: dict[str, Any]) -> MutationFn:
         config.get("body_local_probability", 0.0),
         config.get("completeness_guidance", True),
         config.get("constraint_only_random", False),
+        config.get("repair_probability", 0.0),
     )

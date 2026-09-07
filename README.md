@@ -460,8 +460,26 @@ Here `target_1/2` is learned in rule heads and may occur twice in rule bodies.
 
 ## Main Available Options
 
+The recommended shared benchmark configuration uses structural mutation and
+exact constraint-coverage inheritance. Diagnosis-guided repair, forced body
+locality and epoch pooling remain disabled. The same settings run 5queens,
+grandparent, coloring and knapsack, with ten runs each, a 30-second timeout per
+run and no generation limit. A timeout skips remaining runs of that dataset.
+This is the best-supported combination across these measured tasks, not a claim
+of optimality for every ASP task. Historical matrices remain in the same TOML.
+
+```powershell
+uv run python benchmarks/run_experiments.py recommended/general
+```
+
 Here we list only the main ones:
 
+- `population.name`: `random` or experimental `structural_diverse`. The latter
+  samples up to four distinct valid programs per slot, then balances actual
+  program sizes and prefers low clause overlap. Only selected programs are
+  evaluated; sampling and selection time still count toward initialization.
+  It does not enforce semantic diversity. See
+  [the comparison](docs/population-diversity-experiment.md).
 - `#maxv`: maximum distinct variables in one clause. Default 3.
 - `#maxbl`: maximum body literals in one clause. Default 3.
 - `#maxhl`: maximum head atoms in one clause. Default 1.
@@ -475,6 +493,13 @@ Here we list only the main ones:
   integrity-constraint changes, using the normal solver. Default `false`.
   Unresolved examples still use a fresh Clingo control. See
   [the experiment and guarantees](docs/semantic-inheritance-experiment.md).
+- `evaluation.constraint_diagnosis`: experimental positive coverage diagnosis
+  after removing learned integrity constraints. Default `false`. The normal
+  solver caches at most 64 headed programs; uncached diagnoses cost another solve.
+- `mutation.repair_probability`: experimental preference for changing the role
+  identified by that diagnosis. Default `0`. It reads cached evaluation results
+  and does not classify an input solely for repair. See
+  [the policy](docs/variation-policy.md#experimental-constraint-diagnosis).
 - `clause_pool.enabled`: select epoch-pool search. Default `false`.
 - `clause_pool.source`: `sampled` (default) or `exhaustive`.
 - `clause_pool.size`: target number of clauses in the pool. Default `128`.

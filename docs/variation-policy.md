@@ -314,6 +314,8 @@ grounding, solving, Python and closure time.
 
 ## Early constraint-pruning measurement
 
+The optional diagnostic policy is documented below this historical measurement.
+
 This historical measurement predates dependency-block mutation and does not
 measure its search behavior or classification cost.
 
@@ -347,3 +349,60 @@ Clingo 5.8.0, dirty worktree based on
 observations are retained under `.benchmarks/shared-variation/` as
 `measure_constraint_pruning.py` and `constraint_pruning_measurement.json`.
 The runner refuses to overwrite existing observations.
+
+## Experimental constraint diagnosis
+
+`evaluation.constraint_diagnosis=true` attaches `potential_pos_mask` and
+`potential_complete` to `EvaluationResult`. They describe positive coverage of
+the candidate after removing only its learned integrity constraints. Background
+and example contexts, including their constraints, stay unchanged. Actual
+coverage, score, consistency and the solution condition still use the complete
+candidate. These fields do not identify a useful individual clause.
+
+With the headed program fixed, integrity constraints can only discard stable
+models. Consequently this query gives an upper bound on positive coverage
+reachable by changing learned constraints. If that program still misses a
+positive, changing constraints alone cannot make the hypothesis complete.
+If it covers every positive, constraints explain the current loss of
+completeness, but this does not prove a valid constraint-only repair exists
+within the language bias or that it will reject negative examples.
+
+Complete candidates and candidates without learned constraints reuse their
+actual positive coverage. Other candidates share an LRU cache of at most 64
+headed programs. A cache miss makes an exhaustive, positive-only coverage query
+with a fresh Clingo control. An empty headed program is allowed for this query,
+not as an admissible genome. Diagnostic grounding and solving contribute to
+the requesting phase and net total time. They appear in Clingo call counts,
+not in the GA count of full candidate evaluations.
+
+The normal evaluator factory enables exhaustive brave solving for this option.
+The persistent epoch-pool evaluator rejects it; epoch pools with fresh evaluation
+use the normal evaluator. Diagnosis defaults to false.
+
+`mutation.repair_probability`, default zero, reads an already available diagnosis
+of an incomplete input. With the configured probability it prefers constraint
+changes when `potential_complete` is true, or headed changes otherwise. It
+does not add classification calls beyond the existing completeness policy.
+Inputs without diagnosis use the ordinary policy. Spaces without constraints
+do not draw an extra repair random number. Complete inputs retain their existing
+policy. Disabling legacy completeness guidance does not disable access to cached
+diagnosis or reactivate legacy guidance during fallback.
+
+The preference applies to the whole dependency block through
+`HypothesisGenerator`, including appended providers and removed consumers.
+An unavailable guided edit falls back to an ordinary proposal. Both paths share
+the configured duplicate retry budget. For an incomplete diagnosed input,
+constraint repair removes or replaces constraints, without a relaxation search
+or constraint append. This is a search preference, not sound pruning of all
+other edits. Adding constraints can still improve negative coverage.
+
+Mutation instrumentation records positive examples recovered or lost and
+negative examples removed or introduced when both complete-program evaluation
+results are already cached. `semantic_effect_known=false` means the pair was
+unavailable; it is not a measured zero effect. Both search loops use this logging
+without extra evaluations. These observations neither assign additive fitness
+to clauses nor adapt operator probabilities automatically.
+
+The first measured repair preference regressed on 5queens. It remains opt-in;
+see [the protocol and results](semantic-repair-experiment.md). Witness-guided
+variation and semantic crossover are not implemented by this option.

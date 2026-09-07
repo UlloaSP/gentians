@@ -42,7 +42,7 @@ def test_experiment_matrix_explicitly_records_new_mutation_defaults():
     from benchmarks.run_experiments import DEFAULT_CONFIG, load_config
 
     _, experiments = load_config(DEFAULT_CONFIG)
-    assert len(experiments) == 42
+    assert len(experiments) == 48
     for experiment in experiments:
         config = dict(Arguments().mutation)
         config.update({key.removeprefix("mutation."): value

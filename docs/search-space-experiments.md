@@ -80,3 +80,37 @@ effectively unchanged, 0.525014 versus 0.522700 seconds; the optimization disabl
 itself when the prepared space contains no constraints. Earlier implementations
 added overhead there. The feature remains opt-in pending unseen-seed validation.
 See [all variants, guarantees and limits](semantic-inheritance-experiment.md).
+
+## Constraint diagnosis and repair preference
+
+`semantic-repair/control`, `semantic-repair/diagnosis` and
+`semantic-repair/repair80` compare the latest inheritance baseline with an exact
+positive-coverage ceiling and an optional role-directed mutation preference.
+Only 5queens and grandparent were tested, with ten scheduled paired seeds,
+30-second wall timeouts and no generation cap. Across two batches, 94 of 95
+attempted runs succeeded; one timeout stopped that variant's remaining five
+first-batch runs.
+
+Diagnosis alone preserved all recorded non-time GA trajectories. After fixing
+an inert random draw on spaces without constraints, final repair still increased
+5queens mean net time from 4.767414 to 8.028273 seconds and evaluations from
+1029.6 to 2000.4. Grandparent kept the control trajectory, with means 0.524320
+and 0.546950 seconds. A correct diagnosis did not identify an effective repair.
+Both options remain disabled by default. Whole-program mutation effects are
+logged from existing evaluations, without additive rule credit. See
+[all tested variants and limitations](semantic-repair-experiment.md).
+
+## Structural diversity at initialization
+
+`population-diversity/control` and `population-diversity/structural` compare
+random initialization with bounded structural oversampling, size balancing and
+Jaccard-distance selection. Only selected candidates receive fitness evaluations.
+All 80 paired runs succeeded across 5queens, grandparent, coloring and knapsack,
+with ten runs per variant, 30-second timeouts and unlimited generations.
+
+Mean evaluations changed from 1029.6 to 1503.0 in 5queens, 446.1 to 1079.7 in
+grandparent, 207.4 to 163.4 in coloring and 13.6 to 10.7 in knapsack. Mean net
+times changed by +32.85%, +140.11%, -19.32% and -0.70% respectively. The new
+strategy is retained as experimental, not selected for `recommended/general`.
+Structural diversification did not provide a consistent cross-task benefit.
+See [protocol, medians, initialization costs and limitations](population-diversity-experiment.md).

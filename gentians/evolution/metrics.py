@@ -1,4 +1,5 @@
 from ..hypotheses import Genome
+from ..evaluation.result import EvaluationResult
 from ..timing import instrumentation, metric_enabled, record_metric
 from .individual import Individual
 from .operator_types import MutationProposal
@@ -89,11 +90,23 @@ def record_mutation(
     proposal: MutationProposal,
     *,
     duplicate: bool,
+    before: EvaluationResult | None = None,
+    after: EvaluationResult | None = None,
 ) -> None:
     if not operator_metrics_enabled():
         return
     with instrumentation():
         changed = proposal.genome != parent_genome
+        effects = {}
+        if before is not None and after is not None:
+            pos_before, neg_before = before.behavior
+            pos_after, neg_after = after.behavior
+            effects = {
+                "positive_recovered": (pos_after & ~pos_before).bit_count(),
+                "positive_lost": (pos_before & ~pos_after).bit_count(),
+                "negative_removed": (neg_before & ~neg_after).bit_count(),
+                "negative_introduced": (neg_after & ~neg_before).bit_count(),
+            }
         record_metric(
             "operator",
             {
@@ -112,6 +125,8 @@ def record_mutation(
                 "duplicate": duplicate,
                 "changed": changed,
                 "invalid": False,
+                "semantic_effect_known": bool(effects),
+                **effects,
             },
         )
 

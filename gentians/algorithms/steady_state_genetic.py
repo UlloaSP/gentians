@@ -197,6 +197,8 @@ def steady_state_genetic_search(
                 crossed,
                 proposal,
                 duplicate=mutation_changed and duplicate,
+                before=results.get(crossed),
+                after=results.get(final_genome),
             )
             if child is not None:
                 if child.is_solution:

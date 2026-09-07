@@ -147,7 +147,7 @@ def test_default_config_defines_comparable_experiment_matrix():
     }
     assert all(experiment["runs"] == 10 for experiment in experiments)
     assert all(experiment["timeout_seconds"] == (
-        30 if experiment["id"].startswith("semantic-inheritance/") else
+        30 if experiment["id"].startswith(("semantic-inheritance/", "semantic-repair/", "recommended/", "population-diversity/")) else
         300 if experiment["id"].startswith(("sampled-roles/", "shared-variation/", "directed-exploration/", "locality-80/", "mutation-ablation/")) else 100
     ) for experiment in experiments)
     assert all(experiment["cprofile"] is False for experiment in experiments)
@@ -157,10 +157,32 @@ def test_default_config_defines_comparable_experiment_matrix():
     )
 
 
+def test_recommended_policy_matches_measured_control_across_datasets():
+    _, experiments = load_config(DEFAULT_CONFIG)
+    entries = {entry["id"]: entry for entry in experiments}
+    recommended = entries["recommended/general"]
+    assert recommended["datasets"] == ["5queens", "grandparent", "coloring", "knapsack"]
+    assert recommended["overrides"] == entries["semantic-repair/control"]["overrides"]
+    assert recommended["stop_on_timeout"] is True
+    assert recommended["overrides"]["iterations_genetic"] == 0
+
+
+def test_population_diversity_matrix_changes_only_initializer():
+    _, experiments = load_config(DEFAULT_CONFIG)
+    entries = {entry["id"]: entry for entry in experiments}
+    first, second = (entries["population-diversity/" + name] for name in ("control", "structural"))
+    before, after = dict(first["overrides"]), dict(second["overrides"])
+    assert before.pop("population.name") == "random"
+    assert after.pop("population.name") == "structural_diverse"
+    assert before == after
+    for key in ("datasets", "runs", "seed_base", "timeout_seconds", "cprofile", "instrumentation"):
+        assert first[key] == second[key]
+
+
 def test_default_experiments_have_no_pregrounding_strategy_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
     assert all("evaluation.grounding" not in item["overrides"] for item in experiments)
-    assert len(experiments) == 42
+    assert len(experiments) == 48
     assert {prefix: sum(e["id"].startswith(prefix + "/") for e in experiments)
             for prefix in ("epoch-pool", "pool-policy", "sampled-roles", "shared-variation")} == {
         "epoch-pool": 7, "pool-policy": 9, "sampled-roles": 3, "shared-variation": 2,

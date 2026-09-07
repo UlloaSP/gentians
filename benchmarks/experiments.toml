@@ -1,6 +1,6 @@
 # List:  python benchmarks/run_experiments.py --list
-# Run:   python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09
-# Rerun: python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09 --force
+# Recommended: uv run python benchmarks/run_experiments.py recommended/general
+# Rerun: uv run python benchmarks/run_experiments.py recommended/general --force
 # All matrices live here. Namespaced IDs preserve their existing output folders.
 # Select experiment IDs for a bounded run; omitting IDs runs the whole matrix.
 # random_group now includes head-local replacement and dependency-block edits.
@@ -38,6 +38,112 @@ cprofile = false
 "replacement.complete_quota" = 0
 "mutation.random_jump_probability" = 0.1
 "mutation.complete_generator_removal_probability" = 0.1
+
+[[experiment]]
+id = "population-diversity/control"
+description = "Random initialization control for structural diversity."
+datasets = ["5queens", "grandparent", "coloring", "knapsack"]
+runs = 10
+timeout_seconds = 30
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = true
+"evaluation.constraint_diagnosis" = false
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.repair_probability" = 0.0
+"mutation.body_local_probability" = 0.0
+"mutation.duplicate_retries" = 0
+"mutation.random_jump_probability" = 0.1
+"mutation.complete_generator_removal_probability" = 0.1
+"population.name" = "random"
+"population.size" = 10
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "population-diversity/structural"
+description = "Size-balanced structurally diverse initialization without extra evaluations."
+datasets = ["5queens", "grandparent", "coloring", "knapsack"]
+runs = 10
+timeout_seconds = 30
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = true
+"evaluation.constraint_diagnosis" = false
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.repair_probability" = 0.0
+"mutation.body_local_probability" = 0.0
+"mutation.duplicate_retries" = 0
+"mutation.random_jump_probability" = 0.1
+"mutation.complete_generator_removal_probability" = 0.1
+"population.name" = "structural_diverse"
+"population.size" = 10
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"clause_pool.enabled" = false
+
+# One shared policy for the four measured datasets, with no dataset overrides.
+# Evidence: docs/semantic-inheritance-experiment.md and semantic-repair-experiment.md.
+# Structural constraint-only handling depends on ClauseSpace, never dataset name.
+# Retain historical matrices below; select this ID rather than running all entries.
+[[experiment]]
+id = "recommended/general"
+description = "Shared structural mutation with exact constraint coverage inheritance."
+datasets = ["5queens", "grandparent", "coloring", "knapsack"]
+runs = 10
+timeout_seconds = 30
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = true
+"evaluation.constraint_diagnosis" = false
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.repair_probability" = 0.0
+"mutation.body_local_probability" = 0.0
+"mutation.duplicate_retries" = 0
+"mutation.random_jump_probability" = 0.1
+"mutation.complete_generator_removal_probability" = 0.1
+"population.name" = "random"
+"population.size" = 10
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"clause_pool.enabled" = false
 
 [[experiment]]
 id = "cov_program_random_group_pop10_mut09"
@@ -1189,3 +1295,101 @@ stop_on_timeout = true
 "population.name" = "random"
 "population.size" = 10
 "clause_pool.enabled" = false
+[[experiment]]
+id = "semantic-repair/control"
+description = "Latest inheritance control."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 30
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+"evaluation.constraint_inheritance" = true
+"evaluation.constraint_diagnosis" = false
+"mutation.repair_probability" = 0
+
+[[experiment]]
+id = "semantic-repair/diagnosis"
+description = "Positive ceiling without variation changes."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 30
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+"evaluation.constraint_inheritance" = true
+"evaluation.constraint_diagnosis" = true
+"mutation.repair_probability" = 0
+
+[[experiment]]
+id = "semantic-repair/repair80"
+description = "Prefer diagnosed repair in 80 percent of eligible inputs."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 30
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+"evaluation.constraint_inheritance" = true
+"evaluation.constraint_diagnosis" = true
+"mutation.repair_probability" = 0.8

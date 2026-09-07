@@ -188,7 +188,7 @@ El resultado canónico de tiempo es `total_execution`, cerrado antes de imprimir
 - `benchmarks/profile_baseline.py` ejecuta runs, recoge JSON/JSONL, CSV y `.prof`, y genera `dashboard_data.json`.
 - `benchmarks/run_experiments.py` carga TOML, aplica overrides, fingerprinta configuración y marca resultados stale cuando deja de coincidir.
 - `benchmarks/experiments.toml` reúne todas las matrices. Añade experimentos de investigación con IDs prefijados, como `pool-policy/control`, y una diferencia interpretable frente a su control. Conserva sus parámetros en el mismo archivo; no crees TOML separados.
-- Resultados generados viven bajo `.benchmarks/<experimento>/` y están ignorados. No edites JSON o CSV generados a mano.
+- Resultados generados viven bajo `.benchmarks/experiments/<experimento>/` y están ignorados. No edites JSON o CSV generados a mano.
 - Para comparar algoritmos, fija datasets, seeds, runs, timeout y todos los parámetros salvo la variable estudiada. Registra versión de Python, Clingo, hardware y revisión del código cuando publiques conclusiones.
 - Cinco runs detectan efectos grandes, no establecen una tasa de éxito precisa. Lee éxito junto a tiempo y cobertura.
 - `docs/search-space-experiments.md` registra ideas realmente medidas, variantes rechazadas y límites de la evidencia. No presentes una idea de esa tabla como implementación actual.
@@ -206,7 +206,7 @@ Usa `--force` solo cuando se pretende reemplazar el resultado del experimento. E
 
 ## Preview de benchmarks
 
-`.benchmarks/` contiene a la vez código fuente Vite versionado y resultados locales ignorados. La UI obtiene `experiments.json` y cada `dashboard_data.json`; no calcula una verdad paralela al agregador Python.
+`.benchmarks/` contiene el código fuente Vite versionado. Todos los resultados, snapshots y builds de experimentos viven en `.benchmarks/experiments/`, ignorado como una unidad. La UI obtiene `experiments/experiments.json` y cada `dashboard_data.json` relativo a ese índice; no calcula una verdad paralela al agregador Python.
 
 Desde `.benchmarks/`:
 

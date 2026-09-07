@@ -346,11 +346,16 @@ task to seventeen clauses before the new optimization.
 Environment: Windows 11 build 26200, Intel Core i7-13700H, Python 3.14.6,
 Clingo 5.8.0, dirty worktree based on
 `ff57d65e60cce685da8c8a79d47cc162128d5c05`. The local runner and all twenty
-observations are retained under `.benchmarks/shared-variation/` as
+observations are retained under `.benchmarks/experiments/shared-variation/` as
 `measure_constraint_pruning.py` and `constraint_pruning_measurement.json`.
 The runner refuses to overwrite existing observations.
 
 ## Experimental constraint diagnosis
+
+The [illustrated mutation guide](mutation-guide.md) follows the current code
+through probability gates, effective classification, permissions, dependency
+blocks, replacement filters and duplicate retries. It distinguishes SDK defaults
+from the recommended benchmark configuration.
 
 `evaluation.constraint_diagnosis=true` attaches `potential_pos_mask` and
 `potential_complete` to `EvaluationResult`. They describe positive coverage of

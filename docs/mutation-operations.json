@@ -1,0 +1,228 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Mutación · añadir, eliminar o reemplazar",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "append",
+      "label": "Añadir · append"
+    },
+    {
+      "id": "remove",
+      "label": "Eliminar · remove"
+    },
+    {
+      "id": "replace",
+      "label": "Reemplazar · replace"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "a-eligible",
+      "lane": "append",
+      "col": 0,
+      "type": "security",
+      "label": "¿Hay espacio?",
+      "sublabel": "Tamaño < #maxpl",
+      "tag": "Y cláusulas fuera del genoma",
+      "width": 165
+    },
+    {
+      "id": "a-root",
+      "lane": "append",
+      "col": 1,
+      "type": "backend",
+      "label": "Elegir raíz nueva",
+      "sublabel": "Dentro de mutable",
+      "tag": "Incompleto: solo encabezadas",
+      "width": 165
+    },
+    {
+      "id": "a-close",
+      "lane": "append",
+      "col": 2,
+      "type": "backend",
+      "label": "Cerrar proveedores",
+      "sublabel": "Añadir dependencias",
+      "tag": "HypothesisGenerator",
+      "width": 165
+    },
+    {
+      "id": "a-check",
+      "lane": "append",
+      "col": 3,
+      "type": "backend",
+      "label": "Comprobar bloque",
+      "sublabel": "Límites y permisos",
+      "tag": "Aceptar primer cambio válido",
+      "width": 165
+    },
+    {
+      "id": "d-eligible",
+      "lane": "remove",
+      "col": 0,
+      "type": "security",
+      "label": "¿Más de 1 regla?",
+      "sublabel": "Tamaño > 1",
+      "tag": "Operación ordinaria",
+      "width": 165
+    },
+    {
+      "id": "d-root",
+      "lane": "remove",
+      "col": 1,
+      "type": "backend",
+      "label": "Retirar raíz",
+      "sublabel": "Dentro de mutable",
+      "tag": "No reintroducir la retirada",
+      "width": 165
+    },
+    {
+      "id": "d-cascade",
+      "lane": "remove",
+      "col": 2,
+      "type": "backend",
+      "label": "Retirar consumidores",
+      "sublabel": "Sin ningún proveedor",
+      "tag": "Cascada hasta quedar cerrado",
+      "width": 165
+    },
+    {
+      "id": "d-check",
+      "lane": "remove",
+      "col": 3,
+      "type": "backend",
+      "label": "Comprobar bloque",
+      "sublabel": "No vacío y permitido",
+      "tag": "Puede eliminar varias reglas",
+      "width": 165
+    },
+    {
+      "id": "r-eligible",
+      "lane": "replace",
+      "col": 0,
+      "type": "security",
+      "label": "¿Hay alternativa?",
+      "sublabel": "Cláusula no seleccionada",
+      "tag": "Genoma no vacío",
+      "width": 165
+    },
+    {
+      "id": "r-root",
+      "lane": "replace",
+      "col": 1,
+      "type": "backend",
+      "label": "Elegir reemplazo",
+      "sublabel": "Cabeza y tipo permitidos",
+      "tag": "Ver detalle de reemplazo",
+      "width": 165
+    },
+    {
+      "id": "r-close",
+      "lane": "replace",
+      "col": 2,
+      "type": "backend",
+      "label": "Sustituir y cerrar",
+      "sublabel": "Cabeza nueva cuenta primero",
+      "tag": "Cascada + proveedores nuevos",
+      "width": 165
+    },
+    {
+      "id": "r-check",
+      "lane": "replace",
+      "col": 3,
+      "type": "backend",
+      "label": "Comprobar bloque",
+      "sublabel": "Límites y permisos",
+      "tag": "Prohibir reglas retiradas",
+      "width": 165
+    }
+  ],
+  "edges": [
+    {
+      "id": "a-eligible-a-root",
+      "from": "a-eligible",
+      "to": "a-root",
+      "label": "Si elegible",
+      "role": "main"
+    },
+    {
+      "id": "a-root-a-close",
+      "from": "a-root",
+      "to": "a-close",
+      "label": "Continuar",
+      "role": "main"
+    },
+    {
+      "id": "a-close-a-check",
+      "from": "a-close",
+      "to": "a-check",
+      "label": "Continuar",
+      "role": "main"
+    },
+    {
+      "id": "d-eligible-d-root",
+      "from": "d-eligible",
+      "to": "d-root",
+      "label": "Si elegible",
+      "role": "main"
+    },
+    {
+      "id": "d-root-d-cascade",
+      "from": "d-root",
+      "to": "d-cascade",
+      "label": "Continuar",
+      "role": "main"
+    },
+    {
+      "id": "d-cascade-d-check",
+      "from": "d-cascade",
+      "to": "d-check",
+      "label": "Continuar",
+      "role": "main"
+    },
+    {
+      "id": "r-eligible-r-root",
+      "from": "r-eligible",
+      "to": "r-root",
+      "label": "Si elegible",
+      "role": "main"
+    },
+    {
+      "id": "r-root-r-close",
+      "from": "r-root",
+      "to": "r-close",
+      "label": "Continuar",
+      "role": "main"
+    },
+    {
+      "id": "r-close-r-check",
+      "from": "r-close",
+      "to": "r-check",
+      "label": "Continuar",
+      "role": "main"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "★ No hay prioridad fija",
+      "items": [
+        "operations() arma la lista legal y rng.shuffle la baraja. Se prueba cada operación hasta obtener un cambio válido.",
+        "Si una operación no encuentra candidato, se prueba la siguiente. Si todas fallan, se devuelve el genoma original."
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "El cambio real es un bloque",
+      "items": [
+        "Cada operación prueba raíces en orden aleatorio. La máscara mutable se comprueba sobre TODOS los bits cambiados.",
+        "Nunca programa vacío; nunca superar #maxpl; solo cláusulas disponibles y dependencias cerradas.",
+        "Una eliminación no incorpora proveedores alternativos; un reemplazo sí puede cerrar el bloque añadido."
+      ]
+    }
+  ]
+}

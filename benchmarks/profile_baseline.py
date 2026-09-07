@@ -117,7 +117,7 @@ def parse_profile_args(
 def main() -> None:
     args = parse_profile_args(
         "External profiler for baseline GENTIANS. Does not modify gentians code.",
-        Path(".benchmarks") / "baseline_profile",
+        Path(".benchmarks/experiments") / "baseline_profile",
     )
     run_benchmark_suite(args, PROFILE_BASELINE_PATH)
 

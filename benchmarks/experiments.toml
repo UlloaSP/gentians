@@ -7,7 +7,7 @@
 # Existing results describe the earlier implementation, not this new policy.
 # The former structural entry keeps its ID but uses random_group with jumps off.
 [suite]
-output_root = ".benchmarks"
+output_root = ".benchmarks/experiments"
 datasets = [
     "5queens",
     "grandparent",

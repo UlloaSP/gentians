@@ -38,8 +38,8 @@ Python 3.14.6, Clingo 5.8.0. Exact platform strings, source and task hashes,
 arguments, schedules and raw metrics are retained in each local protocol.
 
 Local artifacts and the paired runner are ignored under
-`.benchmarks/semantic-inheritance/`. Reproduce the alternating schedule with
-`uv run python .benchmarks/semantic-inheritance/run.py <new-batch-name>`.
+`.benchmarks/experiments/semantic-inheritance/`. Reproduce the alternating schedule with
+`uv run python .benchmarks/experiments/semantic-inheritance/run.py <new-batch-name>`.
 The runner refuses to overwrite an existing batch. The regular experiment runner
 also runs either TOML entry, but does not interleave them.
 
@@ -177,7 +177,7 @@ time difference between original and current is not evidence of improved search
 convergence; these short runs are sensitive to runtime noise. This batch does
 not establish a useful end-to-end inheritance speedup on knapsack.
 
-Artifacts are under `.benchmarks/semantic-inheritance/transfer/`, including the
+Artifacts are under `.benchmarks/experiments/semantic-inheritance/transfer/`, including the
 three dashboards, raw metrics, argument payloads, schedule and task hashes.
 The original source hash is
 `4ace35a8420f5be661cd9c1b9a88c501d705528535b2f75644ccb95f34df2f47`.

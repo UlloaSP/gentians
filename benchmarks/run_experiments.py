@@ -40,7 +40,7 @@ def load_config(path: Path) -> tuple[Path, list[dict[str, Any]]]:
     experiments = config.get("experiment", [])
     if not isinstance(suite, dict) or not isinstance(experiments, list):
         raise ValueError("TOML requires [suite] and [[experiment]] entries")
-    output_root = Path(str(suite.get("output_root", ".benchmarks")))
+    output_root = Path(str(suite.get("output_root", ".benchmarks/experiments")))
     if not output_root.is_absolute():
         output_root = REPO_ROOT / output_root
     defaults = {

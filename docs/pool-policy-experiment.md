@@ -108,7 +108,7 @@ artifacts whose manifest does not match the selected configuration.
 ## Matched evaluator replay
 
 ```powershell
-uv run python benchmarks/profile_pool_evaluator.py --datasets 5queens grandparent --seeds 1 2 3 --candidates 100 --epoch-size 50 --repeats 3 --out-dir .benchmarks/pool-evaluator
+uv run python benchmarks/profile_pool_evaluator.py --datasets 5queens grandparent --seeds 1 2 3 --candidates 100 --epoch-size 50 --repeats 3 --out-dir .benchmarks/experiments/pool-evaluator
 ```
 
 Replay evaluates exactly the same valid candidate sequence with fresh controls
@@ -134,7 +134,7 @@ searches.
 There were 100 grounding calls in the fresh replay and two in the pooled replay.
 These measurements establish a local saving for those workloads, not faster
 learning. Raw workloads, hashes, timings and environment are in
-`.benchmarks/pool-evaluator/replay.json`.
+`.benchmarks/experiments/pool-evaluator/replay.json`.
 
 Environment: Python 3.14.6, Clingo 5.8.0, Windows 11, Intel Core i7-13700H.
 The base revision is `ff57d65e60cce685da8c8a79d47cc162128d5c05`, with the
@@ -238,7 +238,7 @@ The implementation is semantically viable and the optimized evaluator can save
 work. None of the tested variants beats the control in both datasets. Pooling
 and all new policies remain opt-in; ordinary search and selection stay the
 default. Ten paired seeds on two tasks are exploratory evidence, not a general
-performance guarantee. Artifacts are under `.benchmarks/pool-policy/` and the
+performance guarantee. Artifacts are under `.benchmarks/experiments/pool-policy/` and the
 read-only summary command reproduces the tables from the measured CSV files.
 
 ## Verification

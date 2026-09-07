@@ -1,0 +1,228 @@
+{
+  "skill": "archify",
+  "version": "2.16",
+  "authored_language": "es",
+  "viewer_locale": "en",
+  "artifacts": [
+    {
+      "diagram_type": "workflow",
+      "output": "C:\\software\\gentians\\docs\\mutation-flow.html",
+      "specification": {
+        "sha256": "26b0f2acd814cce564ee08203dcf2b09c605f6dcd3e256bcb716ed62a83c0896",
+        "bytes": 4477
+      },
+      "artifact": {
+        "sha256": "4fbe7421fd4a22aec51d2d239a249a8d068012905628cf391d0a37aa1c7db140",
+        "bytes": 716005
+      },
+      "validation": {
+        "checksPassed": 9,
+        "checkCount": 9,
+        "compositionProfile": "showcase",
+        "compositionStatus": "pass",
+        "errors": 0,
+        "warnings": 0
+      },
+      "browser_evidence": "passed",
+      "browser_receipt": "mutation-flow.visual-check.json",
+      "viewports": [
+        {
+          "width": 1440,
+          "height": 900,
+          "scrollWidth": 1440,
+          "scrollHeight": 900,
+          "ok": true
+        },
+        {
+          "width": 1600,
+          "height": 1000,
+          "scrollWidth": 1600,
+          "scrollHeight": 1000,
+          "ok": true
+        },
+        {
+          "width": 1920,
+          "height": 1080,
+          "scrollWidth": 1920,
+          "scrollHeight": 1080,
+          "ok": true
+        },
+        {
+          "width": 2048,
+          "height": 1320,
+          "scrollWidth": 2048,
+          "scrollHeight": 1320,
+          "ok": true
+        }
+      ],
+      "visual_review": "passed",
+      "visual_review_scope": "Capturas reales 1440x900 y 2048x1320, claro y oscuro; rutas, texto, tarjetas y composición. No se probaron interacciones ni exportaciones.",
+      "correction_rounds": 1
+    },
+    {
+      "diagram_type": "workflow",
+      "output": "C:\\software\\gentians\\docs\\mutation-permissions.html",
+      "specification": {
+        "sha256": "e0c22c78aef7cb4d6117b8684b1f4fb7e8dd08b24f07b82afcccec3660f9324f",
+        "bytes": 4287
+      },
+      "artifact": {
+        "sha256": "8d4e1e40ed196ebf0db46ae3f0f1b02d306c5c5ae1466f42b86d4eaa245337c6",
+        "bytes": 713504
+      },
+      "validation": {
+        "checksPassed": 9,
+        "checkCount": 9,
+        "compositionProfile": "showcase",
+        "compositionStatus": "pass",
+        "errors": 0,
+        "warnings": 0
+      },
+      "browser_evidence": "passed",
+      "browser_receipt": "mutation-permissions.visual-check.json",
+      "viewports": [
+        {
+          "width": 1440,
+          "height": 900,
+          "scrollWidth": 1440,
+          "scrollHeight": 900,
+          "ok": true
+        },
+        {
+          "width": 1600,
+          "height": 1000,
+          "scrollWidth": 1600,
+          "scrollHeight": 1000,
+          "ok": true
+        },
+        {
+          "width": 1920,
+          "height": 1080,
+          "scrollWidth": 1920,
+          "scrollHeight": 1080,
+          "ok": true
+        },
+        {
+          "width": 2048,
+          "height": 1320,
+          "scrollWidth": 2048,
+          "scrollHeight": 1320,
+          "ok": true
+        }
+      ],
+      "visual_review": "passed",
+      "visual_review_scope": "Capturas reales 1440x900 y 2048x1320, claro y oscuro; rutas, texto, tarjetas y composición. No se probaron interacciones ni exportaciones.",
+      "correction_rounds": 0
+    },
+    {
+      "diagram_type": "workflow",
+      "output": "C:\\software\\gentians\\docs\\mutation-operations.html",
+      "specification": {
+        "sha256": "a010015a5de529afd1684be47b20dcac5c61a0107dec79c1ba9948f2cd798f43",
+        "bytes": 5444
+      },
+      "artifact": {
+        "sha256": "abd6ccbf8f5a2b5f625cb8bbb8a57a157a721d11e95fd413d1102047c493d069",
+        "bytes": 718791
+      },
+      "validation": {
+        "checksPassed": 9,
+        "checkCount": 9,
+        "compositionProfile": "showcase",
+        "compositionStatus": "pass",
+        "errors": 0,
+        "warnings": 0
+      },
+      "browser_evidence": "passed",
+      "browser_receipt": "mutation-operations.visual-check.json",
+      "viewports": [
+        {
+          "width": 1440,
+          "height": 900,
+          "scrollWidth": 1440,
+          "scrollHeight": 900,
+          "ok": true
+        },
+        {
+          "width": 1600,
+          "height": 1000,
+          "scrollWidth": 1600,
+          "scrollHeight": 1000,
+          "ok": true
+        },
+        {
+          "width": 1920,
+          "height": 1080,
+          "scrollWidth": 1920,
+          "scrollHeight": 1080,
+          "ok": true
+        },
+        {
+          "width": 2048,
+          "height": 1320,
+          "scrollWidth": 2048,
+          "scrollHeight": 1320,
+          "ok": true
+        }
+      ],
+      "visual_review": "passed",
+      "visual_review_scope": "Capturas reales 1440x900 y 2048x1320, claro y oscuro; rutas, texto, tarjetas y composición. No se probaron interacciones ni exportaciones.",
+      "correction_rounds": 0
+    },
+    {
+      "diagram_type": "workflow",
+      "output": "C:\\software\\gentians\\docs\\mutation-replacement.html",
+      "specification": {
+        "sha256": "97758dcce7f64c0668d6d06b0ca2a12d53a2a949e1858d2f4fa0c1694834a95a",
+        "bytes": 4283
+      },
+      "artifact": {
+        "sha256": "82fef0188946075d84d31381f480063f571721b25396a266719df2744d28ca28",
+        "bytes": 712261
+      },
+      "validation": {
+        "checksPassed": 9,
+        "checkCount": 9,
+        "compositionProfile": "showcase",
+        "compositionStatus": "pass",
+        "errors": 0,
+        "warnings": 0
+      },
+      "browser_evidence": "passed",
+      "browser_receipt": "mutation-replacement.visual-check.json",
+      "viewports": [
+        {
+          "width": 1440,
+          "height": 900,
+          "scrollWidth": 1440,
+          "scrollHeight": 900,
+          "ok": true
+        },
+        {
+          "width": 1600,
+          "height": 1000,
+          "scrollWidth": 1600,
+          "scrollHeight": 1000,
+          "ok": true
+        },
+        {
+          "width": 1920,
+          "height": 1080,
+          "scrollWidth": 1920,
+          "scrollHeight": 1080,
+          "ok": true
+        },
+        {
+          "width": 2048,
+          "height": 1320,
+          "scrollWidth": 2048,
+          "scrollHeight": 1320,
+          "ok": true
+        }
+      ],
+      "visual_review": "passed",
+      "visual_review_scope": "Capturas reales 1440x900 y 2048x1320, claro y oscuro; rutas, texto, tarjetas y composición. No se probaron interacciones ni exportaciones.",
+      "correction_rounds": 0
+    }
+  ]
+}

@@ -79,7 +79,7 @@ Comando:
 uv run python benchmarks/run_experiments.py epoch-pool/control epoch-pool/pool_p128_e50_k10
 ```
 
-Los artefactos se escriben en `.benchmarks/epoch-pool/<experimento>/` usando el
+Los artefactos se escriben en `.benchmarks/experiments/epoch-pool/<experimento>/` usando el
 formato normal del runner. `program_size` en la fila de grounding registra el
 tamaño efectivo del pool.
 

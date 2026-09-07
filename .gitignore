@@ -14,39 +14,20 @@ htmlcov/
 node_modules/
 .benchmarks/node_modules/
 .benchmarks/dist/
-.benchmarks/block-mutation/
-.benchmarks/block-mutation-no-relax/
 
 .vite-dev*.log
 .benchmarks/.vite-dev*.log
 .benchmarks/vp-*.log
 
 # Local benchmark output
-# Keep experiment snapshots, builds and results out of Git; retain the Vite source.
-.benchmarks/block-mutation-constraint-replace/
-.benchmarks/directed-exploration/
-.benchmarks/locality-80/
-.benchmarks/mutation-ablation/
+# All experiment snapshots, builds, profiles and results live here.
+.benchmarks/experiments/
 .debug/
 sweeps/
-.benchmarks/baseline_profile/
-.benchmarks/cov*/
-.benchmarks/trigram_cov*/
-.benchmarks/ga_profile/
-.benchmarks/experiments.json
-.benchmarks/profile_*/
-.benchmarks/search-representations/
-.benchmarks/epoch-pool/
-.benchmarks/pool-policy/
-.benchmarks/pool-evaluator/
-.benchmarks/sampled-roles/
-.benchmarks/shared-variation/
 
 # Generated analysis
-.benchmarks/semantic-repair/
-.benchmarks/recommended/
-.benchmarks/population-diversity/
-.benchmarks/semantic-inheritance/
+# Local browser evidence; diagram sources, delivered HTML and summary receipt remain versioned.
+docs/mutation-*.visual-check.*
 graphify-out/
 .graphify*
 

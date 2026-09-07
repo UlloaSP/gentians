@@ -24,7 +24,8 @@ def test_instrumentation_is_inherited_forwarded_and_fingerprinted(tmp_path):
         '[suite]\ndatasets=["grandparent"]\ninstrumentation="light"\n'
         '[[experiment]]\nid="control"\n', encoding="utf-8",
     )
-    _, experiments = load_config(path)
+    output_root, experiments = load_config(path)
+    assert output_root == runner.REPO_ROOT / ".benchmarks" / "experiments"
     experiment = experiments[0]
     assert experiment["instrumentation"] == "light"
     command = experiment_command(experiment, tmp_path)
@@ -137,7 +138,7 @@ def test_summary_rejects_stale_or_incomplete_runs(tmp_path):
 def test_default_config_defines_comparable_experiment_matrix():
     output_root, experiments = load_config(DEFAULT_CONFIG)
 
-    assert output_root.name == ".benchmarks"
+    assert output_root == runner.REPO_ROOT / ".benchmarks" / "experiments"
     assert {experiment["id"] for experiment in experiments if "/" not in experiment["id"]} == {
         "cov_program_random_group_pop10_mut09",
         "cov_program_behavior_tournament_pop10",

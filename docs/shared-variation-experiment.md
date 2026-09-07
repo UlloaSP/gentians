@@ -8,8 +8,8 @@ rewritten. Commands below select named entries, not every matrix in the file.
 ## Protocol
 
 On 2026-09-07, only the new implementation was executed. The control was reused
-from `.benchmarks/sampled-roles/original`; its artifacts were not overwritten.
-New artifacts are in `.benchmarks/shared-variation/new`.
+from `.benchmarks/experiments/sampled-roles/original`; its artifacts were not overwritten.
+New artifacts are in `.benchmarks/experiments/shared-variation/new`.
 
 The reproducible configuration is `benchmarks/experiments.toml`.
 Both datasets used ten sequential runs, a 300-second wall-clock timeout and no
@@ -51,7 +51,7 @@ increased despite its lower mean.
 A second new-code batch on 2026-09-07 repeated all twenty seeds, without changing
 the implementation or overwriting either earlier batch. Its source digest matches
 the one below. Run `shared-variation/new_repeat` to select this batch; artifacts
-are in `.benchmarks/shared-variation/new_repeat`.
+are in `.benchmarks/experiments/shared-variation/new_repeat`.
 
 | Dataset | Original mean, s | First new mean, s | Repeat mean, s | Repeat median, s |
 | --- | ---: | ---: | ---: | ---: |
@@ -87,7 +87,7 @@ even pairs new/original. There were ten pairs per dataset, with the same seed
 assignments, 300-second timeout, full instrumentation and no generation cap.
 The existing profiling worker and aggregation functions were reused. The local
 runner, snapshots and artifacts are retained under
-`.benchmarks/shared-variation/`, in `run_paired.py`, `paired-sources/` and `paired/`.
+`.benchmarks/experiments/shared-variation/`, in `run_paired.py`, `paired-sources/` and `paired/`.
 `paired/protocol.json` records all forty runs in execution order.
 
 | Dataset | Original rerun mean, s | New rerun mean, s | New versus original |

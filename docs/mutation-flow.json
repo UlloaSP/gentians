@@ -1,0 +1,203 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Mutación · decisiones y orden",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "control",
+      "label": "01 · Control de la mutación"
+    },
+    {
+      "id": "alternatives",
+      "label": "Salidas y alternativa experimental",
+      "variant": "exception"
+    }
+  ],
+  "mainPath": [
+    "gate",
+    "state",
+    "policy",
+    "attempt",
+    "history",
+    "return"
+  ],
+  "nodes": [
+    {
+      "id": "gate",
+      "lane": "control",
+      "col": 0,
+      "type": "external",
+      "label": "¿Mutar?",
+      "sublabel": "★ p = 0.9",
+      "tag": "1 sorteo por llamada"
+    },
+    {
+      "id": "state",
+      "lane": "control",
+      "col": 1,
+      "type": "database",
+      "label": "Obtener estado",
+      "sublabel": "Caché / medir",
+      "tag": "★ guía de completitud"
+    },
+    {
+      "id": "policy",
+      "lane": "control",
+      "col": 2,
+      "type": "security",
+      "label": "Fijar permisos",
+      "sublabel": "Según estado",
+      "tag": "Ver detalle de permisos"
+    },
+    {
+      "id": "attempt",
+      "lane": "control",
+      "col": 3,
+      "type": "backend",
+      "label": "Proponer cambio",
+      "sublabel": "Añadir · eliminar · cambiar",
+      "tag": "Orden aleatorio",
+      "width": 170
+    },
+    {
+      "id": "history",
+      "lane": "control",
+      "col": 4,
+      "type": "security",
+      "label": "¿Ya procesado?",
+      "sublabel": "context.seen",
+      "tag": "★ duplicate_retries = 0"
+    },
+    {
+      "id": "return",
+      "lane": "control",
+      "col": 5,
+      "type": "frontend",
+      "label": "Devolver propuesta",
+      "sublabel": "No garantiza mejora",
+      "tag": "Fitness fuera del operador",
+      "width": 170
+    },
+    {
+      "id": "skip",
+      "lane": "alternatives",
+      "col": 1,
+      "type": "external",
+      "label": "Omitir mutación",
+      "sublabel": "Mismo genoma",
+      "tag": "skipped = True",
+      "width": 170,
+      "yOffset": 30
+    },
+    {
+      "id": "repair",
+      "lane": "alternatives",
+      "col": 3,
+      "type": "backend",
+      "label": "Reparación guiada",
+      "sublabel": "Solo con diagnóstico",
+      "tag": "★ apagada: p = 0",
+      "width": 170
+    }
+  ],
+  "edges": [
+    {
+      "id": "gate-state",
+      "from": "gate",
+      "to": "state",
+      "label": "90 %",
+      "role": "main"
+    },
+    {
+      "id": "state-policy",
+      "from": "state",
+      "to": "policy",
+      "label": "No solución conocida",
+      "role": "main"
+    },
+    {
+      "id": "policy-attempt",
+      "from": "policy",
+      "to": "attempt",
+      "label": "★ política ordinaria",
+      "role": "main"
+    },
+    {
+      "id": "attempt-history",
+      "from": "attempt",
+      "to": "history",
+      "label": "Propuesta",
+      "role": "main"
+    },
+    {
+      "id": "history-return",
+      "from": "history",
+      "to": "return",
+      "label": "Nueva o sin reintentos",
+      "role": "main"
+    },
+    {
+      "id": "gate-skip",
+      "from": "gate",
+      "to": "skip",
+      "label": "10 %",
+      "role": "branch"
+    },
+    {
+      "id": "state-skip",
+      "from": "state",
+      "to": "skip",
+      "label": "Solución conocida",
+      "role": "branch"
+    },
+    {
+      "id": "policy-repair",
+      "from": "policy",
+      "to": "repair",
+      "label": "Elegible y sorteo p",
+      "role": "branch"
+    },
+    {
+      "id": "repair-attempt",
+      "from": "repair",
+      "to": "attempt",
+      "label": "Sin cambio: alternativa",
+      "role": "return"
+    },
+    {
+      "id": "repair-history",
+      "from": "repair",
+      "to": "history",
+      "label": "Cambio obtenido",
+      "role": "branch"
+    },
+    {
+      "id": "history-attempt",
+      "from": "history",
+      "to": "attempt",
+      "label": "Duplicada y quedan intentos",
+      "role": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "★ Opciones actuales",
+      "items": [
+        "★ marca un valor configurado, no una rama inevitable.",
+        "SDK y recommended/general coinciden salvo constraint_only_random: false / true."
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Dos bucles diferentes",
+      "items": [
+        "Dentro de una propuesta: probar operaciones barajadas hasta obtener un cambio válido.",
+        "Fuera: reintentar desde el genoma original solo por duplicados; por defecto, un intento."
+      ]
+    }
+  ]
+}

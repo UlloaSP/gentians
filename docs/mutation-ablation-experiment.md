@@ -23,7 +23,7 @@ limit, population size ten, lexicase selection, set-mix crossover and mutation
 probability 0.9. Seeds are 1 through 10 for 5queens and 11 through 20 for
 grandparent. Instrumentation is full and cProfile is disabled.
 
-The local runner `.benchmarks/mutation-ablation/run.py` freezes Python and ASP
+The local runner `.benchmarks/experiments/mutation-ablation/run.py` freezes Python and ASP
 sources, records task and source hashes, refuses to overwrite output, and checks
 hashes after measurement. All snapshots and generated results are ignored by Git.
 Within each dataset it measures the ten historical controls first, then rotates
@@ -290,7 +290,7 @@ closure and structural limits. Mutation's factory still has one implementation.
 The five batches contain 322 successful executions in total. Rejected variants
 and truncated prefixes remain in the tables above. Local raw observations,
 dashboards, frozen sources, the serial runner, `summarize.py` and
-`verify_results.py` remain under `.benchmarks/mutation-ablation/`, ignored by Git.
+`verify_results.py` remain under `.benchmarks/experiments/mutation-ablation/`, ignored by Git.
 `verify_results.py` checks completion, successes and the observed trajectory
 matches without rewriting any measurements.
 

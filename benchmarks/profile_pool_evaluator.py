@@ -96,7 +96,7 @@ def main():
     parser.add_argument("--candidates", type=int, default=100)
     parser.add_argument("--epoch-size", type=int, default=50)
     parser.add_argument("--repeats", type=int, default=3)
-    parser.add_argument("--out-dir", type=Path, default=Path(".benchmarks/pool-evaluator"))
+    parser.add_argument("--out-dir", type=Path, default=Path(".benchmarks/experiments/pool-evaluator"))
     args = parser.parse_args()
     if min(args.candidates, args.epoch_size, args.repeats) < 1:
         parser.error("candidates, epoch-size and repeats must be positive")

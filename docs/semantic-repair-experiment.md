@@ -41,7 +41,7 @@ completed timing output has no net time; it is not assigned a fabricated
 
 The matrices live in `benchmarks/experiments.toml` as `semantic-repair/control`,
 `semantic-repair/diagnosis` and `semantic-repair/repair80`. The ignored serial
-runner `.benchmarks/semantic-inheritance/run.py` freezes implementations and
+runner `.benchmarks/experiments/semantic-inheritance/run.py` freezes implementations and
 records source hashes, task hashes, resolved arguments and each completed run
 in `protocol.json`. Logs, timing records, operator effects and coverage records
 remain under each variant's `runs/` directory. Results were not edited manually.
@@ -53,7 +53,7 @@ Clingo 5.8.0. The worktree was based on commit
 
 ## First batch
 
-Artifacts: `.benchmarks/semantic-inheritance/repair/`.
+Artifacts: `.benchmarks/experiments/semantic-inheritance/repair/`.
 The new implementation snapshot hash was
 `8ed955f325151ac25b43e83d2ef7d7576e7a4f2ca188330f1a98c1e9fa45a613`.
 
@@ -83,7 +83,7 @@ enabled, so those two fixes do not explain the first 5queens regression.
 
 ## Corrected confirmation
 
-Artifacts: `.benchmarks/semantic-inheritance/repair-confirmation/`.
+Artifacts: `.benchmarks/experiments/semantic-inheritance/repair-confirmation/`.
 The final implementation snapshot hash is
 `3b75e02cf5b434e08de0d6fcf7cd6c841207068d22e6837fe75f2740d950deba`.
 The same frozen control was rerun alongside repair. All forty runs succeeded.

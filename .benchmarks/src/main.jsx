@@ -54,7 +54,7 @@ export function DetailApp() {
       })
       .catch((err) => setError(String(err.message || err)));
 
-    fetch("experiments.json", { cache: "no-store" })
+    fetch("experiments/experiments.json", { cache: "no-store" })
       .then((response) => response.json())
       .then((payload) =>
         setExperiments(payload.experiments?.filter((item) => item.has_dashboard) || []),
@@ -98,7 +98,7 @@ function BenchmarkMenu({ experiments, benchmarks, benchmark, setSelected }) {
         }}
       >
         {experiments.map((experiment) => (
-          <option key={experiment.id} value={experiment.dashboard_path}>
+          <option key={experiment.id} value={`experiments/${experiment.dashboard_path}`}>
             {experiment.label}
           </option>
         ))}
@@ -122,7 +122,7 @@ function ExperimentIndex() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("experiments.json", { cache: "no-store" })
+    fetch("experiments/experiments.json", { cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
@@ -140,7 +140,7 @@ function ExperimentIndex() {
       <div className="experiment-list">
         {experiments.map((experiment) =>
           experiment.has_dashboard ? (
-            <a key={experiment.id} href={`?data=${encodeURIComponent(experiment.dashboard_path)}`}>
+            <a key={experiment.id} href={`?data=${encodeURIComponent(`experiments/${experiment.dashboard_path}`)}`}>
               <strong>{experiment.label}</strong>
               <span>{experiment.description}</span>
               <small>

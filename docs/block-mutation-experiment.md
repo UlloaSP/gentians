@@ -9,7 +9,7 @@ unified `random_group` mutation and dependency-block transitions.
 
 The new configuration comes from `shared-variation/new` in
 `benchmarks/experiments.toml`. Historical outputs were not overwritten. The local
-paired runner and this run's outputs are under `.benchmarks/block-mutation/`:
+paired runner and this run's outputs are under `.benchmarks/experiments/block-mutation/`:
 
 - `run_paired.py` reuses the existing profiling worker and aggregation functions.
 - `paired/protocol.json` records source hashes, task hashes, arguments reference,
@@ -114,7 +114,7 @@ a single-constraint incomplete hypothesis cannot lose its final clause.
 The mutation factory and both 0.1 probability defaults remain unchanged.
 
 The same paired protocol was repeated, including fresh original runs, under
-`.benchmarks/block-mutation-no-relax/`. Its `run_paired.py`, snapshots and
+`.benchmarks/experiments/block-mutation-no-relax/`. Its `run_paired.py`, snapshots and
 `paired/protocol.json` preserve the executable protocol and source identities.
 The new source hash is
 `ff9eca645e43cbb3815fcf396510682ec65a5bb41c355c6a30f7ddd38bbfe31b`.
@@ -161,7 +161,7 @@ candidates to replace a constraint with another constraint, without structural
 relaxation checks. Appending constraints remains prohibited in that state.
 Root-role protection, dependency closure and the mutation factory remain.
 
-Artifacts are retained under `.benchmarks/block-mutation-constraint-replace/`.
+Artifacts are retained under `.benchmarks/experiments/block-mutation-constraint-replace/`.
 Its `run_paired.py` reuses the preceding local paired runner with new output
 paths and the preceding original batch as its provisional screening reference.
 Configuration still comes from `shared-variation/new` in `experiments.toml`.

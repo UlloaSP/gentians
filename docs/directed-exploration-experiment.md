@@ -36,7 +36,7 @@ their tasks. There were no timeouts; two planned runs were not executed.
 
 Artifacts and reproduction:
 
-- `.benchmarks/directed-exploration/run_all.py` runs the four paired batches.
+- `.benchmarks/experiments/directed-exploration/run_all.py` runs the four paired batches.
 - `run_paired.py <variant>` loads the existing TOML configuration and reuses
   profiling workers and aggregators. It refuses to overwrite results.
 - `<variant>/paired/protocol.json` retains source/task hashes, exact configuration,

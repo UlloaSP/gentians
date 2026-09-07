@@ -37,7 +37,7 @@ export function assertDashboardSchema(payload, source = "") {
 }
 
 export const dataUrl = () =>
-  new URLSearchParams(window.location.search).get("data") || "ga_profile/dashboard_data.json";
+  new URLSearchParams(window.location.search).get("data") || "experiments/ga_profile/dashboard_data.json";
 export const num = (value) => Number(value || 0);
 export const maybeNum = (value) =>
   value === null || value === undefined || value === "" ? null : Number(value);

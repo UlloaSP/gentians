@@ -126,7 +126,7 @@ for grandparent.
 ## Reproduction and source identity
 
 All builds, snapshots and raw outputs live under the ignored directory
-`.benchmarks/locality-80/`. Nothing in that directory is intended for Git.
+`.benchmarks/experiments/locality-80/`. Nothing in that directory is intended for Git.
 
 - `run_triple.py` executes the protocol, refuses to overwrite outputs and checks
   source/task hashes at completion. It uses the existing profiling worker and

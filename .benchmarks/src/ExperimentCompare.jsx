@@ -47,7 +47,7 @@ export function ExperimentCompare() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("experiments.json", { cache: "no-store" })
+    fetch("experiments/experiments.json", { cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error(`experiments.json: HTTP ${response.status}`);
         return response.json();
@@ -86,7 +86,7 @@ export function ExperimentCompare() {
     if (!pending.length) return;
     Promise.all(
       pending.map(async (experiment) => {
-        const response = await fetch(experiment.dashboard_path, { cache: "no-store" });
+        const response = await fetch(`experiments/${experiment.dashboard_path}`, { cache: "no-store" });
         if (!response.ok) throw new Error(`${experiment.id}: HTTP ${response.status}`);
         const dashboard = await response.json();
         assertDashboardSchema(dashboard, experiment.id);

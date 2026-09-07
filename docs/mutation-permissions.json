@@ -1,0 +1,177 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Mutación · permisos según el estado",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "complete",
+      "label": "A · Completo con positivos"
+    },
+    {
+      "id": "incomplete",
+      "label": "B · Incompleto con positivos"
+    },
+    {
+      "id": "unknown",
+      "label": "C · Sin clasificación efectiva"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "c-state",
+      "lane": "complete",
+      "col": 0,
+      "type": "database",
+      "label": "Estado completo",
+      "sublabel": "★ guía = true",
+      "tag": "Si hay reglas con cabeza",
+      "width": 175
+    },
+    {
+      "id": "c-remove",
+      "lane": "complete",
+      "col": 1,
+      "type": "security",
+      "label": "Intentar eliminar",
+      "sublabel": "★ sorteo 10 %",
+      "tag": "Raíz encabezada y cascada",
+      "width": 175
+    },
+    {
+      "id": "c-mask",
+      "lane": "complete",
+      "col": 2,
+      "type": "security",
+      "label": "Si no hubo cambio",
+      "sublabel": "Solo constraints",
+      "tag": "No reemplazar generadoras",
+      "width": 175
+    },
+    {
+      "id": "i-state",
+      "lane": "incomplete",
+      "col": 0,
+      "type": "database",
+      "label": "Estado incompleto",
+      "sublabel": "★ guía = true",
+      "tag": "Resultado del programa",
+      "width": 175
+    },
+    {
+      "id": "i-mask",
+      "lane": "incomplete",
+      "col": 1,
+      "type": "security",
+      "label": "Permitir cambios",
+      "sublabel": "Ambos tipos",
+      "tag": "No añadir constraints",
+      "width": 175
+    },
+    {
+      "id": "i-kind",
+      "lane": "incomplete",
+      "col": 2,
+      "type": "security",
+      "label": "Al reemplazar",
+      "sublabel": "Con negativos",
+      "tag": "Conservar tipo de raíz",
+      "width": 175
+    },
+    {
+      "id": "u-state",
+      "lane": "unknown",
+      "col": 0,
+      "type": "database",
+      "label": "Estado no aplicado",
+      "sublabel": "Sin guía o sin estado",
+      "tag": "Incluye excepción anterior",
+      "width": 175
+    },
+    {
+      "id": "u-mask",
+      "lane": "unknown",
+      "col": 1,
+      "type": "security",
+      "label": "Permitir cambios",
+      "sublabel": "Todo el espacio",
+      "tag": "Sin protección por fitness",
+      "width": 175
+    },
+    {
+      "id": "u-head",
+      "lane": "unknown",
+      "col": 2,
+      "type": "security",
+      "label": "Al reemplazar",
+      "sublabel": "★ misma cabeza 90 %",
+      "tag": "Solo-constraints: global",
+      "width": 175
+    }
+  ],
+  "edges": [
+    {
+      "id": "c-state-c-remove",
+      "from": "c-state",
+      "to": "c-remove",
+      "label": "Aplicar política",
+      "role": "main"
+    },
+    {
+      "id": "c-remove-c-mask",
+      "from": "c-remove",
+      "to": "c-mask",
+      "label": "Continuar",
+      "role": "main"
+    },
+    {
+      "id": "i-state-i-mask",
+      "from": "i-state",
+      "to": "i-mask",
+      "label": "Aplicar política",
+      "role": "main"
+    },
+    {
+      "id": "i-mask-i-kind",
+      "from": "i-mask",
+      "to": "i-kind",
+      "label": "Continuar",
+      "role": "main"
+    },
+    {
+      "id": "u-state-u-mask",
+      "from": "u-state",
+      "to": "u-mask",
+      "label": "Aplicar política",
+      "role": "main"
+    },
+    {
+      "id": "u-mask-u-head",
+      "from": "u-mask",
+      "to": "u-head",
+      "label": "Continuar",
+      "role": "main"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "★ Excepción del benchmark recomendado",
+      "items": [
+        "constraint_only_random=true y ninguna cláusula con cabeza en el espacio activo: solo caché; después se borra la clasificación para la propuesta ordinaria.",
+        "En el SDK esta opción vale false. Una solución conocida se devuelve antes de borrar el estado."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Restricciones transversales",
+      "items": [
+        "Sin negativos: no introducir constraints nuevas; las existentes pueden retirarse.",
+        "Reparación experimental: intersectar permisos con constraints o encabezadas. ★ repair_probability=0; no participa.",
+        "Sin positivos, la completitud vacía no activa protección de generadoras."
+      ]
+    }
+  ]
+}

@@ -58,12 +58,12 @@ Both variants use the same frozen implementation and task files. Full
 instrumentation is enabled, without cProfile. After a failed run or timeout,
 remaining runs for that variant and dataset are skipped.
 
-The ignored runner `.benchmarks/semantic-inheritance/run.py population-diversity`
+The ignored runner `.benchmarks/experiments/semantic-inheritance/run.py population-diversity`
 records resolved arguments, source and task hashes, environment, run order,
 status, net time and final GA evaluation count in `protocol.json`. Raw metrics,
 logs and dashboards are retained under
-`.benchmarks/semantic-inheritance/population-diversity/`. The regular matrix
-runner writes under ignored `.benchmarks/population-diversity/`.
+`.benchmarks/experiments/semantic-inheritance/population-diversity/`. The regular matrix
+runner writes under ignored `.benchmarks/experiments/population-diversity/`.
 
 Time means net `total_execution`, including clause generation and initialization.
 Evaluation counts mean complete-candidate cache misses from generation zero

@@ -200,8 +200,12 @@ search time, fitness evaluations, operator metrics, and Clingo phases.
 ### Reproducible experiment profiles
 
 Edit `benchmarks/experiments.toml` to define datasets, run count, timeout, common
-overrides, and named experiments. Results are isolated in `.benchmarks/<id>` and
-indexed by `.benchmarks/experiments.json` for multi-experiment comparison.
+overrides, and named experiments. Results are isolated in `.benchmarks/experiments/<id>` and
+indexed by `.benchmarks/experiments/experiments.json` for multi-experiment comparison.
+The entire `.benchmarks/experiments/` directory is ignored by Git and can be
+deleted to remove all local results and experiment snapshots. The Vite source
+remains outside that directory. Run `uv run python benchmarks/run_experiments.py
+--list` to recreate the index without running benchmarks.
 All configurations share this file. Research matrices use prefixed IDs,
 including `mutation-ablation/`;
 the five ordinary IDs remain unchanged. Prefixes preserve existing output

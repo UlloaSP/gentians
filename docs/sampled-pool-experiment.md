@@ -119,7 +119,7 @@ Timeouts without a closed net total are not assigned a fictitious 300-second
 private bytes every two seconds and stops that tree above 6 GiB. This threshold
 does not modify Clingo or candidate fitness.
 
-Artifacts live in `.benchmarks/sampled-roles/`, including dashboards, raw CSV,
+Artifacts live in `.benchmarks/experiments/sampled-roles/`, including dashboards, raw CSV,
 per-run logs, manifests and `memory.csv`. The comparison measures learning a
 program consistent with the observed examples, not proving generalization to
 all N-queens boards.

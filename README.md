@@ -111,10 +111,14 @@ grounding budget or automatic fallback; external resource supervision remains
 necessary.
 
 Mutation adds, replaces or removes a root clause and its dependency block.
+Experimental `mutation.duplicate_retries` and `replacement.complete_quota`
+control bounded resampling of processed duplicates and retention of discovered
+complete candidates. Both default to zero; see [variation policy](docs/variation-policy.md).
 Complete programs keep their headed clauses unchanged, except for a configurable
 10% attempt to delete a headed block. Incomplete programs can edit headed clauses
-or remove constraints. With negatives present, incomplete candidates do not add
-or replace pure constraints. Constraint relaxation has been removed.
+or remove and replace constraints. With negatives present, incomplete candidates
+replace roots within their role, headed or constraint, and do not append pure
+constraints. Constraint replacement does not require structural relaxation.
 Without negative examples, construction removes
 optional pure constraints whenever a nonempty legal program remains.
 

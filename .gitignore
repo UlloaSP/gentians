@@ -22,6 +22,9 @@ node_modules/
 .benchmarks/vp-*.log
 
 # Local benchmark output
+# Keep experiment snapshots, builds and results out of Git; retain the Vite source.
+.benchmarks/block-mutation-constraint-replace/
+.benchmarks/directed-exploration/
 .debug/
 sweeps/
 .benchmarks/baseline_profile/

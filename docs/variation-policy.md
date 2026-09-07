@@ -74,7 +74,7 @@ returned unchanged. Other candidates use this policy:
 | Candidate state | Permitted mutation |
 | --- | --- |
 | Complete, with positives | Edit constraints only, except for the separate headed-block deletion attempt. |
-| Incomplete, with positives and negatives | Add or edit headed clauses; remove headed blocks or constraints. Constraint replacement is not attempted. |
+| Incomplete, with positives and negatives | Add or edit headed clauses; remove headed blocks or constraints; replace a constraint with another constraint. |
 | No positives | Do not freeze headed clauses on vacuous completeness. Ordinary block edits remain available. |
 | No negatives | Do not introduce pure constraints. Existing constraints may be removed or replaced by headed clauses, including normalization when a constraint-only candidate acquires a headed block. |
 
@@ -98,9 +98,10 @@ body size or body similarity. All pure constraints have the empty head signature
 A jump permits but does not require another signature, and never overrides the
 state policy or block protection.
 
-Incomplete candidates do not add pure constraints, including through a headed
-replacement. This deliberately prioritizes recovering positives over edits that
-only reduce negative coverage. Removing a headed rule is also allowed: under
+Incomplete candidates with negatives replace roots within their role: headed
+with headed, or constraint with constraint. The head-signature jump does not
+override this restriction. They do not append pure constraints or replace a
+headed root with one. Removing a headed rule is also allowed: under
 nonmonotonic semantics it can recover positive witnesses.
 
 ## Constraint edits and semantic limits
@@ -111,14 +112,14 @@ constraints cannot recover positive brave witnesses, and removing constraints
 cannot remove negative witnesses. These statements include positive examples
 with excluded atoms. They do not extend to blocks that change headed clauses.
 
-Constraint-relaxation search has been removed. Incomplete candidates with
-negatives only replace headed roots with headed alternatives; dependency-block
-deletion may still remove their unsupported constraint consumers. Constraints
-can be removed directly, but are not searched for weaker replacements. Complete
-candidates retain ordinary constraint replacement without body comparisons.
-An incomplete single-constraint candidate has no legal mutation when the space
-contains no headed clauses: deletion would violate the nonempty invariant.
-This is a remaining search restriction, not evidence of semantic optimality.
+Constraint-relaxation search has been removed. Both incomplete and complete
+candidates can replace a constraint without comparing body similarity or
+semantic strength. All constraints share the empty head signature, so this
+replacement does not need a head-signature jump. Evaluation of the resulting
+whole program determines whether it recovers positives or improves fitness.
+An incomplete single-constraint candidate can replace its constraint when a
+legal alternative exists, even though deletion would violate the nonempty
+invariant. Dependency-block deletion may still remove unsupported consumers.
 
 Completeness and consistency are properties of the evaluated candidate, not
 of its clauses. Consistency can be measured before completeness, but a program
@@ -145,6 +146,35 @@ or impose mutation's stricter protection on crossover.
 
 ## Evaluation and cost
 
+### Experimental exploration controls
+
+Both controls default to zero until end-to-end evidence supports enabling them.
+The `directed-exploration/` entries in `benchmarks/experiments.toml` compare the
+current policy, three duplicate retries, one reserved complete slot, and both.
+
+`mutation.duplicate_retries` bounds extra proposals after producing a genome
+already processed for population admission. All attempts start from the same
+crossover output and share one mutation-probability gate. They retain ordinary
+state and dependency restrictions. A genome cached only for classification is
+not a processed duplicate: it may still need admission. Known solutions and
+probability-gate skips are never retried. Exhaustion returns the last proposal.
+The search passes a live admission-history view, including after pool renewal.
+No candidate evaluation is added for rejected proposals. Internal attempts stay
+within the single mutation phase and its final operator outcome.
+
+`replacement.complete_quota` preserves up to that many discovered complete
+individuals, capped at population size minus one. Filling a missing slot can
+admit a lower-score complete candidate in place of an incomplete one, but never
+evicts the current best. Once filled, the highest-scoring complete members are
+protected against incomplete challengers. Better complete candidates can replace
+them. Ordinary score-based replacement applies to eligible victims. The quota
+does not create complete individuals, enlarge the population, or guarantee that
+selection chooses them. With no positive examples completeness is vacuous, so
+the quota adds no semantic distinction between candidates.
+
+These are search preferences, not semantic pruning proofs. They may increase
+evaluations or Python work and do not guarantee convergence or faster solving.
+
 Search supplies its existing evaluation cache. Mutation classifies its actual
 input, not its parents, whenever positives exist. This includes homogeneous
 spaces because completeness now changes the permitted operations there too.
@@ -158,8 +188,8 @@ remain protected in either operator. No per-clause semantic evaluations, witness
 tracing or fixed clause fitness are introduced.
 
 Candidate alternatives remain lazily sampled. No constraint-body cache,
-relaxation comparison or quadratic neighbor table is maintained. Headed-only
-replacement returns immediately for constraint-only spaces. No full-space
+relaxation comparison or quadratic neighbor table is maintained. Replacement
+skips roots with no absent alternative of the permitted kind. No full-space
 forbidden mask per removal is stored.
 
 Tests cover transitive deletion, alternative and background providers, signed

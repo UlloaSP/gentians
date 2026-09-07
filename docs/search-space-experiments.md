@@ -16,3 +16,19 @@ Reutilizar el metaprograma ya groundeado para producir lotes y mejorar el muestr
 de combinaciones son posibles trabajos posteriores. No están implementados ni
 medidos en este experimento. Ninguna variante demuestra una mejora general de
 complejidad ni de generalización fuera de los ejemplos observados.
+
+## Reintentos y reserva de candidatos completos
+
+El 7 de septiembre de 2026 se midieron el control actual, tres reintentos de
+mutación ante duplicados, una plaza reservada para candidatos completos y su
+combinación. Se ejecutaron 158 runs con seeds emparejados, timeout de 300 segundos
+y sin límite de generaciones. No hubo timeouts. Dos runs de 5queens se omitieron
+por el criterio autorizado de tiempo acumulado frente a diez originales.
+
+Los reintentos redujeron generaciones de 5queens, pero no mejoraron su tiempo
+frente al control actual y aumentaron las evaluaciones de grandparent. La reserva
+y la combinación tampoco superaron al original en 5queens. Ambos parámetros
+están implementados como opciones experimentales, con valor cero por defecto.
+El [informe completo](directed-exploration-experiment.md) conserva configuración,
+entorno, tiempos individuales, evaluaciones, descomposición temporal y límites
+de la comparación.

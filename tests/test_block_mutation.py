@@ -42,7 +42,7 @@ def test_experiment_matrix_explicitly_records_new_mutation_defaults():
     from benchmarks.run_experiments import DEFAULT_CONFIG, load_config
 
     _, experiments = load_config(DEFAULT_CONFIG)
-    assert len(experiments) == 26
+    assert len(experiments) == 30
     for experiment in experiments:
         config = dict(Arguments().mutation)
         config.update({key.removeprefix("mutation."): value
@@ -146,32 +146,29 @@ def test_constraint_removal_can_recover_positive():
 
 
 @pytest.mark.parametrize("source,replacement", [
-    (":- p, q.", ":- p."),
-    (":- p.", ":- q."),
     (":- p.", "q."),
     ("q.", ":- p."),
-    (":- p.", ":- p, q."),
 ])
-def test_headed_replacement_restricts_both_source_and_destination(monkeypatch, source, replacement):
+def test_same_kind_replacement_preserves_root_role(monkeypatch, source, replacement):
     h = generator([source, replacement], background=["p.", "q."])
     choose_replacement(monkeypatch, h, source, replacement)
-    assert h.replace(h.encode([source]), random.Random(1), headed_only=True) is None
+    assert h.replace(h.encode([source]), random.Random(1), same_kind=True) is None
 
 
 def test_headed_replacement_can_remove_dependent_constraints(monkeypatch):
     h = generator(["p.", "q.", ":- p.", "keep."])
     before = h.encode(["p.", ":- p.", "keep."])
     choose_replacement(monkeypatch, h, "p.", "q.")
-    after = h.replace(before, random.Random(1), headed_only=True)
+    after = h.replace(before, random.Random(1), same_kind=True)
     assert set(h.render(after)) == {"q.", "keep."}
 
 
-def test_headed_replacement_does_not_scan_a_constraint_only_space(monkeypatch):
-    h = generator([":- p.", ":- p, q."], background=["p.", "q."])
+def test_same_kind_replacement_does_not_scan_without_matching_alternatives(monkeypatch):
+    h = generator([":- p.", "q."], background=["p."])
     def unexpected(*args):
-        pytest.fail("No headed clauses: replacement must return without scanning")
+        pytest.fail("No matching alternatives: replacement must not scan")
     monkeypatch.setattr(h, "_random_available", unexpected)
-    assert h.replace(h.encode([":- p."]), random.Random(1), headed_only=True) is None
+    assert h.replace(h.encode([":- p."]), random.Random(1), same_kind=True) is None
 
 
 def test_complete_candidate_never_replaces_or_adds_headed_rules():
@@ -206,12 +203,20 @@ def test_complete_candidate_has_no_unrestricted_fallback():
         assert after.genome == before
 
 
-def test_incomplete_constraint_only_mutation_keeps_nonempty_minimum():
-    h = generator([":- p.", ":- p, q."], background=["p.", "{q}."], max_clauses=1)
+@pytest.mark.parametrize("jump", [0, 1])
+def test_incomplete_constraint_only_mutation_can_replace_without_relaxation(jump):
+    task = inductive_task(["p.", "{q}."], [example(("p", "q"), True)],
+                          [example(("q", ""), False)], [], [])
+    h = HypothesisGenerator(task, make_clause_space([":- p.", ":- q."]), 1)
     before = h.encode([":- p."])
-    results = {before: EvaluationResult(0, False, (0, 0), False, True)}
-    after = RandomGroupMutation(1, 0)(before, EvolutionContext(h, random.Random(1), results=results))
-    assert after.genome == before
+    evaluate = create_evaluator(task, {"scoring": "cov_program"})
+    result = evaluate(h.program(before))
+    assert not result.is_complete
+    after = RandomGroupMutation(1, jump)(
+        before, EvolutionContext(h, random.Random(1), results={before: result}))
+    assert after.operation == "replace"
+    assert h.render(after.genome) == (":- q.",)
+    assert evaluate(h.program(after.genome)).is_solution
 
 
 def test_incomplete_does_not_append_constraints():

@@ -12,4 +12,5 @@ def create_mutation(config: dict[str, Any]) -> MutationFn:
         config["probability"],
         config.get("random_jump_probability", 0.1),
         config.get("complete_generator_removal_probability", 0.1),
+        config.get("duplicate_retries", 0),
     )

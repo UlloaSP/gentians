@@ -153,3 +153,56 @@ ablation.
 | 8 | 8.652813 | — | 0.124064 | 0.127205 |
 | 9 | 5.970005 | — | 0.593709 | 0.514527 |
 | 10 | 3.886444 | — | 0.850519 | 0.736360 |
+
+## Repeat allowing constraint replacement in incomplete candidates
+
+On 2026-09-07, the paired protocol was repeated after permitting incomplete
+candidates to replace a constraint with another constraint, without structural
+relaxation checks. Appending constraints remains prohibited in that state.
+Root-role protection, dependency closure and the mutation factory remain.
+
+Artifacts are retained under `.benchmarks/block-mutation-constraint-replace/`.
+Its `run_paired.py` reuses the preceding local paired runner with new output
+paths and the preceding original batch as its provisional screening reference.
+Configuration still comes from `shared-variation/new` in `experiments.toml`.
+The original was freshly executed for all ten seeds of both datasets. Runtime,
+task hashes, original source, 300-second timeout, unlimited generations and
+instrumentation match the protocol above. New source SHA-256 is
+`7d4449b5284e52a6f21f63fc3a3580520ecb2a83593670dfd06bd36b070974ae`.
+All source and task hashes were checked again at completion.
+
+| Dataset | Original successes / executed | New successes / executed | Original mean net, s | New mean net, s |
+| --- | ---: | ---: | ---: | ---: |
+| 5queens | 10/10 | 6/6 | 6.705552 | 11.930151 |
+| grandparent | 10/10 | 10/10 | 1.770335 | 0.580864 |
+
+The 5queens means use different sample counts and are not a paired effect
+estimate. On the six shared seeds the original mean is 5.760263 seconds.
+The six new runs accumulated 71.580904 net seconds, already exceeding all ten
+originals at 67.055517 seconds. The remaining four new runs were therefore
+omitted under the agreed cumulative-time screening rule. No timeout occurred.
+Even zero additional cost could not produce a better ten-run mean.
+
+Allowing replacement restored a solution for seed 1, previously timed out,
+but did not make the current algorithm competitive with the original in this
+batch. Grandparent's mean decreased by approximately 67.2%. Its search counts
+remain unchanged from the preceding batches: 3967.1 versus 1000.7 mean
+generations, and 1222.0 versus 446.1 evaluations. Timing variation between
+batches is not evidence of another search improvement. This comparison still
+contrasts full historical and current implementations, not a single-change
+ablation.
+
+All entries below are net seconds. A dash means not executed.
+
+| Run | Original 5queens | New 5queens | Original grandparent | New grandparent |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 3.474065 | 26.432528 | 0.867665 | 0.984161 |
+| 2 | 3.553531 | 7.586472 | 0.902454 | 0.320391 |
+| 3 | 5.077832 | 5.024266 | 2.696687 | 0.356215 |
+| 4 | 5.257474 | 7.389466 | 1.380316 | 0.414695 |
+| 5 | 7.800075 | 10.667207 | 0.885954 | 0.853473 |
+| 6 | 9.398599 | 14.480966 | 0.569640 | 0.557420 |
+| 7 | 5.123109 | — | 8.608969 | 0.684892 |
+| 8 | 12.696257 | — | 0.127420 | 0.130677 |
+| 9 | 8.635609 | — | 0.663357 | 0.623942 |
+| 10 | 6.038967 | — | 1.000884 | 0.882772 |

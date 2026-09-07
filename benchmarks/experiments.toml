@@ -2,7 +2,7 @@
 # Run:   python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09
 # Rerun: python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09 --force
 # All matrices live here. Namespaced IDs preserve their existing output folders.
-# Run all 26 entries by omitting experiment IDs; select IDs for a bounded run.
+# Select experiment IDs for a bounded run; omitting IDs runs the whole matrix.
 # random_group now includes head-local replacement and dependency-block edits.
 # Existing results describe the earlier implementation, not this new policy.
 # The former structural entry keeps its ID but uses random_group with jumps off.
@@ -33,6 +33,8 @@ cprofile = false
 
 # Controls shared by all fitness experiments.
 [suite.overrides]
+"mutation.duplicate_retries" = 0
+"replacement.complete_quota" = 0
 "mutation.random_jump_probability" = 0.1
 "mutation.complete_generator_removal_probability" = 0.1
 
@@ -734,3 +736,109 @@ stop_on_timeout = true
 "clause_pool.retention" = "fitness"
 "clause_pool.filling" = "random"
 "clause_pool.renewal" = "generations"
+
+# Directed exploration: factorial comparison against current policy.
+
+[[experiment]]
+id = "directed-exploration/control"
+description = "Current constraint-replacement policy; exploration features disabled."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "directed-exploration/retries"
+description = "Versus control: up to three extra mutation proposals after processed duplicates."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 3
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "directed-exploration/reserve"
+description = "Versus control: reserve one discovered complete candidate."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 1
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "directed-exploration/combined"
+description = "Versus control: combine duplicate retries and complete-candidate reserve."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 3
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 1
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false

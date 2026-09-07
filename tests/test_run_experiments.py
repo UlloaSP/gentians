@@ -147,7 +147,7 @@ def test_default_config_defines_comparable_experiment_matrix():
     }
     assert all(experiment["runs"] == 10 for experiment in experiments)
     assert all(experiment["timeout_seconds"] == (
-        300 if experiment["id"].startswith(("sampled-roles/", "shared-variation/")) else 100
+        300 if experiment["id"].startswith(("sampled-roles/", "shared-variation/", "directed-exploration/")) else 100
     ) for experiment in experiments)
     assert all(experiment["cprofile"] is False for experiment in experiments)
     assert all(
@@ -159,7 +159,7 @@ def test_default_config_defines_comparable_experiment_matrix():
 def test_default_experiments_have_no_pregrounding_strategy_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
     assert all("evaluation.grounding" not in item["overrides"] for item in experiments)
-    assert len(experiments) == 26
+    assert len(experiments) == 30
     assert {prefix: sum(e["id"].startswith(prefix + "/") for e in experiments)
             for prefix in ("epoch-pool", "pool-policy", "sampled-roles", "shared-variation")} == {
         "epoch-pool": 7, "pool-policy": 9, "sampled-roles": 3, "shared-variation": 2,

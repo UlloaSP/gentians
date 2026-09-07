@@ -119,7 +119,7 @@ def steady_state_genetic_search(
             results[candidate] = evaluate_candidate(hypotheses.program(candidate))
         return results[candidate]
 
-    context = EvolutionContext(hypotheses, rng, evaluate, results)
+    context = EvolutionContext(hypotheses, rng, evaluate, results, evaluated.keys())
 
     def admit(candidate: Genome):
         if candidate in evaluated:

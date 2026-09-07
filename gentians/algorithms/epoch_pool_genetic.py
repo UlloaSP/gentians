@@ -188,7 +188,7 @@ def epoch_pool_genetic_search(
             results[candidate] = evaluator(hypotheses.program(candidate))
         return results[candidate]
 
-    context = EvolutionContext(hypotheses, rng, evaluate, results)
+    context = EvolutionContext(hypotheses, rng, evaluate, results, evaluated.keys())
 
     def admit(candidate: Genome) -> Individual | None:
         if candidate in evaluated:
@@ -337,7 +337,7 @@ def epoch_pool_genetic_search(
                         item.score, item.is_solution, item.behavior,
                         item.is_complete, item.is_consistent,
                     ) for item in retained}
-                    context = EvolutionContext(hypotheses, rng, evaluate, results)
+                    context = EvolutionContext(hypotheses, rng, evaluate, results, evaluated.keys())
                     behaviors = {item.behavior for item in retained}
                     del old_hypotheses, retained_entries, remapped
                 before_build = net_time()

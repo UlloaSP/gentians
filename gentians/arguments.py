@@ -61,6 +61,8 @@ class Arguments:
             "random_jump_probability": 0.1,
             # Per complete-candidate mutation: try deleting a headed block.
             "complete_generator_removal_probability": 0.1,
+            # Extra proposals after a processed genome; experimental, off by default.
+            "duplicate_retries": 0,
         }
     )
 
@@ -81,6 +83,8 @@ class Arguments:
             "name": "oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
             "prob_replacing_oldest": 0.1,
+            # Reserve discovered complete candidates; experimental, off by default.
+            "complete_quota": 0,
         }
     )
 

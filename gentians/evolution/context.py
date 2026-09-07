@@ -1,7 +1,7 @@
 import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 
 if TYPE_CHECKING:
     from ..hypotheses import HypothesisGenerator
@@ -15,3 +15,5 @@ class EvolutionContext:
     rng: random.Random
     evaluate: Callable[[Genome], EvaluationResult] | None = None
     results: Mapping[Genome, EvaluationResult] | None = None
+    # Programs already processed for admission, not merely classified offspring.
+    seen: Collection[Genome] | None = None

@@ -1,6 +1,9 @@
 import sys
+from collections import OrderedDict, deque
+from functools import lru_cache
 
 import clingo
+from clingo import ast
 
 from ..clingo_stats import clingo_stat, ground_stats
 from ..language.asp import AspProgram, add_program
@@ -26,6 +29,8 @@ class CoverageSolver:
         clingo_arguments: list[str],
         positive_examples: list[Example],
         negative_examples: list[Example],
+        *,
+        constraint_inheritance: bool = False,
     ) -> None:
         self.background = background
         self.clingo_arguments = clingo_arguments
@@ -34,10 +39,70 @@ class CoverageSolver:
         self.coverage_program = compile_coverage_program(
             positive_examples, negative_examples
         )
+        self.constraint_inheritance = constraint_inheritance
+        self._require_exhaustive = constraint_inheritance
+        self._examples = (positive_examples, negative_examples)
+        # Bounded evidence, not per-clause fitness. Each entry describes a whole
+        # program under this solver's fixed background and isolated contexts.
+        self._evidence: deque[tuple[frozenset[str], frozenset[str], int]] = deque(maxlen=64)
+        self._partial: OrderedDict[int, CoverageSolver] = OrderedDict()
+        self.inherited_examples = 0
+        self.skipped_controls = 0
+
+    def _inherit(self, program: AspProgram) -> Coverage:
+        keys = [_rule_key(rule) for rule in program]
+        constraints = frozenset(text for constraint, text in keys if constraint)
+        headed = frozenset(text for constraint, text in keys if not constraint)
+        npos = self.positive_examples
+        full = (1 << (npos + self.negative_examples)) - 1
+        covered = absent = 0
+        for previous_heads, previous_constraints, previous_mask in self._evidence:
+            if headed != previous_heads:
+                continue
+            if previous_constraints <= constraints:
+                absent |= full ^ previous_mask
+            if constraints <= previous_constraints:
+                covered |= previous_mask
+        unknown = full & ~(covered | absent)
+        self.inherited_examples += (full ^ unknown).bit_count()
+        if unknown:
+            if unknown == full:
+                result = self._extract(program)
+                covered |= result.pos_mask | (result.neg_mask << npos)
+            else:
+                # ponytail: keep at most 32 compiled subsets. Compile on demand;
+                # do not retain a Control or grow a cache for every subset.
+                selected = [i for i in range(full.bit_length()) if unknown & (1 << i)]
+                partial = self._partial.get(unknown)
+                if partial is None:
+                    positives, negatives = self._examples
+                    partial = CoverageSolver(
+                        self.background, self.clingo_arguments,
+                        [positives[i] for i in selected if i < npos],
+                        [negatives[i - npos] for i in selected if i >= npos],
+                    )
+                    partial._require_exhaustive = True
+                    self._partial[unknown] = partial
+                    if len(self._partial) > 32:
+                        self._partial.popitem(last=False)
+                self._partial.move_to_end(unknown)
+                result = partial.extract_coverage(program)
+                compact = result.pos_mask | (result.neg_mask << partial.positive_examples)
+                covered |= sum(1 << original for local, original in enumerate(selected)
+                               if compact & (1 << local))
+        else:
+            self.skipped_controls += 1
+        self._evidence.append((headed, constraints, covered))
+        return Coverage(covered & ((1 << npos) - 1), covered >> npos)
 
     def extract_coverage(self, program: AspProgram) -> Coverage:
+        if self.constraint_inheritance:
+            return self._inherit(program)
+        return self._extract(program)
+
+    def _extract(self, program: AspProgram) -> Coverage:
         ctl, grounding_seconds, phase = self._ground(program)
-        solving_seconds, coverage = self._solve(ctl)
+        solving_seconds, coverage = self._solve(ctl, self._require_exhaustive)
         self._record(
             ctl,
             program,
@@ -61,7 +126,9 @@ class CoverageSolver:
         return ctl, seconds, phase
 
     @staticmethod
-    def _solve(ctl) -> tuple[float, Coverage]:
+    def _solve(ctl, require_exhaustive: bool = False) -> tuple[float, Coverage]:
+        if require_exhaustive and ctl.configuration.solve.enum_mode != "brave":
+            raise RuntimeError("Coverage inheritance requires brave enumeration")
         seconds = 0.0
         pos_mask = 0
         neg_mask = 0
@@ -80,6 +147,8 @@ class CoverageSolver:
                 positive, negative = _coverage_masks(model.symbols(shown=True))
                 pos_mask |= positive
                 neg_mask |= negative
+            if require_exhaustive and not handle.get().exhausted:
+                raise RuntimeError("Coverage inheritance requires exhaustive solving")
             start = net_time()
         seconds += net_time() - start
         add(f"{current_phase()}.solving", seconds)
@@ -159,3 +228,20 @@ def _coverage_logger(code, message):
     with instrumentation():
         if code != clingo.MessageCode.AtomUndefined:
             print(message, file=sys.stderr, end="" if message.endswith("\n") else "\n")
+
+
+def _is_constraint(rule: ast.AST) -> bool:
+    return (
+        rule.ast_type == ast.ASTType.Rule
+        and rule.head.ast_type == ast.ASTType.Literal
+        and rule.head.sign == ast.Sign.NoSign
+        and rule.head.atom.ast_type == ast.ASTType.BooleanConstant
+        and rule.head.atom.value == 0
+    )
+
+
+@lru_cache(maxsize=4096)
+def _rule_key(rule: ast.AST) -> tuple[bool, str]:
+    # Exact Clingo rendering, not semantic equivalence. Native string-set
+    # comparisons avoid repeated Python/C crossings during evidence lookup.
+    return _is_constraint(rule), str(rule)

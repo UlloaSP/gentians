@@ -42,7 +42,7 @@ def test_experiment_matrix_explicitly_records_new_mutation_defaults():
     from benchmarks.run_experiments import DEFAULT_CONFIG, load_config
 
     _, experiments = load_config(DEFAULT_CONFIG)
-    assert len(experiments) == 30
+    assert len(experiments) == 42
     for experiment in experiments:
         config = dict(Arguments().mutation)
         config.update({key.removeprefix("mutation."): value
@@ -50,7 +50,9 @@ def test_experiment_matrix_explicitly_records_new_mutation_defaults():
                        if key.startswith("mutation.")})
         assert config["complete_generator_removal_probability"] == 0.1
         assert config["random_jump_probability"] == (
-            0 if experiment["id"] == "cov_balanced_structural" else 0.1)
+            0 if experiment["id"] == "cov_balanced_structural" else
+            1 if experiment["id"] in {"mutation-ablation/global-head", "mutation-ablation/unguided-global"}
+            else 0.1)
         assert isinstance(create_mutation(config), RandomGroupMutation)
 
 

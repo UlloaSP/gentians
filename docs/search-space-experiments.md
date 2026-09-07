@@ -32,3 +32,51 @@ están implementados como opciones experimentales, con valor cero por defecto.
 El [informe completo](directed-exploration-experiment.md) conserva configuración,
 entorno, tiempos individuales, evaluaciones, descomposición temporal y límites
 de la comparación.
+
+## Localidad de cuerpo 80% y reemplazo global 20%
+
+La comparación posterior ejecutó de nuevo original, actual y localidad 80%.
+El índice busca una edición de literal de cuerpo manteniendo la cabeza exacta,
+con fallback global y sin asumir relajación. En grandparent, diez seeds dieron
+una media de 0,395 s frente a 0,569 s del actual y 1,536 s del original. En los
+tres seeds medidos de 5queens empeoró las evaluaciones y el tiempo; se descartaron
+los siete restantes porque el acumulado superaba los diez originales completos.
+La opción permanece desactivada por defecto. El [informe de localidad](body-locality-experiment.md)
+conserva protocolo, índice, memoria, tiempos individuales y límites de evidencia.
+# Mutation regression ablation and structural policy
+
+The five batches in [the mutation ablation report](mutation-ablation-experiment.md)
+contain 322 successful executions with full instrumentation, 300-second timeouts
+and no generation limit. They reject global removal of completeness guidance,
+head-filter removal, skipping only the head draw, and delayed classification as
+ways to recover original 5queens performance while preserving grandparent gains.
+The unsuccessful delayed-classification implementation was removed.
+
+The retained option is `mutation.constraint_only_random=true`, false by default.
+It uses unrestricted random edits in active pools containing only constraints and
+retains directed mutation when headed clauses exist. It permits constraint
+additions to incomplete candidates because they can improve negative coverage,
+even though they cannot recover positives. A whole-program evaluator test covers
+that counterexample to the earlier "useless addition" assumption. This is a search
+preference, not a semantic pruning proof or a dataset-name branch.
+
+The final interleaved confirmation ran ten seeds per dataset and implementation.
+Mean net 5queens time was 6.090 seconds for historical original, 9.686 for current
+control and 5.569 for the structural option. Grandparent means were 1.495, 0.484
+and 0.485 seconds. Every recorded non-time GA field matched original in 5queens
+and current control in grandparent. Earlier original-first batches had larger
+timing gaps despite identical search counts, so the small final lead over original
+5queens is not treated as a general speedup. See the report for every rejected
+configuration, matched-prefix controls, source hashes and phase costs.
+# Exact constraint-coverage inheritance
+
+The `semantic-inheritance/control` and `semantic-inheritance/partial` entries
+compare the current structural mutation policy with and without proof-based
+coverage reuse. Three paired batches, 120 successful runs with a 30-second
+timeout and unlimited generations, preserved every non-time GA trajectory.
+The final implementation reduced 5queens mean net time from 7.192765 to 6.440562
+seconds, with 36.76% fewer candidate-example queries. Grandparent remained
+effectively unchanged, 0.525014 versus 0.522700 seconds; the optimization disables
+itself when the prepared space contains no constraints. Earlier implementations
+added overhead there. The feature remains opt-in pending unseen-seed validation.
+See [all variants, guarantees and limits](semantic-inheritance-experiment.md).

@@ -33,6 +33,7 @@ cprofile = false
 
 # Controls shared by all fitness experiments.
 [suite.overrides]
+"mutation.body_local_probability" = 0.0
 "mutation.duplicate_retries" = 0
 "replacement.complete_quota" = 0
 "mutation.random_jump_probability" = 0.1
@@ -839,6 +840,352 @@ stop_on_timeout = true
 "replacement.name" = "oldest_or_worst"
 "replacement.prob_replacing_oldest" = 0.1
 "replacement.complete_quota" = 1
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "locality-80/current"
+description = "Current policy without body-local replacement, retries or complete reserve."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "locality-80/local80"
+description = "Versus current: attempt one body-element local replacement with probability 0.8."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0.8
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+[[experiment]]
+id = "mutation-ablation/control"
+description = "Controlled mutation ablation: completeness=true, head jump=0.1."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "mutation-ablation/unguided"
+description = "Controlled mutation ablation: completeness=false, head jump=0.1."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = false
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "mutation-ablation/global-head"
+description = "Controlled mutation ablation: completeness=true, head jump=1."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.random_jump_probability" = 1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "mutation-ablation/unguided-global"
+description = "Controlled mutation ablation: completeness=false, head jump=1."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = false
+"mutation.random_jump_probability" = 1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+[[experiment]]
+id = "mutation-ablation/nohead-draw"
+description = "Guided control policy with no head-permission draw in constraint-only pools."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+[[experiment]]
+id = "mutation-ablation/lazy-classification"
+description = "Classify constraint-only offspring on append, reuse cached states for removal and replacement."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+[[experiment]]
+id = "mutation-ablation/structural-policy"
+description = "Opt-in random constraint-only mutation; retain directed mutation in pools with headed clauses."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 300
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+
+[[experiment]]
+id = "semantic-inheritance/control"
+description = "Current structural mutation control."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 30
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+"evaluation.constraint_inheritance" = false
+
+[[experiment]]
+id = "semantic-inheritance/partial"
+description = "Exact coverage inheritance and partial context queries; same search policy."
+datasets = ["5queens", "grandparent"]
+runs = 10
+timeout_seconds = 30
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
+"population.name" = "random"
+"population.size" = 10
+"clause_pool.enabled" = false
+"evaluation.constraint_inheritance" = true
+[[experiment]]
+id = "semantic-inheritance/coloring-knapsack"
+description = "Transfer validation: latest mutation plus exact constraint-coverage inheritance."
+datasets = ["coloring", "knapsack"]
+runs = 10
+timeout_seconds = 30
+seed_base = 1
+cprofile = false
+instrumentation = "full"
+stop_on_timeout = true
+[experiment.overrides]
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = true
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.duplicate_retries" = 0
+"mutation.body_local_probability" = 0
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"replacement.complete_quota" = 0
 "population.name" = "random"
 "population.size" = 10
 "clause_pool.enabled" = false

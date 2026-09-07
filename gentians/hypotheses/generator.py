@@ -9,6 +9,7 @@ from ..clauses import ClauseSpace
 from ..timing import add, current_phase
 from .space import defined_predicates, prepare_space
 from .types import Genome, ProgramText
+from .body_neighborhood import BodyNeighborhood
 
 _CACHE_SIZE = 65536
 
@@ -253,7 +254,7 @@ class HypothesisGenerator:
     @_record_closure_time
     def replace(
         self, genome: Genome, rng: random.Random, *, same_head: bool = False,
-        mutable: Genome | None = None, same_kind: bool = False,
+        mutable: Genome | None = None, same_kind: bool = False, body_local: bool = False,
     ) -> Genome | None:
         mutable, forbidden = self._mutation_space(genome, mutable)
         if not mutable & ~genome:
@@ -268,7 +269,13 @@ class HypothesisGenerator:
                             else ~self.constraint_clauses)
             if not choices & ~genome:
                 continue
-            available = (i for i in self._random_available(genome, rng) if choices & (1 << i))
+            if body_local:
+                neighbors = [i for i in self.body_neighborhood.neighbors(source_id)
+                             if choices & (1 << i) and not genome & (1 << i)]
+                rng.shuffle(neighbors)
+                available = iter(neighbors)
+            else:
+                available = (i for i in self._random_available(genome, rng) if choices & (1 << i))
             replacements = (
                 (
                     clause_id
@@ -290,6 +297,12 @@ class HypothesisGenerator:
                         continue
                     return candidate
         return None
+
+    @cached_property
+    def body_neighborhood(self) -> BodyNeighborhood:
+        # Only local replacement pays this cost, once per prepared ClauseSpace.
+        # Pool membership is filtered at query time, so set_pool needs no rebuild.
+        return BodyNeighborhood(self.space)
 
     def _drop_dependents(self, candidate: Genome, extra_heads: int = 0) -> Genome:
         """Keep the greatest dependency-closed subset, with optional new heads.

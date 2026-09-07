@@ -145,7 +145,7 @@ def test_search_records_reproduction_only_when_enabled(monkeypatch, selection_na
         winner = texts == ("win.",)
         return EvaluationResult(float(winner), winner, (0, 0), True, True)
 
-    monkeypatch.setattr(search, "create_evaluator", lambda task, config: evaluate)
+    monkeypatch.setattr(search, "create_evaluator", lambda task, config, *, space: evaluate)
     space = make_clause_space(["start.", "win."])
     result = search.steady_state_genetic_search(
         Arguments(random_seed=3, iterations_genetic=3,
@@ -179,7 +179,7 @@ def test_search_stops_initialization_at_first_perfect_candidate(monkeypatch):
         evaluated.append(tuple(map(str, program)))
         return EvaluationResult(1.0, True, (0, 0), True, True)
 
-    monkeypatch.setattr(search, "create_evaluator", lambda task, config: evaluate)
+    monkeypatch.setattr(search, "create_evaluator", lambda task, config, *, space: evaluate)
     result = search.steady_state_genetic_search(
         Arguments(random_seed=2, iterations_genetic=1),
         inductive_task([], [], [], [], [], max_program_clauses=1),

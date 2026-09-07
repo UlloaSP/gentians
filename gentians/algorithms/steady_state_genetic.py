@@ -81,7 +81,7 @@ def steady_state_genetic_search(
     context = EvolutionContext(hypotheses, rng)
 
     with phase("initialization"):
-        evaluate_candidate = create_evaluator(task, args.evaluation)
+        evaluate_candidate = create_evaluator(task, args.evaluation, space=space)
 
     evaluated: dict[Genome, Individual] = {}
     results: dict[Genome, EvaluationResult] = {}

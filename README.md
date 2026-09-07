@@ -111,6 +111,9 @@ grounding budget or automatic fallback; external resource supervision remains
 necessary.
 
 Mutation adds, replaces or removes a root clause and its dependency block.
+`mutation.body_local_probability` can prefer one body-literal edit with the same
+exact head, falling back to global replacement when no legal neighbor exists.
+It defaults to zero; the `locality-80/local80` experiment sets it to 0.8.
 Experimental `mutation.duplicate_retries` and `replacement.complete_quota`
 control bounded resampling of processed duplicates and retention of discovered
 complete candidates. Both default to zero; see [variation policy](docs/variation-policy.md).
@@ -181,7 +184,14 @@ deleting a headed dependency block. Its offspring still requires evaluation;
 deletion is not proof of redundancy. Both defaults are configurable. If a complete
 candidate has no legal constraint edit or allowed deletion, mutation leaves it
 unchanged. This restriction can block candidates whose solution requires a headed
-replacement. Historical benchmark results do not measure this new policy.
+replacement. Benchmark timings belong to their recorded source versions.
+
+Opt-in `mutation.constraint_only_random=true` uses unrestricted random edits
+when the active pool contains only constraints, while preserving the directed
+policy in pools with headed clauses. It permits constraint additions to incomplete
+candidates, which can improve negative coverage without recovering positives.
+The default remains false. See [the mutation ablation report](docs/mutation-ablation-experiment.md)
+for controls, timings and limitations.
 
 Benchmark output records clause generation, genetic generations, elapsed
 search time, fitness evaluations, operator metrics, and Clingo phases.
@@ -192,8 +202,8 @@ search time, fitness evaluations, operator metrics, and Clingo phases.
 Edit `benchmarks/experiments.toml` to define datasets, run count, timeout, common
 overrides, and named experiments. Results are isolated in `.benchmarks/<id>` and
 indexed by `.benchmarks/experiments.json` for multi-experiment comparison.
-All 26 configurations share this file. IDs use `epoch-pool/`, `pool-policy/`,
-`sampled-roles/`, and `shared-variation/` prefixes for the research matrices;
+All configurations share this file. Research matrices use prefixed IDs,
+including `mutation-ablation/`;
 the five ordinary IDs remain unchanged. Prefixes preserve existing output
 folders, not separate configuration layers. Each entry keeps its own timeout,
 instrumentation and overrides.
@@ -461,6 +471,10 @@ Here we list only the main ones:
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
 - `evaluation.scoring`: `cov_program` or `cov_balanced`.
+- `evaluation.constraint_inheritance`: opt-in exact coverage reuse for pure
+  integrity-constraint changes, using the normal solver. Default `false`.
+  Unresolved examples still use a fresh Clingo control. See
+  [the experiment and guarantees](docs/semantic-inheritance-experiment.md).
 - `clause_pool.enabled`: select epoch-pool search. Default `false`.
 - `clause_pool.source`: `sampled` (default) or `exhaustive`.
 - `clause_pool.size`: target number of clauses in the pool. Default `128`.

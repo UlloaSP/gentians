@@ -147,7 +147,8 @@ def test_default_config_defines_comparable_experiment_matrix():
     }
     assert all(experiment["runs"] == 10 for experiment in experiments)
     assert all(experiment["timeout_seconds"] == (
-        300 if experiment["id"].startswith(("sampled-roles/", "shared-variation/", "directed-exploration/")) else 100
+        30 if experiment["id"].startswith("semantic-inheritance/") else
+        300 if experiment["id"].startswith(("sampled-roles/", "shared-variation/", "directed-exploration/", "locality-80/", "mutation-ablation/")) else 100
     ) for experiment in experiments)
     assert all(experiment["cprofile"] is False for experiment in experiments)
     assert all(
@@ -159,7 +160,7 @@ def test_default_config_defines_comparable_experiment_matrix():
 def test_default_experiments_have_no_pregrounding_strategy_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
     assert all("evaluation.grounding" not in item["overrides"] for item in experiments)
-    assert len(experiments) == 30
+    assert len(experiments) == 42
     assert {prefix: sum(e["id"].startswith(prefix + "/") for e in experiments)
             for prefix in ("epoch-pool", "pool-policy", "sampled-roles", "shared-variation")} == {
         "epoch-pool": 7, "pool-policy": 9, "sampled-roles": 3, "shared-variation": 2,
@@ -389,3 +390,13 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
     assert indexed["runs"] == 10
     assert indexed["label"] == "New label"
     assert indexed["overrides"] == {"evaluation.scoring": "cov_program"}
+def test_coloring_knapsack_inheritance_experiment_is_copy_paste_ready():
+    _, experiments = load_config(DEFAULT_CONFIG)
+    experiment = next(e for e in experiments if e["id"] == "semantic-inheritance/coloring-knapsack")
+    assert experiment["datasets"] == ["coloring", "knapsack"]
+    assert experiment["runs"] == 10
+    assert experiment["timeout_seconds"] == 30
+    assert experiment["overrides"]["iterations_genetic"] == 0
+    assert experiment["overrides"]["evaluation.constraint_inheritance"] is True
+    assert experiment["overrides"]["mutation.constraint_only_random"] is True
+    assert experiment["overrides"]["clause_pool.enabled"] is False

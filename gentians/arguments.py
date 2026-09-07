@@ -25,6 +25,9 @@ class Arguments:
             "scoring": "cov_program",
             # Clingo CLI arguments used to obtain candidate coverage.
             "clingo_arguments": [],
+            # Reuse exact coverage bounds under pure integrity-constraint edits.
+            # Opt-in until end-to-end measurements justify the extra bookkeeping.
+            "constraint_inheritance": False,
         }
     )
 
@@ -63,6 +66,13 @@ class Arguments:
             "complete_generator_removal_probability": 0.1,
             # Extra proposals after a processed genome; experimental, off by default.
             "duplicate_retries": 0,
+            # Try one body-literal edit before global replacement; opt-in.
+            "body_local_probability": 0.0,
+            # Disable only for controlled policy ablations, not language legality.
+            "completeness_guidance": True,
+            # Opt-in: original random edits for pools containing only constraints.
+            # Allows constraint additions even when positives remain uncovered.
+            "constraint_only_random": False,
         }
     )
 

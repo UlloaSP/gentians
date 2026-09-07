@@ -25,6 +25,8 @@ node_modules/
 # Keep experiment snapshots, builds and results out of Git; retain the Vite source.
 .benchmarks/block-mutation-constraint-replace/
 .benchmarks/directed-exploration/
+.benchmarks/locality-80/
+.benchmarks/mutation-ablation/
 .debug/
 sweeps/
 .benchmarks/baseline_profile/
@@ -41,6 +43,7 @@ sweeps/
 .benchmarks/shared-variation/
 
 # Generated analysis
+.benchmarks/semantic-inheritance/
 graphify-out/
 .graphify*
 

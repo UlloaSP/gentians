@@ -35,16 +35,16 @@ def compile_coverage_program(
         statements.extend(
             parse_program(
                 f"pos_exs(0..{len(positive_examples) - 1}).\n"
-                + _compile_examples(positive_examples, True, context_ids)
             )
         )
+        statements.extend(_compile_examples(positive_examples, True, context_ids))
     if negative_examples:
         statements.extend(
             parse_program(
                 f"neg_exs(0..{len(negative_examples) - 1}).\n"
-                + _compile_examples(negative_examples, False, context_ids)
             )
         )
+        statements.extend(_compile_examples(negative_examples, False, context_ids))
     statements.extend(COVERAGE_PROGRAM)
     return tuple(statements)
 
@@ -53,8 +53,8 @@ def _compile_examples(
     examples: list[Example],
     positive: bool,
     context_ids: dict[str, int] | None,
-) -> str:
-    parts: list[str] = []
+) -> AspProgram:
+    parts: list[ast.AST] = []
     suffix = "cp" if positive else "cn"
     for index, example in enumerate(examples):
         guard = (
@@ -62,20 +62,25 @@ def _compile_examples(
             if context_ids is not None
             else ""
         )
-        if example.included:
-            body = (
-                f"{example.included_text}, {guard}" if guard else example.included_text
-            )
-            parts.append(f"{suffix}i({index}):- {body}.")
-        else:
-            parts.append(
-                f"{suffix}i({index}):- {guard}." if guard else f"{suffix}i({index})."
-            )
-        for literal in example.excluded:
-            atom = str(literal)
-            body = f"{atom}, {guard}" if guard else atom
-            parts.append(f"{suffix}e({index}):- {body}.")
-    return "\n".join(parts) + "\n\n"
+        parts.extend(_compile_example(example, suffix, index, guard))
+    return tuple(parts)
+
+
+@lru_cache(maxsize=4096)
+def _compile_example(example: Example, suffix: str, index: int, guard: str) -> AspProgram:
+    # Partial queries reuse individual example rules even when the bounded cache
+    # of whole query subsets misses. Indices and context guards are part of key.
+    parts = []
+    if example.included:
+        body = f"{example.included_text}, {guard}" if guard else example.included_text
+        parts.append(f"{suffix}i({index}):- {body}.")
+    else:
+        parts.append(f"{suffix}i({index}):- {guard}." if guard else f"{suffix}i({index}).")
+    for literal in example.excluded:
+        atom = str(literal)
+        body = f"{atom}, {guard}" if guard else atom
+        parts.append(f"{suffix}e({index}):- {body}.")
+    return parse_program("\n".join(parts))
 
 
 def _context_ids(

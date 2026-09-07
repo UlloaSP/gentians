@@ -633,7 +633,7 @@ def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
     )
     monkeypatch.setattr(
         "gentians.algorithms.steady_state_genetic.create_evaluator",
-        lambda program, config: (
+        lambda program, config, *, space: (
             lambda candidate: EvaluationResult(
                 1.0 if tuple(map(str, candidate)) == ("good.",) else 2.0,
                 tuple(map(str, candidate)) == ("good.",),
@@ -676,7 +676,7 @@ def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda task, config: (
+        lambda task, config, *, space: (
             lambda candidate: EvaluationResult(
                 1.0,
                 tuple(map(str, candidate)) == ("second.",),
@@ -726,7 +726,7 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda program, config: (
+        lambda program, config, *, space: (
             lambda candidate: EvaluationResult(
                 1.0 if tuple(map(str, candidate)) == ("win.",) else 0.0,
                 tuple(map(str, candidate)) == ("win.",),
@@ -784,7 +784,7 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda program, config: lambda candidate: EvaluationResult(
+        lambda program, config, *, space: lambda candidate: EvaluationResult(
             0.0, False, (0, 0), False, False
         ),
     )
@@ -843,7 +843,7 @@ def test_crossover_child_is_mutated_before_single_evaluation(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda program, config: (
+        lambda program, config, *, space: (
             lambda candidate: (
                 evaluated_programs.append(tuple(map(str, candidate)))
                 or EvaluationResult(
@@ -912,7 +912,7 @@ def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch):
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda program, config: (
+        lambda program, config, *, space: (
             lambda candidate: (
                 evaluated_programs.append(tuple(map(str, candidate)))
                 or EvaluationResult(
@@ -965,7 +965,7 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     monkeypatch.setattr(
         search,
         "create_evaluator",
-        lambda program, config: lambda candidate: EvaluationResult(
+        lambda program, config, *, space: lambda candidate: EvaluationResult(
             1.0, False, (0, 0), False, False
         ),
     )

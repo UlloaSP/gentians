@@ -106,6 +106,24 @@ nonmonotonic semantics it can recover positive witnesses.
 
 ## Constraint edits and semantic limits
 
+`mutation.constraint_only_random` is an opt-in boolean, false by default. When
+enabled and the active pool contains no headed clauses, mutation uses unrestricted
+append, remove and replace preferences without intermediate classification or a
+head-permission draw. Cached perfect candidates remain protected. An incomplete
+candidate may then acquire another constraint. This cannot recover missing brave
+positive witnesses, but can eliminate negative witnesses and improve fitness.
+The directed prohibition is a search preference, not a proof that every such
+offspring is useless. The option retains the no-negative-example policy and all
+dependency, pool, nonempty and size invariants.
+
+Pools containing headed clauses keep their existing policy and RNG draws. The
+active pool is inspected on each call, including after renewal; no dataset name
+is inspected. This option takes precedence over completeness guidance only in
+constraint-only pools. It changes search reachability and sampling, not the task
+language or the evaluator's stable-model semantics. No speedup on arbitrary tasks
+or unseen seeds is guaranteed. Measurements and rejected alternatives are in
+[the mutation ablation report](mutation-ablation-experiment.md).
+
 With the headed program fixed, adding integrity constraints can only remove
 stable models. Removing constraints preserves existing models. Therefore adding
 constraints cannot recover positive brave witnesses, and removing constraints
@@ -146,7 +164,98 @@ or impose mutation's stricter protection on crossover.
 
 ## Evaluation and cost
 
+### Exact constraint-coverage inheritance
+
+`evaluation.constraint_inheritance` is an opt-in optimization in the normal
+coverage solver. It does not change mutation, crossover, scoring, RNG draws or
+population admission. The evaluator compares actual whole programs after
+dependency closure, not operator labels or intended root edits.
+
+Evidence is reusable only when all non-constraint statements match exactly.
+With that fixed program, a superset of integrity constraints preserves previously
+uncovered examples. A subset preserves previously covered examples. These facts
+apply to both positive and negative examples, including exclusions and isolated
+contexts. Arbitrary constraint replacement supplies no such guarantee unless
+another stored whole program has a comparable constraint set.
+
+Each example is known covered, known uncovered, or unresolved. Only unresolved
+examples are compiled and solved; compact result indices are mapped back to the
+original task. If all examples are known, no control is created. Otherwise the
+normal solver creates a fresh control for the unresolved query. This does not
+use a persistent ground program, per-rule fitness, or stable-model witnesses.
+
+The solver retains at most 64 whole-program coverage records and 32 compiled
+query subsets. A process-local LRU retains at most 4096 exact AST rendering keys.
+Another bounded LRU retains at most 4096 compiled example fragments keyed by the
+example, its local index, polarity helper and context guard. The search supplies
+the prepared `ClauseSpace`; the evaluator disables inheritance when it contains
+no constraints because distinct genomes cannot supply comparable constraint edits.
+No Clingo controls or models are retained. The bounds limit entry counts, not
+bytes independently of clause length or task size. Missing or evicted evidence
+causes ordinary evaluation, never an approximation.
+
+Inheritance requires exhaustive brave enumeration. An interrupted or limited
+solve raises an error rather than turning incomplete coverage into absence
+evidence. The epoch-pool factory rejects this option. A timeout remains a runner
+failure, not a fitness observation.
+
+The search's fitness-evaluation counter still counts candidates whose exact
+result was requested. Clingo ground/solve calls count actual solver work. Query
+records describe the unresolved examples actually compiled; final quality
+records describe merged coverage over the full task.
+
+See [the controlled experiment](semantic-inheritance-experiment.md) for measured
+costs and limitations. The optimization does not establish that complete headed
+programs are repairable using constraints, or that equal observed coverage means
+global ASP equivalence.
+
+### Body-local replacement
+
+`mutation.body_local_probability` defaults to zero. The `locality-80/local80`
+configuration sets it to 0.8 while disabling duplicate retries and complete
+reserve. On a replacement attempt, an independent draw tries a body-local
+alternative with that probability. If no legal local replacement exists for
+any eligible root, the attempt falls back to the existing global replacement.
+The 80/20 split describes attempted locality, not accepted-offspring frequencies.
+The existing head-jump probability remains independent and only relaxes the
+head-signature requirement of global replacement. `MutationProposal.local`
+continues to mean head-signature restriction; it is not a body-locality metric.
+
+Local neighbors have the exact same AST head and body multisets differing by
+one added, removed or replaced top-level element. An arithmetic comparison,
+conditional literal or aggregate is one element. No claim of semantic proximity,
+relaxation or preserved coverage follows. Variable names and arithmetic syntax
+use the existing canonical AST spelling; the index does not infer additional
+alpha-renamings or algebraic equivalences. This conservative relation can miss
+neighbors, which remain reachable through global search.
+
+`BodyNeighborhood` stores full-body and one-deletion posting lists. It stores
+O(NL) clause references and O(NL²) key-element references for N clauses with at
+most L body elements, not an O(N²) adjacency table. A query unions matching
+postings; large buckets can still approach N candidates. No neighbor list is
+cached per clause. The index is built lazily on the first local replacement and
+its cost is included in the mutation phase and closure timing. Active-pool masks
+are applied at query time, so changing a pool within the same prepared space
+does not rebuild the index. A new prepared space gets its own index.
+
+Local proposals use the same dependency-block transition, mutable protection,
+nonempty invariant and size limit as global replacement. Adding a literal to
+one constraint's body is a replacement, not appending another constraint to an
+incomplete hypothesis. The existing append restriction remains unchanged.
+
 ### Experimental exploration controls
+
+`mutation.completeness_guidance` is a boolean, enabled by default. Setting it
+to false disables mutation's intermediate classification and state-dependent
+restrictions for controlled ablation. It does not change crossover, scoring,
+dependency closure, size limits, or the policy against adding constraints when
+there are no negative examples. An unclassified perfect crossover output can
+then be mutated before ordinary evaluation, just as in the historical operator.
+This option is not a semantic optimization. The `mutation-ablation/` matrix
+crosses it with head-jump probabilities 0.1 and 1.0, with body locality, retries
+and complete reserve disabled. Head-jump probability 1.0 still consumes the
+existing random draw, so the ablation changes filtering without removing that
+draw from the random stream.
 
 Both controls default to zero until end-to-end evidence supports enabling them.
 The `directed-exploration/` entries in `benchmarks/experiments.toml` compare the
@@ -175,13 +284,16 @@ the quota adds no semantic distinction between candidates.
 These are search preferences, not semantic pruning proofs. They may increase
 evaluations or Python work and do not guarantee convergence or faster solving.
 
-Search supplies its existing evaluation cache. Mutation classifies its actual
-input, not its parents, whenever positives exist. This includes homogeneous
-spaces because completeness now changes the permitted operations there too.
-An uncached crossover output can therefore require one extra whole-program
-evaluation before mutation. Changed offspring receive normal evaluation. All
-cost stays in the requesting phase. Without an evaluator or cached result, the
+Search supplies its existing evaluation cache. With completeness guidance enabled,
+mutation classifies its actual input, not its parents, including constraint-only
+pools under the default policy. The opt-in `constraint_only_random` policy skips
+intermediate classification in those pools while protecting cached perfect
+candidates. An unclassified perfect crossover output can then be mutated before
+discovery. Changed offspring receive normal whole-program evaluation. All cost
+stays in the requesting phase. Without an evaluator or cached result, the
 standalone operator cannot infer completeness and uses unclassified block edits.
+Delayed classification only on append was measured and rejected; it is not part
+of the current default implementation.
 
 Crossover retains its mixed-space classification fast path. Cached solutions
 remain protected in either operator. No per-clause semantic evaluations, witness

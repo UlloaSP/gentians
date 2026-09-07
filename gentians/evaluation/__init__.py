@@ -15,13 +15,23 @@ SCORING_STRATEGIES = {
 def create_evaluator(
     task: InductiveTask,
     config: dict[str, object],
+    *,
+    space: ClauseSpace | None = None,
 ) -> CandidateEvaluator:
     score, clingo_arguments = _evaluation_config(config)
+    inheritance = config.get("constraint_inheritance", False)
+    if not isinstance(inheritance, bool):
+        raise ValueError("evaluation.constraint_inheritance must be a boolean")
+    # Without learnable constraints, distinct candidates cannot have equal
+    # headed programs. The search already memoizes identical genomes.
+    if inheritance and space is not None and all(clause.heads for clause in space.entries):
+        inheritance = False
     solver = CoverageSolver(
         task.background,
         clingo_arguments,
         task.positive_examples,
         task.negative_examples,
+        constraint_inheritance=inheritance,
     )
     return CandidateEvaluator(task, solver, score)
 
@@ -33,6 +43,8 @@ def create_epoch_pool_evaluator(
     *,
     coverage_program: AspProgram | None = None,
 ) -> CandidateEvaluator:
+    if config.get("constraint_inheritance", False) is not False:
+        raise ValueError("constraint_inheritance requires the normal coverage solver")
     score, clingo_arguments = _evaluation_config(config)
     return CandidateEvaluator(
         task,

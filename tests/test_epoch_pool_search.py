@@ -42,6 +42,7 @@ def test_epoch_pool_search_rebuilds_and_returns_program_from_global_space(monkey
     )
     space = make_clause_space(["target(a).", "target(b).", "other(a)."])
     arguments = Arguments(
+        evaluation={"scoring": "cov_program", "constraint_inheritance": False},
         iterations_genetic=5,
         random_seed=4,
         clause_pool={
@@ -96,6 +97,7 @@ def test_solve_selects_configured_search(monkeypatch, enabled):
 )
 def test_epoch_pool_search_rejects_invalid_config(config):
     arguments = Arguments(
+        evaluation={"scoring": "cov_program", "constraint_inheritance": False},
         iterations_genetic=1,
         population={"name": "random", "size": 3},
         clause_pool=config,
@@ -136,6 +138,7 @@ def _general_pool_task():
 
 def _pool_arguments(**overrides):
     return Arguments(
+        evaluation={"scoring": "cov_program", "constraint_inheritance": False},
         iterations_genetic=8,
         random_seed=17,
         population={"name": "random", "size": 4},
@@ -143,7 +146,6 @@ def _pool_arguments(**overrides):
             "enabled": True,
             "size": 4,
             "epoch_generations": 2,
-            "epoch_evaluations": 1,
             "elite_count": 2,
             **overrides,
         },
@@ -155,8 +157,8 @@ def _pool_arguments(**overrides):
     [
         {},
         {"retention": "behavior", "filling": "neighbors"},
-        {"retention": "reproductive", "renewal": "adaptive"},
-        {"retention": "reproductive", "filling": "neighbors", "renewal": "adaptive"},
+        {"retention": "reproductive"},
+        {"retention": "reproductive", "filling": "neighbors"},
     ],
 )
 def test_pool_solver_choice_preserves_candidate_sequence_and_progress(

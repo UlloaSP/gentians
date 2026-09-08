@@ -61,6 +61,7 @@ def test_sampled_epochs_drop_old_spaces_and_never_enumerate_all(monkeypatch):
     task = inductive_task([], [example(("target(z)", ""), True)], [], [], [],
                           max_program_clauses=2)
     args = Arguments(iterations_genetic=4, random_seed=4,
+                     evaluation={"scoring": "cov_program", "constraint_inheritance": False},
                      population={"name": "random", "size": 3},
                      clause_pool={"enabled": True, "size": 2,
                                   "epoch_generations": 1, "elite_count": 1})

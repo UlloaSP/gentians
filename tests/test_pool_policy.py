@@ -4,7 +4,6 @@ import pytest
 
 from gentians.algorithms.pool_policy import (
     build_clause_pool,
-    renewal_reason,
     retain_population,
 )
 from gentians.evolution.individual import Individual
@@ -79,28 +78,6 @@ def test_pool_build_preserves_seeds_and_closes_sampled_candidates(policy):
         heads = {head for entry in selected for head in entry.heads}
         deps = {dependency for entry in selected for dependency in entry.deps}
         assert deps <= heads | {("seed", 1)}
-
-
-@pytest.mark.parametrize(
-    ("policy", "age", "stagnation", "evaluations", "duplicates", "expected"),
-    [
-        ("generations", 9, 9, 100, 9, None),
-        ("generations", 10, 0, 0, 0, "generations"),
-        ("adaptive", 10, 9, 20, 10, None),
-        ("adaptive", 10, 10, 20, 0, "evaluations"),
-        ("adaptive", 10, 10, 19, 7, None),
-        ("adaptive", 10, 10, 19, 8, "duplicates"),
-        ("adaptive", 99, 0, 0, 0, None),
-        ("adaptive", 100, 0, 0, 0, "max_age"),
-    ],
-)
-def test_renewal_requires_stagnation_except_fixed_or_maximum_age(
-    policy, age, stagnation, evaluations, duplicates, expected
-):
-    assert (
-        renewal_reason(policy, age, stagnation, evaluations, duplicates, 10, 20)
-        == expected
-    )
 
 
 def test_restricted_sampler_preserves_ascending_rank_rng_sequence():

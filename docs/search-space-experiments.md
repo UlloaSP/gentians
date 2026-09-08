@@ -41,7 +41,7 @@ con fallback global y sin asumir relajación. En grandparent, diez seeds dieron
 una media de 0,395 s frente a 0,569 s del actual y 1,536 s del original. En los
 tres seeds medidos de 5queens empeoró las evaluaciones y el tiempo; se descartaron
 los siete restantes porque el acumulado superaba los diez originales completos.
-La opción permanece desactivada por defecto. El [informe de localidad](body-locality-experiment.md)
+La opción se retiró el 2026-09-08. El [informe de localidad](body-locality-experiment.md)
 conserva protocolo, índice, memoria, tiempos individuales y límites de evidencia.
 # Mutation regression ablation and structural policy
 

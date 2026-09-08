@@ -8,7 +8,12 @@ from gentians.evolution.mutations.random_group import RandomGroupMutation
 from gentians.evaluation import create_evaluator
 from gentians.hypotheses import HypothesisGenerator
 from tests.task_helpers import example, inductive_task, make_clause_space
-from tests.test_body_local_mutation import task_and_generator
+
+
+def task_and_generator(rules, *, max_clauses=1):
+    task = inductive_task(["p.", "{q}.", "{r}."], [example(("p", "q"), True)],
+                          [example(("q", ""), False)], [], [])
+    return task, HypothesisGenerator(task, make_clause_space(rules), max_clauses)
 
 
 def test_disabled_guidance_does_not_request_fitness():

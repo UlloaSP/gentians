@@ -2,12 +2,11 @@ from typing import Any
 
 from ..operator_types import PopulationInitializerFn
 from .random_population import RandomPopulation
-from .structural_diverse import StructuralDiversePopulation
 
 
 def create_population(config: dict[str, Any]) -> PopulationInitializerFn:
     name = str(config["name"])
-    strategies = {"random": RandomPopulation, "structural_diverse": StructuralDiversePopulation}
+    strategies = {"random": RandomPopulation}
     try:
         strategy = strategies[name]
     except KeyError:

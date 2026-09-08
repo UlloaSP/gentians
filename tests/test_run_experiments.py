@@ -3,6 +3,8 @@ from argparse import Namespace
 from pathlib import Path
 from subprocess import CompletedProcess
 
+from gentians.arguments import Arguments
+
 import pytest
 from benchmarks import run_experiments as runner
 
@@ -54,7 +56,7 @@ def test_pool_policy_matrix_is_unlimited_and_has_single_policy_ablations():
     experiments = [{**entry, "id": entry["id"].removeprefix("pool-policy/")}
                    for entry in entries if entry["id"].startswith("pool-policy/")]
     variants = {entry["id"]: entry["overrides"] for entry in experiments}
-    assert len(variants) == 9
+    assert len(variants) == 6
     for entry in experiments:
         assert entry["runs"] == 10
         assert entry["timeout_seconds"] == 100
@@ -65,8 +67,6 @@ def test_pool_policy_matrix_is_unlimited_and_has_single_policy_ablations():
         ("pool_persistent", "behavior", "clause_pool.retention"),
         ("behavior", "reproductive_retention", "clause_pool.retention"),
         ("behavior", "neighbors", "clause_pool.filling"),
-        ("behavior", "adaptive", "clause_pool.renewal"),
-        ("control", "reproductive_selection", "selection.name"),
     ]
     for first, second, changed_key in comparisons:
         assert {key for key in variants[first] if variants[first][key] != variants[second][key]} == {changed_key}
@@ -141,15 +141,11 @@ def test_default_config_defines_comparable_experiment_matrix():
     assert output_root == runner.REPO_ROOT / ".benchmarks" / "experiments"
     assert {experiment["id"] for experiment in experiments if "/" not in experiment["id"]} == {
         "cov_program_random_group_pop10_mut09",
-        "cov_program_behavior_tournament_pop10",
-        "cov_program_behavior_tournament_pop100",
-        "cov_balanced",
-        "cov_balanced_structural",
     }
     assert all(experiment["runs"] == 10 for experiment in experiments)
     assert all(experiment["timeout_seconds"] == (
-        30 if experiment["id"].startswith(("semantic-inheritance/", "semantic-repair/", "recommended/", "population-diversity/")) else
-        300 if experiment["id"].startswith(("sampled-roles/", "shared-variation/", "directed-exploration/", "locality-80/", "mutation-ablation/")) else 100
+        30 if experiment["id"].startswith(("semantic-inheritance/", "recommended/")) else
+        300 if experiment["id"].startswith(("sampled-roles/", "shared-variation/", "mutation-ablation/")) else 100
     ) for experiment in experiments)
     assert all(experiment["cprofile"] is False for experiment in experiments)
     assert all(
@@ -158,35 +154,29 @@ def test_default_config_defines_comparable_experiment_matrix():
     )
 
 
-def test_recommended_policy_matches_measured_control_across_datasets():
+def test_recommended_policy_matches_sdk_defaults_across_datasets():
     _, experiments = load_config(DEFAULT_CONFIG)
     entries = {entry["id"]: entry for entry in experiments}
     recommended = entries["recommended/general"]
     assert recommended["datasets"] == ["5queens", "grandparent", "coloring", "knapsack"]
-    assert recommended["overrides"] == entries["semantic-repair/control"]["overrides"]
     assert recommended["stop_on_timeout"] is True
     assert recommended["overrides"]["iterations_genetic"] == 0
-
-
-def test_population_diversity_matrix_changes_only_initializer():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    entries = {entry["id"]: entry for entry in experiments}
-    first, second = (entries["population-diversity/" + name] for name in ("control", "structural"))
-    before, after = dict(first["overrides"]), dict(second["overrides"])
-    assert before.pop("population.name") == "random"
-    assert after.pop("population.name") == "structural_diverse"
-    assert before == after
-    for key in ("datasets", "runs", "seed_base", "timeout_seconds", "cprofile", "instrumentation"):
-        assert first[key] == second[key]
+    defaults = Arguments()
+    for path, expected in recommended["overrides"].items():
+        root, *keys = path.split(".")
+        actual = getattr(defaults, root)
+        for key in keys:
+            actual = actual[key]
+        assert actual == expected, path
 
 
 def test_default_experiments_have_no_pregrounding_strategy_matrix():
     _, experiments = load_config(DEFAULT_CONFIG)
     assert all("evaluation.grounding" not in item["overrides"] for item in experiments)
-    assert len(experiments) == 48
+    assert len(experiments) == 30
     assert {prefix: sum(e["id"].startswith(prefix + "/") for e in experiments)
             for prefix in ("epoch-pool", "pool-policy", "sampled-roles", "shared-variation")} == {
-        "epoch-pool": 7, "pool-policy": 9, "sampled-roles": 3, "shared-variation": 2,
+        "epoch-pool": 7, "pool-policy": 6, "sampled-roles": 3, "shared-variation": 2,
     }
 
 
@@ -194,8 +184,7 @@ def test_consolidation_preserves_existing_selection_settings():
     _, experiments = load_config(DEFAULT_CONFIG)
     indexed = {e["id"]: e["overrides"]["selection.name"] for e in experiments}
     assert indexed["cov_program_random_group_pop10_mut09"] == "lexicase"
-    assert indexed["cov_balanced"] == "tournament"
-    assert indexed["pool-policy/reproductive_selection"] == "reproductive_lexicase"
+    assert indexed["pool-policy/control"] == "lexicase"
 
 
 def test_default_experiments_cover_configured_mutation_population_matrix():
@@ -212,7 +201,6 @@ def test_default_experiments_cover_configured_mutation_population_matrix():
 
     assert matrix == {
         ("random_group", 10, 0.9),
-        ("random_group", 100, 0.9),
     }
 
 
@@ -222,22 +210,7 @@ def test_default_experiments_cover_all_fitness_operators():
         experiment["overrides"].get("evaluation.scoring", "cov_program")
         for experiment in experiments
     }
-    assert names == {"cov_program", "cov_balanced"}
-
-
-def test_existing_balanced_configuration_keeps_its_distinct_selection():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    indexed = {experiment["id"]: experiment for experiment in experiments}
-    baseline = dict(indexed["cov_program_random_group_pop10_mut09"]["overrides"])
-    balanced = dict(indexed["cov_balanced"]["overrides"])
-
-    assert baseline.pop("evaluation.scoring") == "cov_program"
-    assert balanced.pop("evaluation.scoring") == "cov_balanced"
-    assert baseline.pop("selection.name") == "lexicase"
-    assert balanced.pop("selection.name") == "tournament"
-    assert balanced == baseline
-    assert indexed["cov_program_random_group_pop10_mut09"]["runs"] == 10
-    assert indexed["cov_balanced"]["runs"] == 10
+    assert names == {"cov_program"}
 
 
 def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):

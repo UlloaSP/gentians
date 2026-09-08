@@ -39,7 +39,7 @@ from ..timing import (
     record_ga_generation,
     record_metric,
 )
-from .pool_policy import build_clause_pool, renewal_reason, retain_population
+from .pool_policy import build_clause_pool, retain_population
 from .result import SearchResult
 
 
@@ -67,13 +67,6 @@ def epoch_pool_genetic_search(
     filling = _choice_config(
         args.clause_pool, "filling", "random", {"random", "neighbors"}
     )
-    renewal = _choice_config(
-        args.clause_pool, "renewal", "generations", {"generations", "adaptive"}
-    )
-    evaluation_budget = _positive_config(
-        {"epoch_evaluations": args.clause_pool.get("epoch_evaluations", 50)},
-        "epoch_evaluations",
-    )
     population_size = _positive_config(args.population, "size")
     if elite_count > population_size:
         raise ValueError("clause_pool.elite_count cannot exceed population.size")
@@ -85,10 +78,9 @@ def epoch_pool_genetic_search(
     history = (
         ReproductiveHistory()
         if retention == "reproductive"
-        or args.selection["name"] == "reproductive_lexicase"
         else None
     )
-    selection = create_selection(args.selection, history=history)
+    selection = create_selection(args.selection)
     crossover = create_crossover(args.crossover)
     mutation = create_mutation(args.mutation)
     replacement = create_replacement(args.replacement)
@@ -143,7 +135,6 @@ def epoch_pool_genetic_search(
     epoch_started = 0
     epoch_evaluations = 0
     epoch_duplicates = 0
-    last_progress = 0
     epoch_number = 0
     build_seconds = 0.0
     setup_seconds = 0.0
@@ -188,7 +179,7 @@ def epoch_pool_genetic_search(
             results[candidate] = evaluator(hypotheses.program(candidate))
         return results[candidate]
 
-    context = EvolutionContext(hypotheses, rng, evaluate, results, evaluated.keys())
+    context = EvolutionContext(hypotheses, rng, evaluate, results)
 
     def admit(candidate: Genome) -> Individual | None:
         if candidate in evaluated:
@@ -253,7 +244,6 @@ def epoch_pool_genetic_search(
         raise RuntimeError("Could not initialize population")
     population.sort(key=lambda item: item.score, reverse=True)
     best_overall = population[0]
-    behaviors = {item.behavior for item in population}
 
     def finish(solution: Individual, generation: int) -> SearchResult:
         record_epoch(generation, "solution")
@@ -286,19 +276,10 @@ def epoch_pool_genetic_search(
     )
 
     for generation in generations:
-        reason = renewal_reason(
-            renewal,
-            generation - epoch_started,
-            generation - last_progress,
-            evaluations - epoch_evaluations,
-            epoch_duplicates,
-            epoch_generations,
-            evaluation_budget,
-        )
-        if reason is not None:
-            record_epoch(generation, reason)
+        if generation - epoch_started >= epoch_generations:
+            record_epoch(generation, "generations")
             epoch_number += 1
-            epoch_started = last_progress = generation
+            epoch_started = generation
             epoch_evaluations = evaluations
             epoch_duplicates = 0
             with phase("replacement"):
@@ -337,8 +318,7 @@ def epoch_pool_genetic_search(
                         item.score, item.is_solution, item.behavior,
                         item.is_complete, item.is_consistent,
                     ) for item in retained}
-                    context = EvolutionContext(hypotheses, rng, evaluate, results, evaluated.keys())
-                    behaviors = {item.behavior for item in retained}
+                    context = EvolutionContext(hypotheses, rng, evaluate, results)
                     del old_hypotheses, retained_entries, remapped
                 before_build = net_time()
                 pool_mask = build_clause_pool(
@@ -353,7 +333,6 @@ def epoch_pool_genetic_search(
                 evaluator = make_evaluator(pool_mask)
                 setup_seconds = net_time() - before_setup
                 population = refill(retained)
-                behaviors.update(item.behavior for item in population)
             if not population:
                 raise RuntimeError("Could not refill population after pool rebuild")
             winner = next((item for item in population if item.is_solution), None)
@@ -401,9 +380,6 @@ def epoch_pool_genetic_search(
                 after=results.get(final_genome),
             )
             if child is not None:
-                if child.score > best_overall.score or child.behavior not in behaviors:
-                    last_progress = generation + 1
-                behaviors.add(child.behavior)
                 if child.is_solution:
                     best_overall = _better(best_overall, child)
                     population = population_with(child)

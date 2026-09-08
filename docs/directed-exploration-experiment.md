@@ -1,5 +1,7 @@
 # Directed exploration experiments
 
+> Historical experiment. Duplicate retries and complete-candidate reserves were removed on 2026-09-08, together with their active matrix entries. Results below describe the measured implementation before removal.
+
 ## Implementation and protocol
 
 On 2026-09-07, two opt-in controls were implemented and measured independently

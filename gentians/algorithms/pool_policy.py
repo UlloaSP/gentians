@@ -104,25 +104,3 @@ def build_clause_pool(
         pool = candidate
     hypotheses.set_pool(pool)
     return pool
-
-
-def renewal_reason(
-    policy: str,
-    age: int,
-    stagnation: int,
-    evaluations: int,
-    duplicates: int,
-    interval: int,
-    evaluation_budget: int,
-) -> str | None:
-    if policy == "generations":
-        return "generations" if age >= interval else None
-    if age >= 10 * interval:
-        return "max_age"
-    if stagnation < interval:
-        return None
-    if evaluations >= evaluation_budget:
-        return "evaluations"
-    if age >= interval and duplicates * 5 >= age * 4:
-        return "duplicates"
-    return None

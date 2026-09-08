@@ -1,5 +1,7 @@
 # Structural diversity in the initial population
 
+> Historical experiment. Structural population initialization was removed on 2026-09-08, together with its configuration and active matrix entries. The measurements below describe the implementation before removal.
+
 ## Implementation and limits
 
 `population.name="structural_diverse"` is an alternative to `random` registered

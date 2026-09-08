@@ -27,7 +27,6 @@ from ..evolution.metrics import (
 from ..evolution.mutations import create_mutation
 from ..evolution.populations import create_population
 from ..evolution.replacements import create_replacement
-from ..evolution.reproduction import ReproductiveHistory
 from ..evolution.selections import create_selection
 from ..evaluation import create_evaluator
 from ..evaluation.result import EvaluationResult
@@ -43,16 +42,7 @@ def steady_state_genetic_search(
 ) -> SearchResult:
     rng = random.Random(args.random_seed)
     population_strategy = create_population(args.population)
-    history = (
-        ReproductiveHistory()
-        if args.selection["name"] == "reproductive_lexicase"
-        else None
-    )
-    selection = (
-        create_selection(args.selection, history)
-        if history is not None
-        else create_selection(args.selection)
-    )
+    selection = create_selection(args.selection)
     crossover = create_crossover(args.crossover)
     replacement = create_replacement(args.replacement)
     generations = (
@@ -119,7 +109,7 @@ def steady_state_genetic_search(
             results[candidate] = evaluate_candidate(hypotheses.program(candidate))
         return results[candidate]
 
-    context = EvolutionContext(hypotheses, rng, evaluate, results, evaluated.keys())
+    context = EvolutionContext(hypotheses, rng, evaluate, results)
 
     def admit(candidate: Genome):
         if candidate in evaluated:
@@ -172,8 +162,6 @@ def steady_state_genetic_search(
         with phase("crossover"):
             crossed = crossover(first.genome, second.genome, context)
         if crossed is None:
-            if history is not None:
-                history.observe(first, second, None)
             record_skipped_crossover(str(args.crossover["name"]), len(population))
         else:
             best_parent = first if first.score >= second.score else second
@@ -190,8 +178,6 @@ def steady_state_genetic_search(
             duplicate = final_genome in evaluated
             with phase("mutation" if mutation_changed else "crossover"):
                 child = None if duplicate else admit(final_genome)
-            if history is not None:
-                history.observe(first, second, child, duplicate=duplicate)
             record_mutation(
                 str(args.mutation["name"]),
                 crossed,
@@ -212,8 +198,6 @@ def steady_state_genetic_search(
                 )
         population.sort(key=lambda item: item.score, reverse=True)
         best_overall = _better(best_overall, population[0])
-        if history is not None:
-            history.retain([best_overall.genome, *(item.genome for item in population)])
         record_ga_generation(
             generation + 1,
             best_overall.score,

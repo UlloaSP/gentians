@@ -15,9 +15,6 @@ from gentians.evolution.populations import create_population
 from gentians.hypotheses import HypothesisGenerator
 from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.evolution.selections import create_selection
-from gentians.evolution.selections.behavior_tournament_selection import (
-    BehaviorTournamentSelection,
-)
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
 from gentians.evaluation.result import EvaluationResult
@@ -296,65 +293,6 @@ def test_tournament_size_scales_with_population_percentage():
     selection([Individual(index, float(index), False) for index in range(100)], rng)
 
     assert sampled_sizes == [3, 3, 30, 30]
-
-
-def test_behavior_tournament_chooses_most_complete_parent_regardless_of_score():
-    selection = BehaviorTournamentSelection(1.0)
-    high_score = Individual(1, 10.0, False, behavior=(0b0011, 0))
-    most_complete = Individual(2, 1.0, False, behavior=(0b1111, 0b11))
-    other = Individual(4, 9.0, False, behavior=(0b0001, 0b1))
-
-    first, _ = selection([high_score, most_complete, other], random.Random(1))
-
-    assert first is most_complete
-
-
-def test_behavior_tournament_factory_creates_strategy():
-    selection = create_selection(
-        {
-            "name": "behavior_tournament",
-            "tournament_percentage": 0.3,
-        }
-    )
-
-    assert isinstance(selection, BehaviorTournamentSelection)
-    assert selection.percentage == 0.3
-
-
-def test_behavior_tournament_chooses_most_consistent_second_parent():
-    selection = BehaviorTournamentSelection(1.0)
-    first = Individual(1, 1.0, False, behavior=(0b1111, 0b11))
-    unsafe = Individual(2, 10.0, False, behavior=(0b111, 0b1))
-    consistent = Individual(4, 0.0, False, behavior=(0b001, 0))
-
-    parents = selection([first, unsafe, consistent], random.Random(1))
-
-    assert parents == (first, consistent)
-
-
-def test_behavior_tournament_reuses_only_parent_in_singleton_population():
-    selection = BehaviorTournamentSelection(1.0)
-    only = Individual(1, 1.0, False, behavior=(1, 0))
-
-    assert selection([only], random.Random(1)) == (only, only)
-
-
-def test_behavior_tournament_compares_at_least_two_mates():
-    sampled_sizes = []
-
-    class RecordingRandom(random.Random):
-        def sample(self, population, k, *, counts=None):
-            sampled_sizes.append(k)
-            return super().sample(population, k, counts=counts)
-
-    population = [
-        Individual(index, float(index), False, behavior=(index, 0))
-        for index in range(10)
-    ]
-
-    BehaviorTournamentSelection(0.1)(population, RecordingRandom(1))
-
-    assert sampled_sizes == [2]
 
 
 def test_lexicase_filters_by_individual_positive_examples():
@@ -1003,3 +941,21 @@ def test_equal_novel_candidate_replaces_an_existing_individual():
 
     assert candidate in result
     assert len(result) == len(population)
+
+
+def test_semantic_effect_logging_uses_whole_program_masks(monkeypatch):
+    from gentians.evaluation.result import EvaluationResult
+    from gentians.evolution import metrics
+    from gentians.evolution.operator_types import MutationProposal
+
+    rows = []
+    monkeypatch.setattr(metrics, "operator_metrics_enabled", lambda: True)
+    monkeypatch.setattr(metrics, "record_metric", lambda name, row: rows.append(row))
+    before = EvaluationResult(0, False, (3, 5), False, False)
+    after = EvaluationResult(0, False, (6, 6), False, False)
+    metrics.record_mutation("random_group", 1, MutationProposal(2), duplicate=False,
+                            before=before, after=after)
+    assert rows[0]["semantic_effect_known"]
+    assert all(rows[0][field] == 1 for field in (
+        "positive_recovered", "positive_lost", "negative_removed", "negative_introduced",
+    ))

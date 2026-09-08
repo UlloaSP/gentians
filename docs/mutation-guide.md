@@ -5,7 +5,7 @@ arquitectura propuesta. No se ha cambiado el algoritmo para hacerlos.
 
 ## Abrir los diagramas
 
-1. [Flujo general, salidas y reintentos](mutation-flow.html).
+1. [Flujo general y salidas](mutation-flow.html).
 2. [Permisos según completitud y ejemplos](mutation-permissions.html).
 3. [Añadir, eliminar y reemplazar por bloques](mutation-operations.html).
 4. [Filtros y alternativas del reemplazo](mutation-replacement.html).
@@ -29,14 +29,10 @@ el contenido escrito del diagrama está en español.
 | `mutation.name` | ★ `random_group` | ★ `random_group` | Única estrategia registrada; la factory se conserva. |
 | `probability` | ★ `0.9` | ★ `0.9` | Intentar mutar en el 90% de llamadas. |
 | `completeness_guidance` | ★ `true` | ★ `true` | Usar el estado efectivo del programa de entrada. |
-| `constraint_only_random` | ★ `false` | ★ `true` | Excepción cuando todo el espacio activo son constraints. |
+| `constraint_only_random` | ★ `true` | ★ `true` | Excepción cuando todo el espacio activo son constraints. |
 | `random_jump_probability` | ★ `0.1` | ★ `0.1` | En reemplazos ordinarios, permitir otra firma de cabeza. |
 | `complete_generator_removal_probability` | ★ `0.1` | ★ `0.1` | Intentar eliminar una raíz encabezada de un candidato completo. |
-| `body_local_probability` | ★ `0.0` | ★ `0.0` | Desactivada la vecindad de un elemento del cuerpo. |
-| `duplicate_retries` | ★ `0` | ★ `0` | Un intento externo; no reintentar por duplicado. |
-| `repair_probability` | ★ `0.0` | ★ `0.0` | Desactivada la preferencia de reparación diagnosticada. |
-| `evaluation.constraint_diagnosis` | ★ `false` | ★ `false` | No calcular cobertura potencial sin constraints. |
-| `evaluation.constraint_inheritance` | ★ `false` | ★ `true` | Reutilización exacta de cobertura; no cambia permisos de mutación. |
+| `evaluation.constraint_inheritance` | ★ `true` | ★ `true` | Reutilización exacta de cobertura; no cambia permisos de mutación. |
 
 Los nombres de las opciones de las filas intermedias pertenecen a `mutation`.
 Estos valores no dependen del nombre del dataset. La excepción solo-constraints
@@ -87,7 +83,7 @@ clasificación efectiva para los permisos, aunque pueda existir un resultado
 guardado. La salida temprana por solución conocida sigue siendo aplicable.
 
 En un completo con positivos y reglas encabezadas se sortea la eliminación
-especial una vez por llamada, antes del bucle de reintentos. Si sale, cada
+especial una vez por llamada. Si sale, la
 propuesta ordinaria prueba primero `remove(..., sources=headed)`. Puede retirar
 la raíz y sus consumidores, también encabezados. Si consigue un cambio válido,
 lo devuelve antes de barajar las operaciones ordinarias. Si no, continúa con
@@ -140,7 +136,7 @@ faltantes resueltas, menos dependencias nuevas y cuerpo menor. Empates usan el
 RNG. Tiene un presupuesto interno de búsqueda, por lo que un intento fallido
 no prueba inexistencia matemática de todo cierre posible.
 
-## 5. Firma de cabeza y localidad del cuerpo
+## 5. Firma de cabeza y tipo de raíz
 
 En cada intento de la operación `replace`, fuera de la excepción solo-constraints,
 se sortea `same_head`: 90% exige la misma firma y 10% no la exige. No son 90%
@@ -156,34 +152,14 @@ El salto no obliga a cambiar firma y no anula `mutable` ni la conservación de
 tipo. Si se exigió misma firma y no se encontró reemplazo, no se vuelve a
 intentar automáticamente con otra firma.
 
-La localidad del cuerpo es otra opción independiente, apagada. Si se activa,
-busca añadir, quitar o sustituir un elemento del cuerpo en la escritura AST
-canónica existente, con el mismo texto AST de cabeza. No infiere renombrados
-adicionales de variables. Por tanto es más estricta que `same_head`.
-Si no encuentra candidato, repite la operación sin localidad del cuerpo,
-conservando los demás filtros. No hay búsqueda especial de relajación de
-constraints.
+Los candidatos se buscan en el espacio activo con los filtros anteriores.
+No hay índice de vecindad de cuerpo ni búsqueda especial de relajación de constraints.
 
-## 6. Reparación experimental y reintentos
+## 6. Admisión de la propuesta
 
-Para usar reparación deben cumplirse todas estas condiciones: probabilidad
-positiva, resultado conocido incompleto, diagnóstico potencial conocido,
-ejemplos positivos y constraints disponibles. Si la cobertura potencial es
-completa, el objetivo es cambiar constraints; si no lo es, cambiar encabezadas.
-Se exige un objetivo no vacío y acertar el sorteo. La máscara elegida se
-intersecta con los permisos de la propuesta diagnosticada.
-
-Si la propuesta guiada no cambia el genoma, se intenta la política ordinaria.
-Si produce un cambio, se comprueba directamente el historial. Un cambio guiado
-duplicado no provoca por sí mismo una propuesta ordinaria: consume el intento
-externo. La preferencia y el sorteo de eliminación especial no se repiten al
-reintentar; las propuestas vuelven a partir del genoma original.
-
-El máximo de intentos externos es `duplicate_retries + 1`. Se devuelve antes
-si la propuesta está omitida, no existe `context.seen` o el resultado no figura
-en ese historial. Agotado el presupuesto, se devuelve la última propuesta,
-incluso duplicada o sin cambio. El bucle de búsqueda decide si admitirla y usa
-su caché para no volver a evaluar el mismo candidato.
+La mutación devuelve una propuesta por llamada. La búsqueda detecta duplicados
+y usa su caché para no volver a evaluar un candidato ya procesado. La reparación
+diagnosticada y los reintentos se retiraron tras los experimentos desfavorables.
 
 ## Evidencia y comprobación
 
@@ -193,12 +169,12 @@ Fuentes inspeccionadas:
 - [Decisiones y propuestas](../gentians/evolution/mutations/random_group.py).
 - [Obtención de estado](../gentians/evolution/variation.py).
 - [Operaciones y cierre](../gentians/hypotheses/generator.py).
-- [Vecindad sintáctica](../gentians/hypotheses/body_neighborhood.py).
 - [Admisión y evaluación](../gentians/algorithms/steady_state_genetic.py).
 - [Defaults del SDK](../gentians/arguments.py) y [perfil recomendado](../benchmarks/experiments.toml).
 
-Cada fuente JSON acompaña al HTML correspondiente. Los cuatro diagramas pasan
-los nueve controles showcase, sin errores ni avisos. La comprobación de Chrome
-cubre 1440×900, 1600×1000, 1920×1080 y 2048×1320. Los recibos conservan hashes
-de fuente y HTML; la revisión visual se registra aparte de la prueba automática.
+Cada fuente JSON acompaña al HTML correspondiente. Los diagramas de flujo,
+permisos y reemplazo se regeneraron tras retirar las políticas experimentales. Los tres pasan
+los nueve controles showcase y la comprobación automática de Chrome en
+1440×900, 1600×1000, 1920×1080 y 2048×1320. El recibo conserva los hashes
+actuales y distingue la revisión visual de la prueba automática.
 Véase [el recibo de entrega](mutation-diagrams.receipt.json).

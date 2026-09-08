@@ -1,16 +1,13 @@
 import random
-from collections import Counter
 
 import pytest
 
 from gentians.evolution.individual import Individual
 from gentians.evolution.reproduction import ReproductiveHistory
-from gentians.evolution.selections import create_selection
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.algorithms import steady_state_genetic as search
 from gentians.arguments import Arguments
 from gentians.evaluation.result import EvaluationResult
-from gentians.evolution.operator_types import MutationProposal
 from tests.task_helpers import inductive_task, make_clause_space
 
 
@@ -58,40 +55,6 @@ def test_remap_keeps_credit_for_retained_programs_not_old_bit_positions():
     assert history.attempts(1) == history.attempts(2) == 0
 
 
-def test_reproductive_selection_favors_successful_parents_without_excluding_untried():
-    productive = Individual(1, 1.0, False, (1, 0))
-    unsuccessful = Individual(2, 1.0, False, (1, 0))
-    untried = Individual(4, 1.0, False, (1, 0))
-    history = ReproductiveHistory()
-    for _ in range(20):
-        history.observe(productive, productive, Individual(8, 2.0, False))
-        history.observe(unsuccessful, unsuccessful, None)
-    selection = create_selection({"name": "reproductive_lexicase"}, history)
-    population = [productive, unsuccessful, untried]
-    rng = random.Random(91)
-    selected = Counter(
-        item.genome for _ in range(1000) for item in selection(population, rng)
-    )
-    assert selected[1] > selected[4] > selected[2] > 0
-    repeat_rng = random.Random(91)
-    assert selected == Counter(
-        item.genome for _ in range(1000) for item in selection(population, repeat_rng)
-    )
-
-
-def test_reproductive_history_does_not_override_lexicase_cases():
-    poor = Individual(1, 1.0, False, (0, 1))
-    safe = Individual(2, 2.0, False, (1, 0))
-    history = ReproductiveHistory()
-    for _ in range(20):
-        history.observe(poor, poor, Individual(4, 3.0, False))
-        history.observe(safe, safe, None)
-    selection = create_selection({"name": "reproductive_lexicase"}, history)
-    assert selection([poor, safe], random.Random(1)) == (safe, safe)
-    with pytest.raises(ValueError, match="shared reproductive history"):
-        create_selection({"name": "reproductive_lexicase"})
-
-
 def test_normal_lexicase_keeps_existing_rng_consumption():
     # Filtering to one candidate consumed only shuffle randomness before the change.
     poor = Individual(1, 1.0, False, (0, 1))
@@ -108,61 +71,6 @@ def test_normal_lexicase_keeps_existing_rng_consumption():
     expected.choice([empty])
     assert LexicaseSelection()([empty], rng) == (empty, empty)
     assert rng.getstate() == expected.getstate()
-
-
-@pytest.mark.parametrize("selection_name", ["lexicase", "reproductive_lexicase"])
-def test_search_records_reproduction_only_when_enabled(monkeypatch, selection_name):
-    history = ReproductiveHistory()
-    factories_called = []
-
-    def history_factory():
-        factories_called.append(True)
-        return history
-
-    monkeypatch.setattr(search, "ReproductiveHistory", history_factory)
-    monkeypatch.setattr(
-        search, "create_population",
-        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
-    )
-    proposals = iter([None, "start.", "win."])
-    parent_genomes = []
-
-    def crossover(first, second, context):
-        parent_genomes.append(first)
-        text = next(proposals)
-        return None if text is None else context.hypotheses.encode((text,))
-
-    monkeypatch.setattr(search, "create_crossover", lambda config: crossover)
-    monkeypatch.setattr(
-        search, "create_mutation",
-        lambda config: lambda genome, context: MutationProposal(genome),
-    )
-    evaluations = []
-
-    def evaluate(program):
-        texts = tuple(map(str, program))
-        evaluations.append(texts)
-        winner = texts == ("win.",)
-        return EvaluationResult(float(winner), winner, (0, 0), True, True)
-
-    monkeypatch.setattr(search, "create_evaluator", lambda task, config, *, space: evaluate)
-    space = make_clause_space(["start.", "win."])
-    result = search.steady_state_genetic_search(
-        Arguments(random_seed=3, iterations_genetic=3,
-                  selection={"name": selection_name}),
-        inductive_task([], [], [], [], [], max_program_clauses=1),
-        space,
-    )
-    assert result.is_solution
-    assert result.hypothesis == ("win.",)
-    assert evaluations == [("start.",), ("win.",)]
-    if selection_name == "reproductive_lexicase":
-        assert factories_called == [True]
-        start = parent_genomes[0]
-        assert history.attempts(start) == 3
-        assert history.value(start) == pytest.approx(2 / 5)
-    else:
-        assert factories_called == []
 
 
 def test_search_stops_initialization_at_first_perfect_candidate(monkeypatch):

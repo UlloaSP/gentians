@@ -1,5 +1,7 @@
 # Body-local replacement at 80 percent
 
+> Historical experiment. Body-local replacement was removed on 2026-09-08, together with its configuration and active matrix entries. The measurements below describe the implementation before removal.
+
 ## Change and protocol
 
 On 2026-09-07, body-local replacement was implemented and compared against both
@@ -11,7 +13,7 @@ remaining attempts use global replacement. If no legal local proposal exists,
 local search falls back to global. Existing head-jump permission, completeness
 protection, dependency closure, size limits and append restrictions remain.
 Retries and complete reserve are disabled. Default body locality remains zero.
-See [variation policy](variation-policy.md#body-local-replacement).
+See [variation policy](variation-policy.md#replacement-candidates).
 
 Configurations are `locality-80/current` and `locality-80/local80` in
 `benchmarks/experiments.toml`. The current source was copied before the change;

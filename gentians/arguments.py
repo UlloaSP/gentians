@@ -21,22 +21,19 @@ class Arguments:
     # Candidate evaluation config.
     evaluation: dict[str, object] = field(
         default_factory=lambda: {
-            # cov_program or cov_balanced.
+            # Whole-program coverage score.
             "scoring": "cov_program",
             # Clingo CLI arguments used to obtain candidate coverage.
             "clingo_arguments": [],
             # Reuse exact coverage bounds under pure integrity-constraint edits.
-            # Opt-in until end-to-end measurements justify the extra bookkeeping.
-            "constraint_inheritance": False,
-            # Diagnose incomplete candidates without learned constraints.
-            "constraint_diagnosis": False,
+            "constraint_inheritance": True,
         }
     )
 
     # Parent selection operator config.
     selection: dict[str, object] = field(
         default_factory=lambda: {
-            # tournament, behavior_tournament, lexicase, or reproductive_lexicase.
+            # tournament or lexicase.
             "name": "lexicase",
             # Population percentage sampled per tournament, expressed in (0, 1].
             "tournament_percentage": 0.1,
@@ -66,24 +63,18 @@ class Arguments:
             "random_jump_probability": 0.1,
             # Per complete-candidate mutation: try deleting a headed block.
             "complete_generator_removal_probability": 0.1,
-            # Extra proposals after a processed genome; experimental, off by default.
-            "duplicate_retries": 0,
-            # Try one body-literal edit before global replacement; opt-in.
-            "body_local_probability": 0.0,
             # Disable only for controlled policy ablations, not language legality.
             "completeness_guidance": True,
-            # Opt-in: original random edits for pools containing only constraints.
+            # Original random edits for pools containing only constraints.
             # Allows constraint additions even when positives remain uncovered.
-            "constraint_only_random": False,
-            # Prefer diagnosed repair on already classified mutation inputs.
-            "repair_probability": 0.0,
+            "constraint_only_random": True,
         }
     )
 
     # Population initialization operator config.
     population: dict[str, object] = field(
         default_factory=lambda: {
-            # random or structural_diverse, which samples without extra fitness calls.
+            # Random initialization of valid programs.
             "name": "random",
             # Number of individuals kept in the population.
             "size": 10,
@@ -97,8 +88,6 @@ class Arguments:
             "name": "oldest_or_worst",
             # Probability of replacing the oldest individual instead of the worst.
             "prob_replacing_oldest": 0.1,
-            # Reserve discovered complete candidates; experimental, off by default.
-            "complete_quota": 0,
         }
     )
 
@@ -120,9 +109,6 @@ class Arguments:
             "retention": "fitness",
             # random or neighbors, with half the extra capacity reserved for exploration.
             "filling": "random",
-            # generations or adaptive (stagnation, novel evaluations, duplicates).
-            "renewal": "generations",
-            "epoch_evaluations": 50,
         }
     )
 

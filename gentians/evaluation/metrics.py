@@ -12,8 +12,6 @@ def record_evaluation_metric(
     is_solution: bool,
     is_complete: bool,
     is_consistent: bool,
-    potential_pos_mask: int | None = None,
-    potential_complete: bool | None = None,
 ) -> None:
     if not metric_enabled("quality"):
         return
@@ -30,7 +28,5 @@ def record_evaluation_metric(
                 "covered_negative": coverage.neg_mask.bit_count(),
                 "total_positive": len(task.positive_examples),
                 "total_negative": len(task.negative_examples),
-                "potential_positive": potential_pos_mask.bit_count() if potential_pos_mask is not None else None,
-                "potential_complete": potential_complete,
             },
         )

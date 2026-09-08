@@ -1,5 +1,7 @@
 # Constraint diagnosis and mutation repair
 
+> Historical experiment. Constraint diagnosis and diagnosed repair were removed on 2026-09-08, together with their active matrix entries. Results below describe the measured implementation before removal.
+
 ## Question and implementation
 
 Does distinguishing missing headed behavior from positive witnesses blocked by

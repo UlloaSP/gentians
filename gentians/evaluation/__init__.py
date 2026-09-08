@@ -3,13 +3,8 @@ from ..language.asp import AspProgram
 from ..language.ir.inductive_task import InductiveTask
 from .evaluator import CandidateEvaluator
 from .pool_solver import EpochPoolCoverageSolver
-from .scoring import balanced_coverage_score, coverage_score
+from .scoring import coverage_score
 from .solver import CoverageSolver
-
-SCORING_STRATEGIES = {
-    "cov_program": coverage_score,
-    "cov_balanced": balanced_coverage_score,
-}
 
 
 def create_evaluator(
@@ -19,9 +14,6 @@ def create_evaluator(
     space: ClauseSpace | None = None,
 ) -> CandidateEvaluator:
     score, clingo_arguments = _evaluation_config(config)
-    diagnosis = config.get("constraint_diagnosis", False)
-    if not isinstance(diagnosis, bool):
-        raise ValueError("evaluation.constraint_diagnosis must be a boolean")
     inheritance = config.get("constraint_inheritance", False)
     if not isinstance(inheritance, bool):
         raise ValueError("evaluation.constraint_inheritance must be a boolean")
@@ -36,9 +28,7 @@ def create_evaluator(
         task.negative_examples,
         constraint_inheritance=inheritance,
     )
-    if diagnosis:
-        solver._require_exhaustive = True
-    return CandidateEvaluator(task, solver, score, constraint_diagnosis=diagnosis)
+    return CandidateEvaluator(task, solver, score)
 
 
 def create_epoch_pool_evaluator(
@@ -48,8 +38,6 @@ def create_epoch_pool_evaluator(
     *,
     coverage_program: AspProgram | None = None,
 ) -> CandidateEvaluator:
-    if config.get("constraint_diagnosis", False) is not False:
-        raise ValueError("constraint_diagnosis requires the normal coverage solver")
     if config.get("constraint_inheritance", False) is not False:
         raise ValueError("constraint_inheritance requires the normal coverage solver")
     score, clingo_arguments = _evaluation_config(config)
@@ -64,10 +52,8 @@ def create_epoch_pool_evaluator(
 
 def _evaluation_config(config: dict[str, object]):
     name = str(config["scoring"])
-    try:
-        score = SCORING_STRATEGIES[name]
-    except KeyError:
-        raise ValueError(f"Unknown scoring strategy: {name}") from None
+    if name != "cov_program":
+        raise ValueError(f"Unknown scoring strategy: {name}")
     configured_arguments = config.get("clingo_arguments", [])
     if not isinstance(configured_arguments, list):
         raise ValueError("evaluation.clingo_arguments must be a list")
@@ -78,4 +64,4 @@ def _evaluation_config(config: dict[str, object]):
             next(values, None)
         elif not value.startswith("--enum-mode="):
             clingo_arguments.append(value)
-    return score, ["0", "--enum-mode=brave", *clingo_arguments]
+    return coverage_score, ["0", "--enum-mode=brave", *clingo_arguments]

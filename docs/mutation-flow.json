@@ -12,7 +12,7 @@
     },
     {
       "id": "alternatives",
-      "label": "Salidas y alternativa experimental",
+      "label": "Salidas sin mutación",
       "variant": "exception"
     }
   ],
@@ -21,7 +21,6 @@
     "state",
     "policy",
     "attempt",
-    "history",
     "return"
   ],
   "nodes": [
@@ -63,18 +62,9 @@
       "width": 170
     },
     {
-      "id": "history",
-      "lane": "control",
-      "col": 4,
-      "type": "security",
-      "label": "¿Ya procesado?",
-      "sublabel": "context.seen",
-      "tag": "★ duplicate_retries = 0"
-    },
-    {
       "id": "return",
       "lane": "control",
-      "col": 5,
+      "col": 4,
       "type": "frontend",
       "label": "Devolver propuesta",
       "sublabel": "No garantiza mejora",
@@ -91,16 +81,6 @@
       "tag": "skipped = True",
       "width": 170,
       "yOffset": 30
-    },
-    {
-      "id": "repair",
-      "lane": "alternatives",
-      "col": 3,
-      "type": "backend",
-      "label": "Reparación guiada",
-      "sublabel": "Solo con diagnóstico",
-      "tag": "★ apagada: p = 0",
-      "width": 170
     }
   ],
   "edges": [
@@ -126,20 +106,6 @@
       "role": "main"
     },
     {
-      "id": "attempt-history",
-      "from": "attempt",
-      "to": "history",
-      "label": "Propuesta",
-      "role": "main"
-    },
-    {
-      "id": "history-return",
-      "from": "history",
-      "to": "return",
-      "label": "Nueva o sin reintentos",
-      "role": "main"
-    },
-    {
       "id": "gate-skip",
       "from": "gate",
       "to": "skip",
@@ -154,32 +120,11 @@
       "role": "branch"
     },
     {
-      "id": "policy-repair",
-      "from": "policy",
-      "to": "repair",
-      "label": "Elegible y sorteo p",
-      "role": "branch"
-    },
-    {
-      "id": "repair-attempt",
-      "from": "repair",
-      "to": "attempt",
-      "label": "Sin cambio: alternativa",
-      "role": "return"
-    },
-    {
-      "id": "repair-history",
-      "from": "repair",
-      "to": "history",
-      "label": "Cambio obtenido",
-      "role": "branch"
-    },
-    {
-      "id": "history-attempt",
-      "from": "history",
-      "to": "attempt",
-      "label": "Duplicada y quedan intentos",
-      "role": "return"
+      "id": "attempt-return",
+      "from": "attempt",
+      "to": "return",
+      "label": "Propuesta",
+      "role": "main"
     }
   ],
   "cards": [
@@ -188,15 +133,15 @@
       "title": "★ Opciones actuales",
       "items": [
         "★ marca un valor configurado, no una rama inevitable.",
-        "SDK y recommended/general coinciden salvo constraint_only_random: false / true."
+        "SDK y recommended/general usan la misma configuración."
       ]
     },
     {
       "dot": "cyan",
-      "title": "Dos bucles diferentes",
+      "title": "Una propuesta por llamada",
       "items": [
         "Dentro de una propuesta: probar operaciones barajadas hasta obtener un cambio válido.",
-        "Fuera: reintentar desde el genoma original solo por duplicados; por defecto, un intento."
+        "La búsqueda detecta duplicados al recibir la propuesta; la mutación no reintenta."
       ]
     }
   ]

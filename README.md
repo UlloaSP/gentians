@@ -85,17 +85,16 @@ arguments = Arguments(
 main(arguments)
 ```
 
-`evaluation.scoring` is `cov_program` or `cov_balanced`. `cov_balanced` evaluates the
-whole program like `cov_program`, but scores balanced accuracy linearly from 0
-to 1. Evolutionary individuals record whether they cover every positive example
+`evaluation.scoring` is `cov_program`, which scores whole-program coverage.
+Evolutionary individuals record whether they cover every positive example
 and avoid every negative example. Replacement has no behavior-specific
 tie-break. The benchmark dashboard reports complete, incomplete, consistent,
 inconsistent, and perfect candidate rates. By default, every candidate
 evaluation creates and grounds a fresh Clingo control. Enabling `clause_pool`
 selects the epoch-pool genetic search. It grounds background, contexts and a
 bounded clause pool together, then reuses that control for candidate subsets
-until the epoch is renewed. The default renewal interval is measured in
-generations; adaptive renewal is optional. Each rebuild grounds the new pool,
+until the epoch is renewed. The renewal interval is measured in
+generations. Each rebuild grounds the new pool,
 background and contexts together. It does not add new clauses to an old grounding.
 Whole-program evaluation uses brave consequences.
 
@@ -111,12 +110,6 @@ grounding budget or automatic fallback; external resource supervision remains
 necessary.
 
 Mutation adds, replaces or removes a root clause and its dependency block.
-`mutation.body_local_probability` can prefer one body-literal edit with the same
-exact head, falling back to global replacement when no legal neighbor exists.
-It defaults to zero; the `locality-80/local80` experiment sets it to 0.8.
-Experimental `mutation.duplicate_retries` and `replacement.complete_quota`
-control bounded resampling of processed duplicates and retention of discovered
-complete candidates. Both default to zero; see [variation policy](docs/variation-policy.md).
 Complete programs keep their headed clauses unchanged, except for a configurable
 10% attempt to delete a headed block. Incomplete programs can edit headed clauses
 or remove and replace constraints. With negatives present, incomplete candidates
@@ -143,13 +136,12 @@ removed. Use `set_mix` for crossover and `random_group` for mutation.
 See [variation policy](docs/variation-policy.md) for guarantees and exceptions.
 
 Pool retention can preserve behavioral specialists or use observed reproductive
-success. `selection={"name": "reproductive_lexicase"}` also uses reproductive
-history to weight the survivors of lexicase filtering. Credit belongs to complete
+success. Credit belongs to complete
 parent hypotheses: a fresh child must improve on both parents. Duplicates and
 invalid offspring count as unsuccessful opportunities. No fixed fitness or
 causal contribution is assigned to individual clauses.
 
-Pool retention and reproductive selection remain experimental and disabled by
+Pool retention remains experimental and disabled by
 default. The controlled
 matrix and evaluator replay are described in
 [`docs/pool-policy-experiment.md`](docs/pool-policy-experiment.md).
@@ -186,11 +178,11 @@ candidate has no legal constraint edit or allowed deletion, mutation leaves it
 unchanged. This restriction can block candidates whose solution requires a headed
 replacement. Benchmark timings belong to their recorded source versions.
 
-Opt-in `mutation.constraint_only_random=true` uses unrestricted random edits
+Default `mutation.constraint_only_random=true` uses unrestricted random edits
 when the active pool contains only constraints, while preserving the directed
 policy in pools with headed clauses. It permits constraint additions to incomplete
 candidates, which can improve negative coverage without recovering positives.
-The default remains false. See [the mutation ablation report](docs/mutation-ablation-experiment.md)
+Set it to false to disable this policy. See [the mutation ablation report](docs/mutation-ablation-experiment.md)
 for controls, timings and limitations.
 
 Benchmark output records clause generation, genetic generations, elapsed
@@ -465,8 +457,7 @@ Here `target_1/2` is learned in rule heads and may occur twice in rule bodies.
 ## Main Available Options
 
 The recommended shared benchmark configuration uses structural mutation and
-exact constraint-coverage inheritance. Diagnosis-guided repair, forced body
-locality and epoch pooling remain disabled. The same settings run 5queens,
+exact constraint-coverage inheritance. Epoch pooling remains disabled. The same settings run 5queens,
 grandparent, coloring and knapsack, with ten runs each, a 30-second timeout per
 run and no generation limit. A timeout skips remaining runs of that dataset.
 This is the best-supported combination across these measured tasks, not a claim
@@ -478,12 +469,7 @@ uv run python benchmarks/run_experiments.py recommended/general
 
 Here we list only the main ones:
 
-- `population.name`: `random` or experimental `structural_diverse`. The latter
-  samples up to four distinct valid programs per slot, then balances actual
-  program sizes and prefers low clause overlap. Only selected programs are
-  evaluated; sampling and selection time still count toward initialization.
-  It does not enforce semantic diversity. See
-  [the comparison](docs/population-diversity-experiment.md).
+- `population.name`: `random`, which samples valid programs through `HypothesisGenerator`.
 - `#maxv`: maximum distinct variables in one clause. Default 3.
 - `#maxbl`: maximum body literals in one clause. Default 3.
 - `#maxhl`: maximum head atoms in one clause. Default 1.
@@ -492,32 +478,20 @@ Here we list only the main ones:
   clause space finite.
 - `filename`: task file to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
-- `evaluation.scoring`: `cov_program` or `cov_balanced`.
-- `evaluation.constraint_inheritance`: opt-in exact coverage reuse for pure
-  integrity-constraint changes, using the normal solver. Default `false`.
+- `evaluation.scoring`: `cov_program`.
+- `evaluation.constraint_inheritance`: exact coverage reuse for pure
+  integrity-constraint changes, using the normal solver. Default `true`.
   Unresolved examples still use a fresh Clingo control. See
   [the experiment and guarantees](docs/semantic-inheritance-experiment.md).
-- `evaluation.constraint_diagnosis`: experimental positive coverage diagnosis
-  after removing learned integrity constraints. Default `false`. The normal
-  solver caches at most 64 headed programs; uncached diagnoses cost another solve.
-- `mutation.repair_probability`: experimental preference for changing the role
-  identified by that diagnosis. Default `0`. It reads cached evaluation results
-  and does not classify an input solely for repair. See
-  [the policy](docs/variation-policy.md#experimental-constraint-diagnosis).
 - `clause_pool.enabled`: select epoch-pool search. Default `false`.
 - `clause_pool.source`: `sampled` (default) or `exhaustive`.
 - `clause_pool.size`: target number of clauses in the pool. Default `128`.
 - `clause_pool.epoch_generations`: generations between rebuilds. Default `50`.
 - `clause_pool.elite_count`: complete hypotheses retained at rebuild. Default `10`.
 - `clause_pool.solver`: `persistent` (default) or `fresh`, for a matched search control.
+  Persistent pools require `evaluation.constraint_inheritance=false`.
 - `clause_pool.retention`: `fitness` (default), `behavior`, or `reproductive`.
 - `clause_pool.filling`: `random` (default) or `neighbors`, mixing legal local moves with global samples.
-- `clause_pool.renewal`: `generations` (default) or `adaptive`.
-- `clause_pool.epoch_evaluations`: adaptive renewal's minimum fresh-evaluation budget. Default `50`.
-- Adaptive renewal requires stagnation for `epoch_generations` transitions and
-  either the evaluation budget or at least 80% duplicate transitions. It always
-  renews after ten times that interval. These limits renew the pool; they do not
-  terminate the search.
 - Pool size is a target, not a hard cap: retained hypotheses and complete
   dependency closures can exceed it.
 - `HypothesisGenerator` is mandatory infrastructure: every initialization,

@@ -31,9 +31,6 @@ class LexicaseSelection:
                 candidates = passing
             if len(candidates) == 1:
                 return candidates[0]
-        return self._choose(candidates, rng)
-
-    def _choose(self, candidates: list[Individual], rng: random.Random) -> Individual:
         return rng.choice(candidates)
 
 

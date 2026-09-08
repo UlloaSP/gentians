@@ -14,4 +14,4 @@ def create_replacement(config: dict[str, Any]) -> ReplacementFn:
     probability = config["prob_replacing_oldest"]
     if not isinstance(probability, (int, float)) or isinstance(probability, bool):
         raise ValueError("replacement probability must be a number between 0 and 1")
-    return strategy(float(probability), config.get("complete_quota", 0))
+    return strategy(float(probability))

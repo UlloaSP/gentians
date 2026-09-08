@@ -48,30 +48,6 @@ class CoverageSolver:
         self._partial: OrderedDict[int, CoverageSolver] = OrderedDict()
         self.inherited_examples = 0
         self.skipped_controls = 0
-        self._positive_ceilings: OrderedDict[tuple[str, ...], int] = OrderedDict()
-        self._positive_solver: CoverageSolver | None = None
-
-    def positive_ceiling(self, program: AspProgram, coverage: Coverage) -> int:
-        """Exact positive coverage after removing only learned constraints."""
-        if coverage.pos_mask.bit_count() == self.positive_examples:
-            return coverage.pos_mask
-        headed = tuple(rule for rule in program if not _rule_key(rule)[0])
-        if len(headed) == len(program):
-            return coverage.pos_mask
-        key = tuple(sorted(_rule_key(rule)[1] for rule in headed))
-        if key not in self._positive_ceilings:
-            if self._positive_solver is None:
-                self._positive_solver = CoverageSolver(
-                    self.background, self.clingo_arguments, self._examples[0], [],
-                )
-                self._positive_solver._require_exhaustive = True
-            # The empty headed program is a valid diagnostic query, not an
-            # admissible empty genome. BK/context constraints remain untouched.
-            self._positive_ceilings[key] = self._positive_solver.extract_coverage(headed).pos_mask
-            if len(self._positive_ceilings) > 64:
-                self._positive_ceilings.popitem(last=False)
-        self._positive_ceilings.move_to_end(key)
-        return self._positive_ceilings[key]
 
     def _inherit(self, program: AspProgram) -> Coverage:
         keys = [_rule_key(rule) for rule in program]

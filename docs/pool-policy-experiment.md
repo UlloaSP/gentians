@@ -1,5 +1,7 @@
 # Frozen pools and reproductive search policies
 
+> Historical experiment. Adaptive renewal and reproductive parent selection were removed on 2026-09-08, together with their active matrix entries. Results below describe the measured implementation before removal.
+
 Configuration location: this matrix now lives in `benchmarks/experiments.toml`
 under `pool-policy/` IDs. Worker arguments and output folders are unchanged.
 The ID change makes old manifests stale; historical measurements below are not

@@ -8,12 +8,12 @@
       "diagram_type": "workflow",
       "output": "C:\\software\\gentians\\docs\\mutation-flow.html",
       "specification": {
-        "sha256": "26b0f2acd814cce564ee08203dcf2b09c605f6dcd3e256bcb716ed62a83c0896",
-        "bytes": 4477
+        "sha256": "2943026fed7c9149bb7fd6b76efb6f3385bb65fa525c6c99ce631dd52725e341",
+        "bytes": 3354
       },
       "artifact": {
-        "sha256": "4fbe7421fd4a22aec51d2d239a249a8d068012905628cf391d0a37aa1c7db140",
-        "bytes": 716005
+        "sha256": "7db75b48d10fa7f78eb47fbc6df6494d6b23dd22cb8e437dc61d8b40cc64d7fd",
+        "bytes": 709703
       },
       "validation": {
         "checksPassed": 9,
@@ -56,19 +56,19 @@
         }
       ],
       "visual_review": "passed",
-      "visual_review_scope": "Capturas reales 1440x900 y 2048x1320, claro y oscuro; rutas, texto, tarjetas y composición. No se probaron interacciones ni exportaciones.",
-      "correction_rounds": 1
+      "visual_review_scope": "Capturas reales: flujo a 1440x900 claro y 2048x1320 oscuro; permisos a 2048x1320 oscuro. Rutas, texto y tarjetas revisados. No se probaron interacciones ni exportaciones.",
+      "correction_rounds": 0
     },
     {
       "diagram_type": "workflow",
       "output": "C:\\software\\gentians\\docs\\mutation-permissions.html",
       "specification": {
-        "sha256": "e0c22c78aef7cb4d6117b8684b1f4fb7e8dd08b24f07b82afcccec3660f9324f",
-        "bytes": 4287
+        "sha256": "611ca78e8a89e6d837ddc2b328dea230c451c6915ea8cbcd4f8b6a0f93fbe690",
+        "bytes": 4337
       },
       "artifact": {
-        "sha256": "8d4e1e40ed196ebf0db46ae3f0f1b02d306c5c5ae1466f42b86d4eaa245337c6",
-        "bytes": 713504
+        "sha256": "aa2984e597f9a4a5e929531c9d826a5f034b0dff9a2da2d376e7a084ea000bd1",
+        "bytes": 713363
       },
       "validation": {
         "checksPassed": 9,
@@ -111,8 +111,8 @@
         }
       ],
       "visual_review": "passed",
-      "visual_review_scope": "Capturas reales 1440x900 y 2048x1320, claro y oscuro; rutas, texto, tarjetas y composición. No se probaron interacciones ni exportaciones.",
-      "correction_rounds": 0
+      "visual_review_scope": "Capturas reales: flujo a 1440x900 claro y 2048x1320 oscuro; permisos a 2048x1320 oscuro. Rutas, texto y tarjetas revisados. No se probaron interacciones ni exportaciones.",
+      "correction_rounds": 1
     },
     {
       "diagram_type": "workflow",
@@ -173,12 +173,12 @@
       "diagram_type": "workflow",
       "output": "C:\\software\\gentians\\docs\\mutation-replacement.html",
       "specification": {
-        "sha256": "97758dcce7f64c0668d6d06b0ca2a12d53a2a949e1858d2f4fa0c1694834a95a",
-        "bytes": 4283
+        "sha256": "f83840d30c73d7ab365c39b2fb095f30e4d17e29deca26b54f306a17ec813544",
+        "bytes": 3113
       },
       "artifact": {
-        "sha256": "82fef0188946075d84d31381f480063f571721b25396a266719df2744d28ca28",
-        "bytes": 712261
+        "sha256": "175103142d0044f4de20070bf5b43ce5a5c70b96d75109abff92087768352843",
+        "bytes": 706389
       },
       "validation": {
         "checksPassed": 9,
@@ -221,7 +221,7 @@
         }
       ],
       "visual_review": "passed",
-      "visual_review_scope": "Capturas reales 1440x900 y 2048x1320, claro y oscuro; rutas, texto, tarjetas y composición. No se probaron interacciones ni exportaciones.",
+      "visual_review_scope": "Capturas reales 1440x900 claro y 2048x1320 oscuro; rutas, texto y tarjetas. No se probaron interacciones ni exportaciones.",
       "correction_rounds": 0
     }
   ]

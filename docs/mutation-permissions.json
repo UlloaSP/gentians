@@ -158,10 +158,10 @@
   "cards": [
     {
       "dot": "amber",
-      "title": "★ Excepción del benchmark recomendado",
+      "title": "★ Excepción solo-constraints",
       "items": [
         "constraint_only_random=true y ninguna cláusula con cabeza en el espacio activo: solo caché; después se borra la clasificación para la propuesta ordinaria.",
-        "En el SDK esta opción vale false. Una solución conocida se devuelve antes de borrar el estado."
+        "Activada en el SDK y en el perfil recomendado. Una solución conocida se devuelve antes de borrar el estado."
       ]
     },
     {
@@ -169,7 +169,6 @@
       "title": "Restricciones transversales",
       "items": [
         "Sin negativos: no introducir constraints nuevas; las existentes pueden retirarse.",
-        "Reparación experimental: intersectar permisos con constraints o encabezadas. ★ repair_probability=0; no participa.",
         "Sin positivos, la completitud vacía no activa protección de generadoras."
       ]
     }

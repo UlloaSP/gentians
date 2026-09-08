@@ -106,7 +106,7 @@ nonmonotonic semantics it can recover positive witnesses.
 
 ## Constraint edits and semantic limits
 
-`mutation.constraint_only_random` is an opt-in boolean, false by default. When
+`mutation.constraint_only_random` is a boolean, true by default in `Arguments`. When
 enabled and the active pool contains no headed clauses, mutation uses unrestricted
 append, remove and replace preferences without intermediate classification or a
 head-permission draw. Cached perfect candidates remain protected. An incomplete
@@ -166,7 +166,7 @@ or impose mutation's stricter protection on crossover.
 
 ### Exact constraint-coverage inheritance
 
-`evaluation.constraint_inheritance` is an opt-in optimization in the normal
+`evaluation.constraint_inheritance` is enabled by default in `Arguments` for the normal
 coverage solver. It does not change mutation, crossover, scoring, RNG draws or
 population admission. The evaluator compares actual whole programs after
 dependency closure, not operator labels or intended root edits.
@@ -209,39 +209,11 @@ costs and limitations. The optimization does not establish that complete headed
 programs are repairable using constraints, or that equal observed coverage means
 global ASP equivalence.
 
-### Body-local replacement
+### Replacement candidates
 
-`mutation.body_local_probability` defaults to zero. The `locality-80/local80`
-configuration sets it to 0.8 while disabling duplicate retries and complete
-reserve. On a replacement attempt, an independent draw tries a body-local
-alternative with that probability. If no legal local replacement exists for
-any eligible root, the attempt falls back to the existing global replacement.
-The 80/20 split describes attempted locality, not accepted-offspring frequencies.
-The existing head-jump probability remains independent and only relaxes the
-head-signature requirement of global replacement. `MutationProposal.local`
-continues to mean head-signature restriction; it is not a body-locality metric.
-
-Local neighbors have the exact same AST head and body multisets differing by
-one added, removed or replaced top-level element. An arithmetic comparison,
-conditional literal or aggregate is one element. No claim of semantic proximity,
-relaxation or preserved coverage follows. Variable names and arithmetic syntax
-use the existing canonical AST spelling; the index does not infer additional
-alpha-renamings or algebraic equivalences. This conservative relation can miss
-neighbors, which remain reachable through global search.
-
-`BodyNeighborhood` stores full-body and one-deletion posting lists. It stores
-O(NL) clause references and O(NL²) key-element references for N clauses with at
-most L body elements, not an O(N²) adjacency table. A query unions matching
-postings; large buckets can still approach N candidates. No neighbor list is
-cached per clause. The index is built lazily on the first local replacement and
-its cost is included in the mutation phase and closure timing. Active-pool masks
-are applied at query time, so changing a pool within the same prepared space
-does not rebuild the index. A new prepared space gets its own index.
-
-Local proposals use the same dependency-block transition, mutable protection,
-nonempty invariant and size limit as global replacement. Adding a literal to
-one constraint's body is a replacement, not appending another constraint to an
-incomplete hypothesis. The existing append restriction remains unchanged.
+Replacement samples the active clause space subject to head-signature, root-type
+and mutable-mask restrictions. `MutationProposal.local` records head-signature
+restriction. Body-local replacement and its neighborhood index were removed.
 
 ### Experimental exploration controls
 
@@ -252,41 +224,13 @@ dependency closure, size limits, or the policy against adding constraints when
 there are no negative examples. An unclassified perfect crossover output can
 then be mutated before ordinary evaluation, just as in the historical operator.
 This option is not a semantic optimization. The `mutation-ablation/` matrix
-crosses it with head-jump probabilities 0.1 and 1.0, with body locality, retries
-and complete reserve disabled. Head-jump probability 1.0 still consumes the
+crosses it with head-jump probabilities 0.1 and 1.0, with ordinary replacement. Head-jump probability 1.0 still consumes the
 existing random draw, so the ablation changes filtering without removing that
 draw from the random stream.
 
-Both controls default to zero until end-to-end evidence supports enabling them.
-The `directed-exploration/` entries in `benchmarks/experiments.toml` compare the
-current policy, three duplicate retries, one reserved complete slot, and both.
-
-`mutation.duplicate_retries` bounds extra proposals after producing a genome
-already processed for population admission. All attempts start from the same
-crossover output and share one mutation-probability gate. They retain ordinary
-state and dependency restrictions. A genome cached only for classification is
-not a processed duplicate: it may still need admission. Known solutions and
-probability-gate skips are never retried. Exhaustion returns the last proposal.
-The search passes a live admission-history view, including after pool renewal.
-No candidate evaluation is added for rejected proposals. Internal attempts stay
-within the single mutation phase and its final operator outcome.
-
-`replacement.complete_quota` preserves up to that many discovered complete
-individuals, capped at population size minus one. Filling a missing slot can
-admit a lower-score complete candidate in place of an incomplete one, but never
-evicts the current best. Once filled, the highest-scoring complete members are
-protected against incomplete challengers. Better complete candidates can replace
-them. Ordinary score-based replacement applies to eligible victims. The quota
-does not create complete individuals, enlarge the population, or guarantee that
-selection chooses them. With no positive examples completeness is vacuous, so
-the quota adds no semantic distinction between candidates.
-
-These are search preferences, not semantic pruning proofs. They may increase
-evaluations or Python work and do not guarantee convergence or faster solving.
-
 Search supplies its existing evaluation cache. With completeness guidance enabled,
 mutation classifies its actual input, not its parents, including constraint-only
-pools under the default policy. The opt-in `constraint_only_random` policy skips
+pools when `constraint_only_random=false`. The default `constraint_only_random` policy skips
 intermediate classification in those pools while protecting cached perfect
 candidates. An unclassified perfect crossover output can then be mutated before
 discovery. Changed offspring receive normal whole-program evaluation. All cost
@@ -313,8 +257,6 @@ timeouts, no generation cap, success rates and net `total_execution` alongside
 grounding, solving, Python and closure time.
 
 ## Early constraint-pruning measurement
-
-The optional diagnostic policy is documented below this historical measurement.
 
 This historical measurement predates dependency-block mutation and does not
 measure its search behavior or classification cost.
@@ -350,64 +292,15 @@ observations are retained under `.benchmarks/experiments/shared-variation/` as
 `measure_constraint_pruning.py` and `constraint_pruning_measurement.json`.
 The runner refuses to overwrite existing observations.
 
-## Experimental constraint diagnosis
+## Retired experimental policies
 
-The [illustrated mutation guide](mutation-guide.md) follows the current code
-through probability gates, effective classification, permissions, dependency
-blocks, replacement filters and duplicate retries. It distinguishes SDK defaults
-from the recommended benchmark configuration.
+Duplicate retries, complete-candidate reserves, constraint diagnosis and diagnosed
+repair were removed on 2026-09-08 after their measured regressions. Historical
+protocols and results remain in [directed exploration](directed-exploration-experiment.md)
+and [semantic repair](semantic-repair-experiment.md). Their configuration keys
+and experiment entries are no longer available.
 
-`evaluation.constraint_diagnosis=true` attaches `potential_pos_mask` and
-`potential_complete` to `EvaluationResult`. They describe positive coverage of
-the candidate after removing only its learned integrity constraints. Background
-and example contexts, including their constraints, stay unchanged. Actual
-coverage, score, consistency and the solution condition still use the complete
-candidate. These fields do not identify a useful individual clause.
-
-With the headed program fixed, integrity constraints can only discard stable
-models. Consequently this query gives an upper bound on positive coverage
-reachable by changing learned constraints. If that program still misses a
-positive, changing constraints alone cannot make the hypothesis complete.
-If it covers every positive, constraints explain the current loss of
-completeness, but this does not prove a valid constraint-only repair exists
-within the language bias or that it will reject negative examples.
-
-Complete candidates and candidates without learned constraints reuse their
-actual positive coverage. Other candidates share an LRU cache of at most 64
-headed programs. A cache miss makes an exhaustive, positive-only coverage query
-with a fresh Clingo control. An empty headed program is allowed for this query,
-not as an admissible genome. Diagnostic grounding and solving contribute to
-the requesting phase and net total time. They appear in Clingo call counts,
-not in the GA count of full candidate evaluations.
-
-The normal evaluator factory enables exhaustive brave solving for this option.
-The persistent epoch-pool evaluator rejects it; epoch pools with fresh evaluation
-use the normal evaluator. Diagnosis defaults to false.
-
-`mutation.repair_probability`, default zero, reads an already available diagnosis
-of an incomplete input. With the configured probability it prefers constraint
-changes when `potential_complete` is true, or headed changes otherwise. It
-does not add classification calls beyond the existing completeness policy.
-Inputs without diagnosis use the ordinary policy. Spaces without constraints
-do not draw an extra repair random number. Complete inputs retain their existing
-policy. Disabling legacy completeness guidance does not disable access to cached
-diagnosis or reactivate legacy guidance during fallback.
-
-The preference applies to the whole dependency block through
-`HypothesisGenerator`, including appended providers and removed consumers.
-An unavailable guided edit falls back to an ordinary proposal. Both paths share
-the configured duplicate retry budget. For an incomplete diagnosed input,
-constraint repair removes or replaces constraints, without a relaxation search
-or constraint append. This is a search preference, not sound pruning of all
-other edits. Adding constraints can still improve negative coverage.
-
-Mutation instrumentation records positive examples recovered or lost and
-negative examples removed or introduced when both complete-program evaluation
-results are already cached. `semantic_effect_known=false` means the pair was
-unavailable; it is not a measured zero effect. Both search loops use this logging
-without extra evaluations. These observations neither assign additive fitness
-to clauses nor adapt operator probabilities automatically.
-
-The first measured repair preference regressed on 5queens. It remains opt-in;
-see [the protocol and results](semantic-repair-experiment.md). Witness-guided
-variation and semantic crossover are not implemented by this option.
+Mutation instrumentation still records positive examples recovered or lost and
+negative examples removed or introduced when both whole-program results are
+cached. `semantic_effect_known=false` means the pair was unavailable; it does
+not mean a measured zero effect. Logging adds no candidate evaluations.

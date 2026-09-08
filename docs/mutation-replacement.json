@@ -11,12 +11,8 @@
       "label": "01 · Filtro de cabeza"
     },
     {
-      "id": "body",
-      "label": "02 · Vecindad de cuerpo"
-    },
-    {
       "id": "closure",
-      "label": "03 · Construcción y aceptación"
+      "label": "02 · Construcción y aceptación"
     }
   ],
   "nodes": [
@@ -48,36 +44,6 @@
       "label": "Filtrar tipo",
       "sublabel": "Incompleto + negativos",
       "tag": "Constraint o encabezada",
-      "width": 185
-    },
-    {
-      "id": "b-start",
-      "lane": "body",
-      "col": 0,
-      "type": "backend",
-      "label": "Sorteo de localidad",
-      "sublabel": "★ probabilidad = 0",
-      "tag": "Normal: no limitar cuerpo",
-      "width": 185
-    },
-    {
-      "id": "b-local",
-      "lane": "body",
-      "col": 1,
-      "type": "backend",
-      "label": "Vecino de cuerpo",
-      "sublabel": "Si opción activa y elegida",
-      "tag": "Cambio de un literal",
-      "width": 185
-    },
-    {
-      "id": "b-fallback",
-      "lane": "body",
-      "col": 2,
-      "type": "backend",
-      "label": "Si no hay candidato",
-      "sublabel": "Buscar sin localidad",
-      "tag": "Mantener los demás filtros",
       "width": 185
     },
     {
@@ -127,20 +93,6 @@
       "role": "main"
     },
     {
-      "id": "b-start-b-local",
-      "from": "b-start",
-      "to": "b-local",
-      "label": "Orden",
-      "role": "main"
-    },
-    {
-      "id": "b-local-b-fallback",
-      "from": "b-local",
-      "to": "b-fallback",
-      "label": "Orden",
-      "role": "main"
-    },
-    {
       "id": "s-start-s-close",
       "from": "s-start",
       "to": "s-close",
@@ -161,7 +113,6 @@
       "title": "★ Valores vigentes",
       "items": [
         "random_jump_probability=0.1: permitir otra firma no obliga a cambiarla.",
-        "body_local_probability=0: no buscar vecinos de un literal por defecto.",
         "Sin espacio para cambio de cabeza por la máscara o el tipo, el salto no elimina esas restricciones."
       ]
     },
@@ -170,7 +121,6 @@
       "title": "Alternativas exactas",
       "items": [
         "Si se exige misma firma y no hay candidato, no existe fallback automático a otra cabeza.",
-        "Con búsqueda local de cuerpo activada, si no devuelve candidato se repite sin localidad, conservando firma, tipo y permisos.",
         "Si tampoco hay reemplazo global válido, probar la siguiente operación de la lista barajada."
       ]
     }

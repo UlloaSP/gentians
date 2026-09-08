@@ -7,10 +7,7 @@ from gentians.evaluation import create_evaluator
 from gentians.evaluation.compiler import compile_coverage_program
 from gentians.evaluation.coverage import Coverage
 from gentians.evaluation.evaluator import CandidateEvaluator
-from gentians.evaluation.scoring import (
-    balanced_coverage_score,
-    coverage_score,
-)
+from gentians.evaluation.scoring import coverage_score
 from gentians.language.ir.inductive_task import InductiveTask
 from gentians.language.asp import parse_program, render_program
 from tests.task_helpers import example, inductive_task, make_clause_space
@@ -51,9 +48,8 @@ def test_coverage_is_an_immutable_value():
         coverage.pos_mask = 0
 
 
-@pytest.mark.parametrize("name", ["cov_program", "cov_balanced"])
-def test_factory_builds_shared_evaluator(name):
-    assert isinstance(_evaluator(name), CandidateEvaluator)
+def test_factory_builds_shared_evaluator():
+    assert isinstance(_evaluator("cov_program"), CandidateEvaluator)
 
 
 def test_factory_rejects_unknown_strategy():
@@ -91,23 +87,7 @@ def test_evaluation_reports_completeness_and_consistency(
     assert result.is_solution is (is_complete and is_consistent)
 
 
-@pytest.mark.parametrize(
-    ("candidate", "score", "perfect"),
-    [
-        (("target(p).",), 1.0, True),
-        ((), 0.5, False),
-        (("target(n).", "target(p)."), 0.5, False),
-        (("target(n).",), 0.0, False),
-    ],
-)
-def test_balanced_coverage_uses_balanced_accuracy(candidate, score, perfect):
-    result = _evaluator("cov_balanced")(_asp(*candidate))
-
-    assert result.score == pytest.approx(score)
-    assert result.is_solution is perfect
-
-
-def test_balanced_coverage_normalizes_positive_and_negative_examples_separately():
+def test_whole_program_normalizes_positive_and_negative_examples_separately():
     program = inductive_task(
         [],
         [
@@ -126,16 +106,15 @@ def test_balanced_coverage_normalizes_positive_and_negative_examples_separately(
     rules = make_clause_space(["target(p1).", "target(n1)."])
     evaluate = create_evaluator(
         program,
-        {"scoring": "cov_balanced", "clingo_arguments": []},
+        {"scoring": "cov_program", "clingo_arguments": []},
     )
 
     result = evaluate(rules.statements)
 
-    assert result.score == pytest.approx(0.625)
+    assert result.score == pytest.approx(math.exp(2.5))
 
 
-@pytest.mark.parametrize("score", [balanced_coverage_score, coverage_score])
-def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
+def test_coverage_scores_preserve_mathematically_equal_scores_exactly():
     program = inductive_task(
         [],
         [example((f"positive({index})", ""), True) for index in range(10)],
@@ -144,8 +123,8 @@ def test_coverage_scores_preserve_mathematically_equal_scores_exactly(score):
         [],
     )
 
-    first = score(program, _coverage(range(3), range(9)))
-    second = score(program, _coverage(range(9), range(30)))
+    first = coverage_score(program, _coverage(range(3), range(9)))
+    second = coverage_score(program, _coverage(range(9), range(30)))
 
     assert first == second
 
@@ -173,12 +152,11 @@ def test_whole_program_forces_brave_consequences():
     assert "--enum-mode=brave" in solver.clingo_arguments
 
 
-@pytest.mark.parametrize("name", ["cov_program", "cov_balanced"])
-def test_evaluator_discards_split_enum_mode_override(name):
+def test_evaluator_discards_split_enum_mode_override():
     evaluate = create_evaluator(
         _program(),
         {
-            "scoring": name,
+            "scoring": "cov_program",
             "clingo_arguments": ["--enum-mode", "cautious"],
         },
     )

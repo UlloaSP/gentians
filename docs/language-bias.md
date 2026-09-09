@@ -487,7 +487,7 @@ Gentians requires nonempty hypotheses. A constraint-only program can be the only
 solution when the background already covers the positives and all learnable
 headed programs violate them.
 
-Both exhaustive and sampled clause generation apply a conservative static test.
+Both exhaustive and incremental clause generation apply a conservative static test.
 Early pruning activates only when:
 
 - There is at least one positive example and no negative examples.
@@ -528,12 +528,20 @@ population size, evolutionary operators, Clingo arguments, and enumeration
 strategy remain runtime configuration because they change execution rather than
 the legal hypothesis language.
 
-The default search enumerates the finite clause space after the documented
-pruning rules. Experimental
-epoch-pool search can instead enumerate bounded randomized batches with
-`clause_pool.source="sampled"`; `"exhaustive"` preserves full enumeration.
-Sampling changes which legal clauses are visited, not their legality. Batches
-are biased prefixes of Clingo enumeration, not uniform samples. Elite hypotheses
-survive pool renewal. The pool size does not
-replace `#maxpl`: without a task-level program bound, retained hypotheses can
-grow. A sampled search can miss a solution present in the legal language.
+The default `algorithm="steady_state"` enumerates the finite clause space after
+pruning. `algorithm="incremental"` grounds the clause metaprogram once and consumes
+bounded batches in increasing body budget, including attached conditions. It uses
+one resumable solve per size. All legal sizes remain available; this preference
+does not change the language. The generator pauses between batches and closes
+when search finishes or fails. Exhaustion keeps the last working space available.
+
+The `incremental.batch_size` budget counts models before theta reduction and
+canonicalization. Deduplication applies within each batch and active space without
+retaining a global set of all visited clauses. The stream is not a uniform sample.
+Restarted sampling and frozen-pool evaluation have been removed.
+
+Elite hypotheses survive renewal with their dependency providers. Unconstructible
+batches are skipped until a usable batch or exhaustion. Providers and consumers
+in different discarded batches may never meet, so bounded search can miss legal
+solutions. The batch size does not replace `#maxpl`; retained programs can grow
+when that task limit is unbounded. Whole-program coverage uses the normal solver.

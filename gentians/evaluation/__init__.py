@@ -1,8 +1,6 @@
 from ..clauses import ClauseSpace
-from ..language.asp import AspProgram
 from ..language.ir.inductive_task import InductiveTask
 from .evaluator import CandidateEvaluator
-from .pool_solver import EpochPoolCoverageSolver
 from .scoring import coverage_score
 from .solver import CoverageSolver
 
@@ -29,25 +27,6 @@ def create_evaluator(
         constraint_inheritance=inheritance,
     )
     return CandidateEvaluator(task, solver, score)
-
-
-def create_epoch_pool_evaluator(
-    task: InductiveTask,
-    config: dict[str, object],
-    pool: ClauseSpace,
-    *,
-    coverage_program: AspProgram | None = None,
-) -> CandidateEvaluator:
-    if config.get("constraint_inheritance", False) is not False:
-        raise ValueError("constraint_inheritance requires the normal coverage solver")
-    score, clingo_arguments = _evaluation_config(config)
-    return CandidateEvaluator(
-        task,
-        EpochPoolCoverageSolver(
-            task, clingo_arguments, pool, coverage_program=coverage_program,
-        ),
-        score,
-    )
 
 
 def _evaluation_config(config: dict[str, object]):

@@ -1,6 +1,6 @@
 import time
 
-from gentians.algorithms import epoch_pool_genetic_search, steady_state_genetic_search
+from gentians.algorithms import incremental_clause_genetic_search, steady_state_genetic_search
 
 from .arguments import Arguments
 from .language.ir.inductive_task import InductiveTask
@@ -29,15 +29,13 @@ def solve(
 
     try:
         with phase("total_execution"):
-            clause_pool = arguments.clause_pool
-            if not isinstance(clause_pool, dict):
-                raise ValueError("clause_pool must be a configuration object")
-            enabled = clause_pool.get("enabled", False)
-            if not isinstance(enabled, bool):
-                raise ValueError("clause_pool.enabled must be a boolean")
-            search = (
-                epoch_pool_genetic_search if enabled else steady_state_genetic_search
-            )
+            algorithms = {
+                "steady_state": steady_state_genetic_search,
+                "incremental": incremental_clause_genetic_search,
+            }
+            if arguments.algorithm not in algorithms:
+                raise ValueError(f"Unknown search algorithm: {arguments.algorithm}")
+            search = algorithms[arguments.algorithm]
             result = search(arguments, task, clause_space)
         total_seconds = recorded_seconds("total_execution")
         if total_seconds is None:

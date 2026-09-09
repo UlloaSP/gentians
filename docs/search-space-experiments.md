@@ -13,9 +13,51 @@ las semillas, los cortes y todas las métricas están en
 | Lotes y operadores combinados | El tiempo acumulado de cuatro runs de 5queens impide mejorar la media del control incluso suponiendo coste cero para los restantes. | Descartada con autorización del usuario; grandparent no se ejecutó. |
 
 Reutilizar el metaprograma ya groundeado para producir lotes y mejorar el muestreo
-de combinaciones son posibles trabajos posteriores. No están implementados ni
-medidos en este experimento. Ninguna variante demuestra una mejora general de
-complejidad ni de generalización fuera de los ejemplos observados.
+de combinaciones eran trabajos pendientes en esa comparación. La enumeración
+continua se implementó y midió después en el experimento sintético descrito a
+continuación. Ninguna variante demuestra una mejora general de complejidad ni
+de generalización fuera de los ejemplos observados.
+
+## Enumeración continua sobre 1.149.016 cláusulas
+
+El 8 de septiembre de 2026 se compararon lotes reiniciados y enumeración continua
+con evaluación fresca, tres semillas y 500 generaciones por run. El tiempo neto
+medio bajó de 72,248 a 16,138 segundos y la generación de cláusulas de 64,383 a
+6,539 segundos. Los groundings y solves del generador pasaron de diez a uno por
+run. El ahorro principal fue Python; no se limita a evitar grounding repetido.
+
+Ninguna variante encontró una hipótesis perfecta en ese presupuesto. La
+enumeración continua obtuvo peor score en las tres semillas y cubrió más
+negativos. Tres runs adicionales sin límite de generaciones agotaron el timeout
+de 180 segundos sin solución. El cambio reduce el coste de generación, pero esta medición no
+establece una búsqueda mejor. Sigue siendo una opción experimental desactivada
+por defecto mediante `clause_pool.enabled=false`. Protocolo, resultados por
+semilla y limitaciones figuran en [el informe del millón de cláusulas](million-clauses-experiment.md).
+
+## Enumeración incremental por longitud
+
+La validación posterior con cinco semillas nuevas, 11 a 15, conservó el task
+sintético y el presupuesto de 500 generaciones. Ordenar por tamaño de cuerpo,
+incluyendo condiciones adjuntas, superó al pool con sampling reiniciado en score
+y tiempo neto en las cinco parejas. El score medio pasó de 58,688 a 4544,984 y el
+tiempo neto de 129,932 a 14,691 segundos. La cobertura media de positivos bajó de
+56 a 47,6 sobre 57; los negativos cubiertos bajaron de 14,8 a cero sobre 25.
+Ningún método encontró una hipótesis perfecta.
+
+El generador conserva un grounding y un solve reanudable por longitud. No elimina
+cláusulas largas ni evalúa cláusulas por separado. `body_size` es ahora el orden
+predeterminado de incremental, que sigue desactivado por defecto. El pool
+reiniciado y el orden continuo original siguen disponibles como controles.
+El orden fijo de ejecución y la carga variable del host limitan la precisión del
+ratio de tiempo. Los resultados, modelos consumidos y protocolo están en
+[el informe del millón de cláusulas](million-clauses-experiment.md#independent-validation-results).
+
+La comparación posterior con 30 segundos netos de presupuesto y generaciones
+ilimitadas también favoreció incremental en las cinco semillas. El score medio
+fue 8718,316 frente a 24,079 del pool. Cubrió 52 positivos y 0,2 negativos de media,
+frente a 56,8 y 17,4. Ninguna ejecución encontró solución perfecta. El corte es
+cooperativo: un lote en curso llevó un control a 37,196 segundos totales, pero
+ninguna evaluación posterior al plazo pudo mejorar el resultado devuelto.
 
 ## Reintentos y reserva de candidatos completos
 
@@ -114,3 +156,15 @@ times changed by +32.85%, +140.11%, -19.32% and -0.70% respectively. The new
 strategy is retained as experimental, not selected for `recommended/general`.
 Structural diversification did not provide a consistent cross-task benefit.
 See [protocol, medians, initialization costs and limitations](population-diversity-experiment.md).
+
+## Steady-state e incremental con timeout de 30 segundos
+
+La comparación del 9 de septiembre de 2026 ejecutó diez runs por algoritmo y
+dataset, con semillas emparejadas y sin límite de generaciones. Steady-state
+resolvió 10/10 en 5queens y 10/10 en grandparent. Incremental resolvió 7/10 y 2/10,
+respectivamente; los otros once runs agotaron el timeout de proceso de 30 segundos.
+Los tiempos netos medios entre soluciones fueron 5,312 y 0,439 segundos para
+steady-state, frente a 6,093 y 0,158 para incremental. Esta última media de
+grandparent solo representa dos éxitos y no indica mejor rendimiento global.
+Todos los éxitos tuvieron score 22026,466. Los timeouts no exportaron score final.
+El protocolo y cada run están en [el informe incremental](incremental-experiment.md#completed-paired-results).

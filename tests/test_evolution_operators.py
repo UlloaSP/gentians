@@ -150,7 +150,7 @@ def test_hypothesis_generator_keeps_construction_inside_pool():
         max_clauses=2,
     )
     pool = _encode(context, first, second)
-    context.hypotheses.set_pool(pool)
+    context.hypotheses.set_available_clauses(pool)
 
     for _ in range(20):
         candidate = context.hypotheses.create(context.rng)
@@ -164,9 +164,9 @@ def test_hypothesis_generator_rejects_invalid_pool_masks():
     context = _context(["target(a)."])
 
     with pytest.raises(ValueError, match="non-empty subset"):
-        context.hypotheses.set_pool(0)
+        context.hypotheses.set_available_clauses(0)
     with pytest.raises(ValueError, match="non-empty subset"):
-        context.hypotheses.set_pool(0b10)
+        context.hypotheses.set_available_clauses(0b10)
 
 
 def test_random_group_random_jump_can_change_head():
@@ -278,6 +278,16 @@ def test_tournament_has_one_canonical_strategy_name():
         raise AssertionError("legacy tournament alias was accepted")
 
 
+@pytest.mark.parametrize("selection", [TournamentSelection(0.3, 1.0), LexicaseSelection()])
+@pytest.mark.parametrize("count", [0, 1, 2, 5])
+def test_selection_returns_requested_count_with_repetition(selection, count):
+    individual = Individual(1, 1.0, False)
+    population = [individual]
+
+    assert selection(population, count, random.Random(1)) == [individual] * count
+    assert population == [individual]
+
+
 def test_tournament_size_scales_with_population_percentage():
     sampled_sizes = []
 
@@ -289,8 +299,8 @@ def test_tournament_size_scales_with_population_percentage():
     selection = TournamentSelection(0.3, 1.0)
     rng = RecordingRandom(1)
 
-    selection([Individual(index, float(index), False) for index in range(10)], rng)
-    selection([Individual(index, float(index), False) for index in range(100)], rng)
+    selection([Individual(index, float(index), False) for index in range(10)], 2, rng)
+    selection([Individual(index, float(index), False) for index in range(100)], 2, rng)
 
     assert sampled_sizes == [3, 3, 30, 30]
 
@@ -304,7 +314,7 @@ def test_lexicase_filters_by_individual_positive_examples():
     second_case_specialist = Individual(2, 100.0, False, behavior=(0b10, 0))
 
     first, second = LexicaseSelection()(
-        [first_case_specialist, second_case_specialist], OrderedRandom(1)
+        [first_case_specialist, second_case_specialist], 2, OrderedRandom(1)
     )
 
     assert first is first_case_specialist
@@ -315,9 +325,9 @@ def test_lexicase_treats_uncovered_negative_examples_as_success():
     safe = Individual(1, 0.0, False, behavior=(0, 0))
     unsafe = Individual(2, 100.0, False, behavior=(0, 0b1))
 
-    parents = LexicaseSelection()([unsafe, safe], random.Random(1))
+    parents = LexicaseSelection()([unsafe, safe], 2, random.Random(1))
 
-    assert parents == (safe, safe)
+    assert parents == [safe, safe]
 
 
 def test_lexicase_factory_creates_strategy():

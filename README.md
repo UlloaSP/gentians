@@ -75,9 +75,9 @@ arguments = Arguments(
         "scoring": "cov_program",
         "clingo_arguments": [],
     },
-    clause_pool={
-        "enabled": True,
-        "size": 128,
+    algorithm="incremental",
+    incremental={
+        "batch_size": 128,
         "epoch_generations": 50,
         "elite_count": 10,
     },
@@ -90,24 +90,27 @@ Evolutionary individuals record whether they cover every positive example
 and avoid every negative example. Replacement has no behavior-specific
 tie-break. The benchmark dashboard reports complete, incomplete, consistent,
 inconsistent, and perfect candidate rates. By default, every candidate
-evaluation creates and grounds a fresh Clingo control. Enabling `clause_pool`
-selects the epoch-pool genetic search. It grounds background, contexts and a
-bounded clause pool together, then reuses that control for candidate subsets
-until the epoch is renewed. The renewal interval is measured in
-generations. Each rebuild grounds the new pool,
-background and contexts together. It does not add new clauses to an old grounding.
+evaluation creates and grounds a fresh Clingo control. `algorithm="incremental"`
+selects `incremental_clause_genetic_search`. Generation grounds once and visits
+increasing body budgets, including attached conditions, with a resumable seeded
+solve for each size. Each batch consumes at most `incremental.batch_size` models
+before pruning and canonicalization. Generation pauses while the GA searches.
 Whole-program evaluation uses brave consequences.
 
-With `clause_pool.source="sampled"` (the pool default), each epoch enumerates at
-most `clause_pool.size` randomized Clingo models and canonicalizes that batch.
-It retains elite hypotheses, rebuilds local
-clause indices, and drops the preceding epoch's caches. This is a biased sample,
-not uniform sampling or exhaustive search. `source="exhaustive"` retains the old
-full-space control. A supplied `ClauseSpace` is always used as supplied.
-Pool size is a target: elite programs and dependency closures can exceed it. With
-`#maxpl(*)`, retained programs can grow between epochs. There is no preventive
-grounding budget or automatic fallback; external resource supervision remains
-necessary.
+Each epoch retains the highest-scoring hypotheses and the champion, combines their
+clauses with the next batch, rebuilds local indices, and drops old genome caches.
+The active clause mask contains the retained programs and random closed candidates.
+If enumeration ends, search continues with the last working space. Empty or
+uncloseable batches are skipped. Dependencies split across discarded batches can
+be missed. Canonicalization deduplicates each batch and the active space without
+retaining all visited clauses. This bounded search is neither uniform sampling nor
+complete hypothesis search. A supplied `ClauseSpace` bypasses generation.
+
+Restarted sampling, frozen-pool evaluation and experimental retention/filling
+variants have been removed. `algorithm="steady_state"` remains the default and
+materializes the full clause space. Both algorithms use the normal evaluator.
+The incremental batch size is a target: elite programs and their dependency
+closures may exceed it, especially with `#maxpl(*)`.
 
 Mutation adds, replaces or removes a root clause and its dependency block.
 Complete programs keep their headed clauses unchanged, except for a configurable
@@ -120,7 +123,7 @@ optional pure constraints whenever a nonempty legal program remains.
 
 Clause generation also prunes headless models before decoding when a static
 missing-predicate proof establishes that a positive example needs a learned
-head. This applies to exhaustive enumeration and sampled batches. It preserves
+head. This applies to exhaustive enumeration and incremental batches. It preserves
 constraint-only languages and uncertain cases. Absence of negatives alone is not sufficient to
 prune every constraint because hypotheses must remain nonempty. The exact
 conditions are documented in [language bias](docs/language-bias.md#positive-only-constraint-pruning).
@@ -135,24 +138,17 @@ The separate `completeness` and `structural_neighbor` mutation names have been
 removed. Use `set_mix` for crossover and `random_group` for mutation.
 See [variation policy](docs/variation-policy.md) for guarantees and exceptions.
 
-Pool retention can preserve behavioral specialists or use observed reproductive
-success. Credit belongs to complete
-parent hypotheses: a fresh child must improve on both parents. Duplicates and
-invalid offspring count as unsuccessful opportunities. No fixed fitness or
-causal contribution is assigned to individual clauses.
-
-Pool retention remains experimental and disabled by
-default. The controlled
-matrix and evaluator replay are described in
-[`docs/pool-policy-experiment.md`](docs/pool-policy-experiment.md).
-Bounded generation, completeness operators, and the measured comparison against
-the original tasks are documented in
-[`docs/sampled-pool-experiment.md`](docs/sampled-pool-experiment.md).
+Historical pool experiments and their measurements remain documented in
+[`docs/pool-policy-experiment.md`](docs/pool-policy-experiment.md) and
+[`docs/million-clauses-experiment.md`](docs/million-clauses-experiment.md).
+Their retired configurations are no longer executable on the current API.
+Current standard-task runs are recorded in [the incremental report](docs/incremental-experiment.md).
 
 Complete search algorithms live in `gentians.algorithms` and return a
 `SearchResult`. `steady_state_genetic_search` replaces population members after
-each offspring. `epoch_pool_genetic_search` uses the same operators while
-restricting each epoch to a grounded clause pool. GA-specific state and
+each offspring. `incremental_clause_genetic_search` uses the same operators while
+renewing a bounded working clause space. Its loop and batch renewal
+live together in `gentians/algorithms/incremental_clause_genetic.py`. GA-specific state and
 operators live in `gentians.evolution`; candidate evaluation lives in
 `gentians.evaluation` so exact or greedy algorithms can reuse it.
 
@@ -179,8 +175,8 @@ unchanged. This restriction can block candidates whose solution requires a heade
 replacement. Benchmark timings belong to their recorded source versions.
 
 Default `mutation.constraint_only_random=true` uses unrestricted random edits
-when the active pool contains only constraints, while preserving the directed
-policy in pools with headed clauses. It permits constraint additions to incomplete
+when the active clause space contains only constraints, while preserving the directed
+policy in spaces with headed clauses. It permits constraint additions to incomplete
 candidates, which can improve negative coverage without recovering positives.
 Set it to false to disable this policy. See [the mutation ablation report](docs/mutation-ablation-experiment.md)
 for controls, timings and limitations.
@@ -207,7 +203,7 @@ instrumentation and overrides.
 ```powershell
 uv run python benchmarks/run_experiments.py --list
 uv run python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09
-uv run python benchmarks/run_experiments.py pool-policy/control pool-policy/reproductive_retention
+uv run python benchmarks/run_experiments.py incremental/standard-unlimited
 uv run python benchmarks/run_experiments.py shared-variation/new
 uv run python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09 --force
 uv run python benchmarks/run_experiments.py  # all configured experiments
@@ -457,7 +453,7 @@ Here `target_1/2` is learned in rule heads and may occur twice in rule bodies.
 ## Main Available Options
 
 The recommended shared benchmark configuration uses structural mutation and
-exact constraint-coverage inheritance. Epoch pooling remains disabled. The same settings run 5queens,
+exact constraint-coverage inheritance. The default algorithm remains `steady_state`. The same settings run 5queens,
 grandparent, coloring and knapsack, with ten runs each, a 30-second timeout per
 run and no generation limit. A timeout skips remaining runs of that dataset.
 This is the best-supported combination across these measured tasks, not a claim
@@ -483,16 +479,14 @@ Here we list only the main ones:
   integrity-constraint changes, using the normal solver. Default `true`.
   Unresolved examples still use a fresh Clingo control. See
   [the experiment and guarantees](docs/semantic-inheritance-experiment.md).
-- `clause_pool.enabled`: select epoch-pool search. Default `false`.
-- `clause_pool.source`: `sampled` (default) or `exhaustive`.
-- `clause_pool.size`: target number of clauses in the pool. Default `128`.
-- `clause_pool.epoch_generations`: generations between rebuilds. Default `50`.
-- `clause_pool.elite_count`: complete hypotheses retained at rebuild. Default `10`.
-- `clause_pool.solver`: `persistent` (default) or `fresh`, for a matched search control.
-  Persistent pools require `evaluation.constraint_inheritance=false`.
-- `clause_pool.retention`: `fitness` (default), `behavior`, or `reproductive`.
-- `clause_pool.filling`: `random` (default) or `neighbors`, mixing legal local moves with global samples.
-- Pool size is a target, not a hard cap: retained hypotheses and complete
-  dependency closures can exceed it.
+- `algorithm`: `steady_state` (default) or `incremental`.
+- `incremental.batch_size`: raw models per new clause batch. Default `128`.
+- `incremental.epoch_generations`: generations between batches. Default `50`.
+- `incremental.elite_count`: complete hypotheses retained at renewal. Default `10`.
+- `incremental.time_limit_seconds`: optional positive net-time budget, including
+  clause generation. Default `None`. `iterations_genetic=0` disables the generation
+  limit. In-flight operations finish before returning, but late evaluations cannot
+  improve the timed result. The benchmark runner's `timeout_seconds=0` disables
+  its separate process timeout.
 - `HypothesisGenerator` is mandatory infrastructure: every initialization,
   mutation, and crossover returns an already dependency-closed valid program.

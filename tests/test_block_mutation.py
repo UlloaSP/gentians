@@ -42,7 +42,7 @@ def test_experiment_matrix_explicitly_records_new_mutation_defaults():
     from benchmarks.run_experiments import DEFAULT_CONFIG, load_config
 
     _, experiments = load_config(DEFAULT_CONFIG)
-    assert len(experiments) == 30
+    assert len(experiments) == 18
     for experiment in experiments:
         config = dict(Arguments().mutation)
         config.update({key.removeprefix("mutation."): value
@@ -106,7 +106,7 @@ def test_append_adds_transitive_support_and_checks_final_size(monkeypatch, limit
     before = h.encode(["keep."])
     after = h.append(before, random.Random(1))
     assert (after == h.all_clauses) if success else (after is None)
-    h.set_pool(h.encode(["keep.", "goal :- helper."]))
+    h.set_available_clauses(h.encode(["keep.", "goal :- helper."]))
     assert h.append(before, random.Random(1)) is None
 
 

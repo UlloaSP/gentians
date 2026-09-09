@@ -38,5 +38,5 @@ def test_clauses_remain_independent_and_dependency_closure_is_preserved():
     rng = random.Random(1)
     assert generator._build(target, 0, rng) == target | provider
     assert generator._build(target, provider, rng) is None
-    generator.set_pool(provider)
+    generator.set_available_clauses(provider)
     assert generator.create(rng) == provider

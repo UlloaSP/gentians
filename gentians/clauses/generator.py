@@ -1,5 +1,7 @@
 from pathlib import Path
 import random
+from collections.abc import Generator, Iterator
+from contextlib import closing, contextmanager
 from typing import cast
 
 import clingo
@@ -9,10 +11,10 @@ from ..arguments import Arguments
 from ..clingo_stats import clingo_stat, ground_stats
 from ..timing import (
     add,
-    current_phase,
     instrumentation,
     metric_enabled,
     net_time,
+    phase,
     profile_phase,
     record_metric,
 )
@@ -162,7 +164,8 @@ class _ClauseGenerator:
             )
         )
 
-    def generate(self, model_limit: int = 0, seed: int | None = None) -> ClauseSpace:
+    @profile_phase("clause_generation")
+    def _prepare(self, model_limit: int, seed: int | None, by_size: bool = False):
         facts = _facts(
             self.task,
             self.modes,
@@ -175,9 +178,14 @@ class _ClauseGenerator:
             # Prune inside ASP enumeration, before decoding/canonicalization.
             # The static proof protects nonempty and constraint-only solutions.
             facts += "\nprune_optional_constraints."
+        if by_size:
+            facts += "\nenumerate_by_size."
         fact_program = parse_program(facts)
         solver_arguments = [str(model_limit), *_clause_space_args(self.args)]
         ctl = clingo.Control(solver_arguments, logger=_raise_on_clingo_error)
+        if by_size:
+            # Keep symbolic literal indices valid across all size assumptions.
+            ctl.enable_cleanup = False
         if seed is not None:
             # Randomized prefixes are bounded samples, not uniform samples of clauses.
             cast(Configuration, ctl.configuration.solve).parallel_mode = "1"
@@ -191,98 +199,158 @@ class _ClauseGenerator:
         start = net_time()
         ctl.ground([("base", [])])
         grounding_seconds = net_time() - start
-        phase = current_phase()
-        add(f"{phase}.grounding", grounding_seconds)
+        add("clause_generation.grounding", grounding_seconds)
         model_index = _model_literal_index(ctl.symbolic_atoms, self.modes_by_id)
+        return ctl, model_index, fact_program, solver_arguments, grounding_seconds
 
-        clauses: list[ReifiedClause] = []
-        seconds = 0.0
-        collect_metrics = metric_enabled("clingo")
-        start = net_time()
-        with ctl.solve(yield_=True) as handle:
-            seconds += net_time() - start
-            iterator = iter(handle)
-            while True:
-                start = net_time()
+    def batches(
+        self, size: int, seed: int | None, *, model_limit: int = 0,
+        by_size: bool = False,
+    ) -> Generator[ClauseSpace, None, None]:
+        ctl, model_index, fact_program, solver_arguments, grounding_seconds = self._prepare(
+            model_limit, seed, by_size
+        )
+        strata = (
+            [(atom.literal,) for atom in sorted(
+                ctl.symbolic_atoms.by_signature("clause_body_size", 1),
+                key=lambda atom: atom.symbol.arguments[0].number,
+            )]
+            if by_size else [()]
+        )
+        for ordinal, assumptions in enumerate(strata):
+            seconds = 0.0
+            collect_metrics = metric_enabled("clingo")
+            # The handle stays suspended between batches. Never retain a clingo.Model.
+            # ponytail: grounding still covers the full bias; partition it if that dominates.
+            try:
+                with phase("clause_generation"):
+                    start = net_time()
+                    handle = ctl.solve(yield_=True, assumptions=assumptions)
+                    elapsed = net_time() - start
                 try:
-                    model = next(iterator)
-                except StopIteration:
-                    seconds += net_time() - start
-                    break
-                seconds += net_time() - start
-                clause = _clause_from_model(model, model_index)
-                if _theta_reduced(clause, self.modes_by_id):
-                    clauses.append(clause)
-            start = net_time()
-        seconds += net_time() - start
-        add(f"{phase}.solving", seconds)
-        if collect_metrics:
-            with instrumentation():
-                stats = ctl.statistics
-                models = clingo_stat(stats, "summary", "models", "enumerated")
-                grounded = ground_stats(stats)
-                clingo_arguments = " ".join(solver_arguments)
-                record_metric(
-                    "clingo",
-                    {
-                        "operation_category": "grounding",
-                        "phase_context": phase,
-                        "seconds": grounding_seconds,
-                        "program_size": 1,
-                        "program_chars": sum(map(len, map(str, fact_program)))
-                        + sum(map(len, map(str, CLAUSE_METAPROGRAM))),
-                        "stats_atoms": grounded["atoms"],
-                        "stats_rules": grounded["rules"],
-                        "clingo_arguments": clingo_arguments,
-                        "model_limit": model_limit,
-                        "sampling_seed": seed,
-                        "sampling_configuration": (
-                            {"parallel_mode": "1", "rand_freq": "1", "sign_def": "rnd"}
-                            if seed is not None else None
-                        ),
-                    },
-                )
-                record_metric(
-                    "clingo",
-                    {
-                        "operation_category": "solving",
-                        "phase_context": phase,
-                        "seconds": seconds,
-                        "models": models,
-                        "program_size": 1,
-                        "has_numeric_evidence": self.capabilities.has_numeric_evidence,
-                        "allow_numeric_comparison": self.capabilities.allow_numeric_comparison,
-                        "allow_equality_comparison": self.capabilities.allow_equality_comparison,
-                        "allow_arithmetic": self.capabilities.allow_arithmetic,
-                        "allow_aggregates": self.capabilities.allow_aggregates,
-                        "allow_recursion": self.capabilities.allow_recursion,
-                        "clingo_arguments": clingo_arguments,
-                        "stats_choices": clingo_stat(
-                            stats, "solving", "solvers", "choices"
-                        ),
-                        "stats_conflicts": clingo_stat(
-                            stats, "solving", "solvers", "conflicts"
-                        ),
-                    },
-                )
+                    iterator = iter(handle)
+                    exhausted = False
+                    while not exhausted:
+                        with phase("clause_generation"):
+                            clauses: list[ReifiedClause] = []
+                            models = 0
+                            while not size or models < size:
+                                start = net_time()
+                                model = next(iterator, None)
+                                elapsed += net_time() - start
+                                if model is None:
+                                    exhausted = True
+                                    break
+                                models += 1
+                                clause = _clause_from_model(model, model_index)
+                                if _theta_reduced(clause, self.modes_by_id):
+                                    clauses.append(clause)
+                                del model
+                            seconds += elapsed
+                            elapsed = 0.0
+                            entries = canonicalize_clauses(
+                                clauses, self.modes_by_id, self.max_variables
+                            )
+                            batch = ClauseSpace(entries)
+                        # No timing phase may span a yield: the consumer runs its GA here.
+                        if models or not size:
+                            yield batch
+                            del batch, entries, clauses
+                finally:
+                    with phase("clause_generation"):
+                        start = net_time()
+                        handle.__exit__(None, None, None)
+                        elapsed = net_time() - start
+                        seconds += elapsed
+                        add("clause_generation.solving", seconds)
+            finally:
+                if collect_metrics:
+                    with instrumentation():
+                        self._record_solve(
+                            ctl, fact_program, solver_arguments, model_limit, seed,
+                            grounding_seconds if ordinal == 0 else None, seconds,
+                        )
 
-        entries = canonicalize_clauses(clauses, self.modes_by_id, self.max_variables)
-        return ClauseSpace(entries)
+    def _record_solve(
+        self, ctl, fact_program, solver_arguments, model_limit, seed,
+        grounding_seconds, seconds,
+    ) -> None:
+        stats = ctl.statistics
+        models = clingo_stat(stats, "summary", "models", "enumerated")
+        grounded = ground_stats(stats)
+        clingo_arguments = " ".join(solver_arguments)
+        if grounding_seconds is not None:
+            record_metric(
+                "clingo",
+                {
+                    "operation_category": "grounding",
+                    "phase_context": "clause_generation",
+                    "seconds": grounding_seconds,
+                    "program_size": 1,
+                    "program_chars": sum(map(len, map(str, fact_program)))
+                    + sum(map(len, map(str, CLAUSE_METAPROGRAM))),
+                    "stats_atoms": grounded["atoms"],
+                    "stats_rules": grounded["rules"],
+                    "clingo_arguments": clingo_arguments,
+                    "model_limit": model_limit,
+                    "sampling_seed": seed,
+                    "sampling_configuration": (
+                        {"parallel_mode": "1", "rand_freq": "1", "sign_def": "rnd"}
+                        if seed is not None else None
+                    ),
+                },
+            )
+        record_metric(
+            "clingo",
+            {
+                "operation_category": "solving",
+                "phase_context": "clause_generation",
+                "seconds": seconds,
+                "models": models,
+                "program_size": 1,
+                "has_numeric_evidence": self.capabilities.has_numeric_evidence,
+                "allow_numeric_comparison": self.capabilities.allow_numeric_comparison,
+                "allow_equality_comparison": self.capabilities.allow_equality_comparison,
+                "allow_arithmetic": self.capabilities.allow_arithmetic,
+                "allow_aggregates": self.capabilities.allow_aggregates,
+                "allow_recursion": self.capabilities.allow_recursion,
+                "clingo_arguments": clingo_arguments,
+                "stats_choices": clingo_stat(
+                    stats, "solving", "solvers", "choices"
+                ),
+                "stats_conflicts": clingo_stat(
+                    stats, "solving", "solvers", "conflicts"
+                ),
+            },
+        )
 
-
-@profile_phase("clause_generation")
 def generate_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSpace:
-    return _ClauseGenerator(task, arguments).generate()
+    with phase("clause_generation"):
+        generator = _ClauseGenerator(task, arguments)
+    with closing(generator.batches(0, None)) as batches:
+        return next(batches)
 
 
-@profile_phase("clause_generation")
-def sample_clause_space(
-    task: InductiveTask, arguments: Arguments, size: int, rng: random.Random
-) -> ClauseSpace:
-    """Decode at most size models; canonicalize only this batch, not the full space."""
+@contextmanager
+def incremental_clause_batches(
+    task: InductiveTask, arguments: Arguments, size: int, rng: random.Random,
+) -> Iterator[Iterator[ClauseSpace]]:
+    """Ground once and enumerate by increasing body budget; close on exit or failure.
+
+    The budget counts models before pruning. Canonicalization deduplicates each
+    batch; equivalent clauses may occur in different batches. No history of all
+    clauses is retained, and the iterator ends when enumeration is exhausted.
+    Each body size has one resumable solve. Ordering changes the visited prefix,
+    not the legal clause space.
+    """
     if isinstance(size, bool) or not isinstance(size, int) or size < 1:
         raise ValueError("clause batch size must be a positive integer")
-    return _ClauseGenerator(task, arguments).generate(size, rng.randrange(2**31))
+    with phase("clause_generation"):
+        generator = _ClauseGenerator(task, arguments)
+    with closing(generator.batches(
+        size, rng.randrange(2**31), by_size=True
+    )) as batches:
+        yield batches
 
 
 def _clause_space_args(args: Arguments) -> list[str]:

@@ -91,24 +91,14 @@ class Arguments:
         }
     )
 
-    # Optional frozen clause pool used by the epoch-pool genetic search.
-    clause_pool: dict[str, object] = field(
+    # Full-space steady-state search or bounded incremental clause search.
+    algorithm: str = "steady_state"
+    incremental: dict[str, object] = field(
         default_factory=lambda: {
-            "enabled": False,
-            # sampled generates a bounded new batch each epoch; exhaustive is the control.
-            "source": "sampled",
-            # Target clause count. Elite hypotheses may require a larger pool.
-            "size": 128,
-            # Rebuild after this many generations.
+            "batch_size": 128,
             "epoch_generations": 50,
-            # Complete hypotheses retained when rebuilding.
             "elite_count": 10,
-            # persistent reuses grounding; fresh isolates the pool's search effect.
-            "solver": "persistent",
-            # fitness, behavior, or reproductive retention of complete hypotheses.
-            "retention": "fitness",
-            # random or neighbors, with half the extra capacity reserved for exploration.
-            "filling": "random",
+            "time_limit_seconds": None,
         }
     )
 

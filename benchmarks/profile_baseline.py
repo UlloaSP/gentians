@@ -84,7 +84,7 @@ def parse_profile_args(
     parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
     parser.add_argument("--runs", type=int, default=10)
     parser.add_argument("--out-dir", type=Path, default=default_out_dir)
-    parser.add_argument("--timeout-seconds", type=int, default=100)
+    parser.add_argument("--timeout-seconds", type=int, default=100, help="Process timeout; 0 disables it.")
     parser.add_argument(
         "--stop-on-timeout", action="store_true",
         help="Stop this configuration after its first timed-out run; retain completed results.",
@@ -170,7 +170,7 @@ def run_benchmark_suite(
             )
             log_path = out_dir / "runs" / f"{dataset}_run_{run}.log"
             cprofile_path = out_dir / "runs" / f"{dataset}_run_{run}.prof"
-            pool_metrics_path = out_dir / "runs" / f"{dataset}_run_{run}_pool_metrics.jsonl"
+            incremental_metrics_path = out_dir / "runs" / f"{dataset}_run_{run}_incremental_metrics.jsonl"
             reset_run_outputs(
                 [
                     timings_path,
@@ -181,7 +181,7 @@ def run_benchmark_suite(
                     clingo_metrics_path,
                     log_path,
                     cprofile_path,
-                    pool_metrics_path,
+                    incremental_metrics_path,
                 ]
             )
             cmd, arguments_json = build_command(
@@ -348,9 +348,9 @@ def run_streamed(
     env["GENTIANS_RUN_NUMBER"] = str(run)
     env["GENTIANS_TIMINGS_PATH"] = str(timings_path.resolve())
     env["GENTIANS_GA_METRICS_PATH"] = str(ga_metrics_path.resolve())
-    env["GENTIANS_POOL_METRICS_PATH"] = str(
+    env["GENTIANS_INCREMENTAL_METRICS_PATH"] = str(
         ga_metrics_path.with_name(
-            ga_metrics_path.name.replace("_ga_metrics.json", "_pool_metrics.jsonl")
+            ga_metrics_path.name.replace("_ga_metrics.json", "_incremental_metrics.jsonl")
         ).resolve()
     )
     env["GENTIANS_OPERATOR_METRICS_PATH"] = str(operator_metrics_path.resolve())
@@ -384,7 +384,7 @@ def run_streamed(
 
         thread = threading.Thread(target=reader, daemon=True)
         thread.start()
-        deadline = time.monotonic() + timeout_seconds
+        deadline = time.monotonic() + timeout_seconds if timeout_seconds > 0 else None
         done = False
         while True:
             try:
@@ -399,7 +399,7 @@ def run_streamed(
                 pass
             if process.poll() is not None and done:
                 return process.wait(), False
-            if time.monotonic() > deadline:
+            if deadline is not None and time.monotonic() > deadline:
                 kill_tree(process)
                 thread.join(timeout=2)
                 return process.wait(), True
@@ -571,7 +571,7 @@ def write_outputs(
         (out_dir / "measurement.json").write_text(
             json.dumps({
                 "instrumentation": "light",
-                "available": ["runs", "timings", "ga", "pool_epoch_jsonl"],
+                "available": ["runs", "timings", "ga", "incremental_epoch_jsonl"],
                 "unmeasured": ["operator", "candidate", "quality", "clingo"],
                 "dashboard": False,
             }, indent=2), encoding="utf-8",

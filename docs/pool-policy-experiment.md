@@ -1,5 +1,9 @@
 # Frozen pools and reproductive search policies
 
+Historical experiment. The pool API, restarted sampling and persistent pool solver
+were retired on 2026-09-09. Configuration names below describe the measured version,
+not the current API. Use `algorithm="incremental"` with `Arguments.incremental`.
+
 > Historical experiment. Adaptive renewal and reproductive parent selection were removed on 2026-09-08, together with their active matrix entries. Results below describe the measured implementation before removal.
 
 Configuration location: this matrix now lives in `benchmarks/experiments.toml`

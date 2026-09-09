@@ -17,6 +17,7 @@ def task(filename: str) -> Arguments:
 CASES: dict[str, Arguments] = {
     "4queens": task("4queens.txt"),
     "5queens": task("5queens.txt"),
+    "synthetic_million": task("synthetic_million.txt"),
     "8queens": task("8queens.txt"),
     "adj2red": task("adjacent_to_red.txt"),
     "animals_bird": task("animals_bird.txt"),

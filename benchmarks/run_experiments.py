@@ -219,7 +219,7 @@ def summarize_experiment(experiment: dict[str, Any], out_dir: Path) -> list[dict
             "successes": len(solved),
             "timeouts": sum(row["status"] == "timeout" for row in selected),
             "failed": sum(row["status"] == "failed" for row in selected),
-            "par1_wall_seconds": mean(penalties),
+            "par1_wall_seconds": mean(penalties) if float(experiment["timeout_seconds"]) > 0 else None,
             "solved_total_execution_mean": mean(total_times) if total_times else None,
             "solved_total_execution_count": len(total_times),
             "solved_generations_mean": mean(generations) if generations else None,

@@ -1,5 +1,14 @@
 # Experimento: pool de cláusulas congelado por épocas
 
+Historical experiment. The pool API, restarted sampling and persistent pool solver
+were retired on 2026-09-09. Configuration names below describe the measured version,
+not the current API. Use `algorithm="incremental"` with `Arguments.incremental`.
+
+Este informe conserva el nombre histórico `epoch_pool_genetic_search`. El código
+actual se llama `incremental_clause_genetic_search`; su bucle y políticas viven
+en `gentians/algorithms/incremental_clause_genetic.py`. La evaluación persistente
+sigue disponible como opción explícita.
+
 Configuration location: this matrix now lives in `benchmarks/experiments.toml`
 under `epoch-pool/` IDs. Worker arguments and output folders are unchanged.
 The ID change makes old manifests stale; historical measurements below are not

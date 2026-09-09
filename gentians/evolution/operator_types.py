@@ -16,7 +16,8 @@ class MutationProposal:
 
 
 PopulationInitializerFn = Callable[[EvolutionContext], list[Genome]]
-SelectionFn = Callable[[list[Individual], random.Random], tuple[Individual, Individual]]
+# The algorithm supplies the parent count; selection allows repeated individuals.
+SelectionFn = Callable[[list[Individual], int, random.Random], list[Individual]]
 CrossoverFn = Callable[[Genome, Genome, EvolutionContext], Genome | None]
 MutationFn = Callable[[Genome, EvolutionContext], MutationProposal]
 ReplacementFn = Callable[

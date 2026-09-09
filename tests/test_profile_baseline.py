@@ -774,7 +774,8 @@ def test_reset_run_outputs_removes_stale_profile_files(tmp_path):
     assert all(not path.exists() for path in paths)
 
 
-def test_run_streamed_sets_dataset_and_run_env(tmp_path):
+@pytest.mark.parametrize("timeout", [0, 10])
+def test_run_streamed_sets_dataset_and_run_env(tmp_path, timeout):
     log_path = tmp_path / "run.log"
     code = (
         "import os; "
@@ -786,7 +787,7 @@ def test_run_streamed_sets_dataset_and_run_env(tmp_path):
         [sys.executable, "-c", code],
         "{}",
         log_path,
-        10,
+        timeout,
         tmp_path / "timings.json",
         tmp_path / "ga.json",
         tmp_path / "operator.jsonl",
@@ -814,7 +815,7 @@ def test_light_instrumentation_removes_inherited_detailed_logging(tmp_path, monk
     )
     assert result == (0, False)
     assert json.loads(log.read_text()) == [
-        "GENTIANS_GA_METRICS_PATH", "GENTIANS_POOL_METRICS_PATH", "GENTIANS_TIMINGS_PATH",
+        "GENTIANS_GA_METRICS_PATH", "GENTIANS_INCREMENTAL_METRICS_PATH", "GENTIANS_TIMINGS_PATH",
     ]
 
 

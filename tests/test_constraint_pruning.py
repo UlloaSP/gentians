@@ -26,7 +26,8 @@ def task():
 def generate(problem, sampled):
     args = Arguments(clause_generation={"clingo_arguments": []})
     if sampled:
-        return generation.sample_clause_space(problem, args, 100, random.Random(3))
+        with generation.incremental_clause_batches(problem, args, 100, random.Random(3)) as batches:
+            return generation.ClauseSpace([entry for batch in batches for entry in batch.entries])
     return generation.generate_clause_space(problem, args)
 
 

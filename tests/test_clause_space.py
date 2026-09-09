@@ -252,7 +252,7 @@ def test_clause_package_exposes_full_and_sampled_generation():
         "Clause",
         "ClauseSpace",
         "generate_clause_space",
-        "sample_clause_space",
+        "incremental_clause_batches",
     ]
     assert not hasattr(clause_package, "ClauseGenerator")
 
@@ -447,15 +447,11 @@ def test_candidate_clause_space_runs_inside_clause_generation_phase(monkeypatch)
     monkeypatch.setattr(timing, "_enabled", True)
     phases = []
 
-    class FakeClauseGenerator:
-        def __init__(self, program, args):
-            self.prune_constraints = False
+    def canonicalize(*args):
+        phases.append(timing.current_phase())
+        return make_clause_space(["p."]).entries
 
-        def generate(self):
-            phases.append(timing.current_phase())
-            return make_clause_space(["p."])
-
-    monkeypatch.setattr(clause_generation, "_ClauseGenerator", FakeClauseGenerator)
+    monkeypatch.setattr(clause_generation, "canonicalize_clauses", canonicalize)
 
     clauses = clause_generation.generate_clause_space(
         inductive_task([], [], [], [], []), Arguments()
@@ -471,15 +467,11 @@ def test_candidate_clause_space_runs_inside_clause_generation_phase(monkeypatch)
 def test_clause_generation_is_generated_each_time(monkeypatch):
     generated = []
 
-    class FakeClauseGenerator:
-        def __init__(self, program, args):
-            self.prune_constraints = False
+    def canonicalize(*args):
+        generated.append(True)
+        return make_clause_space(["p."]).entries
 
-        def generate(self):
-            generated.append(True)
-            return make_clause_space(["p."])
-
-    monkeypatch.setattr(clause_generation, "_ClauseGenerator", FakeClauseGenerator)
+    monkeypatch.setattr(clause_generation, "canonicalize_clauses", canonicalize)
     program = inductive_task([], [], [], [], [])
 
     first = clause_generation.generate_clause_space(program, Arguments())

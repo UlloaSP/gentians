@@ -91,7 +91,7 @@ class HypothesisGenerator:
         self._summary_cache: dict[Genome, tuple[int, int]] = {}
         self._build_cache: dict[tuple[Genome, Genome, Genome], Genome | None] = {}
 
-    def set_pool(self, clauses: Genome) -> None:
+    def set_available_clauses(self, clauses: Genome) -> None:
         """Restrict subsequent construction to a frozen subset of the space."""
         if not clauses or clauses & ~self.all_clauses:
             raise ValueError("clause pool must be a non-empty subset of the space")

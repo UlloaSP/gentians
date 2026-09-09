@@ -155,7 +155,7 @@ def steady_state_genetic_search(
         population.sort(key=lambda item: item.score, reverse=True)
         best_overall = _better(best_overall, population[0])
         with phase("selection"):
-            first, second = selection(population, rng)
+            first, second = selection(population, 2, rng)
             record_selection(
                 str(args.selection["name"]), first, second, len(population)
             )

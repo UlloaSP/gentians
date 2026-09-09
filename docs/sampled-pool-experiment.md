@@ -1,5 +1,9 @@
 # Bounded clause batches and completeness-guided operators
 
+Historical experiment. The pool API, restarted sampling and persistent pool solver
+were retired on 2026-09-09. Configuration names below describe the measured version,
+not the current API. Use `algorithm="incremental"` with `Arguments.incremental`.
+
 Configuration location: this matrix now lives in `benchmarks/experiments.toml`
 under `sampled-roles/` IDs. Worker arguments and output folders are unchanged.
 The ID change makes old manifests stale; historical measurements below are not

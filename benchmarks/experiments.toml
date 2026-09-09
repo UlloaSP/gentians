@@ -65,11 +65,10 @@ stop_on_timeout = true
 "population.size" = 10
 "replacement.name" = "oldest_or_worst"
 "replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = false
 
 [[experiment]]
 id = "cov_program_random_group_pop10_mut09"
-label = "Random · population 10 · mutation 0.9"
+label = "Random ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· population 10 ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· mutation 0.9"
 description = "Random-group mutation with population 10 and mutation probability 0.9."
 runs = 10
 [experiment.overrides]
@@ -79,498 +78,6 @@ runs = 10
 "population.size" = 10
 "mutation.probability" = 0.9
 "selection.tournament_percentage" = 0.3
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "epoch-pool/control"
-description = "Fresh Control per unique program candidate."
-[experiment.overrides]
-"clause_pool.source" = "exhaustive"
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"mutation.name" = "random_group"
-"population.size" = 10
-"mutation.probability" = 0.9
-"iterations_genetic" = 0
-"clause_pool.enabled" = false
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "epoch-pool/pool_p64_e50_k10"
-description = "Pool size 64; rebuild after 50 generations; retain the full population."
-[experiment.overrides]
-"clause_pool.source" = "exhaustive"
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"mutation.name" = "random_group"
-"population.size" = 10
-"mutation.probability" = 0.9
-"iterations_genetic" = 0
-"clause_pool.enabled" = true
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 10
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "epoch-pool/pool_p128_e50_k10"
-description = "Pool size 128; rebuild after 50 generations; retain the full population."
-[experiment.overrides]
-"clause_pool.source" = "exhaustive"
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"mutation.name" = "random_group"
-"population.size" = 10
-"mutation.probability" = 0.9
-"iterations_genetic" = 0
-"clause_pool.enabled" = true
-"clause_pool.size" = 128
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 10
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "epoch-pool/pool_p256_e50_k10"
-description = "Pool size 256; rebuild after 50 generations; retain the full population."
-[experiment.overrides]
-"clause_pool.source" = "exhaustive"
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"mutation.name" = "random_group"
-"population.size" = 10
-"mutation.probability" = 0.9
-"iterations_genetic" = 0
-"clause_pool.enabled" = true
-"clause_pool.size" = 256
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 10
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "epoch-pool/pool_p128_e20_k10"
-description = "Pool size 128; rebuild after 20 generations; retain the full population."
-[experiment.overrides]
-"clause_pool.source" = "exhaustive"
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"mutation.name" = "random_group"
-"population.size" = 10
-"mutation.probability" = 0.9
-"iterations_genetic" = 0
-"clause_pool.enabled" = true
-"clause_pool.size" = 128
-"clause_pool.epoch_generations" = 20
-"clause_pool.elite_count" = 10
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "epoch-pool/pool_p128_e100_k10"
-description = "Pool size 128; rebuild after 100 generations; retain the full population."
-[experiment.overrides]
-"clause_pool.source" = "exhaustive"
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"mutation.name" = "random_group"
-"population.size" = 10
-"mutation.probability" = 0.9
-"iterations_genetic" = 0
-"clause_pool.enabled" = true
-"clause_pool.size" = 128
-"clause_pool.epoch_generations" = 100
-"clause_pool.elite_count" = 10
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "epoch-pool/pool_p128_e50_k3"
-description = "Pool size 128; rebuild after 50 generations; retain three elite hypotheses."
-[experiment.overrides]
-"clause_pool.source" = "exhaustive"
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"mutation.name" = "random_group"
-"population.size" = 10
-"mutation.probability" = 0.9
-"iterations_genetic" = 0
-"clause_pool.enabled" = true
-"clause_pool.size" = 128
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-
-
-# pool-policy: consolidated matrix. Parameters below preserve the former suite.
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "light"
-id = "pool-policy/control"
-description = "Unrestricted GA, lexicase, fresh solver per candidate."
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = false
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "fitness"
-"clause_pool.filling" = "random"
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "light"
-id = "pool-policy/pool_fresh"
-description = "Versus control: restrict search to P64/E50/k3; fresh solver per candidate."
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = true
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "fresh"
-"clause_pool.retention" = "fitness"
-"clause_pool.filling" = "random"
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "light"
-id = "pool-policy/pool_persistent"
-description = "Versus pool_fresh: reuse the frozen-pool solver; identical search policies."
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = true
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "fitness"
-"clause_pool.filling" = "random"
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "light"
-id = "pool-policy/behavior"
-description = "Versus pool_persistent: retain behavior specialists instead of fitness-only elites."
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = true
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "behavior"
-"clause_pool.filling" = "random"
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "light"
-id = "pool-policy/reproductive_retention"
-description = "Versus behavior: include observed reproductive value in retention."
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = true
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "reproductive"
-"clause_pool.filling" = "random"
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 100
-seed_base = 1
-cprofile = false
-instrumentation = "light"
-id = "pool-policy/neighbors"
-description = "Versus behavior: fill pool with valid neighbors and global exploration."
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = true
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "behavior"
-"clause_pool.filling" = "neighbors"
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 300
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "sampled-roles/original"
-description = "Control: exhaustive ClauseSpace, shared variation policy, fresh candidate solver."
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = false
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "fitness"
-"clause_pool.filling" = "random"
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 300
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "sampled-roles/exhaustive_pool"
-description = "Versus original: frozen P64/E50/k3 pool drawn from exhaustive ClauseSpace."
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = true
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "fitness"
-"clause_pool.filling" = "random"
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 300
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "sampled-roles/sampled_pool"
-description = "Versus exhaustive_pool: new bounded randomized clause batch each epoch."
-stop_on_timeout = true
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = true
-"clause_pool.source" = "sampled"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "fitness"
-"clause_pool.filling" = "random"
-
-
-# shared-variation: consolidated matrix. Parameters below preserve the former suite.
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 300
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "shared-variation/new"
-description = "Shared variation policy versus historical sampled-roles/original; identical runtime overrides."
-stop_on_timeout = true
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = false
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "fitness"
-"clause_pool.filling" = "random"
-
-[[experiment]]
-datasets = ["5queens","grandparent"]
-runs = 10
-timeout_seconds = 300
-seed_base = 1
-cprofile = false
-instrumentation = "full"
-id = "shared-variation/new_repeat"
-description = "Repeat new with identical code, seeds and settings to measure between-batch timing variation."
-stop_on_timeout = true
-[experiment.overrides]
-"iterations_genetic" = 0
-"evaluation.scoring" = "cov_program"
-"selection.name" = "lexicase"
-"crossover.name" = "set_mix"
-"crossover.probability" = 1.0
-"mutation.name" = "random_group"
-"mutation.probability" = 0.9
-"population.name" = "random"
-"population.size" = 10
-"replacement.name" = "oldest_or_worst"
-"replacement.prob_replacing_oldest" = 0.1
-"clause_pool.enabled" = false
-"clause_pool.source" = "exhaustive"
-"clause_pool.size" = 64
-"clause_pool.epoch_generations" = 50
-"clause_pool.elite_count" = 3
-"clause_pool.solver" = "persistent"
-"clause_pool.retention" = "fitness"
-"clause_pool.filling" = "random"
-
-# Directed exploration: factorial comparison against current policy.
 
 [[experiment]]
 id = "mutation-ablation/control"
@@ -596,7 +103,6 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
 
 [[experiment]]
 id = "mutation-ablation/unguided"
@@ -622,7 +128,6 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
 
 [[experiment]]
 id = "mutation-ablation/global-head"
@@ -648,7 +153,6 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
 
 [[experiment]]
 id = "mutation-ablation/unguided-global"
@@ -674,7 +178,6 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
 [[experiment]]
 id = "mutation-ablation/nohead-draw"
 description = "Guided control policy with no head-permission draw in constraint-only pools."
@@ -699,7 +202,6 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
 [[experiment]]
 id = "mutation-ablation/lazy-classification"
 description = "Classify constraint-only offspring on append, reuse cached states for removal and replacement."
@@ -724,7 +226,6 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
 [[experiment]]
 id = "mutation-ablation/structural-policy"
 description = "Opt-in random constraint-only mutation; retain directed mutation in pools with headed clauses."
@@ -750,7 +251,6 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
 
 [[experiment]]
 id = "semantic-inheritance/control"
@@ -777,7 +277,6 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
 "evaluation.constraint_inheritance" = false
 
 [[experiment]]
@@ -805,7 +304,6 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
 "evaluation.constraint_inheritance" = true
 [[experiment]]
 id = "semantic-inheritance/coloring-knapsack"
@@ -833,4 +331,189 @@ stop_on_timeout = true
 "replacement.prob_replacing_oldest" = 0.1
 "population.name" = "random"
 "population.size" = 10
-"clause_pool.enabled" = false
+
+[[experiment]]
+id = "incremental/standard-unlimited"
+description = "Incremental on 5queens and grandparent, five seeds, no time or generation limit."
+datasets = ["5queens", "grandparent"]
+runs = 5
+seed_base = 1
+timeout_seconds = 0
+cprofile = false
+instrumentation = "full"
+[experiment.overrides]
+"algorithm" = "incremental"
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = false
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"mutation.complete_generator_removal_probability" = 0.1
+"population.name" = "random"
+"population.size" = 10
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"incremental.batch_size" = 128
+"incremental.epoch_generations" = 50
+"incremental.elite_count" = 10
+
+[[experiment]]
+id = "incremental/grandparent-unlimited"
+description = "Incremental on 5queens and grandparent, five seeds, no time or generation limit."
+datasets = ["grandparent"]
+runs = 5
+seed_base = 1
+timeout_seconds = 0
+cprofile = false
+instrumentation = "full"
+[experiment.overrides]
+"algorithm" = "incremental"
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = false
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"mutation.complete_generator_removal_probability" = 0.1
+"population.name" = "random"
+"population.size" = 10
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"incremental.batch_size" = 128
+"incremental.epoch_generations" = 50
+"incremental.elite_count" = 10
+
+[[experiment]]
+id = "incremental/5queens-unlimited"
+description = "Incremental on 5queens and grandparent, five seeds, no time or generation limit."
+datasets = ["5queens"]
+runs = 5
+seed_base = 1
+timeout_seconds = 0
+cprofile = false
+instrumentation = "full"
+[experiment.overrides]
+"algorithm" = "incremental"
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = false
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"mutation.complete_generator_removal_probability" = 0.1
+"population.name" = "random"
+"population.size" = 10
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"incremental.batch_size" = 128
+"incremental.epoch_generations" = 50
+"incremental.elite_count" = 10
+
+[[experiment]]
+id = "incremental/5queens-tail-unlimited"
+description = "Incremental on 5queens and grandparent, five seeds, no time or generation limit."
+datasets = ["5queens"]
+runs = 2
+seed_base = 4
+timeout_seconds = 0
+cprofile = false
+instrumentation = "full"
+[experiment.overrides]
+"algorithm" = "incremental"
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = false
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"mutation.complete_generator_removal_probability" = 0.1
+"population.name" = "random"
+"population.size" = 10
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"incremental.batch_size" = 128
+"incremental.epoch_generations" = 50
+"incremental.elite_count" = 10
+
+[[experiment]]
+id = "search-comparison/steady_state-30s"
+description = "Incremental on 5queens and grandparent, ten paired seeds, 30-second process timeout."
+datasets = ["5queens", "grandparent"]
+runs = 10
+seed_base = 1
+timeout_seconds = 30
+cprofile = false
+instrumentation = "full"
+[experiment.overrides]
+"algorithm" = "steady_state"
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = false
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"mutation.complete_generator_removal_probability" = 0.1
+"population.name" = "random"
+"population.size" = 10
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"incremental.batch_size" = 128
+"incremental.epoch_generations" = 50
+"incremental.elite_count" = 10
+
+[[experiment]]
+id = "search-comparison/incremental-30s"
+description = "Incremental on 5queens and grandparent, ten paired seeds, 30-second process timeout."
+datasets = ["5queens", "grandparent"]
+runs = 10
+seed_base = 1
+timeout_seconds = 30
+cprofile = false
+instrumentation = "full"
+[experiment.overrides]
+"algorithm" = "incremental"
+"iterations_genetic" = 0
+"evaluation.scoring" = "cov_program"
+"evaluation.constraint_inheritance" = false
+"selection.name" = "lexicase"
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+"mutation.completeness_guidance" = true
+"mutation.constraint_only_random" = true
+"mutation.random_jump_probability" = 0.1
+"mutation.complete_generator_removal_probability" = 0.1
+"population.name" = "random"
+"population.size" = 10
+"replacement.name" = "oldest_or_worst"
+"replacement.prob_replacing_oldest" = 0.1
+"incremental.batch_size" = 128
+"incremental.epoch_generations" = 50
+"incremental.elite_count" = 10

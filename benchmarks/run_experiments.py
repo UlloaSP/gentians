@@ -13,6 +13,10 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+
+from benchmarks.catalog import arguments_for, arguments_json  # noqa: E402
+
 PROFILE_BASELINE = Path(__file__).with_name("profile_baseline.py")
 DEFAULT_CONFIG = Path(__file__).with_name("experiments.toml")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*(?:/[a-z0-9][a-z0-9_-]*)*$")
@@ -130,8 +134,36 @@ def experiment_command(experiment: dict[str, Any], out_dir: Path) -> list[str]:
     return command
 
 
-def fingerprint(experiment: dict[str, Any]) -> str:
-    relevant = {key: value for key, value in experiment.items() if key != "python"}
+def execution_inputs(experiment: dict[str, Any]) -> dict[str, Any]:
+    """Identify code, task contents, effective SDK arguments and worker runtime."""
+    paths = [path for directory in (REPO_ROOT / "gentians", REPO_ROOT / "benchmarks")
+             for path in directory.rglob("*") if path.suffix in {".py", ".lp"}]
+    paths.extend(REPO_ROOT / name for name in ("pyproject.toml", "uv.lock"))
+    overrides = [f"{key}={json.dumps(value)}" for key, value in sorted(experiment.get("overrides", {}).items())]
+    arguments = {}
+    for dataset in experiment["datasets"]:
+        configured = arguments_for(dataset, overrides)
+        arguments[dataset] = json.loads(arguments_json(configured))
+        task_path = Path(configured.filename)
+        paths.append(task_path if task_path.is_absolute() else REPO_ROOT / task_path)
+    runtime = subprocess.check_output(
+        [str(experiment.get("python", sys.executable)), "-c",
+         "import sys,clingo,platform,json; print(json.dumps(dict("
+         "python=sys.version,clingo=clingo.__version__,platform=platform.platform(),"
+         "machine=platform.machine(),processor=platform.processor())))"],
+        cwd=REPO_ROOT, text=True,
+    )
+    return {
+        "arguments": arguments,
+        "runtime": json.loads(runtime),
+        "files": {str(path.resolve()): hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in sorted(set(paths))},
+    }
+
+
+def fingerprint(experiment: dict[str, Any], inputs: dict[str, Any] | None = None) -> str:
+    relevant = {"experiment": experiment,
+                "execution": execution_inputs(experiment) if inputs is None else inputs}
     payload = json.dumps(relevant, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode()).hexdigest()
 
@@ -242,14 +274,17 @@ def result_status(out_dir: Path, returncode: int = 0, *, stop_on_timeout: bool =
     return "complete" if statuses and all(status == "ok" for status in statuses) else "completed_with_failures"
 
 
-def write_manifest(out_dir: Path, experiment: dict[str, Any], status: str) -> None:
+def write_manifest(out_dir: Path, experiment: dict[str, Any], status: str,
+                   inputs: dict[str, Any] | None = None) -> None:
+    inputs = execution_inputs(experiment) if inputs is None else inputs
     payload = {
         "schema_version": 1,
         "id": experiment["id"],
         "label": experiment.get("label", experiment["id"]),
         "description": experiment.get("description", ""),
         "status": status,
-        "fingerprint": fingerprint(experiment),
+        "fingerprint": fingerprint(experiment, inputs),
+        "execution": inputs,
         "datasets": experiment["datasets"],
         "runs": experiment["runs"],
         "instrumentation": experiment.get("instrumentation", "full"),
@@ -360,11 +395,14 @@ def main() -> int:
             shutil.rmtree(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         command = experiment_command(experiment, out_dir)
+        inputs = execution_inputs(experiment)
         print(f"{experiment['id']}: run")
         completed = subprocess.run(command, cwd=REPO_ROOT, check=False)
         status = result_status(out_dir, completed.returncode,
                                stop_on_timeout=experiment.get("stop_on_timeout", False))
-        write_manifest(out_dir, experiment, status)
+        if inputs != execution_inputs(experiment):
+            status = "stale"
+        write_manifest(out_dir, experiment, status, inputs)
         write_index(output_root, experiments)
         if completed.returncode:
             print(f"{experiment['id']}: runner failed ({completed.returncode})", file=sys.stderr)

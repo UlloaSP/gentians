@@ -54,10 +54,11 @@ def test_suite_stops_configuration_after_timeout_and_keeps_results(tmp_path, mon
         "screened_out" if stop else "completed_with_failures")
 
 
-def test_profile_worker_applies_seed_to_arguments(monkeypatch):
+def test_profile_worker_applies_seed_to_arguments(monkeypatch, tmp_path):
     captured = {}
     monkeypatch.setenv("GENTIANS_ARGUMENTS_JSON", json.dumps(Arguments().__dict__))
     monkeypatch.setenv("GENTIANS_RANDOM_SEED", "17")
+    monkeypatch.setenv("GENTIANS_TIMINGS_PATH", str(tmp_path / "run_timings.json"))
     monkeypatch.setattr(
         "benchmarks.profile_baseline.gentians_main",
         lambda arguments: captured.setdefault("arguments", arguments),
@@ -1021,3 +1022,61 @@ def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
     assert payload["benchmarks"][0]["fitnessRuns"][0]["points"] == [
         [332, 0.0, 0, -0.02, None, -0.02, 0.0, 0.0]
     ]
+
+
+def test_worker_resources_preserve_censored_and_final_snapshots(tmp_path):
+    from benchmarks.process_resources import record_process_resources
+
+    path = tmp_path / "resources.json"
+    with record_process_resources(path):
+        initial = json.loads(path.read_text(encoding="utf-8"))
+        assert not initial["final"]
+        assert initial["peak_rss_bytes"] > 0
+    final = json.loads(path.read_text(encoding="utf-8"))
+    assert final["final"]
+    assert final["pid"] == initial["pid"]
+    assert final["cpu_seconds"] >= initial["cpu_seconds"]
+    assert final["peak_rss_bytes"] >= initial["peak_rss_bytes"]
+
+
+def test_worker_resources_retries_transient_windows_file_lock(tmp_path, monkeypatch):
+    from benchmarks.process_resources import record_process_resources
+    from pathlib import Path
+
+    original = Path.replace
+    calls = []
+    def replace(source, target):
+        calls.append(True)
+        if len(calls) == 1:
+            raise PermissionError("temporary reader lock")
+        return original(source, target)
+
+    monkeypatch.setattr(Path, "replace", replace)
+    with record_process_resources(tmp_path / "resources.json"):
+        pass
+    assert len(calls) >= 3
+    assert json.loads((tmp_path / "resources.json").read_text(encoding="utf-8"))["final"]
+
+
+def test_resource_snapshot_keeps_last_search_progress(tmp_path, monkeypatch):
+    from gentians import timing
+    from gentians.evolution.individual import Individual
+    from benchmarks.process_resources import record_process_resources
+
+    timing.reset()
+    monkeypatch.setenv("GENTIANS_GA_METRICS_PATH", str(tmp_path / "ga.json"))
+    path = tmp_path / "resources.json"
+    try:
+        assert timing.last_search_progress() is None
+        with record_process_resources(path):
+            timing.record_ga_generation(3, 2.0, [Individual(1, 2.0, False)],
+                                        elapsed_seconds=0.1, fitness_evaluations=4)
+            snapshot = timing.last_search_progress()
+            assert snapshot is not None
+            snapshot["generation"] = 99
+            assert timing.last_search_progress()["generation"] == 3
+        progress = json.loads(path.read_text(encoding="utf-8"))["search_progress"]
+        assert progress["fitness_evaluations"] == 4
+        assert progress["best_so_far"] == 2.0
+    finally:
+        timing.reset()

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from benchmarks.synthetic_million import clause_count, task_text
+from benchmarks.synthetic_million import clause_count, scaling_task_text, task_text
 from gentians.arguments import Arguments
 from gentians.clauses import generate_clause_space
 from gentians.evaluation import create_evaluator
@@ -26,6 +26,23 @@ def test_million_task_has_a_perfect_six_clause_reference_and_rejects_empty():
     assert not evaluator(()).is_solution
     fixture = Path(__file__).parents[1] / "benchmarks/gentians/synthetic_million.txt"
     assert fixture.read_text(encoding="utf-8") == task_text()
+
+
+def test_scaling_changes_only_body_limit_and_keeps_reference_solution():
+    source = task_text()
+    fixed = [line for line in source.splitlines()
+             if not line.startswith(("% Legal clauses:", "#maxbl"))]
+    reference = parse_program("\n".join(
+        f":- f{2 * pair}(X), f{2 * pair + 1}(X)." for pair in range(6)))
+    for max_body in range(2, 7):
+        scaled = scaling_task_text(max_body)
+        assert [line for line in scaled.splitlines()
+                if not line.startswith(("% Legal clauses:", "#maxbl"))] == fixed
+        task = parse_text(scaled)
+        assert len(task.language_bias_body) == 32
+        assert task.max_body_literals == max_body
+        assert create_evaluator(task, Arguments().evaluation)(reference).is_solution
+    assert scaling_task_text(6) == source
 
 
 

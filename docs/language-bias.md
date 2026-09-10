@@ -533,15 +533,32 @@ pruning. `algorithm="incremental"` grounds the clause metaprogram once and consu
 bounded batches in increasing body budget, including attached conditions. It uses
 one resumable solve per size. All legal sizes remain available; this preference
 does not change the language. The generator pauses between batches and closes
-when search finishes or fails. Exhaustion keeps the last working space available.
+when search finishes or fails. Exhaustion preserves the complete space if it fits
+in the archive. After archive overflow, a new seeded pass can revisit discarded
+clauses. This changes search order, not clause legality.
 
 The `incremental.batch_size` budget counts models before theta reduction and
-canonicalization. Deduplication applies within each batch and active space without
-retaining a global set of all visited clauses. The stream is not a uniform sample.
-Restarted sampling and frozen-pool evaluation have been removed.
+canonicalization. `incremental.archive_size` bounds the number of distinct raw
+clauses retained across batches, before hypothesis dependency pruning. Providers
+arriving later can therefore make earlier clauses constructible. All prepared
+clauses are active while this archive contains every visited clause.
 
-Elite hypotheses survive renewal with their dependency providers. Unconstructible
-batches are skipped until a usable batch or exhaustion. Providers and consumers
-in different discarded batches may never meet, so bounded search can miss legal
-solutions. The batch size does not replace `#maxpl`; retained programs can grow
-when that task limit is unbounded. Whole-program coverage uses the normal solver.
+After overflow, the working space combines the bounded archive, fresh batch and
+elite hypotheses with their providers. An active subset contains closed programs.
+Providers and consumers outside the archive can still fail to meet; bounded
+search does not guarantee discovery of every legal solution. These runtime limits
+do not replace `#maxpl` and are not a byte limit on process memory. Whole-program
+coverage uses the normal solver.
+
+
+After enumeration exhaustion, incremental restarts a stalled population when
+the prepared space contains learned clauses with heads and the champion has not
+improved for 100 generations. It preserves the champion and generates remaining
+hypotheses through `HypothesisGenerator`. Constraint-only spaces do not restart.
+
+In constraint-only spaces with positive examples, incremental makes up to 16
+extra proposals during initialization and batch renewal. Proposals extend the
+best complete candidate with new clauses, or replace a clause at `#maxpl`.
+`HypothesisGenerator` enforces legality and the evaluator evaluates whole-program
+semantics. These fixed search policies do not alter the allowed language or
+assume additive clause coverage.

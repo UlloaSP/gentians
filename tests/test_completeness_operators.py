@@ -149,7 +149,7 @@ def test_complete_crossover_prefers_recipient_heads_but_can_escape():
     assert any(c is not None and c & ~h.constraint_clauses != heads for c in children)
 
 
-def test_homogeneous_mutation_classifies_but_crossover_keeps_lazy_path():
+def test_constraint_only_operators_skip_intermediate_classification():
     task = inductive_task(["{p;q}."], [example(("p", ""), True)],
                           [example(("q", ""), False)], [], [])
     h = HypothesisGenerator(task, make_clause_space([":- p.", ":- q."]), 2)
@@ -160,7 +160,7 @@ def test_homogeneous_mutation_classifies_but_crossover_keeps_lazy_path():
     context = EvolutionContext(h, random.Random(1), evaluate)
     RandomGroupMutation(1.0)(h.all_clauses, context)
     SetMixCrossover(1.0)(1, 2, context)
-    assert calls == [h.all_clauses]
+    assert calls == []
 
 
 def test_removed_completeness_strategy_names_fail_explicitly():

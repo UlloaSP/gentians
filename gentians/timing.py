@@ -190,7 +190,10 @@ def profile_phase(name: str):
 
 
 def current_phase() -> str:
-    return _stack[-1]["phase"] if _stack else "unclassified"
+    try:
+        return _stack[-1]["phase"]
+    except IndexError:
+        return "unclassified"
 
 
 def recorded_seconds(name: str) -> float | None:
@@ -273,6 +276,14 @@ def record_ga_generation(
             }
         )
         _ga_dirty = True
+
+
+def last_search_progress() -> dict[str, float] | None:
+    """Copy the last completed GA record, without flushing metric buffers."""
+    try:
+        return dict(_ga_rows[-1])
+    except IndexError:
+        return None
 
 
 def export() -> None:

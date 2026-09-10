@@ -71,6 +71,7 @@ def incremental_clause_genetic_search(
     batch_size = _positive_config(args.incremental, "batch_size")
     epoch_generations = _positive_config(args.incremental, "epoch_generations")
     elite_count = _positive_config(args.incremental, "elite_count")
+    archive_size = _positive_config({"archive_size": args.incremental.get("archive_size", 8192)}, "archive_size")
     population_size = _positive_config(args.population, "size")
     if elite_count > population_size:
         raise ValueError("incremental.elite_count cannot exceed population.size")
@@ -89,20 +90,43 @@ def incremental_clause_genetic_search(
                 count() if args.iterations_genetic == 0 else range(args.iterations_genetic)
             )
 
+            source_resources = resources.enter_context(ExitStack())
             batches = (
                 iter([supplied_space]) if supplied_space is not None else
-                resources.enter_context(incremental_clause_batches(task, args, batch_size, batch_rng))
+                source_resources.enter_context(incremental_clause_batches(task, args, batch_size, batch_rng))
             )
 
+            archive = {}
+            exhausted = False
+            overflow = False
+
             def draw_hypotheses(retained_entries=()) -> HypothesisGenerator | None:
-                # A batch may lack dependency providers. Retry without accumulating history.
+                nonlocal exhausted, overflow, batches
+                # Retain raw clauses before dependency pruning: their providers may arrive later.
                 while True:
                     check_time()
                     batch = next(batches, None)
                     check_time()
                     if batch is None:
-                        return None
-                    combined = ClauseSpace([*retained_entries, *batch.entries])
+                        exhausted = True
+                        if not overflow or supplied_space is not None or not retained_entries:
+                            return None
+                        source_resources.close()
+                        batches = source_resources.enter_context(
+                            incremental_clause_batches(task, args, batch_size, batch_rng)
+                        )
+                        batch = next(batches, None)
+                        check_time()
+                        if batch is None:
+                            return None
+                        exhausted = False
+                    for entry in batch.entries:
+                        if entry.text not in archive:
+                            if len(archive) < archive_size:
+                                archive[entry.text] = entry
+                            else:
+                                overflow = True
+                    combined = ClauseSpace([*archive.values(), *retained_entries, *batch.entries])
                     limit = task.max_program_clauses or len(combined)
                     proposed = HypothesisGenerator(task, combined, limit)
                     if proposed.space and proposed.create(batch_rng) is not None:
@@ -205,11 +229,43 @@ def incremental_clause_genetic_search(
                     attempts = 0 if added else attempts + 1
                 return population
 
+            def probe_constraints(population: list[Individual], additions: Genome) -> list[Individual]:
+                if hypotheses.clauses_by_head or not task.positive_examples:
+                    return population
+                additions &= hypotheses.available_clauses
+                complete = max((item for item in population if item.is_complete),
+                               key=lambda item: item.score, default=None)
+                for _ in range(16):
+                    if any(item.is_solution for item in population):
+                        break
+                    base = complete.genome if complete is not None else 0
+                    candidate = (
+                        hypotheses.replace(base, rng, mutable=base | additions)
+                        if base.bit_count() >= hypotheses.max_clauses
+                        else hypotheses.append(base, rng, mutable=additions)
+                    )
+                    if candidate is None:
+                        break
+                    child = admit(candidate)
+                    if child is None:
+                        continue
+                    if child.is_complete and (complete is None or child.score > complete.score):
+                        complete = child
+                    before = population
+                    population = replacement(population, child, rng)
+                    record_replacement(str(args.replacement["name"]), before, population, child)
+                    if child.is_solution:
+                        if child not in population:
+                            population[-1] = child
+                        break
+                return population
+
             with phase("initialization"):
                 initial_proposals = population_strategy(context)
                 before_build = net_time()
                 active_mask = _activate_clauses(
-                    hypotheses, initial_proposals, batch_size, batch_rng
+                    hypotheses, initial_proposals,
+                    batch_size if overflow else hypotheses.clause_count, batch_rng
                 )
                 build_seconds = net_time() - before_build
                 population = []
@@ -220,10 +276,13 @@ def incremental_clause_genetic_search(
                         if individual.is_solution:
                             break
                 population = refill(population)
+                population = probe_constraints(population, hypotheses.available_clauses)
             if not population:
                 raise RuntimeError("Could not initialize population")
             population.sort(key=lambda item: item.score, reverse=True)
             best_overall = population[0]
+            progress_score = best_overall.score
+            last_progress = 0
 
             def finish(solution: Individual, generation: int) -> SearchResult:
                 record_epoch(generation, "solution")
@@ -257,7 +316,29 @@ def incremental_clause_genetic_search(
 
             for generation in generations:
                 check_time()
-                if generation - epoch_started >= epoch_generations:
+                if best_overall.score > progress_score:
+                    progress_score = best_overall.score
+                    last_progress = generation
+                # Preserve the constraint-only search policy; its restarts regressed.
+                if (exhausted and hypotheses.clauses_by_head
+                        and generation - last_progress >= 100):
+                    record_epoch(generation, "stagnation")
+                    epoch_number += 1
+                    epoch_started = generation
+                    epoch_evaluations = evaluations
+                    epoch_duplicates = 0
+                    last_progress = generation
+                    build_seconds = 0.0
+                    with phase("replacement"):
+                        evaluated = {best_overall.genome: best_overall}
+                        results = {best_overall.genome: results[best_overall.genome]}
+                        context = EvolutionContext(hypotheses, rng, evaluate, results)
+                        population = refill([best_overall])
+                    winner = next((item for item in population if item.is_solution), None)
+                    if winner is not None:
+                        best_overall = _better(best_overall, winner)
+                        return finish(winner, generation)
+                if not exhausted and generation - epoch_started >= epoch_generations:
                     record_epoch(generation, "generations")
                     epoch_number += 1
                     epoch_started = generation
@@ -278,9 +359,13 @@ def incremental_clause_genetic_search(
                             for index in old_hypotheses._ids(retained_mask)
                         ]
                         proposed = draw_hypotheses(retained_entries)
+                        additions = 0
                         if proposed is not None:
                             hypotheses = proposed
                             space = hypotheses.space
+                            if not hypotheses.clauses_by_head:
+                                additions = sum(1 << index for index, clause in enumerate(hypotheses.clauses)
+                                                if clause not in old_hypotheses.clause_ids)
                             remapped = {
                                 item.genome: replace(item, genome=hypotheses.encode(
                                     old_hypotheses.render(item.genome)
@@ -300,11 +385,12 @@ def incremental_clause_genetic_search(
                         active_mask = _activate_clauses(
                             hypotheses,
                             [item.genome for item in retained],
-                            batch_size,
+                            batch_size if overflow else hypotheses.clause_count,
                             batch_rng,
                         )
                         build_seconds = net_time() - before_build
                         population = refill(retained)
+                        population = probe_constraints(population, additions)
                     if not population:
                         raise RuntimeError("Could not refill population after batch renewal")
                     winner = next((item for item in population if item.is_solution), None)
@@ -408,6 +494,8 @@ def _activate_clauses(
     rng: random.Random,
 ) -> Genome:
     hypotheses.set_available_clauses(hypotheses.all_clauses)
+    if target >= hypotheses.clause_count:
+        return hypotheses.all_clauses
     active = 0
     for genome in seeds:
         active |= genome

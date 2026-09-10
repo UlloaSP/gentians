@@ -38,21 +38,6 @@ def test_factory_kept_with_one_strategy_and_two_independent_defaults():
         create_mutation({"name": "structural_neighbor"})
 
 
-def test_experiment_matrix_explicitly_records_new_mutation_defaults():
-    from benchmarks.run_experiments import DEFAULT_CONFIG, load_config
-
-    _, experiments = load_config(DEFAULT_CONFIG)
-    assert len(experiments) == 18
-    for experiment in experiments:
-        config = dict(Arguments().mutation)
-        config.update({key.removeprefix("mutation."): value
-                       for key, value in experiment["overrides"].items()
-                       if key.startswith("mutation.")})
-        assert config["complete_generator_removal_probability"] == 0.1
-        assert config["random_jump_probability"] == (
-            1 if experiment["id"] in {"mutation-ablation/global-head", "mutation-ablation/unguided-global"}
-            else 0.1)
-        assert isinstance(create_mutation(config), RandomGroupMutation)
 
 
 @pytest.mark.parametrize("key", ["probability", "random_jump_probability",

@@ -11,8 +11,6 @@ class RandomGroupMutation:
     def __init__(
         self, probability: float, random_jump_probability: float = 0.1,
         complete_generator_removal_probability: float = 0.1,
-        completeness_guidance: bool = True,
-        constraint_only_random: bool = False,
     ) -> None:
         for name, value in (
             ("mutation probability", probability),
@@ -24,27 +22,20 @@ class RandomGroupMutation:
         self.probability = probability
         self.random_jump_probability = random_jump_probability
         self.complete_generator_removal_probability = complete_generator_removal_probability
-        if type(completeness_guidance) is not bool:
-            raise ValueError("completeness_guidance must be a boolean")
-        self.completeness_guidance = completeness_guidance
-        if type(constraint_only_random) is not bool:
-            raise ValueError("constraint_only_random must be a boolean")
-        self.constraint_only_random = constraint_only_random
 
     def __call__(self, genome: Genome, context: EvolutionContext) -> MutationProposal:
         if context.rng.random() >= self.probability:
             return MutationProposal(genome, skipped=True)
         h = context.hypotheses
         headed = h.available_clauses & ~h.constraint_clauses
-        random_constraints = self.constraint_only_random and not headed
+        random_constraints = not headed
         if random_constraints:
             result = context.results.get(genome) if context.results is not None else None
         else:
-            result = (_result(genome, context, classify=True)
-                      if self.completeness_guidance else None)
+            result = _result(genome, context, classify=True)
         if result is not None and result.is_solution:
             return MutationProposal(genome, skipped=True)
-        if random_constraints or not self.completeness_guidance:
+        if random_constraints:
             result = None
         remove_headed = bool(
             result is not None and result.is_complete and h.has_positive_examples
@@ -59,9 +50,9 @@ class RandomGroupMutation:
     ) -> MutationProposal:
         h, rng = context.hypotheses, context.rng
         headed = h.available_clauses & ~h.constraint_clauses
-        # Opt-in search policy, not semantic pruning: constraint additions may
+        # Search policy, not semantic pruning: constraint additions may
         # improve negative coverage even when positive coverage is incomplete.
-        random_constraints = self.constraint_only_random and not headed
+        random_constraints = not headed
         complete = bool(result is not None and result.is_complete and h.has_positive_examples)
         incomplete = bool(result is not None and not result.is_complete and h.has_positive_examples)
 

@@ -89,28 +89,51 @@ main(arguments)
 Evolutionary individuals record whether they cover every positive example
 and avoid every negative example. Replacement has no behavior-specific
 tie-break. The benchmark dashboard reports complete, incomplete, consistent,
-inconsistent, and perfect candidate rates. By default, every candidate
-evaluation creates and grounds a fresh Clingo control. `algorithm="incremental"`
+inconsistent, and perfect candidate rates. Coverage inheritance is enabled by
+default. Unresolved coverage queries create and ground a fresh Clingo control;
+fully inherited results need no new control. `algorithm="incremental"`
 selects `incremental_clause_genetic_search`. Generation grounds once and visits
 increasing body budgets, including attached conditions, with a resumable seeded
 solve for each size. Each batch consumes at most `incremental.batch_size` models
 before pruning and canonicalization. Generation pauses while the GA searches.
 Whole-program evaluation uses brave consequences.
 
-Each epoch retains the highest-scoring hypotheses and the champion, combines their
-clauses with the next batch, rebuilds local indices, and drops old genome caches.
-The active clause mask contains the retained programs and random closed candidates.
-If enumeration ends, search continues with the last working space. Empty or
-uncloseable batches are skipped. Dependencies split across discarded batches can
-be missed. Canonicalization deduplicates each batch and the active space without
-retaining all visited clauses. This bounded search is neither uniform sampling nor
-complete hypothesis search. A supplied `ClauseSpace` bypasses generation.
+Each epoch retains the highest-scoring hypotheses and the champion. A bounded
+archive keeps the first `incremental.archive_size` distinct clauses before
+hypothesis dependency pruning. This lets providers and consumers from different
+batches meet. The working `ClauseSpace` combines the archive, the next batch and
+elite programs. When the archive contains every visited clause, all prepared
+clauses remain active. Once the finite space is exhausted, search continues on
+that complete space without rebuilding indices or clearing caches each epoch.
 
-Restarted sampling, frozen-pool evaluation and experimental retention/filling
-variants have been removed. `algorithm="steady_state"` remains the default and
-materializes the full clause space. Both algorithms use the normal evaluator.
-The incremental batch size is a target: elite programs and their dependency
-closures may exceed it, especially with `#maxpl(*)`.
+After exhaustion, a space containing learned clauses with heads can restart a
+stalled population after 100 generations without a better champion score. The champion and
+its evaluation survive, the other evaluation caches are cleared, and the existing
+population strategy fills the remaining slots with closed hypotheses. Every
+improvement resets the stagnation counter. Constraint-only spaces do not restart.
+Normal, choice and disjunctive heads use the same rule;
+whole-program ASP evaluation is unchanged.
+
+For constraint-only spaces with positive examples, incremental tries up to 16
+extra proposals during initialization and each batch renewal. It extends the best
+complete candidate using new clauses, or replaces a clause at the program-size
+limit. Every proposal is a valid hypothesis evaluated as a whole ASP program.
+This is a fixed part of incremental search. Historical measurements on
+5queens, 4queens and nested large spaces are in the
+[constraint-probe report](docs/incremental-crossover-experiment.md).
+
+If the archive overflows, the active mask selects retained programs and random
+closed candidates. Exhaustion starts a new seeded enumeration pass so discarded
+clauses can return. Each pass grounds once and enumerates increasing body budgets.
+This bounded search is neither uniform sampling nor complete hypothesis search.
+A supplied `ClauseSpace` bypasses generation. The archive limits clause count,
+not bytes: the working space also contains the fresh batch and elite programs,
+and Clingo, caches and instrumentation consume additional memory.
+
+Restarted batch sampling and frozen-pool evaluation have been removed.
+`algorithm="steady_state"` remains the default and materializes the full clause
+space. Both algorithms use the normal evaluator. `#maxpl` still limits complete
+hypotheses; unbounded task limits can allow large retained programs.
 
 Mutation adds, replaces or removes a root clause and its dependency block.
 Complete programs keep their headed clauses unchanged, except for a configurable
@@ -174,7 +197,7 @@ candidate has no legal constraint edit or allowed deletion, mutation leaves it
 unchanged. This restriction can block candidates whose solution requires a headed
 replacement. Benchmark timings belong to their recorded source versions.
 
-Default `mutation.constraint_only_random=true` uses unrestricted random edits
+Constraint-only mutation uses unrestricted random edits
 when the active clause space contains only constraints, while preserving the directed
 policy in spaces with headed clauses. It permits constraint additions to incomplete
 candidates, which can improve negative coverage without recovering positives.
@@ -194,29 +217,22 @@ The entire `.benchmarks/experiments/` directory is ignored by Git and can be
 deleted to remove all local results and experiment snapshots. The Vite source
 remains outside that directory. Run `uv run python benchmarks/run_experiments.py
 --list` to recreate the index without running benchmarks.
-All configurations share this file. Research matrices use prefixed IDs,
-including `mutation-ablation/`;
-the five ordinary IDs remain unchanged. Prefixes preserve existing output
-folders, not separate configuration layers. Each entry keeps its own timeout,
-instrumentation and overrides.
+The active matrix contains only steady-state and incremental on 5queens and
+grandparent, ten runs each, with a 30-second process timeout and unlimited
+generations. It inherits SDK defaults; the algorithm is the only override.
+Historical matrices and tests asserting their contents have been removed.
 
 ```powershell
 uv run python benchmarks/run_experiments.py --list
-uv run python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09
-uv run python benchmarks/run_experiments.py incremental/standard-unlimited
-uv run python benchmarks/run_experiments.py shared-variation/new
-uv run python benchmarks/run_experiments.py cov_program_random_group_pop10_mut09 --force
-uv run python benchmarks/run_experiments.py  # all configured experiments
+uv run python benchmarks/run_experiments.py sdk-defaults/steady_state sdk-defaults/incremental
+uv run python benchmarks/run_experiments.py --summary
 ```
 
-An existing matching experiment is skipped. A changed config is marked stale and
-requires `--force`, preventing accidental comparison with obsolete results.
-Namespaced IDs change configuration fingerprints, so their former manifests are
-stale even though the worker arguments and output folders were preserved.
-Consolidation does not rewrite historical manifests or results. Use `--force`
-only when replacing that exact experiment's results is intended. Omitting IDs
-selects all 26 configurations, not just the ordinary matrix.
-
+Matching results may be reused. The fingerprint includes source and metaprogram
+contents, task contents, effective arguments and the worker's Python and Clingo
+versions. A change requires `--force` to replace the selected result. A source
+change during a run marks its result stale. The manifest retains these inputs.
+See [the current comparison](docs/sdk-defaults-comparison.md).
 If instead you prefer to define your own program and domain, keep reading.
 
 ## Language Bias Definition
@@ -460,7 +476,7 @@ This is the best-supported combination across these measured tasks, not a claim
 of optimality for every ASP task. Historical matrices remain in the same TOML.
 
 ```powershell
-uv run python benchmarks/run_experiments.py recommended/general
+uv run python benchmarks/run_experiments.py sdk-defaults/steady_state
 ```
 
 Here we list only the main ones:
@@ -481,6 +497,7 @@ Here we list only the main ones:
   [the experiment and guarantees](docs/semantic-inheritance-experiment.md).
 - `algorithm`: `steady_state` (default) or `incremental`.
 - `incremental.batch_size`: raw models per new clause batch. Default `128`.
+- `incremental.archive_size`: retained distinct clauses before dependency pruning. Default `8192`.
 - `incremental.epoch_generations`: generations between batches. Default `50`.
 - `incremental.elite_count`: complete hypotheses retained at renewal. Default `10`.
 - `incremental.time_limit_seconds`: optional positive net-time budget, including

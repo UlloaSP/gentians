@@ -63,11 +63,6 @@ class Arguments:
             "random_jump_probability": 0.1,
             # Per complete-candidate mutation: try deleting a headed block.
             "complete_generator_removal_probability": 0.1,
-            # Disable only for controlled policy ablations, not language legality.
-            "completeness_guidance": True,
-            # Original random edits for pools containing only constraints.
-            # Allows constraint additions even when positives remain uncovered.
-            "constraint_only_random": True,
         }
     )
 
@@ -96,6 +91,7 @@ class Arguments:
     incremental: dict[str, object] = field(
         default_factory=lambda: {
             "batch_size": 128,
+            "archive_size": 8192,
             "epoch_generations": 50,
             "elite_count": 10,
             "time_limit_seconds": None,

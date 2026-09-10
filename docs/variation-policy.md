@@ -106,20 +106,18 @@ nonmonotonic semantics it can recover positive witnesses.
 
 ## Constraint edits and semantic limits
 
-`mutation.constraint_only_random` is a boolean, true by default in `Arguments`. When
-enabled and the active pool contains no headed clauses, mutation uses unrestricted
+When the active ClauseSpace contains no headed clauses, mutation uses unrestricted
 append, remove and replace preferences without intermediate classification or a
 head-permission draw. Cached perfect candidates remain protected. An incomplete
 candidate may then acquire another constraint. This cannot recover missing brave
 positive witnesses, but can eliminate negative witnesses and improve fitness.
 The directed prohibition is a search preference, not a proof that every such
-offspring is useless. The option retains the no-negative-example policy and all
+offspring is useless. The policy retains the no-negative-example policy and all
 dependency, pool, nonempty and size invariants.
 
 Pools containing headed clauses keep their existing policy and RNG draws. The
 active pool is inspected on each call, including after renewal; no dataset name
-is inspected. This option takes precedence over completeness guidance only in
-constraint-only pools. It changes search reachability and sampling, not the task
+is inspected. Constraint-only spaces skip intermediate classification. It changes search reachability and sampling, not the task
 language or the evaluator's stable-model semantics. No speedup on arbitrary tasks
 or unseen seeds is guaranteed. Measurements and rejected alternatives are in
 [the mutation ablation report](mutation-ablation-experiment.md).
@@ -215,29 +213,15 @@ Replacement samples the active clause space subject to head-signature, root-type
 and mutable-mask restrictions. `MutationProposal.local` records head-signature
 restriction. Body-local replacement and its neighborhood index were removed.
 
-### Experimental exploration controls
+### Intermediate classification
 
-`mutation.completeness_guidance` is a boolean, enabled by default. Setting it
-to false disables mutation's intermediate classification and state-dependent
-restrictions for controlled ablation. It does not change crossover, scoring,
-dependency closure, size limits, or the policy against adding constraints when
-there are no negative examples. An unclassified perfect crossover output can
-then be mutated before ordinary evaluation, just as in the historical operator.
-This option is not a semantic optimization. The `mutation-ablation/` matrix
-crosses it with head-jump probabilities 0.1 and 1.0, with ordinary replacement. Head-jump probability 1.0 still consumes the
-existing random draw, so the ablation changes filtering without removing that
-draw from the random stream.
-
-Search supplies its existing evaluation cache. With completeness guidance enabled,
-mutation classifies its actual input, not its parents, including constraint-only
-pools when `constraint_only_random=false`. The default `constraint_only_random` policy skips
-intermediate classification in those pools while protecting cached perfect
-candidates. An unclassified perfect crossover output can then be mutated before
-discovery. Changed offspring receive normal whole-program evaluation. All cost
-stays in the requesting phase. Without an evaluator or cached result, the
+Mutation classifies its actual input when the active space contains headed
+clauses, using the existing evaluation cache. Constraint-only spaces skip this
+classification while protecting cached perfect candidates. An unclassified
+perfect crossover output can then be mutated before discovery. Changed offspring
+receive whole-program evaluation. Without an evaluator or cached result, the
 standalone operator cannot infer completeness and uses unclassified block edits.
-Delayed classification only on append was measured and rejected; it is not part
-of the current default implementation.
+The former completeness and constraint-policy ablation switches were removed.
 
 Crossover retains its mixed-space classification fast path. Cached solutions
 remain protected in either operator. No per-clause semantic evaluations, witness

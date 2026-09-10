@@ -174,6 +174,7 @@ def run_benchmark_suite(
             reset_run_outputs(
                 [
                     timings_path,
+                    timings_path.with_name(timings_path.name.replace("_timings.json", "_resources.json")),
                     ga_metrics_path,
                     operator_metrics_path,
                     candidate_metrics_path,
@@ -319,7 +320,13 @@ def run_profile_worker() -> None:
     seed = os.environ.get("GENTIANS_RANDOM_SEED")
     if seed is not None:
         arguments.random_seed = int(seed)
-    gentians_main(arguments)
+    from benchmarks.process_resources import record_process_resources
+
+    path = Path(os.environ["GENTIANS_TIMINGS_PATH"]).with_name(
+        Path(os.environ["GENTIANS_TIMINGS_PATH"]).name.replace("_timings.json", "_resources.json")
+    )
+    with record_process_resources(path):
+        gentians_main(arguments)
 
 
 def run_streamed(

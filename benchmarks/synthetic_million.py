@@ -1,12 +1,13 @@
 """Deterministic constraint-learning task with 1,149,016 legal clauses."""
 
 import random
+import argparse
 from math import comb
 from pathlib import Path
 
 
-def clause_count(features: int = 32) -> int:
-    return sum(comb(features, width) for width in range(1, min(6, features) + 1))
+def clause_count(features: int = 32, max_body: int = 6) -> int:
+    return sum(comb(features, width) for width in range(1, min(max_body, features) + 1))
 
 
 def task_text(features: int = 32) -> str:
@@ -48,7 +49,26 @@ def task_text(features: int = 32) -> str:
     return "\n".join(lines) + "\n"
 
 
+def scaling_task_text(max_body: int) -> str:
+    """Vary body length only; keep all features, examples and the solution fixed."""
+    if not 2 <= max_body <= 6:
+        raise ValueError("max_body must be between 2 and 6")
+    return task_text().replace("#maxbl(6).", f"#maxbl({max_body}).").replace(
+        "Legal clauses: 1,149,016", f"Legal clauses: {clause_count(max_body=max_body):,}"
+    )
+
+
 if __name__ == "__main__":
-    path = Path(__file__).with_name("gentians") / "synthetic_million.txt"
-    path.write_text(task_text(), encoding="utf-8")
-    print(f"{path}: {clause_count():,} legal clauses")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--sweep", action="store_true", help="Write fixed-example scaling tasks.")
+    if parser.parse_args().sweep:
+        directory = Path(__file__).resolve().parents[1] / ".benchmarks/experiments/incremental-crossover/tasks"
+        directory.mkdir(parents=True, exist_ok=True)
+        for max_body in range(2, 7):
+            path = directory / f"body{max_body}.txt"
+            path.write_text(scaling_task_text(max_body), encoding="utf-8")
+            print(f"{path}: {clause_count(max_body=max_body):,} legal clauses")
+    else:
+        path = Path(__file__).with_name("gentians") / "synthetic_million.txt"
+        path.write_text(task_text(), encoding="utf-8")
+        print(f"{path}: {clause_count():,} legal clauses")

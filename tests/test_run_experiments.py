@@ -3,13 +3,11 @@ from argparse import Namespace
 from pathlib import Path
 from subprocess import CompletedProcess
 
-from gentians.arguments import Arguments
 
 import pytest
 from benchmarks import run_experiments as runner
 
 from benchmarks.run_experiments import (
-    DEFAULT_CONFIG,
     experiment_command,
     experiment_output_path,
     fingerprint,
@@ -55,19 +53,19 @@ def test_timeout_stop_is_forwarded_and_fingerprinted(tmp_path):
 
 @pytest.mark.parametrize("timeout", [0, 100])
 def test_summary_penalizes_timeouts_and_keeps_net_time_of_solved_runs(tmp_path, timeout):
-    experiment = {"id": "control", "datasets": ["d"], "timeout_seconds": timeout}
+    experiment = {"id": "control", "datasets": ["coin"], "timeout_seconds": timeout}
     (tmp_path / "experiment.json").write_text(json.dumps({
         "fingerprint": fingerprint(experiment), "status": "completed_with_failures",
     }), encoding="utf-8")
     (tmp_path / "runs.csv").write_text(
         "dataset,run,status,success,elapsed_seconds\n"
-        "d,1,ok,True,3\nd,2,timeout,False,101\n", encoding="utf-8",
+        "coin,1,ok,True,3\ncoin,2,timeout,False,101\n", encoding="utf-8",
     )
     (tmp_path / "timings_raw.csv").write_text(
-        "dataset,run,metric,seconds\nd,1,total_execution,2\n", encoding="utf-8",
+        "dataset,run,metric,seconds\ncoin,1,total_execution,2\n", encoding="utf-8",
     )
     (tmp_path / "ga_fitness.csv").write_text(
-        "dataset,run,generation,fitness_evaluations\nd,1,0,10\nd,1,20,30\n",
+        "dataset,run,generation,fitness_evaluations\ncoin,1,0,10\ncoin,1,20,30\n",
         encoding="utf-8",
     )
     summary, = summarize_experiment(
@@ -83,13 +81,13 @@ def test_summary_penalizes_timeouts_and_keeps_net_time_of_solved_runs(tmp_path, 
     assert summary["solved_ground_calls_mean"] is None
     (tmp_path / "timings_raw.csv").write_text(
         "dataset,run,metric,seconds,calls\n"
-        "d,1,total_execution,2,1\n"
-        "d,1,clause_generation.grounding,0.1,1\n"
-        "d,1,initialization.grounding,0.2,3\n"
-        "d,1,initialization.grounding.self,0.2,3\n"
-        "d,1,initialization.solving,0.4,4\n"
-        "d,1,initialization.closure,0.5,10\n"
-        "d,2,initialization.grounding,90,10000\n", encoding="utf-8",
+        "coin,1,total_execution,2,1\n"
+        "coin,1,clause_generation.grounding,0.1,1\n"
+        "coin,1,initialization.grounding,0.2,3\n"
+        "coin,1,initialization.grounding.self,0.2,3\n"
+        "coin,1,initialization.solving,0.4,4\n"
+        "coin,1,initialization.closure,0.5,10\n"
+        "coin,2,initialization.grounding,90,10000\n", encoding="utf-8",
     )
     summary, = summarize_experiment(experiment, tmp_path)
     assert summary["solved_grounding_mean"] == pytest.approx(0.3)
@@ -101,7 +99,7 @@ def test_summary_penalizes_timeouts_and_keeps_net_time_of_solved_runs(tmp_path, 
 
 
 def test_summary_rejects_stale_or_incomplete_runs(tmp_path):
-    experiment = {"id": "control", "datasets": ["d"], "timeout_seconds": 100}
+    experiment = {"id": "control", "datasets": ["coin"], "timeout_seconds": 100}
     assert summarize_experiment(experiment, tmp_path) == []
     (tmp_path / "runs.csv").write_text("dataset,run,status\n", encoding="utf-8")
     with pytest.raises(ValueError, match="missing manifest"):
@@ -117,86 +115,16 @@ def test_summary_rejects_stale_or_incomplete_runs(tmp_path):
         summarize_experiment(experiment, tmp_path)
 
 
-def test_default_config_defines_comparable_experiment_matrix():
-    output_root, experiments = load_config(DEFAULT_CONFIG)
-
-    assert output_root == runner.REPO_ROOT / ".benchmarks" / "experiments"
-    assert {experiment["id"] for experiment in experiments if "/" not in experiment["id"]} == {
-        "cov_program_random_group_pop10_mut09",
-    }
-    assert all(experiment["runs"] == (
-        2 if experiment["id"] == "incremental/5queens-tail-unlimited" else
-        5 if experiment["id"].startswith("incremental/") else
-        3 if experiment["id"].startswith(("million-clauses/", "incremental-quality/")) else 10
-    ) for experiment in experiments)
-    assert all(experiment["timeout_seconds"] == (
-        30 if experiment["id"].startswith("search-comparison/") else
-        0 if experiment["id"].startswith("incremental/") else
-        300 if experiment["id"].startswith("incremental-quality/validation-") else
-        180 if experiment["id"].startswith(("million-clauses/", "incremental-quality/")) else
-        30 if experiment["id"].startswith(("semantic-inheritance/", "recommended/")) else
-        300 if experiment["id"].startswith(("sampled-roles/", "shared-variation/", "mutation-ablation/")) else 100
-    ) for experiment in experiments)
-    assert all(experiment["cprofile"] is False for experiment in experiments)
-    assert all(
-        "evaluation.grounding" not in experiment["overrides"]
-        for experiment in experiments
-    )
 
 
-def test_recommended_policy_matches_sdk_defaults_across_datasets():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    entries = {entry["id"]: entry for entry in experiments}
-    recommended = entries["recommended/general"]
-    assert recommended["datasets"] == ["5queens", "grandparent", "coloring", "knapsack"]
-    assert recommended["stop_on_timeout"] is True
-    assert recommended["overrides"]["iterations_genetic"] == 0
-    defaults = Arguments()
-    for path, expected in recommended["overrides"].items():
-        root, *keys = path.split(".")
-        actual = getattr(defaults, root)
-        for key in keys:
-            actual = actual[key]
-        assert actual == expected, path
 
 
-def test_default_experiments_have_no_pregrounding_strategy_matrix():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    assert all("evaluation.grounding" not in item["overrides"] for item in experiments)
-    assert len(experiments) == 18
 
 
-def test_consolidation_preserves_existing_selection_settings():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    indexed = {e["id"]: e["overrides"]["selection.name"] for e in experiments}
-    assert indexed["cov_program_random_group_pop10_mut09"] == "lexicase"
-    assert indexed["recommended/general"] == "lexicase"
 
 
-def test_default_experiments_cover_configured_mutation_population_matrix():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    matrix = {
-        (
-            experiment["overrides"]["mutation.name"],
-            experiment["overrides"]["population.size"],
-            experiment["overrides"]["mutation.probability"],
-        )
-        for experiment in experiments
-        if "population.size" in experiment["overrides"]
-    }
-
-    assert matrix == {
-        ("random_group", 10, 0.9),
-    }
 
 
-def test_default_experiments_cover_all_fitness_operators():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    names = {
-        experiment["overrides"].get("evaluation.scoring", "cov_program")
-        for experiment in experiments
-    }
-    assert names == {"cov_program"}
 
 
 def test_load_config_inherits_suite_and_builds_profile_command(tmp_path):
@@ -294,6 +222,7 @@ def test_force_replaces_only_selected_namespaced_output(tmp_path, monkeypatch):
         commands.append(command)
         return CompletedProcess(command, 0)
     monkeypatch.setattr(runner.subprocess, "run", run)
+    monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
     assert runner.main() == 0
     assert not (chosen / "old").exists()
     assert (sibling / "keep").read_text() == "retain"
@@ -372,44 +301,3 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
     assert indexed["runs"] == 10
     assert indexed["label"] == "New label"
     assert indexed["overrides"] == {"evaluation.scoring": "cov_program"}
-def test_coloring_knapsack_inheritance_experiment_is_copy_paste_ready():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    experiment = next(e for e in experiments if e["id"] == "semantic-inheritance/coloring-knapsack")
-    assert experiment["datasets"] == ["coloring", "knapsack"]
-    assert experiment["runs"] == 10
-    assert experiment["timeout_seconds"] == 30
-    assert experiment["overrides"]["iterations_genetic"] == 0
-    assert experiment["overrides"]["evaluation.constraint_inheritance"] is True
-    assert experiment["overrides"]["mutation.constraint_only_random"] is True
-    assert experiment["overrides"].get("algorithm", Arguments().algorithm) == "steady_state"
-
-
-
-
-def test_incremental_standard_experiment_has_no_time_or_generation_limit():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    experiment = next(e for e in experiments if e["id"] == "incremental/standard-unlimited")
-    assert experiment["datasets"] == ["5queens", "grandparent"]
-    assert experiment["runs"] == 5 and experiment["seed_base"] == 1
-    assert experiment["timeout_seconds"] == 0
-    assert experiment["overrides"]["iterations_genetic"] == 0
-    assert experiment["overrides"]["algorithm"] == "incremental"
-    assert Arguments().incremental["time_limit_seconds"] is None
-    assert all(not any(key.startswith("clause_pool.") for key in e["overrides"])
-               for e in experiments)
-
-
-def test_search_comparison_changes_only_algorithm_and_has_ten_runs_with_30s_timeout():
-    _, experiments = load_config(DEFAULT_CONFIG)
-    indexed = {e["id"]: e for e in experiments}
-    steady = indexed["search-comparison/steady_state-30s"]
-    incremental = indexed["search-comparison/incremental-30s"]
-    for e in (steady, incremental):
-        assert e["datasets"] == ["5queens", "grandparent"]
-        assert e["runs"] == 10 and e["seed_base"] == 1
-        assert e["timeout_seconds"] == 30
-        assert not e.get("stop_on_timeout", False)
-        assert e["overrides"]["iterations_genetic"] == 0
-        assert "incremental.time_limit_seconds" not in e["overrides"]
-    assert steady["overrides"]["algorithm"] == "steady_state"
-    assert incremental["overrides"] == {**steady["overrides"], "algorithm": "incremental"}

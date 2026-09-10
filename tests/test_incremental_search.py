@@ -11,7 +11,7 @@ from gentians.hypotheses import HypothesisGenerator
 import pytest
 
 from gentians import gentians as entrypoint
-from gentians.algorithms import incremental_clause_genetic as pool_search
+from gentians.algorithms import incremental_clause_genetic as incremental_search
 from gentians.algorithms.result import SearchResult
 from gentians.arguments import Arguments
 from gentians.algorithms.incremental_clause_genetic import incremental_clause_genetic_search
@@ -33,14 +33,14 @@ def test_solve_selects_configured_search(monkeypatch, algorithm):
     monkeypatch.setattr(
         entrypoint,
         "incremental_clause_genetic_search",
-        lambda *args: calls.append("pool") or result,
+        lambda *args: calls.append("incremental") or result,
     )
     arguments = Arguments()
     arguments.algorithm = algorithm
 
     entrypoint.solve(inductive_task([], [], [], [], []), arguments)
 
-    assert calls == ["pool" if algorithm == "incremental" else "steady"]
+    assert calls == ["incremental" if algorithm == "incremental" else "steady"]
 
 
 @pytest.mark.parametrize(
@@ -116,7 +116,7 @@ def test_epoch_search_stops_evaluating_at_first_perfect_candidate(
         evaluated.append(tuple(str(statement) for statement in candidate))
         return evaluate(self, candidate)
 
-    monkeypatch.setattr(pool_search, "create_population", lambda config: initialize)
+    monkeypatch.setattr(incremental_search, "create_population", lambda config: initialize)
     monkeypatch.setattr(CandidateEvaluator, "__call__", record_evaluation)
     result = incremental_clause_genetic_search(_incremental_arguments(batch_size=3), task, space)
     assert result.is_solution
@@ -140,7 +140,7 @@ def test_retention_preserves_champion_and_exact_size():
 
 
 
-def test_pool_build_preserves_seeds_and_closes_sampled_candidates():
+def test_active_space_preserves_seeds_and_closes_sampled_candidates():
     task = inductive_task(["seed(a)."], [], [], [], [])
     space = make_clause_space(
         ["p(X) :- seed(X).", "q(X) :- p(X).", "r(X) :- q(X).", "s(a)."]
@@ -188,3 +188,74 @@ def test_restricted_sampler_preserves_ascending_rank_rng_sequence():
             remaining &= ~(1 << selected)
         assert list(hypotheses._random_available(excluded, actual_rng)) == expected
         assert actual_rng.getstate() == reference_rng.getstate()
+
+
+@pytest.mark.parametrize("iterations, epoch, expected", [(8, 1, False), (110, 1, True), (110, 150, False)])
+def test_stagnation_restart_preserves_champion_and_stops_at_solution(monkeypatch, iterations, epoch, expected):
+    from gentians.language import parse_text
+
+    calls = []
+    def population(context):
+        calls.append(True)
+        rules = ["p.", "r."] if len(calls) == 1 else ["q."]
+        return [context.hypotheses.encode((rule,)) for rule in rules]
+
+    monkeypatch.setattr(incremental_search, "create_population", lambda config: population)
+    monkeypatch.setattr(incremental_search, "create_crossover", lambda config: lambda *args: None)
+    args = _incremental_arguments(epoch_generations=epoch)
+    args.iterations_genetic = iterations
+    args.population["size"] = 2
+    result = incremental_clause_genetic_search(
+        args, parse_text("#maxpl(1). #pos({q},{})."),
+        make_clause_space(["p.", "q.", "r."]),
+    )
+    assert result.is_solution is expected
+    assert len(calls) == (2 if expected else 1)
+    assert result.hypothesis == (("q.",) if expected else ("p.",))
+
+
+
+
+def test_stagnation_does_not_restart_constraint_only_space(monkeypatch):
+    from gentians.language import parse_text
+
+    calls = []
+    original = incremental_search.create_population
+    def factory(config):
+        generate = original(config)
+        def populate(context):
+            calls.append(True)
+            return generate(context)
+        return populate
+
+    monkeypatch.setattr(incremental_search, "create_population", factory)
+    monkeypatch.setattr(incremental_search, "create_crossover", lambda config: lambda *args: None)
+    args = _incremental_arguments(epoch_generations=1)
+    args.iterations_genetic = 110
+    args.population["size"] = 2
+    result = incremental_clause_genetic_search(
+        args, parse_text("{a;b}. #maxpl(1). #pos({absent},{})."),
+        make_clause_space([":- a.", ":- b."]),
+    )
+    assert not result.is_solution
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("headed,solved", [(False, True), (True, False)])
+def test_constraint_probes_extend_complete_program_and_stop(monkeypatch, headed, solved):
+    task = inductive_task(
+        ["{a;b}."], [example(("", "a,b"), True)],
+        [example(("a", ""), False), example(("b", ""), False)], [], [],
+        max_program_clauses=2,
+    )
+    space = make_clause_space([":- a.", ":- b.", *(["c."] if headed else [])])
+    monkeypatch.setattr(incremental_search, "create_population", lambda config:
+                        lambda context: [context.hypotheses.encode((":- a.",))])
+    monkeypatch.setattr(incremental_search, "create_crossover", lambda config: lambda *args: None)
+    args = _incremental_arguments(epoch_generations=50)
+    args.population = {"name": "random", "size": 1}
+    args.incremental["elite_count"] = 1
+    result = incremental_clause_genetic_search(args, task, space)
+    assert result.is_solution is solved
+    if solved:
+        assert set(result.hypothesis) == {":- a.", ":- b."}

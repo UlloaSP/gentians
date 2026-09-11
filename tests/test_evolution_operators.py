@@ -98,6 +98,22 @@ def test_all_mutations_share_genome_contract():
     assert set(_render(context, result.genome)) <= set(context.hypotheses.space.clauses)
 
 
+def test_forced_mutation_bypasses_probability_gate():
+    first = "target(X) :- parent(X)."
+    second = "target(X) :- parent(Y)."
+    context = _context([first, second], max_clauses=1)
+    genome = _encode(context, first)
+
+    proposal = create_mutation({"name": "random_group", "probability": 0.0})(
+        genome,
+        context,
+        force=True,
+    )
+
+    assert proposal.skipped is False
+    assert proposal.genome != genome
+
+
 def test_random_group_replaces_with_same_head():
     source = "target(X,Y) :- parent(X)."
     same_head = "target(A,B) :- parent(B)."
@@ -232,9 +248,10 @@ def test_disabled_operator_metrics_skip_payload_work(monkeypatch):
     )
 
 
-def test_all_crossovers_share_genome_contract():
+@pytest.mark.parametrize("name", ["set_mix", "component_mix"])
+def test_all_crossovers_share_genome_contract(name):
     context = _context(["a.", "b.", "c."])
-    child = create_crossover({"name": "set_mix", "probability": 1.0})(
+    child = create_crossover({"name": name, "probability": 1.0})(
         _encode(context, "a.", "b."), _encode(context, "b.", "c."), context
     )
     assert isinstance(child, int)
@@ -278,13 +295,14 @@ def test_tournament_has_one_canonical_strategy_name():
         raise AssertionError("legacy tournament alias was accepted")
 
 
-@pytest.mark.parametrize("selection", [TournamentSelection(0.3, 1.0), LexicaseSelection()])
 @pytest.mark.parametrize("count", [0, 1, 2, 5])
-def test_selection_returns_requested_count_with_repetition(selection, count):
+def test_tournament_selection_returns_requested_count_with_repetition(count):
     individual = Individual(1, 1.0, False)
     population = [individual]
 
-    assert selection(population, count, random.Random(1)) == [individual] * count
+    assert TournamentSelection(0.3, 1.0)(
+        population, count, random.Random(1)
+    ) == [individual] * count
     assert population == [individual]
 
 
@@ -318,7 +336,7 @@ def test_lexicase_filters_by_individual_positive_examples():
     )
 
     assert first is first_case_specialist
-    assert second is first_case_specialist
+    assert second is second_case_specialist
 
 
 def test_lexicase_treats_uncovered_negative_examples_as_success():
@@ -327,7 +345,14 @@ def test_lexicase_treats_uncovered_negative_examples_as_success():
 
     parents = LexicaseSelection()([unsafe, safe], 2, random.Random(1))
 
-    assert parents == [safe, safe]
+    assert parents == [safe, unsafe]
+
+
+def test_lexicase_rejects_more_parents_than_distinct_individuals():
+    individual = Individual(1, 1.0, False)
+
+    with pytest.raises(ValueError, match="distinct individuals"):
+        LexicaseSelection()([individual, individual], 2, random.Random(1))
 
 
 def test_lexicase_factory_creates_strategy():
@@ -655,14 +680,17 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     generations = []
     args = Arguments(
         random_seed=3,
-        population={"name": "random", "size": 1},
+        population={"name": "random", "size": 2},
         crossover={"name": "set_mix", "probability": 1.0},
         mutation={"name": "random_group", "probability": 0.0},
     )
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
+        lambda config: lambda context: [
+            context.hypotheses.encode(("start.",)),
+            context.hypotheses.encode(("other.",)),
+        ],
     )
     monkeypatch.setattr(
         search,
@@ -696,13 +724,13 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     result = steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        make_clause_space(["start.", "win."]),
+        make_clause_space(["start.", "other.", "win."]),
     )
 
     assert result.hypothesis == ("win.",)
     assert result.score == 1.0
     assert result.is_solution is True
-    assert generations == [(0, 0.0, [0.0]), (1, 1.0, [1.0])]
+    assert generations == [(0, 0.0, [0.0, 0.0]), (1, 1.0, [1.0, 0.0])]
 
 
 def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
@@ -712,19 +740,27 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
         random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 1},
+        selection={
+            "name": "tournament",
+            "tournament_percentage": 1.0,
+            "prob_selecting_fittest": 1.0,
+        },
         crossover={"name": "set_mix", "probability": 0.0},
         mutation={"name": "random_group", "probability": 1.0},
     )
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
+        lambda config: lambda context: [
+            context.hypotheses.encode(("start.",)),
+            context.hypotheses.encode(("other.",)),
+        ],
     )
     monkeypatch.setattr(
         search,
         "create_mutation",
         lambda config: (
-            lambda genome, context: (
+            lambda genome, context, force=False: (
                 mutation_calls.append(genome) or MutationProposal(genome)
             )
         ),
@@ -745,7 +781,7 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        make_clause_space(["start."]),
+        make_clause_space(["start.", "other."]),
     )
 
     assert mutation_calls == []
@@ -779,7 +815,7 @@ def test_crossover_child_is_mutated_before_single_evaluation(monkeypatch):
         ),
     )
 
-    def destructive_mutation(genome, context):
+    def destructive_mutation(genome, context, force=False):
         mutation_calls.append(genome)
         return MutationProposal(context.hypotheses.encode(("mutated.",)))
 
@@ -827,33 +863,33 @@ def test_crossover_child_is_mutated_before_single_evaluation(monkeypatch):
     assert generations == [(0, 0.0, [0.0, 0.0]), (1, 1.0, [1.0, 0.0])]
 
 
-def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch):
+@pytest.mark.parametrize("name", ["set_mix", "component_mix"])
+def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch, name):
     rows = []
     evaluated_programs = []
+    mutation_calls = []
     monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")
     args = Arguments(
         random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 2},
+        crossover={"name": name, "probability": 1.0},
     )
     monkeypatch.setattr(
         search,
         "create_population",
-        lambda config: lambda context: [context.hypotheses.encode(("start.",))],
-    )
-    monkeypatch.setattr(
-        search,
-        "create_crossover",
-        lambda config: (
-            lambda first, second, context: context.hypotheses.encode(("start.",))
-        ),
+        lambda config: lambda context: [
+            context.hypotheses.encode(("start.",)),
+            context.hypotheses.encode(("other.",)),
+        ],
     )
     monkeypatch.setattr(
         search,
         "create_mutation",
         lambda config: (
-            lambda genome, context: MutationProposal(
-                context.hypotheses.encode(("mutated.",))
+            lambda genome, context, force=False: (
+                mutation_calls.append(genome)
+                or MutationProposal(context.hypotheses.encode(("mutated.",)))
             )
         ),
     )
@@ -880,16 +916,14 @@ def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch):
     steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        make_clause_space(["start.", "mutated."]),
+        make_clause_space(["start.", "other.", "mutated."]),
     )
 
-    [crossover] = [row for row in rows if row["operator"] == "crossover"]
-    [mutation] = [row for row in rows if row["operator"] == "mutation"]
-    assert crossover["duplicate"] is True
-    assert mutation["valid_new"] is True
-    assert "new_score" not in crossover
-    assert "new_score" not in mutation
-    assert evaluated_programs == [("start.",), ("mutated.",)]
+    crossovers = [row for row in rows if row["operator"] == "crossover"]
+    assert len(crossovers) == 1
+    assert all(row["duplicate"] is True for row in crossovers)
+    assert len(mutation_calls) == 1
+    assert evaluated_programs == [("start.",), ("other.",), ("mutated.",)]
 
 
 @pytest.mark.parametrize("mutation_name", ["random_group"])
@@ -902,6 +936,11 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
         random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 1},
+        selection={
+            "name": "tournament",
+            "tournament_percentage": 1.0,
+            "prob_selecting_fittest": 1.0,
+        },
         crossover={"name": "set_mix", "probability": 0.0},
         mutation={"name": mutation_name, "probability": 0.0},
     )

@@ -15,14 +15,30 @@ class LexicaseSelection:
 
         if count < 0:
             raise ValueError("Count must be non-negative")
+        # Population replacement normally keeps genomes unique. Deduplicate here
+        # as well so this operator never returns the same genome twice even when
+        # called directly with repeated entries.
+        remaining = list(
+            {individual.genome: individual for individual in population}.values()
+        )
+        if count > len(remaining):
+            raise ValueError(
+                "Cannot select more parents than distinct individuals"
+            )
 
         # The population does not change between draws, so the available
         # lexicase cases only need to be computed once.
-        cases = self._cases(population)
+        cases = self._cases(remaining)
 
-        # Each draw independently shuffles the cases and selection is performed
-        # with replacement, so the same individual may be selected more than once.
-        return [self._select_one(population, cases, rng) for _ in range(count)]
+        # Remove every winner before the next draw. Lexicase still decides each
+        # parent independently, but one mating event cannot receive the same
+        # individual twice.
+        selected = []
+        for _ in range(count):
+            winner = self._select_one(remaining, cases, rng)
+            selected.append(winner)
+            remaining.remove(winner)
+        return selected
 
     @staticmethod
     def _cases(

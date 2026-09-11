@@ -16,10 +16,11 @@ class MutationProposal:
 
 
 PopulationInitializerFn = Callable[[EvolutionContext], list[Genome]]
-# The algorithm supplies the parent count; selection allows repeated individuals.
+# The algorithm supplies the parent count. A strategy decides whether draws use
+# replacement; lexicase keeps parents distinct within one mating event.
 SelectionFn = Callable[[list[Individual], int, random.Random], list[Individual]]
 CrossoverFn = Callable[[Genome, Genome, EvolutionContext], Genome | None]
-MutationFn = Callable[[Genome, EvolutionContext], MutationProposal]
+MutationFn = Callable[[Genome, EvolutionContext, bool], MutationProposal]
 ReplacementFn = Callable[
     [list[Individual], Individual, random.Random], list[Individual]
 ]

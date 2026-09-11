@@ -400,6 +400,18 @@ def incremental_clause_genetic_search(
 
                 population.sort(key=lambda item: item.score, reverse=True)
                 best_overall = _better(best_overall, population[0])
+                if len(population) < 2:
+                    # An incremental batch can temporarily expose only one valid
+                    # hypothesis. There is no pair of distinct parents to cross;
+                    # advance the epoch so the next batch can expand the space.
+                    record_ga_generation(
+                        generation + 1,
+                        best_overall.score,
+                        population,
+                        elapsed_seconds=net_time() - started,
+                        fitness_evaluations=evaluations,
+                    )
+                    continue
                 with phase("selection"):
                     first, second = selection(population, 2, rng)
                     record_selection(
@@ -418,7 +430,11 @@ def incremental_clause_genetic_search(
                         duplicate=crossed in evaluated,
                     )
                     with phase("mutation"):
-                        proposal = mutation(crossed, context)
+                        proposal = mutation(
+                            crossed,
+                            context,
+                            crossed in evaluated,
+                        )
                     final_genome = proposal.genome
                     mutation_changed = final_genome != crossed
                     duplicate = final_genome in evaluated

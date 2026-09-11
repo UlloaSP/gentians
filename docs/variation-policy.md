@@ -2,7 +2,7 @@
 
 Steady-state and epoch-pool search use the same mutation and crossover factories.
 `RandomGroupMutation` owns mutation decisions. `evolution/variation.py` provides
-cached classification and the existing crossover policy. `HypothesisGenerator`
+cached classification and the `set_mix` crossover policy. `HypothesisGenerator`
 owns dependency closure, size limits and valid
 construction. Mutation has one registered implementation; its factory remains.
 The policy does not change the task language. Clause generation additionally
@@ -153,12 +153,191 @@ rules can also define pruning helpers rather than only generate models.
 
 ## Crossover
 
-Crossover retains its earlier policy. In a mixed space with positive examples,
+The default `set_mix` retains its earlier policy. In a mixed space with positive examples,
 90% of complete-recipient decisions first try constraint-only mixing. The other
 10% permit unrestricted mixing. Restricted mixing fixes recipient heads and
 cannot insert headed providers. If it yields no change, crossover falls back
 to ordinary mixing. This mutation update does not change those probabilities
 or impose mutation's stricter protection on crossover.
+
+### Dependency-component crossover
+
+`component_mix` uses the same crossover callable and probability gate. It preserves
+cached perfect parents but never requests an evaluation. Unlike `set_mix`, it does
+not choose a complete recipient or prefer constraint-only edits. Lexicase still
+selects both parents normally. Mutation retains its own classification policy.
+
+`ComponentMixCrossover` builds an undirected graph over the clauses
+in the union of two valid parents from the current prepared space and active pool.
+For every dependency not provided by the background, the consumer connects to all
+providers in that union. Strongly negated predicates remain distinct. Default
+negation, recursive dependencies and constraints participate through the existing
+clause metadata. Providers outside the parents never enter the graph or child.
+
+For each connected component, the child inherits its entire first-parent version,
+its entire second-parent version, or their union. The union is an additional option
+only when it differs from both parental versions. Each version is closed relative
+to the background: a required parental provider belongs to the same component as
+its consumer. Combining closed versions preserves this syntactic invariant without
+`_complete` or provider search. Shared clauses survive before the usual
+no-negative-example constraint normalization.
+
+The union allows complementary providers to meet within one component. In
+`grandparent`, one parent can contain the target rule and its `father` helper,
+while the other contains the same target rule and its `mother` helper. Choosing
+only a parental version cannot produce the three-clause solution. Their union
+can, provided the complete child fits `#maxpl`. This does not justify taking
+arbitrary subsets of a component, which could lose required providers.
+
+If a union already equals a parental version, it is not added again. Such a
+component keeps its previous choice order and RNG draws. In `5queens`, learned
+clauses are constraints whose dependencies come from the background, so each
+component has one clause. The union adds no option and leaves their sampling
+unchanged.
+
+Construction starts from a randomly chosen parent and visits components in a
+shuffled order. At each component it chooses uniformly among distinct versions
+that keep the whole candidate nonempty and within `#maxpl`, given the current
+versions of the other components. The current version is always feasible. There
+are no repair retries or backtracking. This sequential procedure is not uniform
+over all feasible offspring and need not reach every feasible combination in one
+pass. Connecting all alternative providers can also merge many clauses into one
+component, reducing recombination opportunities.
+
+The strategy can construct an offspring equal to either parent. An already
+evaluated result may still reach mutation, which can produce a new final proposal.
+Graph construction and component selection belong to the crossover phase's Python
+time. They are not recorded as dependency closure because this strategy produces
+a closed child directly.
+
+Lexicase draws without replacement inside one selection call, so its two returned
+parents are distinct. Selection, crossover and mutation run at most once per
+generation; neither a duplicate crossover nor a duplicate final proposal triggers
+selection again. A crossover already present in the evaluation cache forces its
+single mutation call past the configured probability gate. The evaluation cache
+still prevents solving or admitting a final proposal already processed.
+Steady-state and incremental clause search share these rules.
+
+These components guarantee syntactic closure only. They are not semantic ASP
+modules and do not preserve coverage, completeness, or the existence of stable
+models. Whole-program evaluation remains authoritative.
+
+### Matched steady-state experiment
+
+The arms `component-crossover/control` and `component-crossover/components`
+in `benchmarks/experiments.toml` differ only in `crossover.name`, respectively
+`set_mix` and `component_mix`. Both use steady-state search, lexicase, crossover
+probability 1.0, mutation probability 0.9, and no generation cap. Each runs
+`5queens` with seeds 1 through 10 and `grandparent` with seeds 11 through 20, a
+30-second timeout, full instrumentation and no cProfile. All other SDK settings
+match. The runner advances seeds across datasets.
+
+Run only these arms with:
+
+```powershell
+uv run python benchmarks/run_experiments.py component-crossover/control component-crossover/components
+```
+
+Both arms share lexicase without replacement and have no duplicate retries;
+only `crossover.name` differs. The initial measurement used only parental component versions. Its results do not
+measure the union option added later. Preserve those artifacts when rerunning the
+current strategy. Compare success and timeout counts, coverage, net `total_execution`,
+grounding, solving, Python and closure time, evaluations and operator duplicates.
+The timeout is an operational wall-clock bound, not the reported net execution
+time. Preserve the runner's configuration and input fingerprints and record
+Python, Clingo, hardware and code revision when publishing results. Both arms
+must run on the same revision; older control output is not a matched baseline.
+
+### Distinct-parent and forced-mutation measurement
+
+The current matched run completed on 2026-09-11 after lexicase changed to draw
+without replacement and duplicate crossover results began forcing the single
+mutation call. There are no selection or mutation retries. Both arms solved all
+ten seeds of both datasets. Times are mean net `total_execution`; calls are mean
+fitness solve calls.
+
+| Dataset | `set_mix` solutions | `component_mix` solutions | `set_mix`, s | `component_mix`, s | Delta | Solves set | Solves component | Crossover duplicates set | Crossover duplicates component |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `5queens` | 10/10 | 10/10 | 6.790 | 9.952 | +46.6% | 1,562.3 | 1,567.0 | 74.40% | 72.77% |
+| `grandparent` | 10/10 | 10/10 | 1.024 | 3.482 | +240.2% | 952.8 | 2,809.1 | 66.06% | 99.64% |
+
+The policy recovers full `grandparent` success for this ten-seed batch, but it
+does not make dependency components competitive with `set_mix`. In
+`grandparent`, component crossover still reconstructs an evaluated genome in
+almost every event and requires nearly three times as many fitness solves. In
+`5queens`, its duplicate rate is slightly lower than control while net time is
+still higher. These results reject replacing the default crossover on this
+evidence. Runtime: Python 3.14.6, Clingo 5.8.0, Windows 11, Intel64 Family 6 Model
+186. The generated artifacts live under
+`.benchmarks/experiments/component-crossover/{control,components}`.
+
+### Component union measurement
+
+A local before/after check on 2026-09-11 isolates the union option within
+`component_mix`. Both sides used steady-state search and the lexicase implementation
+then current, which selected with replacement. Mutation
+probability 0.9, crossover probability 1.0, no generation cap, full instrumentation,
+no cProfile and a 30-second wall-clock timeout. The ten runs per dataset use
+`5queens` seeds 1 through 10 and `grandparent` seeds 11 through 20. All remaining
+arguments are SDK defaults. Execution-input hashes differ only for
+`gentians/hypotheses/generator.py`.
+
+The control ran before the union change, followed by the modified strategy.
+Execution order was not interleaved, so small timing differences can reflect
+machine conditions. Ten seeds do not establish a precise success rate. Net
+`total_execution` is compared only on seeds solved by both versions; timeouts
+remain separate outcomes.
+
+Both measured versions still implemented graph construction inside
+`HypothesisGenerator` under its broad `closure` timer. The rows named Closure and
+Crossover portion of closure below therefore include crossover graph work and do
+not mean that either version repaired dependency closure. The implementation now
+lives in `ComponentMixCrossover`; future runs classify that graph work as Python
+inside the crossover phase.
+
+| Result | Parental versions only | Distinct union allowed |
+| --- | ---: | ---: |
+| `5queens` solutions | 10/10 | 10/10 |
+| `5queens` mean net time, ten shared solved seeds | 6.037 s | 6.479 s |
+| `grandparent` solutions | 8/10 | 9/10 |
+| `grandparent` mean net time, eight shared solved seeds | 3.116 s | 3.412 s |
+| `grandparent` mean generations, shared solved seeds | 14,108.75 | 17,365.25 |
+| `grandparent` mean evaluations, shared solved seeds | 2,950.625 | 2,812.75 |
+
+The union recovered `grandparent` seed 16, which previously timed out. Seed 13
+still timed out. On the eight seeds solved by both versions, net time increased
+9.5% and generations increased 23.1%, despite 4.7% fewer evaluations. Crossover
+duplicates still exceeded 99.7% among each version's completed successful runs.
+This change fixes a missing recombination, but these measurements do not show a
+general speedup or resolve the earlier search-performance regression.
+
+| Mean time on shared solved seeds | `5queens` before | `5queens` after | `grandparent` before | `grandparent` after |
+| --- | ---: | ---: | ---: | ---: |
+| Grounding | 2.508 s | 2.604 s | 1.020 s | 1.018 s |
+| Solving | 0.563 s | 0.774 s | 0.131 s | 0.142 s |
+| Python excluding closure | 2.794 s | 2.919 s | 1.483 s | 1.645 s |
+| Closure | 0.172 s | 0.183 s | 0.482 s | 0.607 s |
+| Crossover portion of closure | 0.088 s | 0.095 s | 0.192 s | 0.249 s |
+| Mutation portion of closure | 0.083 s | 0.088 s | 0.288 s | 0.355 s |
+
+All ten `5queens` runs retained exactly the same recorded GA trajectory after
+excluding elapsed time. They used the same generations, evaluations, scores and
+population statistics. The observed 7.3% increase in execution time is not a search
+change. This sequential measurement does not isolate execution overhead from
+environmental timing variation. No timing equivalence or speedup is claimed.
+The strategy remains optional; `set_mix` remains the SDK default.
+
+The local artifacts are retained under
+`.benchmarks/experiments/component-crossover/union-check/`. `protocol.json` records
+the resolved settings and both `profile_baseline.py` command arrays. The directory
+also retains both generator snapshots, input hashes, raw runs, and `analyze.py`,
+which produces `summary.json`. The earlier 30-run crossover comparison remains
+untouched. Reproducing the old control requires its saved generator in an isolated
+checkout; the current `component_mix` includes unions.
+
+Environment: Windows 11 build 26200, Intel Core i7-13700H, Python 3.14.6,
+Clingo 5.8.0, dirty worktree based on
+`f11ea43c62c7d9523e0475d28254c10d6b5c92fb`.
 
 ## Evaluation and cost
 
@@ -223,8 +402,9 @@ receive whole-program evaluation. Without an evaluator or cached result, the
 standalone operator cannot infer completeness and uses unclassified block edits.
 The former completeness and constraint-policy ablation switches were removed.
 
-Crossover retains its mixed-space classification fast path. Cached solutions
-remain protected in either operator. No per-clause semantic evaluations, witness
+`set_mix` retains its mixed-space classification fast path. `component_mix`
+only reads cached parent results. Cached solutions remain protected in both
+crossovers and in mutation. No per-clause semantic evaluations, witness
 tracing or fixed clause fitness are introduced.
 
 Candidate alternatives remain lazily sampled. No constraint-body cache,

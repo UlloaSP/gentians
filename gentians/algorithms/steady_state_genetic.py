@@ -172,7 +172,11 @@ def steady_state_genetic_search(
                 duplicate=crossed in evaluated,
             )
             with phase("mutation"):
-                proposal = mutation(crossed, context)
+                proposal = mutation(
+                    crossed,
+                    context,
+                    crossed in evaluated,
+                )
             final_genome = proposal.genome
             mutation_changed = final_genome != crossed
             duplicate = final_genome in evaluated

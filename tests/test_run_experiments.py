@@ -6,6 +6,7 @@ from subprocess import CompletedProcess
 
 import pytest
 from benchmarks import run_experiments as runner
+from benchmarks.catalog import arguments_for, arguments_json
 
 from benchmarks.run_experiments import (
     experiment_command,
@@ -16,6 +17,32 @@ from benchmarks.run_experiments import (
     write_index,
     write_manifest,
 )
+
+
+def test_component_crossover_experiment_changes_only_crossover_strategy():
+    _, experiments = load_config(runner.DEFAULT_CONFIG)
+    arms = [row for row in experiments if row["id"].startswith("component-crossover/")]
+    assert [row["id"] for row in arms] == [
+        "component-crossover/control", "component-crossover/components",
+    ]
+    control, components = arms
+    for key in ("datasets", "runs", "seed_base", "timeout_seconds", "cprofile", "instrumentation", "python"):
+        assert control[key] == components[key]
+    resolved = []
+    for arm, name in zip(arms, ("set_mix", "component_mix"), strict=True):
+        overrides = [f"{key}={json.dumps(value)}" for key, value in arm["overrides"].items()]
+        configurations = []
+        for dataset in arm["datasets"]:
+            args = arguments_for(dataset, overrides)
+            assert args.algorithm == "steady_state"
+            assert args.iterations_genetic == 0
+            assert args.selection["name"] == "lexicase"
+            assert args.mutation["probability"] == 0.9
+            assert args.crossover == {"name": name, "probability": 1.0}
+            args.crossover.pop("name")
+            configurations.append(arguments_json(args))
+        resolved.append(configurations)
+    assert resolved[0] == resolved[1]
 
 
 def test_instrumentation_is_inherited_forwarded_and_fingerprinted(tmp_path):

@@ -1,4 +1,4 @@
-# Current SDK defaults. Only the algorithm differs between arms.
+# SDK baseline and matched mutation-probability experiments.
 [suite]
 output_root = ".benchmarks/experiments"
 datasets = ["5queens", "grandparent"]
@@ -19,3 +19,89 @@ id = "sdk-defaults/incremental"
 description = "Incremental with current SDK defaults."
 [experiment.overrides]
 algorithm = "incremental"
+
+# Thirty matched seeds per task. Within each algorithm only mutation probability changes.
+[[experiment]]
+id = "mutation-rate/steady-control"
+description = "Steady-state control with mutation probability 0.9."
+runs = 30
+[experiment.overrides]
+algorithm = "steady_state"
+"mutation.probability" = 0.9
+
+[[experiment]]
+id = "mutation-rate/steady-050"
+description = "Steady-state with mutation probability 0.5."
+runs = 30
+[experiment.overrides]
+algorithm = "steady_state"
+"mutation.probability" = 0.5
+
+[[experiment]]
+id = "mutation-rate/steady-010"
+description = "Steady-state with mutation probability 0.1."
+runs = 30
+[experiment.overrides]
+algorithm = "steady_state"
+"mutation.probability" = 0.1
+
+[[experiment]]
+id = "mutation-rate/incremental-control"
+description = "Incremental control with mutation probability 0.9."
+runs = 30
+[experiment.overrides]
+algorithm = "incremental"
+"mutation.probability" = 0.9
+
+[[experiment]]
+id = "mutation-rate/incremental-050"
+description = "Incremental with mutation probability 0.5."
+runs = 30
+[experiment.overrides]
+algorithm = "incremental"
+"mutation.probability" = 0.5
+
+[[experiment]]
+id = "mutation-rate/incremental-010"
+description = "Incremental with mutation probability 0.1."
+runs = 30
+[experiment.overrides]
+algorithm = "incremental"
+"mutation.probability" = 0.1
+
+# Matched steady-state arms: only crossover.name differs.
+[[experiment]]
+id = "component-crossover/control"
+description = "Steady-state with set_mix and mutation probability 0.9."
+datasets = ["5queens", "grandparent"]
+runs = 10
+seed_base = 1
+timeout_seconds = 30
+cprofile = false
+instrumentation = "full"
+[experiment.overrides]
+algorithm = "steady_state"
+iterations_genetic = 0
+"population.size" = 10
+"selection.name" = "lexicase"
+"mutation.probability" = 0.9
+"crossover.name" = "set_mix"
+"crossover.probability" = 1.0
+
+[[experiment]]
+id = "component-crossover/components"
+description = "Steady-state with component_mix and mutation probability 0.9."
+datasets = ["5queens", "grandparent"]
+runs = 10
+seed_base = 1
+timeout_seconds = 30
+cprofile = false
+instrumentation = "full"
+[experiment.overrides]
+algorithm = "steady_state"
+iterations_genetic = 0
+"population.size" = 10
+"selection.name" = "lexicase"
+"mutation.probability" = 0.9
+"crossover.name" = "component_mix"
+"crossover.probability" = 1.0

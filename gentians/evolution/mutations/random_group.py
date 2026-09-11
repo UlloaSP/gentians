@@ -23,8 +23,15 @@ class RandomGroupMutation:
         self.random_jump_probability = random_jump_probability
         self.complete_generator_removal_probability = complete_generator_removal_probability
 
-    def __call__(self, genome: Genome, context: EvolutionContext) -> MutationProposal:
-        if context.rng.random() >= self.probability:
+    def __call__(
+        self,
+        genome: Genome,
+        context: EvolutionContext,
+        force: bool = False,
+    ) -> MutationProposal:
+        # A duplicate crossover contains no new genetic material. The search
+        # forces mutation in that case; otherwise the configured gate applies.
+        if not force and context.rng.random() >= self.probability:
             return MutationProposal(genome, skipped=True)
         h = context.hypotheses
         headed = h.available_clauses & ~h.constraint_clauses

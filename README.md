@@ -155,10 +155,20 @@ Mutation classifies its actual input through the cached evaluator when positives
 exist, including crossover offspring and homogeneous spaces. Known solutions
 remain unchanged. Classification evaluations count toward search cost.
 Consistency alone does not freeze headed clauses; tasks without positives do not
-freeze them either. Crossover retains its existing preference for complete
+freeze them either. The default `set_mix` crossover retains its preference for complete
 recipient heads, including its 10% unrestricted escape and fallback.
 The separate `completeness` and `structural_neighbor` mutation names have been
-removed. Use `set_mix` for crossover and `random_group` for mutation.
+removed. Mutation uses `random_group`.
+Set `crossover={"name": "component_mix", "probability": 1.0}` to recombine
+whole parental versions of dependency components or their distinct union when
+it fits `#maxpl`. This strategy preserves
+syntactic closure without repair or internal evaluation and keeps common clauses
+subject to the existing constraint normalization. Lexicase selects distinct
+parents within each mating event. An already evaluated crossover result may still
+serve as the base for mutation, and in that case mutation bypasses its probability
+gate. Selection and variation still run once per generation.
+It does not certify coverage or preserve complete recipient heads. `set_mix` remains the default; a
+matched steady-state experiment is prepared in `benchmarks/experiments.toml`.
 See [variation policy](docs/variation-policy.md) for guarantees and exceptions.
 
 Historical pool experiments and their measurements remain documented in

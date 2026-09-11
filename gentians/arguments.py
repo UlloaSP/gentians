@@ -45,7 +45,7 @@ class Arguments:
     # Crossover operator config.
     crossover: dict[str, object] = field(
         default_factory=lambda: {
-            # Crossover implementation.
+            # set_mix or component_mix.
             "name": "set_mix",
             # Probability of applying crossover to selected parents.
             "probability": 1.0,

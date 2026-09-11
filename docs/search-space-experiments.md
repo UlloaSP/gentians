@@ -1,13 +1,13 @@
 # Search-space experiment status
 
-The executable matrix contains SDK-default, mutation-probability and
-dependency-component crossover comparisons, with 30-second timeouts.
+The executable matrix contains SDK-default and mutation-probability comparisons,
+with 30-second timeouts.
 The [current comparison](sdk-defaults-comparison.md) records the new measurements.
 Older measurements remain historical evidence, not selectable implementations.
 
 | Area | Current status | Historical report |
 | --- | --- | --- |
-| Dependency-component crossover | Optional `component_mix` can inherit parental versions or their distinct union within `#maxpl`. `set_mix` remains the default. | [Policy and union measurement](variation-policy.md#component-union-measurement) |
+| Dependency-subgraph crossover | Rejected and removed. It increased time and evaluations without improving success over `set_mix`. | [Rejected crossover](variation-policy.md#rejected-dependency-subgraph-crossover) |
 | Pool sampling and persistent evaluation | Removed. Only steady-state and incremental remain. | [Incremental history](incremental-experiment.md) |
 | Incremental retention | Bounded raw-clause archive retained; complete small spaces remain available. | [Retention and cache experiments](incremental-experiment.md) |
 | Exact-program cache across batches | Rejected and removed. Normal search memoization remains. | [Cache results](incremental-experiment.md#rejected-exact-program-cache-9-september-2026) |

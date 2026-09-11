@@ -159,12 +159,7 @@ freeze them either. The default `set_mix` crossover retains its preference for c
 recipient heads, including its 10% unrestricted escape and fallback.
 The separate `completeness` and `structural_neighbor` mutation names have been
 removed. Mutation uses `random_group`.
-Set `crossover={"name": "component_mix", "probability": 1.0}` to recombine
-whole parental versions of dependency components or their distinct union when
-it fits `#maxpl`. This strategy preserves
-syntactic closure without repair or internal evaluation and keeps common clauses
-subject to the existing constraint normalization. Lexicase selects distinct
-parents within each mating event. An already evaluated crossover result may still
+Lexicase selects distinct parents within each mating event. An already evaluated crossover result may still
 serve as the base for mutation, and in that case mutation bypasses its probability
 gate. Selection and variation still run once per generation.
 It does not certify coverage or preserve complete recipient heads. `set_mix` remains the default; a

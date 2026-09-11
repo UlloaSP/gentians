@@ -1,13 +1,12 @@
 from typing import Any
 
 from ..operator_types import CrossoverFn
-from .component_mix import ComponentMixCrossover
 from .set_mix import SetMixCrossover
 
 
 def create_crossover(config: dict[str, Any]) -> CrossoverFn:
     name = str(config["name"])
-    strategies = {"set_mix": SetMixCrossover, "component_mix": ComponentMixCrossover}
+    strategies = {"set_mix": SetMixCrossover}
     try:
         strategy = strategies[name]
     except KeyError:

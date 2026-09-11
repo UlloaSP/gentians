@@ -34,7 +34,7 @@ def test_duplicate_crossover_base_is_mutated_without_reselection(monkeypatch):
         random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 2},
-        crossover={"name": "component_mix", "probability": 1.0},
+        crossover={"name": "set_mix", "probability": 1.0},
     )
 
     monkeypatch.setattr(

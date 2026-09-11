@@ -66,6 +66,11 @@ def test_operator_factories_reject_invalid_configuration(factory, config):
         factory(config)
 
 
+def test_removed_component_crossover_is_rejected():
+    with pytest.raises(ValueError, match="Unknown crossover strategy"):
+        create_crossover({"name": "component_mix", "probability": 1.0})
+
+
 def test_crossover_is_enabled_by_default():
     assert Arguments().crossover["probability"] == 1.0
 
@@ -248,10 +253,9 @@ def test_disabled_operator_metrics_skip_payload_work(monkeypatch):
     )
 
 
-@pytest.mark.parametrize("name", ["set_mix", "component_mix"])
-def test_all_crossovers_share_genome_contract(name):
+def test_crossover_uses_genome_contract():
     context = _context(["a.", "b.", "c."])
-    child = create_crossover({"name": name, "probability": 1.0})(
+    child = create_crossover({"name": "set_mix", "probability": 1.0})(
         _encode(context, "a.", "b."), _encode(context, "b.", "c."), context
     )
     assert isinstance(child, int)
@@ -863,8 +867,7 @@ def test_crossover_child_is_mutated_before_single_evaluation(monkeypatch):
     assert generations == [(0, 0.0, [0.0, 0.0]), (1, 1.0, [1.0, 0.0])]
 
 
-@pytest.mark.parametrize("name", ["set_mix", "component_mix"])
-def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch, name):
+def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch):
     rows = []
     evaluated_programs = []
     mutation_calls = []
@@ -873,7 +876,7 @@ def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch, name):
         random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 2},
-        crossover={"name": name, "probability": 1.0},
+        crossover={"name": "set_mix", "probability": 1.0},
     )
     monkeypatch.setattr(
         search,

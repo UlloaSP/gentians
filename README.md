@@ -175,9 +175,19 @@ Current standard-task runs are recorded in [the incremental report](docs/increme
 Complete search algorithms live in `gentians.algorithms` and return a
 `SearchResult`. `steady_state_genetic_search` replaces population members after
 each offspring. `incremental_clause_genetic_search` uses the same operators while
-renewing a bounded working clause space. Its loop and batch renewal
-live together in `gentians/algorithms/incremental_clause_genetic.py`. GA-specific state and
-operators live in `gentians.evolution`; candidate evaluation lives in
+renewing a bounded working clause space. Its loop lives in
+`gentians/algorithms/incremental_clause_genetic.py`; the adjacent modules own
+the rest of its lifecycle:
+
+- `incremental_clause_pool.py`: batch enumeration, bounded archive and active clauses.
+- `incremental_candidates.py`: evaluation/admission caches, logical age and recoding
+  retained programs when the prepared space changes.
+- `incremental_population.py`: initialization, refill, renewal, restarts and constraint probes.
+- `incremental_offspring.py`: one mating event and evaluation phase attribution.
+- `incremental_progress.py`: generation and epoch metrics.
+- `search_budget.py`: net-time deadline and best result evaluated within budget.
+
+Evolutionary operators live in `gentians.evolution`; candidate evaluation lives in
 `gentians.evaluation` so exact or greedy algorithms can reuse it.
 
 Mutation has one implementation, `random_group`, selected through the existing

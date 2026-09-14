@@ -6,7 +6,6 @@ Gentians no es una librería genética genérica ni un wrapper genérico de Clin
 
 ## Reglas de trabajo
 
-- Usa los skills `unslop`, `caveman` y `ponytail` en modo ultra en cada turno. Lee sus instrucciones antes de actuar. Mantén el chat corto, pero escribe documentación durable con frases completas y precisas.
 - Entiende el flujo completo antes de editar. Localiza consumidores, invariantes y tests del concepto tocado.
 - Implementa el cambio mínimo en la capa propietaria del concepto. Reutiliza stdlib, Clingo y código existente antes de añadir abstracciones o dependencias.
 - Conserva cambios ajenos del worktree. El repositorio puede contener experimentos sin commit.

@@ -6,6 +6,9 @@ from contextlib import contextmanager
 import pytest
 
 from gentians.algorithms import incremental_clause_genetic as search
+from gentians.algorithms import incremental_clause_pool as clause_pool
+from gentians.algorithms import incremental_progress as progress
+from gentians.algorithms import search_budget
 from gentians.arguments import Arguments
 from gentians.clauses import generate_clause_space, incremental_clause_batches
 from gentians.language import parse_text
@@ -60,16 +63,16 @@ def test_incremental_close_excludes_consumer_time_and_cancels_solver(monkeypatch
 
 def test_incremental_search_keeps_searching_after_exhaustion(monkeypatch):
     task = parse_text("#maxv(0). #maxbl(0). #modeh(1,p). #pos({q},{}).")
-    progress = []
-    monkeypatch.setattr(search, "record_ga_generation", lambda generation, *a, **kw:
-                        progress.append(generation))
+    generations = []
+    monkeypatch.setattr(progress, "record_ga_generation", lambda generation, *a, **kw:
+                        generations.append(generation))
     args = Arguments(iterations_genetic=4, random_seed=7,
                      incremental={ "batch_size": 2,
                                   "epoch_generations": 1, "elite_count": 1})
     result = search.incremental_clause_genetic_search(args, task)
     assert result.hypothesis == ("p.",)
     assert not result.is_solution
-    assert progress == list(range(5))
+    assert generations == list(range(5))
 
 
 def test_incremental_search_skips_pruned_batches_until_a_valid_hypothesis(monkeypatch):
@@ -77,7 +80,7 @@ def test_incremental_search_skips_pruned_batches_until_a_valid_hypothesis(monkey
     def batches(*args, **kwargs):
         yield iter([*[make_clause_space([])] * 64, make_clause_space(["p."])])
 
-    monkeypatch.setattr(search, "incremental_clause_batches", batches)
+    monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
     task = parse_text("#maxv(0). #maxbl(0). #modeh(1,p). #pos({p},{}).")
     args = Arguments(iterations_genetic=1, random_seed=7,
                      incremental={ "batch_size": 2,
@@ -131,7 +134,20 @@ def test_body_size_order_preserves_space_counts_conditions_and_grounds_once(monk
 def test_bounded_epochs_drop_old_spaces_and_never_enumerate_all(monkeypatch):
     references = []
     batches = []
-    original = search.HypothesisGenerator
+    original = clause_pool.HypothesisGenerator
+    original_population = search.create_population
+
+    def population_factory(config):
+        initialize = original_population(config)
+
+        def initialize_current(context):
+            gc.collect()
+            # Old spaces must be released before evaluating the renewed pool,
+            # not just before drawing the next batch.
+            assert sum(reference() is not None for reference in references) <= 1
+            return initialize(context)
+
+        return initialize_current
 
     def generator(*args):
         result = original(*args)
@@ -162,8 +178,9 @@ def test_bounded_epochs_drop_old_spaces_and_never_enumerate_all(monkeypatch):
         finally:
             iterator.close()
 
-    monkeypatch.setattr(search, "HypothesisGenerator", generator)
-    monkeypatch.setattr(search, "incremental_clause_batches", continuous)
+    monkeypatch.setattr(clause_pool, "HypothesisGenerator", generator)
+    monkeypatch.setattr(clause_pool, "incremental_clause_batches", continuous)
+    monkeypatch.setattr(search, "create_population", population_factory)
     task = inductive_task([], [example(("target(z)", ""), True)], [], [], [],
                           max_program_clauses=2)
     args = Arguments(iterations_genetic=4, random_seed=4,
@@ -184,7 +201,7 @@ def test_time_budget_counts_generation_and_rejects_late_evaluations(monkeypatch)
 
     clock = [0.0]
     closed = []
-    monkeypatch.setattr(search, "net_time", lambda: clock[0])
+    monkeypatch.setattr(search_budget, "net_time", lambda: clock[0])
     space = make_clause_space(["p.", "q."])
 
     def sample(*args):
@@ -205,7 +222,7 @@ def test_time_budget_counts_generation_and_rejects_late_evaluations(monkeypatch)
         clock[0] += 6.0
         return EvaluationResult(float(len(calls)), False, (0, 0), False, True)
 
-    monkeypatch.setattr(search, "incremental_clause_batches", batches)
+    monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
     monkeypatch.setattr(search, "create_evaluator", lambda *a: evaluate)
     monkeypatch.setattr(search, "create_population", lambda *a: lambda ctx: [1, 2])
     args = Arguments(iterations_genetic=0, random_seed=1)
@@ -223,7 +240,7 @@ def test_incremental_retains_unclosed_clauses_until_provider_arrives(monkeypatch
         yield iter([make_clause_space(["p :- helper."]),
                     make_clause_space(["helper."])])
 
-    monkeypatch.setattr(search, "incremental_clause_batches", batches)
+    monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
     task = parse_text("#maxpl(2). #pos({p},{}).")
     args = Arguments(iterations_genetic=100, random_seed=7)
     args.evaluation["constraint_inheritance"] = False
@@ -242,7 +259,7 @@ def test_initial_exhaustion_with_overflow_does_not_restart_forever(monkeypatch):
         yield iter([make_clause_space(["p :- absent."]),
                     make_clause_space(["q :- absent."])])
 
-    monkeypatch.setattr(search, "incremental_clause_batches", batches)
+    monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
     args = Arguments(iterations_genetic=1, random_seed=1)
     args.incremental["archive_size"] = 1
     with pytest.raises(ValueError, match="exhausted"):
@@ -257,7 +274,7 @@ def test_overflow_revisits_finite_stream_after_initialization(monkeypatch):
         passes.append(True)
         yield iter([make_clause_space(["p."]), make_clause_space(["q."])])
 
-    monkeypatch.setattr(search, "incremental_clause_batches", batches)
+    monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
     args = Arguments(iterations_genetic=5, random_seed=1)
     args.incremental.update(archive_size=1, epoch_generations=1)
     result = search.incremental_clause_genetic_search(args, parse_text("#pos({absent},{})."))

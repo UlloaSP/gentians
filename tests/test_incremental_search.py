@@ -1,10 +1,10 @@
 import random
+from contextlib import contextmanager
 
 
-from gentians.algorithms.incremental_clause_genetic import (
-    _activate_clauses,
-    retain_population,
-)
+from gentians.algorithms.incremental_clause_pool import activate_clauses
+from gentians.algorithms.incremental_population import retain_population
+from gentians.algorithms import incremental_clause_pool as clause_pool
 from gentians.evolution.individual import Individual
 from gentians.hypotheses import HypothesisGenerator
 
@@ -16,6 +16,7 @@ from gentians.algorithms.result import SearchResult
 from gentians.arguments import Arguments
 from gentians.algorithms.incremental_clause_genetic import incremental_clause_genetic_search
 from gentians.evaluation.evaluator import CandidateEvaluator
+from gentians.evaluation.result import EvaluationResult
 from tests.task_helpers import example, inductive_task, make_clause_space
 
 
@@ -136,6 +137,46 @@ def test_retention_preserves_champion_and_exact_size():
     assert len({item.genome for item in retained}) == 2
 
 
+def test_batch_renewal_evaluates_new_bit_collision_and_reuses_retained_result(monkeypatch):
+    @contextmanager
+    def batches(*args):
+        yield iter([make_clause_space(["m.", "z."]), make_clause_space(["a."])])
+
+    contexts = []
+
+    def populate(context):
+        contexts.append(context)
+        if len(contexts) == 1:
+            return [context.hypotheses.encode((clause,)) for clause in ("m.", "z.")]
+        retained = context.hypotheses.encode(("m.",))
+        assert context.evaluate(retained).score == 0.4
+        return [context.hypotheses.encode(("a.",))]
+
+    evaluated = []
+
+    def evaluate(program):
+        text = tuple(map(str, program))
+        evaluated.append(text)
+        return EvaluationResult({("m.",): 0.4, ("z.",): 0.2, ("a.",): 0.8}[text],
+                                False, (0, 0), False, True)
+
+    monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
+    monkeypatch.setattr(incremental_search, "create_population", lambda config: populate)
+    monkeypatch.setattr(incremental_search, "create_evaluator", lambda *args: evaluate)
+    monkeypatch.setattr(incremental_search, "create_crossover", lambda config: lambda *args: None)
+    args = _incremental_arguments(epoch_generations=1, elite_count=1)
+    args.population["size"] = 2
+    args.iterations_genetic = 2
+
+    result = incremental_clause_genetic_search(args, inductive_task([], [], [], [], []))
+
+    assert result.hypothesis == ("a.",)
+    assert result.score == 0.8
+    assert evaluated == [("m.",), ("z.",), ("a.",)]
+    assert len(contexts) == 2
+    assert contexts[0].hypotheses.encode(("m.",)) == contexts[1].hypotheses.encode(("a.",))
+
+
 
 
 
@@ -147,7 +188,7 @@ def test_active_space_preserves_seeds_and_closes_sampled_candidates():
     )
     hypotheses = HypothesisGenerator(task, space, max_clauses=3)
     seed = hypotheses.encode(("p(X) :- seed(X).", "q(X) :- p(X)."))
-    pool = _activate_clauses(hypotheses, [seed], 3, random.Random(4))
+    pool = activate_clauses(hypotheses, [seed], 3, random.Random(4))
     assert pool & seed == seed
     assert pool == hypotheses.available_clauses
     assert pool.bit_count() >= 3

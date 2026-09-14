@@ -135,9 +135,9 @@ aggregate_key_input_missing(Slot,Pred,Key):-
     Right != Weight,
     Left > Right.
 
-% Constraint: in unbalanced aggregates, a non-weight tuple discriminator that
-% is determined by condition predicate key args is redundant. The shorter
-% aggregate mode represents the same count/sum elements.
+% Constraint: in projected aggregates, a non-weight tuple discriminator that
+% is determined by condition predicate key args is redundant. A declared
+% shorter aggregate template represents the same count/sum elements.
 :- selected(body,Slot,Mode),
     aggregate_has_shorter_mode(Mode),
     aggregate_mode(Mode,TupleArity,_),

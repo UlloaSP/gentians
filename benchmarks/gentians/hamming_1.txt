@@ -82,5 +82,5 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 #neg({v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(0,1), v1(0,2)}, {}).
 
 #modeb(1,hd(var(numeric,output))).
-#modeagg(1,sum(d/2),balanced).
-#modearith(1,neq).
+#modeb(1,#sum{var(numeric,any,value),var(index,any,position):d(var(index,any,position),var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(1,var(numeric)!=var(numeric)).

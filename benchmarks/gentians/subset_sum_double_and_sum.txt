@@ -24,5 +24,5 @@
 
 #modeh(1,ok(var(numeric,output))).
 
-#modeagg(2,sum(el/2),balanced).
-#modearith(1,add).
+#modeb(2,#sum{var(numeric,any),var(numeric,any):el(var(numeric,any),var(numeric,any))}=var(numeric,output)).
+#modeb(1,var(numeric)+var(numeric)=var(numeric)).

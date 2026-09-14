@@ -2,14 +2,11 @@ from pathlib import Path
 
 from .asp import parse_program
 from .declarations import (
-    _get_aggregate_declaration,
-    _get_arithmetic_declaration,
     _get_constant_declaration,
     _get_invented_declaration,
     _get_pos_neg_examples,
 )
 from .directives import _get_limit
-from .ir.aggregate_declaration import AggregateDeclaration
 from .ir.atom_literal import AtomLiteral
 from .ir.atom_template import AtomTemplate
 from .ir.conditional_literal import ConditionalLiteral
@@ -17,7 +14,6 @@ from .ir.example import Example
 from .ir.head_declaration import HeadDeclaration
 from .ir.head_template import HeadTemplate
 from .ir.mode_declaration import ModeDeclaration
-from .ir.operator_declaration import OperatorDeclaration
 from .ir.inductive_task import InductiveTask
 from .ir.term_template import TermTemplate
 from .lexer import Statement, lex
@@ -44,8 +40,6 @@ def parse_text(source: str) -> InductiveTask:
     lbhd: list[ModeDeclaration] = []
     lbb: list[ModeDeclaration] = []
     lbc: list[ModeDeclaration] = []
-    aggregates: list[AggregateDeclaration] = []
-    arithmetic: list[OperatorDeclaration | ModeDeclaration] = []
     inventions: list[tuple[int, str, tuple[TermTemplate, ...]]] = []
     constants: dict[str, list[str]] = {}
     limits: dict[str, int | None] = {
@@ -78,7 +72,9 @@ def parse_text(source: str) -> InductiveTask:
                 limits[limit] = value
         elif directive in {"#bias", "#metarule", "#predicate", "#modem"}:
             # Retired task directives must fail explicitly, never become BK.
-            raise ValueError(f"line {statement.line}: {directive} is no longer supported")
+            raise ValueError(
+                f"line {statement.line}: {directive} is no longer supported"
+            )
         elif directive == "#modeha":
             md = _get_aggregate_head_declaration(lc)
             if md not in lbha:
@@ -106,19 +102,15 @@ def parse_text(source: str) -> InductiveTask:
             if ex not in ne:
                 ne.append(ex)
         elif directive == "#modeagg":
-            aggregate = _get_aggregate_declaration(lc)
-            if aggregate not in aggregates:
-                aggregates.append(aggregate)
+            raise ValueError("#modeagg was removed; use an explicit #modeb aggregate")
         elif directive == "#modecmp":
-            raise ValueError("#modecmp was removed; use #modearith")
+            raise ValueError("#modecmp was removed; use #modeb")
         elif directive == "#modec":
             md = _get_condition_mode_declaration(lc)
             if md not in lbc:
                 lbc.append(md)
         elif directive == "#modearith":
-            operator = _get_arithmetic_declaration(lc)
-            if operator not in arithmetic:
-                arithmetic.append(operator)
+            raise ValueError("#modearith was removed; use an explicit #modeb relation")
         elif directive == "#invent":
             invention = _get_invented_declaration(lc)
             if any(existing[1:] == invention[1:] for existing in inventions):
@@ -177,11 +169,6 @@ def parse_text(source: str) -> InductiveTask:
             ),
             *(mode.literal.arguments for mode in (*lbha, *lbhd, *lbc)),
             *(mode.literal.arguments for mode in lbb),
-            *(
-                mode.literal.arguments
-                for mode in arithmetic
-                if isinstance(mode, ModeDeclaration)
-            ),
         ]
         for argument in terms
         for type_name in argument.constant_types()
@@ -204,8 +191,6 @@ def parse_text(source: str) -> InductiveTask:
         negative_examples=ne,
         language_bias_head=lbh,
         language_bias_body=lbb,
-        aggregate_modes=aggregates,
-        arithmetic_modes=arithmetic,
         language_bias_condition=lbc,
         invented_predicates=invented_predicates,
         constants={name: tuple(values) for name, values in constants.items()},

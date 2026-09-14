@@ -40,11 +40,10 @@ Normal modes are never synthesized from observed predicates. Types, term kinds,
 directions, polarities, and recalls all come from the task. Predicate invention
 uses the same atom template so invented arguments need no fallback defaults.
 
-Aggregate declarations remain unchanged. Their source predicates already occur
-in background/example literals, so aggregate argument types continue to be
-inferred from those defined occurrences. When an explicitly typed normal mode
-belongs to the same observed type component, its task type name labels that
-component. Comparison and arithmetic modes retain intrinsic built-in types.
+Aggregate declarations originally remained unchanged here. ADR 0005 supersedes
+that part of this decision: body aggregates now use explicitly typed exact
+`#modeb` templates. Comparison and arithmetic modes retain intrinsic built-in
+types.
 
 ## Direction semantics
 

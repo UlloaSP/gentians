@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from .aggregate_literal import AggregateLiteral
 from .atom_literal import AtomLiteral
 from .comparison_literal import ComparisonLiteral
 from .conditional_literal import ConditionalLiteral
@@ -8,7 +9,7 @@ from .conditional_literal import ConditionalLiteral
 @dataclass(frozen=True, slots=True)
 class ModeDeclaration:
     recall: int
-    literal: AtomLiteral | ComparisonLiteral | ConditionalLiteral
+    literal: AggregateLiteral | AtomLiteral | ComparisonLiteral | ConditionalLiteral
 
     def __post_init__(self) -> None:
         if self.recall != -1 and self.recall < 1:

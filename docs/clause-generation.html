@@ -5461,8 +5461,8 @@
         <ul>
           <li>&bull; parse_file carga UTF-8; lexer separa sentencias; parser construye el IR; Clingo conserva gramática y AST ASP</li>
           <li>&bull; #maxv/#maxbl/#minhl/#maxhl/#maxpl fijan dominios finitos; #pos/#neg, constants e inventions se validan y deduplican</li>
-          <li>&bull; #modeh conserva una cabeza completa; #modeha compila combinaciones cardinalidad; #modeb/#modec producen declaraciones atómicas tipadas</li>
-          <li>&bull; InductiveTask reúne background, ejemplos, bias, operadores y límites; las piezas de cláusula viven en language.ir</li>
+          <li>&bull; #modeh conserva una cabeza completa; #modeha compila combinaciones cardinalidad; #modeb declara átomos, relaciones y aggregates exactos; #modec declara condiciones</li>
+          <li>&bull; InductiveTask reúne background, ejemplos, language bias y límites; las piezas de cláusula viven en language.ir</li>
         </ul>
       </div>
 
@@ -5473,7 +5473,7 @@
         </div>
         <ul>
           <li>&bull; Análisis estático valida #minhl/#maxhl, recalls de #modeha, inventions, tipos nominales y capacidades</li>
-          <li>&bull; ClauseMode asigna IDs, recall groups, posiciones y roles; marca formularios #modeha para linkedness estructural</li>
+          <li>&bull; ClauseMode compila cada template, asigna IDs, recall groups, posiciones y roles, y unifica la familia aditiva implícita compatible</li>
           <li>&bull; ASP poda slots, orden, recall, límites, linkedness, typing, safety y flujo</li>
           <li>&bull; Módulos de operadores y propiedades podan redundancias y contradicciones</li>
         </ul>
@@ -5488,7 +5488,7 @@
           <li>&bull; selected/3 + var_at/4 se decodifican como ReifiedClause; _theta_reduced elimina subcuerpos equivalentes</li>
           <li>&bull; Operaciones conectadas forman ArithmeticSystem con ecuaciones residuales y condiciones</li>
           <li>&bull; Outputs inseguros conservan asignación; div/mod incluyen divisor != 0 sin recall extra</li>
-          <li>&bull; Clause guarda texto, heads, dependencies, tamaño y bundle; ClauseSpace ordena y deduplica</li>
+          <li>&bull; Clause guarda texto, heads, dependencies y tamaño; ClauseSpace ordena y deduplica</li>
         </ul>
       </div>
     </div>

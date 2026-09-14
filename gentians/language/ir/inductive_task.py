@@ -2,11 +2,9 @@ from dataclasses import dataclass, field
 
 from clingo import ast
 
-from .aggregate_declaration import AggregateDeclaration
 from .example import Example
 from .head_declaration import HeadDeclaration
 from .mode_declaration import ModeDeclaration
-from .operator_declaration import OperatorDeclaration
 
 Signature = tuple[str, int]
 
@@ -20,10 +18,6 @@ class InductiveTask:
     negative_examples: list[Example]
     language_bias_head: list[HeadDeclaration]
     language_bias_body: list[ModeDeclaration]
-    aggregate_modes: list[AggregateDeclaration] = field(default_factory=list)
-    arithmetic_modes: list[OperatorDeclaration | ModeDeclaration] = field(
-        default_factory=list
-    )
     language_bias_condition: list[ModeDeclaration] = field(default_factory=list)
     invented_predicates: tuple[Signature, ...] = ()
     constants: dict[str, tuple[str, ...]] = field(default_factory=dict)

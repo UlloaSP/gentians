@@ -15,17 +15,30 @@ from .clause_mode import ClauseMode
 from .linear_constraint import LinearConstraint
 from .reified_clause import ReifiedClause
 from .reified_literal import ReifiedLiteral
+from .term_comparison_constraint import TermComparisonConstraint
 from ..language.ir.term_template import TermTemplate
 
 ArithmeticSystemKey = tuple[object, ...]
 
 
-SystemRelation = LinearConstraint | ExpressionConstraint | ComparisonConstraint
+SystemRelation = (
+    LinearConstraint
+    | ExpressionConstraint
+    | ComparisonConstraint
+    | TermComparisonConstraint
+)
 
 
 def _is_builtin(mode: ClauseMode) -> bool:
     return isinstance(mode.literal, ArithmeticLiteral) or (
-        isinstance(mode.literal, ComparisonLiteral) and mode.literal.canonicalizable
+        isinstance(mode.literal, ComparisonLiteral)
+        and not mode.literal.default_negated
+        and bool(mode.bindings)
+        and (
+            mode.literal.canonicalizable
+            or mode.literal.arithmetic
+            or all(binding.type == "numeric" for binding in mode.bindings)
+        )
     )
 
 
@@ -35,7 +48,11 @@ def _is_positive_atom(mode: ClauseMode) -> bool:
 
 def _is_numeric_builtin(mode: ClauseMode) -> bool:
     return isinstance(mode.literal, ArithmeticLiteral) or (
-        isinstance(mode.literal, ComparisonLiteral) and mode.literal.operator != "!="
+        isinstance(mode.literal, ComparisonLiteral)
+        and (
+            mode.literal.arithmetic
+            or all(binding.type == "numeric" for binding in mode.bindings)
+        )
     )
 
 
@@ -248,8 +265,10 @@ def _arithmetic_relation(
 ) -> SystemRelation:
     mode = modes[literal.mode_id]
     if isinstance(mode.literal, ComparisonLiteral):
+        if not mode.literal.simple or mode.literal.arithmetic:
+            return _term_comparison(literal, mode.literal)
         return ComparisonConstraint(
-            literal.variables[0], literal.variables[1], mode.literal.operator
+            literal.variables[0], literal.variables[1], mode.literal.operators[0]
         )
     if not isinstance(mode.literal, ArithmeticLiteral):
         raise ValueError(f"arithmetic mode {mode.id} has no template")
@@ -268,6 +287,39 @@ def _arithmetic_relation(
         output in safe,
         guards,
     )
+
+
+def _term_comparison(
+    literal: ReifiedLiteral, comparison: ComparisonLiteral
+) -> TermComparisonConstraint:
+    variables = iter(literal.variables)
+
+    def instantiate(term: TermTemplate) -> ArithmeticExpression:
+        if term.kind == "variable":
+            return ArithmeticExpression.var(next(variables))
+        if term.kind == "fixed":
+            try:
+                return ArithmeticExpression.const(int(term.value))
+            except ValueError:
+                return ArithmeticExpression.fixed(term.value)
+        if term.kind == "constant":
+            raise ValueError("constant placeholder was not concretized")
+        operator = {
+            "function": f"function:{term.value}",
+            "tuple": "tuple",
+            "interval": "interval",
+        }.get(term.kind, term.value)
+        return ArithmeticExpression(
+            operator,
+            tuple(instantiate(argument) for argument in term.arguments),
+        )
+
+    terms = tuple(instantiate(term) for term in comparison.terms)
+    try:
+        next(variables)
+    except StopIteration:
+        return TermComparisonConstraint(terms, comparison.operators)
+    raise ValueError("comparison has more assigned variables than bindings")
 
 
 def _expression_system(
@@ -341,11 +393,17 @@ def _expression_system(
             return None
 
     for literal in comparisons:
-        left, right = literal.variables
         comparison = modes[literal.mode_id].literal
         if not isinstance(comparison, ComparisonLiteral):
             return None
-        operator = comparison.operator
+        if not comparison.simple or comparison.arithmetic:
+            constraints.append(_term_comparison(literal, comparison))
+            continue
+        left, right = literal.variables
+        operator = comparison.operators[0]
+        if operator == "=":
+            constraints.append(_term_comparison(literal, comparison))
+            continue
         if operator == "!=" and not set(literal.variables) <= numeric_variables:
             constraints.append(_arithmetic_relation(literal, modes, safe))
             continue
@@ -467,11 +525,19 @@ def _fold_expression(
 
 def _is_linear(mode: ClauseMode, allow_disequality: bool) -> bool:
     syntax = mode.literal
+    comparison_linear = (
+        _comparison_linear_template(syntax)
+        if isinstance(syntax, ComparisonLiteral)
+        else None
+    )
     return (isinstance(syntax, ArithmeticLiteral) and syntax.linear) or (
         isinstance(syntax, ComparisonLiteral)
+        and comparison_linear is not None
+        and comparison_linear[1] == 0
         and (
-            syntax.operator in {"<", "<=", ">", ">="}
-            or (allow_disequality and syntax.operator == "!=")
+            syntax.operators[0] in {"<", "<=", ">", ">="}
+            or syntax.operators[0] == "="
+            or (allow_disequality and syntax.operators[0] == "!=")
         )
     )
 
@@ -494,17 +560,100 @@ def _constraint(
             return LinearConstraint(tuple(coefficients), "eq")
         raise ValueError(f"arithmetic mode {mode.id} is not linear")
 
-    left, right = literal.variables
     if not isinstance(mode.literal, ComparisonLiteral):
         raise ValueError(f"comparison mode {mode.id} has no template")
-    operator = mode.literal.operator
+    template = _comparison_linear_template(mode.literal)
+    if template is None:
+        raise ValueError(f"comparison mode {mode.id} is not linear")
+    template_coefficients, constant = template
+    if constant:
+        raise ValueError("linear constraint constants must cancel")
+    for variable, coefficient in zip(
+        literal.variables, template_coefficients, strict=True
+    ):
+        coefficients[variable] += coefficient
+    operator = mode.literal.operators[0]
     if operator in {">", ">="}:
-        left, right = right, left
+        coefficients = [-coefficient for coefficient in coefficients]
         operator = "<" if operator == ">" else "<="
-    coefficients[left] += 1
-    coefficients[right] -= 1
-    relation = {"<": "lt", "<=": "le", "!=": "ne"}[operator]
+    relation = {"=": "eq", "<": "lt", "<=": "le", "!=": "ne"}[operator]
     return LinearConstraint(tuple(coefficients), relation)
+
+
+def _comparison_linear_template(
+    comparison: ComparisonLiteral,
+) -> tuple[tuple[Fraction, ...], Fraction] | None:
+    if comparison.default_negated or len(comparison.operators) != 1:
+        return None
+    position = 0
+
+    def coefficients(
+        term: TermTemplate,
+    ) -> tuple[dict[int, Fraction], Fraction] | None:
+        nonlocal position
+        if term.kind == "variable":
+            result = ({position: Fraction(1)}, Fraction(0))
+            position += 1
+            return result
+        if term.kind == "fixed":
+            try:
+                return {}, Fraction(int(term.value))
+            except ValueError:
+                return None
+        if term.kind != "arithmetic":
+            return None
+        if term.value in {"neg"}:
+            value = coefficients(term.arguments[0])
+            return None if value is None else _scale_linear(value, Fraction(-1))
+        if term.value not in {"+", "-", "*"}:
+            return None
+        left = coefficients(term.arguments[0])
+        right = coefficients(term.arguments[1])
+        if left is None or right is None:
+            return None
+        if term.value in {"+", "-"}:
+            return _combine_linear(
+                left, right, Fraction(1 if term.value == "+" else -1)
+            )
+        left_variables, left_constant = left
+        right_variables, right_constant = right
+        if not left_variables:
+            return _scale_linear(right, left_constant)
+        if not right_variables:
+            return _scale_linear(left, right_constant)
+        return None
+
+    left = coefficients(comparison.terms[0])
+    right = coefficients(comparison.terms[1])
+    if left is None or right is None:
+        return None
+    values, constant = _combine_linear(left, right, Fraction(-1))
+    return tuple(values.get(index, Fraction(0)) for index in range(position)), constant
+
+
+def _combine_linear(
+    left: tuple[dict[int, Fraction], Fraction],
+    right: tuple[dict[int, Fraction], Fraction],
+    right_multiplier: Fraction,
+) -> tuple[dict[int, Fraction], Fraction]:
+    values = dict(left[0])
+    for position, coefficient in right[0].items():
+        values[position] = (
+            values.get(position, Fraction(0)) + coefficient * right_multiplier
+        )
+    return values, left[1] + right[1] * right_multiplier
+
+
+def _scale_linear(
+    value: tuple[dict[int, Fraction], Fraction], multiplier: Fraction
+) -> tuple[dict[int, Fraction], Fraction]:
+    return (
+        {
+            position: coefficient * multiplier
+            for position, coefficient in value[0].items()
+        },
+        value[1] * multiplier,
+    )
 
 
 @lru_cache(maxsize=8192)

@@ -88,20 +88,20 @@ produced_var(Result):-
     not mode_arg_direction(Mode,Arg,output),
     not bound_var(Var).
 
-% An exact equality may explicitly designate one leaf as its result.
-#defined exact_assignment_mode/1.
+% Any relation whose template Clingo proved safe may designate output leaves.
+#defined relation_output_mode/1.
 
-exact_assignment_input_count(Mode,Count):-
-    exact_assignment_mode(Mode),
+relation_input_count(Mode,Count):-
+    relation_output_mode(Mode),
     Count = #count {
         Arg : mode_variable_arg(Mode,Arg),
               not mode_arg_direction(Mode,Arg,output)
     }.
 
-ready_exact_assignment(Slot):-
+ready_relation(Slot):-
     selected(body,Slot,Mode),
-    exact_assignment_mode(Mode),
-    exact_assignment_input_count(Mode,Count),
+    relation_output_mode(Mode),
+    relation_input_count(Mode,Count),
     Count = #count {
         Arg,Var : mode_variable_arg(Mode,Arg),
                   not mode_arg_direction(Mode,Arg,output),
@@ -110,26 +110,26 @@ ready_exact_assignment(Slot):-
     }.
 
 bound_var(Var):-
-    ready_exact_assignment(Slot),
+    ready_relation(Slot),
     selected(body,Slot,Mode),
     mode_arg_direction(Mode,Arg,output),
     var_at(body,Slot,Arg,Var).
 
 produced_var(Var):-
-    ready_exact_assignment(Slot),
+    ready_relation(Slot),
     selected(body,Slot,Mode),
     mode_arg_direction(Mode,Arg,output),
     var_at(body,Slot,Arg,Var).
 
 safe_var(Var):-
-    ready_exact_assignment(Slot),
+    ready_relation(Slot),
     selected(body,Slot,Mode),
     mode_arg_direction(Mode,Arg,output),
     var_at(body,Slot,Arg,Var).
 
 :- selected(body,Slot,Mode),
-   exact_assignment_mode(Mode),
-   not ready_exact_assignment(Slot).
+   relation_output_mode(Mode),
+   not ready_relation(Slot).
 
 :- selected(body,Slot,Mode), directed_mode(Mode), not ready_literal(Slot).
 

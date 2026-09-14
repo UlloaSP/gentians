@@ -35,8 +35,14 @@
 % Python fact detail: geq_comparison_mode(Mode) marks >= comparison modes.
 #defined geq_comparison_mode/1.
 #defined generic_comparison_mode/1.
+#defined strict_comparison_args/3.
 
 comparison_mode(Mode):- generic_comparison_mode(Mode).
+
+:- selected(body,Slot,Mode),
+    strict_comparison_args(Mode,LeftArg,RightArg),
+    var_at(body,Slot,LeftArg,Var),
+    var_at(body,Slot,RightArg,Var).
 
 simple_comparison_mode(Mode):- neq_comparison_mode(Mode).
 simple_comparison_mode(Mode):- eq_comparison_mode(Mode).

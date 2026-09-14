@@ -30,7 +30,6 @@ from .task_analysis import (
     _clause_capabilities,
     _predicate_arg_types,
     _prune_optional_constraints,
-    _valid_aggregate_specs,
     _validate_invented_predicates,
 )
 from .extensions import _task_nodes
@@ -126,15 +125,12 @@ class _ClauseGenerator:
             raise ValueError("#minhl cannot exceed #maxhl")
         _validate_invented_predicates(task, self.nodes)
         self.predicate_arg_types = _predicate_arg_types(task, self.nodes)
-        self.aggregate_specs = _valid_aggregate_specs(task, self.nodes)
         self.capabilities = _clause_capabilities(
-            task, self.predicate_arg_types, self.aggregate_specs
+            task, self.predicate_arg_types
         )
         self.modes = _clause_modes(
             task,
-            self.capabilities,
             self.predicate_arg_types,
-            self.aggregate_specs,
         )
         self.modes_by_id = {mode.id: mode for mode in self.modes}
         self.head_slots = _section_capacity(task.max_head_literals, self.modes, "head")

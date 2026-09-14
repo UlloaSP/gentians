@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
+from itertools import product
 
 from .atom_template import AtomTemplate
 from ..asp import Predicate
@@ -28,6 +29,20 @@ class AggregateLiteral:
     @property
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset(atom.signature for atom in self.conditions)
+
+    def concretizations(
+        self, constants: dict[str, tuple[str, ...]]
+    ) -> tuple["AggregateLiteral", ...]:
+        return tuple(
+            AggregateLiteral(self.function, tuple_terms, conditions, result)
+            for tuple_terms in product(
+                *(term.concretizations(constants) for term in self.tuple_terms)
+            )
+            for conditions in product(
+                *(atom.concretizations(constants) for atom in self.conditions)
+            )
+            for result in self.result.concretizations(constants)
+        )
 
     def render(self, variables: Iterator[str]) -> str:
         tuple_values = tuple(term.render(variables) for term in self.tuple_terms)

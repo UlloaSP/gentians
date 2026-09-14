@@ -4,7 +4,7 @@
 #maxpl(6).
 
 % Source: subset-sum synthetic benchmark
-% Task: Unbalanced aggregate variant; generate the selected subset sum.
+% Task: Explicit projected aggregate variant; generate the selected subset sum.
 % Target rules:
 % s(S) :- #sum{X : el(X)} = S.
 
@@ -19,6 +19,6 @@
 #modeh(1,s(var(numeric,output))).
 
 #modeb(1,el(var(numeric,output))).
-#modeagg(1,sum(el/1),unbalanced).
-#modeagg(1,count(el/1),unbalanced).
-#modearith(1,neq).
+#modeb(1,#sum{var(numeric,any,value):el(var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(1,#count{var(numeric,any,value):el(var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(1,var(numeric)!=var(numeric)).

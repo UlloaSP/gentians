@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..asp import Predicate
 from .term_template import TermTemplate
@@ -10,6 +10,9 @@ class ArithmeticLiteral:
     expression: TermTemplate
     output: TermTemplate
     complexity: int = 1
+    implicit_additive_family_member: bool = field(
+        default=False, repr=False
+    )
 
     def __post_init__(self) -> None:
         if self.expression.kind != "arithmetic" or len(self.expression.arguments) != 2:

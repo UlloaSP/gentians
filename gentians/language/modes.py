@@ -1,10 +1,13 @@
 import re
 from collections.abc import Iterable
+from dataclasses import replace
 
+import clingo
 from clingo import ast
 
 from .asp import parse_atom, split_top_level_args
 from .directives import _directive_args, _parse_recall
+from .ir.aggregate_literal import AggregateLiteral
 from .ir.atom_literal import AtomLiteral
 from .ir.atom_template import AtomTemplate
 from .ir.comparison_literal import ComparisonLiteral
@@ -27,8 +30,132 @@ def _get_atom_mode_declaration(s: str, name: str) -> ModeDeclaration:
 def _get_body_mode_declaration(s: str) -> ModeDeclaration:
     declaration = _get_atom_mode_declaration(s, "#modeb")
     if isinstance(declaration.literal, ComparisonLiteral):
-        raise ValueError(f"#modeb comparisons belong in #modearith: {s}")
+        literal = _prepare_body_comparison(declaration.literal, s)
+        return ModeDeclaration(declaration.recall, literal)
     return declaration
+
+
+def _prepare_body_comparison(
+    literal: ComparisonLiteral, declaration: str
+) -> ComparisonLiteral:
+    bindings = tuple(binding for term in literal.terms for binding in term.bindings())
+    if literal.default_negated and any(
+        binding.direction == "output" for binding in bindings
+    ):
+        raise ValueError(
+            f"default-negated comparisons cannot produce variables: {declaration}"
+        )
+
+    prepared = literal
+    unspecified = tuple(
+        index for index, binding in enumerate(bindings) if not binding.direction
+    )
+    fully_implicit = bool(bindings) and len(unspecified) == len(bindings)
+    prepared_outputs_are_safe = False
+    if unspecified:
+        inferred_inputs = tuple(binding.direction or "input" for binding in bindings)
+        prepared = _with_binding_directions(literal, inferred_inputs)
+        if not literal.default_negated:
+            inferred_outputs = tuple(
+                binding.direction or "output" for binding in bindings
+            )
+            all_outputs = _with_binding_directions(literal, inferred_outputs)
+            if _comparison_outputs_are_safe(all_outputs):
+                prepared = all_outputs
+                prepared_outputs_are_safe = True
+            elif (assignment := _implicit_assignment_output(literal)) in unspecified:
+                directions = list(inferred_inputs)
+                directions[assignment] = "output"
+                candidate = _with_binding_directions(literal, tuple(directions))
+                if _comparison_outputs_are_safe(candidate):
+                    prepared = candidate
+                    prepared_outputs_are_safe = True
+        prepared = replace(
+            prepared, fully_implicit_directions=fully_implicit
+        )
+
+    if any(
+        binding.direction == "output"
+        for term in prepared.terms
+        for binding in term.bindings()
+    ) and not prepared_outputs_are_safe and not _comparison_outputs_are_safe(prepared):
+        raise ValueError(
+            f"comparison outputs are not safe under Clingo grounding: {declaration}"
+        )
+    return prepared
+
+
+def _implicit_assignment_output(literal: ComparisonLiteral) -> int | None:
+    if len(literal.operators) != 1 or literal.operators[0] != "=":
+        return None
+    left, right = literal.terms
+    left_bindings = len(left.bindings())
+    if left.kind == "variable" and right.contains_arithmetic:
+        return 0
+    if right.kind == "variable" and left.contains_arithmetic:
+        return left_bindings
+    return None
+
+
+def _with_binding_directions(
+    literal: ComparisonLiteral, directions: tuple[str, ...]
+) -> ComparisonLiteral:
+    direction_iter = iter(directions)
+
+    def update(term: TermTemplate) -> TermTemplate:
+        if term.kind == "variable":
+            return replace(term, direction=next(direction_iter))
+        if not term.arguments:
+            return term
+        return replace(term, arguments=tuple(update(arg) for arg in term.arguments))
+
+    return replace(literal, terms=tuple(update(term) for term in literal.terms))
+
+
+def _comparison_outputs_are_safe(literal: ComparisonLiteral) -> bool:
+    bindings = tuple(binding for term in literal.terms for binding in term.bindings())
+    outputs = tuple(
+        index for index, binding in enumerate(bindings) if binding.direction == "output"
+    )
+    if not outputs:
+        return True
+    labels: dict[str, str] = {}
+    variable_names = tuple(
+        labels.setdefault(binding.label, f"X{index}")
+        if binding.label
+        else f"X{index}"
+        for index, binding in enumerate(bindings)
+    )
+    def validation_term(term: TermTemplate) -> TermTemplate:
+        if term.kind == "constant":
+            return TermTemplate.fixed("0")
+        if not term.arguments:
+            return term
+        return replace(
+            term,
+            arguments=tuple(validation_term(argument) for argument in term.arguments),
+        )
+
+    validation_literal = replace(
+        literal, terms=tuple(validation_term(term) for term in literal.terms)
+    )
+    relation = validation_literal.render(iter(variable_names))
+    inputs = tuple(
+        name
+        for name, binding in zip(variable_names, bindings, strict=True)
+        if binding.direction != "output"
+    )
+    head = f"__gentians_output({','.join(variable_names[index] for index in outputs)})"
+    body = ",".join((*[f"__gentians_input({name})" for name in inputs], relation))
+    source = f"__gentians_input(0). {head} :- {body}."
+    messages: list[str] = []
+    control = clingo.Control(logger=lambda _code, message: messages.append(message))
+    try:
+        control.add("base", [], source)
+        control.ground([("base", [])])
+    except RuntimeError:
+        return False
+    return not any("unsafe" in message.lower() for message in messages)
 
 
 def _get_condition_mode_declaration(s: str) -> ModeDeclaration:
@@ -219,7 +346,7 @@ def _validate_type(type_name: str, declaration: str) -> None:
 
 def _get_mode_literal(
     raw: str, declaration: str, *, conditional: bool = False
-) -> AtomLiteral | ComparisonLiteral | ConditionalLiteral:
+) -> AggregateLiteral | AtomLiteral | ComparisonLiteral | ConditionalLiteral:
     nodes: list[ast.AST] = []
     try:
         ast.parse_string(f":- {raw.strip()}.", nodes.append)
@@ -236,7 +363,7 @@ def _get_mode_literal(
 
 def _literal_from_ast(
     node: ast.AST, declaration: str
-) -> AtomLiteral | ComparisonLiteral | ConditionalLiteral:
+) -> AggregateLiteral | AtomLiteral | ComparisonLiteral | ConditionalLiteral:
     if node.ast_type == ast.ASTType.ConditionalLiteral:
         conclusion = _literal_from_ast(node.literal, declaration)
         conditions = tuple(
@@ -258,10 +385,11 @@ def _literal_from_ast(
         )
     if node.ast_type != ast.ASTType.Literal:
         raise ValueError(f"unsupported mode literal: {declaration}")
+    if node.atom.ast_type == ast.ASTType.BodyAggregate:
+        return _aggregate_from_ast(node, declaration)
     if node.atom.ast_type == ast.ASTType.Comparison:
-        if node.sign != ast.Sign.NoSign or len(node.atom.guards) != 1:
+        if node.sign == ast.Sign.DoubleNegation:
             raise ValueError(f"invalid arithmetic relation: {declaration}")
-        guard = node.atom.guards[0]
         operators = {
             ast.ComparisonOperator.Equal: "=",
             ast.ComparisonOperator.NotEqual: "!=",
@@ -271,12 +399,15 @@ def _literal_from_ast(
             ast.ComparisonOperator.GreaterEqual: ">=",
         }
         return ComparisonLiteral(
-            operators[guard.comparison],
             (
                 _term_from_ast(node.atom.term, declaration),
-                _term_from_ast(guard.term, declaration),
+                *(
+                    _term_from_ast(guard.term, declaration)
+                    for guard in node.atom.guards
+                ),
             ),
-            False,
+            tuple(operators[guard.comparison] for guard in node.atom.guards),
+            node.sign == ast.Sign.Negation,
         )
     raw = str(node)
     negative = node.sign == ast.Sign.Negation
@@ -287,16 +418,93 @@ def _literal_from_ast(
     return AtomLiteral(_get_mode_atom(raw, declaration), negative)
 
 
+def _aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
+    if node.sign != ast.Sign.NoSign:
+        raise ValueError(f"aggregate modes cannot use default negation: {declaration}")
+    aggregate = node.atom
+    if len(aggregate.elements) != 1:
+        raise ValueError(
+            f"aggregate modes require exactly one aggregate element: {declaration}"
+        )
+    if aggregate.right_guard is not None or aggregate.left_guard is None:
+        raise ValueError(
+            f"aggregate modes require exactly one result equality: {declaration}"
+        )
+    if aggregate.left_guard.comparison != ast.ComparisonOperator.Equal:
+        raise ValueError(f"aggregate result guard must use equality: {declaration}")
+
+    functions = {
+        0: "count",
+        1: "sum",
+        2: "sum+",
+        3: "min",
+        4: "max",
+    }
+    try:
+        function = functions[aggregate.function]
+    except KeyError as exc:
+        raise ValueError(f"unsupported aggregate function: {declaration}") from exc
+
+    element = aggregate.elements[0]
+    if not element.terms or not element.condition:
+        raise ValueError(
+            f"aggregate modes require a nonempty tuple and condition: {declaration}"
+        )
+    tuple_terms = tuple(
+        _aggregate_term_from_ast(term, declaration) for term in element.terms
+    )
+    conditions: list[AtomTemplate] = []
+    for condition_node in element.condition:
+        condition = _literal_from_ast(condition_node, declaration)
+        if not isinstance(condition, AtomLiteral) or condition.default_negated:
+            raise ValueError(
+                f"aggregate mode conditions must be positive atoms: {declaration}"
+            )
+        conditions.append(condition.atom)
+    result = _aggregate_term_from_ast(aggregate.left_guard.term, declaration)
+    if result.kind != "variable" or result.direction != "output":
+        raise ValueError(
+            f"aggregate mode result must be an output variable: {declaration}"
+        )
+    if function in {"count", "sum", "sum+"} and result.type != "numeric":
+        raise ValueError(
+            f"{function} aggregate result must have numeric type: {declaration}"
+        )
+    for term in (*tuple_terms, *(term for atom in conditions for term in atom.terms)):
+        for binding in term.bindings():
+            if binding.direction not in {"input", "any"}:
+                raise ValueError(
+                    "aggregate tuple and condition variables require input or any "
+                    f"direction: {declaration}"
+                )
+    return AggregateLiteral(function, tuple_terms, tuple(conditions), result)
+
+
+def _aggregate_term_from_ast(node: ast.AST, declaration: str) -> TermTemplate:
+    term = _term_from_ast(node, declaration)
+    if len(term.bindings()) > 1:
+        raise ValueError(
+            f"aggregate tuple and condition terms support one variable at most: {declaration}"
+        )
+    return term
+
+
 def _term_from_ast(node: ast.AST, declaration: str) -> TermTemplate:
     if node.ast_type == ast.ASTType.Function:
+        if node.external:
+            raise ValueError(
+                f"external function terms are unsupported: {declaration}"
+            )
         raw_arguments = tuple(
             _term_from_ast(item, declaration) for item in node.arguments
         )
-        if node.name == "var" and len(node.arguments) in {2, 3}:
+        if node.name == "var" and len(node.arguments) in {1, 2, 3}:
             values = tuple(str(item) for item in node.arguments)
             _validate_type(values[0], declaration)
             return TermTemplate.variable(
-                values[0], values[1], values[2] if len(values) == 3 else ""
+                values[0],
+                values[1] if len(values) >= 2 else "",
+                values[2] if len(values) == 3 else "",
             )
         if node.name == "const" and len(node.arguments) == 1:
             type_name = str(node.arguments[0])
@@ -304,6 +512,8 @@ def _term_from_ast(node: ast.AST, declaration: str) -> TermTemplate:
             return TermTemplate.constant(type_name)
         if node.name in {"var", "const", "not"}:
             raise ValueError(f"invalid arithmetic placeholder: {declaration}")
+        if not raw_arguments:
+            return TermTemplate.fixed(str(node))
         return TermTemplate("function", node.name, raw_arguments)
     if node.ast_type == ast.ASTType.BinaryOperation:
         operators = {
@@ -330,6 +540,15 @@ def _term_from_ast(node: ast.AST, declaration: str) -> TermTemplate:
         )
     if node.ast_type == ast.ASTType.SymbolicTerm:
         return TermTemplate.fixed(str(node.symbol))
+    if node.ast_type == ast.ASTType.Interval:
+        return TermTemplate(
+            "interval",
+            "..",
+            (
+                _term_from_ast(node.left, declaration),
+                _term_from_ast(node.right, declaration),
+            ),
+        )
     if node.ast_type == ast.ASTType.UnaryOperation:
         operator = {
             ast.UnaryOperator.Minus: "neg",

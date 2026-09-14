@@ -149,8 +149,9 @@ An element may carry an exact conditional attachment directly, such as
 indivisible from the element. Generated `#modec` conditions may additionally
 attach to every element of a normal, disjunctive, choice, or cardinality head.
 
-Every argument is explicit. Variables always contain a nominal type and one
-direction; `var(type)` without a direction is invalid.
+Every atom and aggregate argument is explicit. Its variables contain a nominal
+type and one direction; `var(type)` without a direction is valid only inside a
+relation, where the inference rules below apply.
 
 Functions and tuples may nest without a depth limit. Their leaves remain
 explicit `var(...)` or `const(...)` placeholders. Variable limits, typing,
@@ -160,7 +161,10 @@ depth-first order. Predicate arity still counts outer arguments, so
 
 ```ebnf
 head-mode       = "#modeh(1,", head-template, ")." ;
-body-mode       = "#modeb(", recall, ",", atom-conditional-template, ")." ;
+body-mode       = "#modeb(", recall, ",", body-template, ")." ;
+body-template   = atom-conditional-template
+                | comparison-expression
+                | aggregate-template ;
 condition-mode  = "#modec(", recall, ",", literal-template, ")." ;
 aggregate-head-mode = "#modeha(", [recall, ","], atom-template, ")." ;
 disjunctive-head-mode = "#modehd(", [recall, ","], atom-template, ")." ;
@@ -173,12 +177,18 @@ conditional-template = atom-template,
 atom-conditional-template = ["not", whitespace], atom-template,
                             [":", literal-template, {",", literal-template}] ;
 literal-template = ["not", whitespace], atom-template | comparison-expression ;
+aggregate-template = aggregate-expression, "=", variable-argument ;
+aggregate-expression = ("#count" | "#sum" | "#sum+" | "#min" | "#max"),
+                       "{", mode-term, {",", mode-term}, ":",
+                       atom-template, {",", atom-template}, "}" ;
 atom-template   = ["-"], predicate, ["(", mode-term, {",", mode-term}, ")"] ;
 mode-term       = variable-argument | constant-argument | function-term | tuple-term ;
 function-term   = function, "(", mode-term, {",", mode-term}, ")" ;
 tuple-term      = "(", ")"
                 | "(", mode-term, ",", [mode-term, {",", mode-term}], ")" ;
 variable-argument = "var(", type, ",", direction, [",", label], ")" ;
+relation-variable-argument = "var(", type,
+                             [",", direction, [",", label]], ")" ;
 constant-argument = "const(", type, ")" ;
 direction       = "input" | "output" | "any" ;
 recall          = positive-integer | "*" ;
@@ -233,7 +243,7 @@ default negation remain supported.
 
 `#modeha` is the ILASP aggregate-head declaration: each declaration contributes
 compatible atoms that Gentians may combine into one choice/cardinality head.
-It is distinct from body `#modeagg` declarations.
+It is distinct from exact body aggregates declared through `#modeb`.
 
 ```prolog
 #constant(colour,red).
@@ -333,7 +343,7 @@ in force.
 
 Atomic conditions support default negation, strong negation, constants, nested
 functions, and tuples using the same grammar as `#modeb`. Exact comparison
-conditions support the expression grammar of `#modearith`. Declare positive
+conditions support the comparison-expression grammar of `#modeb`. Declare positive
 and default-negated atom forms separately. Labels are declaration-local by
 default and may appear in `#modeb` and `#modec` as well as head declarations.
 
@@ -366,68 +376,116 @@ that variable is unified with an input position of the same head. A body mode
 containing `not` cannot declare output variables. ASP safety remains active
 independently of mode direction.
 
-Generic operator modes have intrinsic directions rather than task syntax:
+Aggregate condition variables are local or supplied by surrounding terms; the
+aggregate result is `output`. Aggregates, arithmetic, and comparisons need no
+separate directive: body modes use their exact Clingo syntax.
 
-- aggregate condition variables are local or supplied by surrounding terms;
-  the aggregate result is `output`;
-- arithmetic templates consume every argument except the last as `input` and
-  produce the last argument as `output`; connected relations are represented
-  as one arithmetic system after decoding;
-- comparisons consume both arguments as `input` and produce nothing.
-
-All arithmetic and comparison learning is declared through `#modearith`:
-
-```ebnf
-arithmetic-mode = "#modearith(", recall, ",",
-                  (operator | comparison-expression), ")." ;
-operator = "add" | "sub" | "mul" | "div" | "mod" | "abs"
-         | "eq" | "neq" | "lt" | "leq" | "gt" | "geq" ;
-```
-
-The operator form generates a family. The expression form preserves one exact
-ASP relation and accepts nested `+`, `-`, `*`, `/`, `\`, `**`, bitwise `&`,
-`?`, `^`, and `~`, unary minus, absolute value, fixed terms, functions,
-`var(...)`, and `const(...)`:
+An aggregate body mode declares one nonempty aggregate element, one or more
+positive atomic conditions, and one equality result:
 
 ```prolog
-#modearith(2,geq).
-#modearith(1,(var(numeric,input)+1)*var(numeric,input)
-             <= |var(numeric,input)-2|).
-#modearith(1,var(numeric,input)+1=var(numeric,output)).
+#modeb(1,#sum{var(numeric,any,value):
+                p(var(partition,any,group),var(numeric,any,value))}=
+         var(numeric,output,result)).
 ```
 
-Exact templates retain their declared directions. Non-equalities cannot have
-an output. Equality may have exactly one output leaf, which becomes safe and
-produced once every other variable in the relation is bound. `#modecmp` is an
-error: comparison names, including `geq`, belong exclusively to
-`#modearith`.
-Consequently, a bare comparison in `#modeb` is a task error. Comparisons may
-appear there only after the colon as part of an exact conditional attachment.
+The tuple is part of the template. Listing every condition variable expresses
+a full tuple; listing fewer variables expresses a projection. The retired
+`#modeagg` directive's `balanced` and `unbalanced` expansion is not performed.
+Declare each desired tuple shape directly. Recall belongs to that complete
+shape and is not shared implicitly with other aggregate declarations.
 
-Arithmetic systems use residual equations and canonical integer coefficient
-rows when every variable is already safe. A row that must produce a variable
-keeps an oriented assignment because Clingo rejects an unsafe residual form.
-Division and modulo bundle `divisor != 0` with the source operation. The guard
-does not consume another recall or another `#maxbl` position.
-Inverse comparison declarations (`lt`/`gt` and `leq`/`geq`) share one canonical
-mode and a combined recall budget. Emitted rules contain only the final system,
-not the source built-in literals.
+Labels connect repeated placeholders within the aggregate. Tuple and condition
+variables require `input` or `any`; the result must be an `output` variable.
+For `#count`, `#sum`, and `#sum+`, that result has type `numeric`. Strong
+negation is supported in condition atoms; default negation, multiple aggregate
+elements, non-atomic conditions, range guards, and result-free aggregates are
+not part of the aggregate mode language. A top-level aggregate tuple or
+condition term may contain at most one variable placeholder.
+
+Arithmetic and comparisons use the relation grammar:
+
+```ebnf
+relation-mode = "#modeb(", recall, ",", comparison-expression, ")." ;
+comparison-expression = arithmetic-term, comparison-guard,
+                        { comparison-guard } ;
+comparison-guard = ("=" | "!=" | "<" | "<=" | ">" | ">="),
+                   arithmetic-term ;
+```
+
+Here `arithmetic-term` is a Clingo arithmetic term whose placeholder leaves use
+`relation-variable-argument` or `constant-argument` from the grammar above.
+
+Gentians accepts every arithmetic term represented by Clingo's AST: nested
+`+`, `-`, `*`, `/`, `\`, `**`, bitwise `&`, `?`, `^`, unary minus, bitwise
+complement `~`, absolute value `|T|`, intervals `L..U`, integers, fixed terms,
+functions, `var(...)`, and `const(...)`. Comparisons may be chained and may use
+any of Clingo's six comparison operators:
+
+```prolog
+#modeb(1,var(numeric)+var(numeric)=var(numeric)).
+#modeb(1,(var(numeric,input)+1)*var(numeric,input)
+         <= |var(numeric,input)-2|).
+#modeb(1,1<var(numeric)<var(numeric)<5).
+#modeb(1,var(numeric)=1..9).
+```
+
+External `@function(...)` calls are rejected because task files cannot provide
+the host-language grounding context they require. Ordinary symbolic function
+terms remain supported.
+
+Each declaration is one finite relation template; Gentians does not synthesize
+arbitrary-depth expressions from the operators occurring in it. Recall limits
+uses of that complete template. Compatible direction-implicit three-variable
+addition and subtraction assignments are the one exception: Gentians compiles
+them into a single canonical additive family and combines their recalls. This
+removes alternative linear encodings before grounding. Explicitly directed
+relations remain separate exact templates.
+
+Inside a relation, `var(TYPE)` is shorthand for an unspecified direction.
+Gentians infers the common forward assignment
+`expression = var(TYPE)` as inputs on the expression and an output on the bare
+variable. If Clingo proves that the whole relation is safe without prior
+bindings, every unspecified variable is an output; this covers bounded chains
+such as `1<X<Y<5` and interval assignments such as `X=1..9`. Otherwise an
+unspecified variable must already be safe when the relation is selected.
+Explicit `input`, `output`, and `any` remain available. A relation may produce
+several variables, with any comparison operator, exactly when a synthetic
+Clingo grounding proves those declared outputs safe. Default-negated
+relations cannot produce variables.
+
+For the anonymous forms `var(numeric)+var(numeric)=var(numeric)` and
+`var(numeric)-var(numeric)=var(numeric)`, those inferred directions also mark
+the declarations as members of the canonical additive family. Addition can
+represent subtraction by orienting the same linear equality, so selecting both
+forms does not create two independent operator alphabets. State directions
+explicitly when their particular forward orientation is part of the language
+bias rather than shorthand for the additive family.
+
+Clingo is the authority for parsing and output safety; Gentians does not map
+textual names such as `add` or `lt` to operators. `#modearith` and `#modecmp`
+are retired and rejected explicitly.
+
+After enumeration, every non-negated numeric relation is owned by its connected
+`ArithmeticSystem`. Linear equalities and inequalities whose constant terms
+cancel use canonical coefficient rows, including nested addition,
+subtraction, unary minus, and multiplication by an integer.
+Nonlinear, bitwise, interval, and other Clingo terms retain an exact structural
+representation. Canonicalization never changes an operator into an
+approximation. Emitted rules contain only the final system representation.
 
 Readiness is a clause-wide fixed point, not textual body order. A zero-input
 positive mode can seed a constraint, its outputs can make another literal
-ready, and so on. Bundled benchmarks therefore use explicit `input`/`output`
-directions throughout. `any` remains available only when a task intentionally
-opts out of mode-directed pruning.
+ready, and so on. Bundled atom modes use explicit `input`/`output` directions;
+relation modes may use the safe inference described above. `any` remains
+available only when a task intentionally opts out of mode-directed pruning.
 
 Types are nominal task declarations. They constrain which positions may share
 a generated variable; they do not add domain literals to learned rules. The
-reserved type name `any` is invalid because every normal-mode type must be
-explicit. Aggregate source literals continue deriving their types from their
-defined occurrences in the task; declared normal-mode types name connected
-aggregate positions when both describe the same observed domain. Connections
-come from shared variables in task rules, not merely from equal ground values:
-the integer `1` may be both a node identifier and a numeric value without
-merging those nominal types.
+reserved type name `any` is invalid because every mode type must be explicit.
+Aggregate tuple, condition, and result placeholders declare their types
+directly. The integer `1` may be both a node identifier and a numeric value
+without merging those nominal types.
 
 Gentians does not synthesize missing normal modes from background knowledge or
 examples. No head modes means constraint learning; no body modes means no body

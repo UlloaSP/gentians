@@ -13,9 +13,7 @@ def inductive_task(background: list[str], *args: Any, **kwargs: Any) -> Inductiv
     return InductiveTask(parse_program("\n".join(background)), *args, **kwargs)
 
 
-def example(
-    values: tuple[str, str] | tuple[str, str, str], positive: bool
-) -> Example:
+def example(values: tuple[str, str] | tuple[str, str, str], positive: bool) -> Example:
     return Example.parse(values, positive)
 
 
@@ -26,7 +24,5 @@ def make_clause_space(sources: list[str]) -> ClauseSpace:
     entries = []
     for source, statement in zip(sources, statements, strict=True):
         heads, dependencies, body_literals = clause_predicates(statement)
-        entries.append(
-            Clause(source, statement, heads, dependencies, body_literals)
-        )
+        entries.append(Clause(source, statement, heads, dependencies, body_literals))
     return ClauseSpace(entries)

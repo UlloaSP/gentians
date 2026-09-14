@@ -1,9 +1,8 @@
 from collections import Counter
-from collections.abc import Iterable
+from dataclasses import replace
 from itertools import combinations_with_replacement, product
 
 
-from ..language.ir.aggregate_declaration import AggregateDeclaration
 from ..language.ir.aggregate_literal import AggregateLiteral
 from ..language.ir.arithmetic_literal import ArithmeticLiteral
 from ..language.ir.atom_literal import AtomLiteral
@@ -11,16 +10,15 @@ from ..language.ir.atom_template import AtomTemplate
 from ..language.ir.comparison_literal import ComparisonLiteral
 from ..language.ir.conditional_literal import ConditionalLiteral
 from ..language.ir.head_template import HeadTemplate
-from .clause_capabilities import ClauseCapabilities
 from .clause_mode import ClauseMode
 from ..language.ir.mode_declaration import ModeDeclaration
-from ..language.ir.operator_declaration import OperatorDeclaration
+from ..language.ir.term_template import TermTemplate
 from ..language.asp import (
     Predicate,
 )
 from ..language.ir.inductive_task import InductiveTask
-from ..language.ir.term_template import TermTemplate
 from .task_analysis import _head_atoms, _mode_atom_literals
+
 
 def _combined_head_templates(
     task: InductiveTask,
@@ -77,9 +75,7 @@ def _combined_head_templates(
     )
     templates: list[HeadTemplate] = []
     seen: set[HeadTemplate] = set()
-    minimum = max(
-        2 if kind == "disjunction" else 1, task.min_aggregate_head_literals
-    )
+    minimum = max(2 if kind == "disjunction" else 1, task.min_aggregate_head_literals)
     for width in range(minimum, max_width + 1):
         for combination in combinations_with_replacement(choices, width):
             declaration_counts = Counter(index for index, _atom in combination)
@@ -106,9 +102,7 @@ def _combined_head_templates(
 
 
 def _aggregate_head_templates(task: InductiveTask) -> tuple[HeadTemplate, ...]:
-    return _combined_head_templates(
-        task, task.language_bias_aggregate_head, "choice"
-    )
+    return _combined_head_templates(task, task.language_bias_aggregate_head, "choice")
 
 
 def _disjunctive_head_templates(task: InductiveTask) -> tuple[HeadTemplate, ...]:
@@ -165,9 +159,7 @@ def _aggregate_head_bounds(width: int) -> tuple[tuple[int, int], ...]:
 
 def _clause_modes(
     task: InductiveTask,
-    capabilities: ClauseCapabilities,
     predicate_arg_types: dict[tuple[str, int, int], str],
-    aggregate_specs: list[AggregateDeclaration],
 ) -> list[ClauseMode]:
     modes: list[ClauseMode] = []
     next_id = 0
@@ -256,197 +248,67 @@ def _clause_modes(
                         )
                     )
 
-    for declaration in task.language_bias_body:
-        recall_group = next_id
-        for conclusion in _literal_concretizations(
-            declaration.literal, task.constants
-        ):
-            for literal in _conditioned_literals(
-                conclusion, condition_modes, condition_limit
-            ):
-                add(
-                    ClauseMode(
-                        id=next_id,
-                        recall_group=recall_group,
-                        section="body",
-                        recall=declaration.recall,
-                        literal=literal,
+    body_literals = tuple(
+        (
+            declaration,
+            tuple(
+                _specialize_body_literal(literal)
+                for conclusion in _literal_concretizations(
+                    declaration.literal, task.constants
+                )
+                for literal in (
+                    (conclusion,)
+                    if isinstance(conclusion, AggregateLiteral | ArithmeticLiteral)
+                    else _conditioned_literals(
+                        conclusion, condition_modes, condition_limit
                     )
                 )
+            ),
+        )
+        for declaration in task.language_bias_body
+    )
+    additive_recalls: dict[str, list[int]] = {}
+    additive_operators: dict[str, set[str]] = {}
+    for declaration, literals in body_literals:
+        declaration_families: set[str] = set()
+        for literal in literals:
+            if (family := _implicit_additive_family(literal)) is not None:
+                assert isinstance(literal, ArithmeticLiteral)
+                declaration_families.add(family)
+                additive_operators.setdefault(family, set()).add(literal.operator)
+        for family in declaration_families:
+            additive_recalls.setdefault(family, []).append(declaration.recall)
 
-    operator_modes = [
-        declaration
-        for declaration in task.arithmetic_modes
-        if isinstance(declaration, OperatorDeclaration)
-    ]
-    for declaration in (
-        declaration
-        for declaration in task.arithmetic_modes
-        if isinstance(declaration, ModeDeclaration)
-    ):
+    merged_additive_families = {
+        family
+        for family, operators in additive_operators.items()
+        if operators == {"+", "-"}
+    }
+
+    emitted_additive_families: set[str] = set()
+    for declaration, literals in body_literals:
         recall_group = next_id
-        for literal in _literal_concretizations(declaration.literal, task.constants):
+        for literal in literals:
+            family = _implicit_additive_family(literal)
+            if family in merged_additive_families:
+                if family in emitted_additive_families:
+                    continue
+                emitted_additive_families.add(family)
+                assert isinstance(literal, ArithmeticLiteral)
+                literal = _canonical_additive_literal(literal)
+                recall = _combined_recall(additive_recalls[family])
+            else:
+                recall = declaration.recall
             add(
                 ClauseMode(
                     id=next_id,
                     recall_group=recall_group,
                     section="body",
-                    recall=declaration.recall,
+                    recall=recall,
                     literal=literal,
                 )
             )
 
-    emitted_comparison_families: set[frozenset[str]] = set()
-    for declaration in operator_modes:
-        if declaration.operator not in {"eq", "neq", "lt", "leq", "gt", "geq"}:
-            continue
-        if declaration.operator == "eq":
-            symbol = "="
-            family = frozenset(("eq",))
-        elif declaration.operator in {"lt", "gt"}:
-            family = frozenset(("lt", "gt"))
-            symbol = "<"
-        elif declaration.operator in {"leq", "geq"}:
-            family = frozenset(("leq", "geq"))
-            symbol = "<="
-        else:
-            family = frozenset((declaration.operator,))
-            symbol = {"neq": "!="}.get(declaration.operator)
-        if family in emitted_comparison_families:
-            continue
-        emitted_comparison_families.add(family)
-        numeric = declaration.operator in {"lt", "leq", "gt", "geq"}
-        if symbol and (
-            numeric
-            and capabilities.allow_numeric_comparison
-            or declaration.operator == "neq"
-            and capabilities.allow_equality_comparison
-            or declaration.operator == "eq"
-            and capabilities.allow_equality_comparison
-        ):
-            add(
-                ClauseMode(
-                    id=next_id,
-                    recall_group=next_id,
-                    section="body",
-                    recall=_combined_recall(
-                        candidate.recall
-                        for candidate in operator_modes
-                        if candidate.operator in family
-                    ),
-                    literal=ComparisonLiteral(
-                        symbol,
-                        (
-                            TermTemplate.variable("numeric" if numeric else "any", ""),
-                            TermTemplate.variable("numeric" if numeric else "any", ""),
-                        ),
-                    ),
-                )
-            )
-
-    if capabilities.allow_arithmetic:
-        additive = [
-            declaration
-            for declaration in operator_modes
-            if declaration.operator in {"add", "sub"}
-        ]
-        if additive:
-            recall = (
-                -1
-                if any(declaration.recall < 0 for declaration in additive)
-                else sum(declaration.recall for declaration in additive)
-            )
-            add(
-                ClauseMode(
-                    id=next_id,
-                    recall_group=next_id,
-                    section="body",
-                    recall=recall,
-                    literal=ArithmeticLiteral(
-                        TermTemplate(
-                            "arithmetic",
-                            "+",
-                            (
-                                TermTemplate.variable("numeric", ""),
-                                TermTemplate.variable("numeric", ""),
-                            ),
-                        ),
-                        TermTemplate.variable("numeric", ""),
-                    ),
-                )
-            )
-        for declaration in operator_modes:
-            if declaration.operator in {"add", "sub"}:
-                continue
-            symbol = {
-                "mul": "*",
-                "div": "/",
-                "mod": "\\",
-                "abs": "abs",
-            }.get(declaration.operator)
-            if symbol:
-                add(
-                    ClauseMode(
-                        id=next_id,
-                        recall_group=next_id,
-                        section="body",
-                        recall=declaration.recall,
-                        literal=ArithmeticLiteral(
-                            TermTemplate(
-                                "arithmetic",
-                                symbol,
-                                (
-                                    TermTemplate.variable("numeric", ""),
-                                    TermTemplate.variable("numeric", ""),
-                                ),
-                            ),
-                            TermTemplate.variable("numeric", ""),
-                        ),
-                    )
-                )
-
-    for declaration in aggregate_specs:
-        atoms = list(declaration.atoms)
-        total_atom_arity = sum(arity for _, arity in atoms)
-        tuple_arities = (
-            range(1, total_atom_arity + 1)
-            if declaration.unbalanced
-            else [total_atom_arity]
-        )
-        recall_group = next_id
-        for tuple_arity in tuple_arities:
-            conditions = tuple(
-                AtomTemplate(
-                    name.removeprefix("-"),
-                    tuple(
-                        TermTemplate.variable(
-                            predicate_arg_types.get(
-                                (name.removeprefix("-"), arity, arg), "any"
-                            ),
-                            "",
-                        )
-                        for arg in range(arity)
-                    ),
-                    name.startswith("-"),
-                )
-                for name, arity in atoms
-            )
-            add(
-                ClauseMode(
-                    id=next_id,
-                    recall_group=recall_group,
-                    section="body",
-                    recall=declaration.recall,
-                    literal=AggregateLiteral(
-                        declaration.function,
-                        tuple(
-                            TermTemplate.variable("any", "") for _ in range(tuple_arity)
-                        ),
-                        conditions,
-                        TermTemplate.variable("numeric", ""),
-                    ),
-                )
-            )
     return modes
 
 
@@ -530,9 +392,22 @@ def _conditioned_literals(
 
 
 def _literal_concretizations(
-    literal: AtomLiteral | ComparisonLiteral | ConditionalLiteral,
+    literal: AggregateLiteral
+    | AtomLiteral
+    | ComparisonLiteral
+    | ConditionalLiteral
+    | ArithmeticLiteral,
     constants: dict[str, tuple[str, ...]],
-) -> tuple[AtomLiteral | ComparisonLiteral | ConditionalLiteral, ...]:
+) -> tuple[
+    AggregateLiteral
+    | AtomLiteral
+    | ComparisonLiteral
+    | ConditionalLiteral
+    | ArithmeticLiteral,
+    ...,
+]:
+    if isinstance(literal, AggregateLiteral):
+        return literal.concretizations(constants)
     if isinstance(literal, AtomLiteral):
         return tuple(
             AtomLiteral(atom, literal.default_negated)
@@ -540,17 +415,110 @@ def _literal_concretizations(
         )
     if isinstance(literal, ConditionalLiteral):
         return literal.concretizations(constants)
+    if isinstance(literal, ArithmeticLiteral):
+        return (literal,)
     return tuple(
-        ComparisonLiteral(literal.operator, (terms[0], terms[1]), literal.family)
+        ComparisonLiteral(
+            terms,
+            literal.operators,
+            literal.default_negated,
+            fully_implicit_directions=literal.fully_implicit_directions,
+        )
         for terms in product(
             *(term.concretizations(constants) for term in literal.terms)
         )
     )
 
 
-def _combined_recall(recalls: Iterable[int]) -> int:
-    values = tuple(recalls)
-    return -1 if any(recall < 0 for recall in values) else sum(values)
+def _specialize_body_literal(
+    literal: AggregateLiteral
+    | AtomLiteral
+    | ComparisonLiteral
+    | ConditionalLiteral
+    | ArithmeticLiteral,
+) -> (
+    AggregateLiteral
+    | AtomLiteral
+    | ComparisonLiteral
+    | ConditionalLiteral
+    | ArithmeticLiteral
+):
+    if (
+        not isinstance(literal, ComparisonLiteral)
+        or literal.default_negated
+        or literal.operators != ("=",)
+        or len(literal.terms) != 2
+    ):
+        return literal
+    expression, output = literal.terms
+    if (
+        expression.kind == "arithmetic"
+        and expression.value == "absolute"
+        and len(expression.arguments) == 1
+    ):
+        difference = expression.arguments[0]
+        if (
+            difference.kind == "arithmetic"
+            and difference.value == "-"
+            and len(difference.arguments) == 2
+            and all(
+                argument.kind == "variable" for argument in difference.arguments
+            )
+        ):
+            expression = TermTemplate("arithmetic", "abs", difference.arguments)
+    if (
+        expression.kind != "arithmetic"
+        or len(expression.arguments) != 2
+        or any(argument.kind != "variable" for argument in expression.arguments)
+        or output.kind != "variable"
+        or output.direction != "output"
+    ):
+        return literal
+    return ArithmeticLiteral(
+        expression,
+        output,
+        implicit_additive_family_member=(
+            literal.fully_implicit_directions and expression.value in {"+", "-"}
+        ),
+    )
+
+
+def _implicit_additive_family(
+    literal: AggregateLiteral
+    | AtomLiteral
+    | ComparisonLiteral
+    | ConditionalLiteral
+    | ArithmeticLiteral,
+) -> str | None:
+    if (
+        not isinstance(literal, ArithmeticLiteral)
+        or not literal.implicit_additive_family_member
+        or literal.operator not in {"+", "-"}
+        or any(term.kind != "variable" for term in literal.arguments)
+    ):
+        return None
+    bindings = tuple(binding for term in literal.arguments for binding in term.bindings())
+    if (
+        len(bindings) != 3
+        or len({binding.type for binding in bindings}) != 1
+        or bindings[0].type != "numeric"
+        or tuple(binding.direction for binding in bindings)
+        != ("input", "input", "output")
+        or any(binding.label for binding in bindings)
+    ):
+        return None
+    return bindings[0].type
+
+
+def _canonical_additive_literal(literal: ArithmeticLiteral) -> ArithmeticLiteral:
+    return replace(
+        literal,
+        expression=replace(literal.expression, value="+"),
+    )
+
+
+def _combined_recall(recalls: list[int]) -> int:
+    return -1 if any(recall < 0 for recall in recalls) else sum(recalls)
 
 
 def _variable_arity(mode: ClauseMode) -> int:
@@ -559,7 +527,8 @@ def _variable_arity(mode: ClauseMode) -> int:
 
 def _binding_positions(mode: ClauseMode) -> tuple[int, ...]:
     if isinstance(
-        mode.literal, ConditionalLiteral | ComparisonLiteral | ArithmeticLiteral
+        mode.literal,
+        AggregateLiteral | ConditionalLiteral | ComparisonLiteral | ArithmeticLiteral,
     ) or (
         isinstance(mode.literal, AtomLiteral)
         and any(term.kind in {"function", "tuple"} for term in mode.literal.atom.terms)
@@ -568,9 +537,7 @@ def _binding_positions(mode: ClauseMode) -> tuple[int, ...]:
     return tuple(binding.path[0] for binding in mode.bindings)
 
 
-def _section_capacity(
-    limit: int | None, modes: list[ClauseMode], section: str
-) -> int:
+def _section_capacity(limit: int | None, modes: list[ClauseMode], section: str) -> int:
     if limit is not None:
         return limit
     if section == "head":

@@ -28,10 +28,11 @@ Built-in flow is intrinsic:
 A head output unified with a head input is already supplied. Readiness is a
 fixed point across the clause, independent of rendered literal order.
 
-Type inference for aggregate source positions follows shared variables in task
-rules. Equal ground terms do not merge type components. Explicit benchmark
-types use domain names such as `node`, `index`, and `partition`; `numeric` is
-reserved for values participating numerically.
+Aggregate source positions originally inferred their types from shared
+variables in task rules. ADR 0005 supersedes that part of this decision: exact
+aggregate modes declare those types. Equal ground terms still do not merge type
+components. Explicit benchmark types use domain names such as `node`, `index`,
+and `partition`; `numeric` is reserved for values participating numerically.
 
 `#constant` is not a variable-domain declaration. Existing benchmarks retain
 variables when a background value must be joined with another literal. The

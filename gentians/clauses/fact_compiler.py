@@ -17,6 +17,7 @@ from .mode_compiler import _binding_positions, _closed_body_predicates
 from .properties import _closed_world_properties
 from .task_analysis import _closed_world_nodes, _closed_world_program
 
+
 def _facts(
     task: InductiveTask,
     modes: list[ClauseMode],
@@ -105,7 +106,18 @@ def _facts(
             f"mode({section_id},{mode.id},{predicate_id},{mode.arity},{recall})."
         )
         parts.append(f"recall_group({mode.id},{mode.recall_group}).")
-        shape = tuple(argument.shape() for argument in mode.literal.arguments)
+        shape: tuple[object, ...] = tuple(
+            argument.shape() for argument in mode.literal.arguments
+        )
+        if isinstance(mode.literal, ComparisonLiteral):
+            shape = (
+                "comparison",
+                mode.literal.default_negated,
+                mode.literal.operators,
+                shape,
+            )
+        elif isinstance(mode.literal, ArithmeticLiteral):
+            shape = ("arithmetic", mode.literal.operator, shape)
         parts.append(f"mode_shape({mode.id},{shapes.setdefault(shape, len(shapes))}).")
         if mode.head_form is not None:
             parts.append(
@@ -155,7 +167,8 @@ def _facts(
                     )
                 else:
                     condition_key = (
-                        condition.operator,
+                        condition.default_negated,
+                        condition.operators,
                         *(term.shape() for term in condition.terms),
                     )
                     parts.append(
@@ -181,36 +194,57 @@ def _facts(
             )
         if isinstance(mode.literal, ComparisonLiteral):
             parts.append(f"generic_comparison_mode({mode.id}).")
-            if mode.literal.operator == "=" and any(
-                binding.direction == "output" for binding in mode.bindings
-            ):
-                parts.append(f"exact_assignment_mode({mode.id}).")
+            if any(binding.direction == "output" for binding in mode.bindings):
+                parts.append(f"relation_output_mode({mode.id}).")
+            operator = (
+                mode.literal.operators[0] if len(mode.literal.operators) == 1 else None
+            )
             if not mode.literal.simple:
                 pass
-            elif mode.literal.operator == "=":
+            elif operator == "=":
                 parts.append(f"eq_comparison_mode({mode.id}).")
-            elif mode.literal.operator == "!=":
+            elif operator == "!=":
                 parts.append(f"neq_comparison_mode({mode.id}).")
-            elif mode.literal.operator == "<":
+            elif operator == "<":
                 parts.append(f"less_than_comparison_mode({mode.id}).")
-            elif mode.literal.operator == ">":
+            elif operator == ">":
                 parts.append(f"greater_than_comparison_mode({mode.id}).")
-            elif mode.literal.operator == "<=":
+            elif operator == "<=":
                 parts.append(f"leq_comparison_mode({mode.id}).")
-            elif mode.literal.operator == ">=":
+            elif operator == ">=":
                 parts.append(f"geq_comparison_mode({mode.id}).")
+            offsets: list[int] = []
+            offset = 0
+            for term in mode.literal.terms:
+                offsets.append(offset)
+                offset += len(term.bindings())
+            for index, operator in enumerate(mode.literal.operators):
+                if (
+                    operator in {"<", ">"}
+                    and mode.literal.terms[index].kind == "variable"
+                    and mode.literal.terms[index + 1].kind == "variable"
+                ):
+                    parts.append(
+                        f"strict_comparison_args({mode.id},{offsets[index]},{offsets[index + 1]})."
+                    )
         elif isinstance(mode.literal, ArithmeticLiteral):
             arithmetic = mode.literal
+            parts.append(f"generic_arithmetic_mode({mode.id}).")
             if arithmetic.operator == "+":
-                parts.append(f"add_mode({mode.id}).")
+                if _operands_are_interchangeable(arithmetic):
+                    parts.append(f"add_mode({mode.id}).")
+            elif arithmetic.operator == "-":
+                parts.append(f"sub_mode({mode.id}).")
             elif arithmetic.operator == "*":
-                parts.append(f"mul_mode({mode.id}).")
+                if _operands_are_interchangeable(arithmetic):
+                    parts.append(f"mul_mode({mode.id}).")
             elif arithmetic.operator == "/":
                 parts.append(f"div_mode({mode.id}).")
             elif arithmetic.operator == "\\":
                 parts.append(f"mod_mode({mode.id}).")
             elif arithmetic.operator == "abs":
-                parts.append(f"abs_mode({mode.id}).")
+                if _operands_are_interchangeable(arithmetic):
+                    parts.append(f"abs_mode({mode.id}).")
         elif isinstance(mode.literal, AggregateLiteral):
             aggregate = mode.literal
             parts.append(
@@ -230,6 +264,25 @@ def _facts(
                 )
                 offset += arity
     return "\n".join(parts)
+
+
+def _operands_are_interchangeable(literal: ArithmeticLiteral) -> bool:
+    left, right = literal.expression.arguments
+    left_bindings = left.bindings()
+    right_bindings = right.bindings()
+    if len(left_bindings) != 1 or len(right_bindings) != 1:
+        return False
+    left_binding = left_bindings[0]
+    right_binding = right_bindings[0]
+    return (
+        left_binding.type,
+        left_binding.direction,
+        left_binding.label,
+    ) == (
+        right_binding.type,
+        right_binding.direction,
+        right_binding.label,
+    )
 
 
 def _predicate_ids(modes: list[ClauseMode]) -> dict[Predicate, int]:

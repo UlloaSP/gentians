@@ -4,10 +4,10 @@
 #maxpl(6).
 
 % Source: double subset-sum synthetic benchmark
-% Task: Unbalanced aggregate variant for both coordinate sums.
+% Task: Projected aggregate variant for both coordinate sums.
 % Target rules:
-% s0(S) :- #sum{X,Y : el(X,Y)} = S.
-% s1(S) :- #sum{Y,X : el(X,Y)} = S.
+% s0(S) :- #sum{X : el(X,Y)} = S.
+% s1(S) :- #sum{Y : el(X,Y)} = S.
 % ok(S) :- s0(S),s1(S).
 
 {el(1,2)}.
@@ -30,5 +30,5 @@
 
 #modeb(1,s0(var(numeric,output))).
 #modeb(1,s1(var(numeric,input))).
-#modeagg(2,sum(el/2),unbalanced).
-#modearith(1,add).
+#modeb(2,#sum{var(numeric,any):el(var(numeric,any),var(numeric,any))}=var(numeric,output)).
+#modeb(1,var(numeric)+var(numeric)=var(numeric)).

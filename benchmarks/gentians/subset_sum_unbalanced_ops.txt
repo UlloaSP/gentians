@@ -4,7 +4,7 @@
 #maxpl(6).
 
 % Source: subset-sum synthetic benchmark
-% Task: Unbalanced aggregate plus extra comparisons variant.
+% Task: Explicit projected aggregate plus extra comparisons variant.
 % Target rules:
 % s(S) :- #sum{X : el(X)} = S.
 
@@ -19,8 +19,8 @@
 #modeh(1,s(var(numeric,output))).
 
 #modeb(1,el(var(numeric,output))).
-#modeagg(1,sum(el/1),unbalanced).
-#modeagg(1,count(el/1),unbalanced).
-#modearith(1,neq).
-#modearith(1,geq).
-#modearith(1,leq).
+#modeb(1,#sum{var(numeric,any,value):el(var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(1,#count{var(numeric,any,value):el(var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(1,var(numeric)!=var(numeric)).
+#modeb(1,var(numeric)>=var(numeric)).
+#modeb(1,var(numeric)<=var(numeric)).

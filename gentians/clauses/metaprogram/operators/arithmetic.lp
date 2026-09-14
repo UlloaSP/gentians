@@ -29,6 +29,10 @@
 #defined mod_mode/1.
 % Python fact detail: abs_mode(Mode) marks arithmetic modes rendered as absolute distance.
 #defined abs_mode/1.
+#defined sub_mode/1.
+#defined generic_arithmetic_mode/1.
+
+arithmetic_mode(Mode):- generic_arithmetic_mode(Mode).
 
 % Rule: addition modes are arithmetic modes.
 % Mode is the Python id for an arithmetic body literal rendered with +.
@@ -49,15 +53,7 @@ arithmetic_mode(Mode):- mod_mode(Mode).
 % Rule: absolute-distance modes are arithmetic modes.
 % Mode is the Python id for an arithmetic body literal rendered as |X-Y|=Z.
 arithmetic_mode(Mode):- abs_mode(Mode).
-
-% Constraint: arithmetic result must not be one of its own operands.
-% Slot is arithmetic body slot. Operand ranges over 0 and 1. Var appears both
-% as an operand and as result argument 2, creating equations like X+Y=X.
-:- selected(body,Slot,Mode),
-    arithmetic_mode(Mode),
-    var_at(body,Slot,Operand,Var),
-    Operand = 0..1,
-    var_at(body,Slot,2,Var).
+arithmetic_mode(Mode):- sub_mode(Mode).
 
 % Constraint: canonicalize addition operands.
 % Addition is commutative. Left and Right are operand variables at arguments 0

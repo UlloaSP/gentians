@@ -1,14 +1,14 @@
 import clingo
 from clingo import ast
 
-from .extensions import _children, _has_variable, _iter_atoms, _task_nodes
-from ..language.ir.aggregate_declaration import AggregateDeclaration
+from .extensions import _children, _has_variable, _iter_atoms
+from ..language.ir.aggregate_literal import AggregateLiteral
 from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.atom_template import AtomTemplate
 from ..language.ir.conditional_literal import ConditionalLiteral
 from .clause_capabilities import ClauseCapabilities
 from ..language.ir.mode_declaration import ModeDeclaration
-from ..language.ir.operator_declaration import OperatorDeclaration
+from ..language.ir.comparison_literal import ComparisonLiteral
 from ..language.asp import (
     AspProgram,
     Predicate,
@@ -101,6 +101,8 @@ def _mode_atom_literals(mode: ModeDeclaration) -> tuple[AtomLiteral, ...]:
             for literal in (mode.literal.conclusion, *mode.literal.conditions)
             if isinstance(literal, AtomLiteral)
         )
+    if isinstance(mode.literal, AggregateLiteral):
+        return tuple(AtomLiteral(atom) for atom in mode.literal.conditions)
     return ()
 
 
@@ -132,27 +134,37 @@ def _validate_invented_predicates(
 def _clause_capabilities(
     task: InductiveTask,
     predicate_arg_types: dict[tuple[str, int, int], str],
-    aggregate_specs: list[AggregateDeclaration],
 ) -> ClauseCapabilities:
+    comparisons = tuple(
+        mode.literal
+        for mode in task.language_bias_body
+        if isinstance(mode.literal, ComparisonLiteral)
+    )
     numeric_evidence = any(
         arg_type == "numeric" for arg_type in predicate_arg_types.values()
+    ) or any(
+        binding.type == "numeric"
+        for comparison in comparisons
+        for term in comparison.terms
+        for binding in term.bindings()
     )
     comparison_operators = {
-        mode.operator
-        for mode in task.arithmetic_modes
-        if isinstance(mode, OperatorDeclaration)
-        and mode.operator in {"eq", "neq", "lt", "leq", "gt", "geq"}
+        operator for comparison in comparisons for operator in comparison.operators
     }
-    equality_comparison = bool({"eq", "neq"} & comparison_operators)
+    equality_comparison = bool({"=", "!="} & comparison_operators)
     numeric_comparison = numeric_evidence and bool(
-        comparison_operators & {"lt", "leq", "gt", "geq"}
+        comparison_operators & {"<", "<=", ">", ">="}
     )
     return ClauseCapabilities(
         has_numeric_evidence=numeric_evidence,
         allow_numeric_comparison=numeric_comparison,
         allow_equality_comparison=equality_comparison,
-        allow_arithmetic=numeric_evidence and bool(task.arithmetic_modes),
-        allow_aggregates=bool(aggregate_specs),
+        allow_arithmetic=numeric_evidence
+        and any(comparison.arithmetic for comparison in comparisons),
+        allow_aggregates=any(
+            isinstance(mode.literal, AggregateLiteral)
+            for mode in task.language_bias_body
+        ),
         allow_recursion=bool(_recursive_predicates(task)),
     )
 
@@ -303,17 +315,3 @@ def _closed_world_program(task: InductiveTask) -> AspProgram:
         for example in task.positive_examples
         for statement in example.context
     )
-
-
-def _valid_aggregate_specs(
-    task: InductiveTask,
-    nodes: tuple[ast.AST, ...] | None = None,
-) -> list[AggregateDeclaration]:
-    if not task.aggregate_modes:
-        return []
-    available = _available_predicates(task, nodes or _task_nodes(task))
-    valid = []
-    for spec in task.aggregate_modes:
-        if all(atom in available for atom in spec.atoms):
-            valid.append(spec)
-    return valid

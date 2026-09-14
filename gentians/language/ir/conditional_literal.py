@@ -61,9 +61,7 @@ class ConditionalLiteral:
                     for atom in literal.atom.concretizations(constants)
                 )
             return tuple(
-                ComparisonLiteral(
-                    literal.operator, (terms[0], terms[1]), literal.family
-                )
+                ComparisonLiteral(terms, literal.operators, literal.default_negated)
                 for terms in product(
                     *(term.concretizations(constants) for term in literal.terms)
                 )

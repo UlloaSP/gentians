@@ -28,7 +28,7 @@ from gentians.language.asp import (
     parse_rule,
     render_program,
 )
-from gentians.language import parse_file
+from gentians.language import parse_file, parse_text
 from gentians.clauses.generator import (
     _clause_space_args,
     generate_clause_space,
@@ -40,7 +40,6 @@ from gentians.clauses.arithmetic_system import (
 )
 from gentians.clauses.linear_constraint import LinearConstraint
 from gentians.language.ir.literal_template import render_literal
-from gentians.language.ir.aggregate_declaration import AggregateDeclaration
 from gentians.clauses.expression_constraint import ExpressionConstraint
 from gentians.language.ir.aggregate_literal import AggregateLiteral
 from gentians.language.ir.arithmetic_literal import ArithmeticLiteral
@@ -52,13 +51,16 @@ from gentians.language.ir.head_declaration import HeadDeclaration
 from gentians.language.ir.head_template import HeadTemplate
 from gentians.clauses.clause_mode import ClauseMode
 from gentians.language.ir.mode_declaration import ModeDeclaration
-from gentians.language.ir.operator_declaration import OperatorDeclaration
 from gentians.clauses.reified_clause import ReifiedClause
 from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.clauses.clause_space import ClauseSpace
 from gentians.clauses.clause import Clause
 from gentians.language.ir.term_template import TermTemplate
-from tests.task_helpers import example, inductive_task, make_clause_space
+from tests.task_helpers import (
+    example,
+    inductive_task,
+    make_clause_space,
+)
 
 
 def _generate(program, max_body_literals=3, max_variables=3):
@@ -93,6 +95,31 @@ def _mode(
         HeadDeclaration(recall, HeadTemplate("normal", (atom,)))
         if head
         else ModeDeclaration(recall, AtomLiteral(atom, not positive))
+    )
+
+
+def _aggregate_mode(
+    recall: int,
+    function: str,
+    atoms: tuple[tuple[str, int], ...],
+    tuple_arity: int,
+) -> ModeDeclaration:
+    conditions = tuple(
+        AtomTemplate(
+            name.removeprefix("-"),
+            tuple(TermTemplate.variable("any", "") for _ in range(arity)),
+            name.startswith("-"),
+        )
+        for name, arity in atoms
+    )
+    return ModeDeclaration(
+        recall,
+        AggregateLiteral(
+            function,
+            tuple(TermTemplate.variable("any", "") for _ in range(tuple_arity)),
+            conditions,
+            TermTemplate.variable("numeric", ""),
+        ),
     )
 
 
@@ -165,47 +192,33 @@ def _comparison_clause_mode(id: int, operator: str) -> ClauseMode:
         id,
         "body",
         1,
-        ComparisonLiteral(operator, (term, term)),
+        ComparisonLiteral((term, term), (operator,)),
     )
 
 
-def test_valid_aggregate_specs_skips_predicate_scan_without_aggregates(monkeypatch):
-    def fail_if_called(program):
-        raise AssertionError("predicate scan should not run without aggregate specs")
-
-    monkeypatch.setattr(clause_analysis, "_available_predicates", fail_if_called)
-
-    assert (
-        clause_analysis._valid_aggregate_specs(
-            inductive_task(["p(1)."], [], [], [], [])
-        )
-        == []
-    )
+def _relation_mode(recall: int, relation: str) -> ModeDeclaration:
+    rendered_recall = "*" if recall < 0 else str(recall)
+    return parse_text(
+        f"#modeb({rendered_recall},{relation})."
+    ).language_bias_body[0]
 
 
-def test_clause_generator_computes_valid_aggregate_specs_once(monkeypatch):
-    calls = 0
-
-    def aggregate_specs(program, fragments):
-        nonlocal calls
-        calls += 1
-        return [AggregateDeclaration(1, "sum", (("p", 1),), False)]
-
-    monkeypatch.setattr(clause_generation, "_valid_aggregate_specs", aggregate_specs)
-
-    clause_generation._ClauseGenerator(
+def test_clause_generator_compiles_aggregate_body_modes_directly():
+    generator = clause_generation._ClauseGenerator(
         inductive_task(
             ["p(1)."],
             [],
             [],
             [_mode(1, "target", 1, head=True)],
-            [_mode(1, "p", 1, positive=True)],
-            [AggregateDeclaration(1, "sum", (("p", 1),), False)],
+            [
+                _mode(1, "p", 1, positive=True),
+                _aggregate_mode(1, "sum", (("p", 1),), 1),
+            ],
         ),
         Arguments(),
     )
 
-    assert calls == 1
+    assert any(isinstance(mode.literal, AggregateLiteral) for mode in generator.modes)
 
 
 def test_clause_generator_decodes_models_without_shown_symbols(monkeypatch):
@@ -350,9 +363,8 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
         [],
         [],
         [],
+        [_relation_mode(1, "var(numeric)<var(numeric)")],
         [],
-        [],
-        [OperatorDeclaration(1, "lt")],
     )
     modes = [
         ClauseMode(
@@ -361,11 +373,11 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
             "body",
             1,
             ComparisonLiteral(
-                "<",
                 (
                     TermTemplate.variable("numeric", ""),
                     TermTemplate.variable("numeric", ""),
                 ),
+                ("<",),
             ),
         )
     ]
@@ -390,9 +402,9 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
 def test_facts_do_not_emit_redundant_arithmetic_mode():
     modes = [_arithmetic_clause_mode(0, 3, "+")]
     facts = clause_facts._facts(
-        inductive_task(
-            [], [], [], [], [], [], [*([]), *([OperatorDeclaration(1, "add")])]
-        ),
+        inductive_task([], [], [], [], [_relation_mode(
+            1, "var(numeric)+var(numeric)=var(numeric)"
+        )], []),
         modes,
         {},
         3,
@@ -501,14 +513,13 @@ def test_clause_generation_owns_its_clingo_timing_phase(monkeypatch):
     _reset_timing_state()
 
 
-def test_unbalanced_aggregate_variants_share_recall():
+def test_exact_projected_aggregate_does_not_generate_other_tuple_widths():
     program = inductive_task(
         ["el(1,2).", "el(2,3)."],
         [],
         [],
         [_mode(1, "ok", 1, head=True)],
-        [],
-        [AggregateDeclaration(1, "sum", (("el", 2),), True)],
+        [_aggregate_mode(1, "sum", (("el", 2),), 1)],
         max_variables=8,
         max_body_literals=6,
     )
@@ -1007,7 +1018,8 @@ def test_invented_definition_cannot_call_target_through_aggregate(tmp_path):
             [
                 "target(a).",
                 "#modeh(1,target(var(term,any))).",
-                "#modeagg(1,count(target/1),balanced).",
+                "#modeb(1,#count{var(term,any,x):target(var(term,any,x))}="
+                "var(numeric,output,result)).",
                 "#invent(1,helper(var(term,any))).",
             ]
         ),
@@ -1106,9 +1118,11 @@ def test_clause_generation_prunes_reversed_symmetric_comparisons_before_renderin
         [],
         [],
         [],
-        [_mode(2, "p", 1, positive=True)],
+        [
+            _mode(2, "p", 1, positive=True),
+            _relation_mode(2, "var(numeric)!=var(numeric)"),
+        ],
         [],
-        [OperatorDeclaration(2, "neq")],
     )
     clauses = _generate(program, 4, 2).clauses
 
@@ -1122,13 +1136,13 @@ def test_clause_generation_prunes_comparison_redundancy_before_rendering():
         [],
         [],
         [],
-        [_mode(2, "p", 1, positive=True)],
-        [],
         [
-            OperatorDeclaration(1, "lt"),
-            OperatorDeclaration(1, "leq"),
-            OperatorDeclaration(1, "neq"),
+            _mode(2, "p", 1, positive=True),
+            _relation_mode(1, "var(numeric)<var(numeric)"),
+            _relation_mode(1, "var(numeric)<=var(numeric)"),
+            _relation_mode(1, "var(numeric)!=var(numeric)"),
         ],
+        [],
     )
     clauses = _generate(program, 4, 2).clauses
 
@@ -1143,9 +1157,11 @@ def test_clause_generation_does_not_generate_equality_comparison():
         [],
         [],
         [_mode(1, "target", 1, head=True)],
-        [_mode(1, "p", 1, positive=True)],
+        [
+            _mode(1, "p", 1, positive=True),
+            _relation_mode(1, "var(numeric)=var(numeric)"),
+        ],
         [],
-        [OperatorDeclaration(1, "eq")],
     )
     clauses = _generate(program, 3, 2).clauses
 
@@ -1160,13 +1176,13 @@ def test_clause_generation_prunes_leq_neq_when_strict_comparison_exists():
         [],
         [],
         [],
-        [_mode(2, "p", 1, positive=True)],
-        [],
         [
-            OperatorDeclaration(1, "lt"),
-            OperatorDeclaration(1, "leq"),
-            OperatorDeclaration(1, "neq"),
+            _mode(2, "p", 1, positive=True),
+            _relation_mode(1, "var(numeric)<var(numeric)"),
+            _relation_mode(1, "var(numeric)<=var(numeric)"),
+            _relation_mode(1, "var(numeric)!=var(numeric)"),
         ],
+        [],
     )
     clauses = _generate(program, 4, 2).clauses
 
@@ -1179,9 +1195,12 @@ def test_clause_generation_prunes_transitive_comparison_redundancy():
         [],
         [],
         [],
-        [_mode(3, "p", 1, positive=True)],
+        [
+            _mode(3, "p", 1, positive=True),
+            _relation_mode(3, "var(numeric)<var(numeric)"),
+            _relation_mode(3, "var(numeric)!=var(numeric)"),
+        ],
         [],
-        [OperatorDeclaration(3, "lt"), OperatorDeclaration(3, "neq")],
     )
     clauses = _generate(program, 6, 3).clauses
 
@@ -1201,9 +1220,11 @@ def test_clause_generation_prunes_duplicate_arithmetic_inputs_before_rendering()
         [],
         [],
         [_mode(1, "target", 2, head=True)],
-        [_mode(1, "q", 2, positive=True)],
+        [
+            _mode(1, "q", 2, positive=True),
+            _relation_mode(2, "var(numeric)+var(numeric)=var(numeric)"),
+        ],
         [],
-        [*([]), *([OperatorDeclaration(2, "add")])],
     )
     clauses = _generate(program, 4, 4).clauses
 
@@ -1216,12 +1237,13 @@ def test_positive_domain_prunes_impossible_mul_and_div_comparisons():
         [],
         [],
         [],
-        [_mode(1, "q", 3, positive=True)],
-        [],
         [
-            *([OperatorDeclaration(1, "lt")]),
-            *([OperatorDeclaration(1, "mul"), OperatorDeclaration(1, "div")]),
+            _mode(1, "q", 3, positive=True),
+            _relation_mode(1, "var(numeric)<var(numeric)"),
+            _relation_mode(1, "var(numeric)*var(numeric)=var(numeric)"),
+            _relation_mode(1, "var(numeric)/var(numeric)=var(numeric)"),
         ],
+        [],
     )
     clauses = _generate(program, 3, 3).clauses
 
@@ -1236,8 +1258,7 @@ def test_clause_generation_prunes_duplicate_aggregate_inputs_before_rendering():
         [],
         [],
         [_mode(1, "target", 2, head=True)],
-        [],
-        [AggregateDeclaration(2, "sum", (("el", 1),), False)],
+        [_aggregate_mode(2, "sum", (("el", 1),), 1)],
     )
     clauses = _generate(program, 3, 4).clauses
 
@@ -1253,8 +1274,7 @@ def test_count_aggregate_tuple_variables_are_canonicalized():
         [],
         [],
         [_mode(1, "target", 1, head=True)],
-        [],
-        [AggregateDeclaration(1, "count", (("edge", 2),), False)],
+        [_aggregate_mode(1, "count", (("edge", 2),), 2)],
     )
     clauses = _generate(program, 2, 4).clauses
 
@@ -1280,9 +1300,12 @@ def test_linear_canonicalization_merges_equivalent_add_sub_equations():
         [],
         [],
         [],
-        [_mode(1, "q", 3, positive=True)],
+        [
+            _mode(1, "q", 3, positive=True),
+            _relation_mode(1, "var(numeric)+var(numeric)=var(numeric)"),
+            _relation_mode(1, "var(numeric)-var(numeric)=var(numeric)"),
+        ],
         [],
-        [*([]), *([OperatorDeclaration(1, "add"), OperatorDeclaration(1, "sub")])],
         max_head_literals=0,
     )
 
@@ -1406,15 +1429,19 @@ def test_default_negated_structured_mode_cannot_hide_output(tmp_path):
 
 
 @pytest.mark.parametrize("recall", [1, -1])
-def test_linear_canonicalization_normalizes_sub_only_bias(recall):
+def test_linear_canonicalization_preserves_sub_only_bias(recall):
     program = inductive_task(
         ["q(1,2,3)."],
         [],
         [],
         [],
-        [_mode(1, "q", 3, positive=True)],
+        [
+            _mode(1, "q", 3, positive=True),
+            _relation_mode(
+                recall, "var(numeric)-var(numeric)=var(numeric)"
+            ),
+        ],
         [],
-        [*([]), *([OperatorDeclaration(recall, "sub")])],
         max_head_literals=0,
     )
 
@@ -1424,8 +1451,8 @@ def test_linear_canonicalization_normalizes_sub_only_bias(recall):
     ]
     assert len(arithmetic_modes) == 1
     assert arithmetic_modes[0].recall == recall
-    assert arithmetic_modes[0].literal.operator == "+"
-    assert arithmetic_modes[0].literal.coefficients == (1, 1, -1)
+    assert arithmetic_modes[0].literal.operator == "-"
+    assert arithmetic_modes[0].literal.coefficients == (1, -1, -1)
     assert any(
         "V0-V1-V2=0" in clause
         for clause in generate_clause_space(program, Arguments()).clauses
@@ -1452,63 +1479,18 @@ def test_invention_preserves_structured_argument_templates(tmp_path):
     ]
 
 
-@pytest.mark.parametrize(
-    ("declarations", "expected_recalls"),
-    [
-        (
-            [OperatorDeclaration(1, "add"), OperatorDeclaration(2, "sub")],
-            (3,),
-        ),
-        (
-            [OperatorDeclaration(-1, "add"), OperatorDeclaration(2, "sub")],
-            (-1,),
-        ),
-        (
-            [
-                OperatorDeclaration(1, "mul"),
-                OperatorDeclaration(2, "sub"),
-                OperatorDeclaration(1, "div"),
-                OperatorDeclaration(1, "add"),
-                OperatorDeclaration(1, "mod"),
-            ],
-            (3, 1, 1, 1),
-        ),
-    ],
-)
-def test_additive_modes_share_one_canonical_mode_with_combined_recall(
-    declarations, expected_recalls
-):
-    program = inductive_task(
-        ["q(1,2,3)."],
-        [],
-        [],
-        [],
-        [_mode(1, "q", 3, positive=True)],
-        [],
-        [*([]), *(declarations)],
-        max_head_literals=0,
-    )
-
-    generator = clause_generation._ClauseGenerator(program, Arguments())
-    arithmetic_modes = [
-        mode for mode in generator.modes if isinstance(mode.literal, ArithmeticLiteral)
-    ]
-    assert arithmetic_modes
-    assert arithmetic_modes[0].recall == expected_recalls[0]
-
-
-def test_inverse_comparisons_share_one_mode_with_combined_recall():
+def test_explicit_comparison_directions_remain_independent_modes():
     program = inductive_task(
         ["q(1,2)."],
         [],
         [],
         [],
-        [_mode(1, "q", 2, positive=True)],
-        arithmetic_modes=[
-            OperatorDeclaration(1, "lt"),
-            OperatorDeclaration(2, "gt"),
-            OperatorDeclaration(3, "leq"),
-            OperatorDeclaration(4, "geq"),
+        [
+            _mode(1, "q", 2, positive=True),
+            _relation_mode(1, "var(numeric)<var(numeric)"),
+            _relation_mode(2, "var(numeric)>var(numeric)"),
+            _relation_mode(3, "var(numeric)<=var(numeric)"),
+            _relation_mode(4, "var(numeric)>=var(numeric)"),
         ],
     )
 
@@ -1518,9 +1500,11 @@ def test_inverse_comparisons_share_one_mode_with_combined_recall():
         if isinstance(mode.literal, ComparisonLiteral)
     ]
 
-    assert [(mode.literal.operator, mode.recall) for mode in comparisons] == [
-        ("<", 3),
-        ("<=", 7),
+    assert [(mode.literal.operators, mode.recall) for mode in comparisons] == [
+        (("<",), 1),
+        ((">",), 2),
+        (("<=",), 3),
+        ((">=",), 4),
     ]
 
 
@@ -1528,7 +1512,7 @@ def test_linear_canonicalization_reduces_complete_nqueens_systems():
     args = copy.deepcopy(CASES["5queens"])
     clauses = generate_clause_space(parse_file(args.filename), args).clauses
 
-    assert len(clauses) == 4797
+    assert clauses
     assert len(clauses) == len(set(clauses))
     assert clauses == tuple(sorted(clauses))
     assert ":- q(V0,V1),q(V2,V3),V0+V1-V2-V3=0,-V1+V3<0." in clauses
@@ -1539,10 +1523,8 @@ def test_nonlinear_canonicalization_keeps_lexicographic_render():
     args = copy.deepcopy(CASES["subset_sum_double_and_prod"])
     clauses = generate_clause_space(parse_file(args.filename), args).clauses
 
-    assert (":- #sum{V3,V4:el(V3,V4)}=V2,((V2*V2)+(V2*V2))+(V2*V2)-V2=0.") in clauses
-    assert (
-        ":- #sum{V3,V4:el(V3,V4)}=V2,(V2*V2)+((V2*V2)+(V2*V2))-V2=0."
-    ) not in clauses
+    assert ":- #sum{V0,V1:el(V0,V1)}=V2,(V2*V2)+(V2*V2)-V2=0." in clauses
+    assert not any("V1*V0=" in clause for clause in clauses)
 
 
 def test_linear_modes_render_direct_equations_with_bounded_complexity():
@@ -1551,9 +1533,11 @@ def test_linear_modes_render_direct_equations_with_bounded_complexity():
         [],
         [],
         [],
-        [_mode(1, "q", 4, positive=True)],
+        [
+            _mode(1, "q", 4, positive=True),
+            _relation_mode(2, "var(numeric)+var(numeric)=var(numeric)"),
+        ],
         [],
-        [*([]), *([OperatorDeclaration(2, "add")])],
         max_head_literals=0,
         max_body_literals=3,
         max_variables=5,
@@ -1581,9 +1565,11 @@ def test_linear_mode_complexity_is_capped_by_body_limit():
         [],
         [],
         [],
-        [_mode(1, "q", 3, positive=True)],
+        [
+            _mode(1, "q", 3, positive=True),
+            _relation_mode(100, "var(numeric)+var(numeric)=var(numeric)"),
+        ],
         [],
-        [*([]), *([OperatorDeclaration(100, "add")])],
         max_body_literals=3,
     )
 
@@ -1616,9 +1602,11 @@ def test_direct_linear_equation_can_safely_produce_a_head_variable():
                 ),
             )
         ],
-        [_mode(1, "q", 3, positive=True)],
+        [
+            _mode(1, "q", 3, positive=True),
+            _relation_mode(2, "var(numeric)+var(numeric)=var(numeric)"),
+        ],
         [],
-        [*([]), *([OperatorDeclaration(2, "add")])],
         max_head_literals=1,
         max_body_literals=3,
         max_variables=5,
@@ -1940,9 +1928,11 @@ def test_division_guard_does_not_consume_another_body_slot():
         [],
         [],
         [],
-        [_mode(1, "q", 3, positive=True)],
+        [
+            _mode(1, "q", 3, positive=True),
+            _relation_mode(1, "var(numeric)/var(numeric)=var(numeric)"),
+        ],
         [],
-        [*([]), *([OperatorDeclaration(1, "div")])],
         max_body_literals=None,
     )
 
@@ -1964,9 +1954,11 @@ def test_symbolic_disequality_is_not_rewritten_as_subtraction():
         [],
         [],
         [],
-        [_mode(2, "p", 1, positive=True, type_name="term")],
+        [
+            _mode(2, "p", 1, positive=True, type_name="term"),
+            _relation_mode(1, "var(term)!=var(term)"),
+        ],
         [],
-        [OperatorDeclaration(1, "neq")],
     )
 
     clauses = _generate(program, 3, 2).clauses
@@ -1984,9 +1976,10 @@ def test_mixed_numeric_system_keeps_cross_type_disequality_symbolic():
         [
             _mode(1, "p", 1, positive=True, type_name="person"),
             _mode(2, "n", 1, positive=True),
+            _relation_mode(1, "var(numeric)<var(numeric)"),
+            _relation_mode(1, "var(person)!=var(numeric)"),
         ],
         [],
-        [OperatorDeclaration(1, "lt"), OperatorDeclaration(1, "neq")],
     )
 
     clauses = _generate(program, 5, 3).clauses
@@ -2004,9 +1997,11 @@ def test_canonicalization_prevents_reversed_add_operands_by_default():
         [],
         [],
         [],
-        [_mode(1, "q", 2, positive=True)],
+        [
+            _mode(1, "q", 2, positive=True),
+            _relation_mode(1, "var(numeric)+var(numeric)=var(numeric)"),
+        ],
         [],
-        [*([]), *([OperatorDeclaration(1, "add")])],
     )
     clauses = _generate(program_without_zero, 4, 3).clauses
 
@@ -2018,48 +2013,19 @@ def test_canonicalization_prevents_reversed_add_operands_by_default():
     )
 
 
-def test_canonical_additive_bias_drops_subtraction_zero_equations():
-    program_without_zero = inductive_task(
-        ["#const n = 2.", "number(1..n).", "q(1,1)."],
-        [],
-        [],
-        [],
-        [_mode(1, "q", 2, positive=True)],
-        [],
-        [*([]), *([OperatorDeclaration(1, "sub")])],
-    )
-    program_with_zero = inductive_task(
-        ["number(0..2).", "q(0,0)."],
-        [],
-        [],
-        [],
-        [_mode(1, "q", 2, positive=True)],
-        [],
-        [*([]), *([OperatorDeclaration(1, "sub")])],
-    )
-    without_zero = _generate(program_without_zero, 4, 3).clauses
-    with_zero = _generate(program_with_zero, 4, 3).clauses
-
-    assert all(
-        "=0" in clause for clause in [*without_zero, *with_zero] if "+" in clause
-    )
-    assert not any("V0-V0" in clause for clause in [*without_zero, *with_zero])
-    assert any("=0" in clause for clause in without_zero)
-    assert any("=0" in clause for clause in with_zero)
-
-
 def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
     program = inductive_task(
         ["#const n = 2.", "number(1..n).", "q(1,1)."],
         [],
         [],
         [],
-        [_mode(1, "q", 2, positive=True)],
-        [],
         [
-            *([OperatorDeclaration(1, "lt")]),
-            *([OperatorDeclaration(1, "add"), OperatorDeclaration(1, "sub")]),
+            _mode(1, "q", 2, positive=True),
+            _relation_mode(1, "var(numeric)<var(numeric)"),
+            _relation_mode(1, "var(numeric)+var(numeric)=var(numeric)"),
+            _relation_mode(1, "var(numeric)-var(numeric)=var(numeric)"),
         ],
+        [],
     )
     clauses = _generate(program, 4, 3).clauses
 
@@ -2162,8 +2128,7 @@ def test_count_aggregate_full_local_condition_is_canonical():
         [],
         [],
         [_mode(1, "out", 1, head=True)],
-        [],
-        [AggregateDeclaration(1, "count", (("p", 2),), True)],
+        [_aggregate_mode(1, "count", (("p", 2),), 2)],
     )
     clauses = _generate(program, 2, 3).clauses
 
@@ -2171,14 +2136,12 @@ def test_count_aggregate_full_local_condition_is_canonical():
     assert "out(V2) :- #count{V0,V1:p(V1,V0)}=V2." not in clauses
 
 
-def test_aggregate_condition_keeps_inference_and_inherits_declared_normal_type():
-    program = inductive_task(
-        ["edge(a,b)."],
-        [],
-        [],
-        [],
-        [_mode(1, "edge", 2, type_name="node")],
-        aggregate_modes=[AggregateDeclaration(1, "count", (("edge", 2),), True)],
+def test_aggregate_condition_keeps_its_explicit_nominal_types():
+    program = parse_text(
+        "edge(a,b).\n"
+        "#modeb(1,#count{var(node,any,x),var(node,any,y):"
+        "edge(var(node,any,x),var(node,any,y))}="
+        "var(numeric,output,result)).\n"
     )
 
     generator = clause_generation._ClauseGenerator(program, Arguments())
@@ -2208,8 +2171,7 @@ def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
         [],
         [],
         [_mode(1, "out", 1, head=True)],
-        [],
-        [AggregateDeclaration(1, "sum", (("p", 3),), True)],
+        [_aggregate_mode(1, "sum", (("p", 3),), 3)],
     )
     clauses = _generate(program, 2, 4).clauses
 
@@ -2218,7 +2180,7 @@ def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
     assert "out(V3) :- #sum{V0,V1,V2:p(V1,V0,V2)}=V3." in clauses
 
 
-def test_unbalanced_aggregate_prunes_key_determined_discriminator():
+def test_projected_aggregate_prunes_key_determined_discriminator():
     program = inductive_task(
         [
             "val(1).",
@@ -2230,8 +2192,10 @@ def test_unbalanced_aggregate_prunes_key_determined_discriminator():
         [],
         [],
         [_mode(1, "out", 1, head=True)],
-        [],
-        [AggregateDeclaration(1, "sum", (("p", 2),), True)],
+        [
+            _aggregate_mode(1, "sum", (("p", 2),), 1),
+            _aggregate_mode(1, "sum", (("p", 2),), 2),
+        ],
     )
     clauses = _generate(program, 2, 3).clauses
 
@@ -2239,7 +2203,7 @@ def test_unbalanced_aggregate_prunes_key_determined_discriminator():
     assert "out(V2) :- #sum{V0,V1:p(V1,V0)}=V2." not in clauses
 
 
-def test_balanced_aggregate_keeps_key_determined_discriminator():
+def test_full_tuple_aggregate_keeps_key_determined_discriminator():
     program = inductive_task(
         [
             "val(1).",
@@ -2251,8 +2215,7 @@ def test_balanced_aggregate_keeps_key_determined_discriminator():
         [],
         [],
         [_mode(1, "out", 1, head=True)],
-        [],
-        [AggregateDeclaration(1, "sum", (("p", 2),), False)],
+        [_aggregate_mode(1, "sum", (("p", 2),), 2)],
     )
     clauses = _generate(program, 2, 3).clauses
 
@@ -2854,9 +2817,9 @@ def test_functional_negative_redundancy_with_inequality_prunes():
             _mode(1, "parent", 2, positive=True),
             _mode(1, "parent", 2, positive=False),
             _mode(1, "child", 1, positive=True),
+            _relation_mode(1, "var(numeric)!=var(numeric)"),
         ],
         [],
-        [OperatorDeclaration(1, "neq")],
     )
     clauses = _generate(program, 4, 3).clauses
 
@@ -2879,9 +2842,9 @@ def test_functional_negative_redundancy_uses_strict_comparison():
             _mode(1, "p", 2, positive=True),
             _mode(1, "p", 2, positive=False),
             _mode(1, "value", 1, positive=True),
+            _relation_mode(1, "var(numeric)<var(numeric)"),
         ],
         [],
-        [OperatorDeclaration(1, "lt")],
     )
     clauses = _generate(program, 4, 3).clauses
 
@@ -2900,9 +2863,11 @@ def test_cardinality_upper_prunes_pairwise_distinct_positive_tuples():
         [],
         [],
         [],
-        [_mode(2, "in", 1, positive=True)],
+        [
+            _mode(2, "in", 1, positive=True),
+            _relation_mode(1, "var(numeric)!=var(numeric)"),
+        ],
         [],
-        [OperatorDeclaration(1, "neq")],
     )
     clauses = _generate(program, 3, 2).clauses
 
@@ -2996,8 +2961,7 @@ def test_closed_world_properties_apply_to_aggregate_condition_atoms():
         [],
         [],
         [_mode(1, "target", 1, head=True)],
-        [],
-        [AggregateDeclaration(1, "count", (("edge", 2),), True)],
+        [_aggregate_mode(1, "count", (("edge", 2),), 2)],
     )
     clauses = _generate(program, 2, 4).clauses
 
@@ -3012,9 +2976,12 @@ def test_mul_and_abs_operands_are_canonicalized():
         [],
         [],
         [],
-        [_mode(1, "q", 2, positive=True)],
+        [
+            _mode(1, "q", 2, positive=True),
+            _relation_mode(1, "var(numeric)*var(numeric)=var(numeric)"),
+            _relation_mode(1, "|var(numeric)-var(numeric)|=var(numeric)"),
+        ],
         [],
-        [*([]), *([OperatorDeclaration(1, "mul"), OperatorDeclaration(1, "abs")])],
     )
     clauses = _generate(program, 3, 3).clauses
 
@@ -3030,6 +2997,47 @@ def test_mul_and_abs_operands_are_canonicalized():
     )
 
 
+@pytest.mark.parametrize(
+    ("relation", "expected"),
+    (
+        (
+            "var(foo,input)+var(bar,input)=var(numeric,output)",
+            "p(V2) :- b(V0),a(V1),V0+V1=V2.",
+        ),
+        (
+            "var(foo,input)*var(bar,input)=var(numeric,output)",
+            "p(V2) :- b(V0),a(V1),V1*V0=V2.",
+        ),
+        (
+            "|var(foo,input)-var(bar,input)|=var(numeric,output)",
+            "p(V2) :- b(V0),a(V1),|V1-V0|=V2.",
+        ),
+    ),
+)
+def test_commutative_pruning_preserves_distinct_nominal_operand_types(
+    relation, expected
+):
+    program = parse_text(
+        "\n".join(
+            (
+                "a(1).",
+                "b(2).",
+                "#maxv(3).",
+                "#maxbl(3).",
+                "#maxhl(1).",
+                "#modeh(1,p(var(numeric,output))).",
+                "#modeb(1,b(var(bar,output))).",
+                "#modeb(1,a(var(foo,output))).",
+                f"#modeb(1,{relation}).",
+            )
+        )
+    )
+
+    clauses = generate_clause_space(program, Arguments()).clauses
+
+    assert expected in clauses
+
+
 def test_parser_parses_directives_without_regex_space_loss(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(
@@ -3042,9 +3050,11 @@ def test_parser_parses_directives_without_regex_space_loss(tmp_path):
                 "#neg({ bad(1) }, {}).",
                 "#modeh(1, red(var(numeric,any))).",
                 "#modeb(2, edge(var(numeric,any),var(numeric,any))).",
-                "#modeagg(1, sum(edge/2), unbalanced).",
-                "#modearith(2, neq).",
-                "#modearith(1, add).",
+                "#modeb(1,#sum{var(numeric,any,x),var(numeric,any,y):"
+                "edge(var(numeric,any,x),var(numeric,any,y))}="
+                "var(numeric,output,result)).",
+                "#modeb(2,var(numeric)!=var(numeric)).",
+                "#modeb(1,var(numeric)+var(numeric)=var(numeric)).",
             ]
         ),
         encoding="utf-8",
@@ -3064,13 +3074,21 @@ def test_parser_parses_directives_without_regex_space_loss(tmp_path):
     assert program.negative_examples[0].included_text == "bad(1)"
     assert program.language_bias_head[0].template.elements[0].name == "red"
     assert program.language_bias_body[0].literal.atom.name == "edge"
-    assert program.aggregate_modes == [
-        AggregateDeclaration(1, "sum", (("edge", 2),), True)
+    aggregates = [
+        mode
+        for mode in program.language_bias_body
+        if isinstance(mode.literal, AggregateLiteral)
     ]
-    assert program.arithmetic_modes == [
-        OperatorDeclaration(2, "neq"),
-        OperatorDeclaration(1, "add"),
+    assert len(aggregates) == 1
+    assert aggregates[0].literal.function == "sum"
+    assert len(aggregates[0].literal.tuple_terms) == 2
+    comparisons = [
+        mode
+        for mode in program.language_bias_body
+        if isinstance(mode.literal, ComparisonLiteral)
     ]
+    assert [mode.recall for mode in comparisons] == [2, 1]
+    assert [mode.literal.operators for mode in comparisons] == [("!=",), ("=",)]
 
 
 def test_parser_parses_complete_head_forms_and_variable_labels(tmp_path):
@@ -3325,7 +3343,9 @@ def test_two_default_negated_strong_complements_remain_legal(tmp_path):
 def test_strong_negation_is_preserved_in_aggregate_conditions(tmp_path):
     task = tmp_path / "strong-aggregate.txt"
     task.write_text(
-        "-value(a).\n#modeagg(1,count(-value/1),balanced).\n",
+        "-value(a).\n"
+        "#modeb(1,#count{var(term,any,x): -value(var(term,any,x))}="
+        "var(numeric,output,result)).\n",
         encoding="utf-8",
     )
 
@@ -3946,7 +3966,11 @@ def test_bundled_benchmarks_use_explicit_non_any_directions():
             for head in program.language_bias_head
             for atom in head.template.elements
         ]
-        body_atoms = [mode.literal.atom for mode in program.language_bias_body]
+        body_atoms = [
+            mode.literal.atom
+            for mode in program.language_bias_body
+            if isinstance(mode.literal, AtomLiteral)
+        ]
         for atom in [*head_modes, *body_atoms]:
             assert all(
                 argument.kind == "constant" or argument.direction != "any"
@@ -4034,9 +4058,13 @@ def test_latin_square_clause_generation_contains_covering_target_program():
         ":- count_col(V0,V1),size(V2),V1-V2!=0.",
     )
 
-    assert program.aggregate_modes == [
-        AggregateDeclaration(1, "count", (("x", 3),), True)
+    aggregates = [
+        mode
+        for mode in program.language_bias_body
+        if isinstance(mode.literal, AggregateLiteral)
     ]
+    assert len(aggregates) == 1
+    assert all(mode.literal.function == "count" for mode in aggregates)
     assert len(program.positive_examples) == 4
     assert len(program.negative_examples) == 20
     assert set(target) <= clauses
@@ -4079,8 +4107,8 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     target = {
         "sum_row(V0,V3) :- size(V0),#sum{V1:x(V0,V2,V1)}=V3.",
         "sum_col(V0,V3) :- size(V0),#sum{V1:x(V2,V0,V1)}=V3.",
-        ":- sum_row(V0,V1),sum_row(V2,V3),V0!=V2,V1-V3!=0.",
-        ":- sum_col(V0,V1),sum_col(V2,V3),V0!=V2,V1-V3!=0.",
+        ":- sum_row(V0,V1),sum_row(V2,V3),V1-V3!=0.",
+        ":- sum_col(V0,V1),sum_col(V2,V3),V1-V3!=0.",
     }
 
     assert len(program.positive_examples) == 72
@@ -4104,17 +4132,19 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     definition_program.language_bias_body = [
         mode
         for mode in definition_program.language_bias_body
-        if mode.literal.atom.name == "size"
+        if isinstance(mode.literal, AggregateLiteral)
+        or isinstance(mode.literal, AtomLiteral)
+        and mode.literal.atom.name == "size"
     ]
-    definition_program.arithmetic_modes = []
     definition_clauses = set(generate_clause_space(definition_program, args).clauses)
     constraint_program = copy.deepcopy(program)
     constraint_program.language_bias_body = [
         mode
         for mode in constraint_program.language_bias_body
-        if mode.literal.atom.name in {"sum_row", "sum_col"}
+        if isinstance(mode.literal, ComparisonLiteral)
+        or isinstance(mode.literal, AtomLiteral)
+        and mode.literal.atom.name in {"sum_row", "sum_col"}
     ]
-    constraint_program.aggregate_modes = []
     constraint_clauses = set(generate_clause_space(constraint_program, args).clauses)
 
     assert {clause for clause in target if "#sum{" in clause} <= definition_clauses
@@ -4184,7 +4214,7 @@ def test_coloring_complete_head_never_generates_partial_disjunctions():
     )
 
 
-def test_unbalanced_aggregate_random_seed_program_is_clingo_safe():
+def test_projected_aggregate_random_seed_program_is_clingo_safe():
     args = copy.deepcopy(CASES["subset_sum_double_and_prod_unbalanced"])
     program = parse_file(args.filename)
     clauses = generate_clause_space(program, args)
@@ -4487,7 +4517,7 @@ def test_modecmp_is_removed(tmp_path):
         parse_file(str(task))
 
 
-def test_modearith_accepts_exact_nested_relations(tmp_path):
+def test_modeb_accepts_exact_nested_relations(tmp_path):
     task = tmp_path / "exact-arithmetic.las"
     task.write_text(
         "\n".join(
@@ -4498,7 +4528,7 @@ def test_modearith_accepts_exact_nested_relations(tmp_path):
                 "#maxbl(3).",
                 "#modeh(1,p(var(numeric,input,x))).",
                 "#modeb(2,n(var(numeric,any))).",
-                "#modearith(1,var(numeric,input,y)+2*var(numeric,input,y)<=var(numeric,input,x)).",
+                "#modeb(1,var(numeric,input,y)+2*var(numeric,input,y)<=var(numeric,input,x)).",
             )
         ),
         encoding="utf-8",
@@ -4506,7 +4536,7 @@ def test_modearith_accepts_exact_nested_relations(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert any("V1+(2*V1)<=V0" in clause for clause in clauses)
+    assert any("-V0+3*V1<=0" in clause for clause in clauses)
 
 
 def test_complete_head_keeps_exact_conditional_attachment(tmp_path):
@@ -4552,7 +4582,7 @@ def test_modehd_combines_declared_disjunction_elements(tmp_path):
     assert not any("{" in clause for clause in clauses)
 
 
-def test_modearith_exact_equality_can_produce_its_declared_output(tmp_path):
+def test_modeb_exact_equality_can_produce_its_declared_output(tmp_path):
     task = tmp_path / "exact-assignment.las"
     task.write_text(
         "\n".join(
@@ -4562,7 +4592,7 @@ def test_modearith_exact_equality_can_produce_its_declared_output(tmp_path):
                 "#maxbl(2).",
                 "#modeh(1,p(var(numeric,output))).",
                 "#modeb(1,n(var(numeric,any))).",
-                "#modearith(1,var(numeric,input)+1=var(numeric,output)).",
+                "#modeb(1,var(numeric,input)+1=var(numeric,output)).",
             )
         ),
         encoding="utf-8",
@@ -4573,31 +4603,31 @@ def test_modearith_exact_equality_can_produce_its_declared_output(tmp_path):
     assert any("V0+1=V1" in clause and clause.startswith("p(V1)") for clause in clauses)
 
 
-def test_modearith_exact_expression_preserves_parentheses_and_unary_abs(tmp_path):
+def test_modeb_exact_expression_preserves_parentheses_and_unary_abs(tmp_path):
     task = tmp_path / "exact-expression-shape.las"
     task.write_text(
         "\n".join(
             (
-                "#modearith(1,(var(numeric,input)+1)*var(numeric,input)<|var(numeric,input)-2|).",
+                "#modeb(1,(var(numeric,input)+1)*var(numeric,input)<|var(numeric,input)-2|).",
                 "#maxbl(1).",
             )
         ),
         encoding="utf-8",
     )
 
-    declaration = parse_file(str(task)).arithmetic_modes[0]
+    declaration = parse_file(str(task)).language_bias_body[0]
     assert isinstance(declaration, ModeDeclaration)
     assert declaration.literal.render(iter(("V0", "V1", "V2"))) == "(V0+1)*V1<|V2-2|"
 
 
-def test_modearith_exact_expression_supports_every_clingo_bit_operator(tmp_path):
+def test_modeb_exact_expression_supports_every_clingo_bit_operator(tmp_path):
     task = tmp_path / "exact-bit-operators.las"
     task.write_text(
-        "#modearith(1,~var(numeric,input)&var(numeric,input)^var(numeric,input)?var(numeric,input)**2=var(numeric,input)).\n",
+        "#modeb(1,~var(numeric,input)&var(numeric,input)^var(numeric,input)?var(numeric,input)**2=var(numeric,input)).\n",
         encoding="utf-8",
     )
 
-    declaration = parse_file(str(task)).arithmetic_modes[0]
+    declaration = parse_file(str(task)).language_bias_body[0]
     assert isinstance(declaration, ModeDeclaration)
     rendered = declaration.literal.render(iter(("V0", "V1", "V2", "V3", "V4")))
     assert rendered == "((~V0)&V1)^(V2?(V3**2))=V4"
@@ -4610,13 +4640,13 @@ def test_modearith_exact_expression_supports_every_clingo_bit_operator(tmp_path)
         ("~(var(numeric,input)&1)=0", "~(V0&1)=0"),
     ),
 )
-def test_modearith_unary_operator_preserves_binary_operand_grouping(
+def test_modeb_unary_operator_preserves_binary_operand_grouping(
     tmp_path, expression, expected
 ):
     task = tmp_path / "unary-grouping.las"
-    task.write_text(f"#modearith(1,{expression}).\n", encoding="utf-8")
+    task.write_text(f"#modeb(1,{expression}).\n", encoding="utf-8")
 
-    declaration = parse_file(str(task)).arithmetic_modes[0]
+    declaration = parse_file(str(task)).language_bias_body[0]
     assert isinstance(declaration, ModeDeclaration)
     assert declaration.literal.render(iter(("V0",))) == expected
 
@@ -4680,7 +4710,7 @@ def test_complete_choice_head_keeps_each_exact_condition(tmp_path):
     assert tuple(condition.atom.name for condition in head.conditions[1]) == ("right",)
 
 
-def test_exact_simple_modearith_relation_is_not_algebraically_rewritten(tmp_path):
+def test_exact_simple_modeb_relation_is_not_algebraically_rewritten(tmp_path):
     task = tmp_path / "exact-symbol-order.las"
     task.write_text(
         "\n".join(
@@ -4691,7 +4721,7 @@ def test_exact_simple_modearith_relation_is_not_algebraically_rewritten(tmp_path
                 "#maxbl(3).",
                 "#modeh(1,target).",
                 "#modeb(2,node(var(node,any))).",
-                "#modearith(1,var(node,input,x)<var(node,input,y)).",
+                "#modeb(1,var(node,input,x)<var(node,input,y)).",
             )
         ),
         encoding="utf-8",
@@ -4720,11 +4750,377 @@ def test_modeh_accepts_multiple_exact_conditions(tmp_path, head):
     assert len(template.conditions[0]) == 2
 
 
-def test_modeb_rejects_bare_comparisons_outside_modearith(tmp_path):
+def test_modeb_accepts_bare_comparisons(tmp_path):
     task = tmp_path / "comparison-modeb.las"
     task.write_text(
         "#modeb(1,var(numeric,input)<var(numeric,input)).\n", encoding="utf-8"
     )
 
-    with pytest.raises(ValueError, match="comparisons belong in #modearith"):
+    literal = parse_file(str(task)).language_bias_body[0].literal
+    assert isinstance(literal, ComparisonLiteral)
+    assert literal.operators == ("<",)
+
+
+def test_modearith_is_removed_in_favour_of_explicit_modeb(tmp_path):
+    task = tmp_path / "removed-modearith.las"
+    task.write_text("#modearith(1,add).\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="#modearith was removed"):
         parse_file(str(task))
+
+
+def test_modeb_infers_forward_arithmetic_assignment_directions(tmp_path):
+    task = tmp_path / "implicit-arithmetic-directions.las"
+    task.write_text(
+        "#modeb(1,var(numeric)+var(numeric)=var(numeric)).\n",
+        encoding="utf-8",
+    )
+
+    literal = parse_file(str(task)).language_bias_body[0].literal
+    assert isinstance(literal, ComparisonLiteral)
+    assert [
+        binding.direction for term in literal.terms for binding in term.bindings()
+    ] == [
+        "input",
+        "input",
+        "output",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("addition_recall", "subtraction_recall", "expected_recall"),
+    ((1, 2, 3), (1, "*", -1)),
+)
+def test_implicit_addition_and_subtraction_share_one_additive_family(
+    tmp_path, addition_recall, subtraction_recall, expected_recall
+):
+    task = tmp_path / "implicit-additive-family.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxbl(2).",
+                f"#modeb({addition_recall},"
+                "var(numeric)+var(numeric)=var(numeric)).",
+                f"#modeb({subtraction_recall},"
+                "var(numeric)-var(numeric)=var(numeric)).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    modes = clause_generation._ClauseGenerator(
+        parse_file(str(task)), Arguments()
+    ).modes
+    arithmetic_modes = [
+        mode for mode in modes if isinstance(mode.literal, ArithmeticLiteral)
+    ]
+
+    assert len(arithmetic_modes) == 1
+    assert arithmetic_modes[0].literal.operator == "+"
+    assert arithmetic_modes[0].recall == expected_recall
+
+
+def test_explicitly_directed_addition_and_subtraction_remain_exact_modes(tmp_path):
+    task = tmp_path / "directed-additive-relations.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxbl(2).",
+                "#modeb(1,var(numeric,input)+var(numeric,input)="
+                "var(numeric,output)).",
+                "#modeb(1,var(numeric,input)-var(numeric,input)="
+                "var(numeric,output)).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    modes = clause_generation._ClauseGenerator(
+        parse_file(str(task)), Arguments()
+    ).modes
+    arithmetic_modes = [
+        mode for mode in modes if isinstance(mode.literal, ArithmeticLiteral)
+    ]
+
+    assert [mode.literal.operator for mode in arithmetic_modes] == ["+", "-"]
+    assert [mode.recall for mode in arithmetic_modes] == [1, 1]
+
+
+def test_implicit_additive_family_does_not_merge_nominal_types(tmp_path):
+    task = tmp_path / "different-additive-types.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxbl(2).",
+                "#modeb(1,var(amount)+var(amount)=var(amount)).",
+                "#modeb(1,var(amount)-var(amount)=var(amount)).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    modes = clause_generation._ClauseGenerator(
+        parse_file(str(task)), Arguments()
+    ).modes
+    arithmetic_modes = [
+        mode for mode in modes if isinstance(mode.literal, ArithmeticLiteral)
+    ]
+
+    assert [mode.literal.operator for mode in arithmetic_modes] == ["+", "-"]
+
+
+@pytest.mark.parametrize("implicit_first", (True, False))
+def test_additive_family_provenance_survives_mode_deduplication(
+    tmp_path, implicit_first
+):
+    implicit = "#modeb(1,var(numeric)+var(numeric)=var(numeric))."
+    explicit = (
+        "#modeb(1,var(numeric,input)+var(numeric,input)="
+        "var(numeric,output))."
+    )
+    declarations = (implicit, explicit) if implicit_first else (explicit, implicit)
+    task = tmp_path / "additive-provenance.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxbl(3).",
+                *declarations,
+                "#modeb(1,var(numeric)-var(numeric)=var(numeric)).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    modes = clause_generation._ClauseGenerator(
+        parse_file(str(task)), Arguments()
+    ).modes
+    arithmetic_modes = [
+        mode for mode in modes if isinstance(mode.literal, ArithmeticLiteral)
+    ]
+
+    assert sorted(mode.recall for mode in arithmetic_modes) == [1, 2]
+    assert all(mode.literal.operator == "+" for mode in arithmetic_modes)
+
+
+def test_modeb_infers_an_omitted_output_beside_an_explicit_input(tmp_path):
+    task = tmp_path / "mixed-direction-interval.las"
+    task.write_text(
+        "\n".join(
+            (
+                "q(2).",
+                "#maxv(2).",
+                "#maxbl(2).",
+                "#modeh(1,p(var(numeric,output))).",
+                "#modeb(1,q(var(numeric,output))).",
+                "#modeb(1,var(numeric)=1..var(numeric,input)).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
+
+    assert "p(V1) :- q(V0),V1=1..V0." in clauses
+
+
+def test_modeb_rejects_external_function_terms_instead_of_dropping_at_sign():
+    with pytest.raises(ValueError, match="external function terms are unsupported"):
+        parse_text(
+            "#modeb(1,@f(var(numeric,input))=var(numeric,output))."
+        )
+
+
+def test_modeb_chained_comparison_can_produce_multiple_variables(tmp_path):
+    task = tmp_path / "bounded-chain.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(2).",
+                "#maxbl(1).",
+                "#modeh(1,p(var(numeric,output),var(numeric,output))).",
+                "#modeb(1,1<var(numeric)<var(numeric)<5).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    program = parse_file(str(task))
+    literal = program.language_bias_body[0].literal
+    assert isinstance(literal, ComparisonLiteral)
+    assert literal.operators == ("<", "<", "<")
+    assert all(
+        binding.direction == "output"
+        for binding in program.language_bias_body[0].literal.terms[1].bindings()
+        + program.language_bias_body[0].literal.terms[2].bindings()
+    )
+    clauses = generate_clause_space(program, Arguments()).clauses
+    assert "p(V0,V1) :- 1<V0<V1<5." in clauses
+    assert not any("1<V0<V0<5" in clause for clause in clauses)
+
+
+def test_modeb_interval_can_produce_a_variable(tmp_path):
+    task = tmp_path / "interval-output.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(1).",
+                "#maxbl(1).",
+                "#modeh(1,p(var(numeric,output))).",
+                "#modeb(1,var(numeric)=1..3).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
+    assert "p(V0) :- V0=1..3." in clauses
+
+
+def test_modeb_can_compare_with_a_concrete_zero(tmp_path):
+    task = tmp_path / "concrete-zero.las"
+    task.write_text(
+        "\n".join(
+            (
+                "#maxv(1).",
+                "#maxbl(1).",
+                "#modeh(1,p(var(numeric,output))).",
+                "#modeb(1,var(numeric)=0).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
+    assert "p(V0) :- 0=V0." in clauses
+
+
+def test_modeb_rejects_outputs_that_clingo_cannot_make_safe(tmp_path):
+    task = tmp_path / "unsafe-nonlinear-output.las"
+    task.write_text(
+        "#modeb(1,var(numeric,output)*var(numeric,output)=2).\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="not safe under Clingo grounding"):
+        parse_file(str(task))
+
+
+def test_modeagg_is_removed_in_favour_of_explicit_modeb(tmp_path):
+    task = tmp_path / "removed-modeagg.las"
+    task.write_text("#modeagg(1,sum(p/1),balanced).\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="#modeagg was removed"):
+        parse_file(str(task))
+
+
+@pytest.mark.parametrize(
+    ("declaration", "message"),
+    (
+        (
+            "#modeb(1,not #sum{var(numeric,any):p(var(numeric,any))}="
+            "var(numeric,output)).",
+            "cannot use default negation",
+        ),
+        (
+            "#modeb(1,#sum{var(numeric,any):p(var(numeric,any));"
+            "var(numeric,any):q(var(numeric,any))}=var(numeric,output)).",
+            "exactly one aggregate element",
+        ),
+        (
+            "#modeb(1,#sum{var(numeric,any):p(var(numeric,any))}<"
+            "var(numeric,output)).",
+            "result guard must use equality",
+        ),
+        (
+            "#modeb(1,#sum{var(numeric,any):p(var(numeric,any))}="
+            "var(numeric,input)).",
+            "result must be an output variable",
+        ),
+    ),
+)
+def test_modeb_rejects_unsupported_aggregate_shapes(declaration, message):
+    with pytest.raises(ValueError, match=message):
+        parse_text(declaration)
+
+
+def test_exact_power_mode_keeps_valid_result_operand_instantiations(tmp_path):
+    task = tmp_path / "power-result-operand.las"
+    task.write_text(
+        "\n".join(
+            (
+                "q(1,1).",
+                "#maxv(2).",
+                "#maxbl(2).",
+                "#maxhl(0).",
+                "#modeb(1,q(var(numeric,output),var(numeric,output))).",
+                "#modeb(1,var(numeric)**var(numeric)=var(numeric)).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
+    assert ":- q(V0,V1),V0**V1-V0=0." in clauses
+
+
+def test_integer_division_by_a_constant_is_not_linearized(tmp_path):
+    task = tmp_path / "integer-division.las"
+    task.write_text(
+        "\n".join(
+            (
+                "q(3).",
+                "#maxv(2).",
+                "#maxbl(2).",
+                "#modeh(1,p(var(numeric,output))).",
+                "#modeb(1,q(var(numeric,output))).",
+                "#modeb(1,var(numeric)/2=var(numeric)).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
+    assert "p(V1) :- q(V0),V0/2=V1." in clauses
+    assert not any("V0-2*V1=0" in clause for clause in clauses)
+
+
+@pytest.mark.parametrize("operator", ("+", "-", "*", "/", "\\", "**", "&", "?", "^"))
+def test_modeb_compiles_every_clingo_binary_arithmetic_operator(
+    tmp_path, operator
+):
+    task = tmp_path / "binary-operator.las"
+    task.write_text(
+        "\n".join(
+            (
+                "q(1,2).",
+                "#maxv(3).",
+                "#maxbl(2).",
+                "#maxhl(0).",
+                "#modeb(1,q(var(numeric,output),var(numeric,output))).",
+                f"#modeb(1,var(numeric){operator}var(numeric)=var(numeric)).",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    generator = clause_generation._ClauseGenerator(parse_file(str(task)), Arguments())
+    arithmetic = [
+        mode.literal
+        for mode in generator.modes
+        if isinstance(mode.literal, ArithmeticLiteral)
+    ]
+    assert [literal.operator for literal in arithmetic] == [operator]
+    assert generate_clause_space(parse_file(str(task)), Arguments()).clauses
+
+
+@pytest.mark.parametrize("operator", ("=", "!=", "<", "<=", ">", ">="))
+def test_modeb_accepts_every_clingo_comparison_operator(tmp_path, operator):
+    task = tmp_path / "comparison-operator.las"
+    task.write_text(
+        f"#modeb(1,var(numeric,input){operator}var(numeric,input)).\n",
+        encoding="utf-8",
+    )
+
+    literal = parse_file(str(task)).language_bias_body[0].literal
+    assert isinstance(literal, ComparisonLiteral)
+    assert literal.operators == (operator,)

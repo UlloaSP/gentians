@@ -57,5 +57,5 @@ p(1,2).
 
 #modeb(2,sum_partition(var(partition,output),var(numeric,output))).
 #modeb(1,partition(var(partition,input))).
-#modeagg(1,sum(p/2),unbalanced).
-#modearith(2,neq).
+#modeb(1,#sum{var(numeric,any,value):p(var(partition,any,group),var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(2,var(numeric)!=var(numeric)).

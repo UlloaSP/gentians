@@ -357,7 +357,7 @@ typed constant placeholder:
 #modeb(1,wrapped(box(var(node,input),const(colour)))).
 ```
 
-Variables require exactly one direction: `input`, `output`, or `any`.
+Variables in atom templates require exactly one direction: `input`, `output`, or `any`.
 `input` must already be bound, `output` is produced by a positive body literal,
 and `any` opts out of data-flow restrictions. Constants have no direction and
 must be enumerated by `#constant(TYPE, VALUE)`. Modes containing `not` cannot
@@ -396,74 +396,58 @@ Some examples are:
 ```
 
 ## Aggregates in Language Bias
-You can define aggregates in the language bias with:
-```
-#modeagg(recall, aggregation_function(aggregation_atom), balanced).
-#modeagg(recall, aggregation_function(aggregation_atom), unbalanced).
-```
+Body aggregates are exact `#modeb` templates using Clingo syntax:
 
-where `aggregation_function` is the aggregation function (`sum` or `count`, for example) and `aggregation_atom` is a term of the form `name/arity` or `-name/arity`, representing the atom aggregating on.
-If you want to aggregate over multiple atoms, you can use multiple aggregation atoms separated by commas.
-The `balanced` option only generates aggregates whose tuple contains all condition variables.
-The `unbalanced` option also generates smaller tuples, so it includes both balanced and unbalanced aggregate variants.
-
-Examples:
 ```prolog
-#modeagg(1, sum(x/3), balanced).
-#modeagg(1, sum(x/3,size/1), balanced).
-#modeagg(1, sum(p/2), unbalanced).
-#modeagg(1, count(p/2), unbalanced).
+#modeb(1,#sum{var(numeric,any,value):el(var(numeric,any,value))}=
+         var(numeric,output,result)).
+#modeb(1,#count{var(numeric,any,value):
+                  p(var(partition,any,group),var(numeric,any,value))}=
+         var(numeric,output,result)).
 ```
 
-Pay attention with aggregates since you may encounter an infinite grounding, so the program will never terminate.
+The tuple before `:` is explicit, so projected tuples need no `balanced` or
+`unbalanced` flag. Repeated labels connect tuple terms, condition arguments,
+and the result inside one declaration. Tuple and condition variables use
+`input` or `any`; the result must be an `output` variable. Gentians accepts one
+nonempty aggregate element, positive atomic conditions, and one equality
+result. Recall limits uses of that complete template. `#modeagg` is retired and
+rejected explicitly.
+
+Aggregates can still cause infinite grounding when their conditions do not
+provide a finite grounding domain.
 
 ## Comparison and Arithmetic Operators in Language Bias
-Arithmetic and comparison syntax has one declaration:
-```
-#modearith(recall, operator).
-#modearith(recall, relation_template).
-```
 
-The following comparison operators are considered: `lt` (<), `leq` (=<), `gt` (>), `geq` (>=), `eq` (=), and `neq` (!=).
-The following arithmetic operators are considered: `add` (+), `sub` (-), `mul` (*), `div` (/), `mod` (`\`), and `abs` (absolute value).
-Use recall to allow more occurrences of the same operator in one rule.
-`relation_template` preserves a specific ASP expression instead of generating
-an operator family. It supports nested `+`, `-`, `*`, `/`, `\`, `**`, bitwise
-`&`, `?`, `^`, and `~`, unary minus, absolute value, functions, constants, and
-all six comparison relations:
+Arithmetic and comparisons are exact `#modeb` templates:
 
 ```prolog
-#modearith(1,(var(numeric,input)+1)*var(numeric,input)
-             <= var(numeric,input)).
-#modearith(1,var(numeric,input)+1=var(numeric,output)).
+#modeb(1,var(numeric)+var(numeric)=var(numeric)).
+#modeb(2,var(numeric)>=var(numeric)).
+#modeb(1,(var(numeric,input)+1)*var(numeric,input)
+         <= |var(numeric,input)-2|).
+#modeb(1,1<var(numeric)<var(numeric)<10).
+#modeb(1,var(numeric)=1..9).
 ```
 
-Only equality may declare an output, and then exactly one output leaf is
-allowed. `#modecmp` no longer exists; `eq`, `neq`, `lt`, `leq`, `gt`, and
-`geq` are operator names of `#modearith`.
-Arithmetic is represented as connected systems. Linear rows use primitive
-integer coefficients and canonical row reduction, so auxiliaries may disappear
-as in `X+X=T,T+T=Y` becoming `4*X-Y=0`. Independent rows remain a system instead
-of being incorrectly collapsed into one equation. Multiplication, division,
-modulo, absolute value, and comparisons remain exact relations in the same
-system. Division and modulo carry an explicit nonzero-divisor condition.
-`add` and `sub` contribute to one linear recall budget; an unbounded declaration
-keeps that budget unbounded.
-Likewise, `lt`/`gt` and `leq`/`geq` share canonical comparison modes with their
-recalls combined.
-The bias limits source operations. Generated rows and mandatory conditions are
-part of their `ArithmeticSystem`; they do not consume extra recall or body slots.
-Rules expose only this final system representation, not the source operator
-literals used to derive it.
+They accept all Clingo arithmetic terms—`+`, `-`, `*`, `/`, `\`, `**`, `&`,
+`?`, `^`, unary `-`, `~`, absolute value and intervals—and all six comparison
+operators, including chained comparisons. `var(TYPE)` may omit its direction
+inside a relation. Gentians infers a forward `expression = variable`
+assignment, and bounded relations may produce several variables when Clingo
+proves them safe. Compatible direction-implicit `var+var=var` and
+`var-var=var` declarations compile into one canonical additive family with
+combined recall, avoiding equivalent encodings before grounding. Explicitly
+directed relations stay independent and are also checked by Clingo.
+External `@function(...)` calls are rejected because task files do not carry a
+host-language grounding context; ordinary symbolic function terms are valid.
 
-Examples:
-```prolog
-#modearith(1, neq).
-#modearith(2, geq).
-#modearith(1, add).
-#modearith(1, mul).
-#modearith(1, sub).
-```
+Each mode permits only the complete expression it declares, keeping the space
+finite, apart from that documented additive-family canonicalization. Numeric
+relations enter `ArithmeticSystem`: linear systems are
+canonicalized algebraically while nonlinear, bitwise and interval terms remain
+structurally exact. `#modearith` and `#modecmp` are retired; textual aliases such
+as `add`, `lt`, or `geq` are not parsed into operators.
 
 ## Predicate Invention
 Declare an invented predicate once with `#invent(BODY_RECALL, ATOM_TEMPLATE)`.

@@ -363,8 +363,8 @@ otros sistemas.
 | Hard constraints | Sí | Cabeza vacía legal bajo límites y pruning documentado; [language bias](language-bias.md#positive-only-constraint-pruning) |
 | Choice/cardinality heads | Sí | `#modeh` completo y combinación `#modeha`; [language bias](language-bias.md#aggregate-head-modes) |
 | Disjunctive heads | Sí | `#modehd`; [language bias](language-bias.md#disjunctive-head-modes) |
-| Body aggregates | Sí | `#modeagg`, con variantes balanced/unbalanced; [README](../README.md#aggregates-in-language-bias) |
-| Arithmetic/comparisons/conditionals | Sí | `#modearith` y `#modec`; [language bias](language-bias.md#conditional-literals) |
+| Body aggregates | Sí | Templates aggregate exactos en `#modeb`; [README](../README.md#aggregates-in-language-bias) |
+| Arithmetic/comparisons/conditionals | Sí | Relaciones exactas en `#modeb` y condiciones opcionales con `#modec`; [language bias](language-bias.md#conditional-literals) |
 | Recursión | Sí, explícita | Se activa cuando un predicado permitido en cabeza aparece en body/condition positivo; [`task_analysis.py`](../gentians/clauses/task_analysis.py) |
 | Predicate invention | Sí, prescriptiva | `#invent(recall, template)` crea modo de cabeza y body positivo; el símbolo, aridad, tipos y direcciones los declara el usuario; [language bias](language-bias.md#predicate-invention) |
 | Ciclos entre inventados | No | Las dependencias inventadas se ordenan por declaración para impedir ciclos; tests en [`test_clause_space.py`](../tests/test_clause_space.py) |

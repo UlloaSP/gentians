@@ -153,8 +153,8 @@
       "items": [
         "parse_file carga UTF-8; lexer separa sentencias; parser construye el IR; Clingo conserva gramática y AST ASP",
         "#maxv/#maxbl/#minhl/#maxhl/#maxpl fijan dominios finitos; #pos/#neg, constants e inventions se validan y deduplican",
-        "#modeh conserva una cabeza completa; #modeha compila combinaciones cardinalidad; #modeb/#modec producen declaraciones atómicas tipadas",
-        "InductiveTask reúne background, ejemplos, bias, operadores y límites; las piezas de cláusula viven en language.ir"
+        "#modeh conserva una cabeza completa; #modeha compila combinaciones cardinalidad; #modeb declara átomos, relaciones y aggregates exactos; #modec declara condiciones",
+        "InductiveTask reúne background, ejemplos, language bias y límites; las piezas de cláusula viven en language.ir"
       ]
     },
     {
@@ -162,7 +162,7 @@
       "title": "Compilación y poda ASP previa al modelo",
       "items": [
         "Análisis estático valida #minhl/#maxhl, recalls de #modeha, inventions, tipos nominales y capacidades",
-        "ClauseMode asigna IDs, recall groups, posiciones y roles; marca formularios #modeha para linkedness estructural",
+        "ClauseMode compila cada template, asigna IDs, recall groups, posiciones y roles, y unifica la familia aditiva implícita compatible",
         "ASP poda slots, orden, recall, límites, linkedness, typing, safety y flujo",
         "Módulos de operadores y propiedades podan redundancias y contradicciones"
       ]

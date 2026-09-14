@@ -129,5 +129,5 @@ val(1..n*n).
 #modeb(1,size(var(index,input))).
 #modeb(2,sum_row(var(index,output),var(numeric,output))).
 #modeb(2,sum_col(var(index,output),var(numeric,output))).
-#modeagg(1,sum(x/3),unbalanced).
-#modearith(2,neq).
+#modeb(1,#sum{var(numeric,any,value):x(var(index,any),var(index,any),var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(2,var(numeric)!=var(numeric)).

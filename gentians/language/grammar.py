@@ -7,7 +7,7 @@ directive           = limit | mode | example | constant | invention ;
 limit               = ("#maxv" | "#maxbl" | "#minhl" | "#maxhl" | "#maxpl")
                       "(" (integer | "*") ")" "." ;
 mode                = ("#modeh" | "#modeha" | "#modehd" | "#modeb"
-                    | "#modec" | "#modeagg" | "#modearith")
+                    | "#modec")
                       "(" mode-payload ")" "." ;
 example             = ("#pos" | "#neg") "(" asp-set "," asp-set
                       [ "," asp-set ] ")" "." ;

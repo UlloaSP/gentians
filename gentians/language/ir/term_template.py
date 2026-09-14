@@ -13,6 +13,7 @@ TermKind: TypeAlias = Literal[
     "function",
     "tuple",
     "arithmetic",
+    "interval",
 ]
 
 
@@ -35,6 +36,7 @@ class TermTemplate:
             "function",
             "tuple",
             "arithmetic",
+            "interval",
         }:
             raise ValueError(f"invalid term kind: {self.kind}")
         if self.kind in {"variable", "constant"}:
@@ -56,9 +58,11 @@ class TermTemplate:
         elif self.kind == "fixed":
             if not self.value or self.arguments:
                 raise ValueError("fixed terms require one rendered value")
-        elif self.kind in {"function", "arithmetic"}:
+        elif self.kind in {"function", "arithmetic", "interval"}:
             if not self.value or not self.arguments:
                 raise ValueError(f"{self.kind} terms require an operator and arguments")
+            if self.kind == "interval" and len(self.arguments) != 2:
+                raise ValueError("interval terms require two bounds")
         elif self.kind == "tuple" and self.value:
             raise ValueError("tuple terms cannot have a name")
 
@@ -92,6 +96,12 @@ class TermTemplate:
             type_name
             for argument in self.arguments
             for type_name in argument.constant_types()
+        )
+
+    @property
+    def contains_arithmetic(self) -> bool:
+        return self.kind in {"arithmetic", "interval"} or any(
+            argument.contains_arithmetic for argument in self.arguments
         )
 
     def shape(self) -> tuple[object, ...]:
@@ -135,6 +145,11 @@ class TermTemplate:
             return self.value
         if self.kind == "arithmetic":
             return self._render_arithmetic(variables, parent_precedence, right_child)
+        if self.kind == "interval":
+            left, right = (
+                argument._render(variables, 0, False) for argument in self.arguments
+            )
+            return f"{left}..{right}"
         rendered = tuple(
             argument._render(variables, 0, False) for argument in self.arguments
         )

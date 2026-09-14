@@ -28,13 +28,10 @@ activo. Tampoco hay `#modeh`: el espacio contiene únicamente constraints.
 ## Protocolo
 
 Se ejecutó ILASP 4.4.1 desde WSL Kali Linux, secuencialmente para evitar
-competencia entre variantes:
-
-```bash
-bash benchmarks/run_ilasp_5queens.sh
-```
-
-El runner aplica a cada variante el comando equivalente a:
+competencia entre variantes. El runner actual se configura mediante
+`benchmarks/ilasp_experiments.toml` y se invoca con
+`benchmarks/run_ilasp_experiments.py`. Aplica a cada variante el comando
+equivalente a:
 
 ```bash
 timeout --signal=INT --kill-after=5s 180s \
@@ -88,11 +85,9 @@ cláusulas generadas por Gentians. Cada constraint se entrega a ILASP como:
 body_literals ~ constraint
 ```
 
-El archivo se genera una vez, antes de medir ILASP:
-
-```powershell
-uv run python benchmarks/export_ilasp_5queens.py
-```
+El archivo explícito se generó una vez antes de medir ILASP. Esta variante se
+conserva como resultado histórico; el runner actual usa las tareas con mode
+bias versionadas en `benchmarks/ilasp/`.
 
 El resultado contiene los mismos 10 positivos, 35 negativos, cero modes y
 esta distribución de reglas explícitas:
@@ -105,14 +100,8 @@ esta distribución de reglas explícitas:
 | 4 | 881 |
 | 5 | 3810 |
 
-Las ejecuciones usan el mismo límite de 180 segundos y el mismo runner, con
-`ILASP_TASK` apuntando al archivo explícito:
-
-```bash
-ILASP_TASK=.benchmarks/experiments/ilasp-5queens-explicit/5queens-explicit.las \
-ILASP_OUTPUT=.benchmarks/experiments/ilasp-5queens-explicit \
-bash benchmarks/run_ilasp_5queens.sh
-```
+Las ejecuciones históricas usaron el mismo límite de 180 segundos y el archivo
+explícito conservado entre los artefactos locales del experimento.
 
 | Versión ILASP | Resultado | Tiempo de pared | Total informado por ILASP |
 |---|---:|---:|---:|

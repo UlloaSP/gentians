@@ -1,0 +1,40 @@
+[suite]
+output_root = ".benchmarks/ilasp-experiments"
+task_dir = "benchmarks/ilasp"
+distro = "kali-linux"
+executable = "/mnt/c/tmp/ILASP"
+python_runtime = "/tmp/ilasp-python310/root/usr"
+versions = ["2", "2i", "3", "4"]
+runs = 10
+timeout_seconds = 20
+
+[suite.max_body_length]
+4queens = 5
+5queens = 5
+adj2red = 4
+clique = 7
+coin = 3
+coloring = 4
+even_odd = 3
+grandparent = 3
+sudoku = 3
+
+[[experiment]]
+id = "mode-bias/5queens-20s"
+description = "5-queens generated from ILASP mode declarations."
+datasets = ["5queens"]
+
+[[experiment]]
+id = "mode-bias/all-20s"
+description = "All non-aggregate ILASP benchmark tasks generated from mode declarations."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+]

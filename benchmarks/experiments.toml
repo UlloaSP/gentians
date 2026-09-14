@@ -20,6 +20,17 @@ description = "Incremental with current SDK defaults."
 [experiment.overrides]
 algorithm = "incremental"
 
+[[experiment]]
+id = "ilasp-generated-5queens-20s/gentians"
+label = "5queens · Gentians desde bias"
+description = "Full metrics for the ten steady-state runs used in the ILASP comparison."
+datasets = ["5queens"]
+runs = 10
+timeout_seconds = 60
+instrumentation = "full"
+[experiment.overrides]
+algorithm = "steady_state"
+
 # Thirty matched seeds per task. Within each algorithm only mutation probability changes.
 [[experiment]]
 id = "mutation-rate/steady-control"

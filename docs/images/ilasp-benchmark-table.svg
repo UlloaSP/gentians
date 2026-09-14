@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="560" viewBox="0 0 1160 560">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>text{font-family:Georgia,Times New Roman,serif;fill:#111827}.caption{font-size:20px;font-weight:700}.header{font-size:18px;font-weight:700}.cell{font-size:18px}.dataset{font-size:18px;font-style:italic}.note{font-size:15px}</style>
+<text class="caption" x="55" y="42">Tiempos medios en segundos de GENTIANS e ILASP</text>
+<text class="cell" x="55" y="68">10 runs por dataset · timeout de 180 s · ClauseSpace explícito</text>
+<line x1="55" y1="92" x2="1105" y2="92" stroke="#111827" stroke-width="2"/>
+<text class="header" x="55" y="125">Dataset</text>
+<text class="header" x="240" y="125">GENTIANS</text>
+<text class="header" x="390" y="125">ILASP 4</text>
+<text class="header" x="525" y="125">ILASP 3</text>
+<text class="header" x="660" y="125">ILASP 2i</text>
+<text class="header" x="805" y="125">ILASP 2</text>
+<text class="header" x="945" y="125"># cl. G/I</text>
+<line x1="55" y1="140" x2="1105" y2="140" stroke="#111827" stroke-width="2"/>
+<text class="dataset" x="55" y="175">4queens</text>
+<text class="cell" x="240" y="175">0.306</text>
+<text class="cell" x="390" y="175">0.346</text>
+<text class="cell" x="525" y="175">1.170</text>
+<text class="cell" x="660" y="175">0.236</text>
+<text class="cell" x="805" y="175" font-weight="700">0.161</text>
+<text class="cell" x="945" y="175">315 / 315</text>
+<text class="dataset" x="55" y="214">adj2red</text>
+<text class="cell" x="240" y="214">0.105</text>
+<text class="cell" x="390" y="214">0.161</text>
+<text class="cell" x="525" y="214">0.199</text>
+<text class="cell" x="660" y="214">0.075</text>
+<text class="cell" x="805" y="214" font-weight="700">0.061</text>
+<text class="cell" x="945" y="214">17 / 17</text>
+<text class="dataset" x="55" y="253">clique</text>
+<text class="cell" x="240" y="253">0.093</text>
+<text class="cell" x="390" y="253">0.067</text>
+<text class="cell" x="525" y="253">0.078</text>
+<text class="cell" x="660" y="253">0.064</text>
+<text class="cell" x="805" y="253" font-weight="700">0.053</text>
+<text class="cell" x="945" y="253">7 / 7</text>
+<text class="dataset" x="55" y="292">coin</text>
+<text class="cell" x="240" y="292">0.049</text>
+<text class="cell" x="390" y="292">0.054</text>
+<text class="cell" x="525" y="292">0.062</text>
+<text class="cell" x="660" y="292">0.057</text>
+<text class="cell" x="805" y="292" font-weight="700">0.046</text>
+<text class="cell" x="945" y="292">4 / 4</text>
+<text class="dataset" x="55" y="331">coloring</text>
+<text class="cell" x="240" y="331">0.327</text>
+<text class="cell" x="390" y="331">0.278</text>
+<text class="cell" x="525" y="331">0.349</text>
+<text class="cell" x="660" y="331" font-weight="700">0.189</text>
+<text class="cell" x="805" y="331">0.200</text>
+<text class="cell" x="945" y="331">59 / 59</text>
+<text class="dataset" x="55" y="370">evenodd</text>
+<text class="cell" x="240" y="370">36.111 (8/10)</text>
+<text class="cell" x="390" y="370">0.158</text>
+<text class="cell" x="525" y="370">0.471</text>
+<text class="cell" x="660" y="370">0.085</text>
+<text class="cell" x="805" y="370" font-weight="700">0.077</text>
+<text class="cell" x="945" y="370">27 / 27</text>
+<text class="dataset" x="55" y="409">grandparent</text>
+<text class="cell" x="240" y="409">2.255</text>
+<text class="cell" x="390" y="409">t.o.</text>
+<text class="cell" x="525" y="409">22.506</text>
+<text class="cell" x="660" y="409">0.147</text>
+<text class="cell" x="805" y="409" font-weight="700">0.095</text>
+<text class="cell" x="945" y="409">326 / 326</text>
+<text class="dataset" x="55" y="448">sudoku</text>
+<text class="cell" x="240" y="448" font-weight="700">0.085</text>
+<text class="cell" x="390" y="448">0.184</text>
+<text class="cell" x="525" y="448">0.287</text>
+<text class="cell" x="660" y="448">0.171</text>
+<text class="cell" x="805" y="448">0.140</text>
+<text class="cell" x="945" y="448">5 / 5</text>
+<line x1="55" y1="466" x2="1105" y2="466" stroke="#111827" stroke-width="2"/>
+<text class="note" x="55" y="499">Mínimos en negrita. “t.o.” indica 0/10 soluciones antes de 180 s.</text>
+<text class="note" x="55" y="523">Los timeouts parciales se incluyen en la media como 180 s. G/I: cláusulas Gentians / ILASP.</text>
+</svg>

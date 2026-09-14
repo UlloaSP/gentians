@@ -1,7 +1,8 @@
-% ILASP translation of benchmarks/gentians/5queens.txt.
-% The hypothesis space is generated exclusively from the mode bias below.
+% ILASP mode-bias translation of 5queens.txt.
+% No learned or Gentians-generated rules are included.
 
-#maxv(5).
+% Source: http://www.hakank.org/answer_set_programming/nqueens.lp
+% Task: 5-queens column and diagonal constraints.
 
 #const n = 5.
 number(1..n).
@@ -55,6 +56,12 @@ number(1..n).
 #neg({q(1,5), q(2,4), q(3,3), q(4,1), q(5,2)}, {}).
 #neg({q(1,5), q(2,4), q(3,2), q(4,3), q(5,1)}, {}).
 
-#modeb(2,q(var(numeric),var(numeric))).
-#modeb(1,var(numeric)<var(numeric)).
-#modeb(2,var(numeric)+var(numeric)=var(numeric)).
+add(A,B,C) :- number(A), number(B), C = A + B.
+sub(A,B,C) :- number(A), number(B), C = A - B.
+lt(A,B) :- number(A), number(B), A < B.
+% ILASP generates its hypothesis space from this bias.
+#maxv(5).
+#modeb(2,q(var(v),var(v)),(positive)).
+#modeb(1,add(var(v),var(v),var(v)),(positive)).
+#modeb(1,sub(var(v),var(v),var(v)),(positive)).
+#modeb(1,lt(var(v),var(v)),(positive)).

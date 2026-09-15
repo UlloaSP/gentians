@@ -1,4 +1,6 @@
+import { useId, useState } from "react";
 import { chartTw } from "../chartTw";
+import { chartDescription } from "../chartDescriptions";
 
 export function PageLayout({ actions, children, error }) {
   if (error) {
@@ -22,17 +24,40 @@ export function PageLayout({ actions, children, error }) {
 }
 
 export function SectionGrid({ children }) {
-  return <div className={chartTw.sectionGrid}>{children}</div>;
+  return <div className={`${chartTw.sectionGrid} chart-grid`}>{children}</div>;
 }
 
-export function ChartSection({ title, children }) {
+export function ChartHeader({ title, description = chartDescription(title) }) {
+  const [open, setOpen] = useState(false);
+  const descriptionId = useId();
   return (
-    <section className="min-w-0 xl:col-span-12">
-      {title && (
-        <h2 className="mb-2 mt-8 text-base font-semibold tracking-tight text-neutral-900">
-          {title}
-        </h2>
+    <div className="chart-heading">
+      <div className="chart-title-row">
+        <h2>{title}</h2>
+        <button
+          className="chart-help-button"
+          type="button"
+          aria-label={`Cómo se calcula ${title}`}
+          aria-expanded={open}
+          aria-controls={descriptionId}
+          onClick={() => setOpen((current) => !current)}
+        >
+          ?
+        </button>
+      </div>
+      {open && (
+        <p className="chart-description" id={descriptionId}>
+          {description}
+        </p>
       )}
+    </div>
+  );
+}
+
+export function ChartSection({ title, children, wide = false, description }) {
+  return (
+    <section className={`chart-section ${wide ? "chart-section-wide" : ""}`}>
+      {title && <ChartHeader title={title} description={description} />}
       {children}
     </section>
   );
@@ -40,7 +65,7 @@ export function ChartSection({ title, children }) {
 
 export function Stat({ label, value, sub }) {
   return (
-    <div className="min-h-24 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+    <div className="metric-cell">
       <span className={chartTw.metricLabel}>{label}</span>
       <strong className={chartTw.metricValue}>{value}</strong>
       {sub && <small className={chartTw.metricHint}>{sub}</small>}

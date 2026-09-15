@@ -8,7 +8,7 @@ export function CrossoverGainLossChart({ benchmark }) {
   const rows = crossoverGainRows(benchmark);
   const option = useMemo(
     () => ({
-      tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: formatRate },
       legend: { bottom: 0 },
       grid: { left: 70, right: 18, top: 30, bottom: 90 },
       xAxis: {
@@ -16,7 +16,7 @@ export function CrossoverGainLossChart({ benchmark }) {
         data: rows.map(crossoverGainLabel),
         axisLabel: { rotate: 20 },
       },
-      yAxis: { type: "value", name: "gain rate", max: 1 },
+      yAxis: { type: "value", name: "% ganancia", max: 1, axisLabel: { formatter: rateAxis } },
       series: [
         {
           type: "bar",
@@ -47,3 +47,6 @@ export function CrossoverGainLossChart({ benchmark }) {
     </ChartSection>
   );
 }
+
+const formatRate = (value) => `${(Number(value || 0) * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
+const rateAxis = (value) => `${Math.round(value * 100)}%`;

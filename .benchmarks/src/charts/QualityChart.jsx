@@ -8,7 +8,7 @@ import { coverageCriteriaOption, coverageOption } from "./qualityOptions";
 export function QualityChart({ benchmark }) {
   const quality = benchmark.quality;
   const group = useMemo(
-    () => [{ name: "programas evaluados", color: colors.total, quality }],
+    () => [{ name: "programas evaluados", color: colors.python, quality }],
     [quality],
   );
   const matrixOption = useMemo(() => coverageOption(group), [group]);

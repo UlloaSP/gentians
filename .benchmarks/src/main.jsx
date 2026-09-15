@@ -20,6 +20,7 @@ import { TypeSplitChart } from "./charts/TypeSplitChart";
 import {
   assertDashboardSchema,
   bestRunRatio,
+  clingoCalls,
   clingoSeconds,
   dataUrl,
   evolutionarySeconds,
@@ -89,30 +90,39 @@ export function DetailApp() {
 function BenchmarkMenu({ experiments, benchmarks, benchmark, setSelected }) {
   return (
     <>
-      <a href="./">←</a>
-      <select
-        aria-label="Experimento"
-        value={dataUrl()}
-        onChange={(event) => {
-          window.location.href = `?data=${encodeURIComponent(event.target.value)}`;
-        }}
-      >
-        {experiments.map((experiment) => (
-          <option key={experiment.id} value={`experiments/${experiment.dashboard_path}`}>
-            {experiment.label}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Benchmark"
-        value={benchmark.name}
-        onChange={(event) => setSelected(event.target.value)}
-      >
-        {benchmarks.map((item) => (
-          <option key={item.name}>{item.name}</option>
-        ))}
-      </select>
-      <a href="?compare">comparar</a>
+      <a className="nav-link" href="./">
+        Experimentos
+      </a>
+      <div className="nav-context" aria-hidden="true">
+        /
+      </div>
+      <label className="nav-field">
+        <span>experimento</span>
+        <select
+          aria-label="Experimento"
+          value={dataUrl()}
+          onChange={(event) => {
+            window.location.href = `?data=${encodeURIComponent(event.target.value)}`;
+          }}
+        >
+          {experiments.map((experiment) => (
+            <option key={experiment.id} value={`experiments/${experiment.dashboard_path}`}>
+              {experiment.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="nav-field">
+        <span>benchmark</span>
+        <select value={benchmark.name} onChange={(event) => setSelected(event.target.value)}>
+          {benchmarks.map((item) => (
+            <option key={item.name}>{item.name}</option>
+          ))}
+        </select>
+      </label>
+      <a className="nav-link nav-link-primary" href="?compare">
+        Comparar
+      </a>
     </>
   );
 }
@@ -120,6 +130,8 @@ function BenchmarkMenu({ experiments, benchmarks, benchmark, setSelected }) {
 function ExperimentIndex() {
   const [experiments, setExperiments] = useState([]);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("all");
 
   useEffect(() => {
     fetch("experiments/experiments.json", { cache: "no-store" })
@@ -131,27 +143,75 @@ function ExperimentIndex() {
       .catch((reason) => setError(String(reason.message || reason)));
   }, []);
 
+  const filtered = experiments.filter((experiment) => {
+    const matchesQuery = `${experiment.label} ${experiment.description || ""}`
+      .toLowerCase()
+      .includes(query.toLowerCase());
+    const matchesStatus =
+      status === "all" ||
+      (status === "available" && experiment.has_dashboard) ||
+      (status === "stale" && experiment.status === "stale") ||
+      (status === "pending" && !experiment.has_dashboard && experiment.status !== "stale");
+    return matchesQuery && matchesStatus;
+  });
+  const available = experiments.filter((experiment) => experiment.has_dashboard).length;
+  const stale = experiments.filter((experiment) => experiment.status === "stale").length;
+
   return (
     <main className="experiment-index">
-      <nav>
-        <a href="?compare">comparar</a>
+      <nav className="index-toolbar">
+        <div className="index-counts" aria-label="Resumen de experimentos">
+          <strong>{experiments.length}</strong> experimentos
+          <span>{available} disponibles</span>
+          <span>{stale} stale</span>
+        </div>
+        <a className="nav-link nav-link-primary" href="?compare">
+          Comparar
+        </a>
       </nav>
+      <div className="index-filters" role="search">
+        <label>
+          <span>buscar</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="ID o descripción"
+          />
+        </label>
+        <label>
+          <span>estado</span>
+          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="all">todos</option>
+            <option value="available">disponibles</option>
+            <option value="stale">stale</option>
+            <option value="pending">pendientes</option>
+          </select>
+        </label>
+      </div>
       {error && <p className={chartTw.note}>{error}</p>}
       <div className="experiment-list">
-        {experiments.map((experiment) =>
+        {filtered.map((experiment) =>
           experiment.has_dashboard ? (
             <a key={experiment.id} href={`?data=${encodeURIComponent(`experiments/${experiment.dashboard_path}`)}`}>
-              <strong>{experiment.label}</strong>
-              <span>{experiment.description}</span>
-              <small>
-                {experiment.datasets?.length || 0} benchmarks · {experiment.runs} runs ·{" "}
+              <span className="experiment-main">
+                <strong>{experiment.label}</strong>
+                <span>{experiment.description}</span>
+              </span>
+              <small>{experiment.datasets?.length || 0} benchmarks · {experiment.runs} runs</small>
+              <span className={`status-badge status-${experiment.status}`}>
                 {experiment.status}
-              </small>
+              </span>
             </a>
           ) : (
             <div className="is-disabled" key={experiment.id}>
-              <strong>{experiment.label}</strong>
-              <small>{experiment.status}</small>
+              <span className="experiment-main">
+                <strong>{experiment.label}</strong>
+                <span>{experiment.description}</span>
+              </span>
+              <small>{experiment.datasets?.length || 0} benchmarks · {experiment.runs} runs</small>
+              <span className={`status-badge status-${experiment.status}`}>
+                {experiment.status}
+              </span>
             </div>
           ),
         )}
@@ -162,40 +222,95 @@ function ExperimentIndex() {
 
 function Detail({ benchmark }) {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
-        <Stat label="runs" value={runCount(benchmark)} />
-        <Stat label="total" value={`${fmt(totalSeconds(benchmark), 2)}s`} />
-        <Stat label="clauses" value={`${fmt(phaseTotal(benchmark, "clauseGeneration"), 2)}s`} />
-        <Stat label="tiempo evolutivo" value={`${fmt(evolutionarySeconds(benchmark), 2)}s`} />
-        <Stat label="clingo" value={`${fmt(clingoSeconds(benchmark), 2)}s`} />
-        <Stat label="python" value={`${fmt(pythonSeconds(benchmark), 2)}s`} />
-        <Stat label="solve calls" value={fmtInt(benchmark.solveCalls)} />
-        <Stat label="ground calls" value={fmtInt(benchmark.groundCalls)} />
-        <Stat label="candidatas" value={fmtInt(benchmark.candidates)} />
-        <Stat
-          label="dominante"
-          value={benchmark.dominant || topPhase(benchmark).label}
-        />
-        <Stat label="is best" value={bestRunRatio(benchmark)} />
+    <div className="dashboard-detail">
+      <div className="metric-summary">
+        <MetricGroup title="resultado" className="metric-group-result">
+          <Stat label="is best" value={bestRunRatio(benchmark)} />
+          <Stat label="runs" value={runCount(benchmark)} />
+          <Stat label="candidatas" value={fmtInt(benchmark.candidates)} />
+          <Stat label="bottleneck" value={benchmark.dominant || topPhase(benchmark).label} />
+        </MetricGroup>
+        <MetricGroup title="tiempo" className="metric-group-time">
+          <Stat label="total" value={`${fmt(totalSeconds(benchmark), 2)}s`} />
+          <Stat label="clauses" value={`${fmt(phaseTotal(benchmark, "clauseGeneration"), 2)}s`} />
+          <Stat label="evolución" value={`${fmt(evolutionarySeconds(benchmark), 2)}s`} />
+          <Stat label="clingo" value={`${fmt(clingoSeconds(benchmark), 2)}s`} />
+          <Stat label="python" value={`${fmt(pythonSeconds(benchmark), 2)}s`} />
+        </MetricGroup>
+        <MetricGroup title="solver" className="metric-group-solver">
+          <SolverMetrics benchmark={benchmark} />
+        </MetricGroup>
       </div>
-      <SectionGrid>
+      <ChartGroup title="Coste de ejecución">
         <PhaseTypeChart benchmark={benchmark} />
         <TypeSplitChart benchmark={benchmark} />
+      </ChartGroup>
+      <ChartGroup title="Búsqueda y comportamiento">
         <FitnessChart benchmark={benchmark} />
+        <QualityChart benchmark={benchmark} />
+        <QualityProgramChart benchmark={benchmark} />
+      </ChartGroup>
+      <ChartGroup title="Operadores evolutivos">
         <OperatorsChart benchmark={benchmark} />
         <OperatorImprovementChart benchmark={benchmark} />
         <CrossoverGainLossChart benchmark={benchmark} />
         <OperatorScoreDeltaChart benchmark={benchmark} />
-        <QualityChart benchmark={benchmark} />
-        <QualityProgramChart benchmark={benchmark} />
+      </ChartGroup>
+      <ChartGroup title="Clingo">
         <SolverStatsChart benchmark={benchmark} />
         <ClingoBottleneckChart benchmark={benchmark} />
         <ClingoModelsChart benchmark={benchmark} />
         <ClingoCostChart benchmark={benchmark} />
         <ClingoCallsChart benchmark={benchmark} />
-      </SectionGrid>
+      </ChartGroup>
     </div>
+  );
+}
+
+function MetricGroup({ title, children, className = "" }) {
+  return (
+    <section className={`metric-group ${className}`}>
+      <h2>{title}</h2>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+const SOLVER_PHASES = [
+  ["clause space", "clause_generation"],
+  ["mutation", "mutation"],
+  ["crossover", "crossover"],
+];
+
+function SolverMetrics({ benchmark }) {
+  return (
+    <table className="solver-metrics">
+      <thead>
+        <tr>
+          <th scope="col">fase</th>
+          <th scope="col">grounding</th>
+          <th scope="col">solving</th>
+        </tr>
+      </thead>
+      <tbody>
+        {SOLVER_PHASES.map(([label, phase]) => (
+          <tr key={phase}>
+            <th scope="row">{label}</th>
+            <td>{fmtInt(clingoCalls(benchmark, phase, "grounding"))}</td>
+            <td>{fmtInt(clingoCalls(benchmark, phase, "solving"))}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ChartGroup({ title, children }) {
+  return (
+    <section className="dashboard-group">
+      <h2 className="group-title">{title}</h2>
+      <SectionGrid>{children}</SectionGrid>
+    </section>
   );
 }
 

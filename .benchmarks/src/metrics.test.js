@@ -3,6 +3,7 @@ import {
   aggregateSeries,
   assertDashboardSchema,
   bestSeries,
+  clingoCalls,
   crossoverGainLabel,
   crossoverGainRows,
   coverageCriteria,
@@ -11,11 +12,33 @@ import {
   generationPoints,
 } from "./metrics";
 
+describe("solver calls", () => {
+  it("separates calls by phase and operation category", () => {
+    const benchmark = {
+      clingoSummary: [
+        { phase_context: "clause_generation", operation_category: "grounding", calls: 2 },
+        { phase_context: "clause_generation", operation_category: "solving", calls: 3 },
+        { phase_context: "mutation", operation_category: "grounding", calls: 5 },
+        { phase_context: "mutation", operation_category: "solving", calls: 7 },
+        { phase_context: "crossover", operation_category: "grounding", calls: 11 },
+        { phase_context: "crossover", operation_category: "solving", calls: 13 },
+      ],
+    };
+
+    expect(clingoCalls(benchmark, "clause_generation", "grounding")).toBe(2);
+    expect(clingoCalls(benchmark, "clause_generation", "solving")).toBe(3);
+    expect(clingoCalls(benchmark, "mutation", "grounding")).toBe(5);
+    expect(clingoCalls(benchmark, "mutation", "solving")).toBe(7);
+    expect(clingoCalls(benchmark, "crossover", "grounding")).toBe(11);
+    expect(clingoCalls(benchmark, "crossover", "solving")).toBe(13);
+  });
+});
+
 describe("dashboard schema", () => {
-  it("accepts v9 and rejects stale dashboards", () => {
-    expect(() => assertDashboardSchema({ schemaVersion: 9 })).not.toThrow();
-    expect(() => assertDashboardSchema({ schemaVersion: 8 }, "old")).toThrow(
-      "old: schema 8; vuelve a ejecutar el experimento",
+  it("accepts v10 and rejects stale dashboards", () => {
+    expect(() => assertDashboardSchema({ schemaVersion: 10 })).not.toThrow();
+    expect(() => assertDashboardSchema({ schemaVersion: 9 }, "old")).toThrow(
+      "old: schema 9; vuelve a ejecutar el experimento",
     );
   });
 });

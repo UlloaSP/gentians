@@ -23,7 +23,7 @@ export function PhaseTypeChart({ benchmark }) {
   );
 
   return (
-    <ChartSection title="Fases por tipo">
+    <ChartSection title="Fases por tipo" wide>
       <Chart option={option} />
     </ChartSection>
   );

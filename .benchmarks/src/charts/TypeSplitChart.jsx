@@ -20,66 +20,67 @@ const BLOCKS = [
 ];
 
 export function TypeSplitChart({ benchmark }) {
-  const charts = useMemo(() => {
-    const total = measuredTotal(benchmark);
-    return BLOCKS.map(([title, phases]) => typeChart(benchmark, title, phases, total));
-  }, [benchmark]);
-
+  const option = useMemo(() => typeSplitOption(benchmark), [benchmark]);
   return (
-    <ChartSection title="Porcentajes de tiempo por tipo">
-      <div className="grid gap-6 md:grid-cols-2">
-        {charts.map((chart) => (
-          <div key={chart.title} className="min-w-0">
-            <Chart option={chart.option} height={320} />
-          </div>
-        ))}
-      </div>
+    <ChartSection title="Porcentajes de tiempo por tipo" wide>
+      <Chart option={option} height={260} />
     </ChartSection>
   );
 }
 
-function typeChart(benchmark, title, phases, total) {
-  const values = typeOrder.map(([type]) =>
-    phases.reduce((seconds, phase) => seconds + phaseTypeTotal(benchmark, phase, type), 0),
-  );
-  const seconds = values.reduce((sum, value) => sum + value, 0);
+function typeSplitOption(benchmark) {
+  const measured = measuredTotal(benchmark);
+  const blocks = BLOCKS.map(([label, phases]) => {
+    const values = Object.fromEntries(
+      typeOrder.map(([type]) => [
+        type,
+        phases.reduce(
+          (seconds, phase) => seconds + phaseTypeTotal(benchmark, phase, type),
+          0,
+        ),
+      ]),
+    );
+    return { label, values, total: Object.values(values).reduce((sum, value) => sum + value, 0) };
+  });
+
   return {
-    title,
-    option: {
-      tooltip: {
-        trigger: "item",
-        formatter: ({ marker, name, value, percent, data }) =>
-          `${marker}${name}: ${percent}% del bloque<br/>tiempo: ${formatSeconds(value)}<br/>del total: ${data.totalPercent}`,
-      },
-      graphic: {
-        type: "text",
-        left: "center",
-        top: "middle",
-        style: {
-          text: `${title}\n${formatPercent(total ? seconds / total : 0)}`,
-          textAlign: "center",
-          fontSize: 16,
-          fontWeight: 700,
-          lineHeight: 22,
-        },
-      },
-      series: [
-        {
-          type: "pie",
-          name: "tipo",
-          radius: ["48%", "72%"],
-          data: typeOrder.map(([type, label], index) => ({
-            name: label,
-            value: values[index],
-            totalPercent: formatPercent(total ? values[index] / total : 0),
-            itemStyle: { color: colors[type] },
-          })),
-          label: { formatter: "{b}\n{d}%" },
-        },
-      ],
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      formatter: (params) => [
+        `<strong>${params[0]?.axisValue || ""}</strong>`,
+        ...params.map(
+          ({ marker, seriesName, data }) =>
+            `${marker}${seriesName}: ${formatPercent(data.value / 100)} · ${formatSeconds(data.seconds)}`,
+        ),
+        `tiempo total: ${formatSeconds(params[0]?.data.blockSeconds)} · ${params[0]?.data.blockPercent || "0%"} del total_execution`,
+      ].join("<br/>"),
     },
+    legend: { bottom: 0 },
+    grid: { left: 92, right: 28, top: 20, bottom: 58 },
+    xAxis: {
+      type: "value",
+      min: 0,
+      max: 100,
+      axisLabel: { formatter: "{value}%" },
+    },
+    yAxis: { type: "category", inverse: true, data: blocks.map((block) => block.label) },
+    series: typeOrder.map(([type, label]) => ({
+      type: "bar",
+      name: label,
+      stack: "share",
+      barMaxWidth: 34,
+      data: blocks.map((block) => ({
+        value: block.total ? (block.values[type] / block.total) * 100 : 0,
+        seconds: block.values[type],
+        blockSeconds: block.total,
+        blockPercent: formatPercent(measured ? block.total / measured : 0),
+      })),
+      itemStyle: { color: colors[type] },
+    })),
   };
 }
+
 const formatPercent = (value) =>
   value.toLocaleString("es-ES", { style: "percent", maximumFractionDigits: 1 });
 const formatSeconds = (value) =>

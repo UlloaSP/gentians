@@ -49,7 +49,7 @@ export function ClingoCallsChart({ benchmark }) {
   );
 
   return (
-    <ChartSection title="Llamadas Clingo por contexto">
+    <ChartSection title="Llamadas Clingo por contexto" wide>
       {rows.length ? (
         <Chart option={option} height={380} />
       ) : (

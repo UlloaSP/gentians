@@ -708,7 +708,7 @@ def write_dashboard_data(
                 "clingoSummary": dataset_clingo_summary,
             }
         )
-    payload = {"schemaVersion": 9, "benchmarks": benchmarks}
+    payload = {"schemaVersion": 10, "benchmarks": benchmarks}
     (out_dir / "dashboard_data.json").write_text(
         json.dumps(json_safe(payload), separators=(",", ":"), allow_nan=False),
         encoding="utf-8",

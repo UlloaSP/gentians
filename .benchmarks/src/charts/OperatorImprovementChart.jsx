@@ -8,11 +8,15 @@ export function OperatorImprovementChart({ benchmark }) {
   const rows = improvementOperatorRows(benchmark);
   const option = useMemo(
     () => ({
-      tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: formatRate },
       legend: { bottom: 0 },
-      grid: { left: 70, right: 18, top: 30, bottom: 80 },
-      xAxis: { type: "category", data: rows.map(operatorLabel), axisLabel: { rotate: 25 } },
-      yAxis: { type: "value", name: "rate" },
+      grid: { left: 66, right: 18, top: 30, bottom: 105 },
+      xAxis: {
+        type: "category",
+        data: rows.map(operatorLabel),
+        axisLabel: { interval: 0, formatter: (value) => value.replace(":", "\n"), lineHeight: 15 },
+      },
+      yAxis: { type: "value", name: "% resultados", max: 1, axisLabel: { formatter: rateAxis } },
       series: [
         {
           type: "bar",
@@ -41,3 +45,6 @@ export function OperatorImprovementChart({ benchmark }) {
     </ChartSection>
   );
 }
+
+const formatRate = (value) => `${(Number(value || 0) * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
+const rateAxis = (value) => `${Math.round(value * 100)}%`;

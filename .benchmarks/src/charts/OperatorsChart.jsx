@@ -8,11 +8,15 @@ export function OperatorsChart({ benchmark }) {
   const rows = outcomeOperatorRows(benchmark);
   const option = useMemo(
     () => ({
-      tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        valueFormatter: formatRate,
+      },
       legend: { bottom: 0 },
-      grid: { left: 70, right: 18, top: 30, bottom: 80 },
-      xAxis: { type: "category", data: rows.map(operatorLabel), axisLabel: { rotate: 25 } },
-      yAxis: { type: "value", name: "slot rate" },
+      grid: { left: 66, right: 18, top: 30, bottom: 112 },
+      xAxis: { type: "category", data: rows.map(operatorLabel), axisLabel: operatorAxisLabel },
+      yAxis: { type: "value", name: "% slots", max: 1, axisLabel: { formatter: rateAxis } },
       series: [
         {
           type: "bar",
@@ -57,3 +61,11 @@ export function OperatorsChart({ benchmark }) {
     </ChartSection>
   );
 }
+
+const formatRate = (value) => `${(Number(value || 0) * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
+const rateAxis = (value) => `${Math.round(value * 100)}%`;
+const operatorAxisLabel = {
+  interval: 0,
+  formatter: (value) => value.replace(":", "\n"),
+  lineHeight: 15,
+};

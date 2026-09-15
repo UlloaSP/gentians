@@ -75,14 +75,20 @@ export function FitnessChart({ benchmark }) {
       legend: { bottom: 0 },
       grid: { left: 80, right: 20, top: 30, bottom: 82 },
       xAxis: { type: "value", name: "generación", nameLocation: "middle", nameGap: 36 },
-      yAxis: { type: "value", name: "fitness", nameLocation: "middle", nameGap: 54 },
+      yAxis: {
+        type: "value",
+        name: "fitness",
+        nameLocation: "middle",
+        nameGap: 54,
+        max: ({ max }) => (max > 0 ? Math.ceil(max * 1.04) : 1),
+      },
       series,
     }),
     [series],
   );
 
   return (
-    <ChartSection title="Progreso de búsqueda">
+    <ChartSection title="Progreso de búsqueda" wide>
       <div className="mb-3 flex items-center justify-end gap-2">
         <label className={chartTw.controlLabel} htmlFor="fitness-view">
           mostrar

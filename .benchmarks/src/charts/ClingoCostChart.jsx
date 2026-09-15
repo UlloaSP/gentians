@@ -25,8 +25,8 @@ export function ClingoCostChart({ benchmark }) {
     () => ({
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
       legend: { bottom: 0 },
-      grid: { left: 150, right: 18, top: 24, bottom: 62 },
-      xAxis: { type: "value", name: "segundos", nameLocation: "middle", nameGap: 34 },
+      grid: { left: 150, right: 18, top: 24, bottom: 56 },
+      xAxis: { type: "value", axisLabel: { formatter: "{value}s" } },
       yAxis: { type: "category", data: labels, inverse: true },
       series: [
         {

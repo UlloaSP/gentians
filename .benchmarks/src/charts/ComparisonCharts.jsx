@@ -55,10 +55,18 @@ const PHASES = {
   search: ["search orchestration", 7],
 };
 const TYPE_BLOCKS = [
-  ["Clauses", ["clauseGeneration", "pregrounding"]],
+  ["Clauses", ["clauseGeneration"]],
   [
     "Evolution",
-    ["initialization", "selection", "crossover", "mutation", "replacement", "gaPython"],
+    [
+      "pregrounding",
+      "initialization",
+      "selection",
+      "crossover",
+      "mutation",
+      "replacement",
+      "gaPython",
+    ],
   ],
 ];
 
@@ -84,7 +92,7 @@ export function ComparisonCharts({ rows, progressView, setProgressView }) {
         <ChartSection title="Porcentajes de tiempo por tipo">
           <div className="grid gap-6 md:grid-cols-2">
             {TYPE_BLOCKS.map(([title, phases]) => (
-              <Chart key={title} option={typeSplitOption(available, title, phases)} height={340} />
+              <Chart key={title} option={typeSplitOption(available, title, phases)} height={280} />
             ))}
           </div>
         </ChartSection>
@@ -225,9 +233,9 @@ function Plot({ title, option, height = 320 }) {
   );
 }
 
-function DataPlot({ title, present, option, empty, height = 320 }) {
+function DataPlot({ title, present, option, empty, height = 320, wide = false }) {
   return (
-    <ChartSection title={title}>
+    <ChartSection title={title} wide={wide}>
       {present ? <Chart option={option} height={height} /> : <Empty>{empty}</Empty>}
     </ChartSection>
   );
@@ -269,13 +277,36 @@ function phaseTypeOption(rows) {
 }
 
 function typeSplitOption(rows, title, phases) {
-  const count = rows.length;
   const divisionStyles = typeOrder.map(([, label], index) => [label, SEGMENT_STYLES[index]]);
+  const blocks = rows.map(({ experiment, benchmark }) => {
+    const values = Object.fromEntries(
+      typeOrder.map(([type]) => [
+        type,
+        phases.reduce(
+          (seconds, phase) => seconds + phaseTypeTotal(benchmark, phase, type),
+          0,
+        ),
+      ]),
+    );
+    return {
+      experiment,
+      measured: measuredTotal(benchmark),
+      values,
+      total: Object.values(values).reduce((sum, value) => sum + value, 0),
+    };
+  });
   return {
     tooltip: {
-      trigger: "item",
-      formatter: ({ marker, seriesName, name, percent, value }) =>
-        `${marker}${seriesName} · ${name}: ${percent}% del bloque<br/>${formatSeconds(value)}<br/>del total: ${data.totalPercent}`,
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      formatter: (params) => [
+        `<strong>${params[0]?.data.experiment || ""}</strong>`,
+        ...params.map(
+          ({ marker, seriesName, data }) =>
+            `${marker}${seriesName}: ${formatPercent(data.value / 100)} · ${formatSeconds(data.seconds)}`,
+        ),
+        `tiempo total: ${formatSeconds(params[0]?.data.totalSeconds)} · ${params[0]?.data.totalPercent || "0%"} del total_execution`,
+      ].join("<br/>"),
     },
     title: { text: title, left: "center", top: 4, textStyle: { fontSize: 13 } },
     legend: { show: false },
@@ -290,30 +321,32 @@ function typeSplitOption(rows, title, phases) {
             ),
           0,
         );
-        return formatPercent(measuredTotal(benchmark) ? block / measuredTotal(benchmark) : 0);
+        const percent = formatPercent(
+          measuredTotal(benchmark) ? block / measuredTotal(benchmark) : 0,
+        );
+        return `${formatSeconds(block)} · ${percent}`;
       }),
       divisionKey(divisionStyles),
     ],
-    series: rows.map(({ experiment, benchmark }, index) => ({
-      type: "pie",
-      name: experiment.label,
-      radius: ringRadius(index, count),
-      label: { show: index === count - 1, formatter: "{b}" },
-      data: typeOrder.map(([type, label], typeIndex) => ({
-        name: label,
-        value: phases.reduce(
-          (seconds, phase) => seconds + phaseTypeTotal(benchmark, phase, type),
-          0,
-        ),
-        totalPercent: formatPercent(
-          measuredTotal(benchmark)
-            ? phases.reduce(
-                (seconds, phase) => seconds + phaseTypeTotal(benchmark, phase, type),
-                0,
-              ) / measuredTotal(benchmark)
-            : 0,
-        ),
-        itemStyle: { color: experiment.color, ...SEGMENT_STYLES[typeIndex] },
+    grid: { left: 36, right: 24, top: 45 + rows.length * 18, bottom: 28 },
+    xAxis: { type: "value", min: 0, max: 100, axisLabel: { formatter: "{value}%" } },
+    yAxis: {
+      type: "category",
+      data: rows.map((_, index) => `${index + 1}`),
+      inverse: true,
+    },
+    series: typeOrder.map(([type, label], typeIndex) => ({
+      type: "bar",
+      name: label,
+      stack: "share",
+      barMaxWidth: 28,
+      data: blocks.map((block) => ({
+        value: block.total ? (block.values[type] / block.total) * 100 : 0,
+        seconds: block.values[type],
+        experiment: block.experiment.label,
+        totalSeconds: block.total,
+        totalPercent: formatPercent(block.measured ? block.total / block.measured : 0),
+        itemStyle: { color: block.experiment.color, ...SEGMENT_STYLES[typeIndex] },
       })),
     })),
   };
@@ -396,8 +429,9 @@ function operatorOutcomeOption(rows) {
     }),
     {
       bottom: 110,
-      rotate: 25,
-      yName: "slot rate",
+      yName: "% slots",
+      rate: true,
+      labelFormatter: operatorChartLabel,
       divisions: OUTCOMES.map(([, label], index) => [label, SEGMENT_STYLES[index]]),
     },
   );
@@ -422,8 +456,9 @@ function operatorImprovementOption(rows) {
     }),
     {
       bottom: 105,
-      rotate: 25,
-      yName: "rate",
+      yName: "% resultados",
+      rate: true,
+      labelFormatter: operatorChartLabel,
       divisions: [
         ["improved", SEGMENT_STYLES[0]],
         ["worse/equal", SEGMENT_STYLES[1]],
@@ -445,7 +480,7 @@ function operatorDeltaOption(rows) {
         itemStyle: { color: experiment.color },
       };
     }),
-    { bottom: 90, rotate: 25, yName: "score delta" },
+    { bottom: 90, yName: "score delta", labelFormatter: operatorChartLabel },
   );
 }
 
@@ -648,14 +683,25 @@ function barOption(labels, series, settings = {}) {
     rotate = 0,
     yName,
     divisions = [],
+    rate = false,
+    labelFormatter,
   } = settings;
   const category = {
     type: "category",
     data: labels,
     inverse,
-    axisLabel: rotate ? { rotate } : undefined,
+    axisLabel: labelFormatter
+      ? { formatter: labelFormatter, interval: 0, lineHeight: 15 }
+      : rotate
+        ? { rotate }
+        : undefined,
   };
-  const value = { type: "value", name: horizontal ? "segundos" : yName };
+  const value = {
+    type: "value",
+    name: horizontal ? "segundos" : yName,
+    max: rate ? 1 : undefined,
+    axisLabel: rate ? { formatter: (item) => `${Math.round(item * 100)}%` } : undefined,
+  };
   const keys = divisions.map(([name, style]) => ({
     type: "bar",
     name,
@@ -672,7 +718,8 @@ function barOption(labels, series, settings = {}) {
           ...params.map((param) => {
             const source = series[param.seriesIndex];
             const suffix = source?.division ? ` · ${source.division}` : "";
-            return `${param.marker}${param.seriesName}${suffix}: ${param.value}`;
+            const value = rate ? formatPercent(num(param.value)) : param.value;
+            return `${param.marker}${param.seriesName}${suffix}: ${value}`;
           }),
         ].join("<br/>"),
     },
@@ -683,6 +730,8 @@ function barOption(labels, series, settings = {}) {
     series: [...series, ...keys],
   };
 }
+
+const operatorChartLabel = (value) => value.replace(":", "\n");
 
 function lineOption(series, xName, yName, bottom = 70) {
   return {
@@ -704,7 +753,11 @@ function lineOption(series, xName, yName, bottom = 70) {
     legend: { bottom: 0 },
     grid: { left: 75, right: 24, top: 30, bottom },
     xAxis: { type: "value", name: xName, nameLocation: "middle", nameGap: 34 },
-    yAxis: { type: "value", name: yName },
+    yAxis: {
+      type: "value",
+      name: yName,
+      max: ({ max }) => (max > 0 ? Math.ceil(max * 1.04) : 1),
+    },
     series,
   };
 }

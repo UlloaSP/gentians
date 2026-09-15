@@ -1,394 +1,215 @@
+@import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
 @import "tailwindcss";
 
 @layer base {
   :root {
     color-scheme: light;
+    --ink: #202329;
+    --muted: #626873;
+    --line: #d8dce2;
+    --line-strong: #adb4bf;
+    --paper: #f5f6f8;
+    --panel: #ffffff;
+    --accent: #155eef;
+    --accent-soft: #eaf0ff;
+    --success: #087f5b;
+    --danger: #c92a2a;
+    font-family: "IBM Plex Sans Variable", sans-serif;
   }
-
-  html {
-    font-family: Aptos, ui-sans-serif, system-ui, sans-serif;
-  }
-
-  button,
-  select {
-    font: inherit;
-  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); }
+  button, input, select { font: inherit; }
+  button, a, select, input { -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 
 @layer components {
-  .experiment-index {
-    min-height: 100vh;
-    max-width: 76rem;
-    margin: auto;
-    padding: 1rem;
-    background: #fafafa;
+  .min-h-screen, .experiment-index, .compare-page {
+    background-color: var(--paper);
+    background-image: linear-gradient(rgb(32 35 41 / 0.035) 1px, transparent 1px), linear-gradient(90deg, rgb(32 35 41 / 0.035) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
-  .experiment-index nav,
-  .detail-nav {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.75rem;
-    min-height: 3rem;
-    border-bottom: 1px solid #e5e5e5;
-    margin-bottom: 1rem;
+  .detail-nav, .index-toolbar, .compare-controls {
+    z-index: 20; display: flex; align-items: end; gap: 0.65rem;
+    min-height: 3.75rem; border: 1px solid rgb(173 180 191 / 0.9); border-radius: 6px;
+    background: rgb(255 255 255 / 0.94); box-shadow: 0 8px 24px rgb(32 35 41 / 0.07);
+    padding: 0.6rem; backdrop-filter: blur(12px);
   }
-  .detail-nav select {
-    min-width: 14rem;
+  .compare-controls { position: sticky; top: 0.75rem; }
+  .detail-nav { margin-bottom: 0.25rem; }
+  .nav-context { align-self: center; color: var(--line-strong); }
+  .nav-field, .compare-controls label, .index-filters label { display: grid; gap: 0.3rem; min-width: 13rem; }
+  .nav-field span, .compare-controls label > span, .index-filters label > span, .chart-control label {
+    color: var(--muted); font: 500 0.64rem/1 "IBM Plex Mono", monospace; letter-spacing: 0.11em; text-transform: uppercase;
   }
-  .experiment-index a,
-  .detail-nav a,
-  .compare-controls > a {
-    color: #1d4ed8;
-    text-decoration: none;
+  .detail-nav select, .compare-controls select, .index-filters select, .index-filters input, .chart-control select {
+    min-height: 2.45rem; border: 1px solid var(--line-strong); border-radius: 4px;
+    background: var(--panel); color: var(--ink); padding: 0.45rem 0.7rem;
   }
-  .experiment-list {
-    display: grid;
-    gap: 0.5rem;
+  .nav-link, .compare-home, .compare-controls > button, .compare-filters summary {
+    display: inline-flex; min-height: 2.45rem; align-items: center; justify-content: center;
+    border: 1px solid var(--line-strong); border-radius: 4px; background: var(--panel);
+    color: var(--ink); padding: 0.45rem 0.75rem; text-decoration: none; white-space: nowrap;
   }
+  .nav-link-primary { border-color: var(--accent); background: var(--accent); color: white; }
+  .detail-nav .nav-link-primary { margin-left: auto; }
+
+  .dashboard-detail { display: grid; gap: 1.5rem; }
+  .metric-summary { display: grid; grid-template-columns: 0.95fr 1.2fr 1.6fr; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+  .metric-group { min-width: 0; padding: 0.9rem 1rem 1rem; }
+  .metric-group + .metric-group { border-left: 1px solid var(--line); }
+  .metric-group > h2, .group-title {
+    margin: 0; color: var(--muted); font: 500 0.65rem/1 "IBM Plex Mono", monospace;
+    letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .metric-group > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr)); }
+  .metric-group-result > div, .metric-group-time > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-group-time > div > .metric-cell:first-child { grid-column: 1 / -1; }
+  .metric-group-time > div > .metric-cell:nth-child(n + 2) { border-top: 1px solid var(--line); }
+  .metric-group-solver > div { display: block; }
+  .solver-metrics { width: 100%; margin-top: 0.72rem; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .solver-metrics th, .solver-metrics td { border-bottom: 1px solid var(--line); padding: 0.58rem 0.35rem; }
+  .solver-metrics thead th {
+    color: var(--muted); font: 500 0.57rem/1 "IBM Plex Mono", monospace;
+    letter-spacing: 0.06em; text-align: right; text-transform: uppercase;
+  }
+  .solver-metrics thead th:first-child { text-align: left; }
+  .solver-metrics tbody th {
+    color: #444b56; font: 600 0.66rem/1.2 "IBM Plex Mono", monospace;
+    text-align: left; text-transform: uppercase;
+  }
+  .solver-metrics td { font-size: 1.25rem; font-weight: 700; line-height: 1; text-align: right; }
+  .solver-metrics tbody tr:last-child > * { border-bottom: 0; }
+  .metric-cell { min-width: 0; padding: 0.85rem 0.75rem 0.15rem 0; }
+  .metric-cell strong { font-variant-numeric: tabular-nums; }
+  .dashboard-group { display: grid; gap: 0.65rem; scroll-margin-top: 5.5rem; }
+  .chart-grid { align-items: start; }
+  .group-title { padding: 0 0.2rem; color: #444b56; }
+  .chart-section, .pareto-panel {
+    min-width: 0; border: 1px solid var(--line); border-radius: 6px;
+    background: rgb(255 255 255 / 0.96); padding: 0 1rem 0.9rem;
+  }
+  .chart-section-wide { grid-column: 1 / -1; }
+  .chart-heading { padding-top: 0.9rem; }
+  .chart-title-row { display: flex; align-items: center; gap: 0.5rem; }
+  .chart-title-row h2 { margin: 0; font-size: 0.96rem; font-weight: 650; letter-spacing: -0.012em; }
+  .chart-help-button {
+    display: inline-grid; width: 1.45rem; height: 1.45rem; flex: 0 0 auto; place-items: center;
+    border: 1px solid var(--line-strong); border-radius: 50%; background: white; color: #4d5561;
+    font: 600 0.75rem/1 "IBM Plex Mono", monospace; cursor: pointer;
+  }
+  .chart-help-button:hover, .chart-help-button[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .chart-description {
+    max-width: 92ch; margin: 0.7rem 0 0.2rem; border-left: 2px solid var(--accent);
+    background: #f7f9ff; color: #444b56; padding: 0.65rem 0.8rem; font-size: 0.78rem; line-height: 1.55;
+  }
+
+  .experiment-index { min-height: 100vh; max-width: 92rem; margin: auto; padding: 1rem; }
+  .index-toolbar { justify-content: space-between; margin-bottom: 0.75rem; }
+  .index-counts { display: flex; align-items: baseline; gap: 0.65rem; color: var(--muted); }
+  .index-counts strong { color: var(--ink); font-size: 1.25rem; }
+  .index-counts span { border-left: 1px solid var(--line); padding-left: 0.65rem; }
+  .index-filters { display: grid; grid-template-columns: minmax(16rem, 1fr) minmax(11rem, 0.25fr); gap: 0.65rem; margin-bottom: 0.75rem; }
+  .experiment-list { display: grid; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
   .experiment-list > * {
-    display: grid;
-    gap: 0.3rem;
-    border: 1px solid #e5e5e5;
-    border-radius: 0.25rem;
-    background: white;
-    color: #171717;
-    padding: 1rem;
-    text-decoration: none;
+    display: grid; grid-template-columns: minmax(16rem, 1fr) auto minmax(8rem, auto); align-items: center;
+    gap: 1rem; min-height: 4.2rem; color: var(--ink); padding: 0.75rem 1rem; text-decoration: none;
   }
-  .experiment-list > a:hover {
-    border-color: #2563eb;
-  }
-  .experiment-list span,
-  .experiment-list small {
-    color: #737373;
-  }
-  .experiment-list .is-disabled {
-    opacity: 0.45;
-  }
-  .compare-page {
-    min-height: 100vh;
-    color: #1c1917;
-    background:
-      linear-gradient(rgba(37, 99, 235, 0.055) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px), #fafaf9;
-    background-size:
-      32px 32px,
-      32px 32px;
-    padding: 1rem;
-  }
-  .compare-shell {
-    width: 100%;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
-  }
-  .compare-shell > * {
-    min-width: 0;
-  }
-  .experiment-card > span:last-child {
-    min-width: 0;
-  }
-  .compare-controls {
-    position: relative;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: end;
-    gap: 0.75rem;
-  }
-  .compare-controls label {
-    display: grid;
-    gap: 0.35rem;
-    min-width: 15rem;
-  }
-  .compare-controls label span,
-  .chart-control label {
-    color: #57534e;
-    font:
-      700 0.65rem/1 ui-monospace,
-      monospace;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .compare-controls select,
-  .compare-controls button,
-  .compare-home,
-  .chart-control select {
-    min-height: 2.6rem;
-    border: 1px solid #a8a29e;
-    border-radius: 0.25rem;
-    background: rgba(255, 255, 255, 0.92);
-    color: #1c1917;
-    padding: 0.55rem 0.8rem;
-  }
-  .compare-home {
-    display: inline-flex;
-    align-items: center;
-  }
-  .compare-controls button {
-    cursor: pointer;
-    color: #1d4ed8;
-  }
-  .compare-controls button:hover,
-  .compare-home:hover {
-    border-color: #2563eb;
-  }
-  .compare-filters {
-    position: static;
-  }
-  .compare-filters summary {
-    min-height: 2.6rem;
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    border: 1px solid #a8a29e;
-    border-radius: 0.25rem;
-    background: rgba(255, 255, 255, 0.92);
-    color: #1d4ed8;
-    padding: 0.55rem 0.8rem;
-    cursor: pointer;
-    list-style: none;
-  }
-  .compare-filters summary::-webkit-details-marker {
-    display: none;
-  }
-  .compare-filters summary span {
-    display: grid;
-    place-items: center;
-    min-width: 1.35rem;
-    height: 1.35rem;
-    border-radius: 99rem;
-    background: #dbeafe;
-    font-size: 0.7rem;
-  }
+  .experiment-list > * + * { border-top: 1px solid var(--line); }
+  .experiment-list > a:hover { background: #f7f9ff; }
+  .experiment-main { display: grid; gap: 0.2rem; min-width: 0; }
+  .experiment-main strong { color: var(--ink); }
+  .experiment-main > span, .experiment-list small { color: var(--muted); }
+  .experiment-list small { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .experiment-list .is-disabled { color: #767d88; background: #f7f8f9; }
+  .status-badge { justify-self: end; border: 1px solid var(--line-strong); border-radius: 999px; padding: 0.28rem 0.55rem; font: 500 0.67rem/1 "IBM Plex Mono", monospace; }
+  .status-complete { border-color: #8ed1b8; background: #e9f8f2; color: #06634a; }
+  .status-completed_with_failures { border-color: #e4b77d; background: #fff4e5; color: #8a4b08; }
+  .status-stale { border-color: #e6a1a1; background: #fff0f0; color: #a31d1d; }
+
+  .compare-page { min-height: 100vh; padding: 1rem; }
+  .compare-shell { width: 100%; margin: auto; display: grid; gap: 1rem; }
+  .compare-shell > *, .comparison-table-wrap { min-width: 0; }
+  .compare-controls { justify-content: center; }
+  .compare-home { color: var(--ink); }
+  .compare-filters { position: static; }
+  .compare-filters summary { gap: 0.45rem; color: var(--accent); cursor: pointer; list-style: none; }
+  .compare-filters summary::-webkit-details-marker { display: none; }
+  .compare-filters summary span { display: grid; min-width: 1.3rem; height: 1.3rem; place-items: center; border-radius: 50%; background: var(--accent-soft); font-size: 0.68rem; }
   .filter-panel {
-    position: absolute;
-    z-index: 10;
-    top: calc(100% + 0.5rem);
-    right: 0;
-    left: 0;
-    max-height: calc(100vh - 6rem);
-    overflow: auto;
-    display: grid;
-    gap: 0.75rem;
-    border: 1px solid #a8a29e;
-    border-radius: 0.3rem;
-    background: #fafaf9;
-    box-shadow: 0 24px 70px rgba(28, 25, 23, 0.2);
-    padding: 0.75rem;
+    position: absolute; z-index: 30; top: calc(100% + 0.5rem); right: 0; left: 0;
+    max-height: calc(100vh - 6rem); overflow: auto; display: grid; gap: 0.75rem;
+    border: 1px solid var(--line-strong); border-radius: 6px; background: var(--paper);
+    box-shadow: 0 20px 60px rgb(32 35 41 / 0.18); padding: 0.75rem;
   }
-  .filter-panel > button {
-    justify-self: end;
-  }
-  .experiment-matrix {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
-    gap: 0.65rem;
-  }
+  .filter-panel > button { justify-self: end; }
+  .experiment-matrix { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.65rem; }
   .experiment-card {
-    position: relative;
-    display: grid;
-    grid-template-columns: auto auto 1fr;
-    gap: 0.8rem;
-    min-height: 7.8rem;
-    border: 1px solid #d6d3d1;
-    border-radius: 0.3rem;
-    background: rgba(255, 255, 255, 0.78);
-    box-shadow: 0 8px 28px rgba(28, 25, 23, 0.045);
-    padding: 1rem;
-    opacity: 0.52;
-    cursor: pointer;
-    transition: 0.16s ease;
+    display: grid; grid-template-columns: auto 0.25rem 1fr; gap: 0.75rem; min-height: 7rem;
+    border: 1px solid var(--line); border-radius: 6px; background: white; padding: 0.9rem; opacity: 0.55; cursor: pointer;
   }
-  .experiment-card:hover,
-  .experiment-card.is-active {
-    opacity: 1;
-    border-color: var(--experiment);
-    transform: translateY(-1px);
-  }
-  .experiment-card input {
-    margin-top: 0.2rem;
-    accent-color: var(--experiment);
-  }
-  .experiment-swatch {
-    width: 0.28rem;
-    min-height: 100%;
-    border-radius: 1rem;
-    background: var(--experiment);
-  }
-  .experiment-card strong,
-  .experiment-card small,
-  .experiment-card code {
-    display: block;
-  }
-  .experiment-card strong {
-    color: #1c1917;
-    font-size: 0.9rem;
-  }
-  .experiment-card small {
-    margin-top: 0.35rem;
-    color: #57534e;
-    font-size: 0.72rem;
-    line-height: 1.35;
-  }
-  .experiment-card code {
-    margin-top: 0.65rem;
-    color: #44403c;
-    font-size: 0.62rem;
-    line-height: 1.45;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-  .comparison-table-scroll {
-    overflow-x: auto;
-    border: 1px solid #d6d3d1;
-    background: rgba(255, 255, 255, 0.82);
-  }
-  .comparison-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 60rem;
-    font-size: 0.78rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .comparison-table th,
-  .comparison-table td {
-    border-bottom: 1px solid #e7e5e4;
-    padding: 0.85rem 1rem;
-    text-align: right;
-    white-space: nowrap;
-  }
-  .comparison-table thead th {
-    color: #78716c;
-    font:
-      700 0.63rem/1 ui-monospace,
-      monospace;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .comparison-table th:first-child {
-    text-align: left;
-    color: #1c1917;
-  }
-  .comparison-table i {
-    display: inline-block;
-    width: 0.48rem;
-    height: 0.48rem;
-    border-radius: 50%;
-    margin-right: 0.6rem;
-  }
-  .call-pair span {
-    display: inline-block;
-    min-width: 3.2rem;
-  }
-  .delta-good {
-    color: #065f46;
-    background: #ecfdf5;
-    font-weight: 700;
-  }
-  .delta-bad {
-    color: #9f1239;
-    background: #fff1f2;
-    font-weight: 700;
-  }
-  .missing-data {
-    color: #78716c;
-    text-align: left !important;
-  }
-  .pareto-panel {
-    border: 1px solid #d6d3d1;
-    background: rgba(255, 255, 255, 0.88);
-    padding: 0.75rem 1rem 1rem;
-  }
-  .pareto-chart {
-    min-width: 0;
-    width: 100%;
-  }
-  .pareto-chart h2 {
-    margin: 1rem 0 0.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-  }
-  .pareto-subtitle {
-    margin: 0.15rem 0 0.5rem;
-    color: #57534e;
-    font-size: 0.74rem;
-    text-align: center;
-  }
-  .pareto-key {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.45rem 1rem;
-    margin-top: 0.75rem;
-    color: #44403c;
-    font-size: 0.72rem;
-  }
-  .pareto-key span {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-  .pareto-key i {
-    width: 0.55rem;
-    height: 0.55rem;
-    border-radius: 50%;
-  }
-  .comparison-charts {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-  }
-  .comparison-charts > section {
-    border: 1px solid #d6d3d1;
-    border-radius: 0.3rem;
-    background: #fafafa;
-    color: #171717;
-    padding: 0 1rem 1rem;
-  }
-  .chart-control {
-    display: flex;
-    justify-content: end;
-    align-items: center;
-    gap: 0.6rem;
-    margin-bottom: 0.5rem;
-  }
-  .chart-control select {
-    min-height: 2rem;
-    background: #fff;
-    color: #171717;
-    padding: 0.25rem 0.55rem;
-  }
-  .individual-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    align-items: center;
-    border-top: 1px solid #d6d3d1;
-    padding: 2rem 0 4rem;
-  }
-  .individual-links a {
-    border-bottom: 2px solid var(--experiment);
-    color: #1c1917;
-    padding: 0.45rem 0.1rem;
-    font-size: 0.78rem;
-    text-decoration: none;
-  }
-}
-@media (max-width: 900px) {
-  .compare-page {
-    padding: 1rem;
-  }
-  .comparison-charts {
-    grid-template-columns: 1fr;
-  }
+  .experiment-card:hover, .experiment-card.is-active { border-color: var(--experiment); opacity: 1; }
+  .experiment-card.is-disabled { opacity: 0.32; cursor: not-allowed; filter: grayscale(1); }
+  .experiment-card input { margin-top: 0.2rem; accent-color: var(--experiment); }
+  .experiment-swatch { min-height: 100%; border-radius: 2px; background: var(--experiment); }
+  .experiment-card strong, .experiment-card small, .experiment-card code { display: block; }
+  .experiment-card small { margin-top: 0.3rem; color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
+  .experiment-card code { margin-top: 0.6rem; color: #444b56; font: 0.62rem/1.45 "IBM Plex Mono", monospace; overflow-wrap: anywhere; }
+
+  .comparison-table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: white; box-shadow: inset -12px 0 14px -16px rgb(32 35 41 / 0.7); }
+  .comparison-table { width: 100%; min-width: 62rem; border-collapse: separate; border-spacing: 0; font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+  .comparison-table th, .comparison-table td { border-bottom: 1px solid var(--line); padding: 0.78rem 0.9rem; text-align: right; white-space: nowrap; }
+  .comparison-table thead th { position: sticky; top: 0; z-index: 2; background: #f7f8fa; color: var(--muted); font: 500 0.61rem/1 "IBM Plex Mono", monospace; letter-spacing: 0.07em; text-transform: uppercase; }
+  .comparison-table th:first-child { position: sticky; left: 0; z-index: 3; background: white; text-align: left; color: var(--ink); }
+  .comparison-table thead th:first-child { background: #f7f8fa; }
+  .comparison-table tr.is-baseline th:first-child { box-shadow: inset 3px 0 var(--accent); }
+  .comparison-table tr.is-baseline { background: #f7f9ff; }
+  .comparison-table i { display: inline-block; width: 0.48rem; height: 0.48rem; border-radius: 50%; margin-right: 0.55rem; }
+  .call-pair span { display: inline-block; min-width: 3.2rem; }
+  .delta-good { color: var(--success); background: #eaf8f2; font-weight: 650; }
+  .delta-bad { color: var(--danger); background: #fff0f0; font-weight: 650; }
+  .missing-data { color: var(--muted); text-align: left !important; }
+
+  .pareto-chart { min-width: 0; }
+  .pareto-chart > .chart-heading { margin-bottom: 0.5rem; }
+  .pareto-panel { padding-top: 0.75rem; }
+  .pareto-subtitle { max-width: 100ch; margin: 0 auto 0.25rem; color: var(--muted); font-size: 0.74rem; line-height: 1.5; text-align: center; }
+  .pareto-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.45rem 1rem; margin-top: 0.6rem; color: #444b56; font-size: 0.72rem; }
+  .pareto-key span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .pareto-key i { width: 0.55rem; height: 0.55rem; border-radius: 50%; }
+  .comparison-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  .comparison-charts > .chart-section:nth-child(2), .comparison-charts > .chart-section:nth-child(3), .comparison-charts > .chart-section:nth-child(4) { grid-column: 1 / -1; }
+  .chart-control { display: flex; justify-content: end; align-items: center; gap: 0.55rem; margin: 0.25rem 0 0.5rem; }
+  .chart-control select { min-height: 2rem; padding: 0.25rem 0.5rem; }
+  .individual-links { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; border-top: 1px solid var(--line); padding: 1.5rem 0 3rem; }
+  .individual-links a { border-bottom: 2px solid var(--experiment); color: var(--ink); padding: 0.4rem 0.1rem; font-size: 0.78rem; text-decoration: none; }
 }
 
-.experiment-card.is-disabled {
-  opacity: 0.25;
-  cursor: not-allowed;
-  filter: grayscale(1);
+@media (max-width: 900px) {
+  .metric-summary { grid-template-columns: 1fr; }
+  .metric-group + .metric-group { border-top: 1px solid var(--line); border-left: 0; }
+  .comparison-charts { grid-template-columns: 1fr; }
+  .comparison-charts > .chart-section { grid-column: auto !important; }
+  .compare-controls { justify-content: flex-start; }
+}
+
+@media (max-width: 640px) {
+  .detail-nav, .index-toolbar, .compare-controls { position: static; align-items: stretch; flex-wrap: wrap; }
+  .detail-nav .nav-field, .compare-controls label { min-width: 100%; }
+  .detail-nav .nav-context { display: none; }
+  .detail-nav .nav-link-primary { margin-left: 0; }
+  .index-counts { width: 100%; flex-wrap: wrap; }
+  .index-filters { grid-template-columns: 1fr; }
+  .experiment-list > * { grid-template-columns: 1fr auto; gap: 0.45rem 0.75rem; }
+  .experiment-list small { grid-column: 1; }
+  .status-badge { grid-column: 2; grid-row: 1 / span 2; }
+  .metric-group > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chart-section { padding-inline: 0.65rem; }
+  .chart-description { font-size: 0.74rem; }
+  .pareto-subtitle { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }

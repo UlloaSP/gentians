@@ -1,4 +1,5 @@
 import { Chart } from "../components/Chart";
+import { ChartHeader } from "../components/Layout";
 import { bestRunCount, fmt, runCount, totalSeconds } from "../metrics";
 import { paretoFrontier } from "./pareto";
 
@@ -28,7 +29,7 @@ export function ParetoChart({ rows, baselineId }) {
 
   return (
     <section className="pareto-chart">
-      <h2>Tiempo total vs best medidos</h2>
+      <ChartHeader title="Tiempo total vs best medidos" />
       <div className="pareto-panel">
         <p className="pareto-subtitle">
           <strong>Baseline: {baseline?.name || "sin datos"}.</strong> Cada burbuja es un
@@ -112,7 +113,7 @@ function chartOption(points, baseline) {
               silent: true,
               symbol: "none",
               lineStyle: { color: baseline.color, type: "dotted", width: 2 },
-              label: { color: "#334155", formatter: "baseline" },
+              label: { color: "#334155", formatter: "baseline", position: "insideEndTop" },
               data: [{ xAxis: baseline.value[0] }, { yAxis: baseline.value[1] }],
             }
           : undefined,

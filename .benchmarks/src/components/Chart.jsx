@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { BarChart, HeatmapChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
 import {
+  AriaComponent,
   GridComponent,
   LegendComponent,
   MarkLineComponent,
@@ -26,6 +27,7 @@ use([
   TooltipComponent,
   TitleComponent,
   VisualMapComponent,
+  AriaComponent,
   CanvasRenderer,
 ]);
 
@@ -47,7 +49,16 @@ export function Chart({ option, height = 420 }) {
   }, []);
 
   useEffect(() => {
-    chart.current?.setOption(option, true);
+    chart.current?.setOption(
+      {
+        animationDuration: 280,
+        animationDurationUpdate: 180,
+        textStyle: { fontFamily: "IBM Plex Sans, sans-serif", color: "#30343b" },
+        aria: { enabled: true },
+        ...option,
+      },
+      true,
+    );
   }, [option]);
 
   const size =
@@ -58,5 +69,5 @@ export function Chart({ option, height = 420 }) {
         : height >= 320
           ? chartTw.chartMd
           : chartTw.chartSm;
-  return <div className={size} ref={ref} />;
+  return <div className={size} ref={ref} role="img" />;
 }

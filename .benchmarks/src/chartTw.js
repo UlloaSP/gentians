@@ -1,7 +1,7 @@
 export const chartTw = {
-  page: ["min-h-screen", "bg-neutral-50", "px-6", "py-6", "text-neutral-950"].join(" "),
+  page: ["min-h-screen", "px-4", "py-4", "text-neutral-950", "md:px-6"].join(" "),
   shell: ["mx-auto", "flex", "w-full", "max-w-[1800px]", "flex-col", "gap-5"].join(" "),
-  sectionGrid: ["grid", "grid-cols-1", "gap-4", "xl:grid-cols-12"].join(" "),
+  sectionGrid: ["grid", "grid-cols-1", "gap-4", "xl:grid-cols-2"].join(" "),
   chartSm: ["h-[260px]", "w-full", "min-w-0"].join(" "),
   chartMd: ["h-[340px]", "w-full", "min-w-0"].join(" "),
   chartLg: ["h-[420px]", "w-full", "min-w-0"].join(" "),

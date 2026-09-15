@@ -956,7 +956,7 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 9
+    assert payload["schemaVersion"] == 10
     assert benchmark["total"] == 3.0
     assert benchmark["instrumentedRuns"] == 1
     assert "wall" not in benchmark

@@ -6,6 +6,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "@vitejs/plugin-react": "^5.0.0",
     "echarts": "^6.1.0",
     "react": "^18.3.1",

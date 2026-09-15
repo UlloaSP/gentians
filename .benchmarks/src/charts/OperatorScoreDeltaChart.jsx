@@ -10,8 +10,12 @@ export function OperatorScoreDeltaChart({ benchmark }) {
     const values = rows.map((row) => maybeNum(row.mean_score_delta));
     return {
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-      grid: { left: 80, right: 18, top: 30, bottom: 80 },
-      xAxis: { type: "category", data: rows.map(operatorLabel), axisLabel: { rotate: 25 } },
+      grid: { left: 80, right: 18, top: 40, bottom: 92 },
+      xAxis: {
+        type: "category",
+        data: rows.map(operatorLabel),
+        axisLabel: { interval: 0, formatter: (value) => value.replace(":", "\n"), lineHeight: 15 },
+      },
       yAxis: { type: "value", name: "score delta" },
       series: [
         {
@@ -20,6 +24,11 @@ export function OperatorScoreDeltaChart({ benchmark }) {
           data: values,
           itemStyle: {
             color: ({ dataIndex }) => (values[dataIndex] >= 0 ? colors.python : colors.accent),
+          },
+          label: {
+            show: true,
+            position: "top",
+            formatter: ({ value }) => Number(value).toLocaleString("es-ES", { maximumFractionDigits: 2 }),
           },
         },
       ],

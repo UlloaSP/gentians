@@ -143,7 +143,7 @@ export function ExperimentCompare() {
             </select>
           </label>
           <label>
-            <span>vista</span>
+            <span>tabla</span>
             <select value={view} onChange={(event) => setView(event.target.value)}>
               <option value="values">valores</option>
               <option value="deltas">deltas</option>
@@ -241,7 +241,7 @@ function ComparisonTable({ rows, baseline, view }) {
               const measured = benchmark?.instrumentedRuns > 0;
               const comparable = measured && baseline?.instrumentedRuns > 0;
               return benchmark ? (
-                <tr key={experiment.id}>
+                <tr key={experiment.id} className={benchmark === baseline ? "is-baseline" : ""}>
                   <th>
                     <i style={{ background: experiment.color }} />
                     {experiment.label}

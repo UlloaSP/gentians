@@ -26,7 +26,7 @@ export const colors = {
 };
 
 const POINT_INDEX = { max: 3, avg: 4, bestSoFar: 5 };
-export const DASHBOARD_SCHEMA_VERSION = 9;
+export const DASHBOARD_SCHEMA_VERSION = 10;
 
 export function assertDashboardSchema(payload, source = "") {
   if (payload.schemaVersion === DASHBOARD_SCHEMA_VERSION) return;
@@ -100,6 +100,15 @@ export const evolutionarySeconds = (benchmark) =>
       "replacement",
       "gaPython",
     ].map((phase) => phaseTotal(benchmark, phase)),
+  );
+export const clingoCalls = (benchmark, phase, operationCategory) =>
+  sum(
+    (benchmark.clingoSummary || [])
+      .filter(
+        (row) =>
+          row.phase_context === phase && row.operation_category === operationCategory,
+      )
+      .map((row) => row.calls),
   );
 const phaseTotals = (benchmark) =>
   phaseOrder.map(([phase, label]) => ({ phase, label, seconds: phaseTotal(benchmark, phase) }));

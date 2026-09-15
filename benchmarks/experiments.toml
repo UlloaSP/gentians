@@ -11,12 +11,14 @@ instrumentation = "full"
 [[experiment]]
 id = "sdk-defaults/steady_state"
 description = "Steady-state with current SDK defaults."
+runs = 30
 [experiment.overrides]
 algorithm = "steady_state"
 
 [[experiment]]
 id = "sdk-defaults/incremental"
 description = "Incremental with current SDK defaults."
+runs = 30
 [experiment.overrides]
 algorithm = "incremental"
 

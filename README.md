@@ -225,6 +225,11 @@ search time, fitness evaluations, operator metrics, and Clingo phases.
 
 ### Reproducible experiment profiles
 
+The [Gentians–ILASP comparison](docs/ilasp-experiments.md) configures 29 datasets,
+30 runs and a 120-second timeout for both Gentians algorithms and ILASP 2, 2i,
+3 and 4. Its runner supports native Linux and Windows through WSL; body aggregate
+tasks use complete explicit clause spaces on the ILASP side.
+
 Edit `benchmarks/experiments.toml` to define datasets, run count, timeout, common
 overrides, and named experiments. Results are isolated in `.benchmarks/experiments/<id>` and
 indexed by `.benchmarks/experiments/experiments.json` for multi-experiment comparison.

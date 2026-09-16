@@ -3,12 +3,13 @@ import csv
 import hashlib
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
 import time
 import tomllib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from statistics import mean, median
@@ -87,9 +88,18 @@ def main() -> int:
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--summary", action="store_true")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--distro", help="WSL distribution (Windows only).")
+    parser.add_argument("--executable", help="ILASP path, relative to the repository or absolute.")
+    parser.add_argument("--python-runtime", help="Optional Linux Python 3.10 prefix for ILASP.")
     args = parser.parse_args()
 
     experiments = load_experiments(args.config)
+    overrides = {
+        name: getattr(args, name)
+        for name in ("distro", "executable", "python_runtime")
+        if getattr(args, name) is not None
+    }
+    experiments = [replace(experiment, **overrides) for experiment in experiments]
     by_id = {experiment.id: experiment for experiment in experiments}
     if args.list:
         for experiment in experiments:
@@ -147,9 +157,9 @@ def load_experiments(config_path: Path) -> list[Experiment]:
                 ),
                 output_root=repo_path(merged["output_root"]),
                 task_dir=repo_path(merged["task_dir"]),
-                distro=str(merged["distro"]),
+                distro=str(merged.get("distro", "")),
                 executable=str(merged["executable"]),
-                python_runtime=str(merged["python_runtime"]),
+                python_runtime=str(merged.get("python_runtime", "")),
                 max_body_length=lengths,
             )
         )
@@ -182,7 +192,6 @@ def run_experiment(experiment: Experiment, force: bool = False) -> None:
         task = experiment.task_dir / f"{dataset}.las"
         if not task.exists():
             raise SystemExit(f"{experiment.id}: task not found: {task}")
-        task_wsl = windows_to_wsl(task)
         for version in experiment.versions:
             for run in range(1, experiment.runs + 1):
                 position += 1
@@ -195,7 +204,7 @@ def run_experiment(experiment: Experiment, force: bool = False) -> None:
                     flush=True,
                 )
                 row, stdout, stderr = execute_run(
-                    experiment, dataset, version, run, task_wsl
+                    experiment, dataset, version, run, task
                 )
                 stem = f"{dataset}_v{version}_run_{run}"
                 stdout_path = runs_dir / f"{stem}.out"
@@ -216,9 +225,9 @@ def run_experiment(experiment: Experiment, force: bool = False) -> None:
 
 
 def execute_run(
-    experiment: Experiment, dataset: str, version: str, run: int, task_wsl: str
+    experiment: Experiment, dataset: str, version: str, run: int, task: Path
 ) -> tuple[dict[str, object], str, str]:
-    command = build_command(experiment, dataset, version, task_wsl)
+    command = build_command(experiment, dataset, version, task)
     started = time.perf_counter()
     try:
         result = subprocess.run(
@@ -254,26 +263,41 @@ def execute_run(
 
 
 def build_command(
-    experiment: Experiment, dataset: str, version: str, task_wsl: str
+    experiment: Experiment, dataset: str, version: str, task: Path
 ) -> list[str]:
     runtime = experiment.python_runtime
-    return [
-        "wsl",
-        "-d",
-        experiment.distro,
-        "--",
-        "env",
-        f"LD_LIBRARY_PATH={runtime}/lib/x86_64-linux-gnu",
-        f"PYTHONHOME={runtime}",
+    command = []
+    if platform.system() == "Windows":
+        command = ["wsl"]
+        if experiment.distro:
+            command.extend(("-d", experiment.distro))
+        command.append("--")
+    elif platform.system() != "Linux":
+        raise ValueError("ILASP requires Linux or Windows with WSL")
+    if runtime:
+        command.extend((
+            "env",
+            f"LD_LIBRARY_PATH={runtime}/lib/x86_64-linux-gnu",
+            f"PYTHONHOME={runtime}",
+        ))
+    executable = experiment.executable
+    if not executable.startswith("/"):
+        executable = linux_path(repo_path(executable))
+    command.extend([
         "timeout",
         "--signal=INT",
         "--kill-after=5s",
         f"{experiment.timeout_seconds}s",
-        experiment.executable,
+        executable,
         f"--version={version}",
         f"-ml={experiment.max_body_length[dataset]}",
-        task_wsl,
-    ]
+        linux_path(task),
+    ])
+    return command
+
+
+def linux_path(path: Path) -> str:
+    return windows_to_wsl(path) if platform.system() == "Windows" else str(path.resolve())
 
 
 def summarize(rows: list[dict[str, str]], timeout_seconds: int) -> list[dict[str, object]]:
@@ -337,6 +361,11 @@ def fingerprint(experiment: Experiment) -> str:
     payload = asdict(experiment)
     payload["output_root"] = str(experiment.output_root)
     payload["task_dir"] = str(experiment.task_dir)
+    executable = repo_path(experiment.executable)
+    payload["executable_sha256"] = (
+        hashlib.sha256(executable.read_bytes()).hexdigest() if executable.is_file() else None
+    )
+    payload["runner_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     payload["tasks"] = {
         dataset: hashlib.sha256(
             (experiment.task_dir / f"{dataset}.las").read_bytes()
@@ -354,6 +383,8 @@ def write_manifest(experiment: Experiment, digest: str, status: str) -> None:
         "output_root": str(experiment.output_root),
         "task_dir": str(experiment.task_dir),
         "fingerprint": digest,
+        "host": {"platform": platform.platform(), "machine": platform.machine(),
+                 "python": platform.python_version()},
         "status": status,
         "updated_at": datetime.now(UTC).isoformat(),
     }

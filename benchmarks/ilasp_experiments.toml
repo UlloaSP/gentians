@@ -2,8 +2,7 @@
 output_root = ".benchmarks/experiments/ilasp"
 task_dir = "benchmarks/ilasp"
 distro = "kali-linux"
-executable = "/mnt/c/tmp/ILASP"
-python_runtime = "/tmp/ilasp-python310/root/usr"
+executable = "tools/ilasp/ILASP"
 versions = ["2", "2i", "3", "4"]
 runs = 10
 timeout_seconds = 20
@@ -55,3 +54,72 @@ datasets = [
 ]
 runs = 3
 timeout_seconds = 30
+
+[[experiment]]
+id = "all-120s-30runs"
+description = "29 tasks: native mode bias for nine tasks; complete offline explicit clause spaces for twenty body aggregate tasks."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+  "hamming_0",
+  "hamming_0_unbalanced",
+  "hamming_1",
+  "hamming_1_unbalanced",
+  "knapsack",
+  "latin_square",
+  "magic_square_no_diag",
+  "set_partition_sum",
+  "set_partition_sum_and_cardinality",
+  "set_partition_sum_cardinality_and_square",
+  "subset_sum",
+  "subset_sum_double",
+  "subset_sum_double_and_prod",
+  "subset_sum_double_and_prod_unbalanced",
+  "subset_sum_double_and_sum",
+  "subset_sum_double_unbalanced",
+  "subset_sum_double_unbalanced_count",
+  "subset_sum_triple",
+  "subset_sum_unbalanced",
+  "subset_sum_unbalanced_ops",
+]
+versions = ["2", "2i", "3", "4"]
+runs = 30
+timeout_seconds = 120
+
+[experiment.max_body_length]
+4queens = 5
+5queens = 5
+adj2red = 4
+clique = 7
+coin = 3
+coloring = 4
+even_odd = 3
+grandparent = 3
+sudoku = 3
+hamming_0 = 3
+hamming_0_unbalanced = 3
+hamming_1 = 3
+hamming_1_unbalanced = 3
+knapsack = 3
+latin_square = 3
+magic_square_no_diag = 4
+set_partition_sum = 4
+set_partition_sum_and_cardinality = 4
+set_partition_sum_cardinality_and_square = 4
+subset_sum = 3
+subset_sum_double = 4
+subset_sum_double_and_prod = 4
+subset_sum_double_and_prod_unbalanced = 4
+subset_sum_double_and_sum = 4
+subset_sum_double_unbalanced = 4
+subset_sum_double_unbalanced_count = 4
+subset_sum_triple = 4
+subset_sum_unbalanced = 3
+subset_sum_unbalanced_ops = 3

@@ -1,0 +1,2 @@
+benchmarks/ilasp/*.las text eol=lf
+tools/ilasp/ILASP binary

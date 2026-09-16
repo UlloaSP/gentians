@@ -121,3 +121,85 @@ runs = 30
 [experiment.overrides]
 algorithm = "incremental"
 "mutation.probability" = 0.1
+
+[[experiment]]
+id = "ilasp-all-120s-30runs/gentians-steady_state"
+description = "Gentians steady_state, full pipeline; 29 tasks matched to ILASP. Body aggregate tasks use offline explicit spaces on the ILASP side."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+  "hamming_0",
+  "hamming_0_unbalanced",
+  "hamming_1",
+  "hamming_1_unbalanced",
+  "knapsack",
+  "latin_square",
+  "magic_square_no_diag",
+  "set_partition_sum",
+  "set_partition_sum_and_cardinality",
+  "set_partition_sum_cardinality_and_square",
+  "subset_sum",
+  "subset_sum_double",
+  "subset_sum_double_and_prod",
+  "subset_sum_double_and_prod_unbalanced",
+  "subset_sum_double_and_sum",
+  "subset_sum_double_unbalanced",
+  "subset_sum_double_unbalanced_count",
+  "subset_sum_triple",
+  "subset_sum_unbalanced",
+  "subset_sum_unbalanced_ops",
+]
+runs = 30
+seed_base = 1
+timeout_seconds = 120
+instrumentation = "light"
+[experiment.overrides]
+algorithm = "steady_state"
+
+[[experiment]]
+id = "ilasp-all-120s-30runs/gentians-incremental"
+description = "Gentians incremental, full pipeline; 29 tasks matched to ILASP. Body aggregate tasks use offline explicit spaces on the ILASP side."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+  "hamming_0",
+  "hamming_0_unbalanced",
+  "hamming_1",
+  "hamming_1_unbalanced",
+  "knapsack",
+  "latin_square",
+  "magic_square_no_diag",
+  "set_partition_sum",
+  "set_partition_sum_and_cardinality",
+  "set_partition_sum_cardinality_and_square",
+  "subset_sum",
+  "subset_sum_double",
+  "subset_sum_double_and_prod",
+  "subset_sum_double_and_prod_unbalanced",
+  "subset_sum_double_and_sum",
+  "subset_sum_double_unbalanced",
+  "subset_sum_double_unbalanced_count",
+  "subset_sum_triple",
+  "subset_sum_unbalanced",
+  "subset_sum_unbalanced_ops",
+]
+runs = 30
+seed_base = 1
+timeout_seconds = 120
+instrumentation = "light"
+[experiment.overrides]
+algorithm = "incremental"

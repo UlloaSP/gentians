@@ -1,5 +1,5 @@
 [suite]
-output_root = ".benchmarks/ilasp-experiments"
+output_root = ".benchmarks/experiments/ilasp"
 task_dir = "benchmarks/ilasp"
 distro = "kali-linux"
 executable = "/mnt/c/tmp/ILASP"
@@ -38,3 +38,20 @@ datasets = [
   "grandparent",
   "sudoku",
 ]
+
+[[experiment]]
+id = "mode-bias/all-30s-3runs"
+description = "All ILASP benchmark tasks generated from mode declarations for the Gentians comparison."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+]
+runs = 3
+timeout_seconds = 30

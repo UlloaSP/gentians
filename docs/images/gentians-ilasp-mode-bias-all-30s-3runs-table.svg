@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1380" height="650" viewBox="0 0 1380 650">
+<title>Comparación de tiempos de GENTIANS e ILASP generando sus propios espacios</title>
+<desc>Medias de tres runs con límite de treinta segundos. El asterisco indica que hubo timeouts.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>text{font-family:Georgia,Times New Roman,serif;fill:#111827}.caption{font-size:21px;font-weight:700}.header{font-size:18px;font-weight:700}.cell{font-size:18px}.dataset{font-size:18px;font-style:italic}.note{font-size:15px}</style>
+<text class="caption" x="55" y="42">Tiempos medios en segundos de GENTIANS e ILASP</text>
+<text class="cell" x="55" y="68">3 runs por dataset · timeout de 30 s · cada sistema genera su propio espacio desde el language bias</text>
+<line x1="55" y1="92" x2="1325" y2="92" stroke="#111827" stroke-width="2"/>
+<text class="header" x="55" y="125">Dataset</text>
+<text class="header" x="230" y="125">G. steady</text>
+<text class="header" x="395" y="125">G. incremental</text>
+<text class="header" x="610" y="125">ILASP 4</text>
+<text class="header" x="770" y="125">ILASP 3</text>
+<text class="header" x="930" y="125">ILASP 2i</text>
+<text class="header" x="1090" y="125">ILASP 2</text>
+<line x1="55" y1="140" x2="1325" y2="140" stroke="#111827" stroke-width="2"/>
+
+<text class="dataset" x="55" y="175">4queens</text>
+<text class="cell" x="230" y="175">0.275</text>
+<text class="cell" x="395" y="175" font-weight="700">0.168</text>
+<text class="cell" x="610" y="175">t.o.* (0/3)</text>
+<text class="cell" x="770" y="175">t.o.* (0/3)</text>
+<text class="cell" x="930" y="175">t.o.* (0/3)</text>
+<text class="cell" x="1090" y="175">t.o.* (0/3)</text>
+
+<text class="dataset" x="55" y="214">5queens</text>
+<text class="cell" x="230" y="214" font-weight="700">8.288</text>
+<text class="cell" x="395" y="214">8.978</text>
+<text class="cell" x="610" y="214">t.o.* (0/3)</text>
+<text class="cell" x="770" y="214">t.o.* (0/3)</text>
+<text class="cell" x="930" y="214">t.o.* (0/3)</text>
+<text class="cell" x="1090" y="214">t.o.* (0/3)</text>
+
+<text class="dataset" x="55" y="253">adj2red</text>
+<text class="cell" x="230" y="253" font-weight="700">0.073</text>
+<text class="cell" x="395" y="253">0.145</text>
+<text class="cell" x="610" y="253">0.644</text>
+<text class="cell" x="770" y="253">1.750</text>
+<text class="cell" x="930" y="253">0.204</text>
+<text class="cell" x="1090" y="253">0.312</text>
+
+<text class="dataset" x="55" y="292">clique</text>
+<text class="cell" x="230" y="292" font-weight="700">0.082</text>
+<text class="cell" x="395" y="292">0.132</text>
+<text class="cell" x="610" y="292">0.151</text>
+<text class="cell" x="770" y="292">0.239</text>
+<text class="cell" x="930" y="292">0.142</text>
+<text class="cell" x="1090" y="292">0.119</text>
+
+<text class="dataset" x="55" y="331">coin</text>
+<text class="cell" x="230" y="331" font-weight="700">0.040</text>
+<text class="cell" x="395" y="331">0.069</text>
+<text class="cell" x="610" y="331">0.103</text>
+<text class="cell" x="770" y="331">0.145</text>
+<text class="cell" x="930" y="331">0.144</text>
+<text class="cell" x="1090" y="331">0.118</text>
+
+<text class="dataset" x="55" y="370">coloring</text>
+<text class="cell" x="230" y="370" font-weight="700">0.243</text>
+<text class="cell" x="395" y="370">0.340</text>
+<text class="cell" x="610" y="370">t.o.* (0/3)</text>
+<text class="cell" x="770" y="370">t.o.* (0/3)</text>
+<text class="cell" x="930" y="370">t.o.* (0/3)</text>
+<text class="cell" x="1090" y="370">t.o.* (0/3)</text>
+
+<text class="dataset" x="55" y="409">evenodd</text>
+<text class="cell" x="230" y="409" font-weight="700">0.126</text>
+<text class="cell" x="395" y="409">0.168</text>
+<text class="cell" x="610" y="409">4.219</text>
+<text class="cell" x="770" y="409">29.506* (1/3)</text>
+<text class="cell" x="930" y="409">0.521</text>
+<text class="cell" x="1090" y="409">0.519</text>
+
+<text class="dataset" x="55" y="448">grandparent</text>
+<text class="cell" x="230" y="448">1.366</text>
+<text class="cell" x="395" y="448" font-weight="700">0.262</text>
+<text class="cell" x="610" y="448">t.o.* (0/3)</text>
+<text class="cell" x="770" y="448">t.o.* (0/3)</text>
+<text class="cell" x="930" y="448">4.757</text>
+<text class="cell" x="1090" y="448">4.024</text>
+
+<text class="dataset" x="55" y="487">sudoku</text>
+<text class="cell" x="230" y="487" font-weight="700">0.115</text>
+<text class="cell" x="395" y="487">0.143</text>
+<text class="cell" x="610" y="487">0.403</text>
+<text class="cell" x="770" y="487">0.787</text>
+<text class="cell" x="930" y="487">0.342</text>
+<text class="cell" x="1090" y="487">0.300</text>
+
+<line x1="55" y1="510" x2="1325" y2="510" stroke="#111827" stroke-width="2"/>
+<text class="note" x="55" y="544">GENTIANS: total_execution. ILASP: %% Total. Ambas métricas incluyen la generación del espacio propio.</text>
+<text class="note" x="55" y="570">* Hubo timeout: la media usa solo los runs resueltos; “t.o.” indica que ninguno terminó antes de 30 s.</text>
+<text class="note" x="55" y="596">Las celdas sin asterisco son medias de 3/3 runs. El menor tiempo resuelto de cada fila aparece en negrita.</text>
+</svg>

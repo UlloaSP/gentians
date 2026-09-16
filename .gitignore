@@ -22,6 +22,7 @@ node_modules/
 # Local benchmark output
 # All experiment snapshots, builds, profiles and results live here.
 .benchmarks/experiments/
+.benchmarks/ilasp-experiments/
 .debug/
 sweeps/
 

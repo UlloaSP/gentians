@@ -23,6 +23,46 @@ runs = 30
 algorithm = "incremental"
 
 [[experiment]]
+id = "ilasp-mode-bias-all-30s-3runs/gentians-steady_state"
+description = "Gentians steady-state full pipeline for the ILASP mode-bias comparison."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+]
+runs = 3
+timeout_seconds = 30
+instrumentation = "light"
+[experiment.overrides]
+algorithm = "steady_state"
+
+[[experiment]]
+id = "ilasp-mode-bias-all-30s-3runs/gentians-incremental"
+description = "Gentians incremental full pipeline for the ILASP mode-bias comparison."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+]
+runs = 3
+timeout_seconds = 30
+instrumentation = "light"
+[experiment.overrides]
+algorithm = "incremental"
+
+[[experiment]]
 id = "ilasp-generated-5queens-20s/gentians"
 label = "5queens · Gentians desde bias"
 description = "Full metrics for the ten steady-state runs used in the ILASP comparison."

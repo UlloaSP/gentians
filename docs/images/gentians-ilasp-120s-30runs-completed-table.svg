@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="2281" viewBox="0 0 1840 2281" role="img" aria-labelledby="title description">
-<title id="title">Gentians e ILASP: 25 benchmarks completos, separados por generación del espacio</title>
-<desc id="description">Dos bloques: generación del espacio en ambos sistemas; espacio generado por Gentians y entregado a ILASP. Media PAR1 en segundos y éxitos sobre 30. UNSAT indica que ILASP declara que no existe hipótesis que satisfaga la tarea en el espacio suministrado.</desc>
-<rect width="1840" height="2281" fill="white"/>
-<style>text{font-family:Georgia,"Times New Roman",serif;fill:#111827}.title{font-size:30px;font-weight:700}.sub{font-size:19px;fill:#475569}.group{font-size:24px;font-weight:700}.explain{font-size:18px}.head{font-size:20px;font-weight:700}.value{font-size:24px;font-variant-numeric:tabular-nums}.count{font-size:15px;fill:#64748b}.dataset{font-size:18px}.note{font-size:17px;fill:#475569}</style>
+<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="3065" viewBox="0 0 1840 3065" role="img" aria-labelledby="title description">
+<title id="title">Gentians e ILASP: 29 benchmarks completos, separados por generación del espacio</title>
+<desc id="description">Dos bloques: generación del espacio en ambos sistemas; espacio generado por Gentians y entregado a ILASP. Bloque A: PAR1. Bloque B: generación más búsqueda, medias de runs resueltos; generación externa de ILASP estimada desde Gentians steady. UNSAT indica que ILASP declara que no existe hipótesis que satisfaga la tarea en el espacio suministrado.</desc>
+<rect width="1840" height="3065" fill="white"/>
+<style>text{font-family:Georgia,"Times New Roman",serif;fill:#111827}.title{font-size:30px;font-weight:700}.sub{font-size:19px;fill:#475569}.group{font-size:24px;font-weight:700}.explain{font-size:18px}.head{font-size:20px;font-weight:700}.value{font-size:24px;font-variant-numeric:tabular-nums}.split{font-size:15px;fill:#64748b;font-variant-numeric:tabular-nums}.sum{font-size:24px;font-variant-numeric:tabular-nums}.count{font-size:15px;fill:#64748b}.dataset{font-size:18px}.note{font-size:17px;fill:#475569}</style>
 <text x="55" y="48" class="title" >Gentians e ILASP · resultados de benchmarks completos</text>
-<text x="55" y="83" class="sub" >25 de 29 benchmarks · 30 runs en cada uno de los seis sistemas · timeout de 120 s · media PAR1 (s) y éxitos/30</text>
+<text x="55" y="83" class="sub" >29 de 29 benchmarks · 30 runs en cada uno de los seis sistemas · timeout de 120 s · A: PAR1 · B: generación + búsqueda (s) · éxitos/30</text>
 <rect x="55" y="118" width="1730" height="87" fill="#eef5f7"/>
 <rect x="55" y="118" width="5" height="87" fill="#246277"/>
 <text x="75" y="150" class="group" >A · Ambos sistemas generan su espacio de búsqueda (9 benchmarks)</text>
@@ -145,8 +145,8 @@
 <line x1="55" y1="818" x2="1785" y2="818" stroke="#cbd5e1"/>
 <rect x="55" y="858" width="1730" height="87" fill="#fff4e4"/>
 <rect x="55" y="858" width="5" height="87" fill="#9a641b"/>
-<text x="75" y="890" class="group" >B · Gentians genera el espacio y se lo pasa a ILASP (16 benchmarks)</text>
-<text x="75" y="921" class="explain" >Gentians incluye generación y búsqueda; ILASP recibe el ClauseSpace explícito y no mide su generación previa.</text>
+<text x="75" y="890" class="group" >B · Gentians genera el espacio y se lo pasa a ILASP (20 benchmarks)</text>
+<text x="75" y="921" class="explain" >Cada celda: generación + búsqueda = total. ILASP suma una generación estimada (*). Medias de runs con solución.</text>
 <text x="55" y="981" class="head" >Benchmark</text>
 <text x="715" y="981" class="head" text-anchor="middle">G. steady</text>
 <text x="930" y="981" class="head" text-anchor="middle">G. incremental</text>
@@ -156,234 +156,412 @@
 <text x="1730" y="981" class="head" text-anchor="middle">ILASP 2</text>
 <line x1="55" y1="997" x2="1785" y2="997" stroke="#cbd5e1"/>
 <text x="55" y="1041" class="dataset" >hamming_0</text>
-<text x="715" y="1034" class="value" text-anchor="middle">0.303</text>
-<text x="715" y="1057" class="count" text-anchor="middle">30/30</text>
-<text x="930" y="1034" class="value" text-anchor="middle">0.460</text>
-<text x="930" y="1057" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1034" class="value" text-anchor="middle">0.093</text>
-<text x="1130" y="1057" class="count" text-anchor="middle">30/30</text>
-<text x="1330" y="1034" class="value" text-anchor="middle">0.160</text>
-<text x="1330" y="1057" class="count" text-anchor="middle">30/30</text>
-<text x="1530" y="1034" class="value" text-anchor="middle">0.089</text>
-<text x="1530" y="1057" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1034" class="value" text-anchor="middle" font-weight="700">0.072</text>
-<text x="1730" y="1057" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1070" x2="1785" y2="1070" stroke="#cbd5e1"/>
-<text x="55" y="1102" class="dataset" >hamming_0_unbalanced</text>
-<text x="715" y="1095" class="value" text-anchor="middle">0.339</text>
-<text x="715" y="1118" class="count" text-anchor="middle">30/30</text>
-<text x="930" y="1095" class="value" text-anchor="middle">0.526</text>
-<text x="930" y="1118" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1095" class="value" text-anchor="middle">0.096</text>
-<text x="1130" y="1118" class="count" text-anchor="middle">30/30</text>
-<text x="1330" y="1095" class="value" text-anchor="middle">0.169</text>
-<text x="1330" y="1118" class="count" text-anchor="middle">30/30</text>
-<text x="1530" y="1095" class="value" text-anchor="middle">0.093</text>
-<text x="1530" y="1118" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1095" class="value" text-anchor="middle" font-weight="700">0.073</text>
-<text x="1730" y="1118" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1131" x2="1785" y2="1131" stroke="#cbd5e1"/>
-<text x="55" y="1163" class="dataset" >hamming_1</text>
-<text x="715" y="1156" class="value" text-anchor="middle">0.300</text>
-<text x="715" y="1179" class="count" text-anchor="middle">30/30</text>
-<text x="930" y="1156" class="value" text-anchor="middle">0.452</text>
-<text x="930" y="1179" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1156" class="value" text-anchor="middle">0.094</text>
-<text x="1130" y="1179" class="count" text-anchor="middle">30/30</text>
-<text x="1330" y="1156" class="value" text-anchor="middle">0.159</text>
-<text x="1330" y="1179" class="count" text-anchor="middle">30/30</text>
-<text x="1530" y="1156" class="value" text-anchor="middle">0.092</text>
-<text x="1530" y="1179" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1156" class="value" text-anchor="middle" font-weight="700">0.076</text>
-<text x="1730" y="1179" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1192" x2="1785" y2="1192" stroke="#cbd5e1"/>
-<text x="55" y="1224" class="dataset" >hamming_1_unbalanced</text>
-<text x="715" y="1217" class="value" text-anchor="middle">120.000</text>
-<text x="715" y="1240" class="count" text-anchor="middle">0/30</text>
-<text x="930" y="1217" class="value" text-anchor="middle">120.000</text>
-<text x="930" y="1240" class="count" text-anchor="middle">0/30</text>
-<text x="1130" y="1217" class="value" text-anchor="middle">120.000</text>
-<text x="1130" y="1240" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<text x="1330" y="1217" class="value" text-anchor="middle">120.000</text>
-<text x="1330" y="1240" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<text x="1530" y="1217" class="value" text-anchor="middle">120.000</text>
-<text x="1530" y="1240" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<text x="1730" y="1217" class="value" text-anchor="middle">120.000</text>
-<text x="1730" y="1240" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<line x1="55" y1="1253" x2="1785" y2="1253" stroke="#cbd5e1"/>
-<text x="55" y="1285" class="dataset" >knapsack</text>
-<text x="715" y="1278" class="value" text-anchor="middle">0.098</text>
-<text x="715" y="1301" class="count" text-anchor="middle">30/30</text>
-<text x="930" y="1278" class="value" text-anchor="middle">0.179</text>
-<text x="930" y="1301" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1278" class="value" text-anchor="middle">0.061</text>
-<text x="1130" y="1301" class="count" text-anchor="middle">30/30</text>
-<text x="1330" y="1278" class="value" text-anchor="middle">0.091</text>
-<text x="1330" y="1301" class="count" text-anchor="middle">30/30</text>
-<text x="1530" y="1278" class="value" text-anchor="middle">0.053</text>
-<text x="1530" y="1301" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1278" class="value" text-anchor="middle" font-weight="700">0.044</text>
-<text x="1730" y="1301" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1314" x2="1785" y2="1314" stroke="#cbd5e1"/>
-<text x="55" y="1346" class="dataset" >latin_square</text>
-<text x="715" y="1339" class="value" text-anchor="middle">2.403</text>
-<text x="715" y="1362" class="count" text-anchor="middle">30/30</text>
-<text x="930" y="1339" class="value" text-anchor="middle">6.754</text>
-<text x="930" y="1362" class="count" text-anchor="middle">29/30</text>
-<text x="1130" y="1339" class="value" text-anchor="middle">3.111</text>
-<text x="1130" y="1362" class="count" text-anchor="middle">30/30</text>
-<text x="1330" y="1339" class="value" text-anchor="middle">51.653</text>
-<text x="1330" y="1362" class="count" text-anchor="middle">30/30</text>
-<text x="1530" y="1339" class="value" text-anchor="middle">1.890</text>
-<text x="1530" y="1362" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1339" class="value" text-anchor="middle" font-weight="700">1.887</text>
-<text x="1730" y="1362" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1375" x2="1785" y2="1375" stroke="#cbd5e1"/>
-<text x="55" y="1407" class="dataset" >magic_square_no_diag</text>
-<text x="715" y="1400" class="value" text-anchor="middle" font-weight="700">20.214</text>
-<text x="715" y="1423" class="count" text-anchor="middle">30/30</text>
-<text x="930" y="1400" class="value" text-anchor="middle">23.785</text>
-<text x="930" y="1423" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1400" class="value" text-anchor="middle">120.000</text>
-<text x="1130" y="1423" class="count" text-anchor="middle">0/30</text>
-<text x="1330" y="1400" class="value" text-anchor="middle">120.000</text>
-<text x="1330" y="1423" class="count" text-anchor="middle">0/30</text>
-<text x="1530" y="1400" class="value" text-anchor="middle">90.471</text>
-<text x="1530" y="1423" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1400" class="value" text-anchor="middle">120.000</text>
-<text x="1730" y="1423" class="count" text-anchor="middle">0/30</text>
-<line x1="55" y1="1436" x2="1785" y2="1436" stroke="#cbd5e1"/>
-<text x="55" y="1468" class="dataset" >set_partition_sum</text>
-<text x="715" y="1461" class="value" text-anchor="middle">14.887</text>
-<text x="715" y="1484" class="count" text-anchor="middle">28/30</text>
-<text x="930" y="1461" class="value" text-anchor="middle">3.326</text>
-<text x="930" y="1484" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1461" class="value" text-anchor="middle">1.486</text>
-<text x="1130" y="1484" class="count" text-anchor="middle">30/30</text>
-<text x="1330" y="1461" class="value" text-anchor="middle">5.508</text>
-<text x="1330" y="1484" class="count" text-anchor="middle">30/30</text>
-<text x="1530" y="1461" class="value" text-anchor="middle" font-weight="700">0.496</text>
-<text x="1530" y="1484" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1461" class="value" text-anchor="middle">0.696</text>
-<text x="1730" y="1484" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1497" x2="1785" y2="1497" stroke="#cbd5e1"/>
-<text x="55" y="1529" class="dataset" >set_partition_sum_and_cardinality</text>
-<text x="715" y="1522" class="value" text-anchor="middle">118.258</text>
-<text x="715" y="1545" class="count" text-anchor="middle">2/30</text>
-<text x="930" y="1522" class="value" text-anchor="middle" font-weight="700">106.528</text>
-<text x="930" y="1545" class="count" text-anchor="middle">5/30</text>
-<text x="1130" y="1522" class="value" text-anchor="middle">120.000</text>
-<text x="1130" y="1545" class="count" text-anchor="middle">0/30</text>
-<text x="1330" y="1522" class="value" text-anchor="middle">120.000</text>
-<text x="1330" y="1545" class="count" text-anchor="middle">0/30</text>
-<text x="1530" y="1522" class="value" text-anchor="middle">120.000</text>
-<text x="1530" y="1545" class="count" text-anchor="middle">0/30</text>
-<text x="1730" y="1522" class="value" text-anchor="middle">120.000</text>
-<text x="1730" y="1545" class="count" text-anchor="middle">0/30</text>
-<line x1="55" y1="1558" x2="1785" y2="1558" stroke="#cbd5e1"/>
-<text x="55" y="1590" class="dataset" >set_partition_sum_cardinality_and_square</text>
-<text x="715" y="1583" class="value" text-anchor="middle">120.000</text>
-<text x="715" y="1606" class="count" text-anchor="middle">0/30</text>
-<text x="930" y="1583" class="value" text-anchor="middle">120.000</text>
-<text x="930" y="1606" class="count" text-anchor="middle">0/30</text>
-<text x="1130" y="1583" class="value" text-anchor="middle">120.000</text>
-<text x="1130" y="1606" class="count" text-anchor="middle">0/30</text>
-<text x="1330" y="1583" class="value" text-anchor="middle">120.000</text>
-<text x="1330" y="1606" class="count" text-anchor="middle">0/30</text>
-<text x="1530" y="1583" class="value" text-anchor="middle">120.000</text>
-<text x="1530" y="1606" class="count" text-anchor="middle">0/30</text>
-<text x="1730" y="1583" class="value" text-anchor="middle">120.000</text>
-<text x="1730" y="1606" class="count" text-anchor="middle">0/30</text>
-<line x1="55" y1="1619" x2="1785" y2="1619" stroke="#cbd5e1"/>
-<text x="55" y="1651" class="dataset" >subset_sum</text>
-<text x="715" y="1644" class="value" text-anchor="middle">0.073</text>
-<text x="715" y="1667" class="count" text-anchor="middle">30/30</text>
-<text x="930" y="1644" class="value" text-anchor="middle">0.070</text>
-<text x="930" y="1667" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1644" class="value" text-anchor="middle">0.052</text>
-<text x="1130" y="1667" class="count" text-anchor="middle">30/30</text>
-<text x="1330" y="1644" class="value" text-anchor="middle">0.068</text>
-<text x="1330" y="1667" class="count" text-anchor="middle">30/30</text>
-<text x="1530" y="1644" class="value" text-anchor="middle">0.045</text>
-<text x="1530" y="1667" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1644" class="value" text-anchor="middle" font-weight="700">0.037</text>
-<text x="1730" y="1667" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1680" x2="1785" y2="1680" stroke="#cbd5e1"/>
-<text x="55" y="1712" class="dataset" >subset_sum_double</text>
-<text x="715" y="1705" class="value" text-anchor="middle" font-weight="700">0.213</text>
-<text x="715" y="1728" class="count" text-anchor="middle">30/30</text>
-<text x="930" y="1705" class="value" text-anchor="middle">0.734</text>
-<text x="930" y="1728" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1705" class="value" text-anchor="middle">5.738</text>
-<text x="1130" y="1728" class="count" text-anchor="middle">30/30</text>
-<text x="1330" y="1705" class="value" text-anchor="middle">120.000</text>
-<text x="1330" y="1728" class="count" text-anchor="middle">0/30</text>
-<text x="1530" y="1705" class="value" text-anchor="middle">1.102</text>
-<text x="1530" y="1728" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1705" class="value" text-anchor="middle">1.009</text>
-<text x="1730" y="1728" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1741" x2="1785" y2="1741" stroke="#cbd5e1"/>
-<text x="55" y="1773" class="dataset" >subset_sum_double_and_prod</text>
-<text x="715" y="1766" class="value" text-anchor="middle">120.000</text>
-<text x="715" y="1789" class="count" text-anchor="middle">0/30</text>
-<text x="930" y="1766" class="value" text-anchor="middle">120.000</text>
-<text x="930" y="1789" class="count" text-anchor="middle">0/30</text>
-<text x="1130" y="1766" class="value" text-anchor="middle">120.000</text>
-<text x="1130" y="1789" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<text x="1330" y="1766" class="value" text-anchor="middle">120.000</text>
-<text x="1330" y="1789" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<text x="1530" y="1766" class="value" text-anchor="middle">120.000</text>
-<text x="1530" y="1789" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<text x="1730" y="1766" class="value" text-anchor="middle">120.000</text>
-<text x="1730" y="1789" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<line x1="55" y1="1802" x2="1785" y2="1802" stroke="#cbd5e1"/>
-<text x="55" y="1834" class="dataset" >subset_sum_double_and_prod_unbalanced</text>
-<text x="715" y="1827" class="value" text-anchor="middle">120.000</text>
-<text x="715" y="1850" class="count" text-anchor="middle">0/30</text>
-<text x="930" y="1827" class="value" text-anchor="middle">120.000</text>
-<text x="930" y="1850" class="count" text-anchor="middle">0/30</text>
-<text x="1130" y="1827" class="value" text-anchor="middle">120.000</text>
-<text x="1130" y="1850" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<text x="1330" y="1827" class="value" text-anchor="middle">120.000</text>
-<text x="1330" y="1850" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<text x="1530" y="1827" class="value" text-anchor="middle">120.000</text>
-<text x="1530" y="1850" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<text x="1730" y="1827" class="value" text-anchor="middle">120.000</text>
-<text x="1730" y="1850" class="count" text-anchor="middle">0/30 · UNSAT</text>
-<line x1="55" y1="1863" x2="1785" y2="1863" stroke="#cbd5e1"/>
-<text x="55" y="1895" class="dataset" >subset_sum_double_and_sum</text>
-<text x="715" y="1888" class="value" text-anchor="middle">0.339</text>
+<text x="715" y="1034" class="split" text-anchor="middle">0.232 + 0.071</text>
+<text x="715" y="1059" class="sum" text-anchor="middle" font-weight="700">= 0.303 s</text>
+<text x="715" y="1081" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1034" class="split" text-anchor="middle">0.236 + 0.224</text>
+<text x="930" y="1059" class="sum" text-anchor="middle">= 0.460 s</text>
+<text x="930" y="1081" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1034" class="split" text-anchor="middle">0.232* + 0.093</text>
+<text x="1130" y="1059" class="sum" text-anchor="middle">= 0.325 s</text>
+<text x="1130" y="1081" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1034" class="split" text-anchor="middle">0.232* + 0.160</text>
+<text x="1330" y="1059" class="sum" text-anchor="middle">= 0.392 s</text>
+<text x="1330" y="1081" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1034" class="split" text-anchor="middle">0.232* + 0.089</text>
+<text x="1530" y="1059" class="sum" text-anchor="middle">= 0.321 s</text>
+<text x="1530" y="1081" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1034" class="split" text-anchor="middle">0.232* + 0.072</text>
+<text x="1730" y="1059" class="sum" text-anchor="middle">= 0.303 s</text>
+<text x="1730" y="1081" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1092" x2="1785" y2="1092" stroke="#cbd5e1"/>
+<text x="55" y="1124" class="dataset" >hamming_0_unbalanced</text>
+<text x="715" y="1117" class="split" text-anchor="middle">0.235 + 0.104</text>
+<text x="715" y="1142" class="sum" text-anchor="middle">= 0.339 s</text>
+<text x="715" y="1164" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1117" class="split" text-anchor="middle">0.252 + 0.274</text>
+<text x="930" y="1142" class="sum" text-anchor="middle">= 0.526 s</text>
+<text x="930" y="1164" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1117" class="split" text-anchor="middle">0.235* + 0.096</text>
+<text x="1130" y="1142" class="sum" text-anchor="middle">= 0.331 s</text>
+<text x="1130" y="1164" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1117" class="split" text-anchor="middle">0.235* + 0.169</text>
+<text x="1330" y="1142" class="sum" text-anchor="middle">= 0.404 s</text>
+<text x="1330" y="1164" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1117" class="split" text-anchor="middle">0.235* + 0.093</text>
+<text x="1530" y="1142" class="sum" text-anchor="middle">= 0.327 s</text>
+<text x="1530" y="1164" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1117" class="split" text-anchor="middle">0.235* + 0.073</text>
+<text x="1730" y="1142" class="sum" text-anchor="middle" font-weight="700">= 0.308 s</text>
+<text x="1730" y="1164" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1175" x2="1785" y2="1175" stroke="#cbd5e1"/>
+<text x="55" y="1207" class="dataset" >hamming_1</text>
+<text x="715" y="1200" class="split" text-anchor="middle">0.231 + 0.069</text>
+<text x="715" y="1225" class="sum" text-anchor="middle" font-weight="700">= 0.300 s</text>
+<text x="715" y="1247" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1200" class="split" text-anchor="middle">0.237 + 0.215</text>
+<text x="930" y="1225" class="sum" text-anchor="middle">= 0.452 s</text>
+<text x="930" y="1247" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1200" class="split" text-anchor="middle">0.231* + 0.094</text>
+<text x="1130" y="1225" class="sum" text-anchor="middle">= 0.325 s</text>
+<text x="1130" y="1247" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1200" class="split" text-anchor="middle">0.231* + 0.159</text>
+<text x="1330" y="1225" class="sum" text-anchor="middle">= 0.390 s</text>
+<text x="1330" y="1247" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1200" class="split" text-anchor="middle">0.231* + 0.092</text>
+<text x="1530" y="1225" class="sum" text-anchor="middle">= 0.323 s</text>
+<text x="1530" y="1247" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1200" class="split" text-anchor="middle">0.231* + 0.076</text>
+<text x="1730" y="1225" class="sum" text-anchor="middle">= 0.307 s</text>
+<text x="1730" y="1247" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1258" x2="1785" y2="1258" stroke="#cbd5e1"/>
+<text x="55" y="1290" class="dataset" >hamming_1_unbalanced</text>
+<text x="715" y="1283" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="715" y="1308" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="715" y="1330" class="count" text-anchor="middle">0/30</text>
+<text x="930" y="1283" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="930" y="1308" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="930" y="1330" class="count" text-anchor="middle">0/30</text>
+<text x="1130" y="1283" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1130" y="1308" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1130" y="1330" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1330" y="1283" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1330" y="1308" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="1330" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1530" y="1283" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1530" y="1308" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1530" y="1330" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1730" y="1283" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1730" y="1308" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1730" y="1330" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<line x1="55" y1="1341" x2="1785" y2="1341" stroke="#cbd5e1"/>
+<text x="55" y="1373" class="dataset" >knapsack</text>
+<text x="715" y="1366" class="split" text-anchor="middle">0.077 + 0.021</text>
+<text x="715" y="1391" class="sum" text-anchor="middle" font-weight="700">= 0.098 s</text>
+<text x="715" y="1413" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1366" class="split" text-anchor="middle">0.081 + 0.098</text>
+<text x="930" y="1391" class="sum" text-anchor="middle">= 0.179 s</text>
+<text x="930" y="1413" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1366" class="split" text-anchor="middle">0.077* + 0.061</text>
+<text x="1130" y="1391" class="sum" text-anchor="middle">= 0.138 s</text>
+<text x="1130" y="1413" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1366" class="split" text-anchor="middle">0.077* + 0.091</text>
+<text x="1330" y="1391" class="sum" text-anchor="middle">= 0.168 s</text>
+<text x="1330" y="1413" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1366" class="split" text-anchor="middle">0.077* + 0.053</text>
+<text x="1530" y="1391" class="sum" text-anchor="middle">= 0.130 s</text>
+<text x="1530" y="1413" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1366" class="split" text-anchor="middle">0.077* + 0.044</text>
+<text x="1730" y="1391" class="sum" text-anchor="middle">= 0.120 s</text>
+<text x="1730" y="1413" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1424" x2="1785" y2="1424" stroke="#cbd5e1"/>
+<text x="55" y="1456" class="dataset" >latin_square</text>
+<text x="715" y="1449" class="split" text-anchor="middle">0.252 + 2.151</text>
+<text x="715" y="1474" class="sum" text-anchor="middle">= 2.403 s</text>
+<text x="715" y="1496" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1449" class="split" text-anchor="middle">0.381 + 2.467</text>
+<text x="930" y="1474" class="sum" text-anchor="middle">= 2.849 s</text>
+<text x="930" y="1496" class="count" text-anchor="middle">29/30</text>
+<text x="1130" y="1449" class="split" text-anchor="middle">0.252* + 3.111</text>
+<text x="1130" y="1474" class="sum" text-anchor="middle">= 3.363 s</text>
+<text x="1130" y="1496" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1449" class="split" text-anchor="middle">0.252* + 51.653</text>
+<text x="1330" y="1474" class="sum" text-anchor="middle">= 51.905 s</text>
+<text x="1330" y="1496" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1449" class="split" text-anchor="middle">0.252* + 1.890</text>
+<text x="1530" y="1474" class="sum" text-anchor="middle">= 2.142 s</text>
+<text x="1530" y="1496" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1449" class="split" text-anchor="middle">0.252* + 1.887</text>
+<text x="1730" y="1474" class="sum" text-anchor="middle" font-weight="700">= 2.139 s</text>
+<text x="1730" y="1496" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1507" x2="1785" y2="1507" stroke="#cbd5e1"/>
+<text x="55" y="1539" class="dataset" >magic_square_no_diag</text>
+<text x="715" y="1532" class="split" text-anchor="middle">0.769 + 19.446</text>
+<text x="715" y="1557" class="sum" text-anchor="middle" font-weight="700">= 20.214 s</text>
+<text x="715" y="1579" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1532" class="split" text-anchor="middle">0.920 + 22.865</text>
+<text x="930" y="1557" class="sum" text-anchor="middle">= 23.785 s</text>
+<text x="930" y="1579" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1532" class="split" text-anchor="middle">0.769* + t.o.</text>
+<text x="1130" y="1557" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1130" y="1579" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="1532" class="split" text-anchor="middle">0.769* + t.o.</text>
+<text x="1330" y="1557" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="1579" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="1532" class="split" text-anchor="middle">0.769* + 90.471</text>
+<text x="1530" y="1557" class="sum" text-anchor="middle">= 91.240 s</text>
+<text x="1530" y="1579" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1532" class="split" text-anchor="middle">0.769* + t.o.</text>
+<text x="1730" y="1557" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1730" y="1579" class="count" text-anchor="middle">0/30</text>
+<line x1="55" y1="1590" x2="1785" y2="1590" stroke="#cbd5e1"/>
+<text x="55" y="1622" class="dataset" >set_partition_sum</text>
+<text x="715" y="1615" class="split" text-anchor="middle">0.204 + 7.175</text>
+<text x="715" y="1640" class="sum" text-anchor="middle">= 7.379 s</text>
+<text x="715" y="1662" class="count" text-anchor="middle">28/30</text>
+<text x="930" y="1615" class="split" text-anchor="middle">0.295 + 3.032</text>
+<text x="930" y="1640" class="sum" text-anchor="middle">= 3.326 s</text>
+<text x="930" y="1662" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1615" class="split" text-anchor="middle">0.204* + 1.486</text>
+<text x="1130" y="1640" class="sum" text-anchor="middle">= 1.690 s</text>
+<text x="1130" y="1662" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1615" class="split" text-anchor="middle">0.204* + 5.508</text>
+<text x="1330" y="1640" class="sum" text-anchor="middle">= 5.712 s</text>
+<text x="1330" y="1662" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1615" class="split" text-anchor="middle">0.204* + 0.496</text>
+<text x="1530" y="1640" class="sum" text-anchor="middle" font-weight="700">= 0.700 s</text>
+<text x="1530" y="1662" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1615" class="split" text-anchor="middle">0.204* + 0.696</text>
+<text x="1730" y="1640" class="sum" text-anchor="middle">= 0.900 s</text>
+<text x="1730" y="1662" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1673" x2="1785" y2="1673" stroke="#cbd5e1"/>
+<text x="55" y="1705" class="dataset" >set_partition_sum_and_cardinality</text>
+<text x="715" y="1698" class="split" text-anchor="middle">0.566 + 93.305</text>
+<text x="715" y="1723" class="sum" text-anchor="middle">= 93.871 s</text>
+<text x="715" y="1745" class="count" text-anchor="middle">2/30</text>
+<text x="930" y="1698" class="split" text-anchor="middle">1.334 + 37.832</text>
+<text x="930" y="1723" class="sum" text-anchor="middle" font-weight="700">= 39.167 s</text>
+<text x="930" y="1745" class="count" text-anchor="middle">5/30</text>
+<text x="1130" y="1698" class="split" text-anchor="middle">0.566* + t.o.</text>
+<text x="1130" y="1723" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1130" y="1745" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="1698" class="split" text-anchor="middle">0.566* + t.o.</text>
+<text x="1330" y="1723" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="1745" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="1698" class="split" text-anchor="middle">0.566* + t.o.</text>
+<text x="1530" y="1723" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1530" y="1745" class="count" text-anchor="middle">0/30</text>
+<text x="1730" y="1698" class="split" text-anchor="middle">0.566* + t.o.</text>
+<text x="1730" y="1723" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1730" y="1745" class="count" text-anchor="middle">0/30</text>
+<line x1="55" y1="1756" x2="1785" y2="1756" stroke="#cbd5e1"/>
+<text x="55" y="1788" class="dataset" >set_partition_sum_cardinality_and_square</text>
+<text x="715" y="1781" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="715" y="1806" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="715" y="1828" class="count" text-anchor="middle">0/30</text>
+<text x="930" y="1781" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="930" y="1806" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="930" y="1828" class="count" text-anchor="middle">0/30</text>
+<text x="1130" y="1781" class="split" text-anchor="middle">n/d* + t.o.</text>
+<text x="1130" y="1806" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1130" y="1828" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="1781" class="split" text-anchor="middle">n/d* + t.o.</text>
+<text x="1330" y="1806" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="1828" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="1781" class="split" text-anchor="middle">n/d* + t.o.</text>
+<text x="1530" y="1806" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1530" y="1828" class="count" text-anchor="middle">0/30</text>
+<text x="1730" y="1781" class="split" text-anchor="middle">n/d* + t.o.</text>
+<text x="1730" y="1806" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1730" y="1828" class="count" text-anchor="middle">0/30</text>
+<line x1="55" y1="1839" x2="1785" y2="1839" stroke="#cbd5e1"/>
+<text x="55" y="1871" class="dataset" >subset_sum</text>
+<text x="715" y="1864" class="split" text-anchor="middle">0.064 + 0.009</text>
+<text x="715" y="1889" class="sum" text-anchor="middle">= 0.073 s</text>
 <text x="715" y="1911" class="count" text-anchor="middle">30/30</text>
-<text x="930" y="1888" class="value" text-anchor="middle">0.690</text>
+<text x="930" y="1864" class="split" text-anchor="middle">0.062 + 0.008</text>
+<text x="930" y="1889" class="sum" text-anchor="middle" font-weight="700">= 0.070 s</text>
 <text x="930" y="1911" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1888" class="value" text-anchor="middle">1.002</text>
+<text x="1130" y="1864" class="split" text-anchor="middle">0.064* + 0.052</text>
+<text x="1130" y="1889" class="sum" text-anchor="middle">= 0.116 s</text>
 <text x="1130" y="1911" class="count" text-anchor="middle">30/30</text>
-<text x="1330" y="1888" class="value" text-anchor="middle">1.890</text>
+<text x="1330" y="1864" class="split" text-anchor="middle">0.064* + 0.068</text>
+<text x="1330" y="1889" class="sum" text-anchor="middle">= 0.131 s</text>
 <text x="1330" y="1911" class="count" text-anchor="middle">30/30</text>
-<text x="1530" y="1888" class="value" text-anchor="middle">0.390</text>
+<text x="1530" y="1864" class="split" text-anchor="middle">0.064* + 0.045</text>
+<text x="1530" y="1889" class="sum" text-anchor="middle">= 0.109 s</text>
 <text x="1530" y="1911" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1888" class="value" text-anchor="middle" font-weight="700">0.327</text>
+<text x="1730" y="1864" class="split" text-anchor="middle">0.064* + 0.037</text>
+<text x="1730" y="1889" class="sum" text-anchor="middle">= 0.101 s</text>
 <text x="1730" y="1911" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1924" x2="1785" y2="1924" stroke="#cbd5e1"/>
-<text x="55" y="1956" class="dataset" >subset_sum_double_unbalanced</text>
-<text x="715" y="1949" class="value" text-anchor="middle">13.082</text>
-<text x="715" y="1972" class="count" text-anchor="middle">27/30</text>
-<text x="930" y="1949" class="value" text-anchor="middle" font-weight="700">2.284</text>
-<text x="930" y="1972" class="count" text-anchor="middle">30/30</text>
-<text x="1130" y="1949" class="value" text-anchor="middle">120.000</text>
-<text x="1130" y="1972" class="count" text-anchor="middle">0/30</text>
-<text x="1330" y="1949" class="value" text-anchor="middle">120.000</text>
-<text x="1330" y="1972" class="count" text-anchor="middle">0/30</text>
-<text x="1530" y="1949" class="value" text-anchor="middle">8.960</text>
-<text x="1530" y="1972" class="count" text-anchor="middle">30/30</text>
-<text x="1730" y="1949" class="value" text-anchor="middle">9.446</text>
-<text x="1730" y="1972" class="count" text-anchor="middle">30/30</text>
-<line x1="55" y1="1985" x2="1785" y2="1985" stroke="#cbd5e1"/>
-<text x="55" y="2033" class="note" >PAR1: media de los tiempos internos de las ejecuciones resueltas; cada ejecución sin solución aporta 120 s. Menor es mejor.</text>
-<text x="55" y="2060" class="note" >Gentians: total_execution. ILASP: %% Total. No se utiliza wall-clock. Negrita: menor PAR1 de la fila, sin implicar significación estadística.</text>
-<text x="55" y="2087" class="note" >Bloque B: los tiempos no cubren el mismo trabajo. Se exporta el ClauseSpace completo; no solo las reglas de una solución.</text>
-<text x="55" y="2114" class="note" >UNSAT: ILASP declara que no existe una hipótesis válida en el espacio suministrado. Se penaliza a 120 s; no se presenta como timeout.</text>
-<text x="55" y="2141" class="note" >Se incluyen únicamente benchmarks con los runs 1–30 registrados en los seis sistemas, aunque algunos o todos no encuentren solución.</text>
-<text x="55" y="2168" class="note" >Las terminaciones -9 tras ~125 s se tratan como timeout para esta tabla. Los resultados originales de Shelob permanecen intactos.</text>
-<text x="55" y="2207" class="note" >Captura: 18/09/2026 11:48 CEST · Shelob · Resultado parcial; la ejecución continúa.</text>
+<line x1="55" y1="1922" x2="1785" y2="1922" stroke="#cbd5e1"/>
+<text x="55" y="1954" class="dataset" >subset_sum_double</text>
+<text x="715" y="1947" class="split" text-anchor="middle">0.108 + 0.105</text>
+<text x="715" y="1972" class="sum" text-anchor="middle" font-weight="700">= 0.213 s</text>
+<text x="715" y="1994" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1947" class="split" text-anchor="middle">0.119 + 0.614</text>
+<text x="930" y="1972" class="sum" text-anchor="middle">= 0.734 s</text>
+<text x="930" y="1994" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1947" class="split" text-anchor="middle">0.108* + 5.738</text>
+<text x="1130" y="1972" class="sum" text-anchor="middle">= 5.846 s</text>
+<text x="1130" y="1994" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1947" class="split" text-anchor="middle">0.108* + t.o.</text>
+<text x="1330" y="1972" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="1994" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="1947" class="split" text-anchor="middle">0.108* + 1.102</text>
+<text x="1530" y="1972" class="sum" text-anchor="middle">= 1.210 s</text>
+<text x="1530" y="1994" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1947" class="split" text-anchor="middle">0.108* + 1.009</text>
+<text x="1730" y="1972" class="sum" text-anchor="middle">= 1.117 s</text>
+<text x="1730" y="1994" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="2005" x2="1785" y2="2005" stroke="#cbd5e1"/>
+<text x="55" y="2037" class="dataset" >subset_sum_double_and_prod</text>
+<text x="715" y="2030" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="715" y="2055" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="715" y="2077" class="count" text-anchor="middle">0/30</text>
+<text x="930" y="2030" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="930" y="2055" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="930" y="2077" class="count" text-anchor="middle">0/30</text>
+<text x="1130" y="2030" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1130" y="2055" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1130" y="2077" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1330" y="2030" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1330" y="2055" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="2077" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1530" y="2030" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1530" y="2055" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1530" y="2077" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1730" y="2030" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1730" y="2055" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1730" y="2077" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<line x1="55" y1="2088" x2="1785" y2="2088" stroke="#cbd5e1"/>
+<text x="55" y="2120" class="dataset" >subset_sum_double_and_prod_unbalanced</text>
+<text x="715" y="2113" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="715" y="2138" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="715" y="2160" class="count" text-anchor="middle">0/30</text>
+<text x="930" y="2113" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="930" y="2138" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="930" y="2160" class="count" text-anchor="middle">0/30</text>
+<text x="1130" y="2113" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1130" y="2138" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1130" y="2160" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1330" y="2113" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1330" y="2138" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="2160" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1530" y="2113" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1530" y="2138" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1530" y="2160" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1730" y="2113" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1730" y="2138" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1730" y="2160" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<line x1="55" y1="2171" x2="1785" y2="2171" stroke="#cbd5e1"/>
+<text x="55" y="2203" class="dataset" >subset_sum_double_and_sum</text>
+<text x="715" y="2196" class="split" text-anchor="middle">0.167 + 0.172</text>
+<text x="715" y="2221" class="sum" text-anchor="middle" font-weight="700">= 0.339 s</text>
+<text x="715" y="2243" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="2196" class="split" text-anchor="middle">0.226 + 0.464</text>
+<text x="930" y="2221" class="sum" text-anchor="middle">= 0.690 s</text>
+<text x="930" y="2243" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="2196" class="split" text-anchor="middle">0.167* + 1.002</text>
+<text x="1130" y="2221" class="sum" text-anchor="middle">= 1.169 s</text>
+<text x="1130" y="2243" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="2196" class="split" text-anchor="middle">0.167* + 1.890</text>
+<text x="1330" y="2221" class="sum" text-anchor="middle">= 2.057 s</text>
+<text x="1330" y="2243" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="2196" class="split" text-anchor="middle">0.167* + 0.390</text>
+<text x="1530" y="2221" class="sum" text-anchor="middle">= 0.557 s</text>
+<text x="1530" y="2243" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="2196" class="split" text-anchor="middle">0.167* + 0.327</text>
+<text x="1730" y="2221" class="sum" text-anchor="middle">= 0.494 s</text>
+<text x="1730" y="2243" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="2254" x2="1785" y2="2254" stroke="#cbd5e1"/>
+<text x="55" y="2286" class="dataset" >subset_sum_double_unbalanced</text>
+<text x="715" y="2279" class="split" text-anchor="middle">0.236 + 0.966</text>
+<text x="715" y="2304" class="sum" text-anchor="middle" font-weight="700">= 1.202 s</text>
+<text x="715" y="2326" class="count" text-anchor="middle">27/30</text>
+<text x="930" y="2279" class="split" text-anchor="middle">0.219 + 2.065</text>
+<text x="930" y="2304" class="sum" text-anchor="middle">= 2.284 s</text>
+<text x="930" y="2326" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="2279" class="split" text-anchor="middle">0.236* + t.o.</text>
+<text x="1130" y="2304" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1130" y="2326" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="2279" class="split" text-anchor="middle">0.236* + t.o.</text>
+<text x="1330" y="2304" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="2326" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="2279" class="split" text-anchor="middle">0.236* + 8.960</text>
+<text x="1530" y="2304" class="sum" text-anchor="middle">= 9.196 s</text>
+<text x="1530" y="2326" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="2279" class="split" text-anchor="middle">0.236* + 9.446</text>
+<text x="1730" y="2304" class="sum" text-anchor="middle">= 9.682 s</text>
+<text x="1730" y="2326" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="2337" x2="1785" y2="2337" stroke="#cbd5e1"/>
+<text x="55" y="2369" class="dataset" >subset_sum_double_unbalanced_count</text>
+<text x="715" y="2362" class="split" text-anchor="middle">0.407 + 6.977</text>
+<text x="715" y="2387" class="sum" text-anchor="middle">= 7.383 s</text>
+<text x="715" y="2409" class="count" text-anchor="middle">29/30</text>
+<text x="930" y="2362" class="split" text-anchor="middle">0.429 + 4.948</text>
+<text x="930" y="2387" class="sum" text-anchor="middle" font-weight="700">= 5.377 s</text>
+<text x="930" y="2409" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="2362" class="split" text-anchor="middle">0.407* + t.o.</text>
+<text x="1130" y="2387" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1130" y="2409" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="2362" class="split" text-anchor="middle">0.407* + t.o.</text>
+<text x="1330" y="2387" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="2409" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="2362" class="split" text-anchor="middle">0.407* + 31.947</text>
+<text x="1530" y="2387" class="sum" text-anchor="middle">= 32.354 s</text>
+<text x="1530" y="2409" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="2362" class="split" text-anchor="middle">0.407* + 31.577</text>
+<text x="1730" y="2387" class="sum" text-anchor="middle">= 31.984 s</text>
+<text x="1730" y="2409" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="2420" x2="1785" y2="2420" stroke="#cbd5e1"/>
+<text x="55" y="2452" class="dataset" >subset_sum_triple</text>
+<text x="715" y="2445" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="715" y="2470" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="715" y="2492" class="count" text-anchor="middle">0/30</text>
+<text x="930" y="2445" class="split" text-anchor="middle">n/d + t.o.</text>
+<text x="930" y="2470" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="930" y="2492" class="count" text-anchor="middle">0/30</text>
+<text x="1130" y="2445" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1130" y="2470" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1130" y="2492" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1330" y="2445" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1330" y="2470" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1330" y="2492" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1530" y="2445" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1530" y="2470" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1530" y="2492" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1730" y="2445" class="split" text-anchor="middle">n/d* + UNSAT</text>
+<text x="1730" y="2470" class="count" text-anchor="middle">sin total resuelto</text>
+<text x="1730" y="2492" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<line x1="55" y1="2503" x2="1785" y2="2503" stroke="#cbd5e1"/>
+<text x="55" y="2535" class="dataset" >subset_sum_unbalanced</text>
+<text x="715" y="2528" class="split" text-anchor="middle">0.070 + 0.011</text>
+<text x="715" y="2553" class="sum" text-anchor="middle">= 0.081 s</text>
+<text x="715" y="2575" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="2528" class="split" text-anchor="middle">0.066 + 0.008</text>
+<text x="930" y="2553" class="sum" text-anchor="middle" font-weight="700">= 0.075 s</text>
+<text x="930" y="2575" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="2528" class="split" text-anchor="middle">0.070* + 0.061</text>
+<text x="1130" y="2553" class="sum" text-anchor="middle">= 0.131 s</text>
+<text x="1130" y="2575" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="2528" class="split" text-anchor="middle">0.070* + 0.084</text>
+<text x="1330" y="2553" class="sum" text-anchor="middle">= 0.154 s</text>
+<text x="1330" y="2575" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="2528" class="split" text-anchor="middle">0.070* + 0.050</text>
+<text x="1530" y="2553" class="sum" text-anchor="middle">= 0.120 s</text>
+<text x="1530" y="2575" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="2528" class="split" text-anchor="middle">0.070* + 0.040</text>
+<text x="1730" y="2553" class="sum" text-anchor="middle">= 0.110 s</text>
+<text x="1730" y="2575" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="2586" x2="1785" y2="2586" stroke="#cbd5e1"/>
+<text x="55" y="2618" class="dataset" >subset_sum_unbalanced_ops</text>
+<text x="715" y="2611" class="split" text-anchor="middle">0.083 + 0.013</text>
+<text x="715" y="2636" class="sum" text-anchor="middle">= 0.095 s</text>
+<text x="715" y="2658" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="2611" class="split" text-anchor="middle">0.074 + 0.009</text>
+<text x="930" y="2636" class="sum" text-anchor="middle" font-weight="700">= 0.083 s</text>
+<text x="930" y="2658" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="2611" class="split" text-anchor="middle">0.083* + 0.072</text>
+<text x="1130" y="2636" class="sum" text-anchor="middle">= 0.155 s</text>
+<text x="1130" y="2658" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="2611" class="split" text-anchor="middle">0.083* + 0.104</text>
+<text x="1330" y="2636" class="sum" text-anchor="middle">= 0.187 s</text>
+<text x="1330" y="2658" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="2611" class="split" text-anchor="middle">0.083* + 0.058</text>
+<text x="1530" y="2636" class="sum" text-anchor="middle">= 0.140 s</text>
+<text x="1530" y="2658" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="2611" class="split" text-anchor="middle">0.083* + 0.044</text>
+<text x="1730" y="2636" class="sum" text-anchor="middle">= 0.127 s</text>
+<text x="1730" y="2658" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="2669" x2="1785" y2="2669" stroke="#cbd5e1"/>
+<text x="55" y="2717" class="note" >A: PAR1 = (suma de tiempos internos de runs resueltos + 120 s × runs sin solución) / 30. Negrita: menor PAR1 de la fila.</text>
+<text x="55" y="2744" class="note" >B: generación + búsqueda, promediadas SOLO sobre ejecuciones con solución. Negrita: menor total de la fila. Compare también éxitos/30; no es PAR1.</text>
+<text x="55" y="2771" class="note" >Gentians: generación = clause_generation; búsqueda = total_execution − clause_generation, incluida inicialización, evaluación y orquestación.</text>
+<text x="55" y="2798" class="note" >ILASP: generación (*) = media de clause_generation de Gentians steady sobre sus runs resueltos; búsqueda = %% Total de ILASP.</text>
+<text x="55" y="2825" class="note" >El total con * es una estimación del pipeline completo, no una medición conjunta. La generación incremental puede consumir solo parte del espacio.</text>
+<text x="55" y="2852" class="note" >n/d: no hay tiempos guardados de runs resueltos para calcular esa media. No se inventa un desglose de los timeouts.</text>
+<text x="55" y="2879" class="note" >t.o.: todas las ejecuciones agotaron el límite. UNSAT: ILASP declara que no existe una hipótesis válida en el espacio suministrado.</text>
+<text x="55" y="2906" class="note" >No se usa wall-clock. Las terminaciones -9 tras ~125 s se tratan como timeout. Los resultados originales de Shelob permanecen intactos.</text>
+<text x="55" y="2945" class="note" >Captura: 18/09/2026 13:26 CEST · Shelob · Ejecución finalizada · 5 220 runs registrados.</text>
 </svg>

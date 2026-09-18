@@ -1,0 +1,389 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="2281" viewBox="0 0 1840 2281" role="img" aria-labelledby="title description">
+<title id="title">Gentians e ILASP: 25 benchmarks completos, separados por generación del espacio</title>
+<desc id="description">Dos bloques: generación del espacio en ambos sistemas; espacio generado por Gentians y entregado a ILASP. Media PAR1 en segundos y éxitos sobre 30. UNSAT indica que ILASP declara que no existe hipótesis que satisfaga la tarea en el espacio suministrado.</desc>
+<rect width="1840" height="2281" fill="white"/>
+<style>text{font-family:Georgia,"Times New Roman",serif;fill:#111827}.title{font-size:30px;font-weight:700}.sub{font-size:19px;fill:#475569}.group{font-size:24px;font-weight:700}.explain{font-size:18px}.head{font-size:20px;font-weight:700}.value{font-size:24px;font-variant-numeric:tabular-nums}.count{font-size:15px;fill:#64748b}.dataset{font-size:18px}.note{font-size:17px;fill:#475569}</style>
+<text x="55" y="48" class="title" >Gentians e ILASP · resultados de benchmarks completos</text>
+<text x="55" y="83" class="sub" >25 de 29 benchmarks · 30 runs en cada uno de los seis sistemas · timeout de 120 s · media PAR1 (s) y éxitos/30</text>
+<rect x="55" y="118" width="1730" height="87" fill="#eef5f7"/>
+<rect x="55" y="118" width="5" height="87" fill="#246277"/>
+<text x="75" y="150" class="group" >A · Ambos sistemas generan su espacio de búsqueda (9 benchmarks)</text>
+<text x="75" y="181" class="explain" >Gentians e ILASP generan sus cláusulas desde el language bias. Ambos tiempos incluyen esa generación.</text>
+<text x="55" y="241" class="head" >Benchmark</text>
+<text x="715" y="241" class="head" text-anchor="middle">G. steady</text>
+<text x="930" y="241" class="head" text-anchor="middle">G. incremental</text>
+<text x="1130" y="241" class="head" text-anchor="middle">ILASP 4</text>
+<text x="1330" y="241" class="head" text-anchor="middle">ILASP 3</text>
+<text x="1530" y="241" class="head" text-anchor="middle">ILASP 2i</text>
+<text x="1730" y="241" class="head" text-anchor="middle">ILASP 2</text>
+<line x1="55" y1="257" x2="1785" y2="257" stroke="#cbd5e1"/>
+<text x="55" y="301" class="dataset" >4queens</text>
+<text x="715" y="294" class="value" text-anchor="middle">0.490</text>
+<text x="715" y="317" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="294" class="value" text-anchor="middle" font-weight="700">0.324</text>
+<text x="930" y="317" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="294" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="317" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="294" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="317" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="294" class="value" text-anchor="middle">120.000</text>
+<text x="1530" y="317" class="count" text-anchor="middle">0/30</text>
+<text x="1730" y="294" class="value" text-anchor="middle">119.221</text>
+<text x="1730" y="317" class="count" text-anchor="middle">3/30</text>
+<line x1="55" y1="330" x2="1785" y2="330" stroke="#cbd5e1"/>
+<text x="55" y="362" class="dataset" >5queens</text>
+<text x="715" y="355" class="value" text-anchor="middle" font-weight="700">14.126</text>
+<text x="715" y="378" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="355" class="value" text-anchor="middle">14.228</text>
+<text x="930" y="378" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="355" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="378" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="355" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="378" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="355" class="value" text-anchor="middle">120.000</text>
+<text x="1530" y="378" class="count" text-anchor="middle">0/30</text>
+<text x="1730" y="355" class="value" text-anchor="middle">120.000</text>
+<text x="1730" y="378" class="count" text-anchor="middle">0/30</text>
+<line x1="55" y1="391" x2="1785" y2="391" stroke="#cbd5e1"/>
+<text x="55" y="423" class="dataset" >adj2red</text>
+<text x="715" y="416" class="value" text-anchor="middle" font-weight="700">0.155</text>
+<text x="715" y="439" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="416" class="value" text-anchor="middle">0.228</text>
+<text x="930" y="439" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="416" class="value" text-anchor="middle">1.283</text>
+<text x="1130" y="439" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="416" class="value" text-anchor="middle">2.914</text>
+<text x="1330" y="439" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="416" class="value" text-anchor="middle">0.249</text>
+<text x="1530" y="439" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="416" class="value" text-anchor="middle">0.190</text>
+<text x="1730" y="439" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="452" x2="1785" y2="452" stroke="#cbd5e1"/>
+<text x="55" y="484" class="dataset" >clique</text>
+<text x="715" y="477" class="value" text-anchor="middle">0.141</text>
+<text x="715" y="500" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="477" class="value" text-anchor="middle">0.253</text>
+<text x="930" y="500" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="477" class="value" text-anchor="middle">0.162</text>
+<text x="1130" y="500" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="477" class="value" text-anchor="middle">0.365</text>
+<text x="1330" y="500" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="477" class="value" text-anchor="middle">0.130</text>
+<text x="1530" y="500" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="477" class="value" text-anchor="middle" font-weight="700">0.105</text>
+<text x="1730" y="500" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="513" x2="1785" y2="513" stroke="#cbd5e1"/>
+<text x="55" y="545" class="dataset" >coin</text>
+<text x="715" y="538" class="value" text-anchor="middle" font-weight="700">0.065</text>
+<text x="715" y="561" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="538" class="value" text-anchor="middle">0.114</text>
+<text x="930" y="561" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="538" class="value" text-anchor="middle">0.094</text>
+<text x="1130" y="561" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="538" class="value" text-anchor="middle">0.137</text>
+<text x="1330" y="561" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="538" class="value" text-anchor="middle">0.080</text>
+<text x="1530" y="561" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="538" class="value" text-anchor="middle">0.066</text>
+<text x="1730" y="561" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="574" x2="1785" y2="574" stroke="#cbd5e1"/>
+<text x="55" y="606" class="dataset" >coloring</text>
+<text x="715" y="599" class="value" text-anchor="middle" font-weight="700">0.508</text>
+<text x="715" y="622" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="599" class="value" text-anchor="middle">0.527</text>
+<text x="930" y="622" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="599" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="622" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="599" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="622" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="599" class="value" text-anchor="middle">120.000</text>
+<text x="1530" y="622" class="count" text-anchor="middle">0/30</text>
+<text x="1730" y="599" class="value" text-anchor="middle">120.000</text>
+<text x="1730" y="622" class="count" text-anchor="middle">0/30</text>
+<line x1="55" y1="635" x2="1785" y2="635" stroke="#cbd5e1"/>
+<text x="55" y="667" class="dataset" >even_odd</text>
+<text x="715" y="660" class="value" text-anchor="middle">52.153</text>
+<text x="715" y="683" class="count" text-anchor="middle">17/30</text>
+<text x="930" y="660" class="value" text-anchor="middle" font-weight="700">0.258</text>
+<text x="930" y="683" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="660" class="value" text-anchor="middle">5.787</text>
+<text x="1130" y="683" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="660" class="value" text-anchor="middle">49.456</text>
+<text x="1330" y="683" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="660" class="value" text-anchor="middle">0.776</text>
+<text x="1530" y="683" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="660" class="value" text-anchor="middle">0.877</text>
+<text x="1730" y="683" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="696" x2="1785" y2="696" stroke="#cbd5e1"/>
+<text x="55" y="728" class="dataset" >grandparent</text>
+<text x="715" y="721" class="value" text-anchor="middle">7.123</text>
+<text x="715" y="744" class="count" text-anchor="middle">29/30</text>
+<text x="930" y="721" class="value" text-anchor="middle" font-weight="700">2.274</text>
+<text x="930" y="744" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="721" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="744" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="721" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="744" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="721" class="value" text-anchor="middle">14.338</text>
+<text x="1530" y="744" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="721" class="value" text-anchor="middle">4.558</text>
+<text x="1730" y="744" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="757" x2="1785" y2="757" stroke="#cbd5e1"/>
+<text x="55" y="789" class="dataset" >sudoku</text>
+<text x="715" y="782" class="value" text-anchor="middle" font-weight="700">0.154</text>
+<text x="715" y="805" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="782" class="value" text-anchor="middle">0.235</text>
+<text x="930" y="805" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="782" class="value" text-anchor="middle">0.593</text>
+<text x="1130" y="805" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="782" class="value" text-anchor="middle">1.200</text>
+<text x="1330" y="805" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="782" class="value" text-anchor="middle">0.445</text>
+<text x="1530" y="805" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="782" class="value" text-anchor="middle">0.383</text>
+<text x="1730" y="805" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="818" x2="1785" y2="818" stroke="#cbd5e1"/>
+<rect x="55" y="858" width="1730" height="87" fill="#fff4e4"/>
+<rect x="55" y="858" width="5" height="87" fill="#9a641b"/>
+<text x="75" y="890" class="group" >B · Gentians genera el espacio y se lo pasa a ILASP (16 benchmarks)</text>
+<text x="75" y="921" class="explain" >Gentians incluye generación y búsqueda; ILASP recibe el ClauseSpace explícito y no mide su generación previa.</text>
+<text x="55" y="981" class="head" >Benchmark</text>
+<text x="715" y="981" class="head" text-anchor="middle">G. steady</text>
+<text x="930" y="981" class="head" text-anchor="middle">G. incremental</text>
+<text x="1130" y="981" class="head" text-anchor="middle">ILASP 4</text>
+<text x="1330" y="981" class="head" text-anchor="middle">ILASP 3</text>
+<text x="1530" y="981" class="head" text-anchor="middle">ILASP 2i</text>
+<text x="1730" y="981" class="head" text-anchor="middle">ILASP 2</text>
+<line x1="55" y1="997" x2="1785" y2="997" stroke="#cbd5e1"/>
+<text x="55" y="1041" class="dataset" >hamming_0</text>
+<text x="715" y="1034" class="value" text-anchor="middle">0.303</text>
+<text x="715" y="1057" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1034" class="value" text-anchor="middle">0.460</text>
+<text x="930" y="1057" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1034" class="value" text-anchor="middle">0.093</text>
+<text x="1130" y="1057" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1034" class="value" text-anchor="middle">0.160</text>
+<text x="1330" y="1057" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1034" class="value" text-anchor="middle">0.089</text>
+<text x="1530" y="1057" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1034" class="value" text-anchor="middle" font-weight="700">0.072</text>
+<text x="1730" y="1057" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1070" x2="1785" y2="1070" stroke="#cbd5e1"/>
+<text x="55" y="1102" class="dataset" >hamming_0_unbalanced</text>
+<text x="715" y="1095" class="value" text-anchor="middle">0.339</text>
+<text x="715" y="1118" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1095" class="value" text-anchor="middle">0.526</text>
+<text x="930" y="1118" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1095" class="value" text-anchor="middle">0.096</text>
+<text x="1130" y="1118" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1095" class="value" text-anchor="middle">0.169</text>
+<text x="1330" y="1118" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1095" class="value" text-anchor="middle">0.093</text>
+<text x="1530" y="1118" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1095" class="value" text-anchor="middle" font-weight="700">0.073</text>
+<text x="1730" y="1118" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1131" x2="1785" y2="1131" stroke="#cbd5e1"/>
+<text x="55" y="1163" class="dataset" >hamming_1</text>
+<text x="715" y="1156" class="value" text-anchor="middle">0.300</text>
+<text x="715" y="1179" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1156" class="value" text-anchor="middle">0.452</text>
+<text x="930" y="1179" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1156" class="value" text-anchor="middle">0.094</text>
+<text x="1130" y="1179" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1156" class="value" text-anchor="middle">0.159</text>
+<text x="1330" y="1179" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1156" class="value" text-anchor="middle">0.092</text>
+<text x="1530" y="1179" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1156" class="value" text-anchor="middle" font-weight="700">0.076</text>
+<text x="1730" y="1179" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1192" x2="1785" y2="1192" stroke="#cbd5e1"/>
+<text x="55" y="1224" class="dataset" >hamming_1_unbalanced</text>
+<text x="715" y="1217" class="value" text-anchor="middle">120.000</text>
+<text x="715" y="1240" class="count" text-anchor="middle">0/30</text>
+<text x="930" y="1217" class="value" text-anchor="middle">120.000</text>
+<text x="930" y="1240" class="count" text-anchor="middle">0/30</text>
+<text x="1130" y="1217" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="1240" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1330" y="1217" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="1240" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1530" y="1217" class="value" text-anchor="middle">120.000</text>
+<text x="1530" y="1240" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1730" y="1217" class="value" text-anchor="middle">120.000</text>
+<text x="1730" y="1240" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<line x1="55" y1="1253" x2="1785" y2="1253" stroke="#cbd5e1"/>
+<text x="55" y="1285" class="dataset" >knapsack</text>
+<text x="715" y="1278" class="value" text-anchor="middle">0.098</text>
+<text x="715" y="1301" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1278" class="value" text-anchor="middle">0.179</text>
+<text x="930" y="1301" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1278" class="value" text-anchor="middle">0.061</text>
+<text x="1130" y="1301" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1278" class="value" text-anchor="middle">0.091</text>
+<text x="1330" y="1301" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1278" class="value" text-anchor="middle">0.053</text>
+<text x="1530" y="1301" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1278" class="value" text-anchor="middle" font-weight="700">0.044</text>
+<text x="1730" y="1301" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1314" x2="1785" y2="1314" stroke="#cbd5e1"/>
+<text x="55" y="1346" class="dataset" >latin_square</text>
+<text x="715" y="1339" class="value" text-anchor="middle">2.403</text>
+<text x="715" y="1362" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1339" class="value" text-anchor="middle">6.754</text>
+<text x="930" y="1362" class="count" text-anchor="middle">29/30</text>
+<text x="1130" y="1339" class="value" text-anchor="middle">3.111</text>
+<text x="1130" y="1362" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1339" class="value" text-anchor="middle">51.653</text>
+<text x="1330" y="1362" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1339" class="value" text-anchor="middle">1.890</text>
+<text x="1530" y="1362" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1339" class="value" text-anchor="middle" font-weight="700">1.887</text>
+<text x="1730" y="1362" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1375" x2="1785" y2="1375" stroke="#cbd5e1"/>
+<text x="55" y="1407" class="dataset" >magic_square_no_diag</text>
+<text x="715" y="1400" class="value" text-anchor="middle" font-weight="700">20.214</text>
+<text x="715" y="1423" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1400" class="value" text-anchor="middle">23.785</text>
+<text x="930" y="1423" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1400" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="1423" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="1400" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="1423" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="1400" class="value" text-anchor="middle">90.471</text>
+<text x="1530" y="1423" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1400" class="value" text-anchor="middle">120.000</text>
+<text x="1730" y="1423" class="count" text-anchor="middle">0/30</text>
+<line x1="55" y1="1436" x2="1785" y2="1436" stroke="#cbd5e1"/>
+<text x="55" y="1468" class="dataset" >set_partition_sum</text>
+<text x="715" y="1461" class="value" text-anchor="middle">14.887</text>
+<text x="715" y="1484" class="count" text-anchor="middle">28/30</text>
+<text x="930" y="1461" class="value" text-anchor="middle">3.326</text>
+<text x="930" y="1484" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1461" class="value" text-anchor="middle">1.486</text>
+<text x="1130" y="1484" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1461" class="value" text-anchor="middle">5.508</text>
+<text x="1330" y="1484" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1461" class="value" text-anchor="middle" font-weight="700">0.496</text>
+<text x="1530" y="1484" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1461" class="value" text-anchor="middle">0.696</text>
+<text x="1730" y="1484" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1497" x2="1785" y2="1497" stroke="#cbd5e1"/>
+<text x="55" y="1529" class="dataset" >set_partition_sum_and_cardinality</text>
+<text x="715" y="1522" class="value" text-anchor="middle">118.258</text>
+<text x="715" y="1545" class="count" text-anchor="middle">2/30</text>
+<text x="930" y="1522" class="value" text-anchor="middle" font-weight="700">106.528</text>
+<text x="930" y="1545" class="count" text-anchor="middle">5/30</text>
+<text x="1130" y="1522" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="1545" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="1522" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="1545" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="1522" class="value" text-anchor="middle">120.000</text>
+<text x="1530" y="1545" class="count" text-anchor="middle">0/30</text>
+<text x="1730" y="1522" class="value" text-anchor="middle">120.000</text>
+<text x="1730" y="1545" class="count" text-anchor="middle">0/30</text>
+<line x1="55" y1="1558" x2="1785" y2="1558" stroke="#cbd5e1"/>
+<text x="55" y="1590" class="dataset" >set_partition_sum_cardinality_and_square</text>
+<text x="715" y="1583" class="value" text-anchor="middle">120.000</text>
+<text x="715" y="1606" class="count" text-anchor="middle">0/30</text>
+<text x="930" y="1583" class="value" text-anchor="middle">120.000</text>
+<text x="930" y="1606" class="count" text-anchor="middle">0/30</text>
+<text x="1130" y="1583" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="1606" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="1583" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="1606" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="1583" class="value" text-anchor="middle">120.000</text>
+<text x="1530" y="1606" class="count" text-anchor="middle">0/30</text>
+<text x="1730" y="1583" class="value" text-anchor="middle">120.000</text>
+<text x="1730" y="1606" class="count" text-anchor="middle">0/30</text>
+<line x1="55" y1="1619" x2="1785" y2="1619" stroke="#cbd5e1"/>
+<text x="55" y="1651" class="dataset" >subset_sum</text>
+<text x="715" y="1644" class="value" text-anchor="middle">0.073</text>
+<text x="715" y="1667" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1644" class="value" text-anchor="middle">0.070</text>
+<text x="930" y="1667" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1644" class="value" text-anchor="middle">0.052</text>
+<text x="1130" y="1667" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1644" class="value" text-anchor="middle">0.068</text>
+<text x="1330" y="1667" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1644" class="value" text-anchor="middle">0.045</text>
+<text x="1530" y="1667" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1644" class="value" text-anchor="middle" font-weight="700">0.037</text>
+<text x="1730" y="1667" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1680" x2="1785" y2="1680" stroke="#cbd5e1"/>
+<text x="55" y="1712" class="dataset" >subset_sum_double</text>
+<text x="715" y="1705" class="value" text-anchor="middle" font-weight="700">0.213</text>
+<text x="715" y="1728" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1705" class="value" text-anchor="middle">0.734</text>
+<text x="930" y="1728" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1705" class="value" text-anchor="middle">5.738</text>
+<text x="1130" y="1728" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1705" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="1728" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="1705" class="value" text-anchor="middle">1.102</text>
+<text x="1530" y="1728" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1705" class="value" text-anchor="middle">1.009</text>
+<text x="1730" y="1728" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1741" x2="1785" y2="1741" stroke="#cbd5e1"/>
+<text x="55" y="1773" class="dataset" >subset_sum_double_and_prod</text>
+<text x="715" y="1766" class="value" text-anchor="middle">120.000</text>
+<text x="715" y="1789" class="count" text-anchor="middle">0/30</text>
+<text x="930" y="1766" class="value" text-anchor="middle">120.000</text>
+<text x="930" y="1789" class="count" text-anchor="middle">0/30</text>
+<text x="1130" y="1766" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="1789" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1330" y="1766" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="1789" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1530" y="1766" class="value" text-anchor="middle">120.000</text>
+<text x="1530" y="1789" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1730" y="1766" class="value" text-anchor="middle">120.000</text>
+<text x="1730" y="1789" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<line x1="55" y1="1802" x2="1785" y2="1802" stroke="#cbd5e1"/>
+<text x="55" y="1834" class="dataset" >subset_sum_double_and_prod_unbalanced</text>
+<text x="715" y="1827" class="value" text-anchor="middle">120.000</text>
+<text x="715" y="1850" class="count" text-anchor="middle">0/30</text>
+<text x="930" y="1827" class="value" text-anchor="middle">120.000</text>
+<text x="930" y="1850" class="count" text-anchor="middle">0/30</text>
+<text x="1130" y="1827" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="1850" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1330" y="1827" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="1850" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1530" y="1827" class="value" text-anchor="middle">120.000</text>
+<text x="1530" y="1850" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<text x="1730" y="1827" class="value" text-anchor="middle">120.000</text>
+<text x="1730" y="1850" class="count" text-anchor="middle">0/30 · UNSAT</text>
+<line x1="55" y1="1863" x2="1785" y2="1863" stroke="#cbd5e1"/>
+<text x="55" y="1895" class="dataset" >subset_sum_double_and_sum</text>
+<text x="715" y="1888" class="value" text-anchor="middle">0.339</text>
+<text x="715" y="1911" class="count" text-anchor="middle">30/30</text>
+<text x="930" y="1888" class="value" text-anchor="middle">0.690</text>
+<text x="930" y="1911" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1888" class="value" text-anchor="middle">1.002</text>
+<text x="1130" y="1911" class="count" text-anchor="middle">30/30</text>
+<text x="1330" y="1888" class="value" text-anchor="middle">1.890</text>
+<text x="1330" y="1911" class="count" text-anchor="middle">30/30</text>
+<text x="1530" y="1888" class="value" text-anchor="middle">0.390</text>
+<text x="1530" y="1911" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1888" class="value" text-anchor="middle" font-weight="700">0.327</text>
+<text x="1730" y="1911" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1924" x2="1785" y2="1924" stroke="#cbd5e1"/>
+<text x="55" y="1956" class="dataset" >subset_sum_double_unbalanced</text>
+<text x="715" y="1949" class="value" text-anchor="middle">13.082</text>
+<text x="715" y="1972" class="count" text-anchor="middle">27/30</text>
+<text x="930" y="1949" class="value" text-anchor="middle" font-weight="700">2.284</text>
+<text x="930" y="1972" class="count" text-anchor="middle">30/30</text>
+<text x="1130" y="1949" class="value" text-anchor="middle">120.000</text>
+<text x="1130" y="1972" class="count" text-anchor="middle">0/30</text>
+<text x="1330" y="1949" class="value" text-anchor="middle">120.000</text>
+<text x="1330" y="1972" class="count" text-anchor="middle">0/30</text>
+<text x="1530" y="1949" class="value" text-anchor="middle">8.960</text>
+<text x="1530" y="1972" class="count" text-anchor="middle">30/30</text>
+<text x="1730" y="1949" class="value" text-anchor="middle">9.446</text>
+<text x="1730" y="1972" class="count" text-anchor="middle">30/30</text>
+<line x1="55" y1="1985" x2="1785" y2="1985" stroke="#cbd5e1"/>
+<text x="55" y="2033" class="note" >PAR1: media de los tiempos internos de las ejecuciones resueltas; cada ejecución sin solución aporta 120 s. Menor es mejor.</text>
+<text x="55" y="2060" class="note" >Gentians: total_execution. ILASP: %% Total. No se utiliza wall-clock. Negrita: menor PAR1 de la fila, sin implicar significación estadística.</text>
+<text x="55" y="2087" class="note" >Bloque B: los tiempos no cubren el mismo trabajo. Se exporta el ClauseSpace completo; no solo las reglas de una solución.</text>
+<text x="55" y="2114" class="note" >UNSAT: ILASP declara que no existe una hipótesis válida en el espacio suministrado. Se penaliza a 120 s; no se presenta como timeout.</text>
+<text x="55" y="2141" class="note" >Se incluyen únicamente benchmarks con los runs 1–30 registrados en los seis sistemas, aunque algunos o todos no encuentren solución.</text>
+<text x="55" y="2168" class="note" >Las terminaciones -9 tras ~125 s se tratan como timeout para esta tabla. Los resultados originales de Shelob permanecen intactos.</text>
+<text x="55" y="2207" class="note" >Captura: 18/09/2026 11:48 CEST · Shelob · Resultado parcial; la ejecución continúa.</text>
+</svg>

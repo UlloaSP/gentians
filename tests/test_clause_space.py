@@ -20,6 +20,7 @@ from gentians.clauses import mode_compiler as clause_modes
 from gentians.clauses import properties as clause_properties
 from gentians.clauses import task_analysis as clause_analysis
 from gentians.language.asp import (
+    add_program,
     clause_predicates,
     extract_name_arity,
     fragment_atoms,
@@ -4229,6 +4230,56 @@ def test_projected_aggregate_random_seed_program_is_clingo_safe():
         program.positive_examples,
         program.negative_examples,
     ).extract_coverage(parse_program("\n".join(candidate)))
+
+
+@pytest.mark.parametrize("projected", [False, True])
+def test_aggregate_local_names_can_be_reused_for_coordinate_products(projected):
+    tuple_terms = "var(numeric,any)" if projected else "var(numeric,any),var(numeric,any)"
+    task = parse_text(f"""
+        #maxv(5). #maxbl(3). #maxhl(1).
+        {{el(1,2)}}. {{el(2,3)}}.
+        #modeh(1,ok(var(numeric,output))).
+        #modeb(2,#sum{{{tuple_terms}:el(var(numeric,any),var(numeric,any))}}=var(numeric,output)).
+        #modeb(1,var(numeric)*var(numeric)=var(numeric)).
+    """)
+    space = generate_clause_space(task, Arguments())
+    tuple_text = "V0" if projected else "V0,V1"
+    expected = (
+        f"ok(V4) :- #sum{{{tuple_text}:el(V0,V1)}}=V2,"
+        f"#sum{{{tuple_text}:el(V1,V0)}}=V3,V2*V3=V4."
+    )
+    assert expected in space.clauses
+    # The repair must not let a local aggregate variable escape into arithmetic,
+    # a head, or an aggregate result. Ground every generated rule separately.
+    for clause in space.entries:
+        control = clingo.Control(logger=lambda *_: None)
+        add_program(control, (*task.background, clause.statement))
+        control.ground([("base", [])])
+
+
+def test_aggregate_local_names_do_not_connect_independent_literals():
+    task = parse_text("""
+        #maxv(4). #maxbl(2). #maxhl(1).
+        {p(1)}. {q(2)}.
+        #modeh(1,target(var(numeric,output))).
+        #modeb(1,#sum{var(numeric,any):p(var(numeric,any))}=var(numeric,output)).
+        #modeb(1,#sum{var(numeric,any):q(var(numeric,any))}=var(numeric,output)).
+    """)
+    clauses = generate_clause_space(task, Arguments()).clauses
+    assert "target(V1) :- #sum{V0:p(V0)}=V1,#sum{V0:q(V0)}=V1." in clauses
+    assert "target(V1) :- #sum{V0:p(V0)}=V1,#sum{V0:q(V0)}=V2." not in clauses
+
+
+def test_separate_aggregate_scopes_can_reuse_a_name_with_different_nominal_types():
+    task = parse_text("""
+        #maxv(2). #maxbl(2). #maxhl(1).
+        {p(a)}. {q(b)}.
+        #modeh(1,target(var(numeric,output))).
+        #modeb(1,#count{var(left,any):p(var(left,any))}=var(numeric,output)).
+        #modeb(1,#count{var(right,any):q(var(right,any))}=var(numeric,output)).
+    """)
+    clauses = generate_clause_space(task, Arguments()).clauses
+    assert "target(V1) :- #count{V0:p(V0)}=V1,#count{V0:q(V0)}=V1." in clauses
 
 
 def test_linkedness_rejects_disconnected_literal_components():

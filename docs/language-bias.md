@@ -380,6 +380,20 @@ Aggregate condition variables are local or supplied by surrounding terms; the
 aggregate result is `output`. Aggregates, arithmetic, and comparisons need no
 separate directive: body modes use their exact Clingo syntax.
 
+Names used only inside aggregate elements are local to each element. Distinct
+aggregates may reuse those names, including with different nominal types;
+that reuse does not connect their literals or bind any global input. An
+occurrence in an ordinary head/body term or aggregate result makes the name
+global. Aggregate tuple variables remain local, and global condition variables
+still require a positive normal body literal. These checks also distinguish
+local conditional-literal scopes from clause-global occurrences.
+
+`#maxv` bounds the distinct variable names in the generated clause: independent
+local scopes can reuse a name within that budget. For example, three sums over
+`el(X,Y,Z)` can share the local names `X,Y,Z` and a global result `S` with
+`#maxv(4)`. Reusing a name across those aggregates does not equate their local
+bindings.
+
 An aggregate body mode declares one nonempty aggregate element, one or more
 positive atomic conditions, and one equality result:
 
@@ -613,6 +627,14 @@ After enumeration exhaustion, incremental restarts a stalled population when
 the prepared space contains learned clauses with heads and the champion has not
 improved for 100 generations. It preserves the champion and generates remaining
 hypotheses through `HypothesisGenerator`. Constraint-only spaces do not restart.
+
+Both searches stop without a solution when their distinct admitted candidates
+exhaust all nonempty subsets up to `#maxpl` of the prepared clause space. This
+is a sufficient proof, not a stagnation heuristic: the count includes even
+dependency-invalid subsets, so some exhausted legal spaces are not detected.
+Incremental applies it only after enumeration finishes without archive overflow
+and with the full prepared space active. The best hypothesis is returned with
+`is_solution=False`; no extra coverage evaluations are performed for this check.
 
 In constraint-only spaces with positive examples, incremental makes up to 16
 extra proposals during initialization and batch renewal. Proposals extend the

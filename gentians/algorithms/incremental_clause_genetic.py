@@ -74,6 +74,10 @@ def incremental_clause_genetic_search(
 
             for generation in generations:
                 budget.check()
+                if (pool.exhausted and not pool.overflow
+                        and candidates.hypotheses.all_subsets_evaluated(len(candidates.evaluated))):
+                    progress.end_epoch(generation, "space_exhausted", population)
+                    return population.result()
                 if population.best.score > progress_score:
                     progress_score = population.best.score
                     last_progress = generation

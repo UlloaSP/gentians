@@ -785,7 +785,7 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     steady_state_genetic_search(
         args,
         inductive_task([], [], [], [], [], max_program_clauses=1),
-        make_clause_space(["start.", "other."]),
+        make_clause_space(["start.", "other.", "unvisited."]),
     )
 
     assert mutation_calls == []

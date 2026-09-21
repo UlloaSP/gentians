@@ -5,7 +5,7 @@
 
 clause_var_at(Section,Slot,Arg,Var):-
     var_at(Section,Slot,Arg,Var),
-    not conditional_local_at(Section,Slot,Arg).
+    not local_var_at(Section,Slot,Arg).
 
 variable_literal(Section,Slot):- clause_var_at(Section,Slot,_,_).
 

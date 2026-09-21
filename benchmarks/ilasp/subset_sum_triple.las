@@ -17,7 +17,825 @@
 #neg({ok(10)}, {}).
 #neg({ok(15)}, {}).
 
-% Explicit hypothesis space: 3 candidate clauses.
+% Explicit hypothesis space: 821 candidate clauses.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+3 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+2 ~ :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
 2 ~ ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
 2 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V0,V2,V1:el(V1,V2,V0)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V0,V2:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V1,V2,V0:el(V1,V0,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V0,V1:el(V2,V0,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V1,V2)}=V3.
+4 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V0,V2,V1)}=V3.
+3 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3,#sum{V2,V1,V0:el(V2,V0,V1)}=V3.
 2 ~ ok(V3) :- #sum{V0,V1,V2:el(V1,V2,V0)}=V3.

@@ -33,6 +33,8 @@ def parse_args() -> argparse.Namespace:
         help="Replace existing output and rerun.",
     )
     parser.add_argument("--list", action="store_true", help="List experiments and exit.")
+    parser.add_argument("--historical-index", action="store_true",
+                        help="Index saved results with their original metadata; do not run experiments.")
     parser.add_argument("--summary", action="store_true", help="Print measured run summaries as CSV without executing.")
     return parser.parse_args()
 
@@ -297,7 +299,8 @@ def write_manifest(out_dir: Path, experiment: dict[str, Any], status: str,
     )
 
 
-def write_index(output_root: Path, experiments: list[dict[str, Any]]) -> None:
+def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
+                historical_ids: set[str] | None = None) -> None:
     rows = []
     for experiment in experiments:
         out_dir = experiment_output_path(output_root, experiment["id"])
@@ -317,19 +320,29 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]]) -> None:
                 "overrides": experiment["overrides"],
             }
         )
-        if manifest_path.exists() and manifest.get("fingerprint") != fingerprint(experiment):
-            manifest["status"] = "stale"
-        manifest.update(
-            {
-                "id": experiment["id"],
-                "label": experiment.get("label", experiment["id"]),
-                "description": experiment.get("description", ""),
-                "datasets": experiment["datasets"],
-                "runs": experiment["runs"],
-                "instrumentation": experiment.get("instrumentation", "full"),
-                "overrides": experiment["overrides"],
-            }
+        historical = (
+            experiment["id"] in (historical_ids or set())
+            and manifest_path.exists()
+            and dashboard_path.exists()
+            and manifest.get("status") in ("complete", "completed_with_failures", "screened_out")
         )
+        if historical:
+            manifest["original_status"] = manifest["status"]
+            manifest["status"] = "historical"
+        elif manifest_path.exists() and manifest.get("fingerprint") != fingerprint(experiment):
+            manifest["status"] = "stale"
+        if not historical:
+            manifest.update(
+                {
+                    "id": experiment["id"],
+                    "label": experiment.get("label", experiment["id"]),
+                    "description": experiment.get("description", ""),
+                    "datasets": experiment["datasets"],
+                    "runs": experiment["runs"],
+                    "instrumentation": experiment.get("instrumentation", "full"),
+                    "overrides": experiment["overrides"],
+                }
+            )
         manifest["output_dir"] = experiment["id"]
         manifest["dashboard_path"] = f"{experiment['id']}/dashboard_data.json"
         manifest["has_dashboard"] = dashboard_path.exists() and manifest["status"] != "stale"
@@ -362,6 +375,9 @@ def main() -> int:
     if unknown:
         raise SystemExit(f"Unknown experiments: {', '.join(unknown)}")
     selected = [by_id[key] for key in args.experiments] if args.experiments else experiments
+    if args.historical_index:
+        write_index(output_root, experiments, historical_ids={item["id"] for item in selected})
+        return 0
     if args.summary:
         try:
             summaries = [row for experiment in selected for row in summarize_experiment(

@@ -4,9 +4,10 @@
 #maxpl(6).
 
 % Source: Hamming-distance synthetic benchmark
-% Task: Projected aggregate variant; distance must equal hd/1.
+% Task: Distance must equal hd/1; retain the position to count repeated differences.
+% Historical id retained; projecting away P loses multiplicity and is not Hamming distance.
 % Target rules:
-% :- hd(D), S != D, #sum{X : d(P,X)} = S.
+% :- hd(D), S != D, #sum{X,P : d(P,X)} = S.
 
 pos(0..2).
 num(0..1).
@@ -82,6 +83,6 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 #neg({v0(0,0), v0(0,1), v0(0,2), v1(0,0), v1(0,1), v1(0,2)}, {}).
 
 #modeb(1,hd(var(numeric,output))).
-#modeb(1,#sum{var(numeric,any,value):d(var(index,any),var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(1,#sum{var(numeric,any,value),var(index,any,position):d(var(index,any,position),var(numeric,any,value))}=var(numeric,output,result)).
 #modeb(1,#count{var(numeric,any,value):d(var(index,any),var(numeric,any,value))}=var(numeric,output,result)).
 #modeb(1,var(numeric)!=var(numeric)).

@@ -70,6 +70,15 @@ aggregate_internal_arg(Slot,Arg):-
     mode(body,Mode,_,Arity,_),
     Arg = 0..Arity-2.
 
+aggregate_internal_position(body,Slot,Arg):- aggregate_internal_arg(Slot,Arg).
+
+% A name occurring only inside aggregates remains local to each element,
+% even if another aggregate uses that same name.
+local_var_at(body,Slot,Arg):-
+    aggregate_internal_arg(Slot,Arg),
+    var_at(body,Slot,Arg,Var),
+    not global_context_var(Var).
+
 % Rule: map flattened condition variables back to predicate/local arguments.
 % Slot is aggregate body slot. Pred is the condition predicate id. LocalArg is
 % the argument index inside that condition atom. Var is the variable assigned

@@ -27,10 +27,10 @@
 
 % Constraint: leaking condition-local variables need positive-body support.
 % Var is a condition variable that is not part of the aggregate tuple. If Var
-% appears outside Slot, it must also occur in a positive normal body literal.
+% is clause-global, it must also occur in a positive normal body literal.
 :- aggregate_condition_var(Slot,Var),
     not aggregate_tuple_var(Slot,Var),
-    var_used_outside_body_slot(Slot,Var),
+    global_context_var(Var),
     not normal_positive_body_var(Var).
 
 % Constraint: aggregate condition variables cannot be aggregate results unless
@@ -38,22 +38,7 @@
 % This avoids circular binding between condition internals and result variables.
 :- aggregate_condition_var(_,Var), aggregate_result_var(_,Var), not normal_positive_body_var(Var).
 
-% Constraint: aggregate tuple variables may not appear in the head.
-% Tuple variables are scoped to aggregate grouping and condition. Using them in
-% the head would leak aggregate-local structure into the rule head.
-:- aggregate_tuple_var(Slot,Var),
-    var_at(head,_,_,Var).
-
-% Constraint: aggregate tuple variables may not appear in another body slot.
-% Slot is the owning aggregate. OtherSlot is any different body slot. Tuple Var
-% must stay internal to its aggregate literal.
-:- aggregate_tuple_var(Slot,Var),
-    var_at(body,OtherSlot,_,Var),
-    OtherSlot != Slot.
-
-% Constraint: aggregate tuple variables may appear only in aggregate internals.
-% Arg is a position in the same Slot using tuple Var. aggregate_internal_arg
-% allows tuple and condition positions, but excludes the result position.
-:- aggregate_tuple_var(Slot,Var),
-    var_at(body,Slot,Arg,Var),
-    not aggregate_internal_arg(Slot,Arg).
+% Tuple names must remain local. Other aggregate/conditional interiors are
+% independent scopes, not escapes. Heads, results and ordinary body literals
+% make the name global and retain the existing rejection.
+:- aggregate_tuple_var(_,Var), global_context_var(Var).

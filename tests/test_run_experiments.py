@@ -216,7 +216,8 @@ def test_force_replaces_only_selected_namespaced_output(tmp_path, monkeypatch):
                       + '\ndatasets=["coin"]\n[[experiment]]\nid="group/control"\n',
                       encoding="utf-8")
     monkeypatch.setattr(runner, "parse_args", lambda: Namespace(
-        config=config, experiments=["group/control"], force=True, list=False, summary=False))
+        config=config, experiments=["group/control"], force=True, list=False,
+        summary=False, historical_index=False))
     commands = []
     def run(command, **kwargs):
         commands.append(command)
@@ -301,3 +302,24 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
     assert indexed["runs"] == 10
     assert indexed["label"] == "New label"
     assert indexed["overrides"] == {"evaluation.scoring": "cov_program"}
+
+
+def test_historical_index_preserves_saved_runs_and_provenance(tmp_path):
+    experiment = {"id": "saved", "datasets": ["coin"], "runs": 300, "overrides": {}}
+    out_dir = tmp_path / "saved"
+    out_dir.mkdir()
+    write_manifest(out_dir, experiment, "completed_with_failures")
+    manifest_path = out_dir / "experiment.json"
+    original = manifest_path.read_bytes()
+    (out_dir / "dashboard_data.json").write_text('{"schemaVersion":10}')
+    experiment["runs"] = 30
+
+    write_index(tmp_path, [experiment], historical_ids={"saved"})
+
+    [indexed] = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
+    assert indexed["runs"] == 300
+    assert indexed["status"] == "historical"
+    assert indexed["original_status"] == "completed_with_failures"
+    assert indexed["has_dashboard"] is True
+    assert indexed["fingerprint"] == json.loads(original)["fingerprint"]
+    assert manifest_path.read_bytes() == original

@@ -18,19 +18,36 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 #neg({p(1,1),p(2,2),p(1,3),p(1,4),p(1,5),p(2,6),p(1,7),p(2,8),p(1,9),p(2,10),p(2,11),p(1,12)}, {}).
 #neg({p(1,1),p(2,2),p(2,3),p(1,4),p(2,5),p(2,6),p(2,7),p(1,8),p(2,9),p(1,10),p(2,11),p(1,12)}, {}).
 
-% Explicit hypothesis space: 910 candidate clauses.
+% Explicit hypothesis space: 1141 candidate clauses.
+2 ~ :- #sum{V0:sq(V1,V0)}=V2,#count{V1:p(V0,V1)}=V2.
+3 ~ :- #sum{V0:sq(V1,V0)}=V2,#count{V1:p(V0,V1)}=V3,V2-V3!=0.
+2 ~ :- #sum{V0:sq(V1,V0)}=V2,#count{V3:p(V0,V3)}=V2.
+2 ~ :- #sum{V0:sq(V1,V0)}=V2,#count{V3:p(V1,V3)}=V2.
 2 ~ :- count_partition(V0,V1),#count{V2:p(V0,V2)}=V1.
 3 ~ :- count_partition(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+3 ~ :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+4 ~ :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 3 ~ :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+3 ~ :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 2 ~ :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1.
+4 ~ :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1,V1-V3!=0.
+4 ~ :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+3 ~ :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 3 ~ :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
+3 ~ :- count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+3 ~ :- count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+3 ~ :- count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 2 ~ :- count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1.
 4 ~ :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1,V1-V2!=0.
 3 ~ :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1.
 4 ~ :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2,V1-V2!=0.
 3 ~ :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2.
+4 ~ :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V2.
 4 ~ :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,V1-V2!=0.
 3 ~ :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1.
+4 ~ :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V1.
+4 ~ :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V2.
 4 ~ :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,V1-V2!=0.
 3 ~ :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2.
 3 ~ :- count_partition(V0,V1),count_partition(V0,V2),V1-V2!=0.
@@ -41,7 +58,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 4 ~ :- count_partition(V0,V1),count_partition(V0,V2),partition(V0),V1-V2!=0.
 3 ~ :- count_partition(V0,V1),count_partition(V2,V1),#count{V3:p(V0,V3)}=V1.
 3 ~ :- count_partition(V0,V1),count_partition(V2,V1),#count{V3:p(V2,V3)}=V1.
+4 ~ :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1.
+4 ~ :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1.
 4 ~ :- count_partition(V0,V1),count_partition(V2,V1),partition(V0),#count{V3:p(V0,V3)}=V1.
 4 ~ :- count_partition(V0,V1),count_partition(V2,V1),partition(V0),#count{V3:p(V2,V3)}=V1.
@@ -56,26 +77,55 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 4 ~ :- count_partition(V0,V1),count_partition(V2,V3),partition(V2),V1-V3!=0.
 3 ~ :- count_partition(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V1.
 4 ~ :- count_partition(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V1.
 4 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1.
+4 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 4 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
+4 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+4 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1.
 2 ~ :- count_partition(V0,V1),partition(V0).
 3 ~ :- count_partition(V0,V1),partition(V2),#count{V3:p(V2,V3)}=V1.
+4 ~ :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
+4 ~ :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1.
 1 ~ :- count_partition(V0,V1).
+3 ~ :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V1:p(V0,V1)}=V2.
+4 ~ :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V1:p(V0,V1)}=V3,V2-V3!=0.
 3 ~ :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V3:p(V0,V3)}=V2.
+3 ~ :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V3:p(V1,V3)}=V2.
+3 ~ :- partition(V0),#sum{V1:sq(V2,V1)}=V3,#count{V1:p(V0,V1)}=V3.
+3 ~ :- partition(V0),#sum{V1:sq(V2,V1)}=V3,#count{V2:p(V0,V2)}=V3.
 2 ~ :- sum_partition_sq(V0,V1),#count{V2:p(V0,V2)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+3 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 3 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+3 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 2 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1,V1-V3!=0.
+4 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+3 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 3 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
+3 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+3 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+3 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 2 ~ :- sum_partition_sq(V0,V1),#sum{V2:sq(V3,V2)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#count{V2:p(V0,V2)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2.
@@ -99,8 +149,12 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2,V1-V2!=0.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V2.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,V1-V2!=0.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V2.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,V1-V2!=0.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2),V1-V2!=0.
@@ -122,7 +176,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 2 ~ :- sum_partition_sq(V0,V1),count_partition(V0,V2).
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),#count{V3:p(V0,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),#count{V3:p(V2,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),count_partition(V2,V3),V1-V3!=0.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V1),partition(V0),#count{V3:p(V0,V3)}=V1.
@@ -141,19 +199,32 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 4 ~ :- sum_partition_sq(V0,V1),count_partition(V2,V3),partition(V2),V1-V3!=0.
 3 ~ :- sum_partition_sq(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 4 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
+4 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1.
 2 ~ :- sum_partition_sq(V0,V1),partition(V0).
 3 ~ :- sum_partition_sq(V0,V1),partition(V2),#count{V3:p(V2,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V1,V1-V2!=0.
 3 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V2,V1-V2!=0.
 3 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V2.
+4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V2.
 4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1,V1-V2!=0.
 3 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V2.
 4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2,V1-V2!=0.
 3 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2.
 3 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),V1-V2!=0.
@@ -179,7 +250,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),partition(V0),V1-V2!=0.
 3 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#count{V3:p(V0,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#count{V3:p(V2,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V2,V3)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),count_partition(V0,V1),#count{V3:p(V0,V3)}=V1.
 4 ~ :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),count_partition(V0,V1),#count{V3:p(V2,V3)}=V1.
@@ -220,16 +295,29 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 1 ~ :- sum_partition_sq(V0,V1).
 3 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#count{V2:p(V0,V2)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1,V1-V3!=0.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
+4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),#sum{V2:sq(V3,V2)}=V1.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1,V1-V2!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2,V1-V2!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V2.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,V1-V2!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V2.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,V1-V2!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2),V1-V2!=0.
@@ -251,7 +339,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V2).
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#count{V3:p(V0,V3)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#count{V3:p(V2,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),count_partition(V2,V3),V1-V3!=0.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),partition(V0),#count{V3:p(V0,V3)}=V1.
@@ -270,19 +362,32 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V3),partition(V2),V1-V3!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V1.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V1.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1.
 3 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V0).
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V2),#count{V3:p(V2,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V1,V1-V2!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V1.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V2,V1-V2!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V2.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V2.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1,V1-V2!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V2.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2,V1-V2!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),V1-V2!=0.
@@ -309,7 +414,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),partition(V0),V1-V2!=0.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#count{V3:p(V0,V3)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#count{V3:p(V2,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V2,V3)}=V1.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),count_partition(V0,V3),V1-V3!=0.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),count_partition(V0,V3),count_partition(V2,V1).
@@ -352,14 +461,21 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 5 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V3),partition(V2),V1-V3!=0.
 2 ~ count_partition(V0,V1) :- sum_partition_sq(V0,V1).
 3 ~ count_partition(V0,V2) :- partition(V0),#count{V1:p(V0,V1)}=V2.
+4 ~ count_partition(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V1:p(V0,V1)}=V2.
+5 ~ count_partition(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V1:p(V0,V1)}=V3,V2-V3!=0.
 4 ~ count_partition(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V3:p(V0,V3)}=V2.
+4 ~ count_partition(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V3:p(V1,V3)}=V2.
 3 ~ count_partition(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2.
 5 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V1,V1-V2!=0.
 4 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V1.
 5 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V2,V1-V2!=0.
 4 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#count{V3:p(V0,V3)}=V2.
+5 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V2.
 5 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1,V1-V2!=0.
 4 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V2.
 5 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2,V1-V2!=0.
 4 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),#sum{V3:sq(V0,V3)}=V2.
 4 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),V1-V2!=0.
@@ -386,6 +502,12 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 5 ~ count_partition(V0,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),partition(V0),V1-V2!=0.
 4 ~ count_partition(V0,V3) :- count_partition(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 3 ~ count_partition(V0,V3) :- count_partition(V0,V1),#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ count_partition(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1,V1-V3!=0.
+4 ~ count_partition(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ count_partition(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ count_partition(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 4 ~ count_partition(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 3 ~ count_partition(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3.
 4 ~ count_partition(V0,V3) :- count_partition(V0,V1),count_partition(V2,V3),V1-V3!=0.
@@ -396,15 +518,31 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ count_partition(V0,V3) :- count_partition(V0,V1),count_partition(V2,V3).
 5 ~ count_partition(V0,V3) :- count_partition(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 4 ~ count_partition(V0,V3) :- count_partition(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ count_partition(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 5 ~ count_partition(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 4 ~ count_partition(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V1:p(V0,V1)}=V3,V2-V3!=0.
+4 ~ count_partition(V0,V3) :- partition(V0),#sum{V1:sq(V2,V1)}=V3,#count{V1:p(V0,V1)}=V3.
+4 ~ count_partition(V0,V3) :- partition(V0),#sum{V1:sq(V2,V1)}=V3,#count{V2:p(V0,V2)}=V3.
+4 ~ count_partition(V0,V3) :- partition(V0),#sum{V1:sq(V2,V1)}=V3,#count{V2:p(V1,V2)}=V3.
 3 ~ count_partition(V0,V3) :- partition(V0),#sum{V1:sq(V2,V1)}=V3.
 4 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 3 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1,V1-V3!=0.
+4 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 4 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 3 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3.
 5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 4 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 4 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3.
 5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),count_partition(V2,V3),V1-V3!=0.
@@ -425,6 +563,9 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V2,V3).
 5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 4 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 4 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3.
 5 ~ count_partition(V0,V3) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),count_partition(V0,V1),count_partition(V2,V3).
@@ -462,7 +603,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ count_partition(V2,V1) :- count_partition(V0,V1),count_partition(V2,V3).
 4 ~ count_partition(V2,V1) :- count_partition(V0,V1),partition(V2),#count{V3:p(V0,V3)}=V1.
 4 ~ count_partition(V2,V1) :- count_partition(V0,V1),partition(V2),#count{V3:p(V2,V3)}=V1.
+5 ~ count_partition(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ count_partition(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1.
 3 ~ count_partition(V2,V1) :- count_partition(V0,V1),partition(V2).
 5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V1),count_partition(V2,V3),V1-V3!=0.
@@ -482,12 +627,20 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V3).
 4 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#count{V3:p(V0,V3)}=V1.
 4 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#count{V3:p(V2,V3)}=V1.
+5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1.
 3 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),partition(V2).
 4 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#count{V3:p(V0,V3)}=V1.
 4 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#count{V3:p(V2,V3)}=V1.
+5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V0,V3)}=V1.
+5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),#sum{V3:sq(V2,V3)}=V1.
 5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),count_partition(V0,V1),#count{V3:p(V0,V3)}=V1.
 5 ~ count_partition(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V1),count_partition(V0,V1),#count{V3:p(V2,V3)}=V1.
@@ -589,16 +742,29 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 5 ~ count_partition(V3,V2) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),partition(V3),V1-V2!=0.
 3 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#count{V2:p(V0,V2)}=V1.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1,V1-V3!=0.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
+4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 3 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),#sum{V2:sq(V3,V2)}=V1.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V2.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V2.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),V1-V2!=0.
@@ -609,7 +775,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V0,V2),partition(V0),V1-V2!=0.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),#count{V3:p(V0,V3)}=V1.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),#count{V3:p(V2,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),partition(V0),#count{V3:p(V0,V3)}=V1.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V1),partition(V0),#count{V3:p(V2,V3)}=V1.
@@ -625,20 +795,33 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),count_partition(V2,V3),partition(V2),V1-V3!=0.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V1.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V1.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V2:p(V0,V2)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V3,V2)}=V1.
 3 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V0).
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V2),#count{V3:p(V2,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1.
 2 ~ sum_partition_sq(V0,V1) :- count_partition(V0,V1).
 5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1.
 5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2.
+5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V2.
 5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V2.
 5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2.
 4 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),V1-V2!=0.
@@ -648,7 +831,10 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),partition(V0),#sum{V3:sq(V0,V3)}=V2.
 5 ~ sum_partition_sq(V0,V2) :- count_partition(V0,V1),count_partition(V0,V2),partition(V0),V1-V2!=0.
 3 ~ sum_partition_sq(V0,V2) :- partition(V0),#count{V1:p(V0,V1)}=V2.
+4 ~ sum_partition_sq(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V1:p(V0,V1)}=V2.
+5 ~ sum_partition_sq(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V1:p(V0,V1)}=V3,V2-V3!=0.
 4 ~ sum_partition_sq(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V3:p(V0,V3)}=V2.
+4 ~ sum_partition_sq(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V3:p(V1,V3)}=V2.
 3 ~ sum_partition_sq(V0,V2) :- partition(V0),#sum{V1:sq(V0,V1)}=V2.
 5 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1.
 5 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2.
@@ -661,8 +847,12 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 4 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V1.
 5 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#count{V3:p(V0,V3)}=V2.
+5 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V2.
 5 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,#count{V3:p(V0,V3)}=V2.
 5 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2,V1-V2!=0.
 4 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),#sum{V3:sq(V0,V3)}=V2.
 4 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2),V1-V2!=0.
@@ -684,6 +874,12 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ sum_partition_sq(V0,V2) :- sum_partition_sq(V0,V1),count_partition(V0,V2).
 4 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 3 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1,V1-V3!=0.
+4 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 4 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 3 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3.
 4 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),count_partition(V2,V3),V1-V3!=0.
@@ -694,15 +890,31 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),count_partition(V2,V3).
 5 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 4 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 5 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 4 ~ sum_partition_sq(V0,V3) :- count_partition(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- partition(V0),#sum{V1:sq(V0,V1)}=V2,#count{V1:p(V0,V1)}=V3,V2-V3!=0.
+4 ~ sum_partition_sq(V0,V3) :- partition(V0),#sum{V1:sq(V2,V1)}=V3,#count{V1:p(V0,V1)}=V3.
+4 ~ sum_partition_sq(V0,V3) :- partition(V0),#sum{V1:sq(V2,V1)}=V3,#count{V2:p(V0,V2)}=V3.
+4 ~ sum_partition_sq(V0,V3) :- partition(V0),#sum{V1:sq(V2,V1)}=V3,#count{V2:p(V1,V2)}=V3.
 3 ~ sum_partition_sq(V0,V3) :- partition(V0),#sum{V1:sq(V2,V1)}=V3.
 4 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 3 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1,V1-V3!=0.
+4 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3,V1-V3!=0.
+4 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 4 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 3 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),#sum{V2:sq(V0,V2)}=V3.
 5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 4 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 4 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),#sum{V2:sq(V0,V2)}=V3.
 5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V0,V1),count_partition(V2,V3),V1-V3!=0.
@@ -726,6 +938,9 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),count_partition(V2,V3).
 5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3,V1-V3!=0.
 4 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V1,#count{V2:p(V0,V2)}=V3.
+5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V1.
+5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,#count{V2:p(V0,V2)}=V3.
 5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3,V1-V3!=0.
 4 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),partition(V0),#sum{V2:sq(V0,V2)}=V3.
 5 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),sum_partition_sq(V0,V2),count_partition(V0,V3),V1-V2!=0.
@@ -770,7 +985,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ sum_partition_sq(V0,V3) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V3).
 4 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),#count{V3:p(V0,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),#count{V3:p(V2,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1.
 5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),partition(V0),#count{V3:p(V0,V3)}=V1.
 5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V1),partition(V0),#count{V3:p(V2,V3)}=V1.
@@ -789,7 +1008,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),count_partition(V2,V3).
 4 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),partition(V2),#count{V3:p(V0,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),partition(V2),#count{V3:p(V2,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1.
 3 ~ sum_partition_sq(V2,V1) :- count_partition(V0,V1),partition(V2).
 5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V1),count_partition(V2,V1),#count{V3:p(V0,V3)}=V1.
@@ -810,7 +1033,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V0,V1),partition(V2).
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#count{V3:p(V0,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#count{V3:p(V2,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),#sum{V3:sq(V2,V3)}=V1.
 5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),count_partition(V2,V3),V1-V3!=0.
 5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V1),count_partition(V3,V1),partition(V3).
@@ -833,7 +1060,11 @@ sq(Partition,Val):- p(Partition,V), Val = V*V.
 3 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),count_partition(V2,V3).
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#count{V3:p(V0,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#count{V3:p(V2,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V0,V3)}=V1.
+5 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1,#count{V3:p(V2,V3)}=V1.
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),partition(V2),#sum{V3:sq(V2,V3)}=V1.
 3 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),partition(V2).
 4 ~ sum_partition_sq(V2,V1) :- sum_partition_sq(V0,V1),sum_partition_sq(V2,V3),V1-V3!=0.

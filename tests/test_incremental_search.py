@@ -1,4 +1,5 @@
 import random
+import importlib
 from contextlib import contextmanager
 
 
@@ -18,6 +19,40 @@ from gentians.algorithms.incremental_clause_genetic import incremental_clause_ge
 from gentians.evaluation.evaluator import CandidateEvaluator
 from gentians.evaluation.result import EvaluationResult
 from tests.task_helpers import example, inductive_task, make_clause_space
+
+
+@pytest.mark.parametrize("algorithm", ["steady_state_genetic", "incremental_clause_genetic"])
+def test_unlimited_search_stops_after_all_subsets_are_evaluated(monkeypatch, algorithm):
+    search = importlib.import_module(f"gentians.algorithms.{algorithm}")
+
+    def bounded_count():
+        yield from range(10)
+        raise AssertionError("search kept running after the finite space was evaluated")
+
+    monkeypatch.setattr(search, "count", bounded_count)
+    args = Arguments(
+        iterations_genetic=0, random_seed=1,
+        population={"name": "random", "size": 2},
+        incremental={"batch_size": 2, "epoch_generations": 1, "elite_count": 1},
+    )
+    task = inductive_task(
+        [], [example(("target(c)", ""), True)], [], [], [], max_program_clauses=1,
+    )
+    result = getattr(search, f"{algorithm}_search")(
+        args, task, make_clause_space(["target(a).", "target(b)."]),
+    )
+    assert not result.is_solution
+    assert result.hypothesis in (("target(a).",), ("target(b).",))
+
+
+def test_exhaustion_requires_all_subsets_and_a_full_active_space():
+    task = inductive_task([], [], [], [], [], max_program_clauses=2)
+    hypotheses = HypothesisGenerator(task, make_clause_space(["p.", "q.", "r."]), 2)
+    assert not hypotheses.all_subsets_evaluated(3)  # Singles do not exhaust pairs.
+    assert hypotheses.all_subsets_evaluated(6)
+    hypotheses.set_available_clauses(hypotheses.encode(("p.",)))
+    assert not hypotheses.all_subsets_evaluated(1)
+    assert not hypotheses.all_subsets_evaluated(6)
 
 
 

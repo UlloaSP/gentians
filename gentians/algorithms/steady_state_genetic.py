@@ -152,6 +152,8 @@ def steady_state_genetic_search(
         fitness_evaluations=evaluations,
     )
     for generation in generations:
+        if hypotheses.all_subsets_evaluated(len(evaluated)):
+            break
         population.sort(key=lambda item: item.score, reverse=True)
         best_overall = _better(best_overall, population[0])
         with phase("selection"):

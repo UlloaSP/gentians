@@ -419,6 +419,12 @@ nonempty aggregate element, positive atomic conditions, and one equality
 result. Recall limits uses of that complete template. `#modeagg` is retired and
 rejected explicitly.
 
+Separate aggregates can reuse local variable names within `#maxv`; those local
+bindings do not connect the aggregates or satisfy global inputs. Global uses
+retain the safety checks described in [the language contract](docs/language-bias.md).
+For a sum that must count repeated values at different positions, retain the
+position in its tuple: `#sum{X,P:d(P,X)}` rather than `#sum{X:d(P,X)}`.
+
 Aggregates can still cause infinite grounding when their conditions do not
 provide a finite grounding domain.
 

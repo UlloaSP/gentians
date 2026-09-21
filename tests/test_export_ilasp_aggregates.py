@@ -12,7 +12,9 @@ from benchmarks.export_ilasp_aggregates import (
 from benchmarks.run_experiments import load_config
 from benchmarks.run_ilasp_experiments import load_experiments
 from gentians.clauses import generate_clause_space
+from gentians.evaluation import create_evaluator
 from gentians.gentians import task_from_arguments
+from gentians.hypotheses import HypothesisGenerator
 from gentians.language.parser import parse_text
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +34,29 @@ def test_checked_in_export_is_complete_and_current(dataset: str) -> None:
     assert b"\r" not in exported.read_bytes()
     assert len(space) > 0
     assert all(clause.body_literals + bool(clause.heads) > 0 for clause in space.entries)
+
+
+@pytest.mark.parametrize(("dataset", "solution"), [
+    ("subset_sum_triple",
+     "ok(V3) :- #sum{V0,V1,V2:el(V0,V1,V2)}=V3,"
+     "#sum{V0,V1,V2:el(V1,V0,V2)}=V3,#sum{V0,V1,V2:el(V1,V2,V0)}=V3."),
+    ("subset_sum_double_and_prod",
+     "ok(V4) :- #sum{V0,V1:el(V0,V1)}=V2,#sum{V0,V1:el(V1,V0)}=V3,V2*V3=V4."),
+    ("subset_sum_double_and_prod_unbalanced",
+     "ok(V4) :- #sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V3,V2*V3=V4."),
+    ("hamming_1_unbalanced",
+     ":- hd(V0),#sum{V1,V2:d(V2,V1)}=V3,V0-V3!=0."),
+])
+def test_previously_unsatisfiable_benchmarks_have_exported_perfect_hypotheses(dataset, solution):
+    arguments = arguments_for(dataset)
+    task = task_from_arguments(arguments)
+    space = generate_clause_space(task, arguments)
+    hypotheses = HypothesisGenerator(task, space, task.max_program_clauses or len(space))
+    genome = hypotheses.encode((solution,))
+    assert create_evaluator(task, arguments.evaluation)(hypotheses.program(genome)).is_solution
+    clause = next(clause for clause in space.entries if clause.text == solution)
+    cost = clause.body_literals + bool(clause.heads)
+    assert f"{cost} ~ {solution}\n" in (ROOT / "benchmarks/ilasp" / f"{dataset}.las").read_text()
 
 
 def test_singleton_choice_translation_preserves_stable_models() -> None:

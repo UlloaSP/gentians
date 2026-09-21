@@ -53,15 +53,18 @@ conditional_positive_condition_var(Section,Slot,Var):-
 conditional_var(Section,Slot,Var):- conditional_main_var(Section,Slot,Var).
 conditional_var(Section,Slot,Var):- conditional_condition_var(Section,Slot,Var).
 
-conditional_global_context_var(Var):-
+% Only occurrences outside local constructs make a name clause-global.
+% Reusing a name inside distinct aggregate/conditional scopes does not bind it.
+global_context_var(Var):-
     selected(Section,Slot,Mode),
     not conditional_mode(Mode,_,_),
-    var_at(Section,Slot,_,Var).
+    var_at(Section,Slot,Arg,Var),
+    not aggregate_internal_position(Section,Slot,Arg).
 
 % Body conditional variables are local unless another literal uses them.
 conditional_local_var(body,Slot,Var):-
     conditional_var(body,Slot,Var),
-    not conditional_global_context_var(Var).
+    not global_context_var(Var).
 
 % A head-conditional variable is local while it is absent from every ordinary
 % literal. Its positive condition, rather than its head conclusion, must bind
@@ -69,13 +72,15 @@ conditional_local_var(body,Slot,Var):-
 % head elements.
 conditional_local_var(head,Slot,Var):-
     conditional_var(head,Slot,Var),
-    not conditional_global_context_var(Var).
+    not global_context_var(Var).
 
 conditional_local_at(Section,Slot,Arg):-
     selected(Section,Slot,Mode),
     conditional_local_var(Section,Slot,Var),
     var_at(Section,Slot,Arg,Var),
     conditional_mode(Mode,_,_).
+
+local_var_at(Section,Slot,Arg):- conditional_local_at(Section,Slot,Arg).
 
 :- conditional_local_var(Section,Slot,Var),
     not conditional_positive_condition_var(Section,Slot,Var).

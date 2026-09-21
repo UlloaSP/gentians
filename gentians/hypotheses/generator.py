@@ -118,6 +118,23 @@ class HypothesisGenerator:
     def program(self, genome: Genome) -> AspProgram:
         return tuple(self.statements[clause_id] for clause_id in self._ids(genome))
 
+    def all_subsets_evaluated(self, evaluated_count: int) -> bool:
+        """Sufficient exhaustion proof, counting even dependency-invalid subsets.
+
+        Callers supply the number of distinct admitted genomes in this space.
+        Reaching the combinatorial upper bound proves exhaustion; falling short
+        proves nothing. Stop counting as soon as that proof is impossible.
+        """
+        if self.available_clauses != self.all_clauses:
+            return False
+        total, combinations = 0, 1
+        for size in range(1, min(self.max_clauses, self.clause_count) + 1):
+            combinations = combinations * (self.clause_count - size + 1) // size
+            total += combinations
+            if total > evaluated_count:
+                return False
+        return total > 0 and total == evaluated_count
+
     @_record_closure_time
     def create(self, rng: random.Random) -> Genome | None:
         available_count = self.available_clauses.bit_count()

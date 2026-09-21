@@ -84,7 +84,7 @@ count_condition_arg_not_tuple_var(Slot,Mode,Offset,Arity):-
 
 count_tuple_var_used_outside(Slot):-
     aggregate_tuple_var(Slot,Var),
-    var_used_outside_body_slot(Slot,Var).
+    global_context_var(Var).
 
 full_local_sum_condition(Slot,Mode,Offset,Arity,Weight):-
     selected(body,Slot,Mode),

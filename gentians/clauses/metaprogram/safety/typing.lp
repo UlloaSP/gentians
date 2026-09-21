@@ -17,15 +17,15 @@ same_variable_scope(Section,Slot,A0,Section,Slot,A1,Var):-
 same_variable_scope(S0,L0,A0,S1,L1,A1,Var):-
     var_at(S0,L0,A0,Var),
     var_at(S1,L1,A1,Var),
-    not conditional_local_at(S0,L0,A0).
+    not local_var_at(S0,L0,A0).
 
 same_variable_scope(S0,L0,A0,S1,L1,A1,Var):-
     var_at(S0,L0,A0,Var),
     var_at(S1,L1,A1,Var),
-    not conditional_local_at(S1,L1,A1).
+    not local_var_at(S1,L1,A1).
 
 % Constraint: a generated variable may not mix two concrete non-any types
-% inside one scope. Separate conditional-local scopes may reuse its name.
+% inside one scope. Separate aggregate/conditional scopes may reuse its name.
 % Section0/Slot0/Arg0 and Section1/Slot1/Arg1 are two typed argument positions
 % using the same Var. Type0 and Type1 are specific declared types. If they
 % differ, no single rendered ASP variable can satisfy both domains.

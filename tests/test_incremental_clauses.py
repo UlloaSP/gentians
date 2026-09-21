@@ -61,7 +61,7 @@ def test_incremental_close_excludes_consumer_time_and_cancels_solver(monkeypatch
         timing.reset()
 
 
-def test_incremental_search_keeps_searching_after_exhaustion(monkeypatch):
+def test_incremental_search_stops_when_enumeration_and_hypotheses_are_exhausted(monkeypatch):
     task = parse_text("#maxv(0). #maxbl(0). #modeh(1,p). #pos({q},{}).")
     generations = []
     monkeypatch.setattr(progress, "record_ga_generation", lambda generation, *a, **kw:
@@ -72,7 +72,7 @@ def test_incremental_search_keeps_searching_after_exhaustion(monkeypatch):
     result = search.incremental_clause_genetic_search(args, task)
     assert result.hypothesis == ("p.",)
     assert not result.is_solution
-    assert generations == list(range(5))
+    assert generations == [0, 1, 2]
 
 
 def test_incremental_search_skips_pruned_batches_until_a_valid_hypothesis(monkeypatch):

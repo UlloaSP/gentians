@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from fractions import Fraction
 
 
 @dataclass(frozen=True, slots=True)
 class LinearConstraint:
-    coefficients: tuple[Fraction, ...]
+    coefficients: tuple[int, ...]
     relation: str
 
     @property
@@ -43,7 +42,7 @@ class LinearConstraint:
     def remap(
         self, variables: dict[int, int], width: int
     ) -> "LinearConstraint":
-        coefficients = [Fraction(0) for _ in range(width)]
+        coefficients = [0 for _ in range(width)]
         for variable, coefficient in enumerate(self.coefficients):
             if coefficient and variable in variables:
                 coefficients[variables[variable]] += coefficient

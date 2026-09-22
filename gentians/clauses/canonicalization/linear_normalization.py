@@ -1,7 +1,6 @@
 from collections.abc import Set
-from fractions import Fraction
 from functools import lru_cache
-from math import gcd, lcm
+from math import gcd
 
 from ...language.ir.arithmetic_literal import ArithmeticLiteral
 from ...language.ir.comparison_literal import ComparisonLiteral
@@ -89,6 +88,7 @@ def _fold_expression(
     return result
 
 
+@lru_cache(maxsize=1024)
 def _is_linear(mode: ClauseMode, allow_disequality: bool) -> bool:
     syntax = mode.literal
     comparison_linear = (
@@ -114,7 +114,7 @@ def _constraint(
     mode: ClauseMode,
     width: int,
 ) -> LinearConstraint:
-    coefficients = [Fraction(0) for _ in range(width)]
+    coefficients = [0 for _ in range(width)]
     if isinstance(mode.literal, ArithmeticLiteral):
         arithmetic = mode.literal
         if arithmetic.linear:
@@ -146,31 +146,32 @@ def _constraint(
     return LinearConstraint(tuple(coefficients), relation)
 
 
+@lru_cache(maxsize=1024)
 def _comparison_linear_template(
     comparison: ComparisonLiteral,
-) -> tuple[tuple[Fraction, ...], Fraction] | None:
+) -> tuple[tuple[int, ...], int] | None:
     if comparison.default_negated or len(comparison.operators) != 1:
         return None
     position = 0
 
     def coefficients(
         term: TermTemplate,
-    ) -> tuple[dict[int, Fraction], Fraction] | None:
+    ) -> tuple[dict[int, int], int] | None:
         nonlocal position
         if term.kind == "variable":
-            result = ({position: Fraction(1)}, Fraction(0))
+            result = ({position: 1}, 0)
             position += 1
             return result
         if term.kind == "fixed":
             try:
-                return {}, Fraction(int(term.value))
+                return {}, int(term.value)
             except ValueError:
                 return None
         if term.kind != "arithmetic":
             return None
         if term.value in {"neg"}:
             value = coefficients(term.arguments[0])
-            return None if value is None else _scale_linear(value, Fraction(-1))
+            return None if value is None else _scale_linear(value, -1)
         if term.value not in {"+", "-", "*"}:
             return None
         left = coefficients(term.arguments[0])
@@ -179,7 +180,7 @@ def _comparison_linear_template(
             return None
         if term.value in {"+", "-"}:
             return _combine_linear(
-                left, right, Fraction(1 if term.value == "+" else -1)
+                left, right, 1 if term.value == "+" else -1
             )
         left_variables, left_constant = left
         right_variables, right_constant = right
@@ -193,26 +194,26 @@ def _comparison_linear_template(
     right = coefficients(comparison.terms[1])
     if left is None or right is None:
         return None
-    values, constant = _combine_linear(left, right, Fraction(-1))
-    return tuple(values.get(index, Fraction(0)) for index in range(position)), constant
+    values, constant = _combine_linear(left, right, -1)
+    return tuple(values.get(index, 0) for index in range(position)), constant
 
 
 def _combine_linear(
-    left: tuple[dict[int, Fraction], Fraction],
-    right: tuple[dict[int, Fraction], Fraction],
-    right_multiplier: Fraction,
-) -> tuple[dict[int, Fraction], Fraction]:
+    left: tuple[dict[int, int], int],
+    right: tuple[dict[int, int], int],
+    right_multiplier: int,
+) -> tuple[dict[int, int], int]:
     values = dict(left[0])
     for position, coefficient in right[0].items():
         values[position] = (
-            values.get(position, Fraction(0)) + coefficient * right_multiplier
+            values.get(position, 0) + coefficient * right_multiplier
         )
     return values, left[1] + right[1] * right_multiplier
 
 
 def _scale_linear(
-    value: tuple[dict[int, Fraction], Fraction], multiplier: Fraction
-) -> tuple[dict[int, Fraction], Fraction]:
+    value: tuple[dict[int, int], int], multiplier: int
+) -> tuple[dict[int, int], int]:
     return (
         {
             position: coefficient * multiplier
@@ -228,69 +229,119 @@ def _normalize_component(
     auxiliary_variables: frozenset[int],
     width: int,
 ) -> tuple[LinearConstraint, ...] | None:
+    """Normalize a connected system of linear ASP integer relations.
+
+    Equality elimination uses integer cross-products followed by primitive-row
+    reduction. It computes reduced row spaces without allocating rational
+    coefficients: task arithmetic contains integer terms and constants, and a
+    positive cross-product preserves the order of comparisons.
+    """
     auxiliary = set(auxiliary_variables)
-    rows = list(constraints)
+    rows = [
+        (list(constraint.coefficients), constraint.relation)
+        for constraint in constraints
+    ]
     while auxiliary:
         pivot = next(
             (
                 (index, variable)
                 for variable in sorted(auxiliary)
-                for index, constraint in enumerate(rows)
-                if constraint.relation == "eq"
-                and abs(constraint.coefficients[variable]) == 1
+                for index, (coefficients, relation) in enumerate(rows)
+                if relation == "eq" and abs(coefficients[variable]) == 1
             ),
             None,
         )
         if pivot is None:
             break
         pivot_index, variable = pivot
-        equation = rows.pop(pivot_index)
-        divisor = equation.coefficients[variable]
-        reduced: list[LinearConstraint] = []
-        for constraint in rows:
-            factor = constraint.coefficients[variable] / divisor
-            coefficients = tuple(
-                value - factor * equation_value
-                for value, equation_value in zip(
-                    constraint.coefficients, equation.coefficients
+        equation, _relation = rows.pop(pivot_index)
+        divisor = equation[variable]
+        reduced: list[tuple[list[int], str]] = []
+        for coefficients, relation in rows:
+            factor = coefficients[variable] // divisor
+            reduced.append(
+                (
+                    [
+                        value - factor * equation_value
+                        for value, equation_value in zip(coefficients, equation)
+                    ],
+                    relation,
                 )
             )
-            reduced.append(LinearConstraint(coefficients, constraint.relation))
         rows = reduced
         auxiliary.remove(variable)
 
-    equations = _rref(
-        [constraint.coefficients for constraint in rows if constraint.relation == "eq"],
-        width,
+    equations = _integer_rref(
+        [tuple(row) for row, relation in rows if relation == "eq"], width
     )
-    comparisons = [constraint for constraint in rows if constraint.relation != "eq"]
+    comparisons = [
+        (tuple(row), relation) for row, relation in rows if relation != "eq"
+    ]
     for equation in equations:
         pivot = next(index for index, value in enumerate(equation) if value)
-        reduced = []
-        for comparison in comparisons:
-            factor = comparison.coefficients[pivot] / equation[pivot]
-            coefficients = tuple(
-                value - factor * equation_value
-                for value, equation_value in zip(comparison.coefficients, equation)
+        pivot_value = equation[pivot]
+        comparisons = [
+            (
+                tuple(
+                    value * pivot_value - coefficients[pivot] * equation_value
+                    for value, equation_value in zip(coefficients, equation)
+                ),
+                relation,
             )
-            reduced.append(LinearConstraint(coefficients, comparison.relation))
-        comparisons = reduced
+            for coefficients, relation in comparisons
+        ]
 
     normalized: set[LinearConstraint] = {
-        LinearConstraint(_primitive(row, allow_sign_flip=True), "eq")
+        LinearConstraint(_primitive_row(row, True), "eq")
         for row in equations
     }
-    for comparison in comparisons:
-        coefficients = _primitive(
-            comparison.coefficients,
-            allow_sign_flip=comparison.relation == "ne",
-        )
+    for row, relation in comparisons:
+        coefficients = _primitive_row(row, relation == "ne")
         if not any(coefficients):
-            if comparison.relation in {"lt", "ne"}:
+            if relation in {"lt", "ne"}:
                 return None
             continue
-        normalized.add(LinearConstraint(coefficients, comparison.relation))
+        normalized.add(LinearConstraint(coefficients, relation))
+    return _finish_normalization(normalized)
 
+
+def _integer_rref(
+    rows: list[tuple[int, ...]], width: int
+) -> tuple[tuple[int, ...], ...]:
+    matrix = [list(_primitive_row(row, True)) for row in rows if any(row)]
+    pivot_row = 0
+    for column in range(width):
+        pivot = next(
+            (row for row in range(pivot_row, len(matrix)) if matrix[row][column]),
+            None,
+        )
+        if pivot is None:
+            continue
+        matrix[pivot_row], matrix[pivot] = matrix[pivot], matrix[pivot_row]
+        pivot_values = matrix[pivot_row]
+        pivot_value = pivot_values[column]
+        for row, values in enumerate(matrix):
+            if row == pivot_row or not values[column]:
+                continue
+            factor = values[column]
+            matrix[row] = list(
+                _primitive_row(
+                    tuple(
+                        value * pivot_value - factor * pivot_coefficient
+                        for value, pivot_coefficient in zip(values, pivot_values)
+                    ),
+                    True,
+                )
+            )
+        pivot_row += 1
+        if pivot_row == len(matrix):
+            break
+    return tuple(tuple(row) for row in matrix if any(row))
+
+
+def _finish_normalization(
+    normalized: set[LinearConstraint],
+) -> tuple[LinearConstraint, ...] | None:
     equalities = {
         constraint.coefficients
         for constraint in normalized
@@ -321,55 +372,19 @@ def _normalize_component(
     return tuple(sorted(normalized, key=_constraint_key))
 
 
-def _rref(
-    rows: list[tuple[Fraction, ...]],
-    width: int,
-) -> tuple[tuple[Fraction, ...], ...]:
-    matrix = [list(row) for row in rows]
-    pivot_row = 0
-    for column in range(width):
-        pivot = next(
-            (row for row in range(pivot_row, len(matrix)) if matrix[row][column]),
-            None,
-        )
-        if pivot is None:
-            continue
-        matrix[pivot_row], matrix[pivot] = matrix[pivot], matrix[pivot_row]
-        divisor = matrix[pivot_row][column]
-        matrix[pivot_row] = [value / divisor for value in matrix[pivot_row]]
-        for row, values in enumerate(matrix):
-            if row == pivot_row or not values[column]:
-                continue
-            factor = values[column]
-            matrix[row] = [
-                value - factor * pivot_value
-                for value, pivot_value in zip(values, matrix[pivot_row])
-            ]
-        pivot_row += 1
-        if pivot_row == len(matrix):
-            break
-    return tuple(tuple(row) for row in matrix if any(row))
-
-
 @lru_cache(maxsize=8192)
-def _primitive(
-    coefficients: tuple[Fraction, ...],
-    *,
-    allow_sign_flip: bool,
-) -> tuple[Fraction, ...]:
-    denominator = 1
-    for coefficient in coefficients:
-        denominator = lcm(denominator, coefficient.denominator)
-    integers = [int(coefficient * denominator) for coefficient in coefficients]
+def _primitive_row(
+    coefficients: tuple[int, ...], allow_sign_flip: bool
+) -> tuple[int, ...]:
     divisor = 0
-    for value in integers:
+    for value in coefficients:
         divisor = gcd(divisor, abs(value))
-    if divisor:
-        integers = [value // divisor for value in integers]
-    first = next((value for value in integers if value), 0)
+    if divisor > 1:
+        coefficients = tuple(value // divisor for value in coefficients)
+    first = next((value for value in coefficients if value), 0)
     if allow_sign_flip and first < 0:
-        integers = [-value for value in integers]
-    return tuple(Fraction(value) for value in integers)
+        return tuple(-value for value in coefficients)
+    return coefficients
 
 
 def _constraint_key(constraint: LinearConstraint) -> tuple[object, ...]:

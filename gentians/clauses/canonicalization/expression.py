@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import lru_cache
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,33 +24,7 @@ class ArithmeticExpression:
 
     @property
     def key(self) -> tuple[object, ...]:
-        if self.variable is not None:
-            return "var", self.variable
-        if self.constant is not None:
-            return "const", self.constant
-        if self.symbol is not None:
-            return "fixed", self.symbol
-        if self.operator in {"+", "-"}:
-            coefficients: dict[tuple[object, ...], int] = {}
-            for key, coefficient in self._additive_terms():
-                coefficients[key] = coefficients.get(key, 0) + coefficient
-            return "sum", tuple(
-                sorted(
-                    (
-                        (key, coefficient)
-                        for key, coefficient in coefficients.items()
-                        if coefficient
-                    ),
-                    key=repr,
-                )
-            )
-        if self.operator == "*":
-            factors = self._multiplicative_factors()
-            return "product", tuple(sorted(factors, key=repr))
-        keys = tuple(argument.key for argument in self.arguments)
-        if self.operator == "abs":
-            keys = tuple(sorted(keys, key=repr))
-        return self.operator, keys
+        return _expression_key(self)
 
     @property
     def variables(self) -> frozenset[int]:
@@ -143,3 +118,35 @@ class ArithmeticExpression:
                 f"{left.render(nested=True)}{self.operator}{right.render(nested=True)}"
             )
         return f"({value})" if nested and self.operator != "abs" else value
+
+
+@lru_cache(maxsize=8192)
+def _expression_key(expression: ArithmeticExpression) -> tuple[object, ...]:
+    """Return the structural normal form shared by equal expression trees."""
+    if expression.variable is not None:
+        return "var", expression.variable
+    if expression.constant is not None:
+        return "const", expression.constant
+    if expression.symbol is not None:
+        return "fixed", expression.symbol
+    if expression.operator in {"+", "-"}:
+        coefficients: dict[tuple[object, ...], int] = {}
+        for key, coefficient in expression._additive_terms():
+            coefficients[key] = coefficients.get(key, 0) + coefficient
+        return "sum", tuple(
+            sorted(
+                (
+                    (key, coefficient)
+                    for key, coefficient in coefficients.items()
+                    if coefficient
+                ),
+                key=repr,
+            )
+        )
+    if expression.operator == "*":
+        factors = expression._multiplicative_factors()
+        return "product", tuple(sorted(factors, key=repr))
+    keys = tuple(argument.key for argument in expression.arguments)
+    if expression.operator == "abs":
+        keys = tuple(sorted(keys, key=repr))
+    return expression.operator, keys

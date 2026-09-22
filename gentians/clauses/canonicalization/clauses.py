@@ -21,9 +21,10 @@ def canonicalize_clauses(
         canonical = canonical_arithmetic_clause(clause, modes, max_variables)
         if canonical is None:
             continue
-        current = representatives.get(canonical.key)
+        key = canonical.key
+        current = representatives.get(key)
         if current is None:
-            representatives[canonical.key] = canonical.render(modes), clause
+            representatives[key] = canonical.render(modes), clause
         elif len(clause.body) > len(current[1].body):
             continue
         elif all(
@@ -32,14 +33,14 @@ def canonicalize_clauses(
             for relation in system.relations
         ):
             if len(clause.body) < len(current[1].body):
-                representatives[canonical.key] = current[0], clause
+                representatives[key] = current[0], clause
         else:
             rendered = canonical.render(modes)
             if (len(clause.body), rendered) < (
                 len(current[1].body),
                 current[0],
             ):
-                representatives[canonical.key] = rendered, clause
+                representatives[key] = rendered, clause
 
     ordered = sorted(
         representatives.values(), key=lambda representative: representative[0]

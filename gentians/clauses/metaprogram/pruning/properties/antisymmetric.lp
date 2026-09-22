@@ -7,7 +7,6 @@
 % acyclic, strict_order, and total_order derive antisymmetric_pred(Pred) in
 % their own files.
 
-#defined antisymmetric_pred/1.
 
 :- positive_body_literal(Slot0, _, Pred, 2),
     positive_body_literal(Slot1, _, Pred, 2),

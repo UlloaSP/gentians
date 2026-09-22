@@ -6,7 +6,6 @@
 % the dependency equates their values, not their syntactic ids. Negative-pair
 % pruning instead requires a proof that the output values differ.
 
-#defined functional_pred/3.
 
 :- positive_body_literal(Slot0, _, Pred, _),
     positive_body_literal(Slot1, _, Pred, _),

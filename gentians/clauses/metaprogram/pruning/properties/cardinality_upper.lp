@@ -2,7 +2,6 @@
 % positive tuples are provably pairwise distinct. Different variable names alone
 % do not establish distinct ground values.
 
-#defined cardinality_upper_pred/2.
 
 positive_body_tuple_known_distinct(Pred, Slot0, Slot1) :-
     positive_body_literal(Slot0, _, Pred, Arity),

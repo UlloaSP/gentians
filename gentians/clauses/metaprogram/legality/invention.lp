@@ -3,8 +3,6 @@
 % Headless clauses cannot consume invented predicates under this language policy.
 % Apply each restriction to ordinary, conditional and aggregate dependencies.
 
-#defined invented_pred/2.
-#defined aggregate_condition_atom/5.
 
 :- head_literal(_, _, HeadPred, _),
     invented_pred(HeadPred, HeadLayer),
@@ -21,27 +19,27 @@
 :- head_literal(_, _, HeadPred, _),
     invented_pred(HeadPred, HeadLayer),
     selected(body, _, Mode),
-    aggregate_condition_atom(Mode, _, BodyPred, _, _),
+    aggregate_condition_atom(Mode, _, BodyPred, _),
     invented_pred(BodyPred, BodyLayer),
     BodyLayer >= HeadLayer.
 
 :- head_literal(_, _, HeadPred, _),
     invented_pred(HeadPred, _),
     normal_literal(body, _, _, BodyPred, _),
-    mode(head, _, BodyPred, _, _),
+    mode_section(HeadMode, head), mode_atom(HeadMode, BodyPred, _),
     not invented_pred(BodyPred, _).
 
 :- head_literal(_, _, HeadPred, _),
     invented_pred(HeadPred, _),
     conditional_dependency(_, _, BodyPred),
-    mode(head, _, BodyPred, _, _),
+    mode_section(HeadMode, head), mode_atom(HeadMode, BodyPred, _),
     not invented_pred(BodyPred, _).
 
 :- head_literal(_, _, HeadPred, _),
     invented_pred(HeadPred, _),
     selected(body, _, Mode),
-    aggregate_condition_atom(Mode, _, BodyPred, _, _),
-    mode(head, _, BodyPred, _, _),
+    aggregate_condition_atom(Mode, _, BodyPred, _),
+    mode_section(HeadMode, head), mode_atom(HeadMode, BodyPred, _),
     not invented_pred(BodyPred, _).
 
 :- not selected_slot(head, _),
@@ -54,5 +52,5 @@
 
 :- not selected_slot(head, _),
     selected(body, _, Mode),
-    aggregate_condition_atom(Mode, _, Pred, _, _),
+    aggregate_condition_atom(Mode, _, Pred, _),
     invented_pred(Pred, _).

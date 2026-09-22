@@ -6,7 +6,6 @@
 % members of one partition are mutex, so this file exports mutex_pred/2 instead
 % of duplicating mutex pruning here.
 
-#defined partition_pred/2.
 
 mutex_pred(Pred0, Pred1) :-
     partition_pred(Part, Pred0),

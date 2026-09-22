@@ -3,7 +3,6 @@
 % matching variables alone would conflate different constants or functors.
 % Pair relations exclude a slot compared with itself.
 
-#defined mode_shape/2.
 
 different_variable_binding(Section0, Slot0, Section1, Slot1) :-
     selected(Section0, Slot0, Mode0),

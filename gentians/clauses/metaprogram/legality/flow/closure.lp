@@ -28,14 +28,14 @@ flow_produced(Var) :-
 ready_arithmetic(Slot) :-
     selected(body, Slot, Mode),
     arithmetic_mode(Mode),
-    var_at(body, Slot, 0, Left),
-    var_at(body, Slot, 1, Right),
+    arithmetic_operand(Slot, left, Left),
+    arithmetic_operand(Slot, right, Right),
     flow_bound(Left),
     flow_bound(Right).
 
 flow_produced(Result) :-
     ready_arithmetic(Slot),
-    var_at(body, Slot, 2, Result).
+    arithmetic_result(Slot, Result).
 
 ready_relation(Slot) :-
     selected(body, Slot, Mode),

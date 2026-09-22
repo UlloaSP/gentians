@@ -2,8 +2,6 @@
 % makes negation of its partner redundant. Strong complements p/n and -p/n use
 % this same rule; two default-negated members remain available.
 
-#defined strong_complement_pred/2.
-#defined mutex_pred/2.
 
 mutex_pred(Pred0, Pred1) :- strong_complement_pred(Pred0, Pred1).
 

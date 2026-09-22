@@ -1,7 +1,6 @@
 % Order conditions of the same template variant by their variable tuples.
 % Variant identity preserves term shape and polarity.
 
-#defined conditional_condition_variant/3.
 
 condition_tuple_gt(Section, Slot, Left, Right) :-
     selected(Section, Slot, Mode),

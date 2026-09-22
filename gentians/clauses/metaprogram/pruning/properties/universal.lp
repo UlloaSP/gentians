@@ -2,12 +2,10 @@
 % bound by another positive literal. Its negation is impossible. Binary universal
 % predicates also supply reflexivity for self-pair pruning.
 
-#defined universal_pred/1.
-#defined mode/5.
 
 reflexive_pred(Pred) :-
     universal_pred(Pred),
-    mode(_, _, Pred, 2, _).
+    mode_atom(_, Pred, 2).
 
 universal_literal_missing_guard(Slot) :-
     positive_body_literal(Slot, _, Pred, _),

@@ -3,11 +3,6 @@
 % clause_body_size includes attached conditions and supplies incremental solves.
 % Gapless slots and canonical ordering are enforced in symmetry/slots.lp.
 
-#defined enumerate_by_size/0.
-#defined max_vars/1.
-#defined max_body/1.
-#defined mode/5.
-#defined head_form_member/3.
 
 body_count(Count) :- Count = #count{Slot : selected_slot(body, Slot)}.
 
@@ -30,6 +25,6 @@ selected(head, Slot, Mode) :-
     selected_head_form(Form),
     head_form_member(Form, Slot, Mode).
 
-0 { selected(body, Slot, Mode) : mode(body, Mode, _, _, _) } 1 :- body_slot(Slot).
+0 { selected(body, Slot, Mode) : mode_section(Mode, body) } 1 :- body_slot(Slot).
 
 selected_slot(Section, Slot) :- selected(Section, Slot, _).

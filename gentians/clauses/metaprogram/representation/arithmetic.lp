@@ -2,27 +2,32 @@
 % mode flags preserve the compiler eligibility checks; these are not a new
 % operator alphabet. Variable arguments are ids, not numeric values.
 
-#defined add_mode/1.
-#defined mul_mode/1.
-#defined div_mode/1.
-#defined mod_mode/1.
+
+
+arithmetic_operand(Slot, Side, Variable) :-
+    selected(body, Slot, Mode), mode_arithmetic_operand(Mode, Side, Position),
+    var_at(body, Slot, Position, Variable).
+
+arithmetic_result(Slot, Variable) :-
+    selected(body, Slot, Mode), mode_arithmetic_result(Mode, Position),
+    var_at(body, Slot, Position, Variable).
 
 addition(Slot, Left, Right, Result) :-
     selected(body, Slot, Mode), add_mode(Mode),
-    var_at(body, Slot, 0, Left), var_at(body, Slot, 1, Right),
-    var_at(body, Slot, 2, Result).
+    arithmetic_operand(Slot, left, Left), arithmetic_operand(Slot, right, Right),
+    arithmetic_result(Slot, Result).
 
 multiplication(Slot, Left, Right, Result) :-
     selected(body, Slot, Mode), mul_mode(Mode),
-    var_at(body, Slot, 0, Left), var_at(body, Slot, 1, Right),
-    var_at(body, Slot, 2, Result).
+    arithmetic_operand(Slot, left, Left), arithmetic_operand(Slot, right, Right),
+    arithmetic_result(Slot, Result).
 
 division(Slot, Left, Right, Result) :-
     selected(body, Slot, Mode), div_mode(Mode),
-    var_at(body, Slot, 0, Left), var_at(body, Slot, 1, Right),
-    var_at(body, Slot, 2, Result).
+    arithmetic_operand(Slot, left, Left), arithmetic_operand(Slot, right, Right),
+    arithmetic_result(Slot, Result).
 
 modulo(Slot, Left, Right, Result) :-
     selected(body, Slot, Mode), mod_mode(Mode),
-    var_at(body, Slot, 0, Left), var_at(body, Slot, 1, Right),
-    var_at(body, Slot, 2, Result).
+    arithmetic_operand(Slot, left, Left), arithmetic_operand(Slot, right, Right),
+    arithmetic_result(Slot, Result).

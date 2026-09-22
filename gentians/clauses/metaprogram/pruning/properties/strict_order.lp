@@ -5,7 +5,6 @@
 % Acyclic predicates already derive irreflexive and antisymmetric atoms, so this
 % file does not duplicate those bridge rules.
 
-#defined strict_order_pred/1.
 
 transitive_pred(Pred) :- strict_order_pred(Pred).
 

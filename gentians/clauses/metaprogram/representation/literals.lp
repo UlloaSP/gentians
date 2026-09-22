@@ -2,29 +2,19 @@
 % Normal literals exclude comparisons, arithmetic, aggregates and conditionals.
 % Head classification also includes conclusions of conditional head elements.
 
-#defined mode/5.
-#defined negative_mode/1.
 
 positive_mode(Mode) :-
-    mode(_, Mode, _, _, _),
+    mode_kind(Mode, _),
     not negative_mode(Mode).
 
-non_normal_mode(Mode) :- comparison_mode(Mode).
+normal_mode(Mode) :- mode_kind(Mode, normal).
 
-non_normal_mode(Mode) :- arithmetic_mode(Mode).
-
-non_normal_mode(Mode) :- aggregate_mode(Mode, _, _).
-
-non_normal_mode(Mode) :- conditional_mode(Mode, _, _).
-
-normal_mode(Mode) :-
-    mode(_, Mode, _, _, _),
-    not non_normal_mode(Mode).
+conditional_mode(Mode) :- mode_kind(Mode, conditional).
 
 normal_literal(Section, Slot, Mode, Pred, Arity) :-
     selected(Section, Slot, Mode),
     normal_mode(Mode),
-    mode(Section, Mode, Pred, Arity, _).
+    mode_atom(Mode, Pred, Arity).
 
 positive_normal_literal(Section, Slot, Mode, Pred, Arity) :-
     normal_literal(Section, Slot, Mode, Pred, Arity),

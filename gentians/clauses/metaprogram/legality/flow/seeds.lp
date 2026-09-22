@@ -4,7 +4,7 @@
 
 flow_produced(Var) :-
     selected(head, Slot, Mode),
-    not conditional_mode(Mode, _, _),
+    not conditional_mode(Mode),
     mode_arg_direction(Mode, Arg, input),
     var_at(head, Slot, Arg, Var).
 

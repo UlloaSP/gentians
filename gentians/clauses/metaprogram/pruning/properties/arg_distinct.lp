@@ -7,8 +7,6 @@
 % This file rejects generated literals that assign the same variable to those
 % positions.
 
-#defined arg_distinct_pred/3.
-#defined aggregate_condition_atom/5.
 
 arg_distinct_self_pair_owned_by_irreflexive(Slot, Mode, Pred) :-
     positive_body_literal(Slot, Mode, Pred, 2),
@@ -22,7 +20,7 @@ arg_distinct_self_pair_owned_by_irreflexive(Slot, Mode, Pred) :-
     not arg_distinct_self_pair_owned_by_irreflexive(Slot, Mode, Pred).
 
 :- selected(body, Slot, Mode),
-    aggregate_condition_atom(Mode, _, Pred, Offset, _),
+    aggregate_condition_atom(Mode, _, Pred, _),
     arg_distinct_pred(Pred, LocalArg0, LocalArg1),
     aggregate_condition_arg(Slot, Pred, LocalArg0, Var),
     aggregate_condition_arg(Slot, Pred, LocalArg1, Var).

@@ -28,20 +28,19 @@ comparison_var(Var) :-
 arithmetic_operand_var(Var) :-
     selected(body, Slot, Mode),
     arithmetic_mode(Mode),
-    Arg = 0..1,
-    var_at(body, Slot, Arg, Var).
+    arithmetic_operand(Slot, _, Var).
 
 arithmetic_result_safe(Slot) :-
     selected(body, Slot, Mode),
     arithmetic_mode(Mode),
-    var_at(body, Slot, 0, Left),
-    var_at(body, Slot, 1, Right),
+    arithmetic_operand(Slot, left, Left),
+    arithmetic_operand(Slot, right, Right),
     asp_safe(Left),
     asp_safe(Right).
 
 asp_safe(Var) :-
     arithmetic_result_safe(Slot),
-    var_at(body, Slot, 2, Var).
+    arithmetic_result(Slot, Var).
 
 :- head_var(Var), not asp_safe(Var).
 

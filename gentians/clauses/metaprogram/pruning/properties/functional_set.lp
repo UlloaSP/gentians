@@ -6,8 +6,6 @@
 % are excluded by the variable-identification policy, not because different ids
 % prove different values. Negative-pair pruning requires known unequal values.
 
-#defined functional_set_pred/3.
-#defined functional_set_arg/2.
 
 fd_inputs_differ(Slot0, Slot1, Fd) :-
     functional_set_arg(Fd, Input),

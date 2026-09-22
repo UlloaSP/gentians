@@ -12,7 +12,10 @@ language and pruning rules are shared.
 | Task declarations, predicate types and observed AST evidence | `analysis/task.py`, `analysis/ast_inspection.py` |
 | Ground relations and numeric/nominal domains | `analysis/ground_relations.py`, `analysis/domains.py` |
 | Property inference from ASP rules and ground relations | `analysis/inference.py`, `analysis/rule_properties.py`, `analysis/relation_properties.py` |
-| Mode expansion and ASP fact emission | `mode_compiler.py`, `fact_compiler.py` |
+| Mode expansion | `mode_compiler.py` |
+| ASP fact assembly | `fact_compiler.py` |
+| Mode representation facts | `mode_facts.py` |
+| Static predicate-property facts | `property_facts.py` |
 | Declarative legality and redundancy checks during enumeration | `metaprogram/` |
 | Positive-only constraint proof and post-model theta pruning | `pruning.py` |
 | Clingo model decoding | `decoder.py` |
@@ -21,8 +24,14 @@ language and pruning rules are shared.
 | Arithmetic systems, expressions and constraint values | The remaining class modules in `canonicalization/` |
 
 The generator obtains static evidence from `analysis/` before passing it to
-`fact_compiler.py`. The compiler translates the supplied properties and numeric
-domain into facts; it does not infer them. `pruning.py` supplies the conservative
+`fact_compiler.py`. This module assembles the fact program but does not infer
+new evidence. `property_facts.py` translates the supplied static properties;
+`mode_facts.py` declares each mode's section, kind, recall, predicate signature
+and argument roles from its flattened variable bindings. Fixed terms consume no
+binding position. Aggregate internal positions derive from the tuple and
+condition mappings instead of being emitted a second time.
+`metaprogram/representation/` combines those static facts with the selected
+bindings. `pruning.py` supplies the conservative
 proof that enables optional-constraint pruning in ASP. The metaprogram still
 owns checks over selected modes and variable assignments.
 
@@ -48,7 +57,7 @@ stages.
 
 | Directory | Responsibility |
 | --- | --- |
-| `representation/` | Selected modes, bindings and semantic views of literals, operators and aggregates. |
+| `representation/` | Central input schema plus selected modes, bindings and semantic views of literals, operators and aggregates. |
 | `inference/` | Numeric consequences of selected relations and supplied domain evidence. |
 | `legality/` | Structural limits, recalls, labels, invention, scopes, types and safety. `flow/` separates binding roles, seeds, closure and requirements. |
 | `symmetry/` | Ordered representatives of interchangeable encodings. |

@@ -5,7 +5,6 @@
 % antisymmetric, and transitive; this file exports those base-property atoms and
 % keeps only the totality-specific pruning.
 
-#defined total_order_pred/1.
 
 reflexive_pred(Pred) :- total_order_pred(Pred).
 

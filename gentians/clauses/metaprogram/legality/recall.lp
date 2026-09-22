@@ -2,9 +2,6 @@
 % A shared recall group uses its tightest cap. Condition recalls are shared
 % across every attachment in the clause, including head attachments.
 
-#defined mode_condition_usage/3.
-#defined condition_group_recall/2.
-#defined recall_group/2.
 
 selected_condition_group_count(Group, Count) :-
     condition_group_recall(Group, _),
@@ -20,7 +17,7 @@ selected_condition_group_count(Group, Count) :-
 
 group_recall(Group, Recall) :-
     recall_group(_, Group),
-    Recall = #min{ModeRecall : recall_group(Mode, Group), mode(_, Mode, _, _, ModeRecall)}.
+    Recall = #min{ModeRecall : recall_group(Mode, Group), mode_recall(Mode, ModeRecall)}.
 
 selected_count(Group, Count) :-
     group_recall(Group, Recall),

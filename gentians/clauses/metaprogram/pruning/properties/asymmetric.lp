@@ -5,7 +5,6 @@
 % and antisymmetry, so this file exports those base-property atoms instead of
 % duplicating their constraints here.
 
-#defined asymmetric_pred/1.
 
 irreflexive_pred(Pred) :- asymmetric_pred(Pred).
 

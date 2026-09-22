@@ -6,7 +6,6 @@
 % only equivalent-specific duplicate pruning that implication cannot express:
 % duplicate head literals and duplicate negated body literals.
 
-#defined equivalent_pred/2.
 
 equivalent_pair(Pred0, Pred1) :- equivalent_pred(Pred0, Pred1).
 

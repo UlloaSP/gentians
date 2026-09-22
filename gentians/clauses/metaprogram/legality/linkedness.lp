@@ -2,8 +2,6 @@
 % Local names do not connect independent scopes. Elements of a selected choice
 % head are connected by that head even when they use different variables.
 
-#defined aggregate_head_form/1.
-#defined head_form_member/3.
 
 clause_var_at(Section, Slot, Arg, Var) :-
     var_at(Section, Slot, Arg, Var),

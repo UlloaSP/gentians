@@ -4,7 +4,6 @@
 % the closed-world evidence. Positive uses are impossible; negative uses are
 % redundant because not Pred(...) is always true.
 
-#defined empty_pred/1.
 
 :- positive_body_literal(Slot, _, Pred, _),
     empty_pred(Pred).

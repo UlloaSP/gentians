@@ -5,7 +5,6 @@
 % properties such as strict_order and total_order derive transitive_pred(Pred)
 % in their own files.
 
-#defined transitive_pred/1.
 
 :- positive_body_literal(Slot0, _, Pred, 2),
     positive_body_literal(Slot1, _, Pred, 2),

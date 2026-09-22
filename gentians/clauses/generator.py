@@ -53,6 +53,7 @@ def _raise_on_clingo_error(code, message):
 
 
 CLAUSE_METAPROGRAM_MODULES = (
+    "representation/schema.lp",
     "representation/aggregates.lp",
     "representation/arguments.lp",
     "representation/arithmetic.lp",

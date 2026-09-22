@@ -1,6 +1,5 @@
 % Reject repeated conditions with identical template variant and bindings.
 
-#defined conditional_condition_variant/3.
 
 same_condition_vars(Section, Slot, Left, Right) :-
     selected(Section, Slot, Mode),

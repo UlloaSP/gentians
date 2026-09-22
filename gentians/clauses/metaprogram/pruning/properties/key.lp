@@ -7,8 +7,6 @@
 % functional_set_pred/3 and functional_set_arg/2 instead of duplicating
 % functional dependency pruning here.
 
-#defined key_pred/2.
-#defined key_arg/2.
 
 % The symbolic id key(Key) cannot collide with Python's integer dependency ids.
 

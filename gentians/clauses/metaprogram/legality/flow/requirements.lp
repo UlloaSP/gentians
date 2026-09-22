@@ -20,7 +20,7 @@
 :- selected(body, Slot, Mode), directed_mode(Mode), not ready_literal(Slot).
 
 :- selected(head, Slot, Mode),
-    not conditional_mode(Mode, _, _),
+    not conditional_mode(Mode),
     mode_arg_direction(Mode, Arg, output),
     var_at(head, Slot, Arg, Var),
     not flow_produced(Var).

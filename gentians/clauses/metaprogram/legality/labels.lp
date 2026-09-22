@@ -1,8 +1,6 @@
 % Labels constrain identity within a mode and across one complete head form.
 % Equal labels share a variable; different labels must use different variables.
 
-#defined head_arg_label/4.
-#defined mode_arg_label/3.
 
 head_label_var(Form, Label, Var) :-
     selected_head_form(Form),

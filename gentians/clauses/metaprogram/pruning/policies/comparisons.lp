@@ -3,7 +3,7 @@
 % existing variable-identification policy rather than asserting inconsistency.
 
 :- selected(body, Slot, Mode),
-    simple_comparison_mode(Mode),
+    comparison_operator(Mode, _),
     var_at(body, Slot, 0, Var),
     var_at(body, Slot, 1, Var).
 

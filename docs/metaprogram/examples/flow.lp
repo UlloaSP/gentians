@@ -1,14 +1,17 @@
 % Reification of target(V0,V1) :- edge(V0,V1).
 % Head: input/output. Body: input/output. Set source=2 for an unbound input.
+#include "../../../gentians/clauses/metaprogram/representation/schema.lp".
 #include "../../../gentians/clauses/metaprogram/legality/flow/declarations.lp".
 #include "../../../gentians/clauses/metaprogram/legality/flow/seeds.lp".
 #include "../../../gentians/clauses/metaprogram/legality/flow/closure.lp".
 #include "../../../gentians/clauses/metaprogram/legality/flow/requirements.lp".
 
-#defined conditional_mode/3.
+#defined conditional_mode/1.
 #defined conditional_global_var/3.
 #defined aggregate_result_var/2.
 #defined arithmetic_mode/1.
+#defined arithmetic_operand/3.
+#defined arithmetic_result/2.
 #defined comparison_mode/1.
 #defined mode_variable_arg/2.
 #const source=0.

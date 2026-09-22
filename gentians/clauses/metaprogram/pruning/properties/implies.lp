@@ -5,7 +5,6 @@
 % when they imply it. This file prunes body/head/negative literals made
 % redundant or impossible by a positive body literal.
 
-#defined implies_pred/2.
 
 :- positive_body_literal(Slot0, _, Pred0, Arity),
     positive_body_literal(Slot1, _, Pred1, Arity),

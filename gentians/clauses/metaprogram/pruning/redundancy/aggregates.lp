@@ -2,12 +2,6 @@
 % Reject repeated aggregate computations with different result ids. The key
 % check uses the existing predicate-level projection of condition arguments.
 
-#defined aggregate_mode/3.
-#defined aggregate_has_shorter_mode/1.
-#defined count_aggregate_mode/1.
-#defined sum_aggregate_mode/1.
-#defined key_pred/2.
-#defined key_arg/2.
 
 aggregate_key_input_missing(Slot, Pred, Key) :-
     key_arg(Key, Input),
@@ -17,7 +11,7 @@ aggregate_key_input_missing(Slot, Pred, Key) :-
 aggregate_input_differs(Slot0, Slot1) :-
     selected(body, Slot0, Mode),
     selected(body, Slot1, Mode),
-    aggregate_mode(Mode, _, _),
+    aggregate_shape(Mode, _, _),
     Slot1 = Slot0 + 1,
     aggregate_internal_arg(Slot0, Arg),
     var_at(body, Slot0, Arg, Left),
@@ -27,7 +21,7 @@ aggregate_input_differs(Slot0, Slot1) :-
 same_aggregate_inputs(Slot0, Slot1) :-
     selected(body, Slot0, Mode),
     selected(body, Slot1, Mode),
-    aggregate_mode(Mode, _, _),
+    aggregate_shape(Mode, _, _),
     Slot1 = Slot0 + 1,
     not aggregate_input_differs(Slot0, Slot1).
 

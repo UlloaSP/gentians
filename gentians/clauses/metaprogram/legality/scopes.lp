@@ -10,7 +10,7 @@ local_var_at(body, Slot, Arg) :-
 
 global_context_var(Var) :-
     selected(Section, Slot, Mode),
-    not conditional_mode(Mode, _, _),
+    not conditional_mode(Mode),
     var_at(Section, Slot, Arg, Var),
     not aggregate_internal_position(Section, Slot, Arg).
 
@@ -22,7 +22,7 @@ conditional_local_at(Section, Slot, Arg) :-
     selected(Section, Slot, Mode),
     conditional_local_var(Section, Slot, Var),
     var_at(Section, Slot, Arg, Var),
-    conditional_mode(Mode, _, _).
+    conditional_mode(Mode).
 
 local_var_at(Section, Slot, Arg) :- conditional_local_at(Section, Slot, Arg).
 

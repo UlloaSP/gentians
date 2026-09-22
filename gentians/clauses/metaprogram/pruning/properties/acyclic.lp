@@ -2,7 +2,6 @@
 % The first two checks are delegated to irreflexive/antisymmetric properties.
 % A negated back-edge over a positive two-step path is redundant.
 
-#defined acyclic_pred/1.
 
 irreflexive_pred(Pred) :- acyclic_pred(Pred).
 

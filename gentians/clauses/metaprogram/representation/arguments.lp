@@ -2,9 +2,6 @@
 % Rendered predicate arity and placeholder count can differ for nested terms.
 % Fixed terms live in mode_shape/2 and require no variable assignment.
 
-#defined mode/5.
-#defined mode_arg_type/3.
-#defined mode_variable_arg/2.
 
 arg(Section, Slot, Arg) :-
     selected(Section, Slot, Mode),

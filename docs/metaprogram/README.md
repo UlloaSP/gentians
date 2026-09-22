@@ -11,7 +11,9 @@ what a rule establishes and what a rejection claims:
 
 ```text
 metaprogram/
-  representation/       selected syntax and views of its arguments
+  representation/
+    schema.lp            declared facts and cross-module predicate contract
+    *.lp                 selected syntax and argument views
   inference/            consequences of selected relations and task evidence
   legality/             structural limits, scopes, types and safety
     flow/               declarations, seeds, closure, requirements
@@ -29,10 +31,25 @@ They form one grounded program, not a sequence of filters. In particular,
 moving a definition to `inference/` does not make it run before another file.
 The separation identifies ownership and proof obligations.
 
+`representation/schema.lp` is the single declaration point for optional facts
+and relations shared across modules. Its comments define every argument and
+state whether absence means an empty optional relation or unproved static
+evidence. `#defined` does not create facts or rules; it tells Clingo that an
+empty relation is still part of the vocabulary. The remaining modules contain
+the rules that derive views from this schema and do not repeat declarations.
+
 ## The shared vocabulary
 
 | Relation | Meaning |
 | --- | --- |
+| `mode_section(Mode,Section)`, `mode_recall(Mode,Recall)` | Declaration placement and effective recall limit. |
+| `mode_kind(Mode,Kind)` | Explicit template kind: normal, conditional, comparison, arithmetic or aggregate. |
+| `comparison_operator(Mode,Operator)` | Simple binary comparison operator: eq, neq, lt, gt, leq or geq. Complex comparison chains have no such fact. |
+| `mode_atom(Mode,Predicate,Arity)` | Predicate signature of a normal atom or conditional conclusion; absent for operators and aggregates. |
+| `mode_arithmetic_operand(Mode,Side,Position)`, `mode_arithmetic_result(Mode,Position)` | Static arithmetic roles mapped to storage positions. |
+| `mode_aggregate_tuple_arg(Mode,TuplePosition,Position)` | Static aggregate tuple mapping. |
+| `mode_aggregate_condition_arg(Mode,Condition,LocalPosition,Position)` | Static mapping of each condition occurrence. |
+| `mode_aggregate_result_arg(Mode,Position)` | Aggregate result storage position. Internal positions derive from tuple and condition mappings. |
 | `selected(Section,Slot,Mode)` | A mode occurrence in a head or body slot. |
 | `var_at(Section,Slot,Position,Variable)` | A syntactic variable id at a flattened placeholder position. |
 | `same_term_bindings(S0,L0,S1,L1)` | Equal recursive term shapes and equal variable bindings at corresponding positions. Does not itself compare predicates. |
@@ -56,11 +73,21 @@ The reified program assigns exactly one mode to each occupied slot and one varia
 to each variable-placeholder position. Specialized arithmetic flags identify
 complete three-placeholder templates; the arithmetic views therefore have all
 three bindings even when a consumer needs only two. Each aggregate condition
-index has one offset and arity within its mode. These are representation
-invariants on which the projections rely.
+index has one arity and a mapping to storage positions within its mode.
+These are representation invariants on which the projections rely.
 
-Only `representation/aggregates.lp` translates tuple and condition offsets
-into the aggregate's flattened storage positions. Property checks also use
+`mode_facts.py` computes static role mappings once per template;
+`fact_compiler.py` only assembles them with task and property facts.
+`representation/arithmetic.lp` and `representation/aggregates.lp` join these
+mappings with `selected` and `var_at`; consumers do not calculate offsets.
+Mappings use flattened variable bindings: a fixed term emits no role position,
+while a structured term points to the position of its placeholder.
+Aggregate internal positions are the union of tuple and condition mappings, so
+they are derived rather than declared again.
+`mode_atom` always describes a real predicate signature, including the conclusion
+arity of a conditional rather than the width of its complete template. Numeric
+argument evidence applies only to normal atoms, never to operator identifiers
+or conditional templates. Property checks also use
 `aggregate_condition_arg(Slot,Predicate,Position,Variable)`, the existing
 predicate-level projection. That projection merges occurrences of the same
 predicate; it must not be mistaken for the occurrence-preserving relation.

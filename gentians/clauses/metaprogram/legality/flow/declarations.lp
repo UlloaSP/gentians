@@ -2,8 +2,6 @@
 % Counts are positions, not distinct variables: repeated input names still fill
 % every declared input position.
 
-#defined mode_arg_direction/3.
-#defined relation_output_mode/1.
 
 conditional_global_input_var(Var) :-
     selected(Section, Slot, Mode),
@@ -17,9 +15,9 @@ conditional_global_output_var(Var) :-
     mode_arg_direction(Mode, Arg, output),
     var_at(Section, Slot, Arg, Var).
 
-directed_mode(Mode) :- mode_arg_direction(Mode, _, input), not conditional_mode(Mode, _, _).
+directed_mode(Mode) :- mode_arg_direction(Mode, _, input), not conditional_mode(Mode).
 
-directed_mode(Mode) :- mode_arg_direction(Mode, _, output), not conditional_mode(Mode, _, _).
+directed_mode(Mode) :- mode_arg_direction(Mode, _, output), not conditional_mode(Mode).
 
 input_count(Mode, Count) :-
     directed_mode(Mode),

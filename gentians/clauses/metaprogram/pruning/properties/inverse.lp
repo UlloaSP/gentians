@@ -4,7 +4,6 @@
 % Pred0(X, Y) has same truth value as Pred1(Y, X). This file removes redundant
 % positive inverse pairs and contradictory positive/negative inverse pairs.
 
-#defined inverse_pred/2.
 
 inverse_pair(Pred0, Pred1) :- inverse_pred(Pred0, Pred1).
 

@@ -12,6 +12,7 @@ from benchmarks.catalog import CASES
 from gentians import timing
 from gentians.arguments import Arguments
 from gentians.clauses import fact_compiler as clause_facts
+from gentians.clauses import property_facts
 from gentians.clauses import generator as clause_generation
 from gentians.clauses.analysis.ast_inspection import _contains, _node_atoms
 from gentians.clauses.analysis.domains import _numeric_domain_values
@@ -273,6 +274,26 @@ def test_clause_metaprogram_manifest_loads_every_module_once():
     }
 
 
+def test_clause_metaprogram_declares_optional_schema_once():
+    root = Path(clause_generation.__file__).with_name("metaprogram")
+    declarations = {
+        path.relative_to(root).as_posix(): [
+            line for line in path.read_text().splitlines()
+            if line.startswith("#defined ")
+        ]
+        for path in root.rglob("*.lp")
+    }
+
+    assert declarations["representation/schema.lp"]
+    assert all(
+        not lines
+        for module, lines in declarations.items()
+        if module != "representation/schema.lp"
+    )
+    schema = declarations["representation/schema.lp"]
+    assert len(schema) == len(set(schema))
+
+
 def test_clause_encoding_prunes_duplicates_without_output_atoms():
     metaprogram = "\n".join(render_program(clause_generation.CLAUSE_METAPROGRAM))
 
@@ -389,33 +410,18 @@ def test_facts_do_not_emit_redundant_control_flags():
     assert "normal_mode(0)." not in facts
 
 
-def test_facts_do_not_emit_redundant_strict_comparison_mode():
-    program = inductive_task(
-        [],
-        [],
-        [],
-        [],
-        [_relation_mode(1, "var(numeric)<var(numeric)")],
-        [],
-    )
-    modes = [
-        ClauseMode(
-            0,
-            0,
-            "body",
-            1,
-            ComparisonLiteral(
-                (
-                    TermTemplate.variable("numeric", ""),
-                    TermTemplate.variable("numeric", ""),
-                ),
-                ("<",),
-            ),
-        )
-    ]
+@pytest.mark.parametrize(("operator", "name"), [
+    ("=", "eq"),
+    ("!=", "neq"),
+    ("<", "lt"),
+    (">", "gt"),
+    ("<=", "leq"),
+    (">=", "geq"),
+])
+def test_comparison_facts_encode_the_simple_operator_once(operator, name):
     facts = _compiled_facts(
-        program,
-        modes,
+        inductive_task([], [], [], [], []),
+        [_comparison_clause_mode(0, operator)],
         {},
         3,
         1,
@@ -424,7 +430,8 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
 
     fact_lines = set(facts.splitlines())
 
-    assert "less_than_comparison_mode(0)." in fact_lines
+    assert f"comparison_operator(0,{name})." in fact_lines
+    assert sum(line.startswith("comparison_operator(") for line in fact_lines) == 1
     assert "comparison_mode(0)." not in fact_lines
     assert "symmetric_comparison_mode(0)." not in fact_lines
     assert "strict_comparison_mode(0)." not in fact_lines
@@ -681,7 +688,7 @@ def test_star_recall_uses_section_limit():
         3,
     )
 
-    assert "mode(body,0,0,1,3)." in facts
+    assert "mode_recall(0,3)." in facts
     assert "group_recall(0,2)." not in facts
     assert "\nrecall(" not in facts
     assert "positive_mode(0)." not in facts
@@ -701,8 +708,8 @@ def test_group_recall_uses_tightest_mode_recall():
         5,
     )
 
-    assert "mode(body,0,0,1,3)." in facts
-    assert "mode(body,1,1,1,1)." in facts
+    assert "mode_recall(0,3)." in facts
+    assert "mode_recall(1,1)." in facts
     assert "group_recall(7,1)." not in facts
     assert "group_recall(7,3)." not in facts
 
@@ -2430,7 +2437,7 @@ def test_closed_world_properties_emit_new_property_facts():
         ("other", 3): 7,
         ("le", 2): 8,
     }
-    facts = set(clause_facts._closed_world_property_facts(properties, ids))
+    facts = set(property_facts.compile_property_facts(properties, ids))
 
     assert "equivalent_pred(0,1)." in facts
     assert "disjoint_arg(0,0,6,1)." in facts
@@ -2602,7 +2609,7 @@ def test_cardinality_upper_facts_are_emitted():
         _asp(["val(1).", "val(2).", "1 { in(X) : val(X) } 1."])
     )
     facts = set(
-        clause_facts._closed_world_property_facts(
+        property_facts.compile_property_facts(
             properties,
             {
                 ("in", 1): 0,
@@ -2792,8 +2799,8 @@ def test_universal_empty_and_complement_facts_are_emitted():
         ("right", 1): 3,
     }
     facts = set(
-        clause_facts._closed_world_property_facts(universal_properties, universal_ids)
-    ) | set(clause_facts._closed_world_property_facts(domain_properties, domain_ids))
+        property_facts.compile_property_facts(universal_properties, universal_ids)
+    ) | set(property_facts.compile_property_facts(domain_properties, domain_ids))
 
     assert "universal_pred(1)." in facts
     assert "empty_pred(2)." in facts
@@ -2806,7 +2813,7 @@ def test_universal_binary_predicate_derives_reflexive_property():
         (metaprogram_dir / "pruning" / "properties" / "universal.lp").read_text()
         + """
 universal_pred(1).
-mode(body,0,1,2,1).
+mode_atom(0,1,2).
 #show reflexive_pred/1.
 """
     )
@@ -5161,7 +5168,18 @@ def test_integer_division_by_a_constant_is_not_linearized(tmp_path):
         encoding="utf-8",
     )
 
-    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
+    program = parse_file(str(task))
+    modes = clause_generation._ClauseGenerator(program, Arguments()).modes
+    division_mode = next(
+        mode
+        for mode in modes
+        if isinstance(mode.literal, ComparisonLiteral)
+        and mode.literal.terms[0].kind == "arithmetic"
+        and mode.literal.terms[0].value == "/"
+    )
+
+    assert isinstance(division_mode.literal, ComparisonLiteral)
+    clauses = generate_clause_space(program, Arguments()).clauses
     assert "p(V1) :- q(V0),V0/2=V1." in clauses
     assert not any("V0-2*V1=0" in clause for clause in clauses)
 
@@ -5206,3 +5224,66 @@ def test_modeb_accepts_every_clingo_comparison_operator(tmp_path, operator):
     literal = parse_file(str(task)).language_bias_body[0].literal
     assert isinstance(literal, ComparisonLiteral)
     assert literal.operators == (operator,)
+
+
+def test_mode_schema_separates_predicates_from_operator_ids():
+    variable = TermTemplate.variable("numeric", "")
+    atom = AtomLiteral(AtomTemplate("p", (variable,)))
+    conditional = ConditionalLiteral(atom, (atom,), (-1,))
+    modes = [
+        _arithmetic_clause_mode(0, 3, "+"),
+        ClauseMode(1, 1, "body", 1, atom),
+        ClauseMode(2, 2, "body", 1, conditional),
+    ]
+    facts = _compiled_facts(inductive_task([], [], [], [], []), modes, {}, 3, 1, 3)
+    lines = set(facts.splitlines())
+    assert {"mode_kind(0,arithmetic).", "mode_kind(1,normal).",
+            "mode_kind(2,conditional).", "mode_atom(1,0,1).",
+            "mode_atom(2,0,1)."} <= lines
+    assert not any(line.startswith(("mode(", "mode_atom(0,")) for line in lines)
+
+    # The arithmetic mode's id deliberately collides with p's predicate id.
+    # The conditional shares p/1 but is not a normal numeric source either.
+    program = facts + """
+selected(body,0,0). var_at(body,0,0,10).
+selected(body,1,1). var_at(body,1,0,20).
+selected(body,2,2). var_at(body,2,0,30).
+normal_mode(M) :- mode_kind(M,normal).
+#show numeric_argument_var/1.
+"""
+    ctl = clingo.Control(["0", "--warn=none"])
+    ctl.add("base", [], program)
+    ctl.load(str(Path(clause_generation.__file__).with_name("metaprogram") / "inference/numeric.lp"))
+    ctl.ground([("base", [])])
+    with ctl.solve(yield_=True) as handle:
+        assert [set(map(str, model.symbols(shown=True))) for model in handle] == [
+            {"numeric_argument_var(20)"}
+        ]
+
+
+def test_aggregate_schema_declares_shape_without_duplicate_internal_positions():
+    variable = TermTemplate.variable("any", "")
+    nested_variable = TermTemplate("function", "f", (variable,))
+    aggregate = AggregateLiteral(
+        "count",
+        (TermTemplate.fixed("tag"), variable),
+        (AtomTemplate("p", (TermTemplate.fixed("anchor"), nested_variable)),),
+        TermTemplate.variable("numeric", ""),
+    )
+    mode = ClauseMode(0, 0, "body", 1, aggregate)
+
+    facts = set(
+        _compiled_facts(
+            inductive_task([], [], [], [], []), [mode], {}, 3, 1, 3
+        ).splitlines()
+    )
+
+    assert {
+        "aggregate_shape(0,2,1).",
+        "mode_aggregate_tuple_arg(0,1,0).",
+        "mode_aggregate_condition_arg(0,0,1,1).",
+        "mode_aggregate_result_arg(0,2).",
+    } <= facts
+    assert "mode_aggregate_tuple_arg(0,0,0)." not in facts
+    assert "mode_aggregate_condition_arg(0,0,0,1)." not in facts
+    assert not any(fact.startswith("mode_aggregate_internal_arg(") for fact in facts)

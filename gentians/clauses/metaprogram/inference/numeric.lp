@@ -2,15 +2,9 @@
 % numeric-domain evidence supplied by Python. inferred_lt is a transitive
 % closure; selected_lt continues to mean an explicit comparison literal.
 
-#defined numeric_domain_nonnegative/0.
-#defined numeric_domain_positive/0.
-#defined add_mode/1.
-#defined mul_mode/1.
-#defined div_mode/1.
-#defined mod_mode/1.
 
 domain_numeric_arg(Pred, Arity, Arg) :-
-    mode(_, Mode, Pred, Arity, _),
+    mode_atom(Mode, Pred, Arity),
     normal_mode(Mode),
     mode_arg_type(Mode, Arg, numeric).
 
@@ -18,7 +12,8 @@ numeric_domain_nonnegative :- numeric_domain_positive.
 
 numeric_argument_var(Var) :-
     selected(Section, Slot, Mode),
-    mode(Section, Mode, Pred, Arity, _),
+    normal_mode(Mode),
+    mode_atom(Mode, Pred, Arity),
     domain_numeric_arg(Pred, Arity, Arg),
     var_at(Section, Slot, Arg, Var).
 

@@ -239,8 +239,8 @@ No cambies estas gráficas salvo petición explícita:
 - `gentians/gentians.py`: entry points `main`, `task_from_arguments` y `solve`.
 - `gentians/arguments.py`: configuración pública del SDK y defaults evolutivos.
 - `gentians/language/`: lexer, gramática de alto nivel, parser, parsers de declaraciones, utilidades `clingo.ast` e IR tipado de la tarea.
-- `gentians/clauses/`: compilación, metaprograma, pruning y representación canónica de cláusulas.
-- `gentians/clauses/metaprogram/`: representación reificada en `representation/`, consecuencias en `inference/`, legalidad y flujo en `legality/`, representantes en `symmetry/` y poda en `pruning/{contradictions,redundancy,properties,policies,task}/`. La guía y los ejemplos ejecutables están en `docs/metaprogram/`. El orden de carga es explícito.
+- `gentians/clauses/`: compilación, metaprograma, pruning y representación canónica de cláusulas. `fact_compiler.py` ensambla facts; `mode_facts.py` y `property_facts.py` poseen sus dos vocabularios estáticos.
+- `gentians/clauses/metaprogram/`: `representation/schema.lp` declara el contrato de predicados opcionales; el resto de `representation/` deriva la representación reificada, `inference/` sus consecuencias, `legality/` la legalidad y el flujo, `symmetry/` los representantes y `pruning/{contradictions,redundancy,properties,policies,task}/` la poda. La guía y los ejemplos ejecutables están en `docs/metaprogram/`. El orden de carga es explícito.
 - `gentians/hypotheses/`: plumbing de representación de genomas, cierre y transiciones válidas que usan las estrategias evolutivas.
 - `gentians/algorithms/`: algoritmos completos de búsqueda y su resultado común; `steady_state_genetic.py` contiene el GA actual.
 - `gentians/evolution/{populations,selections,crossovers,mutations,replacements}/`: plumbing evolutivo, estrategias y factories.

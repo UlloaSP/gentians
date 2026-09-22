@@ -2,16 +2,14 @@
 % The one-condition template must cover exactly the tuple; sum permutations
 % keep the weight fixed. Global variables cannot be exchanged.
 
-#defined count_aggregate_mode/1.
-#defined sum_aggregate_mode/1.
 
 :- selected(body, Slot, Mode), count_aggregate_mode(Mode),
     aggregate_tuple_binding(Slot, First, Left),
     aggregate_tuple_binding(Slot, Second, Right), First < Second, Left > Right.
 
 full_local_condition(Slot, Mode) :-
-    selected(body, Slot, Mode), aggregate_mode(Mode, Arity, 1),
-    aggregate_condition_atom(Mode, 0, _, _, Arity),
+    selected(body, Slot, Mode), aggregate_shape(Mode, Arity, 1),
+    aggregate_condition_atom(Mode, 0, _, Arity),
     not condition_has_non_tuple_variable(Slot),
     not aggregate_tuple_has_global_variable(Slot).
 

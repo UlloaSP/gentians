@@ -5,8 +5,6 @@
 % arguments. Example: edge(X, Y) may imply node(X) via projection target arg 0
 % from source arg 0.
 
-#defined project_implies_pred/3.
-#defined project_arg/3.
 
 project_vars_differ(Section0, Slot0, Section1, Slot1, Projection) :-
     project_arg(Projection, TargetArg, SourceArg),

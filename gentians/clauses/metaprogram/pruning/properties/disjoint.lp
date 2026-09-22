@@ -3,9 +3,6 @@
 % Python emits disjoint_arg/4 for argument pairs that never share values in the
 % observed closed world. This file rejects joins over such positions.
 
-#defined disjoint_arg/4.
-#defined tuple_mutex_pred/3.
-#defined tuple_mutex_arg/3.
 
 :- positive_body_literal(Slot0, _, Pred0, _),
     positive_body_literal(Slot1, _, Pred1, _),

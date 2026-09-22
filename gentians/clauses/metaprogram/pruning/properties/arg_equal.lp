@@ -5,8 +5,6 @@
 % chooses identical variable ids at these positions. This is an identification
 % policy: equal values alone do not imply that distinct ids are inconsistent.
 
-#defined arg_equal_pred/3.
-#defined aggregate_condition_atom/5.
 
 :- selected(Section, Slot, Mode),
     normal_literal(Section, Slot, Mode, Pred, _),
@@ -16,7 +14,7 @@
     Var0 != Var1.
 
 :- selected(body, Slot, Mode),
-    aggregate_condition_atom(Mode, _, Pred, Offset, _),
+    aggregate_condition_atom(Mode, _, Pred, _),
     arg_equal_pred(Pred, LocalArg0, LocalArg1),
     aggregate_condition_arg(Slot, Pred, LocalArg0, Var0),
     aggregate_condition_arg(Slot, Pred, LocalArg1, Var1),

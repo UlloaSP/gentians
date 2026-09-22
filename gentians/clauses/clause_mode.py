@@ -1,10 +1,13 @@
 from dataclasses import dataclass, field
 
+from ..language.asp import Predicate
+from ..language.ir.aggregate_literal import AggregateLiteral
+from ..language.ir.arithmetic_literal import ArithmeticLiteral
 from ..language.ir.atom_literal import AtomLiteral
+from ..language.ir.comparison_literal import ComparisonLiteral
 from ..language.ir.conditional_literal import ConditionalLiteral
 from ..language.ir.head_template import HeadTemplate
 from ..language.ir.literal_template import LiteralTemplate
-from ..language.asp import Predicate
 from ..language.ir.term_binding import TermBinding
 
 
@@ -55,6 +58,18 @@ class ClauseMode:
     @property
     def arity(self) -> int:
         return len(self.literal.arguments)
+
+    @property
+    def binding_positions(self) -> tuple[int, ...]:
+        if isinstance(
+            self.literal,
+            AggregateLiteral | ConditionalLiteral | ComparisonLiteral | ArithmeticLiteral,
+        ) or (
+            isinstance(self.literal, AtomLiteral)
+            and any(term.kind in {"function", "tuple"} for term in self.literal.atom.terms)
+        ):
+            return tuple(range(len(self.bindings)))
+        return tuple(binding.path[0] for binding in self.bindings)
 
     @property
     def dependencies(self) -> frozenset[Predicate]:

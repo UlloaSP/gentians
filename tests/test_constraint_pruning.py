@@ -5,7 +5,7 @@ import pytest
 
 from gentians.arguments import Arguments
 from gentians.clauses import generator as generation
-from gentians.clauses.task_analysis import _prune_optional_constraints
+from gentians.clauses.pruning import _prune_optional_constraints
 from gentians.evaluation import create_evaluator
 from gentians.language import parse_text
 from gentians.language.asp import parse_program

@@ -1,4 +1,6 @@
-% Every selected literal must belong to one variable-connected component.
+% Selected literals with global variables must form one connected component.
+% Local names do not connect independent scopes. Elements of a selected choice
+% head are connected by that head even when they use different variables.
 
 #defined aggregate_head_form/1.
 #defined head_form_member/3.
@@ -30,12 +32,11 @@ linked_var(Other):-
     clause_var_at(Section,Slot,_,Other).
 
 linked_literal(Section,Slot):- clause_root(Section,Slot).
+
 linked_literal(Section,Slot):-
     clause_var_at(Section,Slot,_,Var),
     linked_var(Var).
 
-% Elements of one #modeha head are structurally connected by their aggregate,
-% even when their compatible atoms use different variables.
 linked_literal(head,Slot):-
     selected_head_form(Form),
     aggregate_head_form(Form),

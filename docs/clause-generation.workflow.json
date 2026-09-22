@@ -113,7 +113,7 @@
       "lane": "post",
       "col": 4,
       "type": "backend",
-      "label": "ReifiedClause decoder",
+      "label": "Decoder + pruning",
       "width": 180
     },
     {
@@ -161,9 +161,9 @@
       "dot": "rose",
       "title": "Compilación y poda ASP previa al modelo",
       "items": [
-        "Análisis estático valida #minhl/#maxhl, recalls de #modeha, inventions, tipos nominales y capacidades",
+        "analysis/ obtiene tipos, dominios y propiedades; fact_compiler.py emite los facts recibidos",
         "ClauseMode compila cada template, asigna IDs, recall groups, posiciones y roles, y unifica la familia aditiva implícita compatible",
-        "ASP poda slots, orden, recall, límites, linkedness, typing, safety y flujo",
+        "representation/ selecciona literales; safety/ valida ámbitos y flujo; pruning/ aplica límites y elimina redundancias",
         "Módulos de operadores y propiedades podan redundancias y contradicciones"
       ]
     },
@@ -171,8 +171,8 @@
       "dot": "emerald",
       "title": "Decodificación, ArithmeticSystem y salida",
       "items": [
-        "selected/3 + var_at/4 se decodifican como ReifiedClause; _theta_reduced elimina subcuerpos equivalentes",
-        "Operaciones conectadas forman ArithmeticSystem con ecuaciones residuales y condiciones",
+        "decoder.py produce ReifiedClause; pruning.py elimina subcuerpos theta-equivalentes",
+        "canonicalization/ separa representación aritmética y algoritmos de normalización",
         "Outputs inseguros conservan asignación; div/mod incluyen divisor != 0 sin recall extra",
         "Clause guarda texto, heads, dependencies y tamaño; ClauseSpace ordena y deduplica"
       ]

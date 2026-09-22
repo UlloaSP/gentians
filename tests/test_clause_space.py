@@ -1,24 +1,51 @@
 import copy
-from pathlib import Path
 import random
 import re
+from pathlib import Path
 
 import clingo
-from clingo import ast
 import pytest
+from clingo import ast
+
 import gentians.clauses as clause_package
 from benchmarks.catalog import CASES
-from gentians.arguments import Arguments
-from gentians.evaluation.solver import CoverageSolver
 from gentians import timing
-from gentians.clauses import canonicalizer as clause_canonicalizer
-from gentians.clauses import decoder as clause_decoder
-from gentians.clauses import extensions as clause_extensions
+from gentians.arguments import Arguments
 from gentians.clauses import fact_compiler as clause_facts
 from gentians.clauses import generator as clause_generation
-from gentians.clauses import mode_compiler as clause_modes
-from gentians.clauses import properties as clause_properties
-from gentians.clauses import task_analysis as clause_analysis
+from gentians.clauses.analysis.ast_inspection import _contains, _node_atoms
+from gentians.clauses.analysis.domains import _numeric_domain_values
+from gentians.clauses.analysis.ground_relations import (
+    _closed_world_extensions,
+    _ground_key,
+)
+from gentians.clauses.analysis.inference import _closed_world_properties
+from gentians.clauses.analysis.task import (
+    _closed_body_predicates,
+    _closed_world_nodes,
+    _closed_world_program,
+    _predicate_arg_types,
+)
+from gentians.clauses.canonicalization import clauses as clause_canonicalizer
+from gentians.clauses.canonicalization.arithmetic import canonical_arithmetic_clause
+from gentians.clauses.canonicalization.arithmetic_system import ArithmeticSystem
+from gentians.clauses.canonicalization.expression import ArithmeticExpression
+from gentians.clauses.canonicalization.expression_constraint import ExpressionConstraint
+from gentians.clauses.canonicalization.linear_constraint import LinearConstraint
+from gentians.clauses.clause import Clause
+from gentians.clauses.clause_mode import ClauseMode
+from gentians.clauses.clause_space import ClauseSpace
+from gentians.clauses.decoder import _clause_from_model
+from gentians.clauses.generator import (
+    _clause_space_args,
+    generate_clause_space,
+)
+from gentians.clauses.mode_compiler import _aggregate_head_templates
+from gentians.clauses.pruning import _theta_reduced
+from gentians.clauses.reified_clause import ReifiedClause
+from gentians.clauses.reified_literal import ReifiedLiteral
+from gentians.evaluation.solver import CoverageSolver
+from gentians.language import parse_file, parse_text
 from gentians.language.asp import (
     add_program,
     clause_predicates,
@@ -29,19 +56,6 @@ from gentians.language.asp import (
     parse_rule,
     render_program,
 )
-from gentians.language import parse_file, parse_text
-from gentians.clauses.generator import (
-    _clause_space_args,
-    generate_clause_space,
-)
-from gentians.clauses.arithmetic_expression import ArithmeticExpression
-from gentians.clauses.arithmetic_system import (
-    ArithmeticSystem,
-    canonical_arithmetic_clause,
-)
-from gentians.clauses.linear_constraint import LinearConstraint
-from gentians.language.ir.literal_template import render_literal
-from gentians.clauses.expression_constraint import ExpressionConstraint
 from gentians.language.ir.aggregate_literal import AggregateLiteral
 from gentians.language.ir.arithmetic_literal import ArithmeticLiteral
 from gentians.language.ir.atom_literal import AtomLiteral
@@ -50,12 +64,8 @@ from gentians.language.ir.comparison_literal import ComparisonLiteral
 from gentians.language.ir.conditional_literal import ConditionalLiteral
 from gentians.language.ir.head_declaration import HeadDeclaration
 from gentians.language.ir.head_template import HeadTemplate
-from gentians.clauses.clause_mode import ClauseMode
+from gentians.language.ir.literal_template import render_literal
 from gentians.language.ir.mode_declaration import ModeDeclaration
-from gentians.clauses.reified_clause import ReifiedClause
-from gentians.clauses.reified_literal import ReifiedLiteral
-from gentians.clauses.clause_space import ClauseSpace
-from gentians.clauses.clause import Clause
 from gentians.language.ir.term_template import TermTemplate
 from tests.task_helpers import (
     example,
@@ -74,9 +84,20 @@ def _asp(sources: list[str]):
     return parse_program("\n".join(sources))
 
 
+def _compiled_facts(task, modes, arg_types, max_variables, max_head, max_body):
+    properties = _closed_world_properties(
+        _closed_world_nodes(task), arg_types,
+        _closed_body_predicates(task), _closed_world_program(task),
+    )
+    return clause_facts._facts(
+        task, modes, properties, max_variables, max_head, max_body,
+        numeric_domain=_numeric_domain_values(task),
+    )
+
+
 def _ground_term(source: str):
     statement = parse_rule(f"value({source}).")
-    return clause_extensions._ground_key(statement.head.atom.symbol.arguments[0], {})
+    return _ground_key(statement.head.atom.symbol.arguments[0], {})
 
 
 def _mode(
@@ -242,6 +263,16 @@ def test_clause_generator_decodes_models_without_shown_symbols(monkeypatch):
     assert "target(V0) :- edge(V0,V1)." in clauses
 
 
+def test_clause_metaprogram_manifest_loads_every_module_once():
+    root = Path(clause_generation.__file__).with_name("metaprogram")
+    modules = clause_generation.CLAUSE_METAPROGRAM_MODULES
+
+    assert len(modules) == len(set(modules))
+    assert set(modules) == {
+        path.relative_to(root).as_posix() for path in root.rglob("*.lp")
+    }
+
+
 def test_clause_encoding_prunes_duplicates_without_output_atoms():
     metaprogram = "\n".join(render_program(clause_generation.CLAUSE_METAPROGRAM))
 
@@ -331,7 +362,7 @@ def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
         ("body", 3, ((3, (), 133),), ()),
     )
 
-    clause = clause_decoder._clause_from_model(model, index)
+    clause = _clause_from_model(model, index)
 
     assert [(literal.mode_id, literal.variables) for literal in clause.body] == [
         (2, (1, 0)),
@@ -342,7 +373,7 @@ def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
 
 
 def test_facts_do_not_emit_redundant_control_flags():
-    facts = clause_facts._facts(
+    facts = _compiled_facts(
         inductive_task([], [], [], [], []),
         [],
         {},
@@ -382,7 +413,7 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
             ),
         )
     ]
-    facts = clause_facts._facts(
+    facts = _compiled_facts(
         program,
         modes,
         {},
@@ -402,7 +433,7 @@ def test_facts_do_not_emit_redundant_strict_comparison_mode():
 
 def test_facts_do_not_emit_redundant_arithmetic_mode():
     modes = [_arithmetic_clause_mode(0, 3, "+")]
-    facts = clause_facts._facts(
+    facts = _compiled_facts(
         inductive_task([], [], [], [], [_relation_mode(
             1, "var(numeric)+var(numeric)=var(numeric)"
         )], []),
@@ -420,7 +451,7 @@ def test_facts_do_not_emit_redundant_arithmetic_mode():
 
 
 def test_facts_do_not_emit_derived_numeric_domain_args():
-    facts = clause_facts._facts(
+    facts = _compiled_facts(
         inductive_task([], [], [], [], []),
         [_normal_clause_mode(0, 0, "body", "p", 2, 1, types=("numeric", "any"))],
         {("p", 2, 0): "numeric"},
@@ -437,7 +468,7 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
 
 
 def test_facts_emit_only_strong_positive_numeric_domain_property():
-    facts = clause_facts._facts(
+    facts = _compiled_facts(
         inductive_task(["p(1).", "p(2)."], [], [], [], []),
         [],
         {},
@@ -604,7 +635,7 @@ def test_parser_rejects_invalid_recursive_mode_terms(tmp_path):
 
 
 def test_closed_world_extensions_ignore_compound_variable_terms():
-    extensions = clause_extensions._closed_world_extensions(
+    extensions = _closed_world_extensions(
         _asp(
             [
                 "cell((1..4,1..4)).",
@@ -641,7 +672,7 @@ def test_clause_space_args_reject_string():
 
 def test_star_recall_uses_section_limit():
     mode = _mode(-1, "p", 1)
-    facts = clause_facts._facts(
+    facts = _compiled_facts(
         inductive_task([], [], [], [], [mode]),
         [_normal_clause_mode(0, 0, "body", "p", 1, mode.recall)],
         {},
@@ -658,7 +689,7 @@ def test_star_recall_uses_section_limit():
 
 
 def test_group_recall_uses_tightest_mode_recall():
-    facts = clause_facts._facts(
+    facts = _compiled_facts(
         inductive_task([], [], [], [], []),
         [
             _normal_clause_mode(0, 7, "body", "p", 1, 3),
@@ -1391,7 +1422,7 @@ def test_flat_constants_keep_outer_argument_positions(tmp_path):
     program = parse_file(str(task))
     generator = clause_generation._ClauseGenerator(program, Arguments())
     body_mode = next(mode for mode in generator.modes if mode.section == "body")
-    facts = clause_facts._facts(
+    facts = _compiled_facts(
         program,
         generator.modes,
         generator.predicate_arg_types,
@@ -2111,11 +2142,11 @@ def test_closed_world_properties_prune_tuple_mutex_permutation():
             _mode(2, "mother", 2, positive=True),
         ],
     )
-    fragments = clause_analysis._closed_world_nodes(program)
-    properties = clause_properties._closed_world_properties(
+    fragments = _closed_world_nodes(program)
+    properties = _closed_world_properties(
         fragments,
-        clause_analysis._predicate_arg_types(program, fragments),
-        clause_modes._closed_body_predicates(program),
+        _predicate_arg_types(program, fragments),
+        _closed_body_predicates(program),
     )
     clauses = _generate(program, 2, 2).clauses
 
@@ -2271,7 +2302,7 @@ def test_closed_world_properties_prune_complement_negative_pair():
 
 
 def test_closed_world_properties_infer_generic_atom_relations():
-    properties = clause_properties._closed_world_properties(
+    properties = _closed_world_properties(
         _asp(
             [
                 "p(a).",
@@ -2307,7 +2338,7 @@ def test_closed_world_properties_infer_generic_atom_relations():
 
 
 def test_closed_world_extensions_derive_simple_alias_rules():
-    properties = clause_properties._closed_world_properties(
+    properties = _closed_world_properties(
         _asp(
             [
                 "edge(a,b).",
@@ -2324,7 +2355,7 @@ def test_closed_world_extensions_derive_simple_alias_rules():
 
 
 def test_closed_world_extensions_derive_finite_complement_rules():
-    properties = clause_properties._closed_world_properties(
+    properties = _closed_world_properties(
         _asp(
             [
                 "v(a).",
@@ -2342,7 +2373,7 @@ def test_closed_world_extensions_derive_finite_complement_rules():
 
 
 def test_closed_world_extensions_do_not_assume_unknown_negative_empty():
-    extensions = clause_extensions._closed_world_extensions(
+    extensions = _closed_world_extensions(
         _asp(["v(a).", "p(X) :- not q(X), v(X)."])
     )
 
@@ -2350,7 +2381,7 @@ def test_closed_world_extensions_do_not_assume_unknown_negative_empty():
 
 
 def test_rule_defined_inequality_derives_arg_distinct():
-    properties = clause_properties._closed_world_properties(
+    properties = _closed_world_properties(
         _asp(
             [
                 "same_block(C1,C2) :- block(C1,B), block(C2,B), C1 != C2.",
@@ -2384,7 +2415,7 @@ def test_closed_world_properties_emit_new_property_facts():
             "le(b,b).",
         ]
     )
-    properties = clause_properties._closed_world_properties(
+    properties = _closed_world_properties(
         fragments,
         closed_body_predicates={("rel", 3), ("other", 3)},
     )
@@ -2423,12 +2454,12 @@ def test_partition_subsumes_pairwise_mutex_facts():
             _mode(1, "c", 1, positive=True),
         ],
     )
-    fragments = clause_analysis._closed_world_nodes(program)
-    arg_types = clause_analysis._predicate_arg_types(program, fragments)
-    properties = clause_properties._closed_world_properties(
+    fragments = _closed_world_nodes(program)
+    arg_types = _predicate_arg_types(program, fragments)
+    properties = _closed_world_properties(
         fragments,
         arg_types,
-        clause_modes._closed_body_predicates(program),
+        _closed_body_predicates(program),
     )
 
     assert properties.partitions == frozenset({(("a", 1), ("b", 1), ("c", 1))})
@@ -2443,12 +2474,12 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
         [],
         [_mode(1, "r", 4, positive=True)],
     )
-    fragments = clause_analysis._closed_world_nodes(program)
-    arg_types = clause_analysis._predicate_arg_types(program, fragments)
-    properties = clause_properties._closed_world_properties(
+    fragments = _closed_world_nodes(program)
+    arg_types = _predicate_arg_types(program, fragments)
+    properties = _closed_world_properties(
         fragments,
         arg_types,
-        clause_modes._closed_body_predicates(program),
+        _closed_body_predicates(program),
     )
 
     assert (("r", 4), 0, 3) in properties.functional
@@ -2457,7 +2488,7 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
 
 
 def test_choice_rules_infer_modelwise_keys():
-    properties = clause_properties._closed_world_properties(
+    properties = _closed_world_properties(
         _asp(
             [
                 "#const n = 5.",
@@ -2482,7 +2513,7 @@ def test_choice_rules_infer_modelwise_keys():
 
 
 def test_closed_world_extensions_expand_numeric_ranges():
-    extensions = clause_extensions._closed_world_extensions(
+    extensions = _closed_world_extensions(
         _asp(
             [
                 "#const n = 3.",
@@ -2513,7 +2544,7 @@ def test_closed_world_extensions_expand_numeric_ranges():
 
 
 def test_closed_world_extensions_keep_distinct_string_terms():
-    extensions = clause_extensions._closed_world_extensions(
+    extensions = _closed_world_extensions(
         _asp(['p("a b").', 'p("ab").'])
     )
 
@@ -2525,7 +2556,7 @@ def test_closed_world_extensions_keep_distinct_string_terms():
 
 
 def test_closed_world_extensions_do_not_derive_double_negation_as_negation():
-    extensions = clause_extensions._closed_world_extensions(
+    extensions = _closed_world_extensions(
         _asp(["dom(a).", "p(b).", "q(X) :- dom(X), not not p(X)."])
     )
 
@@ -2538,19 +2569,19 @@ def test_closed_world_extensions_match_clingo_for_descending_interval():
     control.add("base", [], source)
     control.ground([("base", [])])
 
-    extensions = clause_extensions._closed_world_extensions(_asp([source]))
+    extensions = _closed_world_extensions(_asp([source]))
 
     assert not tuple(control.symbolic_atoms.by_signature("p", 1))
     assert ("p", 1) not in extensions
 
 
 def test_ast_walk_does_not_retain_task_nodes_globally():
-    assert not hasattr(clause_extensions._node_atoms, "cache_info")
-    assert not hasattr(clause_extensions._contains, "cache_info")
+    assert not hasattr(_node_atoms, "cache_info")
+    assert not hasattr(_contains, "cache_info")
 
 
 def test_rule_defined_square_properties_propagate_choice_key():
-    properties = clause_properties._closed_world_properties(
+    properties = _closed_world_properties(
         _asp(
             [
                 "part(a).",
@@ -2567,7 +2598,7 @@ def test_rule_defined_square_properties_propagate_choice_key():
 
 
 def test_cardinality_upper_facts_are_emitted():
-    properties = clause_properties._closed_world_properties(
+    properties = _closed_world_properties(
         _asp(["val(1).", "val(2).", "1 { in(X) : val(X) } 1."])
     )
     facts = set(
@@ -2733,23 +2764,23 @@ def test_universal_empty_and_complement_facts_are_emitted():
             _mode(1, "right", 1, positive=True),
         ],
     )
-    universal_fragments = clause_analysis._closed_world_nodes(universal_program)
-    domain_fragments = clause_analysis._closed_world_nodes(domain_program)
-    universal_arg_types = clause_analysis._predicate_arg_types(
+    universal_fragments = _closed_world_nodes(universal_program)
+    domain_fragments = _closed_world_nodes(domain_program)
+    universal_arg_types = _predicate_arg_types(
         universal_program, universal_fragments
     )
-    domain_arg_types = clause_analysis._predicate_arg_types(
+    domain_arg_types = _predicate_arg_types(
         domain_program, domain_fragments
     )
-    universal_properties = clause_properties._closed_world_properties(
+    universal_properties = _closed_world_properties(
         universal_fragments,
         universal_arg_types,
-        clause_modes._closed_body_predicates(universal_program),
+        _closed_body_predicates(universal_program),
     )
-    domain_properties = clause_properties._closed_world_properties(
+    domain_properties = _closed_world_properties(
         domain_fragments,
         domain_arg_types,
-        clause_modes._closed_body_predicates(domain_program),
+        _closed_body_predicates(domain_program),
     )
     universal_ids = {
         ("dom", 1): 0,
@@ -4000,8 +4031,8 @@ def test_equal_ground_values_do_not_merge_distinct_declared_types():
         ],
     )
 
-    types = clause_analysis._predicate_arg_types(
-        program, clause_analysis._closed_world_nodes(program)
+    types = _predicate_arg_types(
+        program, _closed_world_nodes(program)
     )
 
     assert types[("left", 1, 0)] == "node"
@@ -4346,8 +4377,8 @@ def test_theta_reduction_rejects_clause_equivalent_to_proper_subclause():
         ),
     )
 
-    assert not clause_decoder._theta_reduced(reducible, modes)
-    assert clause_decoder._theta_reduced(reduced, modes)
+    assert not _theta_reduced(reducible, modes)
+    assert _theta_reduced(reduced, modes)
 
 
 def test_parser_parses_aggregate_head_modes_with_optional_recall(tmp_path):
@@ -4477,7 +4508,7 @@ def test_ground_modeha_caps_impossible_repeated_elements_before_grounding(tmp_pa
         encoding="utf-8",
     )
 
-    templates = clause_modes._aggregate_head_templates(parse_file(str(task)))
+    templates = _aggregate_head_templates(parse_file(str(task)))
 
     assert len(templates) == 1
     assert templates[0].width == 1
@@ -4490,7 +4521,7 @@ def test_bodyless_condition_budget_expands_ground_modeha_capacity(tmp_path):
         encoding="utf-8",
     )
 
-    templates = clause_modes._aggregate_head_templates(parse_file(str(task)))
+    templates = _aggregate_head_templates(parse_file(str(task)))
 
     assert len(templates) == 4
     assert {template.width for template in templates} == {1, 2}
@@ -4511,7 +4542,7 @@ def test_modeha_capacity_deduplicates_equal_constant_expansions(tmp_path):
         encoding="utf-8",
     )
 
-    templates = clause_modes._aggregate_head_templates(parse_file(str(task)))
+    templates = _aggregate_head_templates(parse_file(str(task)))
 
     assert len(templates) == 1
     assert templates[0].width == 1

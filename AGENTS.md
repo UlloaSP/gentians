@@ -240,7 +240,7 @@ No cambies estas gráficas salvo petición explícita:
 - `gentians/arguments.py`: configuración pública del SDK y defaults evolutivos.
 - `gentians/language/`: lexer, gramática de alto nivel, parser, parsers de declaraciones, utilidades `clingo.ast` e IR tipado de la tarea.
 - `gentians/clauses/`: compilación, metaprograma, pruning y representación canónica de cláusulas.
-- `gentians/clauses/metaprogram/`: pruning ASP separado por core, safety, operators, aggregates y properties. El orden de carga es explícito.
+- `gentians/clauses/metaprogram/`: representación reificada en `representation/`, legalidad en `safety/`, límites y redundancias en `pruning/`, y poda específica en `operators/` y `properties/`. El orden de carga es explícito.
 - `gentians/hypotheses/`: plumbing de representación de genomas, cierre y transiciones válidas que usan las estrategias evolutivas.
 - `gentians/algorithms/`: algoritmos completos de búsqueda y su resultado común; `steady_state_genetic.py` contiene el GA actual.
 - `gentians/evolution/{populations,selections,crossovers,mutations,replacements}/`: plumbing evolutivo, estrategias y factories.

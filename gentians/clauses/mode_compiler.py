@@ -2,7 +2,6 @@ from collections import Counter
 from dataclasses import replace
 from itertools import combinations_with_replacement, product
 
-
 from ..language.ir.aggregate_literal import AggregateLiteral
 from ..language.ir.arithmetic_literal import ArithmeticLiteral
 from ..language.ir.atom_literal import AtomLiteral
@@ -10,14 +9,10 @@ from ..language.ir.atom_template import AtomTemplate
 from ..language.ir.comparison_literal import ComparisonLiteral
 from ..language.ir.conditional_literal import ConditionalLiteral
 from ..language.ir.head_template import HeadTemplate
-from .clause_mode import ClauseMode
+from ..language.ir.inductive_task import InductiveTask
 from ..language.ir.mode_declaration import ModeDeclaration
 from ..language.ir.term_template import TermTemplate
-from ..language.asp import (
-    Predicate,
-)
-from ..language.ir.inductive_task import InductiveTask
-from .task_analysis import _head_atoms, _mode_atom_literals
+from .clause_mode import ClauseMode
 
 
 def _combined_head_templates(
@@ -521,22 +516,6 @@ def _combined_recall(recalls: list[int]) -> int:
     return -1 if any(recall < 0 for recall in recalls) else sum(recalls)
 
 
-def _variable_arity(mode: ClauseMode) -> int:
-    return len(mode.bindings)
-
-
-def _binding_positions(mode: ClauseMode) -> tuple[int, ...]:
-    if isinstance(
-        mode.literal,
-        AggregateLiteral | ConditionalLiteral | ComparisonLiteral | ArithmeticLiteral,
-    ) or (
-        isinstance(mode.literal, AtomLiteral)
-        and any(term.kind in {"function", "tuple"} for term in mode.literal.atom.terms)
-    ):
-        return tuple(range(len(mode.bindings)))
-    return tuple(binding.path[0] for binding in mode.bindings)
-
-
 def _section_capacity(limit: int | None, modes: list[ClauseMode], section: str) -> int:
     if limit is not None:
         return limit
@@ -558,13 +537,3 @@ def _section_capacity(limit: int | None, modes: list[ClauseMode], section: str) 
             recalls.get(mode.recall_group, mode.recall), mode.recall
         )
     return sum(recalls.values())
-
-
-def _closed_body_predicates(task: InductiveTask) -> set[Predicate]:
-    head_predicates = {atom.signature for atom in _head_atoms(task)}
-    return {
-        literal.atom.signature
-        for mode in (*task.language_bias_body, *task.language_bias_condition)
-        for literal in _mode_atom_literals(mode)
-        if literal.atom.signature not in head_predicates
-    }

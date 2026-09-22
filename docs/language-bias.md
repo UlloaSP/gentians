@@ -46,6 +46,8 @@ programs enter controls through
 `ProgramBuilder`; rendering AST back to text is limited to diagnostics,
 canonical output, and the single batched conversion of generated reified
 clauses into Clingo AST nodes. Static analysis traverses those nodes directly.
+The [clause-generation implementation map](clause-generation.md) describes the
+separation between representation, analysis, pruning and canonicalization.
 `TASK_GRAMMAR` records top-level composition and the directive parsers enforce
 the productions below.
 
@@ -579,7 +581,7 @@ constraints. Strong negation retains its sign, and contexts are inspected
 independently. An absent predicate in one context cannot be supplied by another.
 
 When the test succeeds, a fact enables an ASP constraint in
-`clauses/metaprogram/core/constraints.lp`, excluding headless clause models
+`clauses/metaprogram/pruning/clause_shape.lp`, excluding headless clause models
 before decoding and canonicalization. Background and context constraints are
 never removed.
 

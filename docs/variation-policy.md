@@ -10,8 +10,8 @@ applies the documented positive-only pruning before producing `ClauseSpace`.
 
 ## Constraint normalization
 
-The early counterpart lives in `clauses/task_analysis.py` and
-`clauses/metaprogram/core/constraints.lp`. With no negatives and headed alternatives,
+The early counterpart lives in `clauses/pruning.py` and
+`clauses/metaprogram/pruning/clause_shape.lp`. With no negatives and headed alternatives,
 it checks whether an included positive predicate cannot be
 defined by the background and its isolated context. This sufficient proof permits
 removing headless models during enumeration. Uncertain cases retain constraints.

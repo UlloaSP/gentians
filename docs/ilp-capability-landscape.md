@@ -365,7 +365,7 @@ otros sistemas.
 | Disjunctive heads | Sí | `#modehd`; [language bias](language-bias.md#disjunctive-head-modes) |
 | Body aggregates | Sí | Templates aggregate exactos en `#modeb`; [README](../README.md#aggregates-in-language-bias) |
 | Arithmetic/comparisons/conditionals | Sí | Relaciones exactas en `#modeb` y condiciones opcionales con `#modec`; [language bias](language-bias.md#conditional-literals) |
-| Recursión | Sí, explícita | Se activa cuando un predicado permitido en cabeza aparece en body/condition positivo; [`task_analysis.py`](../gentians/clauses/task_analysis.py) |
+| Recursión | Sí, explícita | Se activa cuando un predicado permitido en cabeza aparece en body/condition positivo; [`analysis/task.py`](../gentians/clauses/analysis/task.py) |
 | Predicate invention | Sí, prescriptiva | `#invent(recall, template)` crea modo de cabeza y body positivo; el símbolo, aridad, tipos y direcciones los declara el usuario; [language bias](language-bias.md#predicate-invention) |
 | Ciclos entre inventados | No | Las dependencias inventadas se ordenan por declaración para impedir ciclos; tests en [`test_clause_space.py`](../tests/test_clause_space.py) |
 | MIL/metarules | No | `#metarule`, `#predicate` y `#modem` se retiraron y se rechazan; [language bias](language-bias.md#removed-meta-programming-directives) |

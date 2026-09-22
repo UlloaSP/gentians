@@ -1,9 +1,32 @@
-% Input/output dataflow for normal modes and built-in body literals.
+% Compute input/output readiness to a fixed point, not textual literal order.
+% Default negation produces no variables. Head inputs seed bound variables;
+% a head output unified with a head input is supplied by that same input.
+% Ordinary comparisons consume values; Clingo-proved relation outputs may bind
+% new variables once their remaining leaves are bound.
 
 #defined mode_arg_direction/3.
+#defined relation_output_mode/1.
+
+conditional_global_input_var(Var):-
+    selected(Section,Slot,Mode),
+    conditional_global_var(Section,Slot,Var),
+    mode_arg_direction(Mode,Arg,input),
+    var_at(Section,Slot,Arg,Var).
+
+conditional_global_output_var(Var):-
+    selected(Section,Slot,Mode),
+    conditional_global_var(Section,Slot,Var),
+    mode_arg_direction(Mode,Arg,output),
+    var_at(Section,Slot,Arg,Var).
+
+:- conditional_global_input_var(Var), not bound_var(Var).
+
+:- conditional_global_output_var(Var), not produced_var(Var).
 
 directed_mode(Mode):- mode_arg_direction(Mode,_,input), not conditional_mode(Mode,_,_).
+
 directed_mode(Mode):- mode_arg_direction(Mode,_,output), not conditional_mode(Mode,_,_).
+
 input_count(Mode,Count):-
     directed_mode(Mode),
     Count = #count{Arg : mode_arg_direction(Mode,Arg,input)}.
@@ -14,7 +37,6 @@ bound_var(Var):-
     mode_arg_direction(Mode,Arg,input),
     var_at(head,Slot,Arg,Var).
 
-% A head output unified with a head input is already supplied by the caller.
 produced_var(Var):-
     selected(head,Slot,Mode),
     not conditional_mode(Mode,_,_),
@@ -58,11 +80,10 @@ produced_var(Var):-
     mode_arg_direction(Mode,Arg,output),
     var_at(body,Slot,Arg,Var).
 
-% Aggregate conditions own local variables. Evaluation binds its result.
 bound_var(Var):- aggregate_result_var(_,Var).
+
 produced_var(Var):- aggregate_result_var(_,Var).
 
-% Arithmetic consumes two bound operands and produces its result.
 ready_arithmetic(Slot):-
     selected(body,Slot,Mode),
     arithmetic_mode(Mode),
@@ -81,15 +102,11 @@ produced_var(Result):-
 
 :- selected(body,Slot,Mode), arithmetic_mode(Mode), not ready_arithmetic(Slot).
 
-% Comparisons consume bound values and produce nothing.
 :- selected(body,Slot,Mode),
     comparison_mode(Mode),
     var_at(body,Slot,Arg,Var),
     not mode_arg_direction(Mode,Arg,output),
     not bound_var(Var).
-
-% Any relation whose template Clingo proved safe may designate output leaves.
-#defined relation_output_mode/1.
 
 relation_input_count(Mode,Count):-
     relation_output_mode(Mode),

@@ -1,38 +1,28 @@
 from collections import Counter
 
-
-from ..language.ir.aggregate_literal import AggregateLiteral
-from ..language.ir.arithmetic_literal import ArithmeticLiteral
-from ..language.ir.atom_literal import AtomLiteral
-from .closed_world_properties import ClosedWorldProperties
-from ..language.ir.comparison_literal import ComparisonLiteral
-from ..language.ir.conditional_literal import ConditionalLiteral
-from .clause_mode import ClauseMode
 from ..language.asp import (
     Predicate,
 )
+from ..language.ir.aggregate_literal import AggregateLiteral
+from ..language.ir.arithmetic_literal import ArithmeticLiteral
+from ..language.ir.atom_literal import AtomLiteral
+from ..language.ir.comparison_literal import ComparisonLiteral
+from ..language.ir.conditional_literal import ConditionalLiteral
 from ..language.ir.inductive_task import InductiveTask
-from .extensions import _numeric_domain_values
-from .mode_compiler import _binding_positions, _closed_body_predicates
-from .properties import _closed_world_properties
-from .task_analysis import _closed_world_nodes, _closed_world_program
+from .analysis.properties import ClosedWorldProperties
+from .clause_mode import ClauseMode
 
 
 def _facts(
     task: InductiveTask,
     modes: list[ClauseMode],
-    predicate_arg_types: dict[tuple[str, int, int], str],
+    properties: ClosedWorldProperties,
     max_variables: int,
     max_head_literals: int,
     max_body_literals: int,
+    *,
+    numeric_domain: set[int],
 ) -> str:
-    nodes = _closed_world_nodes(task)
-    properties = _closed_world_properties(
-        nodes,
-        predicate_arg_types,
-        _closed_body_predicates(task),
-        _closed_world_program(task),
-    )
     predicate_ids = _predicate_ids(modes)
     structured_predicates = {
         mode.literal.atom.signature
@@ -56,17 +46,14 @@ def _facts(
             aggregate_has_shorter_mode.add(mode.id)
     parts = [
         f"max_body({max_body_literals}).",
-        f"max_head({max_head_literals}).",
         f"max_vars({max_variables}).",
     ]
     parts.extend(
         f"condition_group_recall({group},{max_body_literals if mode.recall < 0 else mode.recall})."
         for group, mode in enumerate(task.language_bias_condition)
     )
-    domain = _numeric_domain_values(task)
+    domain = numeric_domain
     all_positive = bool(domain) and all(value > 0 for value in domain)
-    if domain and 0 not in domain and not all_positive:
-        parts.append("zero_not_in_numeric_domain.")
     if domain and all(value >= 0 for value in domain) and not all_positive:
         parts.append("numeric_domain_nonnegative.")
     if all_positive:
@@ -125,7 +112,7 @@ def _facts(
             )
             if mode.aggregate_head:
                 parts.append(f"aggregate_head_form({mode.head_form}).")
-        for index, binding in zip(_binding_positions(mode), mode.bindings, strict=True):
+        for index, binding in zip(mode.binding_positions, mode.bindings, strict=True):
             parts.append(f"mode_variable_arg({mode.id},{index}).")
             if binding.type != "any":
                 parts.append(f"mode_arg_type({mode.id},{index},{binding.type}).")
@@ -170,9 +157,6 @@ def _facts(
                         condition.default_negated,
                         condition.operators,
                         *(term.shape() for term in condition.terms),
-                    )
-                    parts.append(
-                        f"conditional_expression_condition({mode.id},{index})."
                     )
                 parts.append(
                     f"conditional_condition_variant({mode.id},{index},{condition_variants.setdefault(condition_key, len(condition_variants))})."
@@ -233,8 +217,6 @@ def _facts(
             if arithmetic.operator == "+":
                 if _operands_are_interchangeable(arithmetic):
                     parts.append(f"add_mode({mode.id}).")
-            elif arithmetic.operator == "-":
-                parts.append(f"sub_mode({mode.id}).")
             elif arithmetic.operator == "*":
                 if _operands_are_interchangeable(arithmetic):
                     parts.append(f"mul_mode({mode.id}).")

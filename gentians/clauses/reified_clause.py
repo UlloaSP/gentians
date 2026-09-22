@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from .clause_mode import ClauseMode
 from ..language.ir.literal_template import render_literal
+from .clause_mode import ClauseMode
 from .reified_literal import ReifiedLiteral
 
 

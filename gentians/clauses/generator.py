@@ -1,7 +1,7 @@
-from pathlib import Path
 import random
 from collections.abc import Generator, Iterator
 from contextlib import closing, contextmanager
+from pathlib import Path
 from typing import cast
 
 import clingo
@@ -9,6 +9,11 @@ from clingo.configuration import Configuration
 
 from ..arguments import Arguments
 from ..clingo_stats import clingo_stat, ground_stats
+from ..language.asp import (
+    add_program,
+    parse_program,
+)
+from ..language.ir.inductive_task import InductiveTask
 from ..timing import (
     add,
     instrumentation,
@@ -18,29 +23,28 @@ from ..timing import (
     profile_phase,
     record_metric,
 )
-from ..language.asp import (
-    add_program,
-    parse_program,
-)
-from ..language.ir.inductive_task import InductiveTask
-from .reified_clause import ReifiedClause
-from .clause_space import ClauseSpace
-from .canonicalizer import canonicalize_clauses
-from .task_analysis import (
+from .analysis.domains import _numeric_domain_values
+from .analysis.inference import _closed_world_properties
+from .analysis.task import (
     _clause_capabilities,
+    _closed_body_predicates,
+    _closed_world_nodes,
+    _closed_world_program,
     _predicate_arg_types,
-    _prune_optional_constraints,
+    _task_nodes,
     _validate_invented_predicates,
 )
-from .extensions import _task_nodes
-from .decoder import _clause_from_model, _model_literal_index, _theta_reduced
+from .canonicalization.clauses import canonicalize_clauses
+from .clause_space import ClauseSpace
+from .decoder import _clause_from_model, _model_literal_index
 from .fact_compiler import _facts
 from .mode_compiler import (
     _clause_modes,
     _condition_limit,
     _section_capacity,
-    _variable_arity,
 )
+from .pruning import _prune_optional_constraints, _theta_reduced
+from .reified_clause import ReifiedClause
 
 
 def _raise_on_clingo_error(code, message):
@@ -49,56 +53,59 @@ def _raise_on_clingo_error(code, message):
 
 
 CLAUSE_METAPROGRAM_MODULES = (
-    "core/slots.lp",
-    "core/limits.lp",
-    "core/constraints.lp",
-    "core/recall.lp",
-    "core/arguments.lp",
-    "core/head_labels.lp",
-    "core/literals.lp",
-    "core/conditionals.lp",
-    "core/tuple_helpers.lp",
-    "aggregates/roles.lp",
+    "representation/slots.lp",
+    "representation/arguments.lp",
+    "representation/operators.lp",
+    "representation/literals.lp",
+    "representation/conditionals.lp",
+    "representation/aggregates.lp",
+    "representation/tuples.lp",
+    "safety/scopes.lp",
     "safety/linkedness.lp",
     "safety/typing.lp",
-    "safety/variables.lp",
     "safety/asp_safety.lp",
     "safety/mode_directed.lp",
+    "safety/aggregates.lp",
+    "pruning/clause_shape.lp",
+    "pruning/recall.lp",
+    "pruning/invention.lp",
+    "pruning/labels.lp",
+    "pruning/slot_order.lp",
+    "pruning/variables.lp",
+    "pruning/conditionals.lp",
+    "pruning/aggregates.lp",
+    "pruning/duplicates.lp",
     "operators/comparisons.lp",
     "operators/arithmetic.lp",
     "operators/arithmetic_domain.lp",
-    "aggregates/canonicalization.lp",
-    "aggregates/safety.lp",
-    "aggregates/duplicates.lp",
-    "properties/arg_equal.lp",
-    "properties/arg_distinct.lp",
-    "properties/symmetric.lp",
-    "properties/asymmetric.lp",
-    "properties/strict_order.lp",
-    "properties/equivalent.lp",
-    "properties/inverse.lp",
-    "properties/disjoint.lp",
-    "properties/universal.lp",
-    "properties/empty.lp",
-    "properties/partition.lp",
-    "properties/key.lp",
-    "properties/reflexive.lp",
-    "properties/total_order.lp",
-    "properties/subsumption.lp",
-    "properties/irreflexive.lp",
+    "properties/acyclic.lp",
     "properties/antisymmetric.lp",
-    "properties/implies.lp",
-    "properties/project_implies.lp",
+    "properties/arg_distinct.lp",
+    "properties/arg_equal.lp",
+    "properties/asymmetric.lp",
+    "properties/cardinality_upper.lp",
     "properties/complement.lp",
-    "properties/mutex.lp",
+    "properties/disjoint.lp",
+    "properties/empty.lp",
+    "properties/equivalent.lp",
     "properties/functional.lp",
     "properties/functional_set.lp",
-    "properties/cardinality_upper.lp",
+    "properties/implies.lp",
+    "properties/inverse.lp",
+    "properties/irreflexive.lp",
+    "properties/key.lp",
+    "properties/mutex.lp",
+    "properties/partition.lp",
+    "properties/project_implies.lp",
+    "properties/reflexive.lp",
+    "properties/strict_order.lp",
+    "properties/subsumption.lp",
+    "properties/symmetric.lp",
+    "properties/total_order.lp",
     "properties/transitive.lp",
-    "properties/acyclic.lp",
-    "core/coherence.lp",
-    "core/duplicates.lp",
+    "properties/universal.lp",
 )
+
 CLAUSE_METAPROGRAM = parse_program(
     "\n".join(
         (Path(__file__).with_name("metaprogram") / module).read_text()
@@ -143,7 +150,7 @@ class _ClauseGenerator:
             else self.head_slots
             * max(
                 (
-                    _variable_arity(mode)
+                    len(mode.bindings)
                     for mode in self.modes
                     if mode.section == "head"
                 ),
@@ -152,7 +159,7 @@ class _ClauseGenerator:
             + self.body_slots
             * max(
                 (
-                    _variable_arity(mode)
+                    len(mode.bindings)
                     for mode in self.modes
                     if mode.section == "body"
                 ),
@@ -161,14 +168,21 @@ class _ClauseGenerator:
         )
 
     @profile_phase("clause_generation")
-    def _prepare(self, model_limit: int, seed: int | None, by_size: bool = False):
+    def _prepare(self, seed: int | None, by_size: bool = False):
+        properties = _closed_world_properties(
+            _closed_world_nodes(self.task),
+            self.predicate_arg_types,
+            _closed_body_predicates(self.task),
+            _closed_world_program(self.task),
+        )
         facts = _facts(
             self.task,
             self.modes,
-            self.predicate_arg_types,
+            properties,
             self.max_variables,
             self.head_slots,
             self.body_slots,
+            numeric_domain=_numeric_domain_values(self.task),
         )
         if self.prune_constraints:
             # Prune inside ASP enumeration, before decoding/canonicalization.
@@ -177,7 +191,7 @@ class _ClauseGenerator:
         if by_size:
             facts += "\nenumerate_by_size."
         fact_program = parse_program(facts)
-        solver_arguments = [str(model_limit), *_clause_space_args(self.args)]
+        solver_arguments = ["0", *_clause_space_args(self.args)]
         ctl = clingo.Control(solver_arguments, logger=_raise_on_clingo_error)
         if by_size:
             # Keep symbolic literal indices valid across all size assumptions.
@@ -189,7 +203,7 @@ class _ClauseGenerator:
             solver_config.seed = str(seed)
             solver_config.rand_freq = "1"
             solver_config.sign_def = "rnd"
-        cast(Configuration, ctl.configuration.solve).models = str(model_limit)
+        cast(Configuration, ctl.configuration.solve).models = "0"
         add_program(ctl, fact_program)
         add_program(ctl, CLAUSE_METAPROGRAM)
         start = net_time()
@@ -200,11 +214,11 @@ class _ClauseGenerator:
         return ctl, model_index, fact_program, solver_arguments, grounding_seconds
 
     def batches(
-        self, size: int, seed: int | None, *, model_limit: int = 0,
+        self, size: int, seed: int | None, *,
         by_size: bool = False,
     ) -> Generator[ClauseSpace, None, None]:
         ctl, model_index, fact_program, solver_arguments, grounding_seconds = self._prepare(
-            model_limit, seed, by_size
+            seed, by_size
         )
         strata = (
             [(atom.literal,) for atom in sorted(
@@ -263,12 +277,12 @@ class _ClauseGenerator:
                 if collect_metrics:
                     with instrumentation():
                         self._record_solve(
-                            ctl, fact_program, solver_arguments, model_limit, seed,
+                            ctl, fact_program, solver_arguments, seed,
                             grounding_seconds if ordinal == 0 else None, seconds,
                         )
 
     def _record_solve(
-        self, ctl, fact_program, solver_arguments, model_limit, seed,
+        self, ctl, fact_program, solver_arguments, seed,
         grounding_seconds, seconds,
     ) -> None:
         stats = ctl.statistics
@@ -288,7 +302,7 @@ class _ClauseGenerator:
                     "stats_atoms": grounded["atoms"],
                     "stats_rules": grounded["rules"],
                     "clingo_arguments": clingo_arguments,
-                    "model_limit": model_limit,
+                    "model_limit": 0,
                     "sampling_seed": seed,
                     "sampling_configuration": (
                         {"parallel_mode": "1", "rand_freq": "1", "sign_def": "rnd"}

@@ -2,25 +2,11 @@
 %
 % Python emits functional_pred(Pred,Input,Output) when predicate Pred maps each
 % value at argument Input to only one value at argument Output. This file prunes
-% conflicting positive pairs and contradictory positive/negative pairs.
-%
-% Shared atom shapes used here:
-% - functional_pred(Pred,Input,Output): property fact. Pred is predicate id;
-%   Input and Output are zero-based argument indexes.
-% - positive_body_literal/4 and negative_body_literal/4: selected body atoms.
-% - var_at(body,Slot,Arg,Var): variable at predicate argument Arg.
-% - known_distinct_vars(Out0,Out1): outputs are proven different.
+% conflicting positive pairs and negative literals made redundant by a positive
+% literal with the same input and a different output.
 
-% Python fact contract:
-% - functional_pred(Pred,Input,Output): emitted by Python when predicate id Pred
-%   functionally maps zero-based argument Input to zero-based argument Output.
-% Python fact detail: functional_pred(Pred,Input,Output) says argument Input functionally determines Output for Pred.
 #defined functional_pred/3.
 
-% Constraint: reject two positive facts with same input and different outputs.
-% Slot0 and Slot1 are ordered positive literals for Pred. Same is the shared
-% input variable at Input. Out0 and Out1 are variables at Output. If outputs
-% differ, functional dependency is violated.
 :- positive_body_literal(Slot0,_,Pred,_),
     positive_body_literal(Slot1,_,Pred,_),
     Slot0 < Slot1,
@@ -31,10 +17,8 @@
     var_at(body,Slot1,Output,Out1),
     Out0 != Out1.
 
-% Constraint: reject negative fact contradicted by positive functional fact.
-% PosSlot and NegSlot use same Pred and same Input variable Same. If Output
-% variables are known distinct, the negative literal is implied by functionality
-% and should not be generated.
+% A negative tuple with a provably different output is already implied by the positive tuple.
+
 :- positive_body_literal(PosSlot,_,Pred,_),
     negative_body_literal(NegSlot,_,Pred,_),
     functional_pred(Pred,Input,Output),

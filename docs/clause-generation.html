@@ -5173,14 +5173,14 @@
           <text data-node-label="" x="1491.4" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">ClauseSpace</text>
         </g>
 
-        <g id="node-decoder" data-node-id="decoder" data-node-label="ReifiedClause decoder" tabindex="0" role="button" aria-label="Focus ReifiedClause decoder, Decodificación y forma canónica › Poda después del modelo › Compilar y enumerar" aria-pressed="false" data-node-kind="backend" data-node-context="Decodificación y forma canónica › Poda después del modelo › Compilar y enumerar">
-          <title>ReifiedClause decoder · Decodificación y forma canónica › Poda después del modelo › Compilar y enumerar</title>
+        <g id="node-decoder" data-node-id="decoder" data-node-label="Decoder + pruning" tabindex="0" role="button" aria-label="Focus Decoder + pruning, Decodificación y forma canónica › Poda después del modelo › Compilar y enumerar" aria-pressed="false" data-node-kind="backend" data-node-context="Decodificación y forma canónica › Poda después del modelo › Compilar y enumerar">
+          <title>Decoder + pruning · Decodificación y forma canónica › Poda después del modelo › Compilar y enumerar</title>
           <rect x="1188.4" y="465" width="180" height="52" rx="6" class="c-mask"/>
           <rect x="1188.4" y="465" width="180" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(1194.4 471) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" x="1278.4" y="486" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">ReifiedClause decoder</text>
+          <text data-node-label="" x="1278.4" y="486" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Decoder + pruning</text>
         </g>
 
         <g id="node-arithmetic_system" data-node-id="arithmetic_system" data-node-label="ArithmeticSystem" tabindex="0" role="button" aria-label="Focus ArithmeticSystem, Decodificación y forma canónica › Poda después del modelo › Compilar y enumerar" aria-pressed="false" data-node-kind="backend" data-node-context="Decodificación y forma canónica › Poda después del modelo › Compilar y enumerar">
@@ -5472,9 +5472,9 @@
           <h3>Compilación y poda ASP previa al modelo</h3>
         </div>
         <ul>
-          <li>&bull; Análisis estático valida #minhl/#maxhl, recalls de #modeha, inventions, tipos nominales y capacidades</li>
+          <li>&bull; analysis/ obtiene tipos, dominios y propiedades; fact_compiler.py emite los facts recibidos</li>
           <li>&bull; ClauseMode compila cada template, asigna IDs, recall groups, posiciones y roles, y unifica la familia aditiva implícita compatible</li>
-          <li>&bull; ASP poda slots, orden, recall, límites, linkedness, typing, safety y flujo</li>
+          <li>&bull; representation/ selecciona literales; safety/ valida ámbitos y flujo; pruning/ aplica límites y elimina redundancias</li>
           <li>&bull; Módulos de operadores y propiedades podan redundancias y contradicciones</li>
         </ul>
       </div>
@@ -5485,8 +5485,8 @@
           <h3>Decodificación, ArithmeticSystem y salida</h3>
         </div>
         <ul>
-          <li>&bull; selected/3 + var_at/4 se decodifican como ReifiedClause; _theta_reduced elimina subcuerpos equivalentes</li>
-          <li>&bull; Operaciones conectadas forman ArithmeticSystem con ecuaciones residuales y condiciones</li>
+          <li>&bull; decoder.py produce ReifiedClause; pruning.py elimina subcuerpos theta-equivalentes</li>
+          <li>&bull; canonicalization/ separa representación aritmética y algoritmos de normalización</li>
           <li>&bull; Outputs inseguros conservan asignación; div/mod incluyen divisor != 0 sin recall extra</li>
           <li>&bull; Clause guarda texto, heads, dependencies y tamaño; ClauseSpace ordena y deduplica</li>
         </ul>

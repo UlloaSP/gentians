@@ -1,89 +1,32 @@
-% Arithmetic operator pruning.
-%
-% This file handles generated arithmetic literals. It rejects result variables
-% reused as operands, canonicalizes commutative/symmetric arithmetic operands,
-% and rejects duplicate computations that bind different result variables.
-%
-% Shared atom shapes used here:
-% - arithmetic_mode(Mode): derived atom. Mode renders as arithmetic expression.
-% - add_mode(Mode), mul_mode(Mode), div_mode(Mode),
-%   mod_mode(Mode), abs_mode(Mode): Python facts for arithmetic operator
-%   families.
-% - selected(body,Slot,Mode): selected body arithmetic literal.
-% - var_at(body,Slot,Arg,Var): arithmetic argument assignment. Args 0 and 1 are
-%   operands; Arg 2 is the result variable.
+% Prune interchangeable operands and duplicate arithmetic computations.
+% Python emits add/mul/abs flags only for interchangeable operand bindings;
+% explicitly different types, directions or labels must retain their order.
+% Equal-mode slots are tuple-sorted, so identical inputs form adjacent runs.
 
-% Python fact contract:
-% - add_mode(Mode): emitted by Python for addition modes.
-% - mul_mode(Mode): emitted by Python for multiplication modes.
-% - div_mode(Mode): emitted by Python for division modes.
-% - mod_mode(Mode): emitted by Python for modulo modes.
-% - abs_mode(Mode): emitted by Python for absolute-distance modes.
-% Python fact detail: add_mode(Mode) marks arithmetic modes rendered as addition.
 #defined add_mode/1.
-% Python fact detail: mul_mode(Mode) marks arithmetic modes rendered as multiplication.
 #defined mul_mode/1.
-% Python fact detail: div_mode(Mode) marks arithmetic modes rendered as division.
 #defined div_mode/1.
-% Python fact detail: mod_mode(Mode) marks arithmetic modes rendered as modulo.
 #defined mod_mode/1.
-% Python fact detail: abs_mode(Mode) marks arithmetic modes rendered as absolute distance.
 #defined abs_mode/1.
-#defined sub_mode/1.
-#defined generic_arithmetic_mode/1.
 
-arithmetic_mode(Mode):- generic_arithmetic_mode(Mode).
-
-% Rule: addition modes are arithmetic modes.
-% Mode is the Python id for an arithmetic body literal rendered with +.
-arithmetic_mode(Mode):- add_mode(Mode).
-
-% Rule: multiplication modes are arithmetic modes.
-% Mode is the Python id for an arithmetic body literal rendered with *.
-arithmetic_mode(Mode):- mul_mode(Mode).
-
-% Rule: division modes are arithmetic modes.
-% Mode is the Python id for an arithmetic body literal rendered with /.
-arithmetic_mode(Mode):- div_mode(Mode).
-
-% Rule: modulo modes are arithmetic modes.
-% Mode is the Python id for an arithmetic body literal rendered with \.
-arithmetic_mode(Mode):- mod_mode(Mode).
-
-% Rule: absolute-distance modes are arithmetic modes.
-% Mode is the Python id for an arithmetic body literal rendered as |X-Y|=Z.
-arithmetic_mode(Mode):- abs_mode(Mode).
-arithmetic_mode(Mode):- sub_mode(Mode).
-
-% Constraint: canonicalize addition operands.
-% Addition is commutative. Left and Right are operand variables at arguments 0
-% and 1. Descending variable order is rejected.
 :- selected(body,Slot,Mode),
     add_mode(Mode),
     var_at(body,Slot,0,Left),
     var_at(body,Slot,1,Right),
     Left > Right.
 
-% Constraint: canonicalize multiplication operands.
-% Multiplication is commutative. Left and Right are operand variables at
-% arguments 0 and 1. Descending variable order is redundant.
 :- selected(body,Slot,Mode),
     mul_mode(Mode),
     var_at(body,Slot,0,Left),
     var_at(body,Slot,1,Right),
     Left > Right.
 
-% Constraint: canonicalize abs-distance operands.
-% The rendered abs mode represents |Left-Right|=Result, symmetric in Left and
-% Right. Descending variable order is redundant.
 :- selected(body,Slot,Mode),
     abs_mode(Mode),
     var_at(body,Slot,0,Left),
     var_at(body,Slot,1,Right),
     Left > Right.
 
-% Rule: adjacent same-mode arithmetic slots differ in at least one operand.
-% Equal modes are contiguous; duplicate-input checks only query adjacent pairs.
 arithmetic_input_differs(Slot0,Slot1):-
     selected(body,Slot0,Mode),
     selected(body,Slot1,Mode),
@@ -94,9 +37,6 @@ arithmetic_input_differs(Slot0,Slot1):-
     var_at(body,Slot1,Arg,Right),
     Left != Right.
 
-% Rule: adjacent arithmetic slots have identical inputs.
-% Equal modes are contiguous and tuple-sorted, so equal inputs form adjacent
-% runs. If no operand difference is found, both literals compute the same value.
 same_arithmetic_inputs(Slot0,Slot1):-
     selected(body,Slot0,Mode),
     selected(body,Slot1,Mode),
@@ -104,17 +44,14 @@ same_arithmetic_inputs(Slot0,Slot1):-
     Slot1 = Slot0 + 1,
     not arithmetic_input_differs(Slot0,Slot1).
 
-% Constraint: identical arithmetic computations must bind same result variable.
-% Result0 and Result1 are argument 2 of same-input arithmetic literals. Different
-% result variables duplicate one computed value.
 :- same_arithmetic_inputs(Slot0,Slot1),
     var_at(body,Slot0,2,Result0),
     var_at(body,Slot1,2,Result1),
     Result0 != Result1.
 
-% Two equations 2*Left=Result and 2*Right=Result contain a removable common
-% factor. A mixed pair such as Left+Left=Result and Left+Right=Result expresses
-% the same equality without scaling.
+% Two equations 2*Left=Result and 2*Right=Result have a removable common factor.
+% A mixed pair can express the same equality without scaling.
+
 :- selected(body,Slot0,Mode),
     selected(body,Slot1,Mode),
     add_mode(Mode),

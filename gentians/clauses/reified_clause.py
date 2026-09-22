@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import lru_cache
 
 from ..language.ir.literal_template import render_literal
 from .clause_mode import ClauseMode
@@ -11,6 +12,7 @@ class ReifiedClause:
     body: tuple[ReifiedLiteral, ...]
 
 
+@lru_cache(maxsize=8192)
 def _render_literal(literal: ReifiedLiteral, mode: ClauseMode) -> str:
     return render_literal(mode.literal, literal.variables)
 

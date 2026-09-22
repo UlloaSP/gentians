@@ -6,7 +6,7 @@ from ...language.ir.conditional_literal import ConditionalLiteral
 from ..clause import Clause
 from ..clause_mode import ClauseMode
 from ..reified_clause import ReifiedClause
-from .arithmetic import canonical_arithmetic_clause
+from .arithmetic import _ArithmeticSystemsCache, canonical_arithmetic_clause
 from .arithmetic_system import ArithmeticSystemKey
 from .linear_constraint import LinearConstraint
 
@@ -17,8 +17,11 @@ def canonicalize_clauses(
     max_variables: int,
 ) -> list[Clause]:
     representatives: dict[ArithmeticSystemKey, tuple[str, ReifiedClause]] = {}
+    systems_cache: _ArithmeticSystemsCache = {}
     for clause in clauses:
-        canonical = canonical_arithmetic_clause(clause, modes, max_variables)
+        canonical = canonical_arithmetic_clause(
+            clause, modes, max_variables, systems_cache
+        )
         if canonical is None:
             continue
         key = canonical.key

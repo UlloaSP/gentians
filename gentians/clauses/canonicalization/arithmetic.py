@@ -1,3 +1,5 @@
+from collections.abc import Set
+
 from ...language.ir.aggregate_literal import AggregateLiteral
 from ...language.ir.arithmetic_literal import ArithmeticLiteral
 from ...language.ir.atom_literal import AtomLiteral
@@ -14,6 +16,17 @@ from .linear_normalization import (
     _normalize_component,
     _orient_linear_constraints,
 )
+
+_ArithmeticContextKey = tuple[
+    tuple[tuple[int, tuple[int, ...]], ...],
+    frozenset[int],
+    frozenset[int],
+    frozenset[int],
+]
+_ArithmeticSystemsCache = dict[
+    _ArithmeticContextKey,
+    tuple[ArithmeticSystem, ...] | None,
+]
 
 
 def _is_builtin(mode: ClauseMode) -> bool:
@@ -47,16 +60,74 @@ def canonical_arithmetic_clause(
     clause: ReifiedClause,
     modes: dict[int, ClauseMode],
     max_variables: int,
+    systems_cache: _ArithmeticSystemsCache | None = None,
 ) -> CanonicalArithmeticClause | None:
-    builtin = [
+    """Canonicalize one clause, optionally reusing systems within one mode space."""
+    builtin = tuple(
         literal for literal in clause.body if _is_builtin(modes[literal.mode_id])
-    ]
+    )
     non_builtin = tuple(
         literal for literal in clause.body if not _is_builtin(modes[literal.mode_id])
     )
     if not builtin:
         return CanonicalArithmeticClause(clause.head, non_builtin, ())
 
+    external = frozenset(
+        variable
+        for literal in (*clause.head, *clause.body)
+        if not _is_builtin(modes[literal.mode_id])
+        for variable in literal.variables
+    ) | frozenset(
+        variable
+        for literal in clause.head
+        for variable in literal.variables
+    )
+    safe = frozenset(
+        variable
+        for literal in clause.body
+        if _is_positive_atom(modes[literal.mode_id])
+        for variable in literal.variables
+    ) | frozenset(
+        literal.variables[-1]
+        for literal in clause.body
+        if isinstance(modes[literal.mode_id].literal, AggregateLiteral)
+    )
+    numeric_variables = frozenset(_numeric_variables(clause, modes))
+
+    # Non-builtins affect arithmetic only through these variable sets. Their
+    # literal identities remain in CanonicalArithmeticClause and its final key.
+    context_key: _ArithmeticContextKey = (
+        tuple((literal.mode_id, literal.variables) for literal in builtin),
+        external,
+        safe,
+        numeric_variables,
+    )
+    if systems_cache is not None and context_key in systems_cache:
+        systems = systems_cache[context_key]
+    else:
+        systems = _canonical_systems(
+            builtin,
+            modes,
+            external,
+            safe,
+            numeric_variables,
+            max_variables,
+        )
+        if systems_cache is not None:
+            systems_cache[context_key] = systems
+    if systems is None:
+        return None
+    return CanonicalArithmeticClause(clause.head, non_builtin, systems)
+
+
+def _canonical_systems(
+    builtin: tuple[ReifiedLiteral, ...],
+    modes: dict[int, ClauseMode],
+    external: frozenset[int],
+    safe: frozenset[int],
+    numeric_variables: frozenset[int],
+    max_variables: int,
+) -> tuple[ArithmeticSystem, ...] | None:
     parent = list(range(max_variables))
 
     def find(variable: int) -> int:
@@ -74,28 +145,6 @@ def canonical_arithmetic_clause(
     for literal in builtin:
         for variable in literal.variables[1:]:
             union(literal.variables[0], variable)
-
-    external = {
-        variable
-        for literal in (*clause.head, *clause.body)
-        if not _is_builtin(modes[literal.mode_id])
-        for variable in literal.variables
-    }
-    external.update(
-        variable for literal in clause.head for variable in literal.variables
-    )
-    safe = {
-        variable
-        for literal in clause.body
-        if _is_positive_atom(modes[literal.mode_id])
-        for variable in literal.variables
-    }
-    safe.update(
-        literal.variables[-1]
-        for literal in clause.body
-        if isinstance(modes[literal.mode_id].literal, AggregateLiteral)
-    )
-    numeric_variables = _numeric_variables(clause, modes)
 
     components: dict[int, list[ReifiedLiteral]] = {}
     for literal in builtin:
@@ -151,11 +200,7 @@ def canonical_arithmetic_clause(
         if oriented:
             systems.append(ArithmeticSystem(oriented))
 
-    return CanonicalArithmeticClause(
-        clause.head,
-        non_builtin,
-        tuple(sorted(systems, key=lambda system: repr(system.key))),
-    )
+    return tuple(sorted(systems, key=lambda system: repr(system.key)))
 
 
 def _literal_key(literal: ReifiedLiteral) -> tuple[int, tuple[int, ...]]:
@@ -180,7 +225,7 @@ def _numeric_variables(
 
 
 def _structural_system(
-    literals: list[ReifiedLiteral], modes: dict[int, ClauseMode], safe: set[int],
+    literals: list[ReifiedLiteral], modes: dict[int, ClauseMode], safe: Set[int],
 ) -> ArithmeticSystem:
     return ArithmeticSystem(
         tuple(

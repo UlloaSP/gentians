@@ -1,3 +1,5 @@
+from collections.abc import Set
+
 from ...language.ir.arithmetic_literal import ArithmeticLiteral
 from ...language.ir.comparison_literal import ComparisonLiteral
 from ...language.ir.term_template import TermTemplate
@@ -13,7 +15,7 @@ from .term_comparison_constraint import TermComparisonConstraint
 def _arithmetic_relation(
     literal: ReifiedLiteral,
     modes: dict[int, ClauseMode],
-    safe: set[int],
+    safe: Set[int],
 ) -> SystemRelation:
     mode = modes[literal.mode_id]
     if isinstance(mode.literal, ComparisonLiteral):
@@ -77,9 +79,9 @@ def _term_comparison(
 def _expression_system(
     literals: list[ReifiedLiteral],
     modes: dict[int, ClauseMode],
-    external: set[int],
-    safe: set[int],
-    numeric_variables: set[int],
+    external: Set[int],
+    safe: Set[int],
+    numeric_variables: Set[int],
 ) -> ArithmeticSystem | None:
     known = {variable: ArithmeticExpression.var(variable) for variable in safe}
     guards: dict[int, tuple[ArithmeticExpression, ...]] = {

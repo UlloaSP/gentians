@@ -1,3 +1,4 @@
+from collections.abc import Set
 from fractions import Fraction
 from functools import lru_cache
 from math import gcd, lcm
@@ -15,7 +16,7 @@ from .linear_constraint import LinearConstraint
 
 def _orient_linear_constraints(
     constraints: tuple[LinearConstraint, ...],
-    initially_safe: set[int],
+    initially_safe: Set[int],
 ) -> tuple[SystemRelation, ...] | None:
     safe = set(initially_safe)
     pending = list(constraints)

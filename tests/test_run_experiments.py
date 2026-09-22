@@ -323,3 +323,59 @@ def test_historical_index_preserves_saved_runs_and_provenance(tmp_path):
     assert indexed["has_dashboard"] is True
     assert indexed["fingerprint"] == json.loads(original)["fingerprint"]
     assert manifest_path.read_bytes() == original
+
+
+def test_historical_index_keeps_experiments_already_marked_historical(
+    tmp_path, monkeypatch,
+):
+    experiment_ids = (
+        "sdk-defaults/steady_state",
+        "sdk-defaults/incremental",
+        "ilasp/steady_state",
+        "ilasp/incremental",
+    )
+    config = tmp_path / "experiments.toml"
+    config.write_text(
+        '[suite]\noutput_root = "' + tmp_path.as_posix() + '"\n'
+        'datasets = ["coin"]\n'
+        + "\n".join(
+            f'[[experiment]]\nid = "{experiment_id}"'
+            for experiment_id in experiment_ids
+        ),
+        encoding="utf-8",
+    )
+    for experiment_id in experiment_ids:
+        out_dir = tmp_path / experiment_id
+        out_dir.mkdir(parents=True)
+        (out_dir / "experiment.json").write_text(json.dumps({
+            "id": experiment_id,
+            "datasets": ["coin"],
+            "runs": 10,
+            "overrides": {},
+            "fingerprint": "old",
+            "status": "complete",
+        }), encoding="utf-8")
+        (out_dir / "dashboard_data.json").write_text(
+            '{"schemaVersion": 10}', encoding="utf-8",
+        )
+    (tmp_path / "experiments.json").write_text(json.dumps({
+        "experiments": [
+            {"id": experiment_id, "status": "historical"}
+            for experiment_id in experiment_ids[:2]
+        ],
+    }), encoding="utf-8")
+    monkeypatch.setattr(runner, "parse_args", lambda: Namespace(
+        config=config,
+        experiments=list(experiment_ids[2:]),
+        force=False,
+        list=False,
+        summary=False,
+        historical_index=True,
+    ))
+
+    assert runner.main() == 0
+
+    indexed = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
+    assert {row["id"] for row in indexed if row["status"] == "historical"} == set(
+        experiment_ids
+    )

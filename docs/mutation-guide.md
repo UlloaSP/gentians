@@ -24,15 +24,13 @@ el contenido escrito del diagrama está en español.
 
 ## Valores exactos
 
-| Opción | SDK `Arguments()` | Benchmark `recommended/general` | Efecto |
-| --- | --- | --- | --- |
-| `mutation.name` | ★ `random_group` | ★ `random_group` | Única estrategia registrada; la factory se conserva. |
-| `probability` | ★ `0.9` | ★ `0.9` | Intentar mutar en el 90% de llamadas. |
-| `completeness_guidance` | ★ `true` | ★ `true` | Usar el estado efectivo del programa de entrada. |
-| `constraint_only_random` | ★ `true` | ★ `true` | Excepción cuando todo el espacio activo son constraints. |
-| `random_jump_probability` | ★ `0.1` | ★ `0.1` | En reemplazos ordinarios, permitir otra firma de cabeza. |
-| `complete_generator_removal_probability` | ★ `0.1` | ★ `0.1` | Intentar eliminar una raíz encabezada de un candidato completo. |
-| `evaluation.constraint_inheritance` | ★ `true` | ★ `true` | Reutilización exacta de cobertura; no cambia permisos de mutación. |
+| Opción | SDK `Arguments()` | Efecto |
+| --- | --- | --- |
+| `mutation.name` | ★ `random_group` | Única estrategia registrada; la factory se conserva. |
+| `probability` | ★ `0.9` | Intentar mutar cuando no se fuerza por crossover duplicado. |
+| `random_jump_probability` | ★ `0.1` | En reemplazos ordinarios, permitir otra firma de cabeza. |
+| `complete_generator_removal_probability` | ★ `0.1` | Intento especial de eliminar una raíz encabezada de un candidato completo cuando hay constraints disponibles. |
+| `evaluation.constraint_inheritance` | ★ `true` | Reutilización exacta de cobertura; no cambia permisos de mutación. |
 
 Los nombres de las opciones de las filas intermedias pertenecen a `mutation`.
 Estos valores no dependen del nombre del dataset. La excepción solo-constraints
@@ -41,23 +39,21 @@ depende del `ClauseSpace` activo, no de que el benchmark sea 5queens.
 ## 1. Entrada y clasificación
 
 La entrada es el genoma que entrega crossover, no necesariamente uno de los
-padres evaluados. Se sortea una sola vez la probabilidad de mutar. Si no toca,
+padres evaluados. Un crossover duplicado fuerza la mutación, saltando el sorteo.
+En los demás casos se sortea una sola vez la probabilidad de mutar. Si no toca,
 se devuelve el mismo genoma con `skipped=True`, sin clasificarlo.
 
 Si toca mutar, se obtiene el estado:
 
-- Con la excepción solo-constraints activa y sin cláusulas encabezadas en el
+- Sin cláusulas encabezadas en el
   espacio disponible, solo se consulta `context.results`. No se evalúa un
   genoma desconocido para decidir la mutación.
-- Fuera de esa excepción, con guía de completitud, `_result(classify=True)`
+- Fuera de esa excepción, `_result(classify=True)`
   consulta primero la caché. Si falta, existen positivos y hay evaluador en el
   contexto, evalúa el programa de entrada. Esa evaluación cuenta en el total.
-- Sin guía, la propuesta ordinaria no usa clasificación. La reparación
-  experimental puede consultar un resultado ya guardado sin forzar evaluación.
 
-Una solución conocida se devuelve con `skipped=True`. Después se prepara la
-reparación opcional y se descarta el estado para la propuesta ordinaria si está
-activa la excepción solo-constraints o está desactivada la guía.
+Una solución conocida se devuelve con `skipped=True`. Se descarta el estado
+para la propuesta ordinaria si se aplica la excepción solo-constraints.
 
 Un resultado completo significa que cubre todos los positivos de la tarea.
 Consistente significa que no cubre ningún negativo. En esta mutación la
@@ -68,7 +64,8 @@ la completitud, y posteriormente en la evaluación del resultado.
 
 | Estado efectivo, con positivos | Añadir | Eliminar | Reemplazar |
 | --- | --- | --- | --- |
-| Completo | Solo constraints | Constraints; excepción encabezada del 10% | Solo constraints |
+| Completo, con constraints disponibles | Solo constraints | Constraints; excepción encabezada del 10% | Solo constraints |
+| Completo, sin constraints disponibles | Encabezadas | Encabezadas | Encabezadas; conservar el sorteo 90/10 |
 | Incompleto | Solo encabezadas y su cierre permitido | Encabezadas o constraints | Ambos tipos; con negativos, conservar el tipo de raíz |
 | No clasificado o estado descartado | Ambos tipos | Ambos tipos | Ambos tipos |
 
@@ -83,13 +80,21 @@ clasificación efectiva para los permisos, aunque pueda existir un resultado
 guardado. La salida temprana por solución conocida sigue siendo aplicable.
 
 En un completo con positivos y reglas encabezadas se sortea la eliminación
-especial una vez por llamada. Si sale, la
+especial una vez por llamada. Ese intento especial solo se aplica si hay
+constraints disponibles. Si sale y se aplica, la
 propuesta ordinaria prueba primero `remove(..., sources=headed)`. Puede retirar
 la raíz y sus consumidores, también encabezados. Si consigue un cambio válido,
 lo devuelve antes de barajar las operaciones ordinarias. Si no, continúa con
 solo constraints. No hay alternativa que permita reemplazar generadoras.
 Esta eliminación es un intento de simplificación, no una prueba de redundancia
 ni una garantía de conservar la completitud.
+
+Si el espacio activo no tiene constraints, se usan las operaciones ordinarias:
+cubrir los positivos no impide reemplazar una regla que también cubre negativos.
+Se conserva el sorteo previo, pero no se aplica el intento especial de eliminación.
+La condición mira el espacio activo en cada llamada, también tras una renovación
+incremental. Las constraints que solo están en el archivo no activan la protección.
+Las hipótesis perfectas siguen devolviéndose sin cambios.
 
 ## 3. Qué operación se prueba primero
 
@@ -161,6 +166,19 @@ La mutación devuelve una propuesta por llamada. La búsqueda detecta duplicados
 y usa su caché para no volver a evaluar un candidato ya procesado. La reparación
 diagnosticada y los reintentos se retiraron tras los experimentos desfavorables.
 
+## 7. Renovación por estancamiento
+
+El bucle steady-state cuenta generaciones desde la última mejora estricta del
+mejor score. En un espacio con cláusulas encabezadas, al llegar a 100 conserva
+el campeón y vuelve a muestrear el resto de la población. La caché global no se
+borra: un genoma ya visto no vuelve a ejecutar Clingo. Los espacios formados
+solo por constraints no se reinician.
+
+Esta renovación ocurre fuera de la mutación. No cambia el reparto de
+append/remove/replace, el sorteo 90/10 del reemplazo ni los permisos de cada
+propuesta. Evita que una población convergida siga produciendo casi únicamente
+duplicados.
+
 ## Evidencia y comprobación
 
 Fuentes inspeccionadas:
@@ -170,7 +188,7 @@ Fuentes inspeccionadas:
 - [Obtención de estado](../gentians/evolution/variation.py).
 - [Operaciones y cierre](../gentians/hypotheses/generator.py).
 - [Admisión y evaluación](../gentians/algorithms/steady_state_genetic.py).
-- [Defaults del SDK](../gentians/arguments.py) y [perfil recomendado](../benchmarks/experiments.toml).
+- [Defaults del SDK](../gentians/arguments.py) y [matrices de experimentos](../benchmarks/experiments.toml).
 
 Cada fuente JSON acompaña al HTML correspondiente. Los diagramas de flujo,
 permisos y reemplazo se regeneraron tras retirar las políticas experimentales. Los tres pasan

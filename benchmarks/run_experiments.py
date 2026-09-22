@@ -362,6 +362,18 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
     )
 
 
+def indexed_historical_ids(output_root: Path) -> set[str]:
+    index_path = output_root / "experiments.json"
+    if not index_path.exists():
+        return set()
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+    return {
+        item["id"]
+        for item in payload.get("experiments", [])
+        if item.get("status") == "historical" and isinstance(item.get("id"), str)
+    }
+
+
 def main() -> int:
     args = parse_args()
     output_root, experiments = load_config(args.config)
@@ -376,7 +388,9 @@ def main() -> int:
         raise SystemExit(f"Unknown experiments: {', '.join(unknown)}")
     selected = [by_id[key] for key in args.experiments] if args.experiments else experiments
     if args.historical_index:
-        write_index(output_root, experiments, historical_ids={item["id"] for item in selected})
+        historical_ids = indexed_historical_ids(output_root)
+        historical_ids.update(item["id"] for item in selected)
+        write_index(output_root, experiments, historical_ids=historical_ids)
         return 0
     if args.summary:
         try:

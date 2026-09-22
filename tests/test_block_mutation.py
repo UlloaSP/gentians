@@ -157,7 +157,7 @@ def test_same_kind_replacement_does_not_scan_without_matching_alternatives(monke
     assert h.replace(h.encode([":- p."]), random.Random(1), same_kind=True) is None
 
 
-def test_complete_candidate_never_replaces_or_adds_headed_rules():
+def test_complete_candidate_with_available_constraints_protects_headed_rules():
     h = generator(["goal.", "bad.", "other.", ":- bad."], max_clauses=3)
     before = h.encode(["goal.", "bad."])
     results = {before: EvaluationResult(0, False, (1, 1), True, False)}
@@ -179,14 +179,53 @@ def test_complete_generator_deletion_is_one_configurable_attempt(monkeypatch):
     assert h.render(proposal.genome) == ("goal.",)
 
 
-def test_complete_candidate_has_no_unrestricted_fallback():
-    h = generator(["goal | bad.", "goal."], max_clauses=1)
+def test_complete_candidate_with_available_constraints_has_no_unrestricted_fallback():
+    h = generator(["goal | bad.", "goal.", ":- bad."], max_clauses=1)
     before = h.encode(["goal | bad."])
     results = {before: EvaluationResult(0, False, (1, 1), True, False)}
     for seed in range(10):
         after = RandomGroupMutation(1, 1, 1)(
             before, EvolutionContext(h, random.Random(seed), results=results))
         assert after.genome == before
+
+
+@pytest.mark.parametrize("inactive_constraint", [False, True])
+def test_complete_candidate_without_available_constraints_can_replace_to_solution(inactive_constraint):
+    task = inductive_task(["number(1).", "number(2).", "good(1)."],
+                          [example(("goal(1)", ""), True)],
+                          [example(("goal(2)", ""), False)], [], [])
+    rules = ["goal(X) :- number(X).", "goal(X) :- good(X)."]
+    h = HypothesisGenerator(task, make_clause_space(
+        [*rules, ":- goal(2)."] if inactive_constraint else rules), 1)
+    headed = h.all_clauses & ~h.constraint_clauses
+    h.set_available_clauses(headed)
+    before = h.encode([rules[0]])
+    evaluate = create_evaluator(task, {"scoring": "cov_program"})
+    result = evaluate(h.program(before))
+    assert result.is_complete and not result.is_solution
+    # With one clause and maxpl=1, only replacement can change this candidate.
+    # Both alternatives have the same head, so recovery needs no head jump.
+    for seed in range(10):
+        mutation = RandomGroupMutation(1, 0, 0)
+        context = EvolutionContext(h, random.Random(seed), results={before: result})
+        after = mutation(before, context)
+        assert after.operation == "replace"
+        perfect = evaluate(h.program(after.genome))
+        assert perfect.is_solution
+        context.results[after.genome] = perfect
+        assert mutation(after.genome, context).skipped
+
+
+def test_complete_headed_only_candidate_allows_all_ordinary_operations():
+    h = generator(["goal.", "bad.", "other."], max_clauses=3)
+    before = h.encode(["goal.", "bad."])
+    results = {before: EvaluationResult(0, False, (1, 1), True, False)}
+    mutation = RandomGroupMutation(1, 0.1, 0)
+    operations = {
+        mutation(before, EvolutionContext(h, random.Random(seed), results=results)).operation
+        for seed in range(30)
+    }
+    assert operations == {"append", "remove", "replace"}
 
 
 @pytest.mark.parametrize("jump", [0, 1])

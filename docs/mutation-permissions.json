@@ -8,7 +8,7 @@
   "lanes": [
     {
       "id": "complete",
-      "label": "A · Completo con positivos"
+      "label": "A · Completo con constraints"
     },
     {
       "id": "incomplete",
@@ -16,7 +16,7 @@
     },
     {
       "id": "unknown",
-      "label": "C · Sin clasificación efectiva"
+      "label": "C · Sin estado o sin constraints"
     }
   ],
   "nodes": [
@@ -26,8 +26,8 @@
       "col": 0,
       "type": "database",
       "label": "Estado completo",
-      "sublabel": "★ guía = true",
-      "tag": "Si hay reglas con cabeza",
+      "sublabel": "Con positivos",
+      "tag": "Con positivos y constraints",
       "width": 175
     },
     {
@@ -56,7 +56,7 @@
       "col": 0,
       "type": "database",
       "label": "Estado incompleto",
-      "sublabel": "★ guía = true",
+      "sublabel": "Con positivos",
       "tag": "Resultado del programa",
       "width": 175
     },
@@ -85,9 +85,9 @@
       "lane": "unknown",
       "col": 0,
       "type": "database",
-      "label": "Estado no aplicado",
-      "sublabel": "Sin guía o sin estado",
-      "tag": "Incluye excepción anterior",
+      "label": "Sin protección",
+      "sublabel": "Sin estado efectivo",
+      "tag": "O no hay constraints",
       "width": 175
     },
     {
@@ -160,8 +160,8 @@
       "dot": "amber",
       "title": "★ Excepción solo-constraints",
       "items": [
-        "constraint_only_random=true y ninguna cláusula con cabeza en el espacio activo: solo caché; después se borra la clasificación para la propuesta ordinaria.",
-        "Activada en el SDK y en el perfil recomendado. Una solución conocida se devuelve antes de borrar el estado."
+        "Ninguna cláusula con cabeza en el espacio activo: solo caché; después se descarta la clasificación para la propuesta ordinaria.",
+        "Una solución conocida se devuelve antes de descartar el estado."
       ]
     },
     {
@@ -169,7 +169,8 @@
       "title": "Restricciones transversales",
       "items": [
         "Sin negativos: no introducir constraints nuevas; las existentes pueden retirarse.",
-        "Sin positivos, la completitud vacía no activa protección de generadoras."
+        "Sin positivos, la completitud vacía no activa protección de generadoras.",
+        "Completo sin constraints activas: operaciones ordinarias; se conserva el 90/10. Una solución conocida sigue protegida."
       ]
     }
   ]

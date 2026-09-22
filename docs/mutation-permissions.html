@@ -5031,13 +5031,13 @@
 
         <!-- Swimlanes -->
         <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-0" x="40" y="52" width="1020" height="106" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="74" class="t-dim" font-size="10" font-weight="600">01 / A · Completo con positivos</text>
+        <text x="54" y="74" class="t-dim" font-size="10" font-weight="600">01 / A · Completo con constraints</text>
 
         <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-1" x="40" y="178" width="1020" height="106" rx="10" class="c-lane" stroke-width="1"/>
         <text x="54" y="200" class="t-dim" font-size="10" font-weight="600">02 / B · Incompleto con positivos</text>
 
         <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-2" x="40" y="304" width="1020" height="106" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="326" class="t-dim" font-size="10" font-weight="600">03 / C · Sin clasificación efectiva</text>
+        <text x="54" y="326" class="t-dim" font-size="10" font-weight="600">03 / C · Sin estado o sin constraints</text>
 
         <!-- Phase headers -->
 
@@ -5054,8 +5054,8 @@
         <path data-edge-from="u-state" data-edge-to="u-mask" data-edge-label="Aplicar política" data-edge-key="5" data-edge-id="u-state-u-mask" data-composition-points="223,372;317.8,372" d="M 223 372 L 317.8 372" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
 
         <!-- Nodes -->
-        <g id="node-c-state" data-node-id="c-state" data-node-label="Estado completo" tabindex="0" role="button" aria-label="Focus Estado completo, ★ guía = true, A · Completo con positivos" aria-pressed="false" data-node-kind="database" data-node-sublabel="★ guía = true" data-node-tag="Si hay reglas con cabeza" data-node-context="A · Completo con positivos">
-          <title>Estado completo · ★ guía = true · A · Completo con positivos · Si hay reglas con cabeza</title>
+        <g id="node-c-state" data-node-id="c-state" data-node-label="Estado completo" tabindex="0" role="button" aria-label="Focus Estado completo, Con positivos, A · Completo con constraints" aria-pressed="false" data-node-kind="database" data-node-sublabel="Con positivos" data-node-tag="Con positivos y constraints" data-node-context="A · Completo con constraints">
+          <title>Estado completo · Con positivos · A · Completo con constraints · Con positivos y constraints</title>
           <rect x="48" y="86" width="175" height="68" rx="6" class="c-mask"/>
           <rect x="48" y="86" width="175" height="68" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(54 92) scale(0.6875)">
@@ -5063,12 +5063,12 @@
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="135.5" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Estado completo</text>
-          <text data-detail="context" x="135.5" y="124" class="t-muted" font-size="8" text-anchor="middle">★ guía = true</text>
-        <text data-detail="fine" x="135.5" y="142" class="t-database" font-size="7" text-anchor="middle">Si hay reglas con cabeza</text>
+          <text data-detail="context" x="135.5" y="124" class="t-muted" font-size="8" text-anchor="middle">Con positivos</text>
+        <text data-detail="fine" x="135.5" y="142" class="t-database" font-size="7" text-anchor="middle">Con positivos y constraints</text>
         </g>
 
-        <g id="node-c-remove" data-node-id="c-remove" data-node-label="Intentar eliminar" tabindex="0" role="button" aria-label="Focus Intentar eliminar, ★ sorteo 10 %, A · Completo con positivos" aria-pressed="false" data-node-kind="security" data-node-sublabel="★ sorteo 10 %" data-node-tag="Raíz encabezada y cascada" data-node-context="A · Completo con positivos">
-          <title>Intentar eliminar · ★ sorteo 10 % · A · Completo con positivos · Raíz encabezada y cascada</title>
+        <g id="node-c-remove" data-node-id="c-remove" data-node-label="Intentar eliminar" tabindex="0" role="button" aria-label="Focus Intentar eliminar, ★ sorteo 10 %, A · Completo con constraints" aria-pressed="false" data-node-kind="security" data-node-sublabel="★ sorteo 10 %" data-node-tag="Raíz encabezada y cascada" data-node-context="A · Completo con constraints">
+          <title>Intentar eliminar · ★ sorteo 10 % · A · Completo con constraints · Raíz encabezada y cascada</title>
           <rect x="317.8" y="86" width="175" height="68" rx="6" class="c-mask"/>
           <rect x="317.8" y="86" width="175" height="68" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(323.8 92) scale(0.6875)">
@@ -5080,8 +5080,8 @@
         <text data-detail="fine" x="405.3" y="142" class="t-security" font-size="7" text-anchor="middle">Raíz encabezada y cascada</text>
         </g>
 
-        <g id="node-c-mask" data-node-id="c-mask" data-node-label="Si no hubo cambio" tabindex="0" role="button" aria-label="Focus Si no hubo cambio, Solo constraints, A · Completo con positivos" aria-pressed="false" data-node-kind="security" data-node-sublabel="Solo constraints" data-node-tag="No reemplazar generadoras" data-node-context="A · Completo con positivos">
-          <title>Si no hubo cambio · Solo constraints · A · Completo con positivos · No reemplazar generadoras</title>
+        <g id="node-c-mask" data-node-id="c-mask" data-node-label="Si no hubo cambio" tabindex="0" role="button" aria-label="Focus Si no hubo cambio, Solo constraints, A · Completo con constraints" aria-pressed="false" data-node-kind="security" data-node-sublabel="Solo constraints" data-node-tag="No reemplazar generadoras" data-node-context="A · Completo con constraints">
+          <title>Si no hubo cambio · Solo constraints · A · Completo con constraints · No reemplazar generadoras</title>
           <rect x="554" y="86" width="175" height="68" rx="6" class="c-mask"/>
           <rect x="554" y="86" width="175" height="68" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(560 92) scale(0.6875)">
@@ -5093,8 +5093,8 @@
         <text data-detail="fine" x="641.5" y="142" class="t-security" font-size="7" text-anchor="middle">No reemplazar generadoras</text>
         </g>
 
-        <g id="node-i-state" data-node-id="i-state" data-node-label="Estado incompleto" tabindex="0" role="button" aria-label="Focus Estado incompleto, ★ guía = true, B · Incompleto con positivos" aria-pressed="false" data-node-kind="database" data-node-sublabel="★ guía = true" data-node-tag="Resultado del programa" data-node-context="B · Incompleto con positivos">
-          <title>Estado incompleto · ★ guía = true · B · Incompleto con positivos · Resultado del programa</title>
+        <g id="node-i-state" data-node-id="i-state" data-node-label="Estado incompleto" tabindex="0" role="button" aria-label="Focus Estado incompleto, Con positivos, B · Incompleto con positivos" aria-pressed="false" data-node-kind="database" data-node-sublabel="Con positivos" data-node-tag="Resultado del programa" data-node-context="B · Incompleto con positivos">
+          <title>Estado incompleto · Con positivos · B · Incompleto con positivos · Resultado del programa</title>
           <rect x="48" y="212" width="175" height="68" rx="6" class="c-mask"/>
           <rect x="48" y="212" width="175" height="68" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(54 218) scale(0.6875)">
@@ -5102,7 +5102,7 @@
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="135.5" y="233" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Estado incompleto</text>
-          <text data-detail="context" x="135.5" y="250" class="t-muted" font-size="8" text-anchor="middle">★ guía = true</text>
+          <text data-detail="context" x="135.5" y="250" class="t-muted" font-size="8" text-anchor="middle">Con positivos</text>
         <text data-detail="fine" x="135.5" y="268" class="t-database" font-size="7" text-anchor="middle">Resultado del programa</text>
         </g>
 
@@ -5132,21 +5132,21 @@
         <text data-detail="fine" x="641.5" y="268" class="t-security" font-size="7" text-anchor="middle">Conservar tipo de raíz</text>
         </g>
 
-        <g id="node-u-state" data-node-id="u-state" data-node-label="Estado no aplicado" tabindex="0" role="button" aria-label="Focus Estado no aplicado, Sin guía o sin estado, C · Sin clasificación efectiva" aria-pressed="false" data-node-kind="database" data-node-sublabel="Sin guía o sin estado" data-node-tag="Incluye excepción anterior" data-node-context="C · Sin clasificación efectiva">
-          <title>Estado no aplicado · Sin guía o sin estado · C · Sin clasificación efectiva · Incluye excepción anterior</title>
+        <g id="node-u-state" data-node-id="u-state" data-node-label="Sin protección" tabindex="0" role="button" aria-label="Focus Sin protección, Sin estado efectivo, C · Sin estado o sin constraints" aria-pressed="false" data-node-kind="database" data-node-sublabel="Sin estado efectivo" data-node-tag="O no hay constraints" data-node-context="C · Sin estado o sin constraints">
+          <title>Sin protección · Sin estado efectivo · C · Sin estado o sin constraints · O no hay constraints</title>
           <rect x="48" y="338" width="175" height="68" rx="6" class="c-mask"/>
           <rect x="48" y="338" width="175" height="68" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(54 344) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="135.5" y="359" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Estado no aplicado</text>
-          <text data-detail="context" x="135.5" y="376" class="t-muted" font-size="8" text-anchor="middle">Sin guía o sin estado</text>
-        <text data-detail="fine" x="135.5" y="394" class="t-database" font-size="7" text-anchor="middle">Incluye excepción anterior</text>
+          <text data-node-label="" data-detail-anchor="" x="135.5" y="359" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Sin protección</text>
+          <text data-detail="context" x="135.5" y="376" class="t-muted" font-size="8" text-anchor="middle">Sin estado efectivo</text>
+        <text data-detail="fine" x="135.5" y="394" class="t-database" font-size="7" text-anchor="middle">O no hay constraints</text>
         </g>
 
-        <g id="node-u-mask" data-node-id="u-mask" data-node-label="Permitir cambios" tabindex="0" role="button" aria-label="Focus Permitir cambios, Todo el espacio, C · Sin clasificación efectiva" aria-pressed="false" data-node-kind="security" data-node-sublabel="Todo el espacio" data-node-tag="Sin protección por fitness" data-node-context="C · Sin clasificación efectiva">
-          <title>Permitir cambios · Todo el espacio · C · Sin clasificación efectiva · Sin protección por fitness</title>
+        <g id="node-u-mask" data-node-id="u-mask" data-node-label="Permitir cambios" tabindex="0" role="button" aria-label="Focus Permitir cambios, Todo el espacio, C · Sin estado o sin constraints" aria-pressed="false" data-node-kind="security" data-node-sublabel="Todo el espacio" data-node-tag="Sin protección por fitness" data-node-context="C · Sin estado o sin constraints">
+          <title>Permitir cambios · Todo el espacio · C · Sin estado o sin constraints · Sin protección por fitness</title>
           <rect x="317.8" y="338" width="175" height="68" rx="6" class="c-mask"/>
           <rect x="317.8" y="338" width="175" height="68" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(323.8 344) scale(0.6875)">
@@ -5158,8 +5158,8 @@
         <text data-detail="fine" x="405.3" y="394" class="t-security" font-size="7" text-anchor="middle">Sin protección por fitness</text>
         </g>
 
-        <g id="node-u-head" data-node-id="u-head" data-node-label="Al reemplazar" tabindex="0" role="button" aria-label="Focus Al reemplazar, ★ misma cabeza 90 %, C · Sin clasificación efectiva" aria-pressed="false" data-node-kind="security" data-node-sublabel="★ misma cabeza 90 %" data-node-tag="Solo-constraints: global" data-node-context="C · Sin clasificación efectiva">
-          <title>Al reemplazar · ★ misma cabeza 90 % · C · Sin clasificación efectiva · Solo-constraints: global</title>
+        <g id="node-u-head" data-node-id="u-head" data-node-label="Al reemplazar" tabindex="0" role="button" aria-label="Focus Al reemplazar, ★ misma cabeza 90 %, C · Sin estado o sin constraints" aria-pressed="false" data-node-kind="security" data-node-sublabel="★ misma cabeza 90 %" data-node-tag="Solo-constraints: global" data-node-context="C · Sin estado o sin constraints">
+          <title>Al reemplazar · ★ misma cabeza 90 % · C · Sin estado o sin constraints · Solo-constraints: global</title>
           <rect x="554" y="338" width="175" height="68" rx="6" class="c-mask"/>
           <rect x="554" y="338" width="175" height="68" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(560 344) scale(0.6875)">
@@ -5401,8 +5401,8 @@
           <h3>★ Excepción solo-constraints</h3>
         </div>
         <ul>
-          <li>&bull; constraint_only_random=true y ninguna cláusula con cabeza en el espacio activo: solo caché; después se borra la clasificación para la propuesta ordinaria.</li>
-          <li>&bull; Activada en el SDK y en el perfil recomendado. Una solución conocida se devuelve antes de borrar el estado.</li>
+          <li>&bull; Ninguna cláusula con cabeza en el espacio activo: solo caché; después se descarta la clasificación para la propuesta ordinaria.</li>
+          <li>&bull; Una solución conocida se devuelve antes de descartar el estado.</li>
         </ul>
       </div>
 
@@ -5414,6 +5414,7 @@
         <ul>
           <li>&bull; Sin negativos: no introducir constraints nuevas; las existentes pueden retirarse.</li>
           <li>&bull; Sin positivos, la completitud vacía no activa protección de generadoras.</li>
+          <li>&bull; Completo sin constraints activas: operaciones ordinarias; se conserva el 90/10. Una solución conocida sigue protegida.</li>
         </ul>
       </div>
     </div>

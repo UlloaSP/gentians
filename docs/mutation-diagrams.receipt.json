@@ -63,12 +63,12 @@
       "diagram_type": "workflow",
       "output": "C:\\software\\gentians\\docs\\mutation-permissions.html",
       "specification": {
-        "sha256": "611ca78e8a89e6d837ddc2b328dea230c451c6915ea8cbcd4f8b6a0f93fbe690",
-        "bytes": 4337
+        "sha256": "392c947a88a6307edb660a7b1989e7bc693ed42a1bc5963600eaadd5c5670f06",
+        "bytes": 4373
       },
       "artifact": {
-        "sha256": "aa2984e597f9a4a5e929531c9d826a5f034b0dff9a2da2d376e7a084ea000bd1",
-        "bytes": 713363
+        "sha256": "0fca8f60ec8694260c2c4546670abf3e6c66d051deaaddf3041e54a94a3b4d25",
+        "bytes": 713408
       },
       "validation": {
         "checksPassed": 9,
@@ -111,8 +111,8 @@
         }
       ],
       "visual_review": "passed",
-      "visual_review_scope": "Capturas reales: flujo a 1440x900 claro y 2048x1320 oscuro; permisos a 2048x1320 oscuro. Rutas, texto y tarjetas revisados. No se probaron interacciones ni exportaciones.",
-      "correction_rounds": 1
+      "visual_review_scope": "Revisión 2026-09-22: capturas reales 1440x900 claro y 2048x1320 oscuro; texto, rutas y tarjetas tras añadir la excepción sin constraints. Sin pruebas de interacción ni exportación.",
+      "correction_rounds": 0
     },
     {
       "diagram_type": "workflow",

@@ -33,6 +33,8 @@ from ..evaluation.result import EvaluationResult
 from ..hypotheses import Genome, HypothesisGenerator
 from .result import SearchResult
 
+_STAGNATION_GENERATIONS = 100
+
 
 @profile_phase("search")
 def steady_state_genetic_search(
@@ -143,6 +145,41 @@ def steady_state_genetic_search(
     winner = next((item for item in population if item.is_solution), None)
     if winner is not None:
         return finish(winner, population, 0)
+    population_size = len(population)
+    progress_score = best_overall.score
+    last_progress = 0
+
+    def restart_population(
+        champion: Individual,
+        current: list[Individual],
+    ) -> list[Individual]:
+        restarted = [champion]
+        failed_attempts = 0
+        while len(restarted) < population_size and failed_attempts < 64:
+            added = False
+            for proposal in population_strategy(context):
+                individual = evaluated.get(proposal)
+                if individual is None:
+                    individual = admit(proposal)
+                if individual is None or any(
+                    item.genome == individual.genome for item in restarted
+                ):
+                    continue
+                restarted.append(individual)
+                added = True
+                if individual.is_solution:
+                    return sorted(
+                        restarted, key=lambda item: item.score, reverse=True
+                    )
+                if len(restarted) == population_size:
+                    break
+            failed_attempts = 0 if added else failed_attempts + 1
+        for individual in current:
+            if len(restarted) == population_size:
+                break
+            if all(item.genome != individual.genome for item in restarted):
+                restarted.append(individual)
+        return sorted(restarted, key=lambda item: item.score, reverse=True)
 
     record_ga_generation(
         0,
@@ -156,6 +193,20 @@ def steady_state_genetic_search(
             break
         population.sort(key=lambda item: item.score, reverse=True)
         best_overall = _better(best_overall, population[0])
+        if best_overall.score > progress_score:
+            progress_score = best_overall.score
+            last_progress = generation
+        if (
+            hypotheses.clauses_by_head
+            and generation - last_progress >= _STAGNATION_GENERATIONS
+        ):
+            with phase("replacement"):
+                population = restart_population(best_overall, population)
+            last_progress = generation
+            winner = next((item for item in population if item.is_solution), None)
+            if winner is not None:
+                best_overall = _better(best_overall, winner)
+                return finish(winner, population, generation)
         with phase("selection"):
             first, second = selection(population, 2, rng)
             record_selection(

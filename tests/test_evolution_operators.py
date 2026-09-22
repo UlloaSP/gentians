@@ -929,6 +929,140 @@ def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch):
     assert evaluated_programs == [("start.",), ("other.",), ("mutated.",)]
 
 
+def test_steady_state_restarts_stagnant_headed_population_and_finds_solution(monkeypatch):
+    calls = 0
+    evaluated_programs = []
+    args = Arguments(
+        random_seed=3,
+        iterations_genetic=101,
+        population={"name": "random", "size": 3},
+    )
+
+    def population(context):
+        nonlocal calls
+        calls += 1
+        names = (
+            ("start.", "other.", "third.")
+            if calls == 1
+            else ("win.", "other.", "third.")
+        )
+        return [context.hypotheses.encode((name,)) for name in names]
+
+    monkeypatch.setattr(search, "create_population", lambda config: population)
+    monkeypatch.setattr(
+        search, "create_crossover",
+        lambda config: lambda first, second, context: first,
+    )
+    monkeypatch.setattr(
+        search, "create_mutation",
+        lambda config: lambda genome, context, force=False: MutationProposal(genome),
+    )
+
+    def evaluator(candidate):
+        evaluated_programs.append(tuple(map(str, candidate)))
+        return EvaluationResult(
+            1.0 if tuple(map(str, candidate)) == ("win.",) else 0.0,
+            tuple(map(str, candidate)) == ("win.",),
+            (0, 0), False, True,
+        )
+
+    monkeypatch.setattr(
+        search, "create_evaluator",
+        lambda program, config, *, space: evaluator,
+    )
+
+    result = steady_state_genetic_search(
+        args,
+        inductive_task([], [], [], [], [], max_program_clauses=1),
+        make_clause_space(["start.", "other.", "third.", "win."]),
+    )
+
+    assert calls == 2
+    assert result.is_solution
+    assert result.hypothesis == ("win.",)
+    assert evaluated_programs == [
+        ("start.",), ("other.",), ("third.",), ("win.",),
+    ]
+
+
+def test_steady_state_does_not_restart_constraint_only_population(monkeypatch):
+    calls = 0
+    args = Arguments(
+        random_seed=3,
+        iterations_genetic=101,
+        population={"name": "random", "size": 2},
+    )
+
+    def population(context):
+        nonlocal calls
+        calls += 1
+        return [context.hypotheses.encode((name,)) for name in (":- a.", ":- b.")]
+
+    monkeypatch.setattr(search, "create_population", lambda config: population)
+    monkeypatch.setattr(
+        search, "create_crossover",
+        lambda config: lambda first, second, context: first,
+    )
+    monkeypatch.setattr(
+        search, "create_mutation",
+        lambda config: lambda genome, context, force=False: MutationProposal(genome),
+    )
+    monkeypatch.setattr(
+        search, "create_evaluator",
+        lambda program, config, *, space: lambda candidate: EvaluationResult(
+            0.0, False, (0, 0), False, True,
+        ),
+    )
+
+    steady_state_genetic_search(
+        args,
+        inductive_task(["a.", "b.", "c."], [], [], [], [], max_program_clauses=1),
+        make_clause_space([":- a.", ":- b.", ":- c."]),
+    )
+
+    assert calls == 1
+
+
+def test_steady_state_restart_keeps_population_when_refill_has_no_novelty(monkeypatch):
+    calls = 0
+    args = Arguments(
+        random_seed=3,
+        iterations_genetic=101,
+        population={"name": "random", "size": 2},
+    )
+
+    def population(context):
+        nonlocal calls
+        calls += 1
+        names = ("start.", "other.") if calls == 1 else ("start.", "start.")
+        return [context.hypotheses.encode((name,)) for name in names]
+
+    monkeypatch.setattr(search, "create_population", lambda config: population)
+    monkeypatch.setattr(
+        search, "create_crossover",
+        lambda config: lambda first, second, context: first,
+    )
+    monkeypatch.setattr(
+        search, "create_mutation",
+        lambda config: lambda genome, context, force=False: MutationProposal(genome),
+    )
+    monkeypatch.setattr(
+        search, "create_evaluator",
+        lambda program, config, *, space: lambda candidate: EvaluationResult(
+            0.0, False, (0, 0), False, True,
+        ),
+    )
+
+    result = steady_state_genetic_search(
+        args,
+        inductive_task([], [], [], [], [], max_program_clauses=1),
+        make_clause_space(["start.", "other.", "unseen."]),
+    )
+
+    assert calls > 1
+    assert not result.is_solution
+
+
 @pytest.mark.parametrize("mutation_name", ["random_group"])
 def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     monkeypatch, mutation_name

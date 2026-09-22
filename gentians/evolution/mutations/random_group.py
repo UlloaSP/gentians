@@ -63,7 +63,9 @@ class RandomGroupMutation:
         complete = bool(result is not None and result.is_complete and h.has_positive_examples)
         incomplete = bool(result is not None and not result.is_complete and h.has_positive_examples)
 
-        if complete:
+        if complete and h.available_clauses & h.constraint_clauses:
+            # Completeness alone cannot freeze headed rules when the active
+            # space has no constraints with which to remove negative witnesses.
             # One draw per mutation decision, not per failed clause proposal.
             # This is an attempt at simplification, never proof of redundancy.
             if remove_headed:
@@ -94,5 +96,5 @@ class RandomGroupMutation:
                                       same_kind=incomplete and h.has_negative_examples)
             if candidate is not None and candidate != genome:
                 return MutationProposal(candidate, operation=operation, local=local)
-        # Complete generators are protected even if every constraint edit fails.
+        # In mixed spaces, complete generators remain protected if edits fail.
         return MutationProposal(genome)

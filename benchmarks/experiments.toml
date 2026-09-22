@@ -63,6 +63,46 @@ instrumentation = "light"
 algorithm = "incremental"
 
 [[experiment]]
+id = "ilasp-mode-bias-all-120s-10runs/gentians-steady_state"
+description = "Gentians steady-state full pipeline on the nine ILASP mode-bias tasks."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+]
+runs = 10
+timeout_seconds = 120
+instrumentation = "full"
+[experiment.overrides]
+algorithm = "steady_state"
+
+[[experiment]]
+id = "ilasp-mode-bias-all-120s-10runs/gentians-incremental"
+description = "Gentians incremental full pipeline on the nine ILASP mode-bias tasks."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+]
+runs = 10
+timeout_seconds = 120
+instrumentation = "full"
+[experiment.overrides]
+algorithm = "incremental"
+
+[[experiment]]
 id = "ilasp-generated-5queens-20s/gentians"
 label = "5queens · Gentians desde bias"
 description = "Full metrics for the ten steady-state runs used in the ILASP comparison."

@@ -14,6 +14,8 @@ Older measurements remain historical evidence, not selectable implementations.
 | Incremental restarts and constraint proposals | Fixed policies: restart headed spaces after 100 stagnant generations; up to 16 constraint proposals per new batch. No ablation switches. | [Constraint probes](incremental-crossover-experiment.md) |
 | Batch 512, epochs 10, elites 5 | Rejected as defaults; old matrix entries removed. | [Incremental history](incremental-experiment.md) |
 | Completeness and constraint-only mutation | Structural policy retained; experimental toggles removed. | [Mutation ablation](mutation-ablation-experiment.md) |
+| Complete candidates without active constraints | Ordinary headed edits enabled; improves `even_odd` from 20/30 to 25/30 at 20.000 generations. | [No-constraint mutation](mutation-no-constraints-experiment.md) |
+| Steady-state stagnation | Champion-preserving population restart after 100 stagnant generations in headed spaces; global evaluation cache retained. `even_odd` reaches 30/30 within 20.000 generations and all nine measured datasets reach 30/30. | [Steady-state restart](mutation-no-constraints-experiment.md#steady-state-restart) |
 | Constraint coverage inheritance | Enabled by the SDK default. | [Inheritance](semantic-inheritance-experiment.md) |
 | Constraint diagnosis and repair | Removed, including active matrix entries. | [Repair](semantic-repair-experiment.md) |
 | Structural population initialization | Removed, including active matrix entries. | [Population diversity](population-diversity-experiment.md) |

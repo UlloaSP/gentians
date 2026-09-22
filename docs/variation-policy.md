@@ -73,14 +73,18 @@ returned unchanged. Other candidates use this policy:
 
 | Candidate state | Permitted mutation |
 | --- | --- |
-| Complete, with positives | Edit constraints only, except for the separate headed-block deletion attempt. |
+| Complete, with positives and active constraints | Edit constraints only, except for the separate headed-block deletion attempt. |
+| Complete, with positives and no active constraints | Ordinary headed-clause append, remove and replace; keep the head-signature draw and dependency closure. |
 | Incomplete, with positives and negatives | Add or edit headed clauses; remove headed blocks or constraints; replace a constraint with another constraint. |
 | No positives | Do not freeze headed clauses on vacuous completeness. Ordinary block edits remain available. |
 | No negatives | Do not introduce pure constraints. Existing constraints may be removed or replaced by headed clauses, including normalization when a constraint-only candidate acquires a headed block. |
 
 On a complete candidate containing headed clauses, one draw selects a
 headed-root deletion attempt with probability
-`complete_generator_removal_probability`. Cascading may also remove dependent
+`complete_generator_removal_probability`. This special attempt is applied only
+when the active space contains constraints. Without active constraints, mutation
+uses ordinary operations; the preceding draw is retained so this exception does
+not introduce an additional RNG change. Cascading may also remove dependent
 constraints. If no such deletion is legal, try ordinary constraint edits.
 There is no redraw and no fallback to headed replacement or addition. The
 offspring receives normal evaluation; this operation does not certify redundancy
@@ -146,10 +150,17 @@ not ASP equivalence or generalization.
 Protecting complete headed programs is a search restriction, not a theorem of
 repairability. For a positive requiring `p`, a negative requiring `q`, and
 `#maxpl=1`, the candidate `p | q.` is complete but inconsistent. If no useful
-constraints exist, it needs replacement by `p.`; this mutation policy leaves
-it unchanged. The surrounding search may obtain another candidate through
+constraints exist, it needs replacement by `p.`. With no active constraints,
+ordinary replacement can now make that change (subject to its head-signature
+draw). If constraints are active but cannot repair the candidate, the policy
+still protects its headed clauses. The surrounding search may obtain another candidate through
 crossover or population diversity, but convergence is not guaranteed. Headed
 rules can also define pruning helpers rather than only generate models.
+
+The exception inspects the current active pool, including after incremental
+renewal. Constraints present only in the full ClauseSpace do not trigger
+protection. Known perfect candidates remain unchanged. See the measured
+[no-constraint mutation experiment](mutation-no-constraints-experiment.md).
 
 ## Crossover
 
@@ -261,10 +272,25 @@ relaxation comparison or quadratic neighbor table is maintained. Replacement
 skips roots with no absent alternative of the permitted kind. No full-space
 forbidden mask per removal is stored.
 
+### Steady-state stagnation restart
+
+The steady-state search preserves its best individual and resamples the rest of
+the population after 100 generations without a strict score improvement. The
+global individual and evaluation caches survive the restart, so previously seen
+programs are not solved again and still count toward finite-space exhaustion.
+The restart applies only when the prepared space contains headed clauses;
+constraint-only search keeps its existing trajectory.
+
+This is population renewal in the search loop, not a mutation retry. Mutation
+still makes one proposal per offspring and retains the permissions above. The
+[controlled measurement](mutation-no-constraints-experiment.md#steady-state-restart)
+records the effect on the benchmark matrix.
+
 Tests cover transitive deletion, alternative and background providers, signed
 dependencies, cycles, joint replacement, pool/size/protection invariants,
 positive-only recovery, headed-root replacement, probability boundaries,
-actual-child classification and complete-candidate freezing.
+actual-child classification, complete-candidate freezing, restart cache reuse
+and the constraint-only exclusion.
 No speedup is claimed. End-to-end comparisons need matched seeds, wall-clock
 timeouts, no generation cap, success rates and net `total_execution` alongside
 grounding, solving, Python and closure time.

@@ -43,27 +43,22 @@ complete candidate hypothesis remain in `hypotheses/` and `evaluation/`.
 ## ASP metaprogram
 
 `CLAUSE_METAPROGRAM_MODULES` lists every module explicitly. Clingo grounds and
-solves them together; these directories are responsibilities, not execution
+solves them together; directories identify responsibilities, not execution
 stages.
 
 | Directory | Responsibility |
 | --- | --- |
-| `representation/` | Select modes, assign variables and derive literal, operator, conditional, aggregate and tuple relations. |
-| `safety/` | Enforce scopes, nominal types, linkedness, ASP safety and directed variable flow. |
-| `pruning/` | Enforce clause limits, recalls, labels and invention policy; remove duplicate literals and symmetric encodings. |
-| `operators/` | Prune arithmetic and comparison contradictions or redundancies. |
-| `properties/` | Apply predicate properties supplied by static task analysis. |
+| `representation/` | Selected modes, bindings and semantic views of literals, operators and aggregates. |
+| `inference/` | Numeric consequences of selected relations and supplied domain evidence. |
+| `legality/` | Structural limits, recalls, labels, invention, scopes, types and safety. `flow/` separates binding roles, seeds, closure and requirements. |
+| `symmetry/` | Ordered representatives of interchangeable encodings. |
+| `pruning/contradictions/` | Incompatible relations under stated assumptions. |
+| `pruning/redundancy/` | Repeated or entailed combinations. |
+| `pruning/properties/` | Checks conditional on statically analyzed predicate properties. |
+| `pruning/policies/` | Additional restrictions of the existing enumerator. |
+| `pruning/task/` | Task-relative optional-constraint pruning. |
 
-`selected(Section,Slot,Mode)` identifies a selected mode occurrence.
-`var_at(Section,Slot,Arg,Var)` assigns a variable to one flattened placeholder;
-`Arg` is not necessarily a rendered predicate argument because templates can
-contain nested terms. Fixed terms remain in the compiled mode shape.
-`representation/literals.lp` derives positive and negative literal views from
-these assignments. Conditional and aggregate roles are represented separately;
-`safety/scopes.lp` determines which variables are local to their conditions.
-
-Property facts are evidence from the task analysis, not coverage measurements
-of individual clauses. Shared tuple comparisons live in `representation/tuples.lp`;
-their consumers own the constraints that reject a particular combination.
-Comments beside those constraints explain semantic assumptions rather than
-repeat the shared predicate inventory.
+The [metaprogram guide](metaprogram/README.md) defines the shared predicate
+contracts, distinguishes variable ids from values, explains each family of
+checks and provides executable examples that include the production modules.
+It also records the assumptions and limits of the pruning arguments.

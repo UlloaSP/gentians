@@ -581,7 +581,7 @@ constraints. Strong negation retains its sign, and contexts are inspected
 independently. An absent predicate in one context cannot be supplied by another.
 
 When the test succeeds, a fact enables an ASP constraint in
-`clauses/metaprogram/pruning/clause_shape.lp`, excluding headless clause models
+`clauses/metaprogram/pruning/task/optional_constraints.lp`, excluding headless clause models
 before decoding and canonicalization. Background and context constraints are
 never removed.
 

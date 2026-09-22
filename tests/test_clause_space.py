@@ -2803,7 +2803,7 @@ def test_universal_empty_and_complement_facts_are_emitted():
 def test_universal_binary_predicate_derives_reflexive_property():
     metaprogram_dir = Path(clause_generation.__file__).with_name("metaprogram")
     metaprogram = (
-        (metaprogram_dir / "properties" / "universal.lp").read_text()
+        (metaprogram_dir / "pruning" / "properties" / "universal.lp").read_text()
         + """
 universal_pred(1).
 mode(body,0,1,2,1).

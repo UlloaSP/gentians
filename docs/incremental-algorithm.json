@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Gentians · el ciclo genético incremental",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "hidden"
+    },
+    "viewBox": [
+      1180,
+      720
+    ]
+  },
+  "components": [
+    {
+      "id": "clause_feed",
+      "type": "database",
+      "label": "Cláusulas legales",
+      "sublabel": "Clingo enumera el language bias",
+      "pos": [
+        30,
+        110
+      ],
+      "size": [
+        210,
+        80
+      ]
+    },
+    {
+      "id": "epoch_refresh",
+      "type": "messagebus",
+      "label": "Renovación incremental",
+      "sublabel": "Nuevo lote + élites cada 50 gen.",
+      "pos": [
+        30,
+        320
+      ],
+      "size": [
+        210,
+        80
+      ]
+    },
+    {
+      "id": "gene_pool",
+      "type": "frontend",
+      "label": "Población de hipótesis",
+      "sublabel": "Cada individuo es un programa ASP",
+      "pos": [
+        350,
+        150
+      ],
+      "size": [
+        210,
+        90
+      ]
+    },
+    {
+      "id": "parent_choice",
+      "type": "backend",
+      "label": "Selección de padres",
+      "sublabel": "Lexicase elige dos individuos",
+      "pos": [
+        640,
+        150
+      ],
+      "size": [
+        210,
+        90
+      ]
+    },
+    {
+      "id": "program_cross",
+      "type": "backend",
+      "label": "Cruce",
+      "sublabel": "Combina cláusulas de ambos padres",
+      "pos": [
+        930,
+        150
+      ],
+      "size": [
+        210,
+        90
+      ]
+    },
+    {
+      "id": "program_mutate",
+      "type": "backend",
+      "label": "Mutación",
+      "sublabel": "Añade, elimina o reemplaza bloques",
+      "pos": [
+        930,
+        450
+      ],
+      "size": [
+        210,
+        90
+      ]
+    },
+    {
+      "id": "whole_fitness",
+      "type": "cloud",
+      "label": "Evaluación de fitness",
+      "sublabel": "Programa completo → cobertura → score",
+      "pos": [
+        640,
+        450
+      ],
+      "size": [
+        210,
+        90
+      ]
+    },
+    {
+      "id": "survivor_choice",
+      "type": "frontend",
+      "label": "Reemplazo",
+      "sublabel": "Hijo nuevo sustituye al viejo o peor",
+      "pos": [
+        350,
+        450
+      ],
+      "size": [
+        210,
+        90
+      ]
+    },
+    {
+      "id": "best_program",
+      "type": "external",
+      "label": "Mejor hipótesis",
+      "sublabel": "Devuelve programa, score y éxito",
+      "pos": [
+        30,
+        580
+      ],
+      "size": [
+        210,
+        80
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "CICLO GENÉTICO · la población cambia de un hijo en un hijo",
+      "wraps": [
+        "gene_pool",
+        "parent_choice",
+        "program_cross",
+        "program_mutate",
+        "whole_fitness",
+        "survivor_choice"
+      ],
+      "pad": 22
+    }
+  ],
+  "connections": [
+    {
+      "from": "gene_pool",
+      "to": "parent_choice",
+      "variant": "emphasis"
+    },
+    {
+      "from": "parent_choice",
+      "to": "program_cross",
+      "variant": "emphasis",
+      "label": "dos padres"
+    },
+    {
+      "from": "program_cross",
+      "to": "program_mutate",
+      "variant": "emphasis",
+      "label": "hijo con dependencias cerradas",
+      "labelDy": 110
+    },
+    {
+      "from": "program_mutate",
+      "to": "whole_fitness",
+      "variant": "emphasis",
+      "label": "candidato válido",
+      "labelDy": -45
+    },
+    {
+      "from": "whole_fitness",
+      "to": "survivor_choice",
+      "variant": "emphasis",
+      "label": "score del hijo"
+    },
+    {
+      "from": "survivor_choice",
+      "to": "gene_pool",
+      "variant": "emphasis",
+      "label": "siguiente generación"
+    },
+    {
+      "from": "clause_feed",
+      "to": "epoch_refresh",
+      "variant": "dashed",
+      "label": "lotes de 128 modelos",
+      "labelDy": 75
+    },
+    {
+      "from": "epoch_refresh",
+      "to": "gene_pool",
+      "variant": "dashed",
+      "label": "conserva élites"
+    },
+    {
+      "from": "survivor_choice",
+      "to": "best_program",
+      "variant": "default",
+      "label": "solución o límite"
+    }
+  ]
+}

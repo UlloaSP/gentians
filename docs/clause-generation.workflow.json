@@ -163,8 +163,8 @@
       "items": [
         "analysis/ obtiene tipos, dominios y propiedades; fact_compiler.py emite los facts recibidos",
         "ClauseMode compila cada template, asigna IDs, recall groups, posiciones y roles, y unifica la familia aditiva implícita compatible",
-        "representation/ selecciona literales; safety/ valida ámbitos y flujo; pruning/ aplica límites y elimina redundancias",
-        "Módulos de operadores y propiedades podan redundancias y contradicciones"
+        "representation/ describe literales; legality/ valida límites, ámbitos y flujo; symmetry/ ordena encodings",
+        "inference/ deriva consecuencias; pruning/ distingue contradicciones, redundancias, propiedades y políticas"
       ]
     },
     {

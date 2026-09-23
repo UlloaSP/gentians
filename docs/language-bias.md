@@ -20,7 +20,7 @@ Runtime configuration owns only how GENTIANS searches that space.
 | `#maxv(N).` | At most `N` distinct variables in one clause. |
 | `#maxbl(N).` | At most `N` literals in one clause body. |
 | `#minhl(N).` | At least `N` atoms in a head built by `#modeha` or `#modehd`. |
-| `#maxhl(N).` | At most `N` atoms in one clause head. `0` permits only headless clauses. |
+| `#maxhl(N).` | At most `N` source elements in one clause head. `0` also permits explicitly empty choice and aggregate heads. |
 | `#maxpl(N).` | At most `N` clauses in one candidate hypothesis. |
 
 `#maxv` and `#maxhl` follow ILASP terminology. `#maxpl` uses `p` for
@@ -68,7 +68,7 @@ Additional validity rules:
 - `#maxpl` requires an integer greater than zero or `*`.
 - `#maxv(0).` allows only clauses without variables.
 - `#maxbl(0).` allows only bodyless rules; ASP safety still applies.
-- `#maxhl(0).` allows only constraints.
+- `#maxhl(0).` allows constraints and explicitly empty choice or aggregate heads.
 - `#minhl` requires a positive integer and cannot exceed a finite `#maxhl`
   when `#modeha` or `#modehd` is present. Its default is `1`.
 - Duplicate directives are task errors.
@@ -129,21 +129,40 @@ head template:
 #modeh(1,1 {heads(var(coin,input,x));tails(var(coin,input,x))} 1).
 #modeh(1,#count{var(node,any):selected(var(node,any)):
                   node(var(node,any))}=1).
+#modeh(1,var(numeric,input,n) {selected(var(node,any)):
+                  node(var(node,any))} var(numeric,input,n)).
 #modeh(1,-rejected(var(node,input))).
+#modeh(1,not rejected(var(node,input))).
+#modeh(1,p(var(node,input,x));not p(var(node,input,x))).
+#modeh(1,p(1;2)).
+#modeh(1,p(1,2;3,4)).
+#modeh(1,1{not blocked;selected}1).
+#modeh(1,#count{1:not blocked}=1).
+#modeh(1,#false).
+#modeh(1,p;1=2).
+#modeh(1,{}).
+#modeh(1,#count{}=0).
+#modeh(1,{p;q}!=1).
 #modeb(1,edge(var(node,input),var(node,output))).
+#modeb(1,#true).
+#modeb(1,#false:p(var(node,input))).
 #modeb(1,not blocked(var(node,input))).
 #modeb(1,not -approved(var(node,input))).
 #modeb(1,wrapped(box(var(node,input),const(colour)))).
+#modeb(1,p(_)).
 ```
 
 Every `#modeh` is an alternative complete head. Gentians selects either no
 head (a constraint) or exactly one declaration; it does not construct subsets
 or combine separate declarations. Head recall must be `1`. `#maxhl` bounds the
-number of atoms in a declaration, and `#maxhl(*)` derives that width from the
+number of source elements in a declaration, and `#maxhl(*)` derives that width from the
 largest declared head. The positive-only pruning rule below can exclude the
 headless alternative from enumeration without changing the declared syntax.
-Elements of an exact choice/cardinality `#modeh` head are connected as one
-head form, just like elements combined from `#modeha`.
+Default negation is allowed on exact normal heads and on elements of
+disjunctive, choice, cardinality, and function aggregate heads. A normal
+`not p` head depends on `p` and does not define it. Elements of an exact
+choice/cardinality `#modeh` head belong to one complete head form, just like
+elements combined from `#modeha`.
 
 The optional third component of a head variable is a declaration-local
 identity label. Reusing a label forces the corresponding positions to use one
@@ -155,16 +174,45 @@ An element may carry an exact conditional attachment directly, such as
 indivisible from the element. Generated `#modec` conditions may additionally
 attach to every element of a normal, disjunctive, choice, or cardinality head.
 Exact `#modeh` also accepts a Clingo function aggregate head (`#count`,
-`#sum`, `#sum+`, `#min`, or `#max`). Each element declares a tuple, a positive
-head atom, and optional positive atomic conditions. Aggregate guards are fixed
-integers; local variables must occur in a positive condition. Their conditions
+`#sum`, `#sum+`, `#min`, or `#max`). Each element declares a tuple, a head
+literal (which may have default negation), and optional atom or comparison
+conditions, including default negation.
+Normal, disjunctive, and choice heads may also contain Boolean or comparison
+literals. Empty choice and function aggregate heads retain their exact syntax.
+Choice bounds and set aggregate guards retain all six Clingo comparison
+operators. A conditional or pooled element can ground into more elements than
+appear in the declaration, so fixed bounds are not compared with source element
+count.
+Choice bounds and function aggregate guards may contain typed variables, provided
+an ordinary positive body literal makes them safe. Local element variables must
+be bound within their own scope by a positive atom or by a comparison that
+Clingo proves safe. Their conditions
 consume `#maxbl`, and the number of elements consumes `#maxhl`.
 
 Every atom and aggregate argument is explicit. Its variables contain a nominal
 type and one direction; `var(type)` without a direction is valid only inside a
 relation, where the inference rules below apply.
 
-Functions and tuples may nest without a depth limit. Their leaves remain
+Functions and tuples may nest without a depth limit. Arithmetic expressions and
+intervals are also valid in atom arguments. A pool in `#modeh` stays inside one
+complete head: `#modeh(1,p(1;2)).` generates `p(1;2).` as one selectable
+clause, which Clingo expands to both facts. A pool may vary several arguments,
+as in `p(1,2;3,4)`; all alternatives must keep the same predicate and arity.
+An atom pool in `#modeb`, such as `#modeb(1,p(1;2)).` or
+`#modeb(1,p(f(1;2))).`, stays in one body literal and one learnable clause.
+Canonical output may write the nested example as `p(f(1);f(2))`.
+Clingo expands that literal into alternative
+rule bodies. Declare `p(1)` and `p(2)` separately if they should be selectable
+as independent body modes. Variables supplied by a positive pooled atom are safe only when
+they occur in every alternative; other variables need a separate safe source.
+The same rule applies to positive conditions inside conditional literals and
+aggregate elements.
+Pools inside body aggregate guards and conditional conclusions likewise stay in
+one declared literal. Rendering preserves parentheses when a pool is nested in
+arithmetic, an aggregate tuple, or a guard; those parentheses can change the
+grounded program and its stable models.
+Pools in `#modec` and combinable head modes expand to separate mode
+alternatives. Their leaves remain
 explicit `var(...)` or `const(...)` placeholders. Variable limits, typing,
 directions, labels, safety, and rendering use those leaves in left-to-right
 depth-first order. Predicate arity still counts outer arguments, so
@@ -174,44 +222,64 @@ depth-first order. Predicate arity still counts outer arguments, so
 head-mode       = "#modeh(1,", head-template, ")." ;
 body-mode       = "#modeb(", recall, ",", body-template, ")." ;
 body-template   = atom-conditional-template
+                | boolean-conditional-template
                 | comparison-expression
-                | aggregate-template ;
+                | ["not", [whitespace, "not"], whitespace],
+                  (aggregate-template | set-aggregate-template) ;
 condition-mode  = "#modec(", recall, ",", literal-template, ")." ;
-aggregate-head-mode = "#modeha(", [recall, ","], atom-template, ")." ;
-disjunctive-head-mode = "#modehd(", [recall, ","], atom-template, ")." ;
+aggregate-head-mode = "#modeha(", [recall, ","], signed-atom-template, ")." ;
+disjunctive-head-mode = "#modehd(", [recall, ","], signed-atom-template, ")." ;
 head-template   = conditional-template
-                | conditional-template, {";", conditional-template}
-                | [integer], "{", conditional-template,
-                  {";", conditional-template}, "}", [integer]
+                | disjunctive-template
+                | [mode-term, comparison-operator], "{",
+                  [head-element-template, {";", head-element-template}],
+                  "}", [comparison-operator, mode-term]
                 | head-aggregate ;
-head-aggregate  = integer, comparison-operator, aggregate-function,
-                  "{", head-aggregate-element,
-                  {";", head-aggregate-element}, "}",
-                  [comparison-operator, integer]
-                | aggregate-function, "{", head-aggregate-element,
-                  {";", head-aggregate-element}, "}",
-                  comparison-operator, integer ;
-head-aggregate-element = mode-term, {",", mode-term}, ":", atom-template,
-                         [":", atom-template, {",", atom-template}] ;
-conditional-template = atom-template,
+head-aggregate  = mode-term, comparison-operator, aggregate-function,
+                  "{", [head-aggregate-element,
+                  {";", head-aggregate-element}], "}",
+                  [comparison-operator, mode-term]
+                | aggregate-function, "{", [head-aggregate-element,
+                  {";", head-aggregate-element}], "}",
+                  comparison-operator, mode-term ;
+head-aggregate-element = [mode-term, {",", mode-term}], ":", literal-template,
+                         [":", literal-template, {",", literal-template}] ;
+conditional-template = literal-template,
                        [":", literal-template, {",", literal-template}] ;
-atom-conditional-template = ["not", whitespace], atom-template,
+head-element-template = literal-template,
+                        [":", literal-template, {",", literal-template}] ;
+disjunctive-template = head-element-template, ";", head-element-template,
+                        {";", head-element-template} ;
+atom-conditional-template = ["not", [whitespace, "not"], whitespace], atom-template,
                             [":", literal-template, {",", literal-template}] ;
-literal-template = ["not", whitespace], atom-template | comparison-expression ;
+boolean-conditional-template = ["not", [whitespace, "not"], whitespace],
+                               ("#true" | "#false"),
+                               [":", literal-template, {",", literal-template}] ;
+literal-template = ["not", [whitespace, "not"], whitespace],
+                   (atom-template | comparison-expression | "#true" | "#false") ;
 aggregate-template = arithmetic-term, comparison-operator,
                      aggregate-expression,
                      [comparison-operator, arithmetic-term]
                    | aggregate-expression, comparison-operator,
                      arithmetic-term ;
 aggregate-expression = aggregate-function, "{",
-                       [mode-term, {",", mode-term}, ":",
-                        atom-template, {",", atom-template},
-                        {";", mode-term, {",", mode-term}, ":",
-                         atom-template, {",", atom-template}}], "}" ;
+                       [aggregate-element, {";", aggregate-element}], "}" ;
+aggregate-element = [mode-term, {",", mode-term}],
+                    [":", literal-template, {",", literal-template}] ;
+set-aggregate-template = [mode-term, comparison-operator], "{",
+                         [set-element, {";", set-element}], "}",
+                         [comparison-operator, mode-term] ;
+set-element = literal-template,
+              [":", literal-template, {",", literal-template}] ;
 aggregate-function = "#count" | "#sum" | "#sum+" | "#min" | "#max" ;
 comparison-operator = "=" | "!=" | "<" | "<=" | ">" | ">=" ;
 atom-template   = ["-"], predicate, ["(", mode-term, {",", mode-term}, ")"] ;
-mode-term       = variable-argument | constant-argument | function-term | tuple-term ;
+signed-atom-template = ["not", [whitespace, "not"], whitespace], atom-template ;
+mode-term       = variable-argument | constant-argument | function-term
+                | tuple-term | arithmetic-term | interval-term | fixed-term
+                | pool-term | "_" ;
+pool-term       = mode-term, ";", mode-term, {";", mode-term} ;
+fixed-term      = integer | lowercase-identifier | string-literal ;
 function-term   = function, "(", mode-term, {",", mode-term}, ")" ;
 tuple-term      = "(", ")"
                 | "(", mode-term, ",", [mode-term, {",", mode-term}], ")" ;
@@ -225,10 +293,15 @@ type            = lowercase-identifier ;
 label           = lowercase-identifier ;
 ```
 
-A body mode without `not` permits the positive literal. A body mode with
-`not` permits only its default-negated form. Declare both modes independently
-to permit both polarities; their recalls remain independent. Head modes cannot
-contain `not`.
+A body mode without `not` permits the positive literal. `not` and `not not`
+are distinct exact templates; this also applies to aggregate literals. Declare
+the forms independently to permit them together. `#true` and `#false` can be
+declared as body literals or used in exact conditional literals, including
+`#false:p(X)`. Default negation is also accepted in disjunctive, choice,
+cardinality, and function aggregate head elements.
+The anonymous variable `_` is accepted in positive body atoms and positive
+atom conditions. Each occurrence is independent, contributes no named variable
+to `#maxv`, and cannot make a negative literal or a head safe.
 
 ## Learnable facts and empty bodies
 
@@ -245,11 +318,14 @@ These declarations include `ready.` and `seed(a).` in the clause space. The same
 applies to ground disjunctions, choices, and cardinality heads. A variable in a
 bodyless head is still rejected unless its head-conditional scope grounds it;
 Gentians does not turn nominal types into hidden domain literals. The empty
-head and empty body combination is never emitted, so `:-.` cannot be learned.
+unselected head and empty body combination is never emitted, so `:-.` cannot be
+learned. Explicit `#modeh(1,{}).` and `#modeh(1,#count{}=0).` are distinct
+selectable, empty-element heads.
 
 ## Removed meta-programming directives
 
-`#bias`, `#metarule`, `#predicate`, and `#modem` are no longer supported.
+`#bias`, `#metarule`, `#predicate`, `#modem`, `#modeedge`, and `#edge`
+are no longer supported.
 The parser rejects each with its source line before compiling background ASP.
 There is no compatibility mode or replacement payload in `InductiveTask`.
 
@@ -299,16 +375,21 @@ be combined, subject to each recall. `#minhl` affects generated combinable
 heads; explicit complete `#modeh` declarations remain unchanged.
 
 Aggregate-head atoms support strong negation, typed directions, constants,
-functions, tuples, and declaration-local labels. They cannot use default
-negation. The normal safety and direction rules apply. `#modec` may attach
+functions, tuples, default negation, and declaration-local labels. The normal
+safety and direction rules apply. `#modec` may attach
 conditions independently to every generated element, and those conditions
 still consume the clause-wide body budget. Elements of one choice or exact
-function aggregate head are one structural component for linkedness, so
-compatible atoms may use distinct variables grounded by distinct body literals.
+function aggregate head may use distinct variables grounded by distinct body
+literals.
 
 With `#maxhl(*)`, all `#modeha` recalls must be finite. Gentians then derives
 the maximum width from their summed recalls. This preserves a finite search
-space before grounding.
+space before grounding. A body literal need not share a variable directly with
+the head, but all variable-bearing literals must form one global component.
+For example, `q(X) :- d(X),r(Y)` is pruned even if `r(Y)` grounds `Y`.
+This linkedness restriction is a search policy, not a Clingo safety rule.
+Local variables inside distinct aggregate or conditional scopes do not connect
+otherwise separate clause components.
 
 ## Disjunctive head modes
 
@@ -363,6 +444,7 @@ An exact attachment may instead be written in `#modeh` or `#modeb`:
 ```prolog
 #modeh(1,target(var(node,any)):node(var(node,any))).
 #modeb(1,candidate(var(numeric,any)):var(numeric,input)<3).
+#modeb(1,var(numeric,any,x)=1:candidate(var(numeric,any,x))).
 ```
 
 Unlike a generated `#modec` attachment, it is never optional and stays on that
@@ -377,7 +459,8 @@ and default-negated atom forms separately. Labels are declaration-local by
 default and may appear in `#modeb` and `#modec` as well as head declarations.
 
 ASP scoping determines conditional-variable safety. A variable used only in a
-conditional is local. One of its positive atomic conditions must ground it;
+conditional is local. Its conditions must ground it through a positive atom or
+a comparison whose output safety Clingo proves;
 the conditional conclusion does not do so in either a body or head element.
 Every other conditional variable is
 global and must be made safe outside that conditional. Global `input`
@@ -414,8 +497,12 @@ Names used only inside aggregate elements are local to each element. Distinct
 aggregates may reuse those names, including with different nominal types;
 that reuse does not connect their literals or bind any global input. An
 occurrence in an ordinary head/body term or aggregate result makes the name
-global. Aggregate tuple variables remain local, and global condition variables
-still require a positive normal body literal. These checks also distinguish
+global. A global tuple variable needs an independent positive body atom to
+bind it; a local variable needs a positive atom or Clingo-safe comparison in
+its own element. The existing equality-output projection with positive atom
+conditions additionally keeps condition bindings distinct.
+For example, it prunes `#count{X:p(X),q(X)}=R` when both conditions share `X`.
+These checks also distinguish
 local conditional-literal scopes from clause-global occurrences.
 
 `#maxv` bounds the distinct variable names in the generated clause: independent
@@ -424,8 +511,8 @@ local scopes can reuse a name within that budget. For example, three sums over
 `#maxv(4)`. Reusing a name across those aggregates does not equate their local
 bindings.
 
-An aggregate body mode declares zero or more nonempty elements, each with a
-tuple and one or more positive atomic conditions. It may have an equality
+An aggregate body mode declares zero or more elements, each with an optionally
+empty tuple and optional atom or comparison conditions. It may have an equality
 output, one comparison guard, or a range with two guards:
 
 ```prolog
@@ -434,6 +521,10 @@ output, one comparison guard, or a range with two guards:
          var(numeric,output,result)).
 #modeb(1,1<=#count{var(node,any):p(var(node,any));
                     var(node,any):q(var(node,any))}<=2).
+#modeb(1,not #count{var(node,any):p(var(node,any))}=1).
+#modeb(1,#sum{1;2}=3).
+#modeb(1,1 {p(var(node,any)):node(var(node,any)),
+              not blocked(var(node,any))} 2).
 ```
 
 The tuple is part of the template. Listing every condition variable expresses
@@ -446,10 +537,15 @@ Labels connect repeated placeholders within the aggregate. Tuple and condition
 variables require `input` or `any`; each element has its own local variable
 scope. An `output` guard requires a sole equality and, for `#count`, `#sum`,
 and `#sum+`, has type `numeric`. Variables in other guards must be safe outside
-the aggregate. Strong negation is supported in condition atoms. Default
-negation and non-atomic conditions inside an aggregate remain unsupported.
-A top-level aggregate tuple, condition or guard term may contain at most one
-variable placeholder.
+the aggregate. Strong and default negation are supported in condition atoms;
+comparisons may also be conditions. A local variable must occur in a positive
+atomic condition or be bound by a Clingo-safe comparison in its own element. A
+tuple or condition term may contain
+multiple variable placeholders. Set aggregates use atomic, Boolean, or
+comparison conclusions, each with optional `not` or `not not`, and the same
+local safety rule. A conclusion cannot ground its local variables; they need
+a binding condition in the same element. Their optional guards accept all six
+Clingo comparison operators.
 
 Arithmetic and comparisons use the relation grammar:
 
@@ -575,11 +671,35 @@ Invented predicates use the same complete template:
 
 The template generates a head mode with recall 1 and a positive body mode with
 the declared recall. This keeps invented arguments typed and directed without
-fallback inference. The invented predicate itself cannot be strongly negated;
-strongly negated uses can instead be declared explicitly with `#modeh` or
-`#modeb`.
+fallback inference. The invented predicate may also be strongly negated.
+Invented predicates are ordered by declaration. A definition may depend on
+background predicates or earlier invented predicates, but not on its own or
+later invented predicates or on an ordinary learnable head predicate. Integrity
+constraints cannot consume invented predicates. These restrictions also apply
+to dependencies in conditional literals and aggregate conditions. They are
+search policies: Clingo accepts some programs they exclude. Ordinary clause
+safety and whole-program dependency closure still apply.
 
 ## Runtime boundary
+
+### Pending: predicates provided only by example contexts
+
+The language bias can generate `q :- p.` for this task:
+
+```prolog
+#pos({q},{},{p.}).
+#neg({q},{},{}).
+#maxv(0). #maxbl(1).
+#modeh(1,q).
+#modeb(1,p).
+```
+
+Evaluating that clause directly covers the positive example and excludes the
+negative one. `prepare_space()` currently removes it because dependency closure
+recognizes providers in the background and candidate hypothesis, but not in an
+individual example context. This is a known end-to-end expressivity gap left
+pending. A future change must define how context-only providers participate in
+closure without allowing one example's context to supply another's predicates.
 
 ### Positive-only constraint pruning
 

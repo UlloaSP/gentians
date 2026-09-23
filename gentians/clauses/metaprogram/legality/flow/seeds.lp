@@ -13,7 +13,8 @@ flow_bound(Var) :-
     positive_mode(Mode),
     not directed_mode(Mode),
     mode_arg_direction(Mode, Arg, any),
-    var_at(body, Slot, Arg, Var).
+    var_at(body, Slot, Arg, Var),
+    not pooled_body_missing_var(Slot, Var).
 
 flow_produced(Var) :- aggregate_result_var(_, Var).
 flow_produced(Var) :- aggregate_output_var(_, Var).

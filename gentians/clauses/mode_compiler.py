@@ -5,6 +5,7 @@ from itertools import combinations_with_replacement, product
 from ..language.ir.aggregate_literal import AggregateLiteral
 from ..language.ir.arithmetic_literal import ArithmeticLiteral
 from ..language.ir.atom_literal import AtomLiteral
+from ..language.ir.boolean_literal import BooleanLiteral
 from ..language.ir.atom_template import AtomTemplate
 from ..language.ir.comparison_literal import ComparisonLiteral
 from ..language.ir.conditional_literal import ConditionalLiteral
@@ -37,7 +38,14 @@ def _combined_head_templates(
         max_width = min(max_width, sum(mode.recall for mode in declarations))
 
     choices = tuple(
-        (declaration_index, atom)
+        (
+            declaration_index,
+            AtomLiteral(
+                atom,
+                declaration.literal.default_negated,
+                declaration.literal.double_negated,
+            ),
+        )
         for declaration_index, declaration in enumerate(declarations)
         if isinstance(declaration.literal, AtomLiteral)
         for atom in declaration.literal.atom.concretizations(task.constants)
@@ -45,16 +53,16 @@ def _combined_head_templates(
     condition_limit = _condition_limit(task)
     condition_modes = _condition_modes(task) if condition_limit else ()
     atom_capacities = {
-        atom: _aggregate_head_atom_capacity(
-            task, atom, max_width, condition_modes, condition_limit
+        literal: _aggregate_head_atom_capacity(
+            task, literal, max_width, condition_modes, condition_limit
         )
-        for _declaration_index, atom in choices
+        for _declaration_index, literal in choices
     }
     max_width = min(max_width, sum(atom_capacities.values()))
     declaration_capacities = {
         index: sum(
-            atom_capacities[atom]
-            for declaration_index, atom in choices
+            atom_capacities[literal]
+            for declaration_index, literal in choices
             if declaration_index == index
         )
         for index in range(len(declarations))
@@ -80,16 +88,20 @@ def _combined_head_templates(
             ):
                 continue
             if any(
-                count > atom_capacities[atom]
-                for atom, count in Counter(atom for _index, atom in combination).items()
+                count > atom_capacities[literal]
+                for literal, count in Counter(literal for _index, literal in combination).items()
             ):
                 continue
-            elements = tuple(atom for _index, atom in combination)
+            elements = tuple(literal.atom for _index, literal in combination)
+            signs = tuple(
+                2 if literal.double_negated else 1 if literal.default_negated else 0
+                for _index, literal in combination
+            )
             bounds = (
                 _aggregate_head_bounds(width) if kind == "choice" else ((None, None),)
             )
             for lower, upper in bounds:
-                template = HeadTemplate(kind, elements, lower, upper)
+                template = HeadTemplate(kind, elements, lower, upper, signs=signs)
                 if template not in seen:
                     seen.add(template)
                     templates.append(template)
@@ -106,9 +118,38 @@ def _disjunctive_head_templates(task: InductiveTask) -> tuple[HeadTemplate, ...]
     )
 
 
+def _concrete_head_guards(
+    template: HeadTemplate, constants: dict[str, tuple[str, ...]]
+) -> tuple[HeadTemplate, ...]:
+    lower = (
+        template.lower.concretizations(constants)
+        if isinstance(template.lower, TermTemplate) else (template.lower,)
+    )
+    upper = (
+        template.upper.concretizations(constants)
+        if isinstance(template.upper, TermTemplate) else (template.upper,)
+    )
+    left = (
+        template.aggregate_left_guard.concretizations(constants)
+        if template.aggregate_left_guard is not None else (None,)
+    )
+    right = (
+        template.aggregate_right_guard.concretizations(constants)
+        if template.aggregate_right_guard is not None else (None,)
+    )
+    return tuple(
+        replace(
+            template, lower=lo, upper=hi,
+            aggregate_left_guard=left_guard,
+            aggregate_right_guard=right_guard,
+        )
+        for lo, hi, left_guard, right_guard in product(lower, upper, left, right)
+    )
+
+
 def _aggregate_head_atom_capacity(
     task: InductiveTask,
-    atom: AtomTemplate,
+    literal: AtomLiteral,
     max_width: int,
     condition_modes: tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...],
     condition_limit: int,
@@ -116,7 +157,7 @@ def _aggregate_head_atom_capacity(
     variants = tuple(
         variant
         for variant in _conditioned_literals(
-            AtomLiteral(atom), condition_modes, condition_limit
+            literal, condition_modes, condition_limit
         )
         if isinstance(variant, AtomLiteral | ConditionalLiteral)
     )
@@ -152,6 +193,13 @@ def _aggregate_head_bounds(width: int) -> tuple[tuple[int, int], ...]:
     )
 
 
+def _head_form_element(
+    literal: AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral,
+) -> AtomTemplate | BooleanLiteral | ComparisonLiteral:
+    conclusion = literal.conclusion if isinstance(literal, ConditionalLiteral) else literal
+    return conclusion.atom if isinstance(conclusion, AtomLiteral) else conclusion
+
+
 def _clause_modes(
     task: InductiveTask,
     predicate_arg_types: dict[tuple[str, int, int], str],
@@ -167,10 +215,14 @@ def _clause_modes(
     condition_limit = _condition_limit(task)
     condition_modes = _condition_modes(task)
     next_head_form = 0
-    head_templates = (
-        *(declaration.template for declaration in task.language_bias_head),
-        *_aggregate_head_templates(task),
-        *_disjunctive_head_templates(task),
+    head_templates = tuple(
+        concrete
+        for template in (
+            *(declaration.template for declaration in task.language_bias_head),
+            *_aggregate_head_templates(task),
+            *_disjunctive_head_templates(task),
+        )
+        for concrete in _concrete_head_guards(template, task.constants)
     )
     for template in head_templates:
         if template.kind == "aggregate":
@@ -186,6 +238,12 @@ def _clause_modes(
                 )
                 form_id = next_head_form
                 next_head_form += 1
+                if not concrete:
+                    add(ClauseMode(
+                        id=next_id, recall_group=next_id, section="head", recall=1,
+                        literal=BooleanLiteral(True), head_form=form_id,
+                        head_position=0, head=head,
+                    ))
                 for position, element in enumerate(concrete):
                     add(ClauseMode(
                         id=next_id, recall_group=next_id, section="head", recall=1,
@@ -194,10 +252,13 @@ def _clause_modes(
                     ))
             continue
         concrete_elements = []
-        for atom, exact_conditions in zip(
-            template.elements, template.conditions, strict=True
+        for atom, exact_conditions, sign in zip(
+            template.elements, template.conditions, template.signs, strict=True
         ):
-            base: AtomLiteral | ConditionalLiteral = AtomLiteral(atom)
+            base: AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral = (
+                AtomLiteral(atom, sign != 0, sign == 2)
+                if isinstance(atom, AtomTemplate) else atom
+            )
             if exact_conditions:
                 base = ConditionalLiteral(
                     base,
@@ -208,22 +269,31 @@ def _clause_modes(
                 tuple(
                     literal
                     for literal in _literal_concretizations(base, task.constants)
-                    if isinstance(literal, AtomLiteral | ConditionalLiteral)
+                    if isinstance(literal, AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral)
                 )
             )
         for concrete_literals_base in product(*concrete_elements):
             concrete_form = tuple(
-                literal.conclusion.atom
-                if isinstance(literal, ConditionalLiteral)
-                else literal.atom
-                for literal in concrete_literals_base
+                _head_form_element(literal) for literal in concrete_literals_base
             )
             head = HeadTemplate(
                 template.kind,
                 concrete_form,
                 template.lower,
                 template.upper,
+                signs=template.signs,
+                lower_operator=template.lower_operator,
+                upper_operator=template.upper_operator,
             )
+            if not concrete_literals_base:
+                form_id = next_head_form
+                next_head_form += 1
+                add(ClauseMode(
+                    id=next_id, recall_group=next_id, section="head", recall=1,
+                    literal=BooleanLiteral(True), head_form=form_id,
+                    head_position=0, head=head,
+                ))
+                continue
             alternatives = tuple(
                 _conditioned_literals(literal, condition_modes, condition_limit)
                 for literal in concrete_literals_base
@@ -348,13 +418,17 @@ def _condition_modes(
 
 
 def _conditioned_literals(
-    conclusion: AtomLiteral | ComparisonLiteral | ConditionalLiteral,
+    conclusion: AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral,
     condition_modes: tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...],
     limit: int,
-) -> tuple[AtomLiteral | ComparisonLiteral | ConditionalLiteral, ...]:
-    if isinstance(conclusion, ComparisonLiteral):
+) -> tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral, ...]:
+    if isinstance(conclusion, ComparisonLiteral) and any(
+        binding.direction == "output"
+        for term in conclusion.arguments
+        for binding in term.bindings()
+    ):
         return (conclusion,)
-    literals: list[AtomLiteral | ComparisonLiteral | ConditionalLiteral] = [conclusion]
+    literals: list[AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral] = [conclusion]
     base_conclusion = (
         conclusion.conclusion
         if isinstance(conclusion, ConditionalLiteral)
@@ -408,6 +482,7 @@ def _conditioned_literals(
 def _literal_concretizations(
     literal: AggregateLiteral
     | AtomLiteral
+    | BooleanLiteral
     | ComparisonLiteral
     | ConditionalLiteral
     | ArithmeticLiteral,
@@ -415,6 +490,7 @@ def _literal_concretizations(
 ) -> tuple[
     AggregateLiteral
     | AtomLiteral
+    | BooleanLiteral
     | ComparisonLiteral
     | ConditionalLiteral
     | ArithmeticLiteral,
@@ -424,9 +500,11 @@ def _literal_concretizations(
         return literal.concretizations(constants)
     if isinstance(literal, AtomLiteral):
         return tuple(
-            AtomLiteral(atom, literal.default_negated)
+            AtomLiteral(atom, literal.default_negated, literal.double_negated)
             for atom in literal.atom.concretizations(constants)
         )
+    if isinstance(literal, BooleanLiteral):
+        return (literal,)
     if isinstance(literal, ConditionalLiteral):
         return literal.concretizations(constants)
     if isinstance(literal, ArithmeticLiteral):
@@ -437,6 +515,7 @@ def _literal_concretizations(
             literal.operators,
             literal.default_negated,
             fully_implicit_directions=literal.fully_implicit_directions,
+            double_negated=literal.double_negated,
         )
         for terms in product(
             *(term.concretizations(constants) for term in literal.terms)
@@ -447,12 +526,14 @@ def _literal_concretizations(
 def _specialize_body_literal(
     literal: AggregateLiteral
     | AtomLiteral
+    | BooleanLiteral
     | ComparisonLiteral
     | ConditionalLiteral
     | ArithmeticLiteral,
 ) -> (
     AggregateLiteral
     | AtomLiteral
+    | BooleanLiteral
     | ComparisonLiteral
     | ConditionalLiteral
     | ArithmeticLiteral
@@ -500,6 +581,7 @@ def _specialize_body_literal(
 def _implicit_additive_family(
     literal: AggregateLiteral
     | AtomLiteral
+    | BooleanLiteral
     | ComparisonLiteral
     | ConditionalLiteral
     | ArithmeticLiteral,

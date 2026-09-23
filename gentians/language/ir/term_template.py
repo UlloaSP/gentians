@@ -14,6 +14,8 @@ TermKind: TypeAlias = Literal[
     "tuple",
     "arithmetic",
     "interval",
+    "pool",
+    "anonymous",
 ]
 
 
@@ -37,6 +39,8 @@ class TermTemplate:
             "tuple",
             "arithmetic",
             "interval",
+            "pool",
+            "anonymous",
         }:
             raise ValueError(f"invalid term kind: {self.kind}")
         if self.kind in {"variable", "constant"}:
@@ -58,6 +62,8 @@ class TermTemplate:
         elif self.kind == "fixed":
             if not self.value or self.arguments:
                 raise ValueError("fixed terms require one rendered value")
+        elif self.kind == "anonymous" and (self.value or self.arguments):
+            raise ValueError("anonymous variables cannot contain syntax")
         elif self.kind in {"function", "arithmetic", "interval"}:
             if not self.value or not self.arguments:
                 raise ValueError(f"{self.kind} terms require an operator and arguments")
@@ -65,6 +71,8 @@ class TermTemplate:
                 raise ValueError("interval terms require two bounds")
         elif self.kind == "tuple" and self.value:
             raise ValueError("tuple terms cannot have a name")
+        elif self.kind == "pool" and (self.value or len(self.arguments) < 2):
+            raise ValueError("pool terms require at least two alternatives")
 
     @classmethod
     def variable(
@@ -96,6 +104,12 @@ class TermTemplate:
             type_name
             for argument in self.arguments
             for type_name in argument.constant_types()
+        )
+
+    @property
+    def contains_anonymous(self) -> bool:
+        return self.kind == "anonymous" or any(
+            argument.contains_anonymous for argument in self.arguments
         )
 
     @property
@@ -143,11 +157,15 @@ class TermTemplate:
             )
         if self.kind == "fixed":
             return self.value
+        if self.kind == "anonymous":
+            return "_"
         if self.kind == "arithmetic":
             return self._render_arithmetic(variables, parent_precedence, right_child)
         if self.kind == "interval":
             left, right = (
-                argument._render(variables, 0, False) for argument in self.arguments
+                f"({rendered})" if argument.kind == "pool" else rendered
+                for argument in self.arguments
+                for rendered in (argument._render(variables, 0, False),)
             )
             return f"{left}..{right}"
         rendered = tuple(
@@ -157,32 +175,43 @@ class TermTemplate:
             return f"{self.value}({','.join(rendered)})"
         if self.kind == "tuple":
             suffix = "," if len(rendered) == 1 else ""
-            return f"({','.join(rendered)}{suffix})"
+            values = (
+                f"({value})" if argument.kind == "pool" else value
+                for argument, value in zip(self.arguments, rendered, strict=True)
+            )
+            return f"({','.join(values)}{suffix})"
+        if self.kind == "pool":
+            return ";".join(rendered)
         raise ValueError(f"unsupported term kind: {self.kind}")
 
     def _render_arithmetic(
         self, variables: Iterator[str], parent_precedence: int, right_child: bool
     ) -> str:
         if self.value == "absolute":
-            return f"|{self.arguments[0]._render(variables, 0, False)}|"
+            argument = self.arguments[0]
+            value = argument._render(variables, 0, False)
+            return f"|({value})|" if argument.kind == "pool" else f"|{value}|"
         if self.value == "neg":
             argument = self.arguments[0]
             value = argument._render(variables, 0, False)
-            rendered = f"-({value})" if argument.kind == "arithmetic" else f"-{value}"
+            rendered = f"-({value})" if argument.kind in {"arithmetic", "pool"} else f"-{value}"
             return f"({rendered})" if parent_precedence > 7 else rendered
         if self.value == "bitnot":
             argument = self.arguments[0]
             value = argument._render(variables, 0, False)
-            rendered = f"~({value})" if argument.kind == "arithmetic" else f"~{value}"
+            rendered = f"~({value})" if argument.kind in {"arithmetic", "pool"} else f"~{value}"
             return f"({rendered})" if parent_precedence > 7 else rendered
         if self.value == "abs":
-            left = self.arguments[0]._render(variables, 0, False)
-            right = self.arguments[1]._render(variables, 0, False)
+            left, right = (
+                f"({rendered})" if argument.kind == "pool" else rendered
+                for argument in self.arguments
+                for rendered in (argument._render(variables, 0, False),)
+            )
             return f"|{left}-{right}|"
 
         def child(argument: TermTemplate) -> str:
             rendered = argument._render(variables, 0, False)
-            return f"({rendered})" if argument.kind == "arithmetic" else rendered
+            return f"({rendered})" if argument.kind in {"arithmetic", "pool"} else rendered
 
         left, right = (child(argument) for argument in self.arguments)
         return f"{left}{self.value}{right}"

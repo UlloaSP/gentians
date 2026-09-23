@@ -46,6 +46,7 @@ def _head_atoms(task: InductiveTask) -> tuple[AtomTemplate, ...]:
         atom
         for declaration in task.language_bias_head
         for atom in declaration.template.elements
+        if isinstance(atom, AtomTemplate)
     ) + tuple(
         mode.literal.atom
         for mode in (
@@ -67,9 +68,14 @@ def _mode_atom_literals(mode: ModeDeclaration) -> tuple[AtomLiteral, ...]:
         )
     if isinstance(mode.literal, AggregateLiteral):
         return tuple(
-            AtomLiteral(atom)
+            literal
             for element in mode.literal.elements
-            for atom in element.conditions
+            for literal in (
+                *((element.conclusion,)
+                  if isinstance(element.conclusion, AtomLiteral) else ()),
+                *element.conditions,
+            )
+            if isinstance(literal, AtomLiteral)
         )
     return ()
 
@@ -216,11 +222,12 @@ def _predicate_arg_types(
 
     declared_types_by_root: dict[tuple[str, int, int], set[str]] = {}
     for atom in declared_atoms:
-        for index, argument in enumerate(atom.terms):
-            if argument.kind not in {"variable", "constant"}:
-                continue
-            position = (*atom.unsigned_signature, index)
-            declared_types_by_root.setdefault(find(position), set()).add(argument.type)
+        for alternative in atom.alternatives or (atom.terms,):
+            for index, argument in enumerate(alternative):
+                if argument.kind not in {"variable", "constant"}:
+                    continue
+                position = (*atom.unsigned_signature, index)
+                declared_types_by_root.setdefault(find(position), set()).add(argument.type)
     type_by_root: dict[tuple[str, int, int], str] = {}
     next_type = 0
     for root, constants in constants_by_root.items():

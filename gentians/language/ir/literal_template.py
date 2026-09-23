@@ -3,12 +3,14 @@ from typing import TypeAlias
 from .aggregate_literal import AggregateLiteral
 from .arithmetic_literal import ArithmeticLiteral
 from .atom_literal import AtomLiteral
+from .boolean_literal import BooleanLiteral
 from .comparison_literal import ComparisonLiteral
 from .conditional_literal import ConditionalLiteral
 from .head_aggregate_element import HeadAggregateElement
 
 LiteralTemplate: TypeAlias = (
     AtomLiteral
+    | BooleanLiteral
     | ComparisonLiteral
     | ArithmeticLiteral
     | AggregateLiteral

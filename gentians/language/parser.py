@@ -15,7 +15,6 @@ from .ir.head_declaration import HeadDeclaration
 from .ir.head_template import HeadTemplate
 from .ir.mode_declaration import ModeDeclaration
 from .ir.inductive_task import InductiveTask
-from .ir.term_template import TermTemplate
 from .lexer import Statement, lex
 from .modes import (
     _get_aggregate_head_declaration,
@@ -23,6 +22,7 @@ from .modes import (
     _get_condition_mode_declaration,
     _get_disjunctive_head_declaration,
     _get_head_declaration,
+    _unpool_mode_declarations,
 )
 
 
@@ -40,7 +40,7 @@ def parse_text(source: str) -> InductiveTask:
     lbhd: list[ModeDeclaration] = []
     lbb: list[ModeDeclaration] = []
     lbc: list[ModeDeclaration] = []
-    inventions: list[tuple[int, str, tuple[TermTemplate, ...]]] = []
+    inventions: list[tuple[int, AtomTemplate]] = []
     constants: dict[str, list[str]] = {}
     limits: dict[str, int | None] = {
         "#maxv": 3,
@@ -70,27 +70,31 @@ def parse_text(source: str) -> InductiveTask:
                 min_head_literals = value
             else:
                 limits[limit] = value
-        elif directive in {"#bias", "#metarule", "#predicate", "#modem"}:
+        elif directive in {"#bias", "#metarule", "#predicate", "#modem", "#modeedge", "#edge"}:
             # Retired task directives must fail explicitly, never become BK.
             raise ValueError(
                 f"line {statement.line}: {directive} is no longer supported"
             )
         elif directive == "#modeha":
-            md = _get_aggregate_head_declaration(lc)
-            if md not in lbha:
-                lbha.append(md)
+            for variant in _unpool_mode_declarations(lc, directive):
+                md = _get_aggregate_head_declaration(variant)
+                if md not in lbha:
+                    lbha.append(md)
         elif directive == "#modehd":
-            md = _get_disjunctive_head_declaration(lc)
-            if md not in lbhd:
-                lbhd.append(md)
+            for variant in _unpool_mode_declarations(lc, directive):
+                md = _get_disjunctive_head_declaration(variant)
+                if md not in lbhd:
+                    lbhd.append(md)
         elif directive == "#modeh":
-            md = _get_head_declaration(lc)
-            if md not in lbh:
-                lbh.append(md)
+            for variant in _unpool_mode_declarations(lc, directive):
+                md = _get_head_declaration(variant)
+                if md not in lbh:
+                    lbh.append(md)
         elif directive == "#modeb":
-            md = _get_body_mode_declaration(lc)
-            if md not in lbb:
-                lbb.append(md)
+            for variant in _unpool_mode_declarations(lc, directive):
+                md = _get_body_mode_declaration(variant)
+                if md not in lbb:
+                    lbb.append(md)
         elif directive == "#pos":
             res = _get_pos_neg_examples(lc)
             ex = Example.parse(res, True, statement.line)
@@ -106,14 +110,15 @@ def parse_text(source: str) -> InductiveTask:
         elif directive == "#modecmp":
             raise ValueError("#modecmp was removed; use #modeb")
         elif directive == "#modec":
-            md = _get_condition_mode_declaration(lc)
-            if md not in lbc:
-                lbc.append(md)
+            for variant in _unpool_mode_declarations(lc, directive):
+                md = _get_condition_mode_declaration(variant)
+                if md not in lbc:
+                    lbc.append(md)
         elif directive == "#modearith":
             raise ValueError("#modearith was removed; use an explicit #modeb relation")
         elif directive == "#invent":
             invention = _get_invented_declaration(lc)
-            if any(existing[1:] == invention[1:] for existing in inventions):
+            if any(existing[1] == invention[1] for existing in inventions):
                 raise ValueError(f"duplicate #invent declaration: {lc}")
             inventions.append(invention)
         elif directive == "#constant":
@@ -124,11 +129,10 @@ def parse_text(source: str) -> InductiveTask:
         else:
             background_statements.append(statement)
 
-    invented_predicates = tuple(
-        (name, len(arguments)) for _recall, name, arguments in inventions
-    )
+    invented_predicates = tuple(atom.signature for _recall, atom in inventions)
     explicit = (
-        {atom.signature for head in lbh for atom in head.template.elements}
+        {atom.signature for head in lbh for atom in head.template.elements
+         if isinstance(atom, AtomTemplate)}
         | {
             mode.literal.atom.signature
             for mode in (*lbha, *lbhd)
@@ -152,15 +156,23 @@ def parse_text(source: str) -> InductiveTask:
             "invented predicates must not also use #modeh/#modeha/#modeb: "
             f"{sorted(overlap)}"
         )
-    for recall, name, arguments in inventions:
+    for recall, atom in inventions:
         lbh.append(
-            HeadDeclaration(1, HeadTemplate("normal", (AtomTemplate(name, arguments),)))
+            HeadDeclaration(1, HeadTemplate("normal", (atom,)))
         )
-        lbb.append(ModeDeclaration(recall, AtomLiteral(AtomTemplate(name, arguments))))
+        lbb.append(ModeDeclaration(recall, AtomLiteral(atom)))
     constant_types = {
         type_name
         for terms in [
-            *(atom.terms for head in lbh for atom in head.template.elements),
+            *(
+                atom.binding_terms if isinstance(atom, AtomTemplate) else atom.arguments
+                for head in lbh for atom in head.template.elements
+            ),
+            *(
+                element.arguments
+                for head in lbh
+                for element in head.template.aggregate_elements
+            ),
             *(
                 condition.arguments
                 for head in lbh

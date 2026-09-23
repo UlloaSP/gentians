@@ -1,5 +1,5 @@
-% Existing aggregate restrictions: distinct tuple bindings, distinct condition
-% bindings, and a result used outside the aggregate. These are restrictions of
+% Existing aggregate restrictions: distinct tuple and condition bindings,
+% plus a result used outside the aggregate. These are restrictions of
 % the enumerator; ASP itself also permits aggregates outside this subset.
 
 :- aggregate_tuple_binding(Slot, First, Variable),

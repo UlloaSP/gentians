@@ -270,15 +270,23 @@ cardinality head, or a function aggregate head:
 #modeh(1,{a(var(node,input,x));b(var(node,input,x))}).
 #modeh(1,1 {a(var(node,input,x));b(var(node,input,x))} 1).
 #modeh(1,-rejected(var(node,input))).
+#modeh(1,not rejected(var(node,input))).
+#modeh(1,p(var(node,input,x));not p(var(node,input,x))).
+#modeh(1,p(1;2)).
+#modeh(1,p(1,2;3,4)).
+#modeh(1,1{not blocked;selected}1).
+#modeh(1,#count{1:not blocked}=1).
 #modeh(1,#count{var(node,any):selected(var(node,any)):
                   node(var(node,any))}=1).
+#modeh(1,var(numeric,input,n) {selected(var(node,any)):
+                  node(var(node,any))} var(numeric,input,n)).
 ```
 
 Separate declarations are alternatives and are never combined implicitly.
 Head recall is therefore always `1`. The optional third `var` argument is a
 head-local identity label: equal labels denote the same generated variable;
 different labels denote different variables. An omitted label leaves that
-identity unconstrained. `#maxhl` limits the number of atoms in one declared
+identity unconstrained. `#maxhl` limits the number of elements in one declared
 head, not a later combination of declarations. Exact ASP conditions may be
 written on individual elements; `#modec` additionally generates optional
 conditions.
@@ -286,9 +294,21 @@ conditions.
 Safe empty bodies are learnable. Ground normal heads, disjunctions, choices,
 cardinality heads, and function aggregates therefore produce facts; a variable head without a safe
 source remains rejected, and the empty constraint `:-.` is never generated.
+Choice bounds and function aggregate guards may be variables when a positive
+body literal makes them safe. Pools in `#modeh` remain one complete clause
+(`p(1;2).` grounds to both facts). An atom pool in `#modeb` stays one body
+literal, including nested forms such as `q :- p(f(1;2)).`; pools in `#modec` and combinable head modes
+expand to separate permitted alternatives. Complete-head atom pools may vary
+several arguments while keeping one predicate and arity. Arithmetic expressions and intervals
+are valid atom arguments. Body modes also accept `#true`, `#false`, and Boolean
+conditional literals such as `#false:p(X)`.
+Exact heads also accept Boolean and comparison elements, empty choice/function
+aggregate forms, and every Clingo cardinality guard operator. Body pools inside
+guards or conditional conclusions stay grouped in one mode. Parentheses around
+nested pools are preserved when they affect grounding.
 
 Variable labels always retain their declared identity semantics.
-`#bias`, `#metarule`, `#predicate`, and `#modem` have been removed and now
+`#bias`, `#metarule`, `#predicate`, `#modem`, `#modeedge`, and `#edge` have been removed and now
 raise explicit task errors. Modes and `#invent` remain supported. See
 [the language contract and migration notes](docs/language-bias.md#removed-meta-programming-directives).
 
@@ -307,6 +327,10 @@ number of elements. Gentians generates the non-redundant integer cardinality
 bounds, shares recall across constant expansions, and applies `#modec` to each
 element. `#maxhl(*)` requires finite recalls for every `#modeha` and `#modehd`
 declaration.
+
+Heads may use default negation in exact normal, choice, and function aggregate
+forms, in `#modeha` choice heads, and in `#modehd` disjunctions. A normal
+`not p` head depends on `p`; it does not define `p`.
 
 `#modehd` has the same combinable-element interface, but constructs plain ASP
 disjunctions instead of choices:
@@ -343,7 +367,8 @@ Condition modes accept atoms and exact comparisons:
 Gentians may attach them after any selected normal head or body literal, for
 example `p(V0):q(V0),not r(V0)`. Their recall is clause-wide and `#maxbl`
 counts attached conditions as well as ordinary body literals. A conditional
-local must be grounded by one of its positive atomic conditions; neither a
+local must be grounded by a positive atom or a Clingo-safe comparison in its
+own condition scope; neither a
 body nor a head conclusion grounds it. Global variables must be safe outside
 the conditional.
 ASP strong negation is written with `-` and can be combined with default
@@ -395,6 +420,10 @@ The context is active only while evaluating examples with that exact context.
 Contextual facts, rules, constraints, choices, disjunctions, and aggregates are
 supported. Global directives and weak constraints are rejected because they
 cannot be isolated by the per-context ASP selector.
+Dependency closure currently recognizes providers in the background or the
+candidate hypothesis, not predicates supplied only by an example context.
+The resulting learnability gap is documented as
+[pending](docs/language-bias.md#pending-predicates-provided-only-by-example-contexts).
 
 Some examples are:
 ```
@@ -411,20 +440,33 @@ Body aggregates are exact `#modeb` templates using Clingo syntax:
 #modeb(1,#count{var(numeric,any,value):
                   p(var(partition,any,group),var(numeric,any,value))}=
          var(numeric,output,result)).
+#modeb(1,1 {p(var(node,any)):node(var(node,any))} 2).
+#modeb(1,1 {not p(var(node,any)):node(var(node,any))} 2).
+#modeb(1,1 {var(numeric,any)>1:node(var(numeric,any))} 1).
+#modeb(1,1 {#true:node(1)} 1).
+#modeb(1,not #count{var(node,any):p(var(node,any))}=1).
 ```
 
 The tuple before `:` is explicit, so projected tuples need no `balanced` or
 `unbalanced` flag. Repeated labels connect tuple terms, condition arguments,
 and the result inside one declaration. Tuple and condition variables use
 `input` or `any`; an equality `output` result is optional. Gentians accepts
-multiple nonempty elements and comparison guards, including ranges. Conditions
-inside each element must be positive atoms. Recall limits uses of that complete
+multiple elements, including empty tuples, and comparison guards, including ranges. Conditions
+inside each element may include negated atoms and comparisons, or be empty;
+local variables need a positive atom or a Clingo-safe comparison. Tuple terms may contain
+multiple variables. Recall limits uses of that complete
 template. `#modeagg` is retired and
 rejected explicitly.
 
 Separate aggregates can reuse local variable names within `#maxv`; those local
 bindings do not connect the aggregates or satisfy global inputs. Global uses
 retain the safety checks described in [the language contract](docs/language-bias.md).
+Literals with global variables must form one connected component; safe but
+disconnected components are pruned. Invented predicates may be strongly
+negated, but their definitions follow declaration order and constraints cannot
+consume them. These are language-bias search policies, not Clingo restrictions.
+The anonymous variable `_` is accepted in positive body atoms and positive
+atom conditions.
 For a sum that must count repeated values at different positions, retain the
 position in its tuple: `#sum{X,P:d(P,X)}` rather than `#sum{X:d(P,X)}`.
 

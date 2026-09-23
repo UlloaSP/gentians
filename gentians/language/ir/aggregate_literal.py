@@ -5,6 +5,7 @@ from itertools import product
 from ..asp import Predicate
 from .aggregate_element import AggregateElement
 from .aggregate_guard import AggregateGuard
+from .atom_literal import AtomLiteral
 from .term_template import TermTemplate
 
 
@@ -14,6 +15,12 @@ class AggregateLiteral:
     elements: tuple[AggregateElement, ...]
     left_guard: AggregateGuard | None
     right_guard: AggregateGuard | None = None
+    default_negated: bool = False
+    double_negated: bool = False
+
+    def __post_init__(self) -> None:
+        if self.double_negated and not self.default_negated:
+            raise ValueError("double negation requires default negation")
 
     @property
     def kind(self) -> str:
@@ -30,7 +37,13 @@ class AggregateLiteral:
     @property
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset(
-            atom.signature for element in self.elements for atom in element.conditions
+            dependency
+            for element in self.elements
+            for dependency in (
+                *((element.conclusion.atom.signature,)
+                  if isinstance(element.conclusion, AtomLiteral) else ()),
+                *(item for condition in element.conditions for item in condition.dependencies),
+            )
         )
 
     @property
@@ -49,7 +62,10 @@ class AggregateLiteral:
         self, constants: dict[str, tuple[str, ...]]
     ) -> tuple["AggregateLiteral", ...]:
         return tuple(
-            AggregateLiteral(self.function, elements, left, right)
+            AggregateLiteral(
+                self.function, elements, left, right,
+                self.default_negated, self.double_negated,
+            )
             for elements in product(
                 *(element.concretizations(constants) for element in self.elements)
             )
@@ -64,16 +80,24 @@ class AggregateLiteral:
         )
 
     def render(self, variables: Iterator[str]) -> str:
-        core = f"#{self.function}" + "{" + ";".join(
+        name = "" if self.function == "set" else f"#{self.function}"
+        core = name + "{" + ";".join(
             element.render(variables) for element in self.elements
         ) + "}"
         if self.left_guard is not None:
             left = self.left_guard.term.render(variables)
+            if self.left_guard.term.kind == "pool":
+                left = f"({left})"
             core = (
                 f"{core}={left}"
                 if self.output_guard is not None
                 else f"{left}{self.left_guard.operator}{core}"
             )
         if self.right_guard is not None:
-            core = f"{core}{self.right_guard.operator}{self.right_guard.term.render(variables)}"
-        return core
+            right = self.right_guard.term.render(variables)
+            if self.right_guard.term.kind == "pool":
+                right = f"({right})"
+            core = f"{core}{self.right_guard.operator}{right}"
+        if self.double_negated:
+            return f"not not {core}"
+        return f"not {core}" if self.default_negated else core

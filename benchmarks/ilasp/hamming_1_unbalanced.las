@@ -76,7 +76,7 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 #neg({v0(0,1),v0(0,2),v0(1,0),v1(0,0),v1(0,1),v1(1,2)}, {}).
 #neg({v0(0,0),v0(0,1),v0(0,2),v1(0,0),v1(0,1),v1(0,2)}, {}).
 
-% Explicit hypothesis space: 19 candidate clauses.
+% Explicit hypothesis space: 27 candidate clauses.
 2 ~ :- #sum{V0,V1:d(V1,V0)}=V2,#count{V0:d(V1,V0)}=V2.
 3 ~ :- #sum{V0,V1:d(V1,V0)}=V2,#count{V0:d(V1,V0)}=V3,V2-V3!=0.
 2 ~ :- #sum{V0,V1:d(V1,V0)}=V2,#count{V0:d(V3,V0)}=V2.
@@ -85,8 +85,14 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 2 ~ :- #sum{V0,V1:d(V1,V0)}=V2,#count{V1:d(V3,V1)}=V2.
 2 ~ :- #sum{V0,V1:d(V1,V0)}=V2,#count{V3:d(V0,V3)}=V2.
 2 ~ :- #sum{V0,V1:d(V1,V0)}=V2,#count{V3:d(V1,V3)}=V2.
+3 ~ :- hd(V0),#count{V0:d(V1,V0)}=V2,V0-V2!=0.
 2 ~ :- hd(V0),#count{V1:d(V2,V1)}=V0.
 3 ~ :- hd(V0),#count{V1:d(V2,V1)}=V3,V0-V3!=0.
+3 ~ :- hd(V0),#sum{V0,V1:d(V1,V0)}=V2,#count{V0:d(V1,V0)}=V2.
+3 ~ :- hd(V0),#sum{V0,V1:d(V1,V0)}=V2,#count{V0:d(V3,V0)}=V2.
+3 ~ :- hd(V0),#sum{V0,V1:d(V1,V0)}=V2,#count{V1:d(V3,V1)}=V2.
+3 ~ :- hd(V0),#sum{V0,V1:d(V1,V0)}=V2,#count{V3:d(V1,V3)}=V2.
+3 ~ :- hd(V0),#sum{V0,V1:d(V1,V0)}=V2,V0-V2!=0.
 3 ~ :- hd(V0),#sum{V1,V2:d(V2,V1)}=V0,#count{V1:d(V2,V1)}=V0.
 3 ~ :- hd(V0),#sum{V1,V2:d(V2,V1)}=V0,#count{V1:d(V3,V1)}=V0.
 3 ~ :- hd(V0),#sum{V1,V2:d(V2,V1)}=V0,#count{V2:d(V1,V2)}=V0.
@@ -94,5 +100,7 @@ d(Pos,X):- v0(V0,Pos), v1(V1,Pos), X = |V0 - V1|.
 3 ~ :- hd(V0),#sum{V1,V2:d(V2,V1)}=V0,#count{V3:d(V1,V3)}=V0.
 3 ~ :- hd(V0),#sum{V1,V2:d(V2,V1)}=V0,#count{V3:d(V2,V3)}=V0.
 2 ~ :- hd(V0),#sum{V1,V2:d(V2,V1)}=V0.
+3 ~ :- hd(V0),#sum{V1,V2:d(V2,V1)}=V3,#count{V0:d(V1,V0)}=V3.
+3 ~ :- hd(V0),#sum{V1,V2:d(V2,V1)}=V3,#count{V0:d(V2,V0)}=V3.
 3 ~ :- hd(V0),#sum{V1,V2:d(V2,V1)}=V3,V0-V3!=0.
 1 ~ :- hd(V0).

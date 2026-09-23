@@ -12,14 +12,23 @@
 
 #pos({s(6)}, {}).
 
-% Explicit hypothesis space: 27 candidate clauses.
+% Explicit hypothesis space: 49 candidate clauses.
+4 ~ s(V0) :- el(V0),#count{V0:el(V0)}=V1,-V0+V1<=0.
+4 ~ s(V0) :- el(V0),#count{V0:el(V0)}=V1,V0-V1!=0.
+4 ~ s(V0) :- el(V0),#count{V0:el(V0)}=V1,V0-V1<=0.
 3 ~ s(V0) :- el(V0),#count{V1:el(V1)}=V0.
 4 ~ s(V0) :- el(V0),#count{V1:el(V1)}=V2,-V0+V2<=0.
 4 ~ s(V0) :- el(V0),#count{V1:el(V1)}=V2,V0-V2!=0.
 4 ~ s(V0) :- el(V0),#count{V1:el(V1)}=V2,V0-V2<=0.
+4 ~ s(V0) :- el(V0),#sum{V0:el(V0)}=V1,#count{V0:el(V0)}=V1.
+4 ~ s(V0) :- el(V0),#sum{V0:el(V0)}=V1,#count{V2:el(V2)}=V1.
+4 ~ s(V0) :- el(V0),#sum{V0:el(V0)}=V1,-V0+V1<=0.
+4 ~ s(V0) :- el(V0),#sum{V0:el(V0)}=V1,V0-V1!=0.
+4 ~ s(V0) :- el(V0),#sum{V0:el(V0)}=V1,V0-V1<=0.
 4 ~ s(V0) :- el(V0),#sum{V1:el(V1)}=V0,#count{V1:el(V1)}=V0.
 4 ~ s(V0) :- el(V0),#sum{V1:el(V1)}=V0,#count{V2:el(V2)}=V0.
 3 ~ s(V0) :- el(V0),#sum{V1:el(V1)}=V0.
+4 ~ s(V0) :- el(V0),#sum{V1:el(V1)}=V2,#count{V0:el(V0)}=V2.
 4 ~ s(V0) :- el(V0),#sum{V1:el(V1)}=V2,-V0+V2<=0.
 4 ~ s(V0) :- el(V0),#sum{V1:el(V1)}=V2,V0-V2!=0.
 4 ~ s(V0) :- el(V0),#sum{V1:el(V1)}=V2,V0-V2<=0.
@@ -31,12 +40,25 @@
 4 ~ s(V1) :- #sum{V0:el(V0)}=V1,#count{V0:el(V0)}=V2,V1-V2<=0.
 3 ~ s(V1) :- #sum{V0:el(V0)}=V1,#count{V2:el(V2)}=V1.
 2 ~ s(V1) :- #sum{V0:el(V0)}=V1.
+4 ~ s(V1) :- el(V0),#count{V0:el(V0)}=V1,-V0+V1<=0.
+4 ~ s(V1) :- el(V0),#count{V0:el(V0)}=V1,V0-V1!=0.
+4 ~ s(V1) :- el(V0),#count{V0:el(V0)}=V1,V0-V1<=0.
+3 ~ s(V1) :- el(V0),#count{V0:el(V0)}=V1.
+4 ~ s(V1) :- el(V0),#sum{V0:el(V0)}=V1,#count{V0:el(V0)}=V1.
+4 ~ s(V1) :- el(V0),#sum{V0:el(V0)}=V1,#count{V2:el(V2)}=V0.
+4 ~ s(V1) :- el(V0),#sum{V0:el(V0)}=V1,#count{V2:el(V2)}=V1.
+4 ~ s(V1) :- el(V0),#sum{V0:el(V0)}=V1,-V0+V1<=0.
+4 ~ s(V1) :- el(V0),#sum{V0:el(V0)}=V1,V0-V1!=0.
+4 ~ s(V1) :- el(V0),#sum{V0:el(V0)}=V1,V0-V1<=0.
+3 ~ s(V1) :- el(V0),#sum{V0:el(V0)}=V1.
 4 ~ s(V2) :- #sum{V0:el(V0)}=V1,#count{V0:el(V0)}=V2,-V1+V2<=0.
 4 ~ s(V2) :- #sum{V0:el(V0)}=V1,#count{V0:el(V0)}=V2,V1-V2!=0.
 4 ~ s(V2) :- #sum{V0:el(V0)}=V1,#count{V0:el(V0)}=V2,V1-V2<=0.
 4 ~ s(V2) :- el(V0),#count{V1:el(V1)}=V2,-V0+V2<=0.
 4 ~ s(V2) :- el(V0),#count{V1:el(V1)}=V2,V0-V2!=0.
 4 ~ s(V2) :- el(V0),#count{V1:el(V1)}=V2,V0-V2<=0.
+4 ~ s(V2) :- el(V0),#sum{V1:el(V1)}=V0,#count{V0:el(V0)}=V2.
+4 ~ s(V2) :- el(V0),#sum{V1:el(V1)}=V2,#count{V0:el(V0)}=V2.
 4 ~ s(V2) :- el(V0),#sum{V1:el(V1)}=V2,-V0+V2<=0.
 4 ~ s(V2) :- el(V0),#sum{V1:el(V1)}=V2,V0-V2!=0.
 4 ~ s(V2) :- el(V0),#sum{V1:el(V1)}=V2,V0-V2<=0.

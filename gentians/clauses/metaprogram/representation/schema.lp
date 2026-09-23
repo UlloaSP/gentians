@@ -47,11 +47,12 @@
 #defined mode_section/2.
 
 % mode_kind(Mode, Kind): syntactic family, one of normal, conditional,
-% comparison, arithmetic or aggregate.
+% comparison, arithmetic, aggregate or boolean.
 #defined mode_kind/2.
 
 % plain_disjunctive_head_mode(Mode): Mode is an unconditional atom in a normal
-% or disjunctive head. Choice/cardinality and conditioned heads are absent.
+% or disjunctive head. Negated disjuncts, choice/cardinality and conditioned
+% heads are absent.
 #defined plain_disjunctive_head_mode/1.
 
 % mode_recall(Mode, Recall): effective maximum occurrences of this mode after
@@ -71,9 +72,10 @@
 % aggregates intentionally have no mode_atom fact.
 #defined mode_atom/3.
 
-% negative_mode(Mode): the normal literal or conditional conclusion is under
-% default negation and therefore cannot produce globally bound variables.
+% negative_mode(Mode): the atom, conditional conclusion, or head aggregate
+% element is under default negation and cannot produce globally bound variables.
 #defined negative_mode/1.
+#defined double_negative_mode/1.
 
 % conditional_mode(Mode): cross-module view derived from
 % mode_kind(Mode, conditional).
@@ -92,6 +94,19 @@
 % mode_arg_direction(Mode, Position, Direction): Direction is input or output.
 % Undirected any positions deliberately have no fact.
 #defined mode_arg_direction/3.
+
+% A pooled body atom is one literal, expanded by Clingo into alternatives.
+% A variable is grounding-safe through that atom only if every alternative
+% contains it. Alternative argument positions refer to flattened placeholders.
+#defined pooled_body_mode/1.
+#defined mode_pool_alternative/2.
+#defined mode_pool_alternative_arg/3.
+
+% A positive condition with a pool binds a local variable only if every
+% alternative contains it. Scope and Element identify its local region.
+#defined local_pool_condition_arg/5.
+#defined local_pool_alternative/5.
+#defined local_pool_alternative_arg/6.
 
 % mode_arg_label(Mode, Position, Label): source label attached to this mode
 % position, used to preserve declared argument identity.
@@ -214,14 +229,23 @@
 % positions remain clause-global; only an equality output produces a binding.
 #defined mode_aggregate_element_tuple_arg/4.
 #defined aggregate_element_condition_atom/5.
+#defined aggregate_element_atom/4.
 #defined mode_aggregate_element_condition_arg/5.
+#defined mode_aggregate_element_positive_arg/4.
 #defined mode_aggregate_guard_arg/2.
 #defined mode_aggregate_output_arg/2.
+
+% Clingo-proved local comparison bindings and the inputs each proof needs.
+#defined local_comparison_variant/6.
+#defined local_comparison_input/6.
+#defined local_comparison_output/6.
 
 % Exact #modeh head aggregate elements and their positive local conditions.
 #defined head_aggregate_element_arg/2.
 #defined head_aggregate_condition_atom/3.
 #defined head_aggregate_condition_arg/3.
+#defined head_aggregate_positive_condition_arg/3.
+#defined head_guard_arg/2.
 
 % Predicate invention and signed predicate identity.
 

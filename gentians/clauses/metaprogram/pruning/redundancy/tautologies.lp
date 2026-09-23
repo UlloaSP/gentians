@@ -9,7 +9,8 @@
 % choice and cardinality heads need a separate argument and are not pruned here.
 
 :- positive_body_literal(PosSlot, _, Pred, Arity),
-    negative_body_literal(NegSlot, _, Pred, Arity),
+    negative_body_literal(NegSlot, NegMode, Pred, Arity),
+    not double_negative_mode(NegMode),
     same_term_bindings(body, PosSlot, body, NegSlot).
 
 :- selected(head, HeadSlot, HeadMode),

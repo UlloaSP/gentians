@@ -27,10 +27,18 @@ def render_head(
     if form is None or any(mode.head_form != form for mode in head_modes):
         raise ValueError("clause head does not belong to one complete #modeh form")
     atoms = tuple(
-        _render_literal(literal, mode)
+        _render_literal(
+            ReifiedLiteral(
+                literal.section, literal.slot, literal.mode_id,
+                literal.variables[:sum(len(term.bindings()) for term in mode.literal.arguments)],
+            ),
+            mode,
+        )
         for literal, mode in zip(head, head_modes, strict=True)
     )
     template = head_modes[0].head
     if template is None or any(mode.head != template for mode in head_modes):
         raise ValueError("clause head does not share one complete #modeh template")
-    return template.render(atoms)
+    first_count = sum(len(term.bindings()) for term in head_modes[0].literal.arguments)
+    guard_variables = tuple(f"V{variable}" for variable in head[0].variables[first_count:])
+    return template.render(atoms, guard_variables)

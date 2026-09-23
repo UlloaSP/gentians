@@ -8,7 +8,8 @@ asp_safe(Var) :- aggregate_output_var(_, Var).
 
 normal_positive_body_var(Var) :-
     positive_body_literal(Slot, Mode, _, _),
-    var_at(body, Slot, _, Var).
+    var_at(body, Slot, _, Var),
+    not pooled_body_missing_var(Slot, Var).
 
 asp_safe(Var) :- normal_positive_body_var(Var).
 

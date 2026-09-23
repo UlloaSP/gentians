@@ -17,7 +17,9 @@ max_weight(10).
 #neg({el(1,3),el(3,5),el(4,4)}, {}).
 #neg({el(1,3),el(5,9)}, {}).
 
-% Explicit hypothesis space: 6 candidate clauses.
+% Explicit hypothesis space: 8 candidate clauses.
+3 ~ :- max_weight(V0),#sum{V0:el(V1,V0)}=V2,-V0+V2<0.
+3 ~ :- max_weight(V0),#sum{V0:el(V1,V0)}=V2,V0-V2<0.
 3 ~ :- max_weight(V0),#sum{V1:el(V0,V1)}=V2,-V0+V2<0.
 3 ~ :- max_weight(V0),#sum{V1:el(V0,V1)}=V2,V0-V2<0.
 2 ~ :- max_weight(V0),#sum{V1:el(V2,V1)}=V0.

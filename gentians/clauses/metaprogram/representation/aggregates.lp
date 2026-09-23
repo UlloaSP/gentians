@@ -55,6 +55,11 @@ aggregate_element_condition_binding(Slot, Element, Condition, Argument, Variable
 aggregate_element_condition_var(Slot, Element, Variable) :-
     aggregate_element_condition_binding(Slot, Element, _, _, Variable).
 
+aggregate_element_positive_condition_var(Slot, Element, Condition, Variable) :-
+    selected(body, Slot, Mode),
+    mode_aggregate_element_positive_arg(Mode, Element, Condition, Position),
+    var_at(body, Slot, Position, Variable).
+
 aggregate_element_arg(Slot, Element, Position) :-
     selected(body, Slot, Mode),
     mode_aggregate_element_tuple_arg(Mode, Element, _, Position).

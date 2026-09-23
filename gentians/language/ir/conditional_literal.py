@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 
 from .atom_literal import AtomLiteral
+from .boolean_literal import BooleanLiteral
 from .comparison_literal import ComparisonLiteral
 from ..asp import Predicate
 from .term_template import TermTemplate
@@ -9,8 +10,8 @@ from .term_template import TermTemplate
 
 @dataclass(frozen=True, slots=True)
 class ConditionalLiteral:
-    conclusion: AtomLiteral
-    conditions: tuple[AtomLiteral | ComparisonLiteral, ...]
+    conclusion: AtomLiteral | BooleanLiteral | ComparisonLiteral
+    conditions: tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]
     condition_groups: tuple[int, ...]
 
     def __post_init__(self) -> None:
@@ -27,6 +28,12 @@ class ConditionalLiteral:
             for binding in term.bindings()
         ):
             raise ValueError("conditional conditions cannot produce output variables")
+        if isinstance(self.conclusion, ComparisonLiteral) and any(
+            binding.direction == "output"
+            for term in self.conclusion.arguments
+            for binding in term.bindings()
+        ):
+            raise ValueError("conditional comparisons cannot produce output variables")
 
     @property
     def kind(self) -> str:
@@ -53,15 +60,20 @@ class ConditionalLiteral:
         from itertools import product
 
         def concrete(
-            literal: AtomLiteral | ComparisonLiteral,
-        ) -> tuple[AtomLiteral | ComparisonLiteral, ...]:
+            literal: AtomLiteral | BooleanLiteral | ComparisonLiteral,
+        ) -> tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]:
             if isinstance(literal, AtomLiteral):
                 return tuple(
-                    AtomLiteral(atom, literal.default_negated)
+                    AtomLiteral(atom, literal.default_negated, literal.double_negated)
                     for atom in literal.atom.concretizations(constants)
                 )
+            if isinstance(literal, BooleanLiteral):
+                return (literal,)
             return tuple(
-                ComparisonLiteral(terms, literal.operators, literal.default_negated)
+                ComparisonLiteral(
+                    terms, literal.operators, literal.default_negated,
+                    double_negated=literal.double_negated,
+                )
                 for terms in product(
                     *(term.concretizations(constants) for term in literal.terms)
                 )
@@ -70,7 +82,7 @@ class ConditionalLiteral:
         return tuple(
             ConditionalLiteral(conclusion, conditions, self.condition_groups)
             for conclusion in concrete(self.conclusion)
-            if isinstance(conclusion, AtomLiteral)
+            if isinstance(conclusion, AtomLiteral | BooleanLiteral | ComparisonLiteral)
             for conditions in product(*(concrete(item) for item in self.conditions))
         )
 

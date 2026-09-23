@@ -16,14 +16,16 @@ flow_bound(Var) :-
     selected(body, Slot, Mode),
     positive_mode(Mode),
     mode_arg_direction(Mode, Arg, any),
-    var_at(body, Slot, Arg, Var).
+    var_at(body, Slot, Arg, Var),
+    not pooled_body_missing_var(Slot, Var).
 
 flow_produced(Var) :-
     ready_literal(Slot),
     selected(body, Slot, Mode),
     positive_mode(Mode),
     mode_arg_direction(Mode, Arg, output),
-    var_at(body, Slot, Arg, Var).
+    var_at(body, Slot, Arg, Var),
+    not pooled_body_missing_var(Slot, Var).
 
 ready_arithmetic(Slot) :-
     selected(body, Slot, Mode),

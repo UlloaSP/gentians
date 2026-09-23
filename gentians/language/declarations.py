@@ -3,7 +3,7 @@ import clingo
 
 from .asp import split_top_level_args
 from .directives import _directive_args, _parse_recall, _strip_outer_braces
-from .ir.term_template import TermTemplate
+from .ir.atom_template import AtomTemplate
 from .modes import _get_mode_atom, _validate_type
 
 
@@ -18,17 +18,15 @@ def _get_pos_neg_examples(s: str) -> tuple[str, str] | tuple[str, str, str]:
     return values[0], values[1], values[2]
 
 
-def _get_invented_declaration(s: str) -> tuple[int, str, tuple[TermTemplate, ...]]:
+def _get_invented_declaration(s: str) -> tuple[int, AtomTemplate]:
     parts = split_top_level_args(_directive_args(s, "#invent"))
     if len(parts) != 2:
         raise ValueError(f"invalid #invent declaration: {s}")
     recall = _parse_recall(parts[0])
     atom = _get_mode_atom(parts[1], s)
-    if atom.strong:
-        raise ValueError(f"invented predicates cannot be strongly negated: {s}")
     if recall < 1:
         raise ValueError(f"invalid #invent declaration: {s}")
-    return recall, atom.name, atom.terms
+    return recall, atom
 
 
 def _get_constant_declaration(s: str) -> tuple[str, str]:

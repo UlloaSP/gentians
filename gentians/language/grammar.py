@@ -21,6 +21,7 @@ DIRECTIVE_NAMES = frozenset(
     {
         "#bias",
         "#constant",
+        "#edge",
         "#invent",
         "#maxbl",
         "#maxhl",
@@ -36,6 +37,7 @@ DIRECTIVE_NAMES = frozenset(
         "#modeh",
         "#modeha",
         "#modehd",
+        "#modeedge",
         "#modem",
         "#neg",
         "#pos",

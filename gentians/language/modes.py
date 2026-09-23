@@ -11,6 +11,7 @@ from .ir.aggregate_element import AggregateElement
 from .ir.aggregate_guard import AggregateGuard
 from .ir.aggregate_literal import AggregateLiteral
 from .ir.atom_literal import AtomLiteral
+from .ir.boolean_literal import BooleanLiteral
 from .ir.atom_template import AtomTemplate
 from .ir.comparison_literal import ComparisonLiteral
 from .ir.conditional_literal import ConditionalLiteral
@@ -19,6 +20,38 @@ from .ir.head_template import HeadTemplate
 from .ir.head_aggregate_element import HeadAggregateElement
 from .ir.mode_declaration import ModeDeclaration
 from .ir.term_template import TermTemplate
+
+
+def _unpool_mode_declarations(source: str, directive: str) -> tuple[str, ...]:
+    if directive in {"#modeh", "#modeb"}:
+        return (source,)
+    parts = split_top_level_args(_directive_args(source, directive))
+    if not parts:
+        return (source,)
+    if directive == "#modeha" and len(parts) == 1:
+        recall = ""
+        syntax = parts[0]
+    else:
+        recall = parts[0] + ","
+        syntax = ",".join(parts[1:])
+    rules: list[ast.AST] = []
+    statement = f":- {syntax}."
+    try:
+        ast.parse_string(
+            statement,
+            lambda node: rules.append(node) if node.ast_type == ast.ASTType.Rule else None,
+        )
+    except RuntimeError as exc:
+        raise ValueError(f"invalid {directive} declaration: {source}") from exc
+    if len(rules) != 1:
+        raise ValueError(f"invalid {directive} declaration: {source}")
+    expanded = rules[0].unpool()
+    if len(expanded) == 1:
+        return (source,)
+    if any(len(rule.body) != 1 for rule in expanded):
+        raise ValueError(f"pool must expand to one mode literal: {source}")
+    syntaxes = (str(rule.body[0]) for rule in expanded)
+    return tuple(f"{directive}({recall}{item})." for item in syntaxes)
 
 
 def _get_atom_mode_declaration(s: str, name: str) -> ModeDeclaration:
@@ -163,8 +196,8 @@ def _comparison_outputs_are_safe(literal: ComparisonLiteral) -> bool:
 
 def _get_condition_mode_declaration(s: str) -> ModeDeclaration:
     declaration = _get_atom_mode_declaration(s, "#modec")
-    if isinstance(declaration.literal, ConditionalLiteral):
-        raise ValueError(f"#modec cannot contain a nested conditional literal: {s}")
+    if not isinstance(declaration.literal, AtomLiteral | ComparisonLiteral):
+        raise ValueError(f"#modec requires an atom or comparison literal: {s}")
     return declaration
 
 
@@ -178,19 +211,22 @@ def _get_aggregate_head_declaration(s: str) -> ModeDeclaration:
         atom = parts[1]
     else:
         raise ValueError(f"invalid #modeha declaration: {s}")
-    template = _get_mode_atom(atom, s)
-    return ModeDeclaration(recall, AtomLiteral(template))
+    literal = _get_mode_literal(atom, s)
+    if not isinstance(literal, AtomLiteral):
+        raise ValueError(f"#modeha requires an atom literal: {s}")
+    if any(term.contains_anonymous for term in literal.arguments):
+        raise ValueError(f"anonymous variables cannot occur in a head atom: {s}")
+    return ModeDeclaration(recall, literal)
 
 
 def _get_disjunctive_head_declaration(s: str) -> ModeDeclaration:
     declaration = _get_atom_mode_declaration(
         s.replace("#modehd", "#modeb", 1), "#modeb"
     )
-    if (
-        not isinstance(declaration.literal, AtomLiteral)
-        or declaration.literal.default_negated
-    ):
-        raise ValueError(f"#modehd requires a positive atom: {s}")
+    if not isinstance(declaration.literal, AtomLiteral):
+        raise ValueError(f"#modehd requires an atom: {s}")
+    if any(term.contains_anonymous for term in declaration.literal.arguments):
+        raise ValueError(f"anonymous variables cannot occur in a head atom: {s}")
     return declaration
 
 
@@ -215,30 +251,37 @@ def _get_head_declaration(s: str) -> HeadDeclaration:
     head = rules[0].head
     if head.ast_type in {ast.ASTType.Literal, ast.ASTType.ConditionalLiteral}:
         literal = _literal_from_ast(head, s)
-        if not isinstance(literal, AtomLiteral | ConditionalLiteral):
-            raise ValueError(f"#modeh requires atom heads: {s}")
+        if not isinstance(literal, AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral):
+            raise ValueError(f"unsupported #modeh head: {s}")
         conclusion = (
             literal.conclusion if isinstance(literal, ConditionalLiteral) else literal
         )
-        if not isinstance(conclusion, AtomLiteral) or conclusion.default_negated:
-            raise ValueError(f"#modeh requires positive atom heads: {s}")
         conditions = (
             literal.conditions if isinstance(literal, ConditionalLiteral) else ()
         )
         return HeadDeclaration(
             recall,
-            HeadTemplate("normal", (conclusion.atom,), conditions=(conditions,)),
+            HeadTemplate(
+                "normal", (conclusion.atom if isinstance(conclusion, AtomLiteral) else conclusion,),
+                conditions=(conditions,),
+                signs=((2 if conclusion.double_negated else 1 if conclusion.default_negated else 0)
+                       if isinstance(conclusion, AtomLiteral) else 0,),
+            ),
         )
     if head.ast_type == ast.ASTType.Disjunction:
-        atoms = tuple(_head_atom(str(element.literal), s) for element in head.elements)
+        literals = tuple(_literal_from_ast(element.literal, s) for element in head.elements)
+        atoms = tuple(_head_element(literal, s) for literal in literals)
+        signs = tuple(_head_element_sign(literal, s) for literal in literals)
         conditions = tuple(
             _head_conditions(element.condition, s) for element in head.elements
         )
         return HeadDeclaration(
-            recall, HeadTemplate("disjunction", atoms, conditions=conditions)
+            recall, HeadTemplate("disjunction", atoms, conditions=conditions, signs=signs)
         )
     if head.ast_type == ast.ASTType.Aggregate:
-        atoms = tuple(_head_atom(str(element.literal), s) for element in head.elements)
+        literals = tuple(_literal_from_ast(element.literal, s) for element in head.elements)
+        atoms = tuple(_head_element(literal, s) for literal in literals)
+        signs = tuple(_head_element_sign(literal, s) for literal in literals)
         conditions = tuple(
             _head_conditions(element.condition, s) for element in head.elements
         )
@@ -250,33 +293,36 @@ def _get_head_declaration(s: str) -> HeadDeclaration:
                 _head_bound(head.left_guard, s),
                 _head_bound(head.right_guard, s),
                 conditions,
+                signs=signs,
+                lower_operator=_guard_operator(head.left_guard),
+                upper_operator=_guard_operator(head.right_guard),
             ),
         )
     if head.ast_type == ast.ASTType.HeadAggregate:
         functions = {0: "count", 1: "sum", 2: "sum+", 3: "min", 4: "max"}
         function = functions.get(head.function)
-        if function is None or not head.elements:
+        if function is None:
             raise ValueError(f"unsupported #modeh aggregate head: {s}")
         elements: list[HeadAggregateElement] = []
         for element in head.elements:
             conclusion = _literal_from_ast(element.condition.literal, s)
-            if not isinstance(conclusion, AtomLiteral) or conclusion.default_negated:
-                raise ValueError(f"aggregate head elements require positive atoms: {s}")
+            if not isinstance(conclusion, AtomLiteral | BooleanLiteral | ComparisonLiteral):
+                raise ValueError(f"unsupported aggregate head element: {s}")
             conditions = _head_conditions(element.condition.condition, s)
             if any(
-                not isinstance(condition, AtomLiteral) or condition.default_negated
+                binding.direction == "output"
                 for condition in conditions
+                for term in condition.arguments
+                for binding in term.bindings()
             ):
-                raise ValueError(f"aggregate head conditions require positive atoms: {s}")
+                raise ValueError(f"aggregate head conditions cannot produce outputs: {s}")
             elements.append(
                 HeadAggregateElement(
-                    tuple(_aggregate_term_from_ast(term, s) for term in element.terms),
-                    conclusion.atom,
-                    tuple(
-                        condition.atom
-                        for condition in conditions
-                        if isinstance(condition, AtomLiteral)
-                    ),
+                    tuple(_term_from_ast(term, s) for term in element.terms),
+                    conclusion.atom if isinstance(conclusion, AtomLiteral) else conclusion,
+                    conditions,
+                    conclusion.default_negated if isinstance(conclusion, AtomLiteral) else False,
+                    conclusion.double_negated if isinstance(conclusion, AtomLiteral) else False,
                 )
             )
         operators = {
@@ -291,14 +337,8 @@ def _get_head_declaration(s: str) -> HeadDeclaration:
         def guard(node: ast.AST | None) -> AggregateGuard | None:
             if node is None:
                 return None
-            try:
-                value = int(str(node.term))
-            except ValueError as exc:
-                raise ValueError(
-                    f"#modeh aggregate guards require fixed integers: {s}"
-                ) from exc
             return AggregateGuard(
-                operators[node.comparison], TermTemplate.fixed(str(value))
+                operators[node.comparison], _term_from_ast(node.term, s)
             )
 
         return HeadDeclaration(
@@ -319,30 +359,58 @@ def _head_atom(raw: str, declaration: str) -> AtomTemplate:
     return _get_mode_atom(raw, declaration)
 
 
+def _head_element(
+    literal: AggregateLiteral | AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral,
+    declaration: str,
+) -> AtomTemplate | BooleanLiteral | ComparisonLiteral:
+    if isinstance(literal, AtomLiteral):
+        return literal.atom
+    if isinstance(literal, BooleanLiteral | ComparisonLiteral):
+        return literal
+    raise ValueError(f"unsupported head element: {declaration}")
+
+
+def _head_element_sign(
+    literal: AggregateLiteral | AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral,
+    declaration: str,
+) -> int:
+    if not isinstance(literal, AtomLiteral | BooleanLiteral | ComparisonLiteral):
+        raise ValueError(f"unsupported head element: {declaration}")
+    return 2 if literal.double_negated else 1 if literal.default_negated else 0
+
+
 def _head_conditions(
     nodes: Iterable[ast.AST], declaration: str
-) -> tuple[AtomLiteral | ComparisonLiteral, ...]:
+) -> tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]:
     conditions = tuple(_literal_from_ast(item, declaration) for item in nodes)
-    if any(isinstance(condition, ConditionalLiteral) for condition in conditions):
-        raise ValueError(f"nested conditional literal is invalid: {declaration}")
+    if any(not isinstance(condition, AtomLiteral | BooleanLiteral | ComparisonLiteral) for condition in conditions):
+        raise ValueError(f"unsupported head condition: {declaration}")
     return tuple(
-        condition
-        for condition in conditions
-        if isinstance(condition, AtomLiteral | ComparisonLiteral)
+        condition for condition in conditions
+        if isinstance(condition, AtomLiteral | BooleanLiteral | ComparisonLiteral)
     )
 
 
-def _head_bound(guard: ast.AST | None, declaration: str) -> int | None:
+def _head_bound(guard: ast.AST | None, declaration: str) -> int | TermTemplate | None:
     if guard is None:
         return None
-    if guard.comparison != ast.ComparisonOperator.LessEqual:
-        raise ValueError(f"#modeh cardinality bounds must use <=: {declaration}")
     try:
         return int(str(guard.term))
-    except ValueError as exc:
-        raise ValueError(
-            f"#modeh cardinality bounds must be integers: {declaration}"
-        ) from exc
+    except ValueError:
+        return _term_from_ast(guard.term, declaration)
+
+
+def _guard_operator(guard: ast.AST | None) -> str:
+    if guard is None:
+        return "<="
+    return {
+        ast.ComparisonOperator.Equal: "=",
+        ast.ComparisonOperator.NotEqual: "!=",
+        ast.ComparisonOperator.LessThan: "<",
+        ast.ComparisonOperator.LessEqual: "<=",
+        ast.ComparisonOperator.GreaterThan: ">",
+        ast.ComparisonOperator.GreaterEqual: ">=",
+    }[guard.comparison]
 
 
 def _get_mode_atom(raw: str, declaration: str) -> AtomTemplate:
@@ -356,9 +424,33 @@ def _get_mode_atom(raw: str, declaration: str) -> AtomTemplate:
         raise ValueError(f"invalid mode atom: {declaration}")
     parsed = parse_atom(raw)
     if parsed is None:
-        raise ValueError(f"invalid mode atom: {declaration}")
+        nodes: list[ast.AST] = []
+        try:
+            ast.parse_string(f":- {raw}.", nodes.append)
+        except RuntimeError as exc:
+            raise ValueError(f"invalid mode atom: {declaration}") from exc
+        rules = [node for node in nodes if node.ast_type == ast.ASTType.Rule]
+        if len(rules) != 1 or len(rules[0].body) != 1:
+            raise ValueError(f"invalid mode atom: {declaration}")
+        symbol = rules[0].body[0].atom.symbol
+        if symbol.ast_type != ast.ASTType.Pool:
+            raise ValueError(f"invalid mode atom: {declaration}")
+        alternatives = tuple(_get_mode_atom(str(item), declaration) for item in symbol.arguments)
+        first = alternatives[0]
+        if any((item.name, item.strong, len(item.terms)) != (first.name, first.strong, len(first.terms)) for item in alternatives):
+            raise ValueError(f"pooled mode atoms require one predicate: {declaration}")
+        differing = tuple(index for index in range(len(first.terms)) if len({item.terms[index] for item in alternatives}) > 1)
+        if len(differing) != 1:
+            return AtomTemplate(
+                first.name, first.terms, first.strong,
+                tuple(item.terms for item in alternatives),
+            )
+        index = differing[0]
+        terms = list(first.terms)
+        terms[index] = TermTemplate("pool", arguments=tuple(item.terms[index] for item in alternatives))
+        return AtomTemplate(first.name, tuple(terms), first.strong)
     name, raw_arguments = parsed
-    if name == "not" or not re.fullmatch(r"[a-z][A-Za-z0-9_]*", name):
+    if name == "not" or not re.fullmatch(r"[a-z_][A-Za-z0-9_']*", name):
         raise ValueError(f"invalid mode predicate: {declaration}")
     return AtomTemplate(
         name,
@@ -369,37 +461,29 @@ def _get_mode_atom(raw: str, declaration: str) -> AtomTemplate:
 
 def _get_mode_argument(raw: str, declaration: str) -> TermTemplate:
     raw = raw.strip()
-    if raw.startswith("(") and raw.endswith(")"):
-        inner = raw[1:-1].strip()
-        parts = split_top_level_args(inner)
-        if len(parts) == 1 and not inner.endswith(","):
-            raise ValueError(f"invalid mode tuple: {declaration}")
-        return TermTemplate(
-            "tuple",
-            arguments=tuple(_get_mode_argument(part, declaration) for part in parts),
-        )
-    parsed = parse_atom(raw)
-    if parsed is None:
+    nodes: list[ast.AST] = []
+    try:
+        ast.parse_string(f":- __gentians_argument({raw}).", nodes.append)
+    except RuntimeError as exc:
+        raise ValueError(f"invalid mode argument: {declaration}") from exc
+    rules = [node for node in nodes if node.ast_type == ast.ASTType.Rule]
+    if len(rules) != 1 or len(rules[0].body) != 1:
         raise ValueError(f"invalid mode argument: {declaration}")
-    kind, parts = parsed
-    if kind == "var" and len(parts) in {2, 3}:
-        type_name, direction = (part.strip() for part in parts[:2])
-        label = parts[2].strip() if len(parts) == 3 else ""
-        _validate_type(type_name, declaration)
-        return TermTemplate.variable(type_name, direction, label)
-    if kind == "const" and len(parts) == 1:
-        type_name = parts[0].strip()
-        _validate_type(type_name, declaration)
-        return TermTemplate.constant(type_name)
-    if kind in {"var", "const", "not"} or not parts:
+    symbol = rules[0].body[0].atom.symbol
+    if symbol.ast_type == ast.ASTType.Pool:
+        alternatives = symbol.arguments
+        if any(item.ast_type != ast.ASTType.Function or len(item.arguments) != 1 for item in alternatives):
+            raise ValueError(f"invalid mode argument: {declaration}")
+        term = TermTemplate("pool", arguments=tuple(_term_from_ast(item.arguments[0], declaration) for item in alternatives))
+        if any(not binding.direction for binding in term.bindings()):
+            raise ValueError(f"invalid mode argument: {declaration}")
+        return term
+    if symbol.ast_type != ast.ASTType.Function or len(symbol.arguments) != 1:
         raise ValueError(f"invalid mode argument: {declaration}")
-    if not re.fullmatch(r"[a-z][A-Za-z0-9_]*", kind):
-        raise ValueError(f"invalid mode function: {declaration}")
-    return TermTemplate(
-        "function",
-        kind,
-        tuple(_get_mode_argument(part, declaration) for part in parts),
-    )
+    term = _term_from_ast(symbol.arguments[0], declaration)
+    if any(not binding.direction for binding in term.bindings()):
+        raise ValueError(f"invalid mode argument: {declaration}")
+    return term
 
 
 def _validate_type(type_name: str, declaration: str) -> None:
@@ -409,7 +493,7 @@ def _validate_type(type_name: str, declaration: str) -> None:
 
 def _get_mode_literal(
     raw: str, declaration: str, *, conditional: bool = False
-) -> AggregateLiteral | AtomLiteral | ComparisonLiteral | ConditionalLiteral:
+) -> AggregateLiteral | AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral:
     nodes: list[ast.AST] = []
     try:
         ast.parse_string(f":- {raw.strip()}.", nodes.append)
@@ -426,7 +510,7 @@ def _get_mode_literal(
 
 def _literal_from_ast(
     node: ast.AST, declaration: str
-) -> AggregateLiteral | AtomLiteral | ComparisonLiteral | ConditionalLiteral:
+) -> AggregateLiteral | AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral:
     if node.ast_type == ast.ASTType.ConditionalLiteral:
         conclusion = _literal_from_ast(node.literal, declaration)
         conditions = tuple(
@@ -436,12 +520,13 @@ def _literal_from_ast(
             isinstance(condition, ConditionalLiteral) for condition in conditions
         ):
             raise ValueError(f"nested conditional literal is invalid: {declaration}")
-        if not isinstance(conclusion, AtomLiteral):
-            raise ValueError(f"conditional conclusions must be atoms: {declaration}")
+        if not isinstance(conclusion, AtomLiteral | BooleanLiteral | ComparisonLiteral):
+            raise ValueError(f"unsupported conditional conclusion: {declaration}")
+        if any(not isinstance(condition, AtomLiteral | BooleanLiteral | ComparisonLiteral) for condition in conditions):
+            raise ValueError(f"unsupported conditional condition: {declaration}")
         flat_conditions = tuple(
-            condition
-            for condition in conditions
-            if isinstance(condition, AtomLiteral | ComparisonLiteral)
+            condition for condition in conditions
+            if isinstance(condition, AtomLiteral | BooleanLiteral | ComparisonLiteral)
         )
         return ConditionalLiteral(
             conclusion, flat_conditions, (-1,) * len(flat_conditions)
@@ -450,9 +535,15 @@ def _literal_from_ast(
         raise ValueError(f"unsupported mode literal: {declaration}")
     if node.atom.ast_type == ast.ASTType.BodyAggregate:
         return _aggregate_from_ast(node, declaration)
+    if node.atom.ast_type == ast.ASTType.Aggregate:
+        return _set_aggregate_from_ast(node, declaration)
+    if node.atom.ast_type == ast.ASTType.BooleanConstant:
+        return BooleanLiteral(
+            bool(node.atom.value),
+            node.sign != ast.Sign.NoSign,
+            node.sign == ast.Sign.DoubleNegation,
+        )
     if node.atom.ast_type == ast.ASTType.Comparison:
-        if node.sign == ast.Sign.DoubleNegation:
-            raise ValueError(f"invalid arithmetic relation: {declaration}")
         operators = {
             ast.ComparisonOperator.Equal: "=",
             ast.ComparisonOperator.NotEqual: "!=",
@@ -470,20 +561,20 @@ def _literal_from_ast(
                 ),
             ),
             tuple(operators[guard.comparison] for guard in node.atom.guards),
-            node.sign == ast.Sign.Negation,
+            node.sign != ast.Sign.NoSign,
+            double_negated=node.sign == ast.Sign.DoubleNegation,
         )
     raw = str(node)
-    negative = node.sign == ast.Sign.Negation
-    if node.sign == ast.Sign.DoubleNegation:
-        raise ValueError(f"double default negation is unsupported: {declaration}")
+    negative = node.sign != ast.Sign.NoSign
     if negative:
-        raw = re.sub(r"^not\s+", "", raw, count=1)
-    return AtomLiteral(_get_mode_atom(raw, declaration), negative)
+        raw = re.sub(r"^(?:not\s+){1,2}", "", raw, count=1)
+    return AtomLiteral(
+        _get_mode_atom(raw, declaration), negative,
+        node.sign == ast.Sign.DoubleNegation,
+    )
 
 
 def _aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
-    if node.sign != ast.Sign.NoSign:
-        raise ValueError(f"aggregate modes cannot use default negation: {declaration}")
     aggregate = node.atom
 
     functions = {
@@ -500,22 +591,18 @@ def _aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
 
     elements = []
     for element in aggregate.elements:
-        if not element.terms or not element.condition:
-            raise ValueError(
-                f"aggregate modes require a nonempty tuple and condition: {declaration}"
-            )
         tuple_terms = tuple(
-            _aggregate_term_from_ast(term, declaration) for term in element.terms
+            _term_from_ast(term, declaration) for term in element.terms
         )
-        conditions: list[AtomTemplate] = []
+        conditions: list[AtomLiteral | BooleanLiteral | ComparisonLiteral] = []
         for condition_node in element.condition:
             condition = _literal_from_ast(condition_node, declaration)
-            if not isinstance(condition, AtomLiteral) or condition.default_negated:
+            if not isinstance(condition, AtomLiteral | BooleanLiteral | ComparisonLiteral):
                 raise ValueError(
-                    f"aggregate mode conditions must be positive atoms: {declaration}"
+                    f"invalid aggregate mode condition: {declaration}"
                 )
-            conditions.append(condition.atom)
-        for term in (*tuple_terms, *(term for atom in conditions for term in atom.terms)):
+            conditions.append(condition)
+        for term in (*tuple_terms, *(term for condition in conditions for term in condition.arguments)):
             for binding in term.bindings():
                 if binding.direction not in {"input", "any"}:
                     raise ValueError(
@@ -535,18 +622,24 @@ def _aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
     left = (
         AggregateGuard(
             operators[aggregate.left_guard.comparison],
-            _aggregate_term_from_ast(aggregate.left_guard.term, declaration),
+            _term_from_ast(aggregate.left_guard.term, declaration),
         )
         if aggregate.left_guard is not None else None
     )
     right = (
         AggregateGuard(
             operators[aggregate.right_guard.comparison],
-            _aggregate_term_from_ast(aggregate.right_guard.term, declaration),
+            _term_from_ast(aggregate.right_guard.term, declaration),
         )
         if aggregate.right_guard is not None else None
     )
-    literal = AggregateLiteral(function, tuple(elements), left, right)
+    literal = AggregateLiteral(
+        function, tuple(elements), left, right,
+        node.sign != ast.Sign.NoSign,
+        node.sign == ast.Sign.DoubleNegation,
+    )
+    if node.sign != ast.Sign.NoSign and literal.output_guard is not None:
+        raise ValueError(f"negated aggregates cannot produce an output: {declaration}")
     for guard in (left, right):
         if guard is None:
             continue
@@ -564,16 +657,50 @@ def _aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
     return literal
 
 
-def _aggregate_term_from_ast(node: ast.AST, declaration: str) -> TermTemplate:
-    term = _term_from_ast(node, declaration)
-    if len(term.bindings()) > 1:
-        raise ValueError(
-            f"aggregate tuple and condition terms support one variable at most: {declaration}"
-        )
-    return term
+def _set_aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
+    aggregate = node.atom
+    elements: list[AggregateElement] = []
+    for element in aggregate.elements:
+        conclusion = _literal_from_ast(element.literal, declaration)
+        if not isinstance(conclusion, AtomLiteral | BooleanLiteral | ComparisonLiteral):
+            raise ValueError(f"set aggregate elements require basic literals: {declaration}")
+        conditions = _head_conditions(element.condition, declaration)
+        if any(
+            binding.direction == "output"
+            for literal in (conclusion, *conditions)
+            for term in literal.arguments
+            for binding in term.bindings()
+        ):
+            raise ValueError(f"set aggregate elements cannot produce outputs: {declaration}")
+        elements.append(AggregateElement(
+            (), conditions, conclusion,
+        ))
+    left = (
+        AggregateGuard(_guard_operator(aggregate.left_guard), _term_from_ast(aggregate.left_guard.term, declaration))
+        if aggregate.left_guard is not None else None
+    )
+    right = (
+        AggregateGuard(_guard_operator(aggregate.right_guard), _term_from_ast(aggregate.right_guard.term, declaration))
+        if aggregate.right_guard is not None else None
+    )
+    if any(
+        binding.direction == "output"
+        for guard in (left, right) if guard is not None
+        for binding in guard.term.bindings()
+    ):
+        raise ValueError(f"set aggregate bounds cannot produce outputs: {declaration}")
+    return AggregateLiteral(
+        "set", tuple(elements), left, right,
+        node.sign != ast.Sign.NoSign,
+        node.sign == ast.Sign.DoubleNegation,
+    )
 
 
 def _term_from_ast(node: ast.AST, declaration: str) -> TermTemplate:
+    if node.ast_type == ast.ASTType.Variable and node.name == "_":
+        return TermTemplate("anonymous")
+    if node.ast_type == ast.ASTType.Pool:
+        return TermTemplate("pool", arguments=tuple(_term_from_ast(item, declaration) for item in node.arguments))
     if node.ast_type == ast.ASTType.Function:
         if node.external:
             raise ValueError(
@@ -582,6 +709,8 @@ def _term_from_ast(node: ast.AST, declaration: str) -> TermTemplate:
         raw_arguments = tuple(
             _term_from_ast(item, declaration) for item in node.arguments
         )
+        if node.name == "":
+            return TermTemplate("tuple", arguments=raw_arguments)
         if node.name == "var" and len(node.arguments) in {1, 2, 3}:
             values = tuple(str(item) for item in node.arguments)
             _validate_type(values[0], declaration)

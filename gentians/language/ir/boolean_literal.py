@@ -1,14 +1,13 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
 
-from .atom_template import AtomTemplate
 from ..asp import Predicate
 from .term_template import TermTemplate
 
 
 @dataclass(frozen=True, slots=True)
-class AtomLiteral:
-    atom: AtomTemplate
+class BooleanLiteral:
+    value: bool
     default_negated: bool = False
     double_negated: bool = False
 
@@ -18,18 +17,18 @@ class AtomLiteral:
 
     @property
     def kind(self) -> str:
-        return "normal"
+        return "boolean"
 
     @property
     def arguments(self) -> tuple[TermTemplate, ...]:
-        return self.atom.binding_terms
+        return ()
 
     @property
     def dependencies(self) -> frozenset[Predicate]:
-        return frozenset((self.atom.signature,))
+        return frozenset()
 
     def render(self, variables: Iterator[str]) -> str:
-        atom = self.atom.render(variables)
+        value = "#true" if self.value else "#false"
         if self.double_negated:
-            return f"not not {atom}"
-        return f"not {atom}" if self.default_negated else atom
+            return f"not not {value}"
+        return f"not {value}" if self.default_negated else value

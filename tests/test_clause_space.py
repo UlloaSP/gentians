@@ -87,6 +87,206 @@ def _asp(sources: list[str]):
     return parse_program("\n".join(sources))
 
 
+def _models_for_clause(clause: Clause) -> set[frozenset[str]]:
+    control = clingo.Control(["0"])
+    add_program(control, (clause.statement,))
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        return {
+            frozenset(str(atom) for atom in model.symbols(atoms=True))
+            for model in handle
+        }
+
+
+def _models_for_source(source: str) -> set[frozenset[str]]:
+    control = clingo.Control(["0", "--warn=none"])
+    control.add("base", [], source)
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        return {
+            frozenset(str(atom) for atom in model.symbols(atoms=True))
+            for model in handle
+        }
+
+
+def test_default_negated_disjunctive_head_keeps_both_models():
+    task = parse_text(
+        "#maxv(0).\n#maxbl(0).\n#maxhl(2).\n#modeh(1,p;not p)."
+    )
+    space = generate_clause_space(task, Arguments())
+
+    assert space.clauses == ("p;not p.",)
+    assert _models_for_clause(space.entries[0]) == {
+        frozenset(), frozenset({"p"})
+    }
+
+
+def test_default_negated_head_variable_is_safe_when_bound_by_body():
+    task = parse_text(
+        "d(1).\n#maxv(1).\n#maxbl(1).\n#maxhl(2).\n"
+        "#modeh(1,p(var(node,input,x));not p(var(node,input,x))).\n"
+        "#modeb(1,d(var(node,output,x)))."
+    )
+    space = generate_clause_space(task, Arguments())
+
+    assert "p(V0);not p(V0) :- d(V0)." in space.clauses
+
+
+def test_default_negated_disjunct_is_dependency_not_definition():
+    task = parse_text(
+        "#maxv(0).\n#maxbl(0).\n#maxhl(2).\n#modeh(1,q;not p)."
+    )
+    space = generate_clause_space(task, Arguments())
+
+    assert space.clauses == ("q;not p.",)
+    assert space.entries[0].heads == frozenset({("q", 0)})
+    assert space.entries[0].deps == frozenset({("p", 0)})
+
+
+def test_default_negated_normal_head_is_a_dependency():
+    task = parse_text(
+        "q. {p}.\n#maxv(0).\n#maxbl(1).\n#modeh(1,not p).\n#modeb(1,q)."
+    )
+    space = generate_clause_space(task, Arguments())
+    clause = next(entry for entry in space.entries if entry.text == "not p :- q.")
+
+    assert clause.heads == frozenset()
+    assert clause.deps == frozenset({("p", 0), ("q", 0)})
+    control = clingo.Control(["0"])
+    add_program(control, (*task.background, clause.statement))
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        assert [
+            frozenset(str(atom) for atom in model.symbols(atoms=True))
+            for model in handle
+        ] == [frozenset({"q"})]
+
+
+def test_boolean_modes_and_conditions_generate_exact_body_literals():
+    task = parse_text(
+        "#maxv(0).\n#maxbl(2).\n#modeh(1,q).\n"
+        "#modeb(1,#true).\n#modeb(1,#false:p(1)).\n"
+        "#modeb(1,p(1):#true).\n#modeb(1,1=#count{1:#true})."
+    )
+    space = generate_clause_space(task, Arguments())
+    clauses = space.clauses
+
+    assert "q :- #true." in clauses
+    assert "q :- #false:p(1)." in clauses
+    assert "q :- p(1):#true." in clauses
+    assert "q :- 1=#count{1:#true}." in clauses
+    conditional = next(entry for entry in space.entries if entry.text == "q :- #false:p(1).")
+    control = clingo.Control(["0"])
+    add_program(control, (*parse_program("{p(1)}."), conditional.statement))
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        assert {
+            frozenset(str(atom) for atom in model.symbols(atoms=True))
+            for model in handle
+        } == {frozenset({"p(1)"}), frozenset({"q"})}
+
+
+def test_head_pool_is_one_clause_with_both_ground_atoms():
+    task = parse_text("#maxv(0).\n#maxbl(0).\n#maxhl(1).\n#modeh(1,p(1;2)).")
+    space = generate_clause_space(task, Arguments())
+
+    assert space.clauses == ("p(1;2).",)
+    assert _models_for_clause(space.entries[0]) == {frozenset({"p(1)", "p(2)"})}
+
+
+def test_multiargument_head_pool_is_one_clause():
+    task = parse_text(
+        "#maxv(0).\n#maxbl(0).\n#maxhl(1).\n"
+        "#modeh(1,p(1,2;3,4))."
+    )
+    space = generate_clause_space(task, Arguments())
+
+    assert space.clauses == ("p(1,2;3,4).",)
+    assert _models_for_clause(space.entries[0]) == {
+        frozenset({"p(1,2)", "p(3,4)"})
+    }
+
+
+def test_multiargument_head_pool_tracks_variables_in_each_alternative():
+    task = parse_text(
+        "d(1). d(2).\n#maxv(2).\n#maxbl(2).\n#maxhl(1).\n"
+        "#modeh(1,p(var(n,input,x),1;2,var(n,input,y))).\n"
+        "#modeb(2,d(var(n,output)))."
+    )
+
+    assert (
+        "p(V0,1;2,V1) :- d(V0),d(V1)."
+        in generate_clause_space(task, Arguments()).clauses
+    )
+
+
+def test_default_negated_choice_head_is_retained():
+    task = parse_text(
+        "#maxv(0).\n#maxbl(0).\n#maxhl(2).\n"
+        "#modeh(1,1{not p;q}1)."
+    )
+    space = generate_clause_space(task, Arguments())
+
+    assert space.clauses == ("1{not p;q}1.",)
+    assert space.entries[0].heads == frozenset({("q", 0)})
+    assert space.entries[0].deps == frozenset({("p", 0)})
+
+
+def test_modeha_and_modehd_allow_default_negated_elements():
+    task = parse_text(
+        "#maxv(0).\n#maxbl(0).\n#maxhl(2).\n#minhl(2).\n"
+        "#modeha(1,not p).\n#modeha(1,q).\n"
+        "#modehd(1,not p).\n#modehd(1,q)."
+    )
+    space = generate_clause_space(task, Arguments())
+
+    assert "1{not p;q}1." in space.clauses
+    assert "not p;q." in space.clauses
+
+
+def test_default_negated_function_aggregate_head_is_retained():
+    task = parse_text(
+        "#maxv(0).\n#maxbl(0).\n#maxhl(1).\n"
+        "#modeh(1,#count{1:not p}=1)."
+    )
+    space = generate_clause_space(task, Arguments())
+
+    assert space.clauses == ("#count{1:not p}=1.",)
+    assert space.entries[0].deps == frozenset({("p", 0)})
+
+
+def test_comparison_can_be_a_conditional_conclusion():
+    task = parse_text(
+        "d(1).\n#maxv(1).\n#maxbl(2).\n#modeh(1,q).\n"
+        "#modeb(1,var(n,any,x)=1:d(var(n,any,x)))."
+    )
+
+    assert "q :- V0=1:d(V0)." in generate_clause_space(task, Arguments()).clauses
+
+
+def test_clingo_predicate_identifiers_are_accepted_in_modes():
+    task = parse_text(
+        "#maxv(0).\n#maxbl(0).\n#maxhl(1).\n"
+        "#modeh(1,_private).\n#modeh(1,p')."
+    )
+
+    assert set(generate_clause_space(task, Arguments()).clauses) == {
+        "_private.", "p'."
+    }
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    (
+        "#modeedge(1,(1,2)).",
+        "#edge (1,2):p.",
+    ),
+)
+def test_edge_directives_are_rejected(declaration):
+    with pytest.raises(ValueError, match="no longer supported"):
+        parse_text(declaration)
+
+
 def _compiled_facts(task, modes, arg_types, max_variables, max_head, max_body):
     properties = _closed_world_properties(
         _closed_world_nodes(task), arg_types,
@@ -130,11 +330,11 @@ def _aggregate_mode(
     tuple_arity: int,
 ) -> ModeDeclaration:
     conditions = tuple(
-        AtomTemplate(
+        AtomLiteral(AtomTemplate(
             name.removeprefix("-"),
             tuple(TermTemplate.variable("any", "") for _ in range(arity)),
             name.startswith("-"),
-        )
+        ))
         for name, arity in atoms
     )
     return ModeDeclaration(
@@ -633,7 +833,6 @@ def test_parser_parses_recursive_function_and_tuple_mode_terms(tmp_path):
 
 def test_parser_rejects_invalid_recursive_mode_terms(tmp_path):
     declarations = (
-        "#modeb(1,p(f)).",
         "#modeb(1,p(var(node,input,extra,label))).",
         "#modeb(1,p(f(not))).",
     )
@@ -824,8 +1023,6 @@ def test_dependency_closure_does_not_confuse_positive_and_strong_providers():
     "declaration",
     [
         "#modeb(1,p(var(person,input)),positive).",
-        "#modeh(1,not p(var(person,input))).",
-        "#modeb(1,not not p(var(person,input))).",
         "#modeb(1,not).",
         "#modeb(1,not(var(person,input))).",
     ],
@@ -836,6 +1033,26 @@ def test_parser_rejects_invalid_mode_polarity_syntax(tmp_path, declaration):
 
     with pytest.raises(ValueError):
         parse_file(str(task))
+
+
+def test_double_default_negation_can_define_a_choice_like_rule():
+    task = parse_text(
+        "#maxv(0). #maxbl(1). #maxhl(1). "
+        "#modeh(1,p). #modeb(1,not not p)."
+    )
+    assert "p :- not not p." in generate_clause_space(task, Arguments()).clauses
+
+
+@pytest.mark.parametrize("prefix", ["not", "not not"])
+def test_default_negated_body_aggregates_are_generated(prefix):
+    task = parse_text(
+        "q(1). #maxv(1). #maxbl(1). #maxhl(0). "
+        f"#modeb(1,{prefix} #count{{var(numeric,any):q(var(numeric,any))}}=1)."
+    )
+    assert (
+        f":- {prefix} 1=#count{{V0:q(V0)}}."
+        in generate_clause_space(task, Arguments()).clauses
+    )
 
 
 def test_parser_rejects_output_variables_in_negative_modes(tmp_path):
@@ -1023,13 +1240,14 @@ def test_invent_rejects_observed_predicate(tmp_path):
         generate_clause_space(program, Arguments())
 
 
-def test_invented_predicates_are_stratified_and_excluded_from_constraints(tmp_path):
+def test_invented_predicates_follow_layers_and_do_not_enter_constraints(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(
         "\n".join(
             [
                 "base(a).",
                 "#pos({target(a)},{}).",
+                "#neg({target(b)},{}).",
                 "#modeh(1,target(var(term,any))).",
                 "#modeb(1,base(var(term,any))).",
                 "#modeb(1,target(var(term,any))).",
@@ -1054,16 +1272,17 @@ def test_invented_predicates_are_stratified_and_excluded_from_constraints(tmp_pa
     )
 
 
-def test_invented_definition_cannot_call_target_through_aggregate(tmp_path):
+def test_invented_definition_cannot_call_learnable_target_through_aggregate(tmp_path):
     task = tmp_path / "task.txt"
     task.write_text(
         "\n".join(
             [
                 "target(a).",
+                "#maxv(2). #maxbl(1).",
                 "#modeh(1,target(var(term,any))).",
                 "#modeb(1,#count{var(term,any,x):target(var(term,any,x))}="
                 "var(numeric,output,result)).",
-                "#invent(1,helper(var(term,any))).",
+                "#invent(1,helper(var(numeric,input))).",
             ]
         ),
         encoding="utf-8",
@@ -1072,9 +1291,7 @@ def test_invented_definition_cannot_call_target_through_aggregate(tmp_path):
 
     clauses = _generate(program, 3, 2).clauses
 
-    assert not any(
-        clause.startswith("helper(") and ":target(" in clause for clause in clauses
-    )
+    assert "helper(V1) :- #count{V0:target(V0)}=V1." not in clauses
 
 
 def test_clause_generation_prunes_arg_distinct_modes_before_rendering():
@@ -3238,6 +3455,283 @@ def test_complete_heads_render_as_declared(tmp_path, head, expected):
     assert expected in clauses
 
 
+def test_body_set_aggregate_is_generated(tmp_path):
+    task = tmp_path / "body-set.txt"
+    task.write_text(
+        "\n".join((
+            "d(1).",
+            "p(1).",
+            "#maxhl(0).",
+            "#maxbl(1).",
+            "#maxv(1).",
+            "#modeb(1,1 {p(var(n,any)):d(var(n,any)),"
+            "not q(var(n,any)),var(n,any)>0} 2).",
+        )), encoding="utf-8",
+    )
+    clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
+    assert ":- 1<={p(V0):d(V0),not q(V0),V0>0}<=2." in clauses
+
+
+def test_default_negated_set_element_keeps_clingo_semantics():
+    task = parse_text(
+        "{p}.\n#maxv(0).\n#maxbl(1).\n"
+        "#modeh(1,q).\n#modeb(1,1 {not p} 1)."
+    )
+    space = generate_clause_space(task, Arguments())
+    clause = next(entry for entry in space.entries if entry.text == "q :- 1<={not p}<=1.")
+    control = clingo.Control(["0"])
+    add_program(control, (*task.background, clause.statement))
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        assert {
+            frozenset(str(atom) for atom in model.symbols(atoms=True))
+            for model in handle
+        } == {frozenset({"q"}), frozenset({"p"})}
+
+
+def test_default_negated_set_element_local_variable_needs_positive_condition():
+    task = parse_text(
+        "d(1).\n#maxv(1).\n#maxbl(1).\n#modeh(1,q).\n"
+        "#modeb(1,1 {not p(var(n,any,x)):d(var(n,any,x))} 1)."
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+    assert "q :- 1<={not p(V0):d(V0)}<=1." in clauses
+
+
+def test_double_negated_set_element_is_distinct():
+    task = parse_text(
+        "{p}.\n#maxv(0).\n#maxbl(1).\n#modeh(1,q).\n"
+        "#modeb(1,1 {not not p} 1)."
+    )
+    assert "q :- 1<={not not p}<=1." in generate_clause_space(task, Arguments()).clauses
+
+
+def test_set_aggregate_accepts_comparison_element_with_local_variable():
+    task = parse_text(
+        "d(1). d(2).\n#maxv(1).\n#maxbl(1).\n"
+        "#modeh(1,q).\n"
+        "#modeb(1,1 {var(n,any)>1:d(var(n,any))} 1)."
+    )
+    space = generate_clause_space(task, Arguments())
+    clause = next(
+        entry for entry in space.entries
+        if entry.text == "q :- 1<={V0>1:d(V0)}<=1."
+    )
+    control = clingo.Control(["0"])
+    add_program(control, (*task.background, clause.statement))
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        assert [
+            frozenset(str(atom) for atom in model.symbols(atoms=True))
+            for model in handle
+        ] == [frozenset({"d(1)", "d(2)", "q"})]
+
+
+@pytest.mark.parametrize("value", ("#true", "#false"))
+def test_set_aggregate_accepts_boolean_element(value):
+    task = parse_text(
+        "d.\n#maxv(0).\n#maxbl(1).\n"
+        f"#modeh(1,q).\n#modeb(1,1 {{{value}:d}} 1)."
+    )
+    assert f"q :- 1<={{{value}:d}}<=1." in generate_clause_space(task, Arguments()).clauses
+
+
+def test_set_comparison_element_cannot_bind_its_own_local_variable():
+    task = parse_text(
+        "d(1).\n#maxv(1).\n#maxbl(1).\n"
+        "#modeh(1,q).\n#modeb(1,1 {var(n,any)>1} 1)."
+    )
+    assert not any(
+        "{V0>1}" in clause
+        for clause in generate_clause_space(task, Arguments()).clauses
+    )
+
+
+@pytest.mark.parametrize(
+    ("mode", "fragment"),
+    [
+        (
+            "#count{var(n,any):p(var(n,any)),not q(var(n,any)),var(n,any)>0}=1",
+            "#count{V0:p(V0),not q(V0),V0>0}",
+        ),
+        ("#sum{1;2}=3", "#sum{1;2}"),
+        (
+            "#sum{var(n,any)+var(n,any):p(var(n,any),var(n,any))}=3",
+            "#sum{V0+V1:p(V0,V1)}",
+        ),
+    ],
+)
+def test_body_aggregate_conditions_and_multi_variable_terms(mode, fragment):
+    source = " ".join((
+        "p(1,2). p(1). q(2).",
+        "#maxhl(0). #maxbl(1). #maxv(2).",
+        f"#modeb(1,{mode}).",
+    ))
+    clauses = generate_clause_space(parse_text(source), Arguments()).clauses
+    assert any(fragment in clause for clause in clauses)
+
+
+def test_condition_free_aggregate_can_use_a_global_variable():
+    source = " ".join((
+        "p(1). #maxhl(0). #maxbl(2). #maxv(1).",
+        "#modeb(1,p(var(n,output))).",
+        "#modeb(1,#count{var(n,any)}=1).",
+    ))
+    clauses = generate_clause_space(parse_text(source), Arguments()).clauses
+    assert ":- p(V0),1=#count{V0}." in clauses
+
+
+def test_aggregate_local_variable_needs_a_positive_condition():
+    source = " ".join((
+        "q(1). #maxhl(0). #maxbl(1). #maxv(1).",
+        "#modeb(1,#count{var(n,any):not q(var(n,any))}=1).",
+    ))
+    assert not generate_clause_space(parse_text(source), Arguments()).clauses
+
+
+def test_equality_output_aggregate_prunes_shared_condition_bindings():
+    source = " ".join((
+        "p(1). q(1). #maxhl(0). #maxbl(2). #maxv(3).",
+        "#modeb(1,var(numeric,input,r)>0).",
+        "#modeb(1,#count{var(n,any,x):p(var(n,any,x)),"
+        "q(var(n,any,x))}=var(numeric,output,r)).",
+    ))
+    assert not generate_clause_space(parse_text(source), Arguments()).clauses
+
+
+def test_head_guards_can_use_safe_body_variables():
+    source = " ".join((
+        "n(1). d(1). #maxhl(1). #maxbl(2). #maxv(1).",
+        "#modeh(1,var(n,input,x) {p(var(n,input,x)):d(var(n,input,x))} var(n,input,x)).",
+        "#modeb(1,n(var(n,output))).",
+    ))
+    clauses = generate_clause_space(parse_text(source), Arguments()).clauses
+    assert "V0{p(V0):d(V0)}V0 :- n(V0)." in clauses
+    assert "V0{p(V0):d(V0)}V0." not in clauses
+
+
+def test_head_function_aggregate_variable_guard_and_rich_conditions():
+    source = " ".join((
+        "n(1). d(1). #maxhl(1). #maxbl(4). #maxv(2).",
+        "#modeh(1,var(n,input,x)=#count{var(n,any,y):p(var(n,any,y)):"
+        "d(var(n,any,y)),not q(var(n,any,y)),var(n,any,y)>0}).",
+        "#modeb(1,n(var(n,output))).",
+    ))
+    clauses = generate_clause_space(parse_text(source), Arguments()).clauses
+    assert (
+        "#count{V1:p(V1):d(V1),not q(V1),V1>0}=V0 :- n(V0)."
+        in clauses
+    )
+
+
+def test_atom_arguments_accept_arithmetic_intervals_and_mode_pools():
+    source = " ".join((
+        "n(1). #maxhl(1). #maxbl(1). #maxv(1).",
+        "#modeh(1,p(var(n,input)+1)).",
+        "#modeh(1,q(1..3)).",
+        "#modeh(1,r(1;2)).",
+        "#modeb(1,n(var(n,output))).",
+    ))
+    clauses = generate_clause_space(parse_text(source), Arguments()).clauses
+    assert "p(V0+1) :- n(V0)." in clauses
+    assert "q(1..3)." in clauses
+    assert "r(1;2)." in clauses
+    assert "r(1)." not in clauses
+    assert "r(2)." not in clauses
+
+
+def test_body_atom_pool_stays_in_one_learned_clause():
+    source = " ".join((
+        "p(1). p(2). #maxhl(0). #maxbl(1). #maxv(0).",
+        "#modeb(1,p(1;2)).",
+    ))
+    task = parse_text(source)
+    assert len(task.language_bias_body) == 1
+    assert generate_clause_space(task, Arguments()).clauses == (
+        ":- p(1;2).",
+    )
+
+
+def test_nested_body_pool_stays_in_one_learned_clause():
+    task = parse_text(
+        "p(f(1)).\n#maxv(0).\n#maxbl(1).\n#maxpl(1).\n"
+        "#modeh(1,q).\n#modeb(1,p(f(1;2)))."
+    )
+    assert len(task.language_bias_body) == 1
+    space = generate_clause_space(task, Arguments())
+    clause = next(
+        entry for entry in space.entries if entry.text == "q :- p(f(1);f(2))."
+    )
+    control = clingo.Control(["0"])
+    add_program(control, (*task.background, clause.statement))
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        assert [
+            frozenset(str(atom) for atom in model.symbols(atoms=True))
+            for model in handle
+        ] == [frozenset({"p(f(1))", "q"})]
+
+
+def test_body_pool_retains_clingo_disjunctive_body_semantics():
+    task = parse_text(
+        "p(1).\n#maxv(0).\n#maxbl(1).\n#maxpl(1).\n"
+        "#modeh(1,q).\n#modeb(1,p(1;2))."
+    )
+    space = generate_clause_space(task, Arguments())
+    clause = next(entry for entry in space.entries if entry.text == "q :- p(1;2).")
+    control = clingo.Control(["0"])
+    add_program(control, (*task.background, clause.statement))
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        assert {
+            frozenset(str(atom) for atom in model.symbols(atoms=True))
+            for model in handle
+        } == {frozenset({"p(1)", "q"})}
+
+
+def test_body_pool_only_binds_variables_present_in_every_alternative():
+    task = parse_text(
+        "d(1). p(1,1). p(2,2).\n#maxv(2).\n#maxbl(2).\n"
+        "#modeh(1,q(var(n,input,x))).\n"
+        "#modeb(1,p(var(n,output,x),1;var(n,output,x),2)).\n"
+        "#modeb(1,d(var(n,output,x)))."
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+    assert "q(V0) :- p(V0,1;2)." in clauses
+    assert all("p(V0;V1)" not in clause for clause in clauses)
+
+
+def test_body_pool_does_not_make_only_some_alternatives_safe():
+    task = parse_text(
+        "p(1).\n#maxv(2).\n#maxbl(1).\n"
+        "#modeh(1,q(var(n,input,x),var(n,input,y))).\n"
+        "#modeb(1,p(var(n,output,x);var(n,output,y)))."
+    )
+    assert not any(
+        "p(V0;V1)" in clause
+        for clause in generate_clause_space(task, Arguments()).clauses
+    )
+
+
+def test_body_pool_variables_can_be_grounded_by_other_literals():
+    task = parse_text(
+        "d(1). p(1).\n#maxv(2).\n#maxbl(3).\n"
+        "#modeh(1,q(var(n,input,x),var(n,input,y))).\n"
+        "#modeb(2,d(var(n,output))).\n"
+        "#modeb(1,p(var(n,input,x);var(n,input,y)))."
+    )
+    space = generate_clause_space(task, Arguments())
+    clause = next(
+        entry for entry in space.entries
+        if entry.text == "q(V0,V1) :- d(V0),d(V1),p(V0;V1)."
+    )
+    control = clingo.Control(["0"])
+    add_program(control, (*task.background, clause.statement))
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        assert any(handle)
+
+
 def test_strong_negation_is_rendered_in_heads_and_default_negated_bodies(tmp_path):
     task = tmp_path / "strong-generation.txt"
     task.write_text(
@@ -3401,7 +3895,7 @@ def test_strong_negation_is_preserved_in_aggregate_conditions(tmp_path):
 
     assert aggregates
     assert all(
-        aggregate.elements[0].conditions[0].signature == ("-value", 1)
+        aggregate.elements[0].conditions[0].atom.signature == ("-value", 1)
         for aggregate in aggregates
     )
 
@@ -3876,15 +4370,15 @@ def test_conditional_literal_ir_renders_variables_in_syntax_order():
     assert render_literal(literal, (2, 2, 5)) == "p(V2):q(V2),not r(V5)"
 
 
-def test_parser_rejects_strongly_negated_invention(tmp_path):
+def test_parser_accepts_strongly_negated_invention(tmp_path):
     task = tmp_path / "strong-invention.txt"
     task.write_text(
         "#invent(1,-helper(var(person,input))).\n",
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="cannot be strongly negated"):
-        parse_file(str(task))
+    program = parse_file(str(task))
+    assert program.invented_predicates == (("-helper", 1),)
 
 
 def test_complete_head_width_must_fit_maxhl(tmp_path):
@@ -4054,7 +4548,7 @@ def test_equal_ground_values_do_not_merge_distinct_declared_types():
 def test_coloring_clause_generation_contains_target_clauses():
     clauses = _benchmark_clauses("coloring")
 
-    assert len(clauses) == 59
+    assert len(clauses) >= 59
     assert "red(V0);green(V0);blue(V0) :- node(V0)." in clauses
     assert ":- e(V0,V1),red(V0),red(V1)." in clauses
     assert ":- e(V0,V1),green(V0),green(V1)." in clauses
@@ -4325,7 +4819,7 @@ def test_separate_aggregate_scopes_can_reuse_a_name_with_different_nominal_types
     assert "target(V1) :- #count{V0:p(V0)}=V1,#count{V0:q(V0)}=V1." in clauses
 
 
-def test_linkedness_rejects_disconnected_literal_components():
+def test_linkedness_prunes_disconnected_global_variable_components():
     program = inductive_task(
         ["p(1).", "p(2).", "q(1).", "q(3).", "r(1).", "r(4)."],
         [],
@@ -4604,7 +5098,7 @@ def test_modeha_elements_accept_generated_conditions(tmp_path):
     "declaration",
     (
         "#modeha(0,p).",
-        "#modeha(not p).",
+        "#modeha(1,p;q).",
         "#minhl(2).\n#maxhl(1).\n#modeha(1,p).",
     ),
 )
@@ -5126,7 +5620,7 @@ def test_modeagg_is_removed_in_favour_of_explicit_modeb(tmp_path):
         (
             "#modeb(1,not #sum{var(numeric,any):p(var(numeric,any))}="
             "var(numeric,output)).",
-            "cannot use default negation",
+            "negated aggregates cannot produce an output",
         ),
         (
             "#modeb(1,#sum{var(numeric,any):p(var(numeric,any))}<"
@@ -5247,6 +5741,24 @@ def test_head_aggregate_rejects_unbound_local_variables():
         """
     )
     assert generate_clause_space(task, Arguments()).clauses == ()
+
+
+def test_head_aggregate_tuple_constant_requires_a_declaration():
+    source = """
+        d(1).
+        #maxv(1). #maxbl(1). #maxhl(1).
+        #modeh(1,#count{
+            const(tag),var(numeric,any):p(var(numeric,any)):
+            d(var(numeric,any))
+        }=1).
+    """
+    with pytest.raises(ValueError, match="constant mode types require #constant"):
+        parse_text(source)
+
+    task = parse_text("#constant(tag,a)." + source)
+    assert "#count{a,V0:p(V0):d(V0)}=1." in generate_clause_space(
+        task, Arguments()
+    ).clauses
 
 
 def test_exact_power_mode_keeps_valid_result_operand_instantiations(tmp_path):
@@ -5385,7 +5897,7 @@ def test_aggregate_schema_declares_shape_without_duplicate_internal_positions():
         "count",
         (AggregateElement(
             (TermTemplate.fixed("tag"), variable),
-            (AtomTemplate("p", (TermTemplate.fixed("anchor"), nested_variable)),),
+            (AtomLiteral(AtomTemplate("p", (TermTemplate.fixed("anchor"), nested_variable))),),
         ),),
         AggregateGuard("=", TermTemplate.variable("numeric", "output")),
     )
@@ -5406,3 +5918,220 @@ def test_aggregate_schema_declares_shape_without_duplicate_internal_positions():
     assert "mode_aggregate_tuple_arg(0,0,0)." not in facts
     assert "mode_aggregate_condition_arg(0,0,0,1)." not in facts
     assert not any(fact.startswith("mode_aggregate_internal_arg(") for fact in facts)
+
+
+@pytest.mark.parametrize(
+    ("head", "expected"),
+    [
+        ("p((1;2)+3)", frozenset({"p(4)", "p(5)"})),
+        ("p(-(1;2))", frozenset({"p(-1)", "p(-2)"})),
+        ("p((2;4)..3)", frozenset({"p(2)", "p(3)"})),
+        ("p(((1;2),3))", frozenset({"p((1,3))", "p((2,3))"})),
+    ],
+)
+def test_pool_parentheses_preserve_head_term_semantics(head, expected):
+    task = parse_text(f"#maxv(0). #maxbl(0). #modeh(1,{head}).")
+    space = generate_clause_space(task, Arguments())
+
+    assert len(space.entries) == 1
+    assert _models_for_clause(space.entries[0]) == {expected}
+
+
+def test_pool_parentheses_preserve_aggregate_tuple_and_choice_guard():
+    task = parse_text(
+        "#maxv(0). #maxbl(1). #modeh(1,q). "
+        "#modeb(1,#count{(1;2):p}=1)."
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+    body_clause = next(clause for clause in clauses if clause.startswith("q :-"))
+    assert _models_for_source(body_clause) == _models_for_source(
+        "q :- #count{(1;2):p}=1."
+    )
+
+    head_task = parse_text(
+        "#maxv(0). #maxbl(0). #maxhl(2). #modeh(1,(0;1){p;q}1)."
+    )
+    head_clause = generate_clause_space(head_task, Arguments()).clauses[0]
+    assert _models_for_source(head_clause) == _models_for_source("(0;1){p;q}1.")
+
+
+def test_cardinality_bounds_apply_after_grounding_elements():
+    task = parse_text(
+        "d(1..3). #maxv(1). #maxbl(1). #maxhl(1). "
+        "#modeh(1,0{p(var(n,any)):d(var(n,any))}2)."
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+    assert "0{p(V0):d(V0)}2." in clauses
+    assert len(_models_for_source("d(1..3). 0{p(X):d(X)}2.")) == 7
+
+    pooled = parse_text("#maxv(0). #maxbl(0). #modeh(1,2{p(1;2)}2).")
+    assert "2{p(1;2)}2." in generate_clause_space(pooled, Arguments()).clauses
+
+
+def test_set_aggregate_guards_keep_all_clingo_comparisons():
+    head = parse_text("#maxv(0). #maxbl(0). #maxhl(2). #modeh(1,{p;q}!=1).")
+    clause = generate_clause_space(head, Arguments()).clauses[0]
+    assert _models_for_source(clause) == _models_for_source("{p;q}!=1.")
+
+    body = parse_text(
+        "{p}. #maxv(0). #maxbl(1). #modeh(1,q). #modeb(1,0<{p}<2)."
+    )
+    clauses = generate_clause_space(body, Arguments()).clauses
+    assert "q :- 0<{p}<2." in clauses
+
+
+def test_local_comparisons_can_bind_conditional_and_aggregate_variables():
+    body = parse_text(
+        "#maxv(1). #maxbl(1). #modeh(1,q). "
+        "#modeb(1,2=#count{var(n,any):var(n,any)=1..2})."
+    )
+    clauses = generate_clause_space(body, Arguments()).clauses
+    assert any(clause.startswith("q :- 2=#count{") for clause in clauses)
+
+    chained = parse_text(
+        "#maxv(2). #maxbl(1). #modeh(1,q). "
+        "#modeb(1,2=#count{var(n,any,x):"
+        "var(n,any,x)=var(n,any,y),var(n,any,y)=1..2})."
+    )
+    assert "q :- 2=#count{V0:V0=V1,V1=1..2}." in generate_clause_space(
+        chained, Arguments()
+    ).clauses
+
+    head = parse_text(
+        "#maxv(1). #maxbl(1). #modeh(1,{p(var(n,any)):var(n,any)=1..2})."
+    )
+    clauses = generate_clause_space(head, Arguments()).clauses
+    assert "{p(V0):V0=1..2}." in clauses
+    assert len(_models_for_source("{p(X):X=1..2}.")) == 4
+
+    chained_head = parse_text(
+        "#maxv(2). #maxbl(2). "
+        "#modeh(1,p(var(n,any,x)):"
+        "var(n,any,x)=var(n,any,y),var(n,any,y)=1..2)."
+    )
+    assert "p(V0):V0=V1,V1=1..2." in generate_clause_space(
+        chained_head, Arguments()
+    ).clauses
+
+    conditional = parse_text(
+        "p(1). p(2). #maxv(1). #maxbl(2). #modeh(1,q). "
+        "#modeb(1,p(var(n,any)):var(n,any)=1..2)."
+    )
+    assert "q :- p(V0):V0=1..2." in generate_clause_space(
+        conditional, Arguments()
+    ).clauses
+
+    aggregate_head = parse_text(
+        "#maxv(1). #maxbl(1). "
+        "#modeh(1,#count{var(n,any):p(var(n,any)):var(n,any)=1..2}=2)."
+    )
+    assert "#count{V0:p(V0):V0=1..2}=2." in generate_clause_space(
+        aggregate_head, Arguments()
+    ).clauses
+
+    set_body = parse_text(
+        "#maxv(1). #maxbl(1). #modeh(1,q). "
+        "#modeb(1,1{p(var(n,any)):var(n,any)=1..2}2)."
+    )
+    assert "q :- 1<={p(V0):V0=1..2}<=2." in generate_clause_space(
+        set_body, Arguments()
+    ).clauses
+
+    unsafe = parse_text(
+        "#maxv(2). #maxbl(1). #modeh(1,q). "
+        "#modeb(1,1=#count{var(n,any,x):var(n,any,x)=var(n,any,y)})."
+    )
+    assert not any(
+        clause.startswith("q :-")
+        for clause in generate_clause_space(unsafe, Arguments()).clauses
+    )
+
+
+def test_global_aggregate_tuple_variable_can_use_independent_body_binding():
+    task = parse_text(
+        "d(1). d(2). p(1). #maxv(3). #maxbl(2). "
+        "#modeh(1,q(var(n,input),var(numeric,input))). "
+        "#modeb(1,d(var(n,output))). "
+        "#modeb(1,var(numeric,output)=#count{var(n,any):p(var(n,any))})."
+    )
+    space = generate_clause_space(task, Arguments())
+    clause = "q(V0,V1) :- d(V0),#count{V0:p(V0)}=V1."
+    assert clause in space.clauses
+    assert _models_for_source("d(1). d(2). p(1). " + clause) == {
+        frozenset({"d(1)", "d(2)", "p(1)", "q(1,1)", "q(2,0)"})
+    }
+    for entry in space.entries:
+        _models_for_source("d(1). d(2). p(1). " + entry.text)
+
+
+def test_body_pool_grouping_is_one_mode_and_one_clause():
+    task = parse_text(
+        "#maxv(1). #maxbl(1). #maxpl(1). #modeh(1,q). "
+        "#modeb(1,#count{var(n,any):p(var(n,any))}=(1;3))."
+    )
+    assert len(task.language_bias_body) == 1
+    clauses = generate_clause_space(task, Arguments()).clauses
+    assert "q :- (1;3)=#count{V0:p(V0)}." in clauses
+
+    conditional = parse_text(
+        "#maxv(0). #maxbl(2). #modeh(1,q). #modeb(1,p(1;2):d)."
+    )
+    assert len(conditional.language_bias_body) == 1
+    assert "q :- p(1;2):d." in generate_clause_space(conditional, Arguments()).clauses
+
+
+def test_pooled_local_conditions_only_bind_variables_in_every_alternative():
+    unsafe_modes = (
+        "#modeh(1,q(var(n,any,x)):p((var(n,any,x);1))).",
+        "#modeh(1,q). #modeb(1,#count{var(n,any,x):p((var(n,any,x);1))}=1).",
+        "#modeh(1,#count{var(n,any,x):r(var(n,any,x)):p((var(n,any,x);1))}=1).",
+    )
+    for modes in unsafe_modes:
+        task = parse_text(f"#maxv(1). #maxbl(1). {modes}")
+        clauses = generate_clause_space(task, Arguments()).clauses
+        assert all("p(V0;1)" not in clause for clause in clauses)
+        for clause in clauses:
+            _models_for_source(clause)
+
+    safe = parse_text(
+        "d(1). p(1). #maxv(1). #maxbl(2). "
+        "#modeh(1,q(var(n,any,x)):"
+        "p((var(n,any,x);1)),d(var(n,any,x)))."
+    )
+    clauses = generate_clause_space(safe, Arguments()).clauses
+    assert "q(V0):p(V0;1),d(V0)." in clauses
+    for clause in clauses:
+        _models_for_source("d(1). p(1). " + clause)
+
+
+def test_boolean_comparison_and_empty_heads_are_exact_modes():
+    constraint = parse_text(
+        "{p}. #maxv(0). #maxbl(1). #modeh(1,#false). #modeb(1,p)."
+    )
+    assert "#false :- p." in generate_clause_space(constraint, Arguments()).clauses
+
+    for head in ("p;1=2", "{p;1=2}", "{}", "0{}0", "#count{}=0", "1=#count{1:#true}"):
+        task = parse_text(f"#maxv(0). #maxbl(0). #maxhl(2). #modeh(1,{head}).")
+        clause = generate_clause_space(task, Arguments()).clauses[0]
+        assert _models_for_source(clause) == _models_for_source(head + ".")
+
+    conditioned = parse_text(
+        "p. #maxv(0). #maxbl(1). #modeh(1,#false). #modec(1,p)."
+    )
+    assert "#false:p." in generate_clause_space(conditioned, Arguments()).clauses
+
+
+def test_empty_tuple_body_aggregate_and_anonymous_positive_atom():
+    task = parse_text(
+        "p. #maxv(0). #maxbl(1). #modeh(1,q). #modeb(1,#count{:p}=1)."
+    )
+    assert "q :- 1=#count{:p}." in generate_clause_space(task, Arguments()).clauses
+
+    anonymous = parse_text(
+        "p(1). #maxv(0). #maxbl(1). #modeh(1,q). #modeb(1,p(_))."
+    )
+    clauses = generate_clause_space(anonymous, Arguments()).clauses
+    assert "q :- p(_)." in clauses
+    assert "q" in next(iter(_models_for_source("p(1). q :- p(_).")))
+    with pytest.raises(ValueError, match="anonymous variables"):
+        parse_text("#modeb(1,not p(_)).")

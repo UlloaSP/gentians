@@ -2,6 +2,7 @@ from clingo import ast
 
 from ...language.asp import Predicate, parse_program
 from ...language.ir.atom_literal import AtomLiteral
+from ...language.ir.atom_template import AtomTemplate
 from ...language.ir.conditional_literal import ConditionalLiteral
 from ...language.ir.head_aggregate_element import HeadAggregateElement
 from ..clause import Clause
@@ -67,16 +68,27 @@ def _clause_from_reified(
     for literal in clause.head:
         mode = modes[literal.mode_id]
         if isinstance(mode.literal, AtomLiteral):
-            heads.add(mode.literal.atom.signature)
+            if mode.literal.default_negated:
+                deps.add(mode.literal.atom.signature)
+            else:
+                heads.add(mode.literal.atom.signature)
         elif isinstance(mode.literal, ConditionalLiteral):
-            heads.add(mode.literal.conclusion.atom.signature)
+            if isinstance(mode.literal.conclusion, AtomLiteral):
+                if mode.literal.conclusion.default_negated:
+                    deps.add(mode.literal.conclusion.atom.signature)
+                else:
+                    heads.add(mode.literal.conclusion.atom.signature)
             deps.update(
                 predicate
                 for condition in mode.literal.conditions
                 for predicate in condition.dependencies
             )
         elif isinstance(mode.literal, HeadAggregateElement):
-            heads.add(mode.literal.atom.signature)
+            if isinstance(mode.literal.atom, AtomTemplate):
+                if mode.literal.default_negated:
+                    deps.add(mode.literal.atom.signature)
+                else:
+                    heads.add(mode.literal.atom.signature)
             deps.update(mode.literal.dependencies)
     for literal in clause.body:
         mode = modes[literal.mode_id]

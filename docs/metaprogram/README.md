@@ -43,16 +43,21 @@ the rules that derive views from this schema and do not repeat declarations.
 | Relation | Meaning |
 | --- | --- |
 | `mode_section(Mode,Section)`, `mode_recall(Mode,Recall)` | Declaration placement and effective recall limit. |
-| `mode_kind(Mode,Kind)` | Explicit template kind: normal, conditional, comparison, arithmetic, body aggregate or head aggregate element. |
+| `mode_kind(Mode,Kind)` | Explicit template kind: normal, conditional, comparison, arithmetic, Boolean literal, body aggregate, or head aggregate element. |
 | `comparison_operator(Mode,Operator)` | Simple binary comparison operator: eq, neq, lt, gt, leq or geq. Complex comparison chains have no such fact. |
-| `mode_atom(Mode,Predicate,Arity)` | Predicate signature of a normal atom, conditional conclusion or head aggregate element; absent for operators and body aggregates. |
+| `mode_atom(Mode,Predicate,Arity)` | Predicate signature of a normal atom, atomic conditional conclusion or atomic head aggregate element; absent for operators, body aggregates and non-atomic conclusions. |
+| `pooled_body_mode(Mode)`, `mode_pool_alternative(Mode,Alternative)`, `mode_pool_alternative_arg(Mode,Alternative,Position)` | Alternatives of one pooled body atom and the flattened placeholders present in each alternative. A variable is supplied by the atom only when it occurs in every alternative. |
+| `local_pool_condition_arg(Mode,Scope,Element,Condition,Position)`, `local_pool_alternative(Mode,Scope,Element,Condition,Alternative)`, `local_pool_alternative_arg(Mode,Scope,Element,Condition,Alternative,Position)` | Alternatives of a positive local condition. A conditional or aggregate variable is supplied only when every alternative contains it. |
 | `mode_arithmetic_operand(Mode,Side,Position)`, `mode_arithmetic_result(Mode,Position)` | Static arithmetic roles mapped to storage positions. |
 | `mode_aggregate_tuple_arg(Mode,TuplePosition,Position)` | Static aggregate tuple mapping. |
 | `mode_aggregate_condition_arg(Mode,Condition,LocalPosition,Position)` | Static mapping of each condition occurrence. |
 | `mode_aggregate_result_arg(Mode,Position)` | Aggregate result storage position. Internal positions derive from tuple and condition mappings. |
-| `mode_aggregate_element_tuple_arg(Mode,Element,TuplePosition,Position)`, `mode_aggregate_element_condition_arg(Mode,Element,Condition,Argument,Position)` | Occurrence-preserving mappings for each body aggregate element; elements have separate local scopes. |
+| `mode_aggregate_element_tuple_arg(Mode,Element,TuplePosition,Position)`, `mode_aggregate_element_condition_arg(Mode,Element,Condition,Argument,Position)` | Occurrence-preserving mappings for body function and set aggregate elements; elements have separate local scopes. |
+| `aggregate_element_atom(Mode,Element,Predicate,Arity)`, `mode_aggregate_element_positive_arg(Mode,Element,Condition,Position)` | A body set element's conclusion predicate and bindings supplied by positive atomic conditions. |
 | `mode_aggregate_guard_arg(Mode,Position)`, `mode_aggregate_output_arg(Mode,Position)` | Nonproducing guard input and equality output positions. |
-| `head_aggregate_element_arg(Mode,Position)`, `head_aggregate_condition_arg(Mode,Condition,Position)` | Local positions and positive condition bindings of a function aggregate head element. |
+| `head_aggregate_element_arg(Mode,Position)`, `head_aggregate_condition_arg(Mode,Condition,Position)`, `head_aggregate_positive_condition_arg(Mode,Condition,Position)` | Local positions, all condition bindings, and the positive atomic subset of a function aggregate head element. |
+| `local_comparison_variant/6`, `local_comparison_input/6`, `local_comparison_output/6` | Grounding-safe variable bindings proved by Clingo for a comparison inside a conditional or aggregate element; required inputs must be safe in that same scope. |
+| `head_guard_arg(Mode,Position)` | Clause-global guard or cardinality bound position on the first member of a complete head. |
 | `selected(Section,Slot,Mode)` | A mode occurrence in a head or body slot. |
 | `var_at(Section,Slot,Position,Variable)` | A syntactic variable id at a flattened placeholder position. |
 | `same_term_bindings(S0,L0,S1,L1)` | Equal recursive term shapes and equal variable bindings at corresponding positions. Does not itself compare predicates. |
@@ -128,10 +133,11 @@ nearby fragment can still be rejected by another independent restriction.
 
 | Source family | Premise and reason | Rejected / nearby retained case |
 | --- | --- | --- |
-| `legality/{clause_shape,recall,labels,invention}.lp` | Enforce declared limits, identities and invention rules. | Recall 1 with two occurrences / one occurrence. |
+| `legality/{clause_shape,recall,labels}.lp` | Enforce declared limits and identities. | Recall 1 with two occurrences / one occurrence. |
+| `legality/linkedness.lp` | Keep literals with global variables in one connected component; local scopes do not bridge components. This is a search policy beyond Clingo safety. | `q(X) :- d(X),r(Y)` / `q(X) :- d(X),r(X)`. |
+| `legality/invention.lp` | Keep invented definitions ordered by declaration and exclude invented dependencies in constraints. This is a search policy beyond Clingo syntax. | `early(X) :- late(X)` when `late` is declared later / `late(X) :- early(X)`. |
 | `legality/{typing,scopes,asp_safety,aggregates}.lp` | Preserve nominal types and grounding in the appropriate scope. | Global head variable with no grounding support / supported by a positive body atom. |
 | `legality/flow/` | Every required input has a derivation from flow seeds. | Unseeded input cycle / a chain beginning at a head input or zero-input producer. |
-| `legality/linkedness.lp` | Enforce the enumerator's structural connectedness condition. This is a bias condition, not general ASP syntax. | Disconnected variable-bearing components / components sharing an eligible global binding. |
 | `symmetry/{slots,variables,conditions}.lp` | Select an ordered encoding among permutations of slots, ids or same-variant conditions. | Descending interchangeable tuple / ascending tuple. |
 | `symmetry/{arithmetic,comparisons}.lp` | Order eligible interchangeable operands. Arithmetic eligibility comes from the compiler. | Reversed addition operands / ordered operands; directed non-interchangeable templates retain their own encoding. |
 | `symmetry/aggregates.lp` | Order count tuples; permute full-local conditions only, keeping sum weights fixed. | The swapped condition in `examples/aggregate.lp` / its ordered form. |

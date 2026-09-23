@@ -4,12 +4,15 @@ from ..language.asp import Predicate
 from ..language.ir.aggregate_literal import AggregateLiteral
 from ..language.ir.arithmetic_literal import ArithmeticLiteral
 from ..language.ir.atom_literal import AtomLiteral
+from ..language.ir.atom_template import AtomTemplate
+from ..language.ir.boolean_literal import BooleanLiteral
 from ..language.ir.comparison_literal import ComparisonLiteral
 from ..language.ir.conditional_literal import ConditionalLiteral
 from ..language.ir.head_template import HeadTemplate
 from ..language.ir.head_aggregate_element import HeadAggregateElement
 from ..language.ir.literal_template import LiteralTemplate
 from ..language.ir.term_binding import TermBinding
+from ..language.ir.term_template import TermTemplate
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,12 +38,18 @@ class ClauseMode:
             conclusion = (
                 self.literal.conclusion
                 if isinstance(self.literal, ConditionalLiteral)
-                else AtomLiteral(self.literal.atom)
+                else AtomLiteral(
+                    self.literal.atom,
+                    self.literal.default_negated,
+                    self.literal.double_negated,
+                )
+                if isinstance(self.literal, HeadAggregateElement) and isinstance(self.literal.atom, AtomTemplate)
+                else self.literal.atom
                 if isinstance(self.literal, HeadAggregateElement)
                 else self.literal
             )
-            if not isinstance(conclusion, AtomLiteral) or conclusion.default_negated:
-                raise ValueError("head modes require positive atom literals")
+            if not isinstance(conclusion, AtomLiteral | BooleanLiteral | ComparisonLiteral):
+                raise ValueError("head modes require basic literals")
             if self.head_form is None or self.head is None:
                 raise ValueError("head modes require a complete head form")
         elif self.head_form is not None or self.head is not None:
@@ -50,23 +59,34 @@ class ClauseMode:
             "bindings",
             tuple(
                 binding
-                for index, term in enumerate(self.literal.arguments)
+                for index, term in enumerate(self.arguments)
                 for binding in term.bindings((index,))
             ),
         )
 
     @property
     def arity(self) -> int:
-        return len(self.literal.arguments)
+        return len(self.arguments)
+
+    @property
+    def guard_terms(self) -> tuple[TermTemplate, ...]:
+        return self.head.guard_terms if self.head is not None and self.head_position == 0 else ()
+
+    @property
+    def arguments(self) -> tuple[TermTemplate, ...]:
+        return (*self.literal.arguments, *self.guard_terms)
 
     @property
     def binding_positions(self) -> tuple[int, ...]:
         if isinstance(
             self.literal,
             AggregateLiteral | ConditionalLiteral | ComparisonLiteral | ArithmeticLiteral | HeadAggregateElement,
-        ) or (
+        ) or self.guard_terms or (
             isinstance(self.literal, AtomLiteral)
-            and any(term.kind in {"function", "tuple"} for term in self.literal.atom.terms)
+            and (
+                self.literal.atom.alternatives
+                or any(term.kind in {"function", "tuple", "arithmetic", "interval", "pool"} for term in self.literal.atom.terms)
+            )
         ):
             return tuple(range(len(self.bindings)))
         return tuple(binding.path[0] for binding in self.bindings)

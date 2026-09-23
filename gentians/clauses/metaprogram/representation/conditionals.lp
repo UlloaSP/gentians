@@ -20,7 +20,7 @@ conditional_condition_var(Section, Slot, Var) :-
     conditional_condition_arg(Mode, _, _, Arg),
     var_at(Section, Slot, Arg, Var).
 
-conditional_positive_condition_var(Section, Slot, Var) :-
+conditional_positive_condition_var(Section, Slot, Condition, Var) :-
     selected(Section, Slot, Mode),
     conditional_condition(Mode, Condition, _, positive),
     conditional_condition_arg(Mode, Condition, _, Arg),
@@ -32,7 +32,8 @@ conditional_var(Section, Slot, Var) :- conditional_condition_var(Section, Slot, 
 
 conditional_head_literal(Slot, Mode, Pred, Arity) :-
     selected(head, Slot, Mode),
-    conditional_mode(Mode), mode_atom(Mode, Pred, Arity).
+    conditional_mode(Mode), mode_atom(Mode, Pred, Arity),
+    not negative_mode(Mode).
 
 conditional_dependency(body, Slot, Pred) :-
     selected(body, Slot, Mode),

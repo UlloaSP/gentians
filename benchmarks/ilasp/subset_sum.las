@@ -12,9 +12,12 @@
 
 #pos({s(6)}, {}).
 
-% Explicit hypothesis space: 5 candidate clauses.
+% Explicit hypothesis space: 8 candidate clauses.
+4 ~ s(V0) :- el(V0),#sum{V0:el(V0)}=V1,V0-V1!=0.
 3 ~ s(V0) :- el(V0),#sum{V1:el(V1)}=V0.
 4 ~ s(V0) :- el(V0),#sum{V1:el(V1)}=V2,V0-V2!=0.
 2 ~ s(V0) :- el(V0).
 2 ~ s(V1) :- #sum{V0:el(V0)}=V1.
+4 ~ s(V1) :- el(V0),#sum{V0:el(V0)}=V1,V0-V1!=0.
+3 ~ s(V1) :- el(V0),#sum{V0:el(V0)}=V1.
 4 ~ s(V2) :- el(V0),#sum{V1:el(V1)}=V2,V0-V2!=0.

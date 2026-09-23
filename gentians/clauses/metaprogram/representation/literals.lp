@@ -39,4 +39,4 @@ head_literal(Slot, Mode, Pred, Arity) :-
 
 head_literal(Slot, Mode, Pred, Arity) :-
     selected(head, Slot, Mode), head_aggregate_mode(Mode),
-    mode_atom(Mode, Pred, Arity).
+    mode_atom(Mode, Pred, Arity), not negative_mode(Mode).

@@ -50,6 +50,10 @@
 % comparison, arithmetic or aggregate.
 #defined mode_kind/2.
 
+% plain_disjunctive_head_mode(Mode): Mode is an unconditional atom in a normal
+% or disjunctive head. Choice/cardinality and conditioned heads are absent.
+#defined plain_disjunctive_head_mode/1.
+
 % mode_recall(Mode, Recall): effective maximum occurrences of this mode after
 % replacing an unlimited source recall with the finite structural bound.
 #defined mode_recall/2.
@@ -103,9 +107,9 @@
 % a form selects all of its members; the members are not independent choices.
 #defined head_form_member/3.
 
-% aggregate_head_form(Form): Form came from an aggregate-head declaration and
-% is subject to the aggregate head cardinality rules.
-#defined aggregate_head_form/1.
+% composite_head_form(Form): Form is a choice, cardinality or function aggregate
+% head. Its elements form one linked component.
+#defined composite_head_form/1.
 
 % head_arg_label(Form, Mode, Position, Label): labelled position inside one
 % compound head form; labels with the same name must denote one variable.
@@ -205,6 +209,19 @@
 % mode_aggregate_result_arg(Mode, Position): variable binding of the aggregate
 % guard/result maps to flattened Position.
 #defined mode_aggregate_result_arg/2.
+
+% General aggregate elements have independent local variable scopes. Guard
+% positions remain clause-global; only an equality output produces a binding.
+#defined mode_aggregate_element_tuple_arg/4.
+#defined aggregate_element_condition_atom/5.
+#defined mode_aggregate_element_condition_arg/5.
+#defined mode_aggregate_guard_arg/2.
+#defined mode_aggregate_output_arg/2.
+
+% Exact #modeh head aggregate elements and their positive local conditions.
+#defined head_aggregate_element_arg/2.
+#defined head_aggregate_condition_atom/3.
+#defined head_aggregate_condition_arg/3.
 
 % Predicate invention and signed predicate identity.
 

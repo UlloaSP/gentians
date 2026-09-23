@@ -4,7 +4,12 @@
 
 same_variable_scope(Section, Slot, A0, Section, Slot, A1, Var) :-
     var_at(Section, Slot, A0, Var),
-    var_at(Section, Slot, A1, Var).
+    var_at(Section, Slot, A1, Var),
+    not separate_aggregate_local_elements(Section, Slot, A0, A1).
+
+separate_aggregate_local_elements(body, Slot, A0, A1) :-
+    aggregate_element_arg(Slot, E0, A0), aggregate_element_arg(Slot, E1, A1),
+    E0 != E1, local_var_at(body, Slot, A0), local_var_at(body, Slot, A1).
 
 same_variable_scope(S0, L0, A0, S1, L1, A1, Var) :-
     var_at(S0, L0, A0, Var),

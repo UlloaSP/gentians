@@ -168,11 +168,31 @@ def _clause_modes(
     condition_modes = _condition_modes(task)
     next_head_form = 0
     head_templates = (
-        *((declaration.template, False) for declaration in task.language_bias_head),
-        *((template, True) for template in _aggregate_head_templates(task)),
-        *((template, False) for template in _disjunctive_head_templates(task)),
+        *(declaration.template for declaration in task.language_bias_head),
+        *_aggregate_head_templates(task),
+        *_disjunctive_head_templates(task),
     )
-    for template, aggregate_head in head_templates:
+    for template in head_templates:
+        if template.kind == "aggregate":
+            concrete_elements = tuple(
+                element.concretizations(task.constants)
+                for element in template.aggregate_elements
+            )
+            for concrete in product(*concrete_elements):
+                head = replace(
+                    template,
+                    elements=tuple(element.atom for element in concrete),
+                    aggregate_elements=concrete,
+                )
+                form_id = next_head_form
+                next_head_form += 1
+                for position, element in enumerate(concrete):
+                    add(ClauseMode(
+                        id=next_id, recall_group=next_id, section="head", recall=1,
+                        literal=element, head_form=form_id,
+                        head_position=position, head=head,
+                    ))
+            continue
         concrete_elements = []
         for atom, exact_conditions in zip(
             template.elements, template.conditions, strict=True
@@ -239,7 +259,6 @@ def _clause_modes(
                             head_form=form_id,
                             head_position=position,
                             head=head,
-                            aggregate_head=aggregate_head,
                         )
                     )
 

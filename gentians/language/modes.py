@@ -7,6 +7,8 @@ from clingo import ast
 
 from .asp import parse_atom, split_top_level_args
 from .directives import _directive_args, _parse_recall
+from .ir.aggregate_element import AggregateElement
+from .ir.aggregate_guard import AggregateGuard
 from .ir.aggregate_literal import AggregateLiteral
 from .ir.atom_literal import AtomLiteral
 from .ir.atom_template import AtomTemplate
@@ -14,6 +16,7 @@ from .ir.comparison_literal import ComparisonLiteral
 from .ir.conditional_literal import ConditionalLiteral
 from .ir.head_declaration import HeadDeclaration
 from .ir.head_template import HeadTemplate
+from .ir.head_aggregate_element import HeadAggregateElement
 from .ir.mode_declaration import ModeDeclaration
 from .ir.term_template import TermTemplate
 
@@ -249,6 +252,66 @@ def _get_head_declaration(s: str) -> HeadDeclaration:
                 conditions,
             ),
         )
+    if head.ast_type == ast.ASTType.HeadAggregate:
+        functions = {0: "count", 1: "sum", 2: "sum+", 3: "min", 4: "max"}
+        function = functions.get(head.function)
+        if function is None or not head.elements:
+            raise ValueError(f"unsupported #modeh aggregate head: {s}")
+        elements: list[HeadAggregateElement] = []
+        for element in head.elements:
+            conclusion = _literal_from_ast(element.condition.literal, s)
+            if not isinstance(conclusion, AtomLiteral) or conclusion.default_negated:
+                raise ValueError(f"aggregate head elements require positive atoms: {s}")
+            conditions = _head_conditions(element.condition.condition, s)
+            if any(
+                not isinstance(condition, AtomLiteral) or condition.default_negated
+                for condition in conditions
+            ):
+                raise ValueError(f"aggregate head conditions require positive atoms: {s}")
+            elements.append(
+                HeadAggregateElement(
+                    tuple(_aggregate_term_from_ast(term, s) for term in element.terms),
+                    conclusion.atom,
+                    tuple(
+                        condition.atom
+                        for condition in conditions
+                        if isinstance(condition, AtomLiteral)
+                    ),
+                )
+            )
+        operators = {
+            ast.ComparisonOperator.Equal: "=",
+            ast.ComparisonOperator.NotEqual: "!=",
+            ast.ComparisonOperator.LessThan: "<",
+            ast.ComparisonOperator.LessEqual: "<=",
+            ast.ComparisonOperator.GreaterThan: ">",
+            ast.ComparisonOperator.GreaterEqual: ">=",
+        }
+
+        def guard(node: ast.AST | None) -> AggregateGuard | None:
+            if node is None:
+                return None
+            try:
+                value = int(str(node.term))
+            except ValueError as exc:
+                raise ValueError(
+                    f"#modeh aggregate guards require fixed integers: {s}"
+                ) from exc
+            return AggregateGuard(
+                operators[node.comparison], TermTemplate.fixed(str(value))
+            )
+
+        return HeadDeclaration(
+            recall,
+            HeadTemplate(
+                "aggregate",
+                tuple(element.atom for element in elements),
+                aggregate_elements=tuple(elements),
+                aggregate_function=function,
+                aggregate_left_guard=guard(head.left_guard),
+                aggregate_right_guard=guard(head.right_guard),
+            ),
+        )
     raise ValueError(f"unsupported #modeh head form: {s}")
 
 
@@ -422,16 +485,6 @@ def _aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
     if node.sign != ast.Sign.NoSign:
         raise ValueError(f"aggregate modes cannot use default negation: {declaration}")
     aggregate = node.atom
-    if len(aggregate.elements) != 1:
-        raise ValueError(
-            f"aggregate modes require exactly one aggregate element: {declaration}"
-        )
-    if aggregate.right_guard is not None or aggregate.left_guard is None:
-        raise ValueError(
-            f"aggregate modes require exactly one result equality: {declaration}"
-        )
-    if aggregate.left_guard.comparison != ast.ComparisonOperator.Equal:
-        raise ValueError(f"aggregate result guard must use equality: {declaration}")
 
     functions = {
         0: "count",
@@ -445,39 +498,70 @@ def _aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
     except KeyError as exc:
         raise ValueError(f"unsupported aggregate function: {declaration}") from exc
 
-    element = aggregate.elements[0]
-    if not element.terms or not element.condition:
-        raise ValueError(
-            f"aggregate modes require a nonempty tuple and condition: {declaration}"
-        )
-    tuple_terms = tuple(
-        _aggregate_term_from_ast(term, declaration) for term in element.terms
-    )
-    conditions: list[AtomTemplate] = []
-    for condition_node in element.condition:
-        condition = _literal_from_ast(condition_node, declaration)
-        if not isinstance(condition, AtomLiteral) or condition.default_negated:
+    elements = []
+    for element in aggregate.elements:
+        if not element.terms or not element.condition:
             raise ValueError(
-                f"aggregate mode conditions must be positive atoms: {declaration}"
+                f"aggregate modes require a nonempty tuple and condition: {declaration}"
             )
-        conditions.append(condition.atom)
-    result = _aggregate_term_from_ast(aggregate.left_guard.term, declaration)
-    if result.kind != "variable" or result.direction != "output":
-        raise ValueError(
-            f"aggregate mode result must be an output variable: {declaration}"
+        tuple_terms = tuple(
+            _aggregate_term_from_ast(term, declaration) for term in element.terms
         )
-    if function in {"count", "sum", "sum+"} and result.type != "numeric":
-        raise ValueError(
-            f"{function} aggregate result must have numeric type: {declaration}"
-        )
-    for term in (*tuple_terms, *(term for atom in conditions for term in atom.terms)):
-        for binding in term.bindings():
-            if binding.direction not in {"input", "any"}:
+        conditions: list[AtomTemplate] = []
+        for condition_node in element.condition:
+            condition = _literal_from_ast(condition_node, declaration)
+            if not isinstance(condition, AtomLiteral) or condition.default_negated:
                 raise ValueError(
-                    "aggregate tuple and condition variables require input or any "
-                    f"direction: {declaration}"
+                    f"aggregate mode conditions must be positive atoms: {declaration}"
                 )
-    return AggregateLiteral(function, tuple_terms, tuple(conditions), result)
+            conditions.append(condition.atom)
+        for term in (*tuple_terms, *(term for atom in conditions for term in atom.terms)):
+            for binding in term.bindings():
+                if binding.direction not in {"input", "any"}:
+                    raise ValueError(
+                        "aggregate tuple and condition variables require input or any "
+                        f"direction: {declaration}"
+                    )
+        elements.append(AggregateElement(tuple_terms, tuple(conditions)))
+
+    operators = {
+        ast.ComparisonOperator.Equal: "=",
+        ast.ComparisonOperator.NotEqual: "!=",
+        ast.ComparisonOperator.LessThan: "<",
+        ast.ComparisonOperator.LessEqual: "<=",
+        ast.ComparisonOperator.GreaterThan: ">",
+        ast.ComparisonOperator.GreaterEqual: ">=",
+    }
+    left = (
+        AggregateGuard(
+            operators[aggregate.left_guard.comparison],
+            _aggregate_term_from_ast(aggregate.left_guard.term, declaration),
+        )
+        if aggregate.left_guard is not None else None
+    )
+    right = (
+        AggregateGuard(
+            operators[aggregate.right_guard.comparison],
+            _aggregate_term_from_ast(aggregate.right_guard.term, declaration),
+        )
+        if aggregate.right_guard is not None else None
+    )
+    literal = AggregateLiteral(function, tuple(elements), left, right)
+    for guard in (left, right):
+        if guard is None:
+            continue
+        for binding in guard.term.bindings():
+            if binding.direction == "output" and guard is not literal.output_guard:
+                raise ValueError(
+                    f"aggregate output requires one equality result guard: {declaration}"
+                )
+    if literal.output_guard is not None:
+        result = literal.output_guard.term
+        if function in {"count", "sum", "sum+"} and result.type != "numeric":
+            raise ValueError(
+                f"{function} aggregate result must have numeric type: {declaration}"
+            )
+    return literal
 
 
 def _aggregate_term_from_ast(node: ast.AST, declaration: str) -> TermTemplate:

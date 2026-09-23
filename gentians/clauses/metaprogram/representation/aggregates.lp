@@ -38,3 +38,37 @@ aggregate_internal_arg(Slot, Position) :-
     mode_aggregate_condition_arg(Mode, _, _, Position).
 
 aggregate_internal_position(body, Slot, Position) :- aggregate_internal_arg(Slot, Position).
+
+aggregate_element_tuple_binding(Slot, Element, Position, Variable) :-
+    selected(body, Slot, Mode),
+    mode_aggregate_element_tuple_arg(Mode, Element, Position, FlatPosition),
+    var_at(body, Slot, FlatPosition, Variable).
+
+aggregate_element_tuple_var(Slot, Element, Variable) :-
+    aggregate_element_tuple_binding(Slot, Element, _, Variable).
+
+aggregate_element_condition_binding(Slot, Element, Condition, Argument, Variable) :-
+    selected(body, Slot, Mode),
+    mode_aggregate_element_condition_arg(Mode, Element, Condition, Argument, FlatPosition),
+    var_at(body, Slot, FlatPosition, Variable).
+
+aggregate_element_condition_var(Slot, Element, Variable) :-
+    aggregate_element_condition_binding(Slot, Element, _, _, Variable).
+
+aggregate_element_arg(Slot, Element, Position) :-
+    selected(body, Slot, Mode),
+    mode_aggregate_element_tuple_arg(Mode, Element, _, Position).
+
+aggregate_element_arg(Slot, Element, Position) :-
+    selected(body, Slot, Mode),
+    mode_aggregate_element_condition_arg(Mode, Element, _, _, Position).
+
+aggregate_internal_arg(Slot, Position) :- aggregate_element_arg(Slot, _, Position).
+
+aggregate_output_var(Slot, Variable) :-
+    selected(body, Slot, Mode), mode_aggregate_output_arg(Mode, Position),
+    var_at(body, Slot, Position, Variable).
+
+aggregate_guard_var(Slot, Variable) :-
+    selected(body, Slot, Mode), mode_aggregate_guard_arg(Mode, Position),
+    var_at(body, Slot, Position, Variable).

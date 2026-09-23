@@ -261,8 +261,8 @@ Each head declaration describes one complete allowed head:
 ```prolog
 #modeh(1, head_template).
 ```
-The template may be a normal atom, a disjunction, a choice, or a bounded
-cardinality head:
+The template may be a normal atom, a disjunction, a choice, a bounded
+cardinality head, or a function aggregate head:
 
 ```prolog
 #modeh(1,a(var(node,input))).
@@ -270,6 +270,8 @@ cardinality head:
 #modeh(1,{a(var(node,input,x));b(var(node,input,x))}).
 #modeh(1,1 {a(var(node,input,x));b(var(node,input,x))} 1).
 #modeh(1,-rejected(var(node,input))).
+#modeh(1,#count{var(node,any):selected(var(node,any)):
+                  node(var(node,any))}=1).
 ```
 
 Separate declarations are alternatives and are never combined implicitly.
@@ -282,7 +284,7 @@ written on individual elements; `#modec` additionally generates optional
 conditions.
 
 Safe empty bodies are learnable. Ground normal heads, disjunctions, choices,
-and cardinality heads therefore produce facts; a variable head without a safe
+cardinality heads, and function aggregates therefore produce facts; a variable head without a safe
 source remains rejected, and the empty constraint `:-.` is never generated.
 
 Variable labels always retain their declared identity semantics.
@@ -414,9 +416,10 @@ Body aggregates are exact `#modeb` templates using Clingo syntax:
 The tuple before `:` is explicit, so projected tuples need no `balanced` or
 `unbalanced` flag. Repeated labels connect tuple terms, condition arguments,
 and the result inside one declaration. Tuple and condition variables use
-`input` or `any`; the result must be an `output` variable. Gentians accepts one
-nonempty aggregate element, positive atomic conditions, and one equality
-result. Recall limits uses of that complete template. `#modeagg` is retired and
+`input` or `any`; an equality `output` result is optional. Gentians accepts
+multiple nonempty elements and comparison guards, including ranges. Conditions
+inside each element must be positive atoms. Recall limits uses of that complete
+template. `#modeagg` is retired and
 rejected explicitly.
 
 Separate aggregates can reuse local variable names within `#maxv`; those local

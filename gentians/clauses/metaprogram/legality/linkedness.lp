@@ -37,7 +37,7 @@ linked_literal(Section, Slot) :-
 
 linked_literal(head, Slot) :-
     selected_head_form(Form),
-    aggregate_head_form(Form),
+    composite_head_form(Form),
     head_form_member(Form, Slot, _),
     linked_literal(head, _).
 

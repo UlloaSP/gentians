@@ -125,3 +125,30 @@ def test_background_and_context_constraints_are_untouched():
     assert all(entry.heads for entry in generate(problem, False).entries)
     assert tuple(map(str, problem.background)) == background
     assert problem.positive_examples == contexts
+
+
+@pytest.mark.parametrize("sampled", [False, True])
+def test_empty_equivalent_rules_do_not_conflate_default_negation(sampled):
+    source = """
+        p(a). dom(a). dom(b).
+        #maxv(1). #maxbl(2). #maxhl(1). #maxpl(2).
+        #modeh(1,target(var(t,any))).
+        #modeh(1,p(var(t,any))).
+        #modeb(2,dom(var(t,any))).
+        #modeb(2,p(var(t,any))).
+        #modeb(1,not p(var(t,any))).
+    """
+    clauses = generate(parse_text(source), sampled).clauses
+    assert "p(V0) :- p(V0)." not in clauses
+    assert ":- p(V0),not p(V0)." not in clauses
+    assert "p(V0) :- p(V0),not p(V0)." not in clauses
+    # This rule is not a tautology: p :- not p can impose inconsistency.
+    assert "p(V0) :- dom(V0),not p(V0)." in clauses
+
+
+def test_head_body_tautology_check_does_not_discard_cardinality_head():
+    problem = parse_text("""
+        p. #maxv(0). #maxbl(1).
+        #modeh(1,0 {p} 0). #modeb(1,p).
+    """)
+    assert "0{p}0 :- p." in generate(problem, False).clauses

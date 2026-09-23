@@ -120,6 +120,7 @@ CLAUSE_METAPROGRAM_MODULES = (
     "pruning/redundancy/conditions.lp",
     "pruning/redundancy/literals.lp",
     "pruning/redundancy/numeric.lp",
+    "pruning/redundancy/tautologies.lp",
     "pruning/task/optional_constraints.lp",
 )
 

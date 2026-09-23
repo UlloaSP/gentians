@@ -9,3 +9,5 @@
     aggregate_condition_position(Slot, Second, Variable), First < Second.
 
 :- aggregate_result_var(Slot, Variable), not var_used_outside_body_slot(Slot, Variable).
+
+:- aggregate_output_var(Slot, Variable), not var_used_outside_body_slot(Slot, Variable).

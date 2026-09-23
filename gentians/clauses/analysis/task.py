@@ -66,7 +66,11 @@ def _mode_atom_literals(mode: ModeDeclaration) -> tuple[AtomLiteral, ...]:
             if isinstance(literal, AtomLiteral)
         )
     if isinstance(mode.literal, AggregateLiteral):
-        return tuple(AtomLiteral(atom) for atom in mode.literal.conditions)
+        return tuple(
+            AtomLiteral(atom)
+            for element in mode.literal.elements
+            for atom in element.conditions
+        )
     return ()
 
 

@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from .atom_literal import AtomLiteral
 from .atom_template import AtomTemplate
 from .comparison_literal import ComparisonLiteral
+from .aggregate_guard import AggregateGuard
+from .head_aggregate_element import HeadAggregateElement
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,9 +14,13 @@ class HeadTemplate:
     lower: int | None = None
     upper: int | None = None
     conditions: tuple[tuple[AtomLiteral | ComparisonLiteral, ...], ...] = ()
+    aggregate_elements: tuple[HeadAggregateElement, ...] = ()
+    aggregate_function: str = ""
+    aggregate_left_guard: AggregateGuard | None = None
+    aggregate_right_guard: AggregateGuard | None = None
 
     def __post_init__(self) -> None:
-        if self.kind not in {"normal", "disjunction", "choice"}:
+        if self.kind not in {"normal", "disjunction", "choice", "aggregate"}:
             raise ValueError(f"invalid head mode kind: {self.kind}")
         if not self.elements:
             raise ValueError("head modes require at least one atom")
@@ -24,6 +30,12 @@ class HeadTemplate:
             raise ValueError("every head element requires one condition list")
         if self.kind == "normal" and len(self.elements) != 1:
             raise ValueError("normal head modes require exactly one atom")
+        if self.kind == "aggregate" and (
+            not self.aggregate_function
+            or len(self.aggregate_elements) != len(self.elements)
+            or tuple(item.atom for item in self.aggregate_elements) != self.elements
+        ):
+            raise ValueError("aggregate head elements must match their atoms")
         if self.kind != "choice" and (self.lower is not None or self.upper is not None):
             raise ValueError("only choice heads accept cardinality bounds")
         if self.lower is not None and self.lower < 0:
@@ -60,6 +72,15 @@ class HeadTemplate:
                     raise ValueError(
                         f"head variable label {binding.label} has incompatible types"
                     )
+        for element in self.aggregate_elements:
+            for term in element.arguments:
+                for binding in term.bindings():
+                    if binding.label:
+                        previous = labels.setdefault(binding.label, binding.type)
+                        if previous != binding.type:
+                            raise ValueError(
+                                f"head variable label {binding.label} has incompatible types"
+                            )
 
     @property
     def width(self) -> int:
@@ -72,6 +93,16 @@ class HeadTemplate:
             return atoms[0]
         if self.kind == "disjunction":
             return ";".join(atoms)
+        if self.kind == "aggregate":
+            core = f"#{self.aggregate_function}" + "{" + ";".join(atoms) + "}"
+            if self.aggregate_left_guard is not None:
+                guard = self.aggregate_left_guard
+                value = guard.term.render(iter(()))
+                core = f"{core}={value}" if guard.operator == "=" else f"{value}{guard.operator}{core}"
+            if self.aggregate_right_guard is not None:
+                guard = self.aggregate_right_guard
+                core = f"{core}{guard.operator}{guard.term.render(iter(()))}"
+            return core
         lower = "" if self.lower is None else self.lower
         upper = "" if self.upper is None else self.upper
         return f"{lower}{{{';'.join(atoms)}}}{upper}"

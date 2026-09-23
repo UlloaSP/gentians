@@ -12,7 +12,26 @@ global_context_var(Var) :-
     selected(Section, Slot, Mode),
     not conditional_mode(Mode),
     var_at(Section, Slot, Arg, Var),
-    not aggregate_internal_position(Section, Slot, Arg).
+    not aggregate_internal_position(Section, Slot, Arg),
+    not head_aggregate_element_position(Section, Slot, Arg).
+
+head_aggregate_element_position(head, Slot, Arg) :-
+    selected(head, Slot, Mode), head_aggregate_element_arg(Mode, Arg).
+
+head_aggregate_local_at(head, Slot, Arg) :-
+    head_aggregate_element_position(head, Slot, Arg),
+    var_at(head, Slot, Arg, Var), not global_context_var(Var).
+
+local_var_at(head, Slot, Arg) :- head_aggregate_local_at(head, Slot, Arg).
+
+head_aggregate_positive_condition_var(Slot, Var) :-
+    selected(head, Slot, Mode),
+    head_aggregate_condition_arg(Mode, _, Arg),
+    var_at(head, Slot, Arg, Var).
+
+:- head_aggregate_local_at(head, Slot, Arg),
+    var_at(head, Slot, Arg, Var),
+    not head_aggregate_positive_condition_var(Slot, Var).
 
 conditional_local_var(Section, Slot, Var) :-
     conditional_var(Section, Slot, Var),

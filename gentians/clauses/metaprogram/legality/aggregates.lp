@@ -13,3 +13,14 @@
 :- aggregate_condition_var(_, Var), aggregate_result_var(_, Var), not normal_positive_body_var(Var).
 
 :- aggregate_tuple_var(_, Var), global_context_var(Var).
+
+:- aggregate_element_tuple_var(Slot, Element, Var),
+    not aggregate_element_condition_var(Slot, Element, Var).
+
+:- aggregate_element_condition_var(Slot, Element, Var),
+    not aggregate_element_tuple_var(Slot, Element, Var),
+    global_context_var(Var), not normal_positive_body_var(Var).
+
+:- aggregate_element_tuple_var(Slot, Element, Var), global_context_var(Var).
+
+:- aggregate_guard_var(_, Var), not asp_safe(Var).

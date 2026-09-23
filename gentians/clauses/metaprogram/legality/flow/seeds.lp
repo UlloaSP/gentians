@@ -16,3 +16,4 @@ flow_bound(Var) :-
     var_at(body, Slot, Arg, Var).
 
 flow_produced(Var) :- aggregate_result_var(_, Var).
+flow_produced(Var) :- aggregate_output_var(_, Var).

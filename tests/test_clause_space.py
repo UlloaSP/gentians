@@ -57,6 +57,8 @@ from gentians.language.asp import (
     parse_rule,
     render_program,
 )
+from gentians.language.ir.aggregate_element import AggregateElement
+from gentians.language.ir.aggregate_guard import AggregateGuard
 from gentians.language.ir.aggregate_literal import AggregateLiteral
 from gentians.language.ir.arithmetic_literal import ArithmeticLiteral
 from gentians.language.ir.atom_literal import AtomLiteral
@@ -139,9 +141,11 @@ def _aggregate_mode(
         recall,
         AggregateLiteral(
             function,
-            tuple(TermTemplate.variable("any", "") for _ in range(tuple_arity)),
-            conditions,
-            TermTemplate.variable("numeric", ""),
+            (AggregateElement(
+                tuple(TermTemplate.variable("any", "") for _ in range(tuple_arity)),
+                conditions,
+            ),),
+            AggregateGuard("=", TermTemplate.variable("numeric", "output")),
         ),
     )
 
@@ -3120,7 +3124,7 @@ def test_parser_parses_directives_without_regex_space_loss(tmp_path):
     ]
     assert len(aggregates) == 1
     assert aggregates[0].literal.function == "sum"
-    assert len(aggregates[0].literal.tuple_terms) == 2
+    assert len(aggregates[0].literal.elements[0].terms) == 2
     comparisons = [
         mode
         for mode in program.language_bias_body
@@ -3397,7 +3401,8 @@ def test_strong_negation_is_preserved_in_aggregate_conditions(tmp_path):
 
     assert aggregates
     assert all(
-        aggregate.conditions[0].signature == ("-value", 1) for aggregate in aggregates
+        aggregate.elements[0].conditions[0].signature == ("-value", 1)
+        for aggregate in aggregates
     )
 
 
@@ -4497,6 +4502,19 @@ def test_modeha_reuses_one_template_for_distinct_compatible_variables(tmp_path):
     assert not any("p(V0);p(V0)" in clause for clause in clauses)
 
 
+def test_exact_choice_head_connects_its_elements_with_distinct_variables():
+    task = parse_text("""
+        d(a). d(b).
+        #maxv(2). #maxbl(2). #maxhl(2).
+        #modeh(1,{p(var(node,any));q(var(node,any))}).
+        #modeb(2,d(var(node,any))).
+    """)
+
+    clauses = generate_clause_space(task, Arguments()).clauses
+
+    assert "{p(V0);q(V1)} :- d(V0),d(V1)." in clauses
+
+
 def test_unbounded_modeha_requires_finite_maxhl(tmp_path):
     task = tmp_path / "unbounded-aggregate-head.las"
     task.write_text(
@@ -5111,25 +5129,124 @@ def test_modeagg_is_removed_in_favour_of_explicit_modeb(tmp_path):
             "cannot use default negation",
         ),
         (
-            "#modeb(1,#sum{var(numeric,any):p(var(numeric,any));"
-            "var(numeric,any):q(var(numeric,any))}=var(numeric,output)).",
-            "exactly one aggregate element",
-        ),
-        (
             "#modeb(1,#sum{var(numeric,any):p(var(numeric,any))}<"
             "var(numeric,output)).",
-            "result guard must use equality",
-        ),
-        (
-            "#modeb(1,#sum{var(numeric,any):p(var(numeric,any))}="
-            "var(numeric,input)).",
-            "result must be an output variable",
+            "aggregate output requires one equality result guard",
         ),
     ),
 )
 def test_modeb_rejects_unsupported_aggregate_shapes(declaration, message):
     with pytest.raises(ValueError, match=message):
         parse_text(declaration)
+
+
+def test_body_aggregate_supports_multiple_elements_and_range_guards():
+    task = parse_text(
+        """
+        p(1). q(2).
+        #maxv(2). #maxbl(1). #maxhl(0).
+        #modeb(1,1<=#count{
+            var(numeric,any):p(var(numeric,any));
+            var(numeric,any):q(var(numeric,any))
+        }<=2).
+        """
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+    assert ":- 1<=#count{V0:p(V0);V1:q(V1)}<=2." in clauses
+    for clause in clauses:
+        control = clingo.Control(["--warn=none"])
+        control.add("base", [], "p(1). q(2)." + clause)
+        control.ground([("base", [])])
+
+
+def test_body_aggregate_input_guard_requires_a_safe_source():
+    task = parse_text(
+        """
+        p(1). d(1).
+        #maxv(2). #maxbl(2). #maxhl(0).
+        #modeb(1,d(var(numeric,any))).
+        #modeb(1,#count{var(numeric,any):p(var(numeric,any))}
+                 =var(numeric,input)).
+        """
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+    assert ":- d(V0),V0=#count{V1:p(V1)}." in clauses
+    assert not any(clause.startswith(":- V0=#count") for clause in clauses)
+
+
+def test_body_aggregate_elements_have_independent_nominal_local_scopes():
+    task = parse_text(
+        """
+        p(a). q(1).
+        #maxv(1). #maxbl(1). #maxhl(0).
+        #modeb(1,#count{
+            var(node,any):p(var(node,any));
+            var(numeric,any):q(var(numeric,any))
+        }=1).
+        """
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+    assert ":- 1=#count{V0:p(V0);V0:q(V0)}." in clauses
+
+
+def test_exact_head_aggregate_generates_count_and_sum_with_local_elements():
+    heads = (
+        "#count{var(numeric,any):p(var(numeric,any)):d(var(numeric,any));"
+        "var(numeric,any):q(var(numeric,any)):d(var(numeric,any))}=1",
+        "#sum{var(numeric,any):p(var(numeric,any)):d(var(numeric,any))}=1",
+    )
+    for head in heads:
+        task = parse_text(
+            f"d(1). d(2). #maxv(2). #maxbl(2). #maxhl(2). "
+            f"#modeh(1,{head})."
+        )
+        space = generate_clause_space(task, Arguments())
+        clauses = space.clauses
+        aggregate_clauses = [clause for clause in clauses if clause.startswith("#")]
+        assert aggregate_clauses
+        if head.startswith("#count"):
+            assert "#count{V0:p(V0):d(V0);V1:q(V1):d(V1)}=1." in clauses
+            assert all(
+                entry.heads == frozenset({("p", 1), ("q", 1)})
+                and entry.deps == frozenset({("d", 1)})
+                and entry.body_literals == 2
+                for entry in space.entries
+            )
+        for clause in aggregate_clauses:
+            control = clingo.Control(["--warn=none"])
+            control.add("base", [], "d(1). d(2)." + clause)
+            control.ground([("base", [])])
+        if head.startswith("#count"):
+            control = clingo.Control(["0", "--warn=none"])
+            control.add("base", [], "d(1). d(2)." + aggregate_clauses[0])
+            control.ground([("base", [])])
+            with control.solve(yield_=True) as models:
+                selected = {
+                    frozenset(
+                        str(atom)
+                        for atom in model.symbols(atoms=True)
+                        if atom.name in {"p", "q"}
+                    )
+                    for model in models
+                }
+            assert selected == {
+                frozenset({"p(1)"}), frozenset({"p(2)"}),
+                frozenset({"q(1)"}), frozenset({"q(2)"}),
+                frozenset({"p(1)", "q(1)"}),
+                frozenset({"p(2)", "q(2)"}),
+            }
+
+
+def test_head_aggregate_rejects_unbound_local_variables():
+    task = parse_text(
+        """
+        #maxv(1). #maxbl(0). #maxhl(1).
+        #modeh(1,#count{
+            var(numeric,any):p(var(numeric,any))
+        }=1).
+        """
+    )
+    assert generate_clause_space(task, Arguments()).clauses == ()
 
 
 def test_exact_power_mode_keeps_valid_result_operand_instantiations(tmp_path):
@@ -5266,9 +5383,11 @@ def test_aggregate_schema_declares_shape_without_duplicate_internal_positions():
     nested_variable = TermTemplate("function", "f", (variable,))
     aggregate = AggregateLiteral(
         "count",
-        (TermTemplate.fixed("tag"), variable),
-        (AtomTemplate("p", (TermTemplate.fixed("anchor"), nested_variable)),),
-        TermTemplate.variable("numeric", ""),
+        (AggregateElement(
+            (TermTemplate.fixed("tag"), variable),
+            (AtomTemplate("p", (TermTemplate.fixed("anchor"), nested_variable)),),
+        ),),
+        AggregateGuard("=", TermTemplate.variable("numeric", "output")),
     )
     mode = ClauseMode(0, 0, "body", 1, aggregate)
 

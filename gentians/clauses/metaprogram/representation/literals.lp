@@ -10,6 +10,7 @@ positive_mode(Mode) :-
 normal_mode(Mode) :- mode_kind(Mode, normal).
 
 conditional_mode(Mode) :- mode_kind(Mode, conditional).
+head_aggregate_mode(Mode) :- mode_kind(Mode, head_aggregate).
 
 normal_literal(Section, Slot, Mode, Pred, Arity) :-
     selected(Section, Slot, Mode),
@@ -35,3 +36,7 @@ head_literal(Slot, Mode, Pred, Arity) :-
 
 head_literal(Slot, Mode, Pred, Arity) :-
     conditional_head_literal(Slot, Mode, Pred, Arity).
+
+head_literal(Slot, Mode, Pred, Arity) :-
+    selected(head, Slot, Mode), head_aggregate_mode(Mode),
+    mode_atom(Mode, Pred, Arity).

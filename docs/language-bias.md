@@ -127,6 +127,8 @@ head template:
 #modeh(1,red(var(node,input,x));green(var(node,input,x));blue(var(node,input,x))).
 #modeh(1,{heads(var(coin,input,x));tails(var(coin,input,x))}).
 #modeh(1,1 {heads(var(coin,input,x));tails(var(coin,input,x))} 1).
+#modeh(1,#count{var(node,any):selected(var(node,any)):
+                  node(var(node,any))}=1).
 #modeh(1,-rejected(var(node,input))).
 #modeb(1,edge(var(node,input),var(node,output))).
 #modeb(1,not blocked(var(node,input))).
@@ -140,6 +142,8 @@ or combine separate declarations. Head recall must be `1`. `#maxhl` bounds the
 number of atoms in a declaration, and `#maxhl(*)` derives that width from the
 largest declared head. The positive-only pruning rule below can exclude the
 headless alternative from enumeration without changing the declared syntax.
+Elements of an exact choice/cardinality `#modeh` head are connected as one
+head form, just like elements combined from `#modeha`.
 
 The optional third component of a head variable is a declaration-local
 identity label. Reusing a label forces the corresponding positions to use one
@@ -150,6 +154,11 @@ An element may carry an exact conditional attachment directly, such as
 `#modeh(1,p(var(node,any)):node(var(node,any))).`. That condition is
 indivisible from the element. Generated `#modec` conditions may additionally
 attach to every element of a normal, disjunctive, choice, or cardinality head.
+Exact `#modeh` also accepts a Clingo function aggregate head (`#count`,
+`#sum`, `#sum+`, `#min`, or `#max`). Each element declares a tuple, a positive
+head atom, and optional positive atomic conditions. Aggregate guards are fixed
+integers; local variables must occur in a positive condition. Their conditions
+consume `#maxbl`, and the number of elements consumes `#maxhl`.
 
 Every atom and aggregate argument is explicit. Its variables contain a nominal
 type and one direction; `var(type)` without a direction is valid only inside a
@@ -173,16 +182,34 @@ disjunctive-head-mode = "#modehd(", [recall, ","], atom-template, ")." ;
 head-template   = conditional-template
                 | conditional-template, {";", conditional-template}
                 | [integer], "{", conditional-template,
-                  {";", conditional-template}, "}", [integer] ;
+                  {";", conditional-template}, "}", [integer]
+                | head-aggregate ;
+head-aggregate  = integer, comparison-operator, aggregate-function,
+                  "{", head-aggregate-element,
+                  {";", head-aggregate-element}, "}",
+                  [comparison-operator, integer]
+                | aggregate-function, "{", head-aggregate-element,
+                  {";", head-aggregate-element}, "}",
+                  comparison-operator, integer ;
+head-aggregate-element = mode-term, {",", mode-term}, ":", atom-template,
+                         [":", atom-template, {",", atom-template}] ;
 conditional-template = atom-template,
                        [":", literal-template, {",", literal-template}] ;
 atom-conditional-template = ["not", whitespace], atom-template,
                             [":", literal-template, {",", literal-template}] ;
 literal-template = ["not", whitespace], atom-template | comparison-expression ;
-aggregate-template = aggregate-expression, "=", variable-argument ;
-aggregate-expression = ("#count" | "#sum" | "#sum+" | "#min" | "#max"),
-                       "{", mode-term, {",", mode-term}, ":",
-                       atom-template, {",", atom-template}, "}" ;
+aggregate-template = arithmetic-term, comparison-operator,
+                     aggregate-expression,
+                     [comparison-operator, arithmetic-term]
+                   | aggregate-expression, comparison-operator,
+                     arithmetic-term ;
+aggregate-expression = aggregate-function, "{",
+                       [mode-term, {",", mode-term}, ":",
+                        atom-template, {",", atom-template},
+                        {";", mode-term, {",", mode-term}, ":",
+                         atom-template, {",", atom-template}}], "}" ;
+aggregate-function = "#count" | "#sum" | "#sum+" | "#min" | "#max" ;
+comparison-operator = "=" | "!=" | "<" | "<=" | ">" | ">=" ;
 atom-template   = ["-"], predicate, ["(", mode-term, {",", mode-term}, ")"] ;
 mode-term       = variable-argument | constant-argument | function-term | tuple-term ;
 function-term   = function, "(", mode-term, {",", mode-term}, ")" ;
@@ -275,9 +302,9 @@ Aggregate-head atoms support strong negation, typed directions, constants,
 functions, tuples, and declaration-local labels. They cannot use default
 negation. The normal safety and direction rules apply. `#modec` may attach
 conditions independently to every generated element, and those conditions
-still consume the clause-wide body budget. Elements of one aggregate head are
-one structural component for linkedness, so compatible atoms may use distinct
-variables grounded by distinct body literals.
+still consume the clause-wide body budget. Elements of one choice or exact
+function aggregate head are one structural component for linkedness, so
+compatible atoms may use distinct variables grounded by distinct body literals.
 
 With `#maxhl(*)`, all `#modeha` recalls must be finite. Gentians then derives
 the maximum width from their summed recalls. This preserves a finite search
@@ -378,8 +405,9 @@ that variable is unified with an input position of the same head. A body mode
 containing `not` cannot declare output variables. ASP safety remains active
 independently of mode direction.
 
-Aggregate condition variables are local or supplied by surrounding terms; the
-aggregate result is `output`. Aggregates, arithmetic, and comparisons need no
+Aggregate condition variables are local or supplied by surrounding terms; an
+equality result declared with `output` produces a binding. Other guards compare
+against a safe input or fixed value. Aggregates, arithmetic, and comparisons need no
 separate directive: body modes use their exact Clingo syntax.
 
 Names used only inside aggregate elements are local to each element. Distinct
@@ -396,13 +424,16 @@ local scopes can reuse a name within that budget. For example, three sums over
 `#maxv(4)`. Reusing a name across those aggregates does not equate their local
 bindings.
 
-An aggregate body mode declares one nonempty aggregate element, one or more
-positive atomic conditions, and one equality result:
+An aggregate body mode declares zero or more nonempty elements, each with a
+tuple and one or more positive atomic conditions. It may have an equality
+output, one comparison guard, or a range with two guards:
 
 ```prolog
 #modeb(1,#sum{var(numeric,any,value):
                 p(var(partition,any,group),var(numeric,any,value))}=
          var(numeric,output,result)).
+#modeb(1,1<=#count{var(node,any):p(var(node,any));
+                    var(node,any):q(var(node,any))}<=2).
 ```
 
 The tuple is part of the template. Listing every condition variable expresses
@@ -412,12 +443,13 @@ Declare each desired tuple shape directly. Recall belongs to that complete
 shape and is not shared implicitly with other aggregate declarations.
 
 Labels connect repeated placeholders within the aggregate. Tuple and condition
-variables require `input` or `any`; the result must be an `output` variable.
-For `#count`, `#sum`, and `#sum+`, that result has type `numeric`. Strong
-negation is supported in condition atoms; default negation, multiple aggregate
-elements, non-atomic conditions, range guards, and result-free aggregates are
-not part of the aggregate mode language. A top-level aggregate tuple or
-condition term may contain at most one variable placeholder.
+variables require `input` or `any`; each element has its own local variable
+scope. An `output` guard requires a sole equality and, for `#count`, `#sum`,
+and `#sum+`, has type `numeric`. Variables in other guards must be safe outside
+the aggregate. Strong negation is supported in condition atoms. Default
+negation and non-atomic conditions inside an aggregate remain unsupported.
+A top-level aggregate tuple, condition or guard term may contain at most one
+variable placeholder.
 
 Arithmetic and comparisons use the relation grammar:
 
@@ -594,6 +626,25 @@ pure constraints only when a nonempty legal program remains.
 This is pruning relative to brave coverage of the observed task, not a claim of
 equivalence on unseen examples. It does not prove that all declared headed clauses
 are constructible or that a solution exists. It adds no coverage solves.
+
+### Empty-equivalent learned rules
+
+Clause enumeration rejects a rule when the identical signed atom
+occurs positively in both its head and body, such as `p(X) :- p(X),q(X).`.
+It also rejects a clause whose body contains both `p(X)` and `not p(X)`.
+Either clause is strongly equivalent to the empty program. Comparisons use
+complete term shape and variable bindings, not just predicate names or
+distinct variable identifiers. The head/body check applies to normal and
+disjunctive heads, not choice or cardinality heads. A rule such as
+`p(X) :- q(X),not p(X).` is retained: it can impose a constraint and is not
+a tautology.
+
+This pre-existing elimination of empty-equivalent clauses follows stable-model
+semantics but has a product-level limit: Gentians requires nonempty hypotheses.
+If the background already solves a task and every permitted clause is
+empty-equivalent, eliminating all of them also eliminates its only nonempty
+solution. The rule does not establish that search results are preserved in
+that case.
 
 ### Execution options
 

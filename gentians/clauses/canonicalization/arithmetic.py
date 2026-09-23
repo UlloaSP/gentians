@@ -90,7 +90,8 @@ def canonical_arithmetic_clause(
     ) | frozenset(
         literal.variables[-1]
         for literal in clause.body
-        if isinstance(modes[literal.mode_id].literal, AggregateLiteral)
+        if isinstance((template := modes[literal.mode_id].literal), AggregateLiteral)
+        and template.output_guard is not None
     )
     numeric_variables = frozenset(_numeric_variables(clause, modes))
 

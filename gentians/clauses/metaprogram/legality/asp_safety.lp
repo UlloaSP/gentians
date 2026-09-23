@@ -4,6 +4,7 @@
 % outputs proved safe by Clingo are handled in legality/flow/closure.lp.
 
 asp_safe(Var) :- aggregate_result_var(_, Var).
+asp_safe(Var) :- aggregate_output_var(_, Var).
 
 normal_positive_body_var(Var) :-
     positive_body_literal(Slot, Mode, _, _),
@@ -13,7 +14,8 @@ asp_safe(Var) :- normal_positive_body_var(Var).
 
 head_var(Var) :-
     var_at(head, Slot, Arg, Var),
-    not conditional_local_at(head, Slot, Arg).
+    not conditional_local_at(head, Slot, Arg),
+    not head_aggregate_local_at(head, Slot, Arg).
 
 negated_var(Var) :-
     negative_body_literal(Slot, Mode, _, _),

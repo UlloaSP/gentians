@@ -41,3 +41,7 @@ conditional_dependency(body, Slot, Pred) :-
 conditional_dependency(Section, Slot, Pred) :-
     selected(Section, Slot, Mode),
     conditional_condition(Mode, _, Pred, _).
+
+conditional_dependency(head, Slot, Pred) :-
+    selected(head, Slot, Mode),
+    head_aggregate_condition_atom(Mode, _, Pred).

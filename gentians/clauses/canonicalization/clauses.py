@@ -3,6 +3,7 @@ from clingo import ast
 from ...language.asp import Predicate, parse_program
 from ...language.ir.atom_literal import AtomLiteral
 from ...language.ir.conditional_literal import ConditionalLiteral
+from ...language.ir.head_aggregate_element import HeadAggregateElement
 from ..clause import Clause
 from ..clause_mode import ClauseMode
 from ..reified_clause import ReifiedClause
@@ -74,6 +75,9 @@ def _clause_from_reified(
                 for condition in mode.literal.conditions
                 for predicate in condition.dependencies
             )
+        elif isinstance(mode.literal, HeadAggregateElement):
+            heads.add(mode.literal.atom.signature)
+            deps.update(mode.literal.dependencies)
     for literal in clause.body:
         mode = modes[literal.mode_id]
         deps.update(mode.dependencies)

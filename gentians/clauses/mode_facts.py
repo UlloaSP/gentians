@@ -6,6 +6,7 @@ from ..language.ir.arithmetic_literal import ArithmeticLiteral
 from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.comparison_literal import ComparisonLiteral
 from ..language.ir.conditional_literal import ConditionalLiteral
+from ..language.ir.head_aggregate_element import HeadAggregateElement
 from .clause_mode import ClauseMode
 
 
@@ -22,6 +23,11 @@ def predicate_ids(modes: list[ClauseMode]) -> dict[Predicate, int]:
                 if isinstance(condition, AtomLiteral):
                     identifiers.setdefault(condition.atom.signature, len(identifiers))
         elif isinstance(mode.literal, AggregateLiteral):
+            for element in mode.literal.elements:
+                for atom in element.conditions:
+                    identifiers.setdefault(atom.signature, len(identifiers))
+        elif isinstance(mode.literal, HeadAggregateElement):
+            identifiers.setdefault(mode.literal.atom.signature, len(identifiers))
             for atom in mode.literal.conditions:
                 identifiers.setdefault(atom.signature, len(identifiers))
     return identifiers
@@ -63,6 +69,8 @@ def compile_mode_facts(
             parts.extend(_arithmetic_facts(mode, mode.literal))
         elif isinstance(mode.literal, AggregateLiteral):
             parts.extend(_aggregate_facts(mode, mode.literal, aggregates, predicate_ids))
+        elif isinstance(mode.literal, HeadAggregateElement):
+            parts.extend(_head_aggregate_facts(mode, mode.literal, predicate_ids))
     return parts
 
 
@@ -86,6 +94,8 @@ def _common_mode_facts(
         atom = mode.literal.atom
     elif isinstance(mode.literal, ConditionalLiteral):
         atom = mode.literal.conclusion.atom
+    elif isinstance(mode.literal, HeadAggregateElement):
+        atom = mode.literal.atom
     if atom is not None:
         parts.append(
             f"mode_atom({mode.id},{predicate_ids[atom.signature]},{len(atom.terms)})."
@@ -103,11 +113,29 @@ def _common_mode_facts(
         )
     elif isinstance(mode.literal, ArithmeticLiteral):
         shape = ("arithmetic", mode.literal.operator, shape)
+    elif isinstance(mode.literal, AggregateLiteral):
+        shape = (
+            "aggregate",
+            mode.literal.function,
+            tuple(
+                (len(element.terms), len(element.conditions))
+                for element in mode.literal.elements
+            ),
+            mode.literal.left_guard.operator if mode.literal.left_guard else None,
+            mode.literal.right_guard.operator if mode.literal.right_guard else None,
+            shape,
+        )
     parts.append(f"mode_shape({mode.id},{shapes.setdefault(shape, len(shapes))}).")
     if mode.head_form is not None:
         parts.append(f"head_form_member({mode.head_form},{mode.head_position},{mode.id}).")
-        if mode.aggregate_head:
-            parts.append(f"aggregate_head_form({mode.head_form}).")
+        if mode.head is not None and mode.head.kind in {"choice", "aggregate"}:
+            parts.append(f"composite_head_form({mode.head_form}).")
+        if (
+            mode.head is not None
+            and mode.head.kind in {"normal", "disjunction"}
+            and isinstance(mode.literal, AtomLiteral)
+        ):
+            parts.append(f"plain_disjunctive_head_mode({mode.id}).")
     for index, binding in zip(mode.binding_positions, mode.bindings, strict=True):
         parts.append(f"mode_variable_arg({mode.id},{index}).")
         if binding.type != "any":
@@ -248,14 +276,44 @@ def _aggregate_facts(
     aggregates: tuple[AggregateLiteral, ...],
     predicate_ids: dict[Predicate, int],
 ) -> list[str]:
-    tuple_arity = len(aggregate.tuple_terms)
-    parts = [
-        f"aggregate_shape({mode.id},{tuple_arity},{len(aggregate.conditions)})."
-    ]
+    parts: list[str] = []
+    offset = 0
+    for element_id, element in enumerate(aggregate.elements):
+        for tuple_position, term in enumerate(element.terms):
+            for position in range(offset, offset + len(term.bindings())):
+                parts.append(
+                    f"mode_aggregate_element_tuple_arg({mode.id},{element_id},{tuple_position},{position})."
+                )
+            offset += len(term.bindings())
+        for condition, atom in enumerate(element.conditions):
+            parts.append(
+                f"aggregate_element_condition_atom({mode.id},{element_id},{condition},{predicate_ids[atom.signature]},{len(atom.terms)})."
+            )
+            for argument, term in enumerate(atom.terms):
+                for position in range(offset, offset + len(term.bindings())):
+                    parts.append(
+                        f"mode_aggregate_element_condition_arg({mode.id},{element_id},{condition},{argument},{position})."
+                    )
+                offset += len(term.bindings())
+    for guard in (aggregate.left_guard, aggregate.right_guard):
+        if guard is None:
+            continue
+        name = "mode_aggregate_output_arg" if guard is aggregate.output_guard else "mode_aggregate_guard_arg"
+        for position in range(offset, offset + len(guard.term.bindings())):
+            parts.append(f"{name}({mode.id},{position}).")
+        offset += len(guard.term.bindings())
+
+    if len(aggregate.elements) != 1 or aggregate.output_guard is None:
+        return parts
+    element = aggregate.elements[0]
+    tuple_arity = len(element.terms)
+    parts.append(f"aggregate_shape({mode.id},{tuple_arity},{len(element.conditions)}).")
     if any(
         other.function == aggregate.function
-        and other.conditions == aggregate.conditions
-        and len(other.tuple_terms) == tuple_arity - 1
+        and len(other.elements) == 1
+        and other.output_guard is not None
+        and other.elements[0].conditions == element.conditions
+        and len(other.elements[0].terms) == tuple_arity - 1
         for other in aggregates
     ):
         parts.append(f"aggregate_has_shorter_mode({mode.id}).")
@@ -264,14 +322,14 @@ def _aggregate_facts(
     elif aggregate.function == "sum":
         parts.append(f"sum_aggregate_mode({mode.id}).")
     offset = 0
-    for tuple_position, term in enumerate(aggregate.tuple_terms):
+    for tuple_position, term in enumerate(element.terms):
         binding_count = len(term.bindings())
         parts.extend(
             f"mode_aggregate_tuple_arg({mode.id},{tuple_position},{flat_position})."
             for flat_position in range(offset, offset + binding_count)
         )
         offset += binding_count
-    for condition, atom in enumerate(aggregate.conditions):
+    for condition, atom in enumerate(element.conditions):
         arity = len(atom.terms)
         parts.append(
             f"aggregate_condition_atom({mode.id},{condition},{predicate_ids[atom.signature]},{arity})."
@@ -283,11 +341,35 @@ def _aggregate_facts(
                 for flat_position in range(offset, offset + binding_count)
             )
             offset += binding_count
-    result_bindings = aggregate.result.bindings()
+    result_bindings = aggregate.output_guard.term.bindings()
     parts.extend(
         f"mode_aggregate_result_arg({mode.id},{position})."
         for position in range(offset, offset + len(result_bindings))
     )
+    return parts
+
+
+def _head_aggregate_facts(
+    mode: ClauseMode,
+    element: HeadAggregateElement,
+    predicate_ids: dict[Predicate, int],
+) -> list[str]:
+    parts: list[str] = []
+    offset = 0
+    for term in (*element.terms, *element.atom.terms):
+        for position in range(offset, offset + len(term.bindings())):
+            parts.append(f"head_aggregate_element_arg({mode.id},{position}).")
+        offset += len(term.bindings())
+    for condition, atom in enumerate(element.conditions):
+        parts.append(
+            f"head_aggregate_condition_atom({mode.id},{condition},{predicate_ids[atom.signature]})."
+        )
+        for term in atom.terms:
+            for position in range(offset, offset + len(term.bindings())):
+                parts.append(f"head_aggregate_condition_arg({mode.id},{condition},{position}).")
+                parts.append(f"head_aggregate_element_arg({mode.id},{position}).")
+            offset += len(term.bindings())
+    parts.append(f"mode_condition_count({mode.id},{len(element.conditions)}).")
     return parts
 
 

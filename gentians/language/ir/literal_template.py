@@ -5,6 +5,7 @@ from .arithmetic_literal import ArithmeticLiteral
 from .atom_literal import AtomLiteral
 from .comparison_literal import ComparisonLiteral
 from .conditional_literal import ConditionalLiteral
+from .head_aggregate_element import HeadAggregateElement
 
 LiteralTemplate: TypeAlias = (
     AtomLiteral
@@ -12,6 +13,7 @@ LiteralTemplate: TypeAlias = (
     | ArithmeticLiteral
     | AggregateLiteral
     | ConditionalLiteral
+    | HeadAggregateElement
 )
 
 

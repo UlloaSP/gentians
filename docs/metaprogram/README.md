@@ -43,13 +43,16 @@ the rules that derive views from this schema and do not repeat declarations.
 | Relation | Meaning |
 | --- | --- |
 | `mode_section(Mode,Section)`, `mode_recall(Mode,Recall)` | Declaration placement and effective recall limit. |
-| `mode_kind(Mode,Kind)` | Explicit template kind: normal, conditional, comparison, arithmetic or aggregate. |
+| `mode_kind(Mode,Kind)` | Explicit template kind: normal, conditional, comparison, arithmetic, body aggregate or head aggregate element. |
 | `comparison_operator(Mode,Operator)` | Simple binary comparison operator: eq, neq, lt, gt, leq or geq. Complex comparison chains have no such fact. |
-| `mode_atom(Mode,Predicate,Arity)` | Predicate signature of a normal atom or conditional conclusion; absent for operators and aggregates. |
+| `mode_atom(Mode,Predicate,Arity)` | Predicate signature of a normal atom, conditional conclusion or head aggregate element; absent for operators and body aggregates. |
 | `mode_arithmetic_operand(Mode,Side,Position)`, `mode_arithmetic_result(Mode,Position)` | Static arithmetic roles mapped to storage positions. |
 | `mode_aggregate_tuple_arg(Mode,TuplePosition,Position)` | Static aggregate tuple mapping. |
 | `mode_aggregate_condition_arg(Mode,Condition,LocalPosition,Position)` | Static mapping of each condition occurrence. |
 | `mode_aggregate_result_arg(Mode,Position)` | Aggregate result storage position. Internal positions derive from tuple and condition mappings. |
+| `mode_aggregate_element_tuple_arg(Mode,Element,TuplePosition,Position)`, `mode_aggregate_element_condition_arg(Mode,Element,Condition,Argument,Position)` | Occurrence-preserving mappings for each body aggregate element; elements have separate local scopes. |
+| `mode_aggregate_guard_arg(Mode,Position)`, `mode_aggregate_output_arg(Mode,Position)` | Nonproducing guard input and equality output positions. |
+| `head_aggregate_element_arg(Mode,Position)`, `head_aggregate_condition_arg(Mode,Condition,Position)` | Local positions and positive condition bindings of a function aggregate head element. |
 | `selected(Section,Slot,Mode)` | A mode occurrence in a head or body slot. |
 | `var_at(Section,Slot,Position,Variable)` | A syntactic variable id at a flattened placeholder position. |
 | `same_term_bindings(S0,L0,S1,L1)` | Equal recursive term shapes and equal variable bindings at corresponding positions. Does not itself compare predicates. |
@@ -61,6 +64,7 @@ the rules that derive views from this schema and do not repeat declarations.
 | `aggregate_tuple_binding(Slot,Position,Variable)` | A tuple position of a selected aggregate. |
 | `aggregate_condition_binding(Slot,Condition,Position,Variable)` | A condition occurrence and a position local to that occurrence. |
 | `aggregate_result_var(Slot,Variable)` | The aggregate's result binding. |
+| `aggregate_output_var(Slot,Variable)`, `aggregate_guard_var(Slot,Variable)` | General output and guard variables; the latter must already be ASP-safe. |
 | `count_condition_orderable(Slot)`, `sum_condition_orderable(Slot,Weight)` | Eligibility for ordering a full-local condition; these predicates do not enumerate permutations. |
 
 `Mode`, `Slot`, `Position` and `Variable` are encoding identifiers. In
@@ -72,8 +76,10 @@ The name `known_unequal_values` makes that stronger premise explicit.
 The reified program assigns exactly one mode to each occupied slot and one variable
 to each variable-placeholder position. Specialized arithmetic flags identify
 complete three-placeholder templates; the arithmetic views therefore have all
-three bindings even when a consumer needs only two. Each aggregate condition
-index has one arity and a mapping to storage positions within its mode.
+three bindings even when a consumer needs only two. Each aggregate element and
+condition occurrence has a mapping to storage positions within its mode. The
+older tuple/condition/result projections apply to the single-element
+equality-output subset used by symmetry and redundancy rules.
 These are representation invariants on which the projections rely.
 
 `mode_facts.py` computes static role mappings once per template;
@@ -82,7 +88,7 @@ These are representation invariants on which the projections rely.
 mappings with `selected` and `var_at`; consumers do not calculate offsets.
 Mappings use flattened variable bindings: a fixed term emits no role position,
 while a structured term points to the position of its placeholder.
-Aggregate internal positions are the union of tuple and condition mappings, so
+Aggregate internal positions are the union of element tuple and condition mappings, so
 they are derived rather than declared again.
 `mode_atom` always describes a real predicate signature, including the conclusion
 arity of a conditional rather than the width of its complete template. Numeric

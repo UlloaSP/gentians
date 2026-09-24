@@ -1,0 +1,10 @@
+#maxv(3).
+#maxbl(4).
+#maxhl(3).
+#maxpl(4).
+#modeh(1,red(var(node,input,x));green(var(node,input,x));blue(var(node,input,x))).
+#modeb(1,node(var(node,input))).
+#modeb(1,e(var(node,output),var(node,output))).
+#modeb(2,red(var(node,input))).
+#modeb(2,green(var(node,input))).
+#modeb(2,blue(var(node,input))).

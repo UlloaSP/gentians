@@ -1,0 +1,12 @@
+#maxv(4).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+#modeh(1,count_row(var(index,input),var(numeric,output))).
+#modeh(1,count_col(var(index,input),var(numeric,output))).
+#modeb(1,count_row(var(index,output),var(numeric,output))).
+#modeb(1,count_col(var(index,output),var(numeric,output))).
+#modeb(1,cell(var(index,input))).
+#modeb(1,size(var(numeric,output))).
+#modeb(1,#count{var(numeric,any,value):x(var(index,any),var(index,any),var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(1,var(numeric)!=var(numeric)).

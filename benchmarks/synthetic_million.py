@@ -5,6 +5,8 @@ import argparse
 from math import comb
 from pathlib import Path
 
+from gentians.language.lexer import lex
+
 
 def clause_count(features: int = 32, max_body: int = 6) -> int:
     return sum(comb(features, width) for width in range(1, min(max_body, features) + 1))
@@ -58,6 +60,19 @@ def scaling_task_text(max_body: int) -> str:
     )
 
 
+def task_parts(source: str) -> dict[str, str]:
+    parts: dict[str, list[str]] = {"bk.lp": [], "exs.lp": [], "bias.lp": []}
+    for statement in lex(source):
+        directive = statement.directive
+        name = (
+            "exs.lp" if directive in ("#pos", "#neg") else
+            "bias.lp" if directive and directive.startswith(("#max", "#mode")) else
+            "bk.lp"
+        )
+        parts[name].append(statement.text)
+    return {name: "\n".join(statements) + "\n" for name, statements in parts.items()}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sweep", action="store_true", help="Write fixed-example scaling tasks.")
@@ -69,6 +84,8 @@ if __name__ == "__main__":
             path.write_text(scaling_task_text(max_body), encoding="utf-8")
             print(f"{path}: {clause_count(max_body=max_body):,} legal clauses")
     else:
-        path = Path(__file__).with_name("gentians") / "synthetic_million.txt"
-        path.write_text(task_text(), encoding="utf-8")
-        print(f"{path}: {clause_count():,} legal clauses")
+        directory = Path(__file__).with_name("gentians") / "synthetic_million"
+        directory.mkdir(exist_ok=True)
+        for name, content in task_parts(task_text()).items():
+            (directory / name).write_text(content, encoding="utf-8", newline="\n")
+        print(f"{directory}: {clause_count():,} legal clauses")

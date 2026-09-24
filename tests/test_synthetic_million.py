@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from benchmarks.synthetic_million import clause_count, scaling_task_text, task_text
+from benchmarks.synthetic_million import clause_count, scaling_task_text, task_parts, task_text
 from gentians.arguments import Arguments
 from gentians.clauses import generate_clause_space
 from gentians.evaluation import create_evaluator
@@ -24,8 +24,9 @@ def test_million_task_has_a_perfect_six_clause_reference_and_rejects_empty():
         f":- f{2 * pair}(X), f{2 * pair + 1}(X)." for pair in range(6)))
     assert evaluator(reference).is_solution
     assert not evaluator(()).is_solution
-    fixture = Path(__file__).parents[1] / "benchmarks/gentians/synthetic_million.txt"
-    assert fixture.read_text(encoding="utf-8") == task_text()
+    fixture = Path(__file__).parents[1] / "benchmarks/gentians/synthetic_million"
+    assert {name: (fixture / name).read_text(encoding="utf-8")
+            for name in ("bk.lp", "exs.lp", "bias.lp")} == task_parts(task_text())
 
 
 def test_scaling_changes_only_body_limit_and_keeps_reference_solution():

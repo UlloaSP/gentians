@@ -24,10 +24,11 @@ uv run pytest
 
 ## Usage
 
-Provide a file with background knowledge, positive and negative examples, and the language bias definition.
-Benchmark tasks live in `benchmarks/gentians/` as plain text files.
+Provide a task file, or a directory with `bk.lp`, `exs.lp`, and `bias.lp`.
+Benchmark tasks live in separate directories under `benchmarks/gentians/`, each
+with a `README.md` describing the problem, its source, and its search bounds.
 
-For example, the task file owns its structural language bias:
+For example, `bias.lp` owns the task's structural language bias:
 
 ```prolog
 #maxv(4).
@@ -42,7 +43,7 @@ Run it with:
 from gentians import Arguments, main
 
 main(Arguments(
-    filename="benchmarks/gentians/hamming_0.txt", # Task file to parse.
+    filename="benchmarks/gentians/hamming_0", # Task directory to parse.
 ))
 ```
 
@@ -69,7 +70,7 @@ and `Individual` couples one genome to its evaluation and logical birth order.
 
 ```python
 arguments = Arguments(
-    filename="benchmarks/gentians/coin.txt",
+    filename="benchmarks/gentians/coin",
     iterations_genetic=0,
     evaluation={
         "scoring": "cov_program",
@@ -237,16 +238,29 @@ The entire `.benchmarks/experiments/` directory is ignored by Git and can be
 deleted to remove all local results and experiment snapshots. The Vite source
 remains outside that directory. Run `uv run python benchmarks/run_experiments.py
 --list` to recreate the index without running benchmarks.
-The active matrix contains only steady-state and incremental on 5queens and
-grandparent, ten runs each, with a 30-second process timeout and unlimited
-generations. It inherits SDK defaults; the algorithm is the only override.
-Historical matrices and tests asserting their contents have been removed.
+The `sdk-defaults` experiments compare steady-state and incremental search on
+5queens and grandparent, with ten runs and a 30-second timeout. Other named
+experiments, including Alzheimer, keep their own dataset lists and limits in
+the same TOML file.
 
 ```powershell
 uv run python benchmarks/run_experiments.py --list
 uv run python benchmarks/run_experiments.py sdk-defaults/steady_state sdk-defaults/incremental
 uv run python benchmarks/run_experiments.py --summary
 ```
+
+The `alzheimer/incremental` experiment runs the four Alzheimer's drug-design
+tasks from [Cropper's ILP datasets](https://huggingface.co/datasets/andrewcropper/ilp-datasets/blob/main/alzheimer/README.md):
+
+```powershell
+uv run python benchmarks/run_experiments.py alzheimer/incremental
+```
+
+The Alzheimer task directories preserve the source facts and examples. Their Popper predicate
+types are translated to Gentians modes with explicit input/output directions,
+recall 2 for property lookup and recall 1 for comparisons. Gentians limits each
+clause to five body literals and each hypothesis to three clauses. These are
+explicit search bounds for this benchmark, not limits supplied by the source.
 
 Matching results may be reused. The fingerprint includes source and metaprogram
 contents, task contents, effective arguments and the worker's Python and Clingo
@@ -543,7 +557,7 @@ Here we list only the main ones:
 - `#maxpl`: maximum clauses in one candidate program. Default 6.
 - Any structural limit accepts `*` when remaining mode recalls still make the
   clause space finite.
-- `filename`: task file to parse.
+- `filename`: task file or task directory to parse.
 - `iterations_genetic`: number of genetic generations. `0` means unlimited and is the default.
 - `evaluation.scoring`: `cov_program`.
 - `evaluation.constraint_inheritance`: exact coverage reuse for pure

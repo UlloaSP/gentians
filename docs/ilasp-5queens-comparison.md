@@ -4,7 +4,7 @@
 
 La traducción está en `benchmarks/ilasp/5queens.las`. Conserva el background,
 los 10 ejemplos positivos y los 35 negativos de
-`benchmarks/gentians/5queens.txt`. No incluye las reglas objetivo comentadas en
+`benchmarks/gentians/5queens/`. No incluye las reglas objetivo documentadas en
 el archivo original ni ninguna cláusula generada por Gentians.
 
 El language bias se traduce a estas declaraciones ILASP:

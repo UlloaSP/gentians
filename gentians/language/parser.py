@@ -27,7 +27,15 @@ from .modes import (
 
 
 def parse_file(filename: str) -> InductiveTask:
-    return parse_text(Path(filename).read_text(encoding="utf-8"))
+    path = Path(filename)
+    if path.is_dir():
+        source = "\n".join(
+            (path / name).read_text(encoding="utf-8")
+            for name in ("bk.lp", "exs.lp", "bias.lp")
+        )
+    else:
+        source = path.read_text(encoding="utf-8")
+    return parse_text(source)
 
 
 def parse_text(source: str) -> InductiveTask:

@@ -1,0 +1,9 @@
+#maxv(3).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+#modeh(1,s(var(numeric,output))).
+#modeb(1,el(var(numeric,output))).
+#modeb(1,#sum{var(numeric,any,value):el(var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(1,#count{var(numeric,any,value):el(var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(1,var(numeric)!=var(numeric)).

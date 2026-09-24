@@ -23,6 +23,21 @@ runs = 30
 algorithm = "incremental"
 
 [[experiment]]
+id = "alzheimer/incremental"
+description = "Four Alzheimer's drug-design tasks from the ILP datasets collection."
+datasets = [
+  "alzheimer_acetyl",
+  "alzheimer_amine",
+  "alzheimer_mem",
+  "alzheimer_toxic",
+]
+runs = 5
+timeout_seconds = 120
+instrumentation = "light"
+[experiment.overrides]
+algorithm = "incremental"
+
+[[experiment]]
 id = "ilasp-mode-bias-all-30s-3runs/gentians-steady_state"
 description = "Gentians steady-state full pipeline for the ILASP mode-bias comparison."
 datasets = [

@@ -34,8 +34,8 @@ Parsed values belong directly to the task `InductiveTask`. No compatibility adap
 second configuration object, or precedence rule is introduced.
 
 The four old `Arguments` fields are removed. Benchmark-specific values move
-from `benchmarks/catalog.py` into `benchmarks/gentians/*.txt`. Every bundled
-task states all four directives explicitly.
+from `benchmarks/catalog.py` into each task's `benchmarks/gentians/<task>/bias.lp`.
+Every bundled task states all four directives explicitly.
 
 `max_candidate_clauses` is also removed from `Arguments`. GENTIANS always
 uses its only supported behavior, `0` (enumerate all candidate clauses),

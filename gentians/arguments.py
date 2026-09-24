@@ -9,7 +9,7 @@ class Arguments:
     No terminal parsing happens here.
     """
 
-    # Path to a task file with background, examples, and language bias.
+    # Path to a task file or a directory containing bk.lp, exs.lp, and bias.lp.
     filename: str | None = None
 
     # Seed used by evolutionary operators.

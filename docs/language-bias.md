@@ -28,8 +28,12 @@ program because `h` already means hypothesis/head in the surrounding language.
 
 ## Grammar
 
-The executable front-end is split by responsibility. `parse_file()` performs
-UTF-8 I/O and `parse_text()` orchestrates parsing. `gentians.language.lexer`
+The executable front-end is split by responsibility. `parse_file()` reads a
+UTF-8 task file or a directory containing `bk.lp`, `exs.lp`, and `bias.lp`,
+then passes their concatenated contents to `parse_text()`. The directory files
+contain background ASP, examples, and language bias respectively; they use
+Gentians syntax rather than Popper's `pos/1`, `neg/1`, or `head_pred/2` syntax.
+`parse_text()` orchestrates parsing. `gentians.language.lexer`
 frames complete top-level statements while respecting strings, comments,
 nested delimiters, ranges, and annotations. Declaration parsing lives in
 `directives`, `declarations`, and `modes`. These modules build the

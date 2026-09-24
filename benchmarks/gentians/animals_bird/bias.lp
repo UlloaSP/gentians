@@ -1,0 +1,13 @@
+#maxv(3).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+#modeh(1,bird(var(animal,input))).
+#modeb(1,feathers(var(covering,input))).
+#modeb(1,scales(var(covering,input))).
+#modeb(1,hair(var(covering,input))).
+#modeb(2,has_covering(var(animal,input),var(covering,output))).
+#modeb(1,has_milk(var(animal,input))).
+#modeb(1,homeothermic(var(animal,input))).
+#modeb(1,has_eggs(var(animal,input))).
+#modeb(1,has_gills(var(animal,input))).

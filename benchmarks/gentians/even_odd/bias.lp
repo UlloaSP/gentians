@@ -1,0 +1,9 @@
+#maxv(3).
+#maxbl(3).
+#maxhl(1).
+#maxpl(6).
+#modeh(1,even(var(numeric,input))).
+#modeh(1,odd(var(numeric,input))).
+#modeb(1,even(var(numeric,input))).
+#modeb(1,odd(var(numeric,input))).
+#modeb(2,prev(var(numeric,input),var(numeric,output))).

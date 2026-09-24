@@ -1,0 +1,11 @@
+#maxv(5).
+#maxbl(8).
+#maxhl(1).
+#maxpl(6).
+#modeh(1,eucl(var(numeric,input),var(numeric,input),var(numeric,output))).
+#modeb(1,eucl(var(numeric,input),var(numeric,input),var(numeric,output))).
+#modeb(1,zero(var(numeric,input))).
+#modeb(2,num(var(numeric,input))).
+#modeb(1,var(numeric)<var(numeric)).
+#modeb(2,var(numeric)>var(numeric)).
+#modeb(1,var(numeric)\var(numeric)=var(numeric)).

@@ -138,8 +138,9 @@ def experiment_command(experiment: dict[str, Any], out_dir: Path) -> list[str]:
 
 def execution_inputs(experiment: dict[str, Any]) -> dict[str, Any]:
     """Identify code, task contents, effective SDK arguments and worker runtime."""
-    paths = [path for directory in (REPO_ROOT / "gentians", REPO_ROOT / "benchmarks")
-             for path in directory.rglob("*") if path.suffix in {".py", ".lp"}]
+    paths = [path for path in (REPO_ROOT / "gentians").rglob("*")
+             if path.suffix in {".py", ".lp"}]
+    paths.extend((REPO_ROOT / "benchmarks").rglob("*.py"))
     paths.extend(REPO_ROOT / name for name in ("pyproject.toml", "uv.lock"))
     overrides = [f"{key}={json.dumps(value)}" for key, value in sorted(experiment.get("overrides", {}).items())]
     arguments = {}
@@ -147,7 +148,11 @@ def execution_inputs(experiment: dict[str, Any]) -> dict[str, Any]:
         configured = arguments_for(dataset, overrides)
         arguments[dataset] = json.loads(arguments_json(configured))
         task_path = Path(configured.filename)
-        paths.append(task_path if task_path.is_absolute() else REPO_ROOT / task_path)
+        task_path = task_path if task_path.is_absolute() else REPO_ROOT / task_path
+        if task_path.is_dir():
+            paths.extend(task_path / name for name in ("bk.lp", "exs.lp", "bias.lp"))
+        else:
+            paths.append(task_path)
     runtime = subprocess.check_output(
         [str(experiment.get("python", sys.executable)), "-c",
          "import sys,clingo,platform,json; print(json.dumps(dict("

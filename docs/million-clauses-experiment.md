@@ -7,7 +7,7 @@ not the current API. Use `algorithm="incremental"` with `Arguments.incremental`.
 ## Task and scope
 
 `benchmarks/synthetic_million.py` deterministically generates
-`benchmarks/gentians/synthetic_million.txt`, using data seed 20260908. The task
+`benchmarks/gentians/synthetic_million/`, using data seed 20260908. The task
 chooses exactly one active world. Each of 32 unary predicates describes one
 Boolean feature of that world. Positive worlds satisfy six forbidden-pair
 constraints; negative worlds violate at least one. Positive singleton worlds

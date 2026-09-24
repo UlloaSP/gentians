@@ -1,0 +1,15 @@
+#pos({target(i,b)}, {}).
+#pos({target(i,c)}, {}).
+#pos({target(a,d)}, {}).
+#pos({target(a,e)}, {}).
+#pos({target(a,f)}, {}).
+#pos({target(a,g)}, {}).
+#pos({target(c,h)}, {}).
+#neg({target(a,b)}, {}).
+#neg({target(b,c)}, {}).
+#neg({target(c,d)}, {}).
+#neg({target(d,e)}, {}).
+#neg({target(e,f)}, {}).
+#neg({target(f,g)}, {}).
+#neg({target(g,h)}, {}).
+#neg({target(h,i)}, {}).

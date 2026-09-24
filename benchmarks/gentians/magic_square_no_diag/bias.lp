@@ -1,0 +1,11 @@
+#maxv(4).
+#maxbl(4).
+#maxhl(1).
+#maxpl(6).
+#modeh(1,sum_row(var(index,input),var(numeric,output))).
+#modeh(1,sum_col(var(index,input),var(numeric,output))).
+#modeb(1,size(var(index,input))).
+#modeb(2,sum_row(var(index,output),var(numeric,output))).
+#modeb(2,sum_col(var(index,output),var(numeric,output))).
+#modeb(1,#sum{var(numeric,any,value):x(var(index,any),var(index,any),var(numeric,any,value))}=var(numeric,output,result)).
+#modeb(2,var(numeric)!=var(numeric)).

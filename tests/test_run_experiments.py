@@ -61,13 +61,21 @@ def test_summary_penalizes_timeouts_and_keeps_net_time_of_solved_runs(tmp_path, 
         "dataset,run,status,success,elapsed_seconds\n"
         "coin,1,ok,True,3\ncoin,2,timeout,False,101\n", encoding="utf-8",
     )
-    (tmp_path / "timings_raw.csv").write_text(
-        "dataset,run,metric,seconds\ncoin,1,total_execution,2\n", encoding="utf-8",
-    )
-    (tmp_path / "ga_fitness.csv").write_text(
-        "dataset,run,generation,fitness_evaluations\ncoin,1,0,10\ncoin,1,20,30\n",
-        encoding="utf-8",
-    )
+    runs = tmp_path / "runs"
+    runs.mkdir()
+
+    def timings(run, rows):
+        (runs / f"coin_run_{run}_timings.json").write_text(json.dumps([
+            {"metric": metric, "seconds": seconds, "calls": calls}
+            for metric, seconds, calls in rows
+        ]), encoding="utf-8")
+
+    timings(1, [("total_execution", 2, 1)])
+    (runs / "coin_run_1_ga_metrics.json").write_text(json.dumps([
+        {"generation": generation, "max_fitness": 0, "avg_fitness": 0, "best_so_far": 0,
+         "fitness_evaluations": evaluations}
+        for generation, evaluations in ((0, 10), (20, 30))
+    ]), encoding="utf-8")
     summary, = summarize_experiment(
         experiment, tmp_path,
     )
@@ -79,16 +87,15 @@ def test_summary_penalizes_timeouts_and_keeps_net_time_of_solved_runs(tmp_path, 
     assert summary["solved_grounding_mean"] is None
     assert summary["solved_python_mean"] is None
     assert summary["solved_ground_calls_mean"] is None
-    (tmp_path / "timings_raw.csv").write_text(
-        "dataset,run,metric,seconds,calls\n"
-        "coin,1,total_execution,2,1\n"
-        "coin,1,clause_generation.grounding,0.1,1\n"
-        "coin,1,initialization.grounding,0.2,3\n"
-        "coin,1,initialization.grounding.self,0.2,3\n"
-        "coin,1,initialization.solving,0.4,4\n"
-        "coin,1,initialization.closure,0.5,10\n"
-        "coin,2,initialization.grounding,90,10000\n", encoding="utf-8",
-    )
+    timings(1, [
+        ("total_execution", 2, 1),
+        ("clause_generation.grounding", 0.1, 1),
+        ("initialization.grounding", 0.2, 3),
+        ("initialization.grounding.self", 0.2, 3),
+        ("initialization.solving", 0.4, 4),
+        ("initialization.closure", 0.5, 10),
+    ])
+    timings(2, [("initialization.grounding", 90, 10000)])
     summary, = summarize_experiment(experiment, tmp_path)
     assert summary["solved_grounding_mean"] == pytest.approx(0.3)
     assert summary["solved_solving_mean"] == pytest.approx(0.4)

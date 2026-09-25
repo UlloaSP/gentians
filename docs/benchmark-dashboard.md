@@ -30,7 +30,7 @@ sustituto de esa métrica.
 - Los task files viven en `benchmarks/gentians/`. Cambiarlos modifica el problema, no solo un fixture.
 - `benchmarks/catalog.py` asigna nombres de dataset a `Arguments`.
 - `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada.
-- `benchmarks/profile_baseline.py` ejecuta runs, recoge JSON/JSONL, CSV y `.prof`, y genera `dashboard_data.json`.
+- `benchmarks/profile_baseline.py` ejecuta runs y guarda una sola copia cruda por run en `runs/`: log, recursos, timings y progreso en JSON y las métricas por evento en `.jsonl.gz`, comprimidas al terminar el run. Escribe `runs.csv` como índice y construye `dashboard_data.json` leyendo `runs/` dataset a dataset. No escribe copias concatenadas.
 - `benchmarks/run_experiments.py` carga TOML, aplica overrides, fingerprinta configuración y marca resultados stale cuando deja de coincidir.
 - `benchmarks/experiments.toml` reúne todas las matrices. Añade experimentos de investigación con IDs prefijados, como `pool-policy/control`, y una diferencia interpretable frente a su control. Conserva sus parámetros en el mismo archivo; no crees TOML separados.
 - Resultados generados viven bajo `.benchmarks/experiments/<experimento>/` y están ignorados. No edites JSON o CSV generados a mano.

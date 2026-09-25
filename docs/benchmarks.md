@@ -51,8 +51,12 @@ operator-score charts.
 
 ## Output
 
-Benchmark output records clause generation, genetic generations, elapsed search
-time, fitness evaluations, operator metrics, and Clingo phases.
+Each experiment directory holds `runs.csv`, `dashboard_data.json` and `runs/`,
+the only raw copy: one log, resource snapshot, timings and progress file per run,
+plus operator, clause, quality, Clingo and epoch events as `.jsonl.gz`. They
+record clause generation, genetic generations, elapsed search time, fitness
+evaluations, operator metrics and Clingo phases. `--summary` and
+`--rebuild-dashboards` read `runs/` directly.
 `benchmarks/profile_baseline.py --cprofile` also writes one `.prof` per run.
 
 ## Alzheimer

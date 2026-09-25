@@ -18,7 +18,8 @@ from benchmarks.profile_baseline import (
     dashboard_quality,
     operator_summary,
     parse_log,
-    rebuild_dashboard,
+    build_dashboard,
+    compress_run_jsonl,
     reset_run_outputs,
     run_profile_worker,
     run_streamed,
@@ -791,10 +792,28 @@ def test_reset_run_outputs_removes_stale_profile_files(tmp_path):
     paths = [tmp_path / "a.jsonl", tmp_path / "b.json"]
     for path in paths:
         path.write_text("stale", encoding="utf-8")
+    (tmp_path / "c.jsonl.gz").write_text("stale", encoding="utf-8")
 
-    reset_run_outputs(paths)
+    reset_run_outputs([*paths, tmp_path / "c.jsonl"])
 
-    assert all(not path.exists() for path in paths)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_finished_run_keeps_only_compressed_jsonl_that_still_reads(tmp_path):
+    (tmp_path / "runs").mkdir()
+    source = tmp_path / "runs" / "d_run_1_operator_metrics.jsonl"
+    source.write_text('{"operator": "mutation"}\n', encoding="utf-8")
+    timings = tmp_path / "runs" / "d_run_1_timings.json"
+    timings.write_text("[]", encoding="utf-8")
+
+    compress_run_jsonl(tmp_path, "d", 1)
+
+    assert not source.exists()
+    assert (tmp_path / "runs" / "d_run_1_operator_metrics.jsonl.gz").exists()
+    assert timings.exists()
+    assert profile.read_jsonl_rows(source, "d", 1, 7, "d_seed_7") == [
+        {"dataset": "d", "run": 1, "seed": 7, "experiment_id": "d_seed_7", "operator": "mutation"}
+    ]
 
 
 @pytest.mark.parametrize("timeout", [0, 10])
@@ -845,7 +864,7 @@ def test_light_instrumentation_removes_inherited_detailed_logging(tmp_path, monk
 def test_light_outputs_do_not_publish_unmeasured_dashboard_fields(tmp_path):
     from benchmarks.profile_baseline import write_outputs
 
-    write_outputs(tmp_path, [], [], [], [], [], [], [], instrumentation_level="light")
+    write_outputs(tmp_path, [], "light")
     assert not (tmp_path / "dashboard_data.json").exists()
     metadata = json.loads((tmp_path / "measurement.json").read_text())
     assert metadata["unmeasured"] == ["operator", "candidate", "quality", "clingo"]
@@ -1246,7 +1265,7 @@ def test_thin_progress_keeps_improvements_restarts_and_the_last_point():
     assert all(generation in generations for generation in range(100, 1000, 100))
 
 
-def test_rebuild_dashboard_reads_saved_run_artifacts(tmp_path):
+def test_build_dashboard_reads_saved_run_artifacts(tmp_path):
     runs = tmp_path / "runs"
     runs.mkdir()
     write_csv(tmp_path / "runs.csv", [{
@@ -1264,8 +1283,9 @@ def test_rebuild_dashboard_reads_saved_run_artifacts(tmp_path):
     (runs / "d_run_1_incremental_metrics.jsonl").write_text(
         json.dumps({"reason": "solution", "active_clauses": 4}) + "\n"
     )
+    compress_run_jsonl(tmp_path, "d", 1)
 
-    rebuild_dashboard(tmp_path)
+    build_dashboard(tmp_path)
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     [bench] = payload["benchmarks"]

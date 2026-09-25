@@ -1,9 +1,11 @@
 import argparse
 import csv
+import gzip
 import json
 import math
 import os
 import queue
+import shutil
 import subprocess
 import sys
 import threading
@@ -147,13 +149,6 @@ def run_benchmark_suite(
     (out_dir / "runs").mkdir(exist_ok=True)
 
     results: list[RunResult] = []
-    timings: list[TimingMetric] = []
-    ga_metrics: list[GAMetric] = []
-    operator_metrics: list[dict[str, object]] = []
-    candidate_metrics: list[dict[str, object]] = []
-    quality_metrics: list[dict[str, object]] = []
-    clingo_metrics: list[dict[str, object]] = []
-    epoch_metrics: list[dict[str, object]] = []
 
     dataset_names = list(args.datasets)
     total = len(dataset_names) * args.runs
@@ -251,14 +246,7 @@ def run_benchmark_suite(
                 cprofile_path=str(cprofile_path) if args.cprofile else "",
             )
             results.append(run_result)
-            artifacts = read_run_artifacts(out_dir, run_result)
-            ga_metrics.extend(artifacts.ga)
-            timings.extend(artifacts.timings)
-            operator_metrics.extend(artifacts.operator)
-            candidate_metrics.extend(artifacts.candidate)
-            quality_metrics.extend(artifacts.quality)
-            clingo_metrics.extend(artifacts.clingo)
-            epoch_metrics.extend(artifacts.epochs)
+            compress_run_jsonl(out_dir, dataset, run)
             print(
                 f"[{completed}/{total}] {dataset} run {run} {status} {elapsed:.2f}s\n",
                 flush=True,
@@ -268,23 +256,37 @@ def run_benchmark_suite(
                 break
         if results and results[-1].status == "timeout" and getattr(args, "stop_on_timeout", False):
             break
-    write_outputs(
-        out_dir,
-        results,
-        timings,
-        ga_metrics,
-        operator_metrics,
-        candidate_metrics,
-        quality_metrics,
-        clingo_metrics,
-        instrumentation_level=getattr(args, "instrumentation", "full"),
-        epoch_metrics=epoch_metrics,
-    )
+    write_outputs(out_dir, results, getattr(args, "instrumentation", "full"))
+
+
+# Line-oriented metrics each run writes; stored gzip-compressed once the run ends.
+RUN_JSONL_SUFFIXES = (
+    "_operator_metrics.jsonl",
+    "_candidate_metrics.jsonl",
+    "_quality_metrics.jsonl",
+    "_clingo_metrics.jsonl",
+    "_incremental_metrics.jsonl",
+)
 
 
 def run_file(out_dir: Path, dataset: str, run: int, suffix: str) -> Path:
     """Return the path of one per-run artifact inside an experiment directory."""
     return out_dir / "runs" / f"{dataset}_run_{run}{suffix}"
+
+
+def compress_run_jsonl(out_dir: Path, dataset: str, run: int) -> None:
+    """Replace each finished JSONL metric file of one run with its gzip copy."""
+    for suffix in RUN_JSONL_SUFFIXES:
+        compress_jsonl(run_file(out_dir, dataset, run, suffix))
+
+
+def compress_jsonl(path: Path) -> None:
+    if not path.exists():
+        return
+    target = path.with_name(path.name + ".gz")
+    with path.open("rb") as source, gzip.open(target, "wb") as sink:
+        shutil.copyfileobj(source, sink)
+    path.unlink()
 
 
 @dataclass
@@ -319,11 +321,12 @@ def read_run_artifacts(out_dir: Path, result: RunResult) -> RunArtifacts:
     )
 
 
-def rebuild_dashboard(out_dir: Path) -> None:
-    """Rewrite dashboard_data.json from the raw run artifacts kept in out_dir.
+def build_dashboard(out_dir: Path) -> None:
+    """Write dashboard_data.json from runs.csv and the raw artifacts in runs/.
 
-    Uses the current aggregation and schema. Metrics a run never recorded stay
-    absent, so their charts show an empty state instead of invented values.
+    Uses the current aggregation and schema, so it also rebuilds saved results.
+    Metrics a run never recorded stay absent, so their charts show an empty
+    state instead of invented values.
     """
     with (out_dir / "runs.csv").open(encoding="utf-8", newline="") as file:
         results = [
@@ -371,10 +374,11 @@ def _default_python() -> str:
 
 def reset_run_outputs(paths: list[Path]) -> None:
     for path in paths:
-        try:
-            path.unlink()
-        except FileNotFoundError:
-            pass
+        for candidate in (path, path.with_name(path.name + ".gz")):
+            try:
+                candidate.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def profile_arguments(args: argparse.Namespace, dataset: str) -> Arguments:
@@ -615,10 +619,17 @@ def read_json_rows(path: Path) -> list[dict[str, object]]:
 def read_jsonl_rows(
     path: Path, dataset: str, run: int, seed: int, experiment_id: str
 ) -> list[dict[str, object]]:
-    if not path.exists():
+    """Read a run's JSONL metrics, plain while running or gzip once finished."""
+    compressed = path.with_name(path.name + ".gz")
+    if path.exists():
+        text = path.read_text(encoding="utf-8", errors="replace")
+    elif compressed.exists():
+        with gzip.open(compressed, "rt", encoding="utf-8", errors="replace") as file:
+            text = file.read()
+    else:
         return []
     rows: list[dict[str, object]] = []
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in text.splitlines():
         if not line.strip():
             continue
         try:
@@ -636,22 +647,9 @@ def read_jsonl_rows(
     return rows
 
 
-def write_outputs(
-    out_dir: Path,
-    results: list[RunResult],
-    timings: list[TimingMetric],
-    ga_metrics: list[GAMetric],
-    operator_metrics: list[dict[str, object]],
-    candidate_metrics: list[dict[str, object]],
-    quality_metrics: list[dict[str, object]],
-    clingo_metrics: list[dict[str, object]],
-    instrumentation_level: str = "full",
-    epoch_metrics: Sequence[dict[str, object]] = (),
-) -> None:
+def write_outputs(out_dir: Path, results: list[RunResult], instrumentation_level: str) -> None:
+    """Index the runs and summarize them; per-run artifacts in runs/ stay the only raw copy."""
     write_csv(out_dir / "runs.csv", [asdict(r) for r in results])
-    write_csv(out_dir / "incremental_epochs.csv", normalize_rows(list(epoch_metrics)))
-    write_csv(out_dir / "timings_raw.csv", [asdict(t) for t in timings])
-    write_csv(out_dir / "ga_fitness.csv", [asdict(p) for p in ga_metrics])
     if instrumentation_level == "light":
         (out_dir / "dashboard_data.json").unlink(missing_ok=True)
         (out_dir / "measurement.json").write_text(
@@ -663,23 +661,7 @@ def write_outputs(
             }, indent=2), encoding="utf-8",
         )
         return
-    write_csv(out_dir / "operator_metrics.csv", normalize_rows(operator_metrics))
-    write_csv(out_dir / "operator_summary.csv", operator_summary(operator_metrics))
-    write_csv(out_dir / "candidate_metrics.csv", normalize_rows(candidate_metrics))
-    write_csv(out_dir / "quality_metrics.csv", normalize_rows(quality_metrics))
-    write_csv(out_dir / "clingo_metrics.csv", normalize_rows(clingo_metrics))
-    write_csv(out_dir / "clingo_summary.csv", clingo_summary(clingo_metrics))
-    write_dashboard_data(
-        out_dir,
-        results,
-        timings,
-        ga_metrics,
-        operator_metrics,
-        candidate_metrics,
-        quality_metrics,
-        clingo_metrics,
-        epoch_metrics=epoch_metrics,
-    )
+    build_dashboard(out_dir)
 
 
 def write_dashboard_data(

@@ -16,7 +16,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.catalog import arguments_for, arguments_json  # noqa: E402
-from benchmarks.profile_baseline import rebuild_dashboard  # noqa: E402
+from benchmarks.profile_baseline import (  # noqa: E402
+    build_dashboard, read_ga_metrics, read_timings, run_file,
+)
 
 PROFILE_BASELINE = Path(__file__).with_name("profile_baseline.py")
 DEFAULT_CONFIG = Path(__file__).with_name("experiments.toml")
@@ -200,24 +202,28 @@ def summarize_experiment(experiment: dict[str, Any], out_dir: Path) -> list[dict
         with path.open(encoding="utf-8", newline="") as file:
             return list(csv.DictReader(file))
 
-    timing_rows = rows("timings_raw.csv")
-    timings = {
-        (row["dataset"], row["run"]): float(row["seconds"])
-        for row in timing_rows if row["metric"] == "total_execution"
-    }
-    categories = {}
-    for row in timing_rows:
-        kind = row["metric"].rsplit(".", 1)[-1]
-        if kind not in ("grounding", "solving", "closure"):
-            continue
-        key = row["dataset"], row["run"]
-        categories.setdefault(key, {}).setdefault(kind, []).append(row)
-    latest = {}
-    for row in rows("ga_fitness.csv"):
-        key = row["dataset"], row["run"]
-        if key not in latest or int(row["generation"]) >= int(latest[key]["generation"]):
-            latest[key] = row
     runs = rows("runs.csv")
+    timings = {}
+    categories = {}
+    latest = {}
+    for row in runs:
+        key = row["dataset"], row["run"]
+        run = int(row["run"])
+        for timing in read_timings(run_file(out_dir, row["dataset"], run, "_timings.json"),
+                                   row["dataset"], run):
+            if timing.metric == "total_execution":
+                timings[key] = timing.seconds
+            kind = timing.metric.rsplit(".", 1)[-1]
+            if kind in ("grounding", "solving", "closure"):
+                categories.setdefault(key, {}).setdefault(kind, []).append(
+                    {"seconds": timing.seconds, "calls": timing.calls}
+                )
+        progress = read_ga_metrics(run_file(out_dir, row["dataset"], run, "_ga_metrics.json"),
+                                   row["dataset"], run)
+        if progress:
+            final = max(progress, key=lambda point: point.generation)
+            latest[key] = {"generation": final.generation,
+                           "fitness_evaluations": final.fitness_evaluations}
     summaries = []
     for dataset in experiment["datasets"]:
         selected = [row for row in runs if row["dataset"] == dataset]
@@ -411,7 +417,7 @@ def main() -> int:
             out_dir = experiment_output_path(output_root, experiment["id"])
             if (out_dir / "runs.csv").exists():
                 print(f"{experiment['id']}: rebuild dashboard")
-                rebuild_dashboard(out_dir)
+                build_dashboard(out_dir)
         write_index(output_root, experiments)
         return 0
     if args.summary:

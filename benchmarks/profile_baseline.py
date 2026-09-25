@@ -245,8 +245,9 @@ def run_benchmark_suite(
                 success=parsed["success"],
                 cprofile_path=str(cprofile_path) if args.cprofile else "",
             )
+            compress_run_artifacts(out_dir, dataset, run)
+            run_result.log_path = str(compressed_path(log_path))
             results.append(run_result)
-            compress_run_jsonl(out_dir, dataset, run)
             print(
                 f"[{completed}/{total}] {dataset} run {run} {status} {elapsed:.2f}s\n",
                 flush=True,
@@ -259,8 +260,13 @@ def run_benchmark_suite(
     write_outputs(out_dir, results, getattr(args, "instrumentation", "full"))
 
 
-# Line-oriented metrics each run writes; stored gzip-compressed once the run ends.
-RUN_JSONL_SUFFIXES = (
+# Artifacts each run writes; stored gzip-compressed once the run ends. A
+# cProfile .prof stays plain so profiling tools can open it.
+RUN_COMPRESSED_SUFFIXES = (
+    ".log",
+    "_timings.json",
+    "_ga_metrics.json",
+    "_resources.json",
     "_operator_metrics.jsonl",
     "_candidate_metrics.jsonl",
     "_quality_metrics.jsonl",
@@ -274,19 +280,32 @@ def run_file(out_dir: Path, dataset: str, run: int, suffix: str) -> Path:
     return out_dir / "runs" / f"{dataset}_run_{run}{suffix}"
 
 
-def compress_run_jsonl(out_dir: Path, dataset: str, run: int) -> None:
-    """Replace each finished JSONL metric file of one run with its gzip copy."""
-    for suffix in RUN_JSONL_SUFFIXES:
-        compress_jsonl(run_file(out_dir, dataset, run, suffix))
+def compressed_path(path: Path) -> Path:
+    return path.with_name(path.name + ".gz")
 
 
-def compress_jsonl(path: Path) -> None:
+def compress_run_artifacts(out_dir: Path, dataset: str, run: int) -> None:
+    """Replace each finished artifact of one run with its gzip copy."""
+    for suffix in RUN_COMPRESSED_SUFFIXES:
+        compress_file(run_file(out_dir, dataset, run, suffix))
+
+
+def compress_file(path: Path) -> None:
     if not path.exists():
         return
-    target = path.with_name(path.name + ".gz")
-    with path.open("rb") as source, gzip.open(target, "wb") as sink:
+    with path.open("rb") as source, gzip.open(compressed_path(path), "wb") as sink:
         shutil.copyfileobj(source, sink)
     path.unlink()
+
+
+def read_artifact_text(path: Path) -> str | None:
+    """Read a run artifact, plain while the run is active or gzip once it ended."""
+    if path.exists():
+        return path.read_text(encoding="utf-8", errors="replace")
+    if compressed_path(path).exists():
+        with gzip.open(compressed_path(path), "rt", encoding="utf-8", errors="replace") as file:
+            return file.read()
+    return None
 
 
 @dataclass
@@ -374,7 +393,7 @@ def _default_python() -> str:
 
 def reset_run_outputs(paths: list[Path]) -> None:
     for path in paths:
-        for candidate in (path, path.with_name(path.name + ".gz")):
+        for candidate in (path, compressed_path(path)):
             try:
                 candidate.unlink()
             except FileNotFoundError:
@@ -608,10 +627,9 @@ def read_ga_metrics(path: Path, dataset: str, run: int) -> list[GAMetric]:
 
 
 def read_json_rows(path: Path) -> list[dict[str, object]]:
-    if not path.exists():
-        return []
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        text = read_artifact_text(path)
+        return json.loads(text) if text is not None else []
     except PermissionError, json.JSONDecodeError:
         return []
 
@@ -620,13 +638,8 @@ def read_jsonl_rows(
     path: Path, dataset: str, run: int, seed: int, experiment_id: str
 ) -> list[dict[str, object]]:
     """Read a run's JSONL metrics, plain while running or gzip once finished."""
-    compressed = path.with_name(path.name + ".gz")
-    if path.exists():
-        text = path.read_text(encoding="utf-8", errors="replace")
-    elif compressed.exists():
-        with gzip.open(compressed, "rt", encoding="utf-8", errors="replace") as file:
-            text = file.read()
-    else:
+    text = read_artifact_text(path)
+    if text is None:
         return []
     rows: list[dict[str, object]] = []
     for line in text.splitlines():

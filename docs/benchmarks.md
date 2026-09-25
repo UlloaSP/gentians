@@ -53,7 +53,8 @@ operator-score charts.
 
 Each experiment directory holds `runs.csv`, `dashboard_data.json` and `runs/`,
 the only raw copy: one log, resource snapshot, timings and progress file per run,
-plus operator, clause, quality, Clingo and epoch events as `.jsonl.gz`. They
+plus operator, clause, quality, Clingo and epoch events, all gzip-compressed when
+the run ends. ILASP runs store their raw output as `.out.gz` and `.err.gz`. They
 record clause generation, genetic generations, elapsed search time, fitness
 evaluations, operator metrics and Clingo phases. `--summary` and
 `--rebuild-dashboards` read `runs/` directly.

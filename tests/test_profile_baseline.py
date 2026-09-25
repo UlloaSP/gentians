@@ -19,7 +19,7 @@ from benchmarks.profile_baseline import (
     operator_summary,
     parse_log,
     build_dashboard,
-    compress_run_jsonl,
+    compress_run_artifacts,
     reset_run_outputs,
     run_profile_worker,
     run_streamed,
@@ -799,21 +799,27 @@ def test_reset_run_outputs_removes_stale_profile_files(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_finished_run_keeps_only_compressed_jsonl_that_still_reads(tmp_path):
-    (tmp_path / "runs").mkdir()
-    source = tmp_path / "runs" / "d_run_1_operator_metrics.jsonl"
+def test_finished_run_keeps_only_compressed_artifacts_that_still_read(tmp_path):
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    source = runs / "d_run_1_operator_metrics.jsonl"
     source.write_text('{"operator": "mutation"}\n', encoding="utf-8")
-    timings = tmp_path / "runs" / "d_run_1_timings.json"
-    timings.write_text("[]", encoding="utf-8")
+    timings = runs / "d_run_1_timings.json"
+    timings.write_text('[{"metric": "total_execution", "seconds": 2, "calls": 1}]', encoding="utf-8")
+    (runs / "d_run_1.log").write_text("log", encoding="utf-8")
+    profile_file = runs / "d_run_1.prof"
+    profile_file.write_bytes(b"prof")
 
-    compress_run_jsonl(tmp_path, "d", 1)
+    compress_run_artifacts(tmp_path, "d", 1)
 
-    assert not source.exists()
-    assert (tmp_path / "runs" / "d_run_1_operator_metrics.jsonl.gz").exists()
-    assert timings.exists()
+    assert sorted(path.name for path in runs.iterdir()) == [
+        "d_run_1.log.gz", "d_run_1.prof",
+        "d_run_1_operator_metrics.jsonl.gz", "d_run_1_timings.json.gz",
+    ]
     assert profile.read_jsonl_rows(source, "d", 1, 7, "d_seed_7") == [
         {"dataset": "d", "run": 1, "seed": 7, "experiment_id": "d_seed_7", "operator": "mutation"}
     ]
+    assert profile.read_timings(timings, "d", 1) == [TimingMetric("d", 1, "total_execution", 2.0, 1)]
 
 
 @pytest.mark.parametrize("timeout", [0, 10])
@@ -1283,7 +1289,7 @@ def test_build_dashboard_reads_saved_run_artifacts(tmp_path):
     (runs / "d_run_1_incremental_metrics.jsonl").write_text(
         json.dumps({"reason": "solution", "active_clauses": 4}) + "\n"
     )
-    compress_run_jsonl(tmp_path, "d", 1)
+    compress_run_artifacts(tmp_path, "d", 1)
 
     build_dashboard(tmp_path)
 

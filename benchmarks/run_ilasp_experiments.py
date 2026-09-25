@@ -1,5 +1,6 @@
 import argparse
 import csv
+import gzip
 import hashlib
 import json
 import os
@@ -207,10 +208,13 @@ def run_experiment(experiment: Experiment, force: bool = False) -> None:
                     experiment, dataset, version, run, task
                 )
                 stem = f"{dataset}_v{version}_run_{run}"
-                stdout_path = runs_dir / f"{stem}.out"
-                stderr_path = runs_dir / f"{stem}.err"
-                stdout_path.write_text(stdout, encoding="utf-8")
-                stderr_path.write_text(stderr, encoding="utf-8")
+                # Raw ILASP output is kept for inspection only, so store it compressed.
+                stdout_path = runs_dir / f"{stem}.out.gz"
+                stderr_path = runs_dir / f"{stem}.err.gz"
+                with gzip.open(stdout_path, "wt", encoding="utf-8") as file:
+                    file.write(stdout)
+                with gzip.open(stderr_path, "wt", encoding="utf-8") as file:
+                    file.write(stderr)
                 row["stdout_path"] = str(stdout_path.relative_to(output_dir))
                 row["stderr_path"] = str(stderr_path.relative_to(output_dir))
                 append_csv(runs_path, RUN_FIELDS, row)

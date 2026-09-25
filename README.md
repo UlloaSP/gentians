@@ -226,6 +226,8 @@ search time, fitness evaluations, operator metrics, and Clingo phases.
 
 ### Reproducible experiment profiles
 
+For Slurm execution on Shelob, see [the project-owned launcher](slurm/README.md).
+
 The [Gentians–ILASP comparison](docs/ilasp-experiments.md) configures 29 datasets,
 30 runs and a 120-second timeout for both Gentians algorithms and ILASP 2, 2i,
 3 and 4. Its runner supports native Linux and Windows through WSL; body aggregate

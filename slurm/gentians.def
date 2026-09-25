@@ -1,0 +1,22 @@
+Bootstrap: docker
+From: python:3.14-slim-bookworm@sha256:82bc3c539b8813ada9d68c63b40158fa002f7f33de9bf3312a3dfdc0620dff56
+
+# Bootstrap: docker indica a Singularity que descargue la base OCI; no usa Docker.
+%files
+    pyproject.toml /opt/gentians/pyproject.toml
+    uv.lock /opt/gentians/uv.lock
+
+%post
+    # pip solo instala uv; uv instala las dependencias de producción del lock.
+    python -m pip install --no-cache-dir uv==0.12.19
+    cd /opt/gentians
+    UV_PYTHON_DOWNLOADS=never uv sync --frozen --no-dev --no-install-project --python /usr/local/bin/python3.14
+
+%environment
+    # El código y las tareas se montan desde el checkout al ejecutar el job.
+    export PATH="/opt/gentians/.venv/bin:$PATH"
+    export PYTHONDONTWRITEBYTECODE=1
+
+%test
+    # Fallar la construcción si el intérprete o Clingo no son los esperados.
+    python -c 'import sys, clingo; assert sys.version_info >= (3, 14); assert clingo.__version__ == "5.8.2"'

@@ -25,6 +25,8 @@ node_modules/
 .benchmarks/ilasp-experiments/
 .debug/
 sweeps/
+slurm/images/
+slurm/logs/
 
 # Generated analysis
 # Local browser evidence; diagram sources, delivered HTML and summary receipt remain versioned.

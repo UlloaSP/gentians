@@ -86,6 +86,16 @@ class Arguments:
         }
     )
 
+    # Population restart config.
+    restart: dict[str, object] = field(
+        default_factory=lambda: {
+            # Restart from the champion when the best score stops improving.
+            "name": "stagnation",
+            # Generations without a better champion before restarting.
+            "generations": 100,
+        }
+    )
+
     # Full-space steady-state search or bounded incremental clause search.
     algorithm: str = "steady_state"
     incremental: dict[str, object] = field(

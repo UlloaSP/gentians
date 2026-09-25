@@ -14,6 +14,7 @@ from gentians.evolution.operator_types import MutationProposal
 from gentians.evolution.populations import create_population
 from gentians.hypotheses import HypothesisGenerator
 from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
+from gentians.evolution.restarts import create_restart
 from gentians.evolution.selections import create_selection
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
@@ -59,6 +60,9 @@ def _context(rules, *, max_clauses=3):
         ),
         (create_population, {"name": "random", "size": 0}),
         (create_population, {"name": "random", "size": 1.5}),
+        (create_restart, {"name": "stagnation", "generations": 0}),
+        (create_restart, {"name": "stagnation", "generations": True}),
+        (create_restart, {"name": "unknown", "generations": 100}),
     ],
 )
 def test_operator_factories_reject_invalid_configuration(factory, config):
@@ -69,6 +73,39 @@ def test_operator_factories_reject_invalid_configuration(factory, config):
 def test_removed_component_crossover_is_rejected():
     with pytest.raises(ValueError, match="Unknown crossover strategy"):
         create_crossover({"name": "component_mix", "probability": 1.0})
+
+
+def test_stagnation_restart_waits_for_progress_and_keeps_the_champion():
+    context = _context(["p.", "q."])
+    restart = create_restart(Arguments().restart)
+    first = Individual(context.hypotheses.encode(("p.",)), 0.2, False)
+    better = Individual(context.hypotheses.encode(("q.",)), 0.5, False)
+
+    assert restart(0, [first], first, context, True) is None
+    assert restart(60, [first], better, context, True) is None
+    assert restart(159, [better], better, context, True) is None
+    assert restart(160, [better], better, context, True) == [better]
+    assert restart(161, [better], better, context, True) is None
+    assert restart(260, [better], better, context, True) == [better]
+
+
+def test_stagnation_restart_observes_progress_while_ineligible():
+    context = _context(["p."])
+    restart = create_restart({"name": "stagnation", "generations": 3})
+    champion = Individual(context.hypotheses.encode(("p.",)), 0.2, False)
+
+    assert restart(0, [champion], champion, context, False) is None
+    assert restart(5, [champion], champion, context, False) is None
+    assert restart(6, [champion], champion, context, True) == [champion]
+
+
+def test_stagnation_restart_ignores_constraint_only_spaces():
+    context = _context([":- p."])
+    restart = create_restart({"name": "stagnation", "generations": 1})
+    champion = Individual(context.hypotheses.encode((":- p.",)), 0.2, False)
+
+    assert restart(0, [champion], champion, context, True) is None
+    assert restart(10, [champion], champion, context, True) is None
 
 
 def test_crossover_is_enabled_by_default():

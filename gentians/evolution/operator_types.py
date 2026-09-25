@@ -24,3 +24,12 @@ MutationFn = Callable[[Genome, EvolutionContext, bool], MutationProposal]
 ReplacementFn = Callable[
     [list[Individual], Individual, random.Random], list[Individual]
 ]
+
+# Called once per generation with the champion found so far. Returns the
+# survivors that seed a restarted population, or None. The final flag is False
+# while the algorithm forbids restarting, so the strategy can still observe
+# progress. The algorithm rebuilds the population and owns its caches.
+RestartFn = Callable[
+    [int, list[Individual], Individual, EvolutionContext, bool],
+    list[Individual] | None,
+]

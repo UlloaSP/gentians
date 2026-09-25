@@ -256,6 +256,12 @@ tasks from [Cropper's ILP datasets](https://huggingface.co/datasets/andrewcroppe
 uv run python benchmarks/run_experiments.py alzheimer/incremental
 ```
 
+To profile clause generation for all four tasks:
+
+```powershell
+uv run python benchmarks/profile_clauses.py --datasets alzheimer
+```
+
 The Alzheimer task directories preserve the source facts and examples. Their Popper predicate
 types are translated to Gentians modes with explicit input/output directions,
 recall 2 for property lookup and recall 1 for comparisons. Gentians limits each

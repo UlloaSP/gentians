@@ -15,12 +15,19 @@ from gentians import timing  # noqa: E402
 from gentians.clauses import generate_clause_space  # noqa: E402
 from gentians.gentians import task_from_arguments  # noqa: E402
 
+ALZHEIMER_DATASETS = tuple(
+    name for name in case_names() if name.startswith("alzheimer_")
+)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate benchmark clause spaces."
     )
-    parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
+    parser.add_argument(
+        "--datasets", nargs="+", default=DEFAULT_DATASETS,
+        help="Dataset names, or 'alzheimer' for all four Alzheimer's tasks.",
+    )
     parser.add_argument("--out-dir", type=Path, default=Path(".debug") / "clauses")
     parser.add_argument(
         "--set",
@@ -42,7 +49,11 @@ def main() -> None:
         print("\n".join(case_names()))
         return
 
-    for dataset in args.datasets:
+    datasets = []
+    for name in args.datasets:
+        datasets.extend(ALZHEIMER_DATASETS if name == "alzheimer" else (name,))
+
+    for dataset in datasets:
         try:
             arguments = profile_arguments(args, dataset)
         except (KeyError, ValueError, json.JSONDecodeError) as exc:

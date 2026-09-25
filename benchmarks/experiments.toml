@@ -31,9 +31,9 @@ datasets = [
   "alzheimer_mem",
   "alzheimer_toxic",
 ]
-runs = 5
-timeout_seconds = 120
-instrumentation = "light"
+runs = 1
+timeout_seconds = 1200
+instrumentation = "full"
 [experiment.overrides]
 algorithm = "incremental"
 

@@ -59,6 +59,30 @@ def test_suite_stops_configuration_after_timeout_and_keeps_results(tmp_path, mon
         "screened_out" if stop else "completed_with_failures")
 
 
+def test_run_i_of_every_dataset_uses_seed_base_plus_i(tmp_path, monkeypatch):
+    seeds = []
+
+    def finished(cmd, arguments_json, log_path, timeout, *paths_and_run, **_kwargs):
+        log_path.write_text("", encoding="utf-8")
+        dataset, run, seed = paths_and_run[-4:-1]
+        seeds.append((dataset, run, seed))
+        return 0, False
+
+    monkeypatch.setattr(profile, "run_streamed", finished)
+    args = SimpleNamespace(list_datasets=False, out_dir=tmp_path,
+                           datasets=["5queens", "grandparent"], runs=2,
+                           arguments_json=None, set=[], python=sys.executable,
+                           cprofile=False, seed_base=42, timeout_seconds=0,
+                           instrumentation="light", stop_on_timeout=False)
+
+    profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
+
+    assert seeds == [
+        ("5queens", 1, 43), ("5queens", 2, 44),
+        ("grandparent", 1, 43), ("grandparent", 2, 44),
+    ]
+
+
 def test_profile_worker_applies_seed_to_arguments(monkeypatch, tmp_path):
     captured = {}
     monkeypatch.setenv("GENTIANS_ARGUMENTS_JSON", json.dumps(Arguments().__dict__))

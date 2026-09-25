@@ -3,7 +3,7 @@
 output_root = ".benchmarks/experiments"
 datasets = ["5queens", "grandparent"]
 runs = 10
-seed_base = 1
+seed_base = 42
 timeout_seconds = 30
 cprofile = false
 instrumentation = "full"
@@ -212,7 +212,6 @@ datasets = [
   "subset_sum_unbalanced_ops",
 ]
 runs = 30
-seed_base = 1
 timeout_seconds = 120
 instrumentation = "light"
 [experiment.overrides]
@@ -253,7 +252,6 @@ datasets = [
   "subset_sum_unbalanced_ops",
 ]
 runs = 30
-seed_base = 1
 timeout_seconds = 120
 instrumentation = "light"
 [experiment.overrides]
@@ -295,7 +293,6 @@ datasets = [
   "subset_sum_unbalanced_ops",
 ]
 runs = 10
-seed_base = 1
 timeout_seconds = 1800
 instrumentation = "light"
 [experiment.overrides]
@@ -336,7 +333,6 @@ datasets = [
   "subset_sum_unbalanced_ops",
 ]
 runs = 10
-seed_base = 1
 timeout_seconds = 1800
 instrumentation = "light"
 [experiment.overrides]

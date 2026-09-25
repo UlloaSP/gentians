@@ -60,7 +60,7 @@ def load_config(path: Path) -> tuple[Path, list[dict[str, Any]]]:
         "datasets": suite.get("datasets", []),
         "runs": suite.get("runs", 10),
         "timeout_seconds": suite.get("timeout_seconds", 100),
-        "seed_base": suite.get("seed_base", 1),
+        "seed_base": suite.get("seed_base", 42),
         "cprofile": suite.get("cprofile", False),
         "instrumentation": suite.get("instrumentation", "full"),
         "python": suite.get("python", sys.executable),

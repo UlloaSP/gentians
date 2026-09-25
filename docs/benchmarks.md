@@ -27,6 +27,10 @@ The `sdk-defaults` experiments compare steady-state and incremental search on
 including Alzheimer, keep their own dataset lists and limits in the same TOML
 file.
 
+Run *i* of every dataset uses seed `seed_base + i`, with runs numbered from 1 and
+`seed_base = 42`. Run 1 of any dataset or experiment therefore uses seed 43, so
+datasets and experiments are matched run by run.
+
 Matching results may be reused. The fingerprint includes source and metaprogram
 contents, task contents, effective arguments and the worker's Python and Clingo
 versions. A change requires `--force` to replace the selected result. A source

@@ -115,7 +115,10 @@ def parse_profile_args(
         help="Full Arguments JSON object. Used for every listed dataset unless --set overrides it.",
     )
     parser.add_argument("--list-datasets", action="store_true")
-    parser.add_argument("--seed-base", type=int, default=1)
+    parser.add_argument(
+        "--seed-base", type=int, default=42,
+        help="Run i of every dataset uses seed seed_base + i, so dataset runs stay matched.",
+    )
     parser.add_argument("--instrumentation", choices=("full", "light"), default="full")
     parser.add_argument(
         "--cprofile",
@@ -196,7 +199,9 @@ def run_benchmark_suite(
                     str(cprofile_path.resolve()),
                     *cmd[1:],
                 ]
-            seed = args.seed_base + completed - 1
+            # Seeds depend only on the run number: run i of every dataset and every
+            # experiment uses the same seed.
+            seed = args.seed_base + run
             experiment_id = f"{dataset}_seed_{seed}"
 
             print(

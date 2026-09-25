@@ -109,7 +109,7 @@ def test_comparison_matrix_matches_all_six_algorithms() -> None:
     for experiment in gentians:
         assert experiment["datasets"] == list(ilasp.datasets)
         assert experiment["runs"] == 30 and experiment["timeout_seconds"] == 120
-        assert experiment["seed_base"] == 1
+        assert experiment["seed_base"] == 42
         assert not experiment.get("stop_on_timeout", False)
     for dataset in ilasp.datasets:
         content = (ilasp.task_dir / f"{dataset}.las").read_text(encoding="utf-8")

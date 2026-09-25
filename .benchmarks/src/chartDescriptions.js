@@ -1,6 +1,4 @@
 export const CHART_DESCRIPTIONS = {
-  "Tiempo total_execution":
-    "Media aritmética de total_execution entre las ejecuciones instrumentadas del benchmark. total_execution se cierra antes de imprimir la hipótesis y excluye el coste de serializar la instrumentación. La barra usa segundos; menos es mejor.",
   "Fases por tipo":
     "Cada barra es el tiempo medio de una fase, separado en python, grounding, solving y closure. Para cada ejecución se suman las llamadas de la métrica; después se promedian las ejecuciones. python = tiempo self de la fase − grounding − solving − closure, limitado a cero. El tiempo no atribuido se incorpora a search orchestration para que la suma coincida con total_execution.",
   "Porcentajes de tiempo por tipo":

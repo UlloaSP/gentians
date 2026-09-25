@@ -66,8 +66,8 @@ vp test
 ```
 
 `src/metrics.js` define schema, orden de fases, tipos y agregaciones
-compartidas. `main.jsx` muestra un experimento. `ExperimentCompare.jsx` y
-`charts/ComparisonCharts.jsx` comparan varios. Si cambia el payload, actualiza
+compartidas. `main.jsx` muestra un experimento con todas sus gráficas.
+`ExperimentCompare.jsx` compara varios solo con la tabla y el gráfico Pareto. Si cambia el payload, actualiza
 productor, `DASHBOARD_SCHEMA_VERSION`, consumidores y tests juntos. Un dashboard
 viejo debe fallar como stale, no reinterpretarse silenciosamente: se regenera con
 `run_experiments.py --rebuild-dashboards`, que vuelve a agregar los artefactos
@@ -92,6 +92,5 @@ No cambies estas gráficas salvo petición explícita:
 - Resultado: muestra el algoritmo, `candidatas` como el mayor `ClauseSpace` preparado por run y los reinicios medios por run.
 - Modelos solve por etapa: usa fases reales; `clause_generation` se muestra como `clauses`. No agrupa fases conocidas como `search setup`, `fitness search` ni `other`.
 - Los títulos de charts identifican la métrica y son funcionales. No añadas títulos de página, hero copy ni texto ornamental.
-- Comparación conserva todas las gráficas y divisiones de la vista individual. Cada experimento añade sus líneas, grupos, stacks o anillos; no se reemplazan por resúmenes distintos.
-- En comparación, el color identifica siempre al experimento; métricas y divisiones usan líneas, símbolos, opacidad o trama. Las leyendas no multiplican `experimento × división` y todo debe distinguirse sin hover.
+- Comparación muestra solo la tabla y el gráfico Pareto de tiempo frente a best encontrados. Las gráficas detalladas viven en la vista de cada experimento. En ambos elementos el color identifica siempre al experimento.
 - Tabla de comparación: no muestra wall-clock. Usa `total_execution` y su delta; `grounding`, `solving` y `python` con sus deltas; `ground calls` y `solve calls`.

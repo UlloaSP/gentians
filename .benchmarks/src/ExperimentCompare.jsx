@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { chartTw } from "./chartTw";
-import { ComparisonCharts } from "./charts/ComparisonCharts";
 import { ParetoChart } from "./charts/ParetoChart";
 import {
   assertDashboardSchema,
@@ -43,8 +42,6 @@ export function ExperimentCompare() {
   const [benchmarkName, setBenchmarkName] = useState("");
   const [baselineId, setBaselineId] = useState("");
   const [view, setView] = useState("values");
-  const [progressView, setProgressView] = useState("mean");
-  const [progressAxis, setProgressAxis] = useState("generation");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -210,13 +207,6 @@ export function ExperimentCompare() {
         </section>
         <ComparisonTable rows={rows} baseline={baseline} view={view} />
         <ParetoChart rows={rows} baselineId={baselineId} />
-        <ComparisonCharts
-          rows={rows}
-          progressView={progressView}
-          setProgressView={setProgressView}
-          progressAxis={progressAxis}
-          setProgressAxis={setProgressAxis}
-        />
       </div>
     </main>
   );

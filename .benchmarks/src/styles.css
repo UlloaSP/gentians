@@ -40,10 +40,10 @@
   .detail-nav { margin-bottom: 0.25rem; }
   .nav-context { align-self: center; color: var(--line-strong); }
   .nav-field, .compare-controls label, .index-filters label { display: grid; gap: 0.3rem; min-width: 13rem; }
-  .nav-field span, .compare-controls label > span, .index-filters label > span, .chart-control label {
+  .nav-field span, .compare-controls label > span, .index-filters label > span {
     color: var(--muted); font: 500 0.64rem/1 "IBM Plex Mono", monospace; letter-spacing: 0.11em; text-transform: uppercase;
   }
-  .detail-nav select, .compare-controls select, .index-filters select, .index-filters input, .chart-control select {
+  .detail-nav select, .compare-controls select, .index-filters select, .index-filters input {
     min-height: 2.45rem; border: 1px solid var(--line-strong); border-radius: 4px;
     background: var(--panel); color: var(--ink); padding: 0.45rem 0.7rem;
   }
@@ -178,10 +178,6 @@
   .pareto-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.45rem 1rem; margin-top: 0.6rem; color: #444b56; font-size: 0.72rem; }
   .pareto-key span { display: inline-flex; align-items: center; gap: 0.35rem; }
   .pareto-key i { width: 0.55rem; height: 0.55rem; border-radius: 50%; }
-  .comparison-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-  .comparison-charts > .chart-section:nth-child(2), .comparison-charts > .chart-section:nth-child(3), .comparison-charts > .chart-section:nth-child(4) { grid-column: 1 / -1; }
-  .chart-control { display: flex; justify-content: end; align-items: center; gap: 0.55rem; margin: 0.25rem 0 0.5rem; }
-  .chart-control select { min-height: 2rem; padding: 0.25rem 0.5rem; }
   .individual-links { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; border-top: 1px solid var(--line); padding: 1.5rem 0 3rem; }
   .individual-links a { border-bottom: 2px solid var(--experiment); color: var(--ink); padding: 0.4rem 0.1rem; font-size: 0.78rem; text-decoration: none; }
 }
@@ -189,8 +185,6 @@
 @media (max-width: 900px) {
   .metric-summary { grid-template-columns: 1fr; }
   .metric-group + .metric-group { border-top: 1px solid var(--line); border-left: 0; }
-  .comparison-charts { grid-template-columns: 1fr; }
-  .comparison-charts > .chart-section { grid-column: auto !important; }
   .compare-controls { justify-content: flex-start; }
 }
 

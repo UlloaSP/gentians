@@ -38,7 +38,7 @@ export const progressAxisLabel = (axis) =>
 export const DASHBOARD_SCHEMA_VERSION = 12;
 
 // Phase contexts in which the algorithms request Clingo, in pipeline order.
-export const clingoPhases = [
+const clingoPhases = [
   ["clause_generation", "clauses"],
   ["initialization", "initialization"],
   ["selection", "selection"],

@@ -144,7 +144,7 @@ export function FitnessChart({ benchmark }) {
   );
 }
 
-export function restartMarks(positions, color = colors.total) {
+function restartMarks(positions, color = colors.total) {
   return {
     symbol: "none",
     silent: true,

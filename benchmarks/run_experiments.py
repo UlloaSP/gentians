@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.catalog import arguments_for, arguments_json  # noqa: E402
+from benchmarks.profile_baseline import rebuild_dashboard  # noqa: E402
 
 PROFILE_BASELINE = Path(__file__).with_name("profile_baseline.py")
 DEFAULT_CONFIG = Path(__file__).with_name("experiments.toml")
@@ -36,6 +37,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--historical-index", action="store_true",
                         help="Index saved results with their original metadata; do not run experiments.")
     parser.add_argument("--summary", action="store_true", help="Print measured run summaries as CSV without executing.")
+    parser.add_argument(
+        "--rebuild-dashboards", action="store_true",
+        help="Rewrite dashboard_data.json from saved run artifacts with the current schema; do not run experiments.",
+    )
     return parser.parse_args()
 
 
@@ -306,6 +311,9 @@ def write_manifest(out_dir: Path, experiment: dict[str, Any], status: str,
 
 def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
                 historical_ids: set[str] | None = None) -> None:
+    """Index every experiment; historical results stay historical until rerun."""
+    if historical_ids is None:
+        historical_ids = indexed_historical_ids(output_root)
     rows = []
     for experiment in experiments:
         out_dir = experiment_output_path(output_root, experiment["id"])
@@ -326,8 +334,9 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
             }
         )
         historical = (
-            experiment["id"] in (historical_ids or set())
+            experiment["id"] in historical_ids
             and manifest_path.exists()
+            and manifest.get("fingerprint") != fingerprint(experiment)
             and dashboard_path.exists()
             and manifest.get("status") in ("complete", "completed_with_failures", "screened_out")
         )
@@ -396,6 +405,14 @@ def main() -> int:
         historical_ids = indexed_historical_ids(output_root)
         historical_ids.update(item["id"] for item in selected)
         write_index(output_root, experiments, historical_ids=historical_ids)
+        return 0
+    if args.rebuild_dashboards:
+        for experiment in selected:
+            out_dir = experiment_output_path(output_root, experiment["id"])
+            if (out_dir / "runs.csv").exists():
+                print(f"{experiment['id']}: rebuild dashboard")
+                rebuild_dashboard(out_dir)
+        write_index(output_root, experiments)
         return 0
     if args.summary:
         try:

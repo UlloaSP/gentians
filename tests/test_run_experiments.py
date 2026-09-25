@@ -217,7 +217,7 @@ def test_force_replaces_only_selected_namespaced_output(tmp_path, monkeypatch):
                       encoding="utf-8")
     monkeypatch.setattr(runner, "parse_args", lambda: Namespace(
         config=config, experiments=["group/control"], force=True, list=False,
-        summary=False, historical_index=False))
+        summary=False, historical_index=False, rebuild_dashboards=False))
     commands = []
     def run(command, **kwargs):
         commands.append(command)
@@ -370,7 +370,7 @@ def test_historical_index_keeps_experiments_already_marked_historical(
         force=False,
         list=False,
         summary=False,
-        historical_index=True,
+        historical_index=True, rebuild_dashboards=False,
     ))
 
     assert runner.main() == 0
@@ -379,3 +379,35 @@ def test_historical_index_keeps_experiments_already_marked_historical(
     assert {row["id"] for row in indexed if row["status"] == "historical"} == set(
         experiment_ids
     )
+
+
+def test_rerun_or_list_keeps_other_historical_results(tmp_path):
+    saved = {"id": "saved", "datasets": ["coin"], "runs": 10, "overrides": {}}
+    out_dir = tmp_path / "saved"
+    out_dir.mkdir()
+    write_manifest(out_dir, saved, "complete")
+    (out_dir / "dashboard_data.json").write_text('{"schemaVersion":10}')
+    saved["runs"] = 30  # The configuration changed after the saved run.
+    write_index(tmp_path, [saved], historical_ids={"saved"})
+
+    write_index(tmp_path, [saved])
+
+    [indexed] = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
+    assert indexed["status"] == "historical"
+    assert indexed["has_dashboard"] is True
+
+
+def test_rerun_with_current_config_is_no_longer_historical(tmp_path):
+    experiment = {"id": "saved", "datasets": ["coin"], "runs": 10, "overrides": {}}
+    out_dir = tmp_path / "saved"
+    out_dir.mkdir()
+    write_manifest(out_dir, experiment, "complete")
+    (out_dir / "dashboard_data.json").write_text('{"schemaVersion":12}')
+    (tmp_path / "experiments.json").write_text(
+        json.dumps({"experiments": [{"id": "saved", "status": "historical"}]})
+    )
+
+    write_index(tmp_path, [experiment])
+
+    [indexed] = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
+    assert indexed["status"] == "complete"

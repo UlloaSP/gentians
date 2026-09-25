@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GENTIANS profiling</title>
+    <script>
+      // Theme before first paint; src/theme.js owns the same key and rules.
+      (() => {
+        const choice = localStorage.getItem("gentians-theme");
+        const dark = choice === "dark" ||
+          (choice !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

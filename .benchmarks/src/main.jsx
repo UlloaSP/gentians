@@ -18,6 +18,7 @@ import { QualityProgramChart } from "./charts/QualityProgramChart";
 import { QualityChart } from "./charts/QualityChart";
 import { SolverStatsChart } from "./charts/SolverStatsChart";
 import { TypeSplitChart } from "./charts/TypeSplitChart";
+import { ThemeMenu } from "./components/ThemeMenu";
 import {
   algorithmLabel,
   assertDashboardSchema,
@@ -36,6 +37,7 @@ import {
   topPhase,
   totalSeconds,
 } from "./metrics";
+import { ThemeContext, useThemeChoice } from "./theme";
 import "./styles.css";
 
 export function DetailApp() {
@@ -316,10 +318,21 @@ function ChartGroup({ title, children }) {
 }
 
 function Root() {
+  const { choice, setChoice, theme } = useThemeChoice();
   const params = new URLSearchParams(window.location.search);
-  if (params.has("data")) return <DetailApp />;
-  if (params.has("compare")) return <ExperimentCompare />;
-  return <ExperimentIndex />;
+  const page = params.has("data") ? (
+    <DetailApp />
+  ) : params.has("compare") ? (
+    <ExperimentCompare />
+  ) : (
+    <ExperimentIndex />
+  );
+  return (
+    <ThemeContext.Provider value={theme}>
+      {page}
+      <ThemeMenu choice={choice} onChange={setChoice} />
+    </ThemeContext.Provider>
+  );
 }
 
 createRoot(document.getElementById("root")).render(<Root />);

@@ -2,6 +2,9 @@
 @import "@fontsource/ibm-plex-mono/latin-500.css";
 @import "tailwindcss";
 
+/* dark: utilities follow the theme on <html>, not only the system setting. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 @layer base {
   :root {
     color-scheme: light;
@@ -15,7 +18,56 @@
     --accent-soft: #eaf0ff;
     --success: #087f5b;
     --danger: #c92a2a;
+    --on-accent: #ffffff;
+    --ink-soft: #444b56;
+    --ink-faint: #767d88;
+    --raised: #ffffff;
+    --raised-glass: rgb(255 255 255 / 0.94);
+    --section: rgb(255 255 255 / 0.96);
+    --hover: #f7f9ff;
+    --table-head: #f7f8fa;
+    --disabled-bg: #f7f8f9;
+    --grid-line: rgb(32 35 41 / 0.035);
+    --nav-border: rgb(173 180 191 / 0.9);
+    --shadow: rgb(32 35 41 / 0.07);
+    --shadow-strong: rgb(32 35 41 / 0.18);
+    --good-bg: #eaf8f2;
+    --bad-bg: #fff0f0;
+    --complete-line: #8ed1b8; --complete-bg: #e9f8f2; --complete-ink: #06634a;
+    --partial-line: #e4b77d; --partial-bg: #fff4e5; --partial-ink: #8a4b08;
+    --stale-line: #e6a1a1; --stale-bg: #fff0f0; --stale-ink: #a31d1d;
     font-family: "IBM Plex Sans Variable", sans-serif;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ink: #e4e7ec;
+    --muted: #9aa1ad;
+    --line: #2d333d;
+    --line-strong: #4a525e;
+    --paper: #111418;
+    --panel: #181c22;
+    --accent: #6d9bff;
+    --accent-soft: #1b2744;
+    --success: #4cc79a;
+    --danger: #ff7b7b;
+    --on-accent: #0b1220;
+    --ink-soft: #c3c8d1;
+    --ink-faint: #7d8491;
+    --raised: #1e232b;
+    --raised-glass: rgb(24 28 34 / 0.94);
+    --section: rgb(24 28 34 / 0.96);
+    --hover: #1f2735;
+    --table-head: #1b2027;
+    --disabled-bg: #15191e;
+    --grid-line: rgb(228 231 236 / 0.035);
+    --nav-border: rgb(74 82 94 / 0.9);
+    --shadow: rgb(0 0 0 / 0.35);
+    --shadow-strong: rgb(0 0 0 / 0.55);
+    --good-bg: #12302a;
+    --bad-bg: #3a1a1c;
+    --complete-line: #2f7a60; --complete-bg: #10302a; --complete-ink: #7fe0bb;
+    --partial-line: #8a6330; --partial-bg: #33260f; --partial-ink: #f3c27f;
+    --stale-line: #8a3a3a; --stale-bg: #3a1a1c; --stale-ink: #ff9d9d;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--paper); color: var(--ink); }
@@ -27,13 +79,13 @@
 @layer components {
   .min-h-screen, .experiment-index, .compare-page {
     background-color: var(--paper);
-    background-image: linear-gradient(rgb(32 35 41 / 0.035) 1px, transparent 1px), linear-gradient(90deg, rgb(32 35 41 / 0.035) 1px, transparent 1px);
+    background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
     background-size: 32px 32px;
   }
   .detail-nav, .index-toolbar, .compare-controls {
     z-index: 20; display: flex; align-items: end; gap: 0.65rem;
-    min-height: 3.75rem; border: 1px solid rgb(173 180 191 / 0.9); border-radius: 6px;
-    background: rgb(255 255 255 / 0.94); box-shadow: 0 8px 24px rgb(32 35 41 / 0.07);
+    min-height: 3.75rem; border: 1px solid var(--nav-border); border-radius: 6px;
+    background: var(--raised-glass); box-shadow: 0 8px 24px var(--shadow);
     padding: 0.6rem; backdrop-filter: blur(12px);
   }
   .compare-controls { position: sticky; top: 0.75rem; }
@@ -52,7 +104,7 @@
     border: 1px solid var(--line-strong); border-radius: 4px; background: var(--panel);
     color: var(--ink); padding: 0.45rem 0.75rem; text-decoration: none; white-space: nowrap;
   }
-  .nav-link-primary { border-color: var(--accent); background: var(--accent); color: white; }
+  .nav-link-primary { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
   .detail-nav .nav-link-primary { margin-left: auto; }
 
   .dashboard-detail { display: grid; gap: 1.5rem; }
@@ -76,7 +128,7 @@
   }
   .solver-metrics thead th:first-child { text-align: left; }
   .solver-metrics tbody th {
-    color: #444b56; font: 600 0.66rem/1.2 "IBM Plex Mono", monospace;
+    color: var(--ink-soft); font: 600 0.66rem/1.2 "IBM Plex Mono", monospace;
     text-align: left; text-transform: uppercase;
   }
   .solver-metrics td { font-size: 1.25rem; font-weight: 700; line-height: 1; text-align: right; }
@@ -85,10 +137,10 @@
   .metric-cell strong { font-variant-numeric: tabular-nums; }
   .dashboard-group { display: grid; gap: 0.65rem; scroll-margin-top: 5.5rem; }
   .chart-grid { align-items: start; }
-  .group-title { padding: 0 0.2rem; color: #444b56; }
+  .group-title { padding: 0 0.2rem; color: var(--ink-soft); }
   .chart-section, .pareto-panel {
     min-width: 0; border: 1px solid var(--line); border-radius: 6px;
-    background: rgb(255 255 255 / 0.96); padding: 0 1rem 0.9rem;
+    background: var(--section); padding: 0 1rem 0.9rem;
   }
   .chart-section-wide { grid-column: 1 / -1; }
   .chart-heading { padding-top: 0.9rem; }
@@ -96,13 +148,13 @@
   .chart-title-row h2 { margin: 0; font-size: 0.96rem; font-weight: 650; letter-spacing: -0.012em; }
   .chart-help-button {
     display: inline-grid; width: 1.45rem; height: 1.45rem; flex: 0 0 auto; place-items: center;
-    border: 1px solid var(--line-strong); border-radius: 50%; background: white; color: #4d5561;
+    border: 1px solid var(--line-strong); border-radius: 50%; background: var(--raised); color: var(--muted);
     font: 600 0.75rem/1 "IBM Plex Mono", monospace; cursor: pointer;
   }
   .chart-help-button:hover, .chart-help-button[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .chart-description {
     max-width: 92ch; margin: 0.7rem 0 0.2rem; border-left: 2px solid var(--accent);
-    background: #f7f9ff; color: #444b56; padding: 0.65rem 0.8rem; font-size: 0.78rem; line-height: 1.55;
+    background: var(--hover); color: var(--ink-soft); padding: 0.65rem 0.8rem; font-size: 0.78rem; line-height: 1.55;
   }
 
   .experiment-index { min-height: 100vh; max-width: 92rem; margin: auto; padding: 1rem; }
@@ -117,16 +169,16 @@
     gap: 1rem; min-height: 4.2rem; color: var(--ink); padding: 0.75rem 1rem; text-decoration: none;
   }
   .experiment-list > * + * { border-top: 1px solid var(--line); }
-  .experiment-list > a:hover { background: #f7f9ff; }
+  .experiment-list > a:hover { background: var(--hover); }
   .experiment-main { display: grid; gap: 0.2rem; min-width: 0; }
   .experiment-main strong { color: var(--ink); }
   .experiment-main > span, .experiment-list small { color: var(--muted); }
   .experiment-list small { font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .experiment-list .is-disabled { color: #767d88; background: #f7f8f9; }
+  .experiment-list .is-disabled { color: var(--ink-faint); background: var(--disabled-bg); }
   .status-badge { justify-self: end; border: 1px solid var(--line-strong); border-radius: 999px; padding: 0.28rem 0.55rem; font: 500 0.67rem/1 "IBM Plex Mono", monospace; }
-  .status-complete { border-color: #8ed1b8; background: #e9f8f2; color: #06634a; }
-  .status-completed_with_failures { border-color: #e4b77d; background: #fff4e5; color: #8a4b08; }
-  .status-stale { border-color: #e6a1a1; background: #fff0f0; color: #a31d1d; }
+  .status-complete { border-color: var(--complete-line); background: var(--complete-bg); color: var(--complete-ink); }
+  .status-completed_with_failures { border-color: var(--partial-line); background: var(--partial-bg); color: var(--partial-ink); }
+  .status-stale { border-color: var(--stale-line); background: var(--stale-bg); color: var(--stale-ink); }
 
   .compare-page { min-height: 100vh; padding: 1rem; }
   .compare-shell { width: 100%; margin: auto; display: grid; gap: 1rem; }
@@ -141,13 +193,13 @@
     position: absolute; z-index: 30; top: calc(100% + 0.5rem); right: 0; left: 0;
     max-height: calc(100vh - 6rem); overflow: auto; display: grid; gap: 0.75rem;
     border: 1px solid var(--line-strong); border-radius: 6px; background: var(--paper);
-    box-shadow: 0 20px 60px rgb(32 35 41 / 0.18); padding: 0.75rem;
+    box-shadow: 0 20px 60px var(--shadow-strong); padding: 0.75rem;
   }
   .filter-panel > button { justify-self: end; }
   .experiment-matrix { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.65rem; }
   .experiment-card {
     display: grid; grid-template-columns: auto 0.25rem 1fr; gap: 0.75rem; min-height: 7rem;
-    border: 1px solid var(--line); border-radius: 6px; background: white; padding: 0.9rem; opacity: 0.55; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--raised); padding: 0.9rem; opacity: 0.55; cursor: pointer;
   }
   .experiment-card:hover, .experiment-card.is-active { border-color: var(--experiment); opacity: 1; }
   .experiment-card.is-disabled { opacity: 0.32; cursor: not-allowed; filter: grayscale(1); }
@@ -155,31 +207,51 @@
   .experiment-swatch { min-height: 100%; border-radius: 2px; background: var(--experiment); }
   .experiment-card strong, .experiment-card small, .experiment-card code { display: block; }
   .experiment-card small { margin-top: 0.3rem; color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
-  .experiment-card code { margin-top: 0.6rem; color: #444b56; font: 0.62rem/1.45 "IBM Plex Mono", monospace; overflow-wrap: anywhere; }
+  .experiment-card code { margin-top: 0.6rem; color: var(--ink-soft); font: 0.62rem/1.45 "IBM Plex Mono", monospace; overflow-wrap: anywhere; }
 
-  .comparison-table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: white; box-shadow: inset -12px 0 14px -16px rgb(32 35 41 / 0.7); }
+  .comparison-table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); box-shadow: inset -12px 0 14px -16px var(--shadow-strong); }
   .comparison-table { width: 100%; min-width: 62rem; border-collapse: separate; border-spacing: 0; font-size: 0.76rem; font-variant-numeric: tabular-nums; }
   .comparison-table th, .comparison-table td { border-bottom: 1px solid var(--line); padding: 0.78rem 0.9rem; text-align: right; white-space: nowrap; }
-  .comparison-table thead th { position: sticky; top: 0; z-index: 2; background: #f7f8fa; color: var(--muted); font: 500 0.61rem/1 "IBM Plex Mono", monospace; letter-spacing: 0.07em; text-transform: uppercase; }
-  .comparison-table th:first-child { position: sticky; left: 0; z-index: 3; background: white; text-align: left; color: var(--ink); }
-  .comparison-table thead th:first-child { background: #f7f8fa; }
+  .comparison-table thead th { position: sticky; top: 0; z-index: 2; background: var(--table-head); color: var(--muted); font: 500 0.61rem/1 "IBM Plex Mono", monospace; letter-spacing: 0.07em; text-transform: uppercase; }
+  .comparison-table th:first-child { position: sticky; left: 0; z-index: 3; background: var(--raised); text-align: left; color: var(--ink); }
+  .comparison-table thead th:first-child { background: var(--table-head); }
   .comparison-table tr.is-baseline th:first-child { box-shadow: inset 3px 0 var(--accent); }
-  .comparison-table tr.is-baseline { background: #f7f9ff; }
+  .comparison-table tr.is-baseline { background: var(--hover); }
   .comparison-table i { display: inline-block; width: 0.48rem; height: 0.48rem; border-radius: 50%; margin-right: 0.55rem; }
   .call-pair span { display: inline-block; min-width: 3.2rem; }
-  .delta-good { color: var(--success); background: #eaf8f2; font-weight: 650; }
-  .delta-bad { color: var(--danger); background: #fff0f0; font-weight: 650; }
+  .delta-good { color: var(--success); background: var(--good-bg); font-weight: 650; }
+  .delta-bad { color: var(--danger); background: var(--bad-bg); font-weight: 650; }
   .missing-data { color: var(--muted); text-align: left !important; }
 
   .pareto-chart { min-width: 0; }
   .pareto-chart > .chart-heading { margin-bottom: 0.5rem; }
   .pareto-panel { padding-top: 0.75rem; }
   .pareto-subtitle { max-width: 100ch; margin: 0 auto 0.25rem; color: var(--muted); font-size: 0.74rem; line-height: 1.5; text-align: center; }
-  .pareto-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.45rem 1rem; margin-top: 0.6rem; color: #444b56; font-size: 0.72rem; }
+  .pareto-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.45rem 1rem; margin-top: 0.6rem; color: var(--ink-soft); font-size: 0.72rem; }
   .pareto-key span { display: inline-flex; align-items: center; gap: 0.35rem; }
   .pareto-key i { width: 0.55rem; height: 0.55rem; border-radius: 50%; }
   .individual-links { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; border-top: 1px solid var(--line); padding: 1.5rem 0 3rem; }
   .individual-links a { border-bottom: 2px solid var(--experiment); color: var(--ink); padding: 0.4rem 0.1rem; font-size: 0.78rem; text-decoration: none; }
+}
+
+@layer components {
+  .theme-menu { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 50; display: grid; justify-items: end; gap: 0.5rem; }
+  .theme-menu-button {
+    display: grid; width: 2.75rem; height: 2.75rem; place-items: center;
+    border: 1px solid var(--line-strong); border-radius: 50%; background: var(--raised);
+    color: var(--ink); box-shadow: 0 8px 24px var(--shadow-strong); cursor: pointer;
+  }
+  .theme-menu-button:hover, .theme-menu-button[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+  .theme-menu-panel {
+    display: grid; min-width: 9rem; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--raised); box-shadow: 0 20px 60px var(--shadow-strong); padding: 0.3rem;
+  }
+  .theme-menu-panel button {
+    border: 0; border-radius: 4px; background: transparent; color: var(--ink);
+    padding: 0.5rem 0.7rem; text-align: left; cursor: pointer;
+  }
+  .theme-menu-panel button:hover { background: var(--hover); }
+  .theme-menu-panel button[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 }
 
 @media (max-width: 900px) {

@@ -8,6 +8,7 @@ import { ClingoCallsChart } from "./charts/ClingoCallsChart";
 import { ClingoCostChart } from "./charts/ClingoCostChart";
 import { ClingoModelsChart } from "./charts/ClingoModelsChart";
 import { CrossoverGainLossChart } from "./charts/CrossoverGainLossChart";
+import { EpochChart } from "./charts/EpochChart";
 import { FitnessChart } from "./charts/FitnessChart";
 import { OperatorImprovementChart } from "./charts/OperatorImprovementChart";
 import { OperatorScoreDeltaChart } from "./charts/OperatorScoreDeltaChart";
@@ -18,9 +19,12 @@ import { QualityChart } from "./charts/QualityChart";
 import { SolverStatsChart } from "./charts/SolverStatsChart";
 import { TypeSplitChart } from "./charts/TypeSplitChart";
 import {
+  algorithmLabel,
   assertDashboardSchema,
   bestRunRatio,
   clingoCalls,
+  clingoPhaseContexts,
+  clingoPhaseLabel,
   clingoSeconds,
   dataUrl,
   evolutionarySeconds,
@@ -225,9 +229,11 @@ function Detail({ benchmark }) {
     <div className="dashboard-detail">
       <div className="metric-summary">
         <MetricGroup title="resultado" className="metric-group-result">
+          <Stat label="algoritmo" value={algorithmLabel(benchmark)} />
           <Stat label="is best" value={bestRunRatio(benchmark)} />
           <Stat label="runs" value={runCount(benchmark)} />
           <Stat label="candidatas" value={fmtInt(benchmark.candidates)} />
+          <Stat label="reinicios" value={fmt(benchmark.restarts, 1)} />
           <Stat label="bottleneck" value={benchmark.dominant || topPhase(benchmark).label} />
         </MetricGroup>
         <MetricGroup title="tiempo" className="metric-group-time">
@@ -249,6 +255,7 @@ function Detail({ benchmark }) {
         <FitnessChart benchmark={benchmark} />
         <QualityChart benchmark={benchmark} />
         <QualityProgramChart benchmark={benchmark} />
+        <EpochChart benchmark={benchmark} />
       </ChartGroup>
       <ChartGroup title="Operadores evolutivos">
         <OperatorsChart benchmark={benchmark} />
@@ -276,12 +283,6 @@ function MetricGroup({ title, children, className = "" }) {
   );
 }
 
-const SOLVER_PHASES = [
-  ["clause space", "clause_generation"],
-  ["mutation", "mutation"],
-  ["crossover", "crossover"],
-];
-
 function SolverMetrics({ benchmark }) {
   return (
     <table className="solver-metrics">
@@ -293,9 +294,9 @@ function SolverMetrics({ benchmark }) {
         </tr>
       </thead>
       <tbody>
-        {SOLVER_PHASES.map(([label, phase]) => (
+        {clingoPhaseContexts(benchmark).map((phase) => (
           <tr key={phase}>
-            <th scope="row">{label}</th>
+            <th scope="row">{clingoPhaseLabel(phase)}</th>
             <td>{fmtInt(clingoCalls(benchmark, phase, "grounding"))}</td>
             <td>{fmtInt(clingoCalls(benchmark, phase, "solving"))}</td>
           </tr>

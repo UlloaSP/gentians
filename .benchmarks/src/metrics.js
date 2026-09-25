@@ -1,6 +1,5 @@
 export const phaseOrder = [
   ["clauseGeneration", "clause generation"],
-  ["pregrounding", "pregrounding"],
   ["initialization", "initialization"],
   ["selection", "selection"],
   ["crossover", "crossover"],
@@ -25,8 +24,53 @@ export const colors = {
   accent: "#ef4444",
 };
 
+// Fitness points: [generation, seconds, evaluations, max, avg, bestSoFar, diversity, invalidRate, restarted].
 const POINT_INDEX = { max: 3, avg: 4, bestSoFar: 5 };
-export const DASHBOARD_SCHEMA_VERSION = 10;
+const AXIS_INDEX = { generation: 0, seconds: 1, evaluations: 2 };
+const RESTART_INDEX = 8;
+export const progressAxes = [
+  ["generation", "generación"],
+  ["evaluations", "evaluaciones de fitness"],
+  ["seconds", "segundos"],
+];
+export const progressAxisLabel = (axis) =>
+  (progressAxes.find(([key]) => key === axis) || progressAxes[0])[1];
+export const DASHBOARD_SCHEMA_VERSION = 12;
+
+// Phase contexts in which the algorithms request Clingo, in pipeline order.
+export const clingoPhases = [
+  ["clause_generation", "clauses"],
+  ["initialization", "initialization"],
+  ["selection", "selection"],
+  ["crossover", "crossover"],
+  ["mutation", "mutation"],
+  ["replacement", "replacement"],
+  ["search", "search orchestration"],
+];
+export const clingoPhaseLabel = (context) =>
+  clingoPhases.find(([key]) => key === context)?.[1] || context || "unattributed";
+export const clingoPhaseOrder = (context) => {
+  const index = clingoPhases.findIndex(([key]) => key === context);
+  return index < 0 ? clingoPhases.length : index;
+};
+export const clingoPhaseContexts = (benchmark) =>
+  [...new Set((benchmark.clingoSummary || []).map((row) => row.phase_context))].sort(
+    (left, right) => clingoPhaseOrder(left) - clingoPhaseOrder(right),
+  );
+
+const ALGORITHMS = { steady_state: "steady-state", incremental: "incremental" };
+export const algorithmLabel = (benchmark) =>
+  ALGORITHMS[benchmark.algorithm] || benchmark.algorithm || "n/a";
+
+export const epochReasons = [
+  ["generations", "renovación"],
+  ["stagnation", "reinicio"],
+  ["space_exhausted", "espacio agotado"],
+  ["solution", "solución"],
+  ["generation_limit", "límite"],
+];
+export const epochReasonCount = (benchmark, reason) =>
+  num(benchmark.epochs?.reasons?.find((row) => row.reason === reason)?.meanCount);
 
 export function assertDashboardSchema(payload, source = "") {
   if (payload.schemaVersion === DASHBOARD_SCHEMA_VERSION) return;
@@ -92,7 +136,6 @@ export const pythonSeconds = (benchmark) =>
 export const evolutionarySeconds = (benchmark) =>
   sum(
     [
-      "pregrounding",
       "initialization",
       "selection",
       "crossover",
@@ -118,50 +161,25 @@ export const topPhase = (benchmark) =>
     seconds: 0,
   });
 
-export const generationPoints = (run, metric = "bestSoFar") =>
+export const generationPoints = (run, metric = "bestSoFar", axis = "generation") =>
   (run?.points || [])
-    .map((point) => [Number(point[0]), Number(point[POINT_INDEX[metric]])])
+    .map((point) => [Number(point[AXIS_INDEX[axis]]), Number(point[POINT_INDEX[metric]])])
     .filter(([position, value]) => Number.isFinite(position) && Number.isFinite(value))
     .sort(([left], [right]) => left - right);
 
-function alignedSeries(runs, metric) {
-  const runPoints = runs
-    .map((run) => generationPoints(run, metric))
-    .filter((points) => points.length);
-  const positions = [
-    ...new Set(runPoints.flatMap((points) => points.map(([position]) => position))),
-  ].sort((a, b) => a - b);
-  const carried = runPoints.map((points) => {
-    let index = 0;
-    let current = null;
-    return positions.map((position) => {
-      while (index < points.length && points[index][0] <= position) {
-        current = points[index][1];
-        index += 1;
-      }
-      return current;
-    });
-  });
-  return positions
-    .map((position, index) => [
-      position,
-      carried.map((values) => values[index]).filter((value) => value !== null),
-    ])
-    .filter(([, values]) => values.length);
-}
+export const restartPositions = (run, axis = "generation") =>
+  (run?.points || [])
+    .filter((point) => point[RESTART_INDEX] === true)
+    .map((point) => Number(point[AXIS_INDEX[axis]]))
+    .filter(Number.isFinite)
+    .sort((left, right) => left - right);
 
-export function aggregateSeries(runs, metric = "bestSoFar") {
-  return alignedSeries(runs, metric).map(([position, values]) => {
-    const mean = sum(values) / values.length;
-    return { position, mean, min: Math.min(...values), max: Math.max(...values) };
-  });
-}
-
-export const bestSeries = (runs) =>
-  alignedSeries(runs, "max").map(([position, values]) => ({
-    position,
-    value: Math.max(...values),
-  }));
+// The producer aggregates runs; the preview only reads its series.
+// max, avg and bestSoFar rows are [x, mean, min, max]; best rows are [x, highest max].
+export const meanSeries = (benchmark, metric = "bestSoFar", axis = "generation") =>
+  (benchmark.fitnessMean?.[axis]?.[metric] || []).map(([position, mean, min, max]) =>
+    metric === "best" ? { position, value: mean } : { position, mean, min, max },
+  );
 
 export const operatorLabel = (row) => `${row.operator}:${row.strategy}`;
 export const operatorRows = (benchmark) => benchmark.operatorSummary || [];

@@ -8,7 +8,6 @@ const BLOCKS = [
   [
     "Evolution",
     [
-      "pregrounding",
       "initialization",
       "selection",
       "crossover",

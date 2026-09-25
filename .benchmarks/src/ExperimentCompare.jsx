@@ -44,6 +44,7 @@ export function ExperimentCompare() {
   const [baselineId, setBaselineId] = useState("");
   const [view, setView] = useState("values");
   const [progressView, setProgressView] = useState("mean");
+  const [progressAxis, setProgressAxis] = useState("generation");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -213,6 +214,8 @@ export function ExperimentCompare() {
           rows={rows}
           progressView={progressView}
           setProgressView={setProgressView}
+          progressAxis={progressAxis}
+          setProgressAxis={setProgressAxis}
         />
       </div>
     </main>
@@ -350,23 +353,17 @@ function benchmarkNames(experiments, dashboards) {
     ),
   ].sort();
 }
+// Overrides are the interpretable difference between an experiment and its control.
 function configSummary(experiment) {
-  const config = experiment.overrides || experiment.config;
   const flat = [`runs=${experiment.runs ?? "?"}`];
-  if (!config) return flat[0];
   const visit = (value, prefix = "") =>
     Object.entries(value || {}).forEach(([key, item]) => {
       const name = prefix ? `${prefix}.${key}` : key;
       if (item && typeof item === "object" && !Array.isArray(item)) visit(item, name);
-      else if (
-        ["strategy", "fitness", "evaluation", "grounding", "mode", "runs"].some((token) =>
-          name.toLowerCase().includes(token),
-        )
-      )
-        flat.push(`${name}=${Array.isArray(item) ? item.join(",") : item}`);
+      else flat.push(`${name}=${Array.isArray(item) ? item.join(",") : item}`);
     });
-  visit(config);
-  return flat.slice(0, 4).join(" · ") || JSON.stringify(config).slice(0, 110);
+  visit(experiment.overrides);
+  return flat.join(" · ");
 }
 function formatDelta(value, baseline) {
   if (!baseline) return "—";

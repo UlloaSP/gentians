@@ -1,14 +1,18 @@
 import { chartTw } from "../chartTw";
 import { Chart } from "../components/Chart";
 import { ChartSection } from "../components/Layout";
+import { restartMarks } from "./FitnessChart";
 import {
-  aggregateSeries,
-  bestSeries,
+  clingoPhaseLabel,
+  clingoPhaseOrder,
   crossoverGainLabel,
   crossoverGainRows,
+  epochReasonCount,
+  epochReasons,
   generationPoints,
   improvementOperatorRows,
   maybeNum,
+  meanSeries,
   measuredTotal,
   num,
   operatorLabel,
@@ -16,6 +20,9 @@ import {
   phaseOrder,
   phaseTypeTotal,
   programSizeCounts,
+  progressAxes,
+  progressAxisLabel,
+  restartPositions,
   scoreDeltaRows,
   totalSeconds,
   typeOrder,
@@ -44,22 +51,11 @@ const SEGMENT_STYLES = [
   { opacity: 0.44, decal: { symbol: "rect", dashArrayX: [2, 3], dashArrayY: [2, 5] } },
   { opacity: 0.32, decal: { symbol: "circle", dashArrayX: [1, 6], dashArrayY: [1, 6] } },
 ];
-const PHASES = {
-  clause_generation: ["clauses", 0],
-  pregrounding: ["pregrounding", 1],
-  population: ["initialization", 2],
-  selection: ["selection", 3],
-  crossover: ["crossover", 4],
-  mutation: ["mutation", 5],
-  replacement: ["replacement", 6],
-  search: ["search orchestration", 7],
-};
 const TYPE_BLOCKS = [
   ["Clauses", ["clauseGeneration"]],
   [
     "Evolution",
     [
-      "pregrounding",
       "initialization",
       "selection",
       "crossover",
@@ -70,7 +66,13 @@ const TYPE_BLOCKS = [
   ],
 ];
 
-export function ComparisonCharts({ rows, progressView, setProgressView }) {
+export function ComparisonCharts({
+  rows,
+  progressView,
+  setProgressView,
+  progressAxis,
+  setProgressAxis,
+}) {
   const available = rows.filter((row) => row.benchmark);
   const runCount = Math.max(
     0,
@@ -83,6 +85,7 @@ export function ComparisonCharts({ rows, progressView, setProgressView }) {
     programSizeCounts(benchmark).some((row) => row.best),
   );
   const hasQuality = available.some(({ benchmark }) => benchmark.quality?.coveragePoints?.length);
+  const hasEpochs = available.some(({ benchmark }) => benchmark.epochs);
 
   return (
     <section>
@@ -98,6 +101,18 @@ export function ComparisonCharts({ rows, progressView, setProgressView }) {
         </ChartSection>
         <ChartSection title="Progreso de búsqueda">
           <div className="chart-control">
+            <label htmlFor="compare-progress-axis">eje</label>
+            <select
+              id="compare-progress-axis"
+              value={progressAxis}
+              onChange={(event) => setProgressAxis(event.target.value)}
+            >
+              {progressAxes.map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
             <label htmlFor="compare-progress-view">mostrar</label>
             <select
               id="compare-progress-view"
@@ -114,13 +129,19 @@ export function ComparisonCharts({ rows, progressView, setProgressView }) {
           </div>
           {available.some(({ benchmark }) => benchmark.fitnessRuns?.length) ? (
             <Chart
-              option={fitnessOption(available, selectedProgressView)}
+              option={fitnessOption(available, selectedProgressView, progressAxis)}
               height={Math.max(420, 370 + available.length * 18)}
             />
           ) : (
             <Empty>Sin progreso instrumentado.</Empty>
           )}
         </ChartSection>
+        <DataPlot
+          title="Épocas incrementales"
+          present={hasEpochs}
+          option={epochOption(available)}
+          empty="Ningún experimento seleccionado divide la búsqueda en épocas"
+        />
         <DataPlot
           title="Resultado operadores"
           present={available.some(({ benchmark }) => outcomeOperatorRows(benchmark).length)}
@@ -352,15 +373,13 @@ function typeSplitOption(rows, title, phases) {
   };
 }
 
-function fitnessOption(rows, view) {
+function fitnessOption(rows, view, axis) {
   const series = rows.flatMap(({ experiment, benchmark }) =>
     (view === "mean" ? MEAN_FITNESS : FITNESS).flatMap(([metric, label, lineType, width]) => {
       const points =
         view === "mean"
-          ? metric === "best"
-            ? bestSeries(benchmark.fitnessRuns || [])
-            : aggregateSeries(benchmark.fitnessRuns || [], metric)
-          : generationPoints(benchmark.fitnessRuns?.[Number(view)], metric);
+          ? meanSeries(benchmark, metric, axis)
+          : generationPoints(benchmark.fitnessRuns?.[Number(view)], metric, axis);
       const stack = `band-${experiment.id}-${metric}`;
       if (!points.length) return [];
       const line = {
@@ -374,6 +393,10 @@ function fitnessOption(rows, view) {
         showSymbol: false,
         lineStyle: { color: experiment.color, type: lineType, width },
       };
+      const restarts =
+        view === "mean" ? [] : restartPositions(benchmark.fitnessRuns?.[Number(view)], axis);
+      if (metric === "bestSoFar" && restarts.length)
+        line.markLine = restartMarks(restarts, experiment.color);
       if (view !== "mean" || metric === "best") return [line];
       return [
         line,
@@ -406,9 +429,33 @@ function fitnessOption(rows, view) {
       ];
     }),
   );
-  const option = lineOption(series, "generación", "fitness", 90);
+  const option = lineOption(series, progressAxisLabel(axis), "fitness", 90);
+  // Color identifies the experiment, so the legend keys each metric by line style only.
+  option.legend.data = (view === "mean" ? MEAN_FITNESS : FITNESS).map(
+    ([, label, lineType, width]) => ({
+      name: label,
+      itemStyle: { color: "#64748b" },
+      lineStyle: { color: "#64748b", type: lineType, width },
+    }),
+  );
   option.graphic = [ringKey(rows)];
   option.grid.top = 52 + rows.length * 18;
+  return option;
+}
+
+function epochOption(rows) {
+  const option = barOption(
+    epochReasons.map(([, label]) => label),
+    rows.map(({ experiment, benchmark }) => ({
+      type: "bar",
+      name: experiment.label,
+      data: epochReasons.map(([reason]) =>
+        benchmark.epochs ? epochReasonCount(benchmark, reason) : null,
+      ),
+      itemStyle: { color: experiment.color },
+    })),
+    { yName: "épocas por run" },
+  );
   return option;
 }
 
@@ -686,21 +733,23 @@ function barOption(labels, series, settings = {}) {
     rate = false,
     labelFormatter,
   } = settings;
+  // ECharts treats an explicit `axisLabel: undefined` as hidden labels, so omit unset keys.
   const category = {
     type: "category",
     data: labels,
     inverse,
-    axisLabel: labelFormatter
-      ? { formatter: labelFormatter, interval: 0, lineHeight: 15 }
+    ...(labelFormatter
+      ? { axisLabel: { formatter: labelFormatter, interval: 0, lineHeight: 15 } }
       : rotate
-        ? { rotate }
-        : undefined,
+        ? { axisLabel: { rotate } }
+        : {}),
   };
   const value = {
     type: "value",
     name: horizontal ? "segundos" : yName,
-    max: rate ? 1 : undefined,
-    axisLabel: rate ? { formatter: (item) => `${Math.round(item * 100)}%` } : undefined,
+    ...(rate
+      ? { max: 1, axisLabel: { formatter: (item) => `${Math.round(item * 100)}%` } }
+      : {}),
   };
   const keys = divisions.map(([name, style]) => ({
     type: "bar",
@@ -841,7 +890,8 @@ function solveGroups(benchmark) {
   for (const row of benchmark.clingoSummary || []) {
     if (row.operation_category !== "solving") continue;
     const key = row.phase_context || "unattributed";
-    const [label, order] = PHASES[key] || [key, 7];
+    const label = clingoPhaseLabel(key);
+    const order = Math.min(clingoPhaseOrder(key), SEGMENT_STYLES.length - 1);
     const current = groups.get(key) || { name: label, value: 0, calls: 0, order };
     current.value += num(row.total_models);
     current.calls += num(row.calls);

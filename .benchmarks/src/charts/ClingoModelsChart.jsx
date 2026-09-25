@@ -2,17 +2,16 @@ import { useMemo } from "react";
 import { chartTw } from "../chartTw";
 import { Chart } from "../components/Chart";
 import { ChartSection } from "../components/Layout";
-import { fmt, fmtInt, num } from "../metrics";
+import { clingoPhaseLabel, clingoPhaseOrder, fmt, fmtInt, num } from "../metrics";
 
-const PHASES = {
-  clause_generation: { label: "clauses", color: "#8E63BE", order: 0 },
-  pregrounding: { label: "pregrounding", color: "#6D4AA5", order: 1 },
-  population: { label: "initialization", color: "#4C78A8", order: 2 },
-  selection: { label: "selection", color: "#72B7B2", order: 3 },
-  crossover: { label: "crossover", color: "#F28E2B", order: 4 },
-  mutation: { label: "mutation", color: "#E15759", order: 5 },
-  replacement: { label: "replacement", color: "#59A14F", order: 6 },
-  search: { label: "search orchestration", color: "#30343B", order: 7 },
+const PHASE_COLORS = {
+  clause_generation: "#8E63BE",
+  initialization: "#4C78A8",
+  selection: "#72B7B2",
+  crossover: "#F28E2B",
+  mutation: "#E15759",
+  replacement: "#59A14F",
+  search: "#30343B",
 };
 
 const emptyGroup = (key, label) => ({ key, label, calls: 0, models: 0 });
@@ -29,7 +28,11 @@ function solveGroups(rows) {
     if (row.operation_category !== "solving") continue;
     add(all, row);
     const key = row.phase_context || "unattributed";
-    const phase = PHASES[key] || { label: key, color: "#9CA3AF", order: 99 };
+    const phase = {
+      label: clingoPhaseLabel(key),
+      color: PHASE_COLORS[key] || "#9CA3AF",
+      order: clingoPhaseOrder(key),
+    };
     if (!groups.has(key)) groups.set(key, { ...emptyGroup(key, phase.label), ...phase });
     add(groups.get(key), row);
   }

@@ -8,12 +8,18 @@ import subprocess
 import sys
 import threading
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_BASELINE_PATH = Path(__file__).resolve()
+# Keep in sync with DASHBOARD_SCHEMA_VERSION in .benchmarks/src/metrics.js.
+DASHBOARD_SCHEMA_VERSION = 12
+# Progress points kept per run and positions in each precomputed mean series.
+RUN_PROGRESS_POINTS = 300
+MEAN_PROGRESS_POINTS = 300
+PROGRESS_AXES = ("generation", "seconds", "evaluations")
 sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.catalog import (  # noqa: E402
@@ -71,6 +77,11 @@ class GAMetric:
     mean_program_size: float = 0.0
     elapsed_seconds: float = 0.0
     fitness_evaluations: int = 0
+    restarted: bool = False
+
+
+# Reasons recorded by incremental search when an epoch ends, in display order.
+EPOCH_REASONS = ("generations", "stagnation", "space_exhausted", "solution", "generation_limit")
 
 
 def parse_profile_args(
@@ -142,6 +153,7 @@ def run_benchmark_suite(
     candidate_metrics: list[dict[str, object]] = []
     quality_metrics: list[dict[str, object]] = []
     clingo_metrics: list[dict[str, object]] = []
+    epoch_metrics: list[dict[str, object]] = []
 
     dataset_names = list(args.datasets)
     total = len(dataset_names) * args.runs
@@ -154,23 +166,15 @@ def run_benchmark_suite(
             raise SystemExit(f"Invalid arguments for dataset {dataset}: {exc}") from exc
         for run in range(1, args.runs + 1):
             completed += 1
-            timings_path = out_dir / "runs" / f"{dataset}_run_{run}_timings.json"
-            ga_metrics_path = out_dir / "runs" / f"{dataset}_run_{run}_ga_metrics.json"
-            operator_metrics_path = (
-                out_dir / "runs" / f"{dataset}_run_{run}_operator_metrics.jsonl"
-            )
-            candidate_metrics_path = (
-                out_dir / "runs" / f"{dataset}_run_{run}_candidate_metrics.jsonl"
-            )
-            quality_metrics_path = (
-                out_dir / "runs" / f"{dataset}_run_{run}_quality_metrics.jsonl"
-            )
-            clingo_metrics_path = (
-                out_dir / "runs" / f"{dataset}_run_{run}_clingo_metrics.jsonl"
-            )
-            log_path = out_dir / "runs" / f"{dataset}_run_{run}.log"
-            cprofile_path = out_dir / "runs" / f"{dataset}_run_{run}.prof"
-            incremental_metrics_path = out_dir / "runs" / f"{dataset}_run_{run}_incremental_metrics.jsonl"
+            timings_path = run_file(out_dir, dataset, run, "_timings.json")
+            ga_metrics_path = run_file(out_dir, dataset, run, "_ga_metrics.json")
+            operator_metrics_path = run_file(out_dir, dataset, run, "_operator_metrics.jsonl")
+            candidate_metrics_path = run_file(out_dir, dataset, run, "_candidate_metrics.jsonl")
+            quality_metrics_path = run_file(out_dir, dataset, run, "_quality_metrics.jsonl")
+            clingo_metrics_path = run_file(out_dir, dataset, run, "_clingo_metrics.jsonl")
+            log_path = run_file(out_dir, dataset, run, ".log")
+            cprofile_path = run_file(out_dir, dataset, run, ".prof")
+            incremental_metrics_path = run_file(out_dir, dataset, run, "_incremental_metrics.jsonl")
             reset_run_outputs(
                 [
                     timings_path,
@@ -247,25 +251,14 @@ def run_benchmark_suite(
                 cprofile_path=str(cprofile_path) if args.cprofile else "",
             )
             results.append(run_result)
-            ga_metrics.extend(read_ga_metrics(ga_metrics_path, dataset, run))
-            run_timings = read_timings(timings_path, dataset, run)
-            timings.extend(run_timings)
-            operator_metrics.extend(
-                read_jsonl_rows(
-                    operator_metrics_path, dataset, run, seed, experiment_id
-                )
-            )
-            candidate_metrics.extend(
-                read_jsonl_rows(
-                    candidate_metrics_path, dataset, run, seed, experiment_id
-                )
-            )
-            quality_metrics.extend(
-                read_jsonl_rows(quality_metrics_path, dataset, run, seed, experiment_id)
-            )
-            clingo_metrics.extend(
-                read_jsonl_rows(clingo_metrics_path, dataset, run, seed, experiment_id)
-            )
+            artifacts = read_run_artifacts(out_dir, run_result)
+            ga_metrics.extend(artifacts.ga)
+            timings.extend(artifacts.timings)
+            operator_metrics.extend(artifacts.operator)
+            candidate_metrics.extend(artifacts.candidate)
+            quality_metrics.extend(artifacts.quality)
+            clingo_metrics.extend(artifacts.clingo)
+            epoch_metrics.extend(artifacts.epochs)
             print(
                 f"[{completed}/{total}] {dataset} run {run} {status} {elapsed:.2f}s\n",
                 flush=True,
@@ -285,7 +278,90 @@ def run_benchmark_suite(
         quality_metrics,
         clingo_metrics,
         instrumentation_level=getattr(args, "instrumentation", "full"),
+        epoch_metrics=epoch_metrics,
     )
+
+
+def run_file(out_dir: Path, dataset: str, run: int, suffix: str) -> Path:
+    """Return the path of one per-run artifact inside an experiment directory."""
+    return out_dir / "runs" / f"{dataset}_run_{run}{suffix}"
+
+
+@dataclass
+class RunArtifacts:
+    timings: list[TimingMetric]
+    ga: list[GAMetric]
+    operator: list[dict[str, object]]
+    candidate: list[dict[str, object]]
+    quality: list[dict[str, object]]
+    clingo: list[dict[str, object]]
+    epochs: list[dict[str, object]]
+
+
+def read_run_artifacts(out_dir: Path, result: RunResult) -> RunArtifacts:
+    """Read the raw metrics one run wrote; missing files yield no rows."""
+    dataset, run = result.dataset, result.run
+
+    def rows(suffix: str) -> list[dict[str, object]]:
+        return read_jsonl_rows(
+            run_file(out_dir, dataset, run, suffix), dataset, run, result.seed,
+            result.experiment_id,
+        )
+
+    return RunArtifacts(
+        timings=read_timings(run_file(out_dir, dataset, run, "_timings.json"), dataset, run),
+        ga=read_ga_metrics(run_file(out_dir, dataset, run, "_ga_metrics.json"), dataset, run),
+        operator=rows("_operator_metrics.jsonl"),
+        candidate=rows("_candidate_metrics.jsonl"),
+        quality=rows("_quality_metrics.jsonl"),
+        clingo=rows("_clingo_metrics.jsonl"),
+        epochs=rows("_incremental_metrics.jsonl"),
+    )
+
+
+def rebuild_dashboard(out_dir: Path) -> None:
+    """Rewrite dashboard_data.json from the raw run artifacts kept in out_dir.
+
+    Uses the current aggregation and schema. Metrics a run never recorded stay
+    absent, so their charts show an empty state instead of invented values.
+    """
+    with (out_dir / "runs.csv").open(encoding="utf-8", newline="") as file:
+        results = [
+            RunResult(
+                dataset=row["dataset"],
+                run=int(row["run"]),
+                seed=int(row["seed"]),
+                experiment_id=row["experiment_id"],
+                status=row["status"],
+                returncode=int(row["returncode"]) if row["returncode"] else None,
+                elapsed_seconds=float(row["elapsed_seconds"]),
+                command=[],
+                arguments_json=row["arguments_json"],
+                log_path=row["log_path"],
+                success=row["success"].lower() == "true",
+                cprofile_path=row.get("cprofile_path", ""),
+            )
+            for row in csv.DictReader(file)
+        ]
+    results_by_dataset: dict[str, list[RunResult]] = {}
+    for result in results:
+        results_by_dataset.setdefault(result.dataset, []).append(result)
+    benchmarks = []
+    # One dataset at a time bounds memory by its runs, not the whole experiment.
+    for dataset, dataset_results in sorted(results_by_dataset.items()):
+        metrics = RunArtifacts([], [], [], [], [], [], [])
+        for result in dataset_results:
+            run = read_run_artifacts(out_dir, result)
+            metrics.timings.extend(run.timings)
+            metrics.ga.extend(run.ga)
+            metrics.operator.extend(run.operator)
+            metrics.candidate.extend(run.candidate)
+            metrics.quality.extend(run.quality)
+            metrics.clingo.extend(run.clingo)
+            metrics.epochs.extend(run.epochs)
+        benchmarks.append(dashboard_benchmark(dataset, dataset_results, metrics))
+        del metrics
+    write_dashboard_payload(out_dir, benchmarks)
 
 
 def _default_python() -> str:
@@ -521,6 +597,7 @@ def read_ga_metrics(path: Path, dataset: str, run: int) -> list[GAMetric]:
             to_float(row.get("mean_program_size")),
             to_float(row.get("elapsed_seconds")),
             int(to_float(row.get("fitness_evaluations"))),
+            bool(row.get("restarted", False)),
         )
         for row in rows
     ]
@@ -569,8 +646,10 @@ def write_outputs(
     quality_metrics: list[dict[str, object]],
     clingo_metrics: list[dict[str, object]],
     instrumentation_level: str = "full",
+    epoch_metrics: Sequence[dict[str, object]] = (),
 ) -> None:
     write_csv(out_dir / "runs.csv", [asdict(r) for r in results])
+    write_csv(out_dir / "incremental_epochs.csv", normalize_rows(list(epoch_metrics)))
     write_csv(out_dir / "timings_raw.csv", [asdict(t) for t in timings])
     write_csv(out_dir / "ga_fitness.csv", [asdict(p) for p in ga_metrics])
     if instrumentation_level == "light":
@@ -599,6 +678,7 @@ def write_outputs(
         candidate_metrics,
         quality_metrics,
         clingo_metrics,
+        epoch_metrics=epoch_metrics,
     )
 
 
@@ -611,140 +691,108 @@ def write_dashboard_data(
     candidate_metrics: list[dict[str, object]],
     quality_metrics: list[dict[str, object]],
     clingo_metrics: list[dict[str, object]],
+    *,
+    epoch_metrics: Sequence[dict[str, object]] = (),
 ) -> None:
-    datasets = sorted({result.dataset for result in results})
-    clingo_rows = clingo_summary(clingo_metrics)
-    operator_rows = operator_summary(operator_metrics)
     results_by_dataset: dict[str, list[RunResult]] = {}
-    timings_by_dataset: dict[str, list[TimingMetric]] = {}
-    ga_by_dataset: dict[str, list[GAMetric]] = {}
-    operator_rows_by_dataset = _rows_by_dataset(operator_rows)
-    quality_metrics_by_dataset = _rows_by_dataset(quality_metrics)
-    clingo_metrics_by_dataset = _rows_by_dataset(clingo_metrics)
-    clingo_rows_by_dataset = _rows_by_dataset(clingo_rows)
-    candidate_metrics_by_dataset = _rows_by_dataset(candidate_metrics)
     for result in results:
         results_by_dataset.setdefault(result.dataset, []).append(result)
+    timings_by_dataset: dict[str, list[TimingMetric]] = {}
     for timing in timings:
         timings_by_dataset.setdefault(timing.dataset, []).append(timing)
+    ga_by_dataset: dict[str, list[GAMetric]] = {}
     for metric in ga_metrics:
         ga_by_dataset.setdefault(metric.dataset, []).append(metric)
+    operator_by_dataset = _rows_by_dataset(operator_metrics)
+    candidate_by_dataset = _rows_by_dataset(candidate_metrics)
+    quality_by_dataset = _rows_by_dataset(quality_metrics)
+    clingo_by_dataset = _rows_by_dataset(clingo_metrics)
+    epochs_by_dataset = _rows_by_dataset(list(epoch_metrics))
+    write_dashboard_payload(out_dir, [
+        dashboard_benchmark(
+            dataset,
+            results_by_dataset[dataset],
+            RunArtifacts(
+                timings=timings_by_dataset.get(dataset, []),
+                ga=ga_by_dataset.get(dataset, []),
+                operator=operator_by_dataset.get(dataset, []),
+                candidate=candidate_by_dataset.get(dataset, []),
+                quality=quality_by_dataset.get(dataset, []),
+                clingo=clingo_by_dataset.get(dataset, []),
+                epochs=epochs_by_dataset.get(dataset, []),
+            ),
+        )
+        for dataset in sorted(results_by_dataset)
+    ])
 
-    benchmarks = []
-    for dataset in datasets:
-        dataset_results = results_by_dataset.get(dataset, [])
-        dataset_timings = timings_by_dataset.get(dataset, [])
-        dataset_ga = ga_by_dataset.get(dataset, [])
-        dataset_quality = quality_metrics_by_dataset.get(dataset, [])
-        dataset_clingo_summary = clingo_rows_by_dataset.get(dataset, [])
-        phases = dashboard_phases(dataset_timings)
-        instrumented_total = mean(
-            timing.seconds
-            for timing in dataset_timings
-            if timing.metric == "total_execution"
-        )
-        instrumented_runs = len(
-            {
-                timing.run
-                for timing in dataset_timings
-                if timing.metric == "total_execution"
-            }
-        )
-        dataset_clingo_metrics = clingo_metrics_by_dataset.get(dataset, [])
-        clingo_run_ids = sorted(
-            {int(to_float(row.get("run"))) for row in dataset_clingo_metrics}
-        )
-        solve_run_ids = _clingo_run_ids(dataset_clingo_metrics, "solving")
-        ground_run_ids = _clingo_run_ids(dataset_clingo_metrics, "grounding")
-        solve_calls = mean(
-            _clingo_calls_for_run(dataset_clingo_metrics, run, "solving")
-            for run in solve_run_ids
-        )
-        ground_calls = mean(
-            _clingo_calls_for_run(dataset_clingo_metrics, run, "grounding")
-            for run in ground_run_ids
-        )
-        atoms = mean_run_call_mean(dataset_clingo_metrics, clingo_run_ids, "stats_atoms")
-        ground_rules = mean_run_call_mean(dataset_clingo_metrics, clingo_run_ids, "stats_rules")
-        choices = mean(
-            _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "stats_choices")
-            for run in solve_run_ids
-        )
-        conflicts = mean(
-            _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "stats_conflicts")
-            for run in solve_run_ids
-        )
-        models = mean(
-            _clingo_stat_sum_for_run(dataset_clingo_metrics, run, "solving", "models")
-            for run in solve_run_ids
-        )
-        candidates = mean(
-            candidate_clause_count(row)
-            for row in candidate_metrics_by_dataset.get(dataset, [])
-            if is_clause_generation_metric(row)
-        )
-        benchmarks.append(
-            {
-                "name": dataset,
-                "candidates": int(candidates),
-                "total": instrumented_total,
-                "instrumentedRuns": instrumented_runs,
-                "runCount": len(dataset_results),
-                "bestFoundRuns": sum(1 for result in dataset_results if result.success),
-                "solveCalls": solve_calls,
-                "groundCalls": ground_calls,
-                "atoms": atoms,
-                "groundRules": ground_rules,
-                "choices": choices,
-                "conflicts": conflicts,
-                "models": models,
-                "dominant": dominant_phase(phases),
-                "phases": phases,
-                "fitnessRuns": dashboard_fitness_runs(dataset_ga),
-                "operatorSummary": [
-                    row for row in operator_rows_by_dataset.get(dataset, [])
-                ],
-                "quality": dashboard_quality(dataset_quality),
-                "clingoSummary": dataset_clingo_summary,
-            }
-        )
-    payload = {"schemaVersion": 10, "benchmarks": benchmarks}
+
+def write_dashboard_payload(out_dir: Path, benchmarks: list[dict[str, object]]) -> None:
+    payload = {"schemaVersion": DASHBOARD_SCHEMA_VERSION, "benchmarks": benchmarks}
     (out_dir / "dashboard_data.json").write_text(
         json.dumps(json_safe(payload), separators=(",", ":"), allow_nan=False),
         encoding="utf-8",
     )
 
 
-def _clingo_calls_for_run(
-    rows: list[dict[str, object]], run: int, category: str
-) -> float:
-    return sum(
-        1
-        for row in rows
-        if int(to_float(row.get("run"))) == run
-        and row.get("operation_category") == category
-    )
+def dashboard_benchmark(
+    dataset: str, results: list[RunResult], metrics: RunArtifacts,
+) -> dict[str, object]:
+    """Aggregate every metric of one dataset; each run weighs the same."""
+    phases = dashboard_phases(metrics.timings)
+    totals = [timing for timing in metrics.timings if timing.metric == "total_execution"]
+    clingo_by_run = _rows_by_run_number(metrics.clingo)
+    solve_runs = _category_rows_by_run(clingo_by_run, "solving")
+    ground_runs = _category_rows_by_run(clingo_by_run, "grounding")
+    # Incremental search records one prepared space per batch; the largest
+    # is the clause space the run reached. Steady-state records one.
+    largest_space_by_run: dict[int, float] = {}
+    for row in metrics.candidate:
+        if is_clause_generation_metric(row):
+            run = int(to_float(row.get("run")))
+            largest_space_by_run[run] = max(
+                largest_space_by_run.get(run, 0.0), candidate_clause_count(row)
+            )
+    progress = _progress_by_run(metrics.ga)
+    return {
+        "name": dataset,
+        "algorithm": run_algorithm(results),
+        "candidates": int(mean(largest_space_by_run.values())),
+        "restarts": mean(sum(point.restarted for point in points) for points in progress),
+        "epochs": dashboard_epochs(metrics.epochs),
+        "total": mean(timing.seconds for timing in totals),
+        "instrumentedRuns": len({timing.run for timing in totals}),
+        "runCount": len(results),
+        "bestFoundRuns": sum(1 for result in results if result.success),
+        "solveCalls": mean(len(rows) for rows in solve_runs.values()),
+        "groundCalls": mean(len(rows) for rows in ground_runs.values()),
+        "atoms": mean_run_call_mean(metrics.clingo, sorted(clingo_by_run), "stats_atoms"),
+        "groundRules": mean_run_call_mean(metrics.clingo, sorted(clingo_by_run), "stats_rules"),
+        "choices": _mean_run_sum(solve_runs, "stats_choices"),
+        "conflicts": _mean_run_sum(solve_runs, "stats_conflicts"),
+        "models": _mean_run_sum(solve_runs, "models"),
+        "dominant": dominant_phase(phases),
+        "phases": phases,
+        "fitnessRuns": dashboard_fitness_runs(metrics.ga),
+        "fitnessMean": dashboard_fitness_mean(metrics.ga),
+        "operatorSummary": operator_summary(metrics.operator),
+        "quality": dashboard_quality(metrics.quality),
+        "clingoSummary": clingo_summary(metrics.clingo),
+    }
 
 
-def _clingo_run_ids(rows: list[dict[str, object]], category: str) -> list[int]:
-    return sorted(
-        {
-            int(to_float(row.get("run")))
-            for row in rows
-            if row.get("operation_category") == category
-        }
-    )
+def _category_rows_by_run(
+    rows_by_run: dict[int, list[dict[str, object]]], category: str,
+) -> dict[int, list[dict[str, object]]]:
+    """Keep the runs that made at least one call of this Clingo category."""
+    selected = {
+        run: [row for row in rows if row.get("operation_category") == category]
+        for run, rows in rows_by_run.items()
+    }
+    return {run: rows for run, rows in selected.items() if rows}
 
 
-def _clingo_stat_sum_for_run(
-    rows: list[dict[str, object]], run: int, category: str, key: str
-) -> float:
-    return sum(
-        to_float(row.get(key))
-        for row in rows
-        if int(to_float(row.get("run"))) == run
-        and row.get("operation_category") == category
-    )
+def _mean_run_sum(rows_by_run: dict[int, list[dict[str, object]]], key: str) -> float:
+    return mean(sum(to_float(row.get(key)) for row in rows) for rows in rows_by_run.values())
 
 
 def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]:
@@ -777,7 +825,6 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
 
     phases = {
         "clauseGeneration": phase("clause_generation"),
-        "pregrounding": phase("pregrounding"),
         "initialization": phase("initialization"),
         "selection": phase("selection"),
         "crossover": phase("crossover"),
@@ -799,13 +846,103 @@ def dominant_phase(phases: dict[str, dict[str, float]]) -> str:
     return max(totals, key=totals.get)
 
 
+def _progress_by_run(metrics: list[GAMetric]) -> list[list[GAMetric]]:
+    by_run: dict[int, list[GAMetric]] = {}
+    for metric in metrics:
+        by_run.setdefault(metric.run, []).append(metric)
+    return [
+        sorted(points, key=lambda metric: metric.generation)
+        for _, points in sorted(by_run.items())
+    ]
+
+
+def _progress_position(metric: GAMetric, axis: str) -> float:
+    if axis == "seconds":
+        return metric.elapsed_seconds
+    if axis == "evaluations":
+        return float(metric.fitness_evaluations)
+    return float(metric.generation)
+
+
+def thin_progress(points: list[GAMetric], limit: int = RUN_PROGRESS_POINTS) -> list[GAMetric]:
+    """Keep at most `limit` points of one run, plus every event the chart marks.
+
+    The first and last points, each best-so-far improvement and each restart
+    always survive; evenly spaced points fill the remaining budget.
+    """
+    if len(points) <= limit:
+        return points
+    kept = {0, len(points) - 1}
+    kept.update(
+        index for index in range(1, len(points))
+        if points[index].best_so_far != points[index - 1].best_so_far
+        or points[index].restarted
+    )
+    spare = limit - len(kept)
+    if spare > 0:
+        step = len(points) / spare
+        kept.update(int(slot * step) for slot in range(spare))
+    return [points[index] for index in sorted(kept)]
+
+
+def dashboard_fitness_mean(metrics: list[GAMetric]) -> dict[str, dict[str, list[list[float]]]]:
+    """Aggregate progress across runs on a grid for every x axis.
+
+    Each run carries its last value forward from its first recorded point. For
+    max, avg and best so far a row is [x, mean, min, max]; best is [x, highest max].
+    """
+    runs = _progress_by_run(metrics)
+    fields = {
+        "max": lambda metric: metric.max_fitness,
+        "avg": lambda metric: metric.avg_fitness,
+        "bestSoFar": lambda metric: metric.best_so_far,
+    }
+    result: dict[str, dict[str, list[list[float]]]] = {}
+    for axis in PROGRESS_AXES:
+        series: dict[str, list[list[float]]] = {"best": [], **{name: [] for name in fields}}
+        tracks = []
+        for points in runs:
+            # Sort by position only: ties keep generation order.
+            track = sorted(
+                (
+                    (_progress_position(point, axis), point)
+                    for point in points
+                    if math.isfinite(_progress_position(point, axis))
+                ),
+                key=lambda item: item[0],
+            )
+            if track:
+                tracks.append(track)
+        positions = sorted({position for track in tracks for position, _ in track})
+        if len(positions) > MEAN_PROGRESS_POINTS:
+            low, high = positions[0], positions[-1]
+            step = (high - low) / (MEAN_PROGRESS_POINTS - 1)
+            positions = [low + step * slot for slot in range(MEAN_PROGRESS_POINTS)]
+        cursors = [0] * len(tracks)
+        for position in positions:
+            current: list[GAMetric] = []
+            for index, track in enumerate(tracks):
+                while cursors[index] < len(track) and track[cursors[index]][0] <= position:
+                    cursors[index] += 1
+                if cursors[index]:
+                    current.append(track[cursors[index] - 1][1])
+            for name, value in fields.items():
+                values = [value(point) for point in current if math.isfinite(value(point))]
+                if values:
+                    series[name].append(
+                        [position, sum(values) / len(values), min(values), max(values)]
+                    )
+            highest = [point.max_fitness for point in current if math.isfinite(point.max_fitness)]
+            if highest:
+                series["best"].append([position, max(highest)])
+        result[axis] = series
+    return result
+
+
 def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
     runs = []
-    for run in sorted({metric.run for metric in metrics}):
-        points = sorted(
-            [metric for metric in metrics if metric.run == run],
-            key=lambda metric: metric.generation,
-        )
+    for points in _progress_by_run(metrics):
+        points = thin_progress(points)
         runs.append(
             {
                 "points": [
@@ -818,12 +955,48 @@ def dashboard_fitness_runs(metrics: list[GAMetric]) -> list[dict[str, object]]:
                         point.best_so_far,
                         point.diversity,
                         point.invalid_rate,
+                        point.restarted,
                     ]
                     for point in points
                 ],
             }
         )
     return runs
+
+
+def run_algorithm(results: list[RunResult]) -> str:
+    """Return the search algorithm shared by the runs of one dataset."""
+    algorithms = {
+        str(json.loads(result.arguments_json).get("algorithm", "steady_state"))
+        for result in results
+    }
+    if len(algorithms) > 1:
+        raise ValueError(f"runs mix search algorithms: {sorted(algorithms)}")
+    return algorithms.pop() if algorithms else ""
+
+
+def dashboard_epochs(rows: list[dict[str, object]]) -> dict[str, object] | None:
+    """Summarize incremental epochs with equal weight per run."""
+    if not rows:
+        return None
+    by_run = _rows_by_run_number(rows)
+    return {
+        "runs": len(by_run),
+        "meanEpochs": mean(len(run_rows) for run_rows in by_run.values()),
+        "reasons": [
+            {
+                "reason": reason,
+                "meanCount": mean(
+                    sum(row.get("reason") == reason for row in run_rows)
+                    for run_rows in by_run.values()
+                ),
+            }
+            for reason in EPOCH_REASONS
+        ],
+        "meanActiveClauses": mean(to_float(row.get("active_clauses")) for row in rows),
+        "meanGenerations": mean(to_float(row.get("generations")) for row in rows),
+        "meanEvaluations": mean(to_float(row.get("evaluations")) for row in rows),
+    }
 
 
 def dashboard_quality(rows: list[dict[str, object]]) -> dict[str, object]:
@@ -967,25 +1140,16 @@ def normalize_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
 
 def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     summary: list[dict[str, object]] = []
-    keys = sorted(
-        {
-            (
+    groups: dict[tuple[str, str, str], list[dict[str, object]]] = {}
+    for row in rows:
+        if row.get("operator"):
+            key = (
                 str(row.get("dataset", "")),
                 str(row.get("operator", "")),
                 str(row.get("strategy", "")),
             )
-            for row in rows
-            if row.get("operator")
-        }
-    )
-    for dataset, operator, strategy in keys:
-        selected = [
-            row
-            for row in rows
-            if row.get("dataset") == dataset
-            and row.get("operator") == operator
-            and row.get("strategy") == strategy
-        ]
+            groups.setdefault(key, []).append(row)
+    for (dataset, operator, strategy), selected in sorted(groups.items()):
         run_summaries = [
             operator_run_summary(operator, run_rows)
             for run_rows in _rows_by_run_number(selected).values()
@@ -1021,10 +1185,29 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "mean_score_delta": mean_optional(
                     row["mean_score_delta"] for row in run_summaries
                 ),
-                "crossover_strategy": "",
-                "crossover_gain_events": None,
-                "lost_crossover_gain_rate": None,
-                "retained_crossover_gain_rate": None,
+                "crossover_strategy": next(
+                    (
+                        str(row.get("crossover_strategy"))
+                        for row in selected
+                        if row.get("crossover_strategy")
+                    ),
+                    "",
+                ),
+                "crossover_gain_events": (
+                    mean(row["crossover_gain_events"] for row in run_summaries)
+                    if operator == "mutation"
+                    else None
+                ),
+                "lost_crossover_gain_rate": (
+                    mean_optional(row["lost_crossover_gain_rate"] for row in run_summaries)
+                    if operator == "mutation"
+                    else None
+                ),
+                "retained_crossover_gain_rate": (
+                    mean_optional(row["retained_crossover_gain_rate"] for row in run_summaries)
+                    if operator == "mutation"
+                    else None
+                ),
             }
         )
     return summary
@@ -1049,15 +1232,26 @@ def operator_run_summary(
         to_float(row.get("not_competitive"))
         for row in selected
     )
-    improved_count = operator_improved_count(selected, operator)
     best_count = operator_best_count(selected, operator)
     replacement_operator = operator == "replacement"
-    score_deltas = [
-        to_float(row.get("new_score")) - to_float(row.get("original_score"))
+    crossover_gain_events = sum(to_float(row.get("crossover_improved")) for row in selected)
+    lost_crossover_gain_events = sum(
+        to_float(row.get("lost_crossover_gain")) for row in selected
+    )
+    # Improvement and score delta share one denominator: new results with both scores.
+    scored = [
+        row
         for row in selected
         if row.get("valid_new") is True
         and row.get("new_score") not in (None, "")
         and row.get("original_score") not in (None, "")
+    ]
+    improved_count = operator_improved_count(
+        selected if replacement_operator else scored, operator
+    )
+    score_deltas = [
+        to_float(row.get("new_score")) - to_float(row.get("original_score"))
+        for row in scored
     ]
     replacement_deltas = [
         to_float(row.get("candidate_score")) - to_float(row.get("victim_score"))
@@ -1107,9 +1301,17 @@ def operator_run_summary(
         if operator == "mutation"
         else None,
         "mean_score_delta": mean_score_delta,
-        "crossover_gain_events": None,
-        "lost_crossover_gain_rate": None,
-        "retained_crossover_gain_rate": None,
+        "crossover_gain_events": crossover_gain_events,
+        "lost_crossover_gain_rate": (
+            lost_crossover_gain_events / crossover_gain_events
+            if crossover_gain_events
+            else None
+        ),
+        "retained_crossover_gain_rate": (
+            1.0 - lost_crossover_gain_events / crossover_gain_events
+            if crossover_gain_events
+            else None
+        ),
     }
 
 

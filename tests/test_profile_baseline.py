@@ -13,13 +13,17 @@ from benchmarks.profile_baseline import (
     RunResult,
     TimingMetric,
     clingo_summary,
+    dashboard_fitness_mean,
     dashboard_phases,
     dashboard_quality,
     operator_summary,
     parse_log,
+    rebuild_dashboard,
     reset_run_outputs,
     run_profile_worker,
     run_streamed,
+    thin_progress,
+    write_csv,
     write_dashboard_data,
     write_debug_clingo_program,
 )
@@ -217,6 +221,26 @@ def test_operator_summary_marks_unobserved_score_outcomes():
     assert summary["improvement_rate"] is None
     assert summary["worse_or_equal_rate"] is None
     assert summary["mean_score_delta"] is None
+
+
+def test_operator_improvement_counts_only_scored_new_results():
+    rows = [
+        {"dataset": "d", "run": 1, "operator": "crossover", "strategy": "set_mix",
+         "slots": 1, "valid_new": valid, "improved": improved,
+         "original_score": 1.0, "new_score": new_score}
+        for valid, improved, new_score in (
+            (True, True, 2.0),
+            (True, False, 0.5),
+            (False, True, 3.0),  # A duplicate is not a new result.
+            (True, False, ""),  # An unscored child has no outcome.
+        )
+    ]
+
+    [summary] = operator_summary(rows)
+
+    assert summary["improvement_rate"] == 0.5
+    assert summary["worse_or_equal_rate"] == 0.5
+    assert summary["mean_score_delta"] == pytest.approx(0.25)
 
 
 def test_operator_summary_uses_run_means():
@@ -540,18 +564,16 @@ def test_dashboard_attributes_genetic_self_to_ga_python():
     assert "other" not in phases["replacement"]
 
 
-def test_dashboard_has_pregrounding_phase():
-    phases = dashboard_phases(
-        [
-            TimingMetric("d", 1, "total_execution", 10.0, 1),
-            TimingMetric("d", 1, "pregrounding", 4.0, 1),
-            TimingMetric("d", 1, "pregrounding.self", 4.0, 1),
-            TimingMetric("d", 1, "pregrounding.grounding", 3.0, 1),
-        ]
-    )
-
-    assert phases["pregrounding"]["grounding"] == 3.0
-    assert phases["pregrounding"]["python"] == 1.0
+def test_dashboard_phases_are_the_phases_the_algorithms_record():
+    assert list(dashboard_phases([])) == [
+        "clauseGeneration",
+        "initialization",
+        "selection",
+        "crossover",
+        "mutation",
+        "replacement",
+        "gaPython",
+    ]
 
 
 def test_dashboard_attributes_fitness_cost_to_operator_phase():
@@ -895,6 +917,7 @@ def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
     )
 
     bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
+    assert bench["algorithm"] == "steady_state"
     assert bench["candidates"] == 200
     assert bench["groundCalls"] == 1
     assert bench["solveCalls"] == 1.5
@@ -929,14 +952,12 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
     run = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0][
         "fitnessRuns"
     ][0]
-    assert run["points"] == [[0, 0.0, 0, 1.0, 0.5, 1.0, 0.5, 0.25]]
+    assert run["points"] == [[0, 0.0, 0, 1.0, 0.5, 1.0, 0.5, 0.25, False]]
     fitness_chart = Path(".benchmarks/src/charts/FitnessChart.jsx").read_text(
         encoding="utf-8"
     )
     assert 'useState("mean")' in fitness_chart
-    assert 'name: "generación"' in fitness_chart
-    assert "fitnessEvaluations" not in fitness_chart
-    assert "elapsedSeconds" not in fitness_chart
+    assert 'useState("generation")' in fitness_chart
 
 
 def test_dashboard_reports_instrumentation_coverage(tmp_path):
@@ -956,7 +977,7 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 10
+    assert payload["schemaVersion"] == 12
     assert benchmark["total"] == 3.0
     assert benchmark["instrumentedRuns"] == 1
     assert "wall" not in benchmark
@@ -989,7 +1010,104 @@ def test_ga_progress_exposes_round_time_and_evaluations(tmp_path):
     run = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0][
         "fitnessRuns"
     ][0]
-    assert run["points"] == [[2, 4.5, 27, 3.0, 2.0, 3.0, 0.0, 0.0]]
+    assert run["points"] == [[2, 4.5, 27, 3.0, 2.0, 3.0, 0.0, 0.0, False]]
+
+
+def test_dashboard_reports_largest_clause_space_per_run(tmp_path):
+    rows = [
+        {"dataset": "d", "run": run, "metric": "clause_generation", "clauses": clauses}
+        for run, clauses in ((1, 10), (1, 40), (1, 25), (2, 20))
+    ]
+    write_dashboard_data(
+        tmp_path,
+        [RunResult("d", run, run, "run", "ok", 0, 1.0, [], "{}", "") for run in (1, 2)],
+        [],
+        [],
+        [],
+        rows,
+        [],
+        [],
+    )
+
+    bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
+    assert bench["candidates"] == 30
+
+
+def test_dashboard_summarizes_restarts_epochs_and_algorithm(tmp_path):
+    arguments = json.dumps({"algorithm": "incremental"})
+    write_dashboard_data(
+        tmp_path,
+        [RunResult("d", run, run, "run", "ok", 0, 1.0, [], arguments, "") for run in (1, 2)],
+        [],
+        [
+            GAMetric("d", 1, 0, 1.0, 1.0, 1.0),
+            GAMetric("d", 1, 1, 1.0, 1.0, 1.0, restarted=True),
+            GAMetric("d", 1, 2, 1.0, 1.0, 1.0, restarted=True),
+            GAMetric("d", 2, 0, 1.0, 1.0, 1.0),
+        ],
+        [],
+        [],
+        [],
+        [],
+        epoch_metrics=[
+            {"dataset": "d", "run": 1, "reason": "generations", "active_clauses": 10,
+             "generations": 50, "evaluations": 40},
+            {"dataset": "d", "run": 1, "reason": "stagnation", "active_clauses": 30,
+             "generations": 100, "evaluations": 80},
+            {"dataset": "d", "run": 2, "reason": "solution", "active_clauses": 20,
+             "generations": 30, "evaluations": 30},
+        ],
+    )
+
+    bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
+    assert bench["algorithm"] == "incremental"
+    assert bench["restarts"] == 1
+    assert [point[-1] for point in bench["fitnessRuns"][0]["points"]] == [False, True, True]
+    epochs = bench["epochs"]
+    assert epochs["runs"] == 2
+    assert epochs["meanEpochs"] == 1.5
+    assert {row["reason"]: row["meanCount"] for row in epochs["reasons"]} == {
+        "generations": 0.5,
+        "stagnation": 0.5,
+        "space_exhausted": 0.0,
+        "solution": 0.5,
+        "generation_limit": 0.0,
+    }
+    assert epochs["meanActiveClauses"] == 20
+    assert epochs["meanGenerations"] == 60
+
+
+def test_steady_state_dashboard_has_no_epochs(tmp_path):
+    write_dashboard_data(
+        tmp_path,
+        [RunResult("d", 1, 1, "run", "ok", 0, 1.0, [], "{}", "")],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
+
+    bench = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
+    assert bench["epochs"] is None
+    assert bench["restarts"] == 0
+
+
+def test_operator_summary_measures_lost_crossover_gains():
+    rows = [
+        {"dataset": "d", "run": 1, "operator": "mutation", "strategy": "random_group",
+         "slots": 1, "crossover_strategy": "set_mix", "crossover_improved": improved,
+         "lost_crossover_gain": lost}
+        for improved, lost in ((True, True), (True, False), (True, False), (False, False))
+    ]
+
+    [summary] = operator_summary(rows)
+
+    assert summary["crossover_strategy"] == "set_mix"
+    assert summary["crossover_gain_events"] == 3
+    assert summary["lost_crossover_gain_rate"] == pytest.approx(1 / 3)
+    assert summary["retained_crossover_gain_rate"] == pytest.approx(2 / 3)
 
 
 def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
@@ -1020,7 +1138,7 @@ def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
 
     assert payload["benchmarks"][0]["fitnessRuns"][0]["points"] == [
-        [332, 0.0, 0, -0.02, None, -0.02, 0.0, 0.0]
+        [332, 0.0, 0, -0.02, None, -0.02, 0.0, 0.0, False]
     ]
 
 
@@ -1080,3 +1198,80 @@ def test_resource_snapshot_keeps_last_search_progress(tmp_path, monkeypatch):
         assert progress["best_so_far"] == 2.0
     finally:
         timing.reset()
+
+
+def test_progress_mean_carries_each_run_forward_on_every_axis():
+    metrics = [
+        GAMetric("d", 1, 0, 2.0, 1.0, 2.0, elapsed_seconds=0.0, fitness_evaluations=5),
+        GAMetric("d", 1, 2, 6.0, 5.0, 6.0, elapsed_seconds=2.0, fitness_evaluations=9),
+        GAMetric("d", 2, 0, 4.0, 3.0, 4.0, elapsed_seconds=0.0, fitness_evaluations=5),
+        GAMetric("d", 2, 1, 8.0, 7.0, 8.0, elapsed_seconds=1.0, fitness_evaluations=7),
+        GAMetric("d", 2, 2, 10.0, 9.0, 10.0, elapsed_seconds=2.0, fitness_evaluations=9),
+    ]
+
+    mean = dashboard_fitness_mean(metrics)
+
+    assert mean["generation"]["max"] == [
+        [0.0, 3.0, 2.0, 4.0],
+        [1.0, 5.0, 2.0, 8.0],
+        [2.0, 8.0, 6.0, 10.0],
+    ]
+    assert mean["generation"]["best"] == [[0.0, 4.0], [1.0, 8.0], [2.0, 10.0]]
+    assert [row[0] for row in mean["evaluations"]["max"]] == [5.0, 7.0, 9.0]
+    assert mean["seconds"]["avg"][-1] == [2.0, 7.0, 5.0, 9.0]
+
+
+def test_progress_mean_uses_a_bounded_grid(monkeypatch):
+    monkeypatch.setattr(profile, "MEAN_PROGRESS_POINTS", 5)
+    metrics = [GAMetric("d", 1, generation, 1.0, 1.0, 1.0) for generation in range(101)]
+
+    rows = dashboard_fitness_mean(metrics)["generation"]["max"]
+
+    assert [row[0] for row in rows] == [0.0, 25.0, 50.0, 75.0, 100.0]
+
+
+def test_thin_progress_keeps_improvements_restarts_and_the_last_point():
+    points = [
+        GAMetric("d", 1, generation, 1.0, 1.0, float(generation // 100),
+                 restarted=generation == 333)
+        for generation in range(1000)
+    ]
+
+    kept = thin_progress(points, limit=50)
+
+    generations = [point.generation for point in kept]
+    assert len(kept) <= 50
+    assert generations == sorted(generations)
+    assert {0, 999, 333}.issubset(generations)
+    assert all(generation in generations for generation in range(100, 1000, 100))
+
+
+def test_rebuild_dashboard_reads_saved_run_artifacts(tmp_path):
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    write_csv(tmp_path / "runs.csv", [{
+        "arguments_json": json.dumps({"algorithm": "incremental"}), "command": "[]",
+        "cprofile_path": "", "dataset": "d", "elapsed_seconds": 1.5,
+        "experiment_id": "d_seed_1", "log_path": "x.log", "returncode": 0, "run": 1,
+        "seed": 1, "status": "ok", "success": True,
+    }])
+    (runs / "d_run_1_timings.json").write_text(
+        json.dumps([{"metric": "total_execution", "seconds": 1.25, "calls": 1}])
+    )
+    (runs / "d_run_1_ga_metrics.json").write_text(json.dumps([
+        {"generation": 0, "max_fitness": 1.0, "avg_fitness": 1.0, "best_so_far": 1.0},
+    ]))
+    (runs / "d_run_1_incremental_metrics.jsonl").write_text(
+        json.dumps({"reason": "solution", "active_clauses": 4}) + "\n"
+    )
+
+    rebuild_dashboard(tmp_path)
+
+    payload = json.loads((tmp_path / "dashboard_data.json").read_text())
+    [bench] = payload["benchmarks"]
+    assert payload["schemaVersion"] == 12
+    assert bench["algorithm"] == "incremental"
+    assert bench["total"] == 1.25
+    assert bench["bestFoundRuns"] == 1
+    assert bench["epochs"]["meanEpochs"] == 1
+    assert bench["fitnessMean"]["generation"]["best"] == [[0.0, 1.0]]

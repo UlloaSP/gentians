@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
-  aggregateSeries,
   assertDashboardSchema,
-  bestSeries,
   clingoCalls,
+  clingoPhaseContexts,
+  clingoPhaseLabel,
   crossoverGainLabel,
   crossoverGainRows,
   coverageCriteria,
   coverageExtent,
   coveragePoints,
+  epochReasonCount,
   generationPoints,
+  meanSeries,
+  phaseOrder,
+  restartPositions,
 } from "./metrics";
 
 describe("solver calls", () => {
@@ -35,11 +39,48 @@ describe("solver calls", () => {
 });
 
 describe("dashboard schema", () => {
-  it("accepts v10 and rejects stale dashboards", () => {
-    expect(() => assertDashboardSchema({ schemaVersion: 10 })).not.toThrow();
-    expect(() => assertDashboardSchema({ schemaVersion: 9 }, "old")).toThrow(
-      "old: schema 9; vuelve a ejecutar el experimento",
+  it("accepts v12 and rejects stale dashboards", () => {
+    expect(() => assertDashboardSchema({ schemaVersion: 12 })).not.toThrow();
+    expect(() => assertDashboardSchema({ schemaVersion: 11 }, "old")).toThrow(
+      "old: schema 11; vuelve a ejecutar el experimento",
     );
+  });
+
+  it("lists only the phases the algorithms record", () => {
+    expect(phaseOrder.map(([phase]) => phase)).not.toContain("pregrounding");
+  });
+});
+
+describe("clingo phases", () => {
+  it("orders requesting phases by pipeline and labels clause generation as clauses", () => {
+    const benchmark = {
+      clingoSummary: [
+        { phase_context: "replacement" },
+        { phase_context: "mutation" },
+        { phase_context: "initialization" },
+        { phase_context: "clause_generation" },
+        { phase_context: "replacement" },
+      ],
+    };
+
+    expect(clingoPhaseContexts(benchmark)).toEqual([
+      "clause_generation",
+      "initialization",
+      "mutation",
+      "replacement",
+    ]);
+    expect(clingoPhaseLabel("clause_generation")).toBe("clauses");
+    expect(clingoPhaseLabel("initialization")).toBe("initialization");
+  });
+});
+
+describe("incremental epochs", () => {
+  it("reads the mean epochs per run for one end reason", () => {
+    const benchmark = { epochs: { reasons: [{ reason: "stagnation", meanCount: 1.5 }] } };
+
+    expect(epochReasonCount(benchmark, "stagnation")).toBe(1.5);
+    expect(epochReasonCount(benchmark, "solution")).toBe(0);
+    expect(epochReasonCount({ epochs: null }, "stagnation")).toBe(0);
   });
 });
 
@@ -170,46 +211,37 @@ describe("search progress", () => {
     ]);
   });
 
-  it("aggregates generation values with their observed range", () => {
-    const rows = aggregateSeries(runs, "max");
+  it("reads the producer's mean series for one axis", () => {
+    const benchmark = {
+      fitnessMean: {
+        evaluations: { max: [[10, 3, 2, 4]], best: [[10, 4]] },
+      },
+    };
 
-    expect(rows).toEqual([
-      { position: 0, mean: 3, min: 2, max: 4 },
-      { position: 1, mean: 6, min: 4, max: 8 },
+    expect(meanSeries(benchmark, "max", "evaluations")).toEqual([
+      { position: 10, mean: 3, min: 2, max: 4 },
     ]);
+    expect(meanSeries(benchmark, "best", "evaluations")).toEqual([{ position: 10, value: 4 }]);
+    expect(meanSeries(benchmark, "avg", "evaluations")).toEqual([]);
   });
 
-  it("takes best as the maximum of run maxima", () => {
-    expect(bestSeries(runs)).toEqual([
-      { position: 0, value: 4 },
-      { position: 1, value: 8 },
-    ]);
-  });
+  it("places points on the evaluation or seconds axis", () => {
+    const run = {
+      points: [
+        [0, 0.5, 10, 1, 1, 1, 0, 0, false],
+        [1, 1.5, 30, 2, 2, 2, 0, 0, true],
+      ],
+    };
 
-  it("carries each run forward when generation coordinates differ", () => {
-    expect(
-      aggregateSeries(
-        [
-          {
-            points: [
-              [0, 0, 0, 2],
-              [2, 0, 0, 6],
-            ],
-          },
-          {
-            points: [
-              [0, 0, 0, 4],
-              [1, 0, 0, 8],
-              [2, 0, 0, 10],
-            ],
-          },
-        ],
-        "max",
-      ),
-    ).toEqual([
-      { position: 0, mean: 3, min: 2, max: 4 },
-      { position: 1, mean: 5, min: 2, max: 8 },
-      { position: 2, mean: 8, min: 6, max: 10 },
+    expect(generationPoints(run, "bestSoFar", "evaluations")).toEqual([
+      [10, 1],
+      [30, 2],
     ]);
+    expect(generationPoints(run, "bestSoFar", "seconds")).toEqual([
+      [0.5, 1],
+      [1.5, 2],
+    ]);
+    expect(restartPositions(run)).toEqual([1]);
+    expect(restartPositions(run, "evaluations")).toEqual([30]);
   });
 });

@@ -8,7 +8,7 @@ import clingo
 from clingo.configuration import Configuration
 
 from ..arguments import Arguments
-from ..clingo_stats import clingo_stat, ground_stats
+from ..clingo_stats import clingo_statistics
 from ..language.asp import (
     add_program,
     parse_program,
@@ -304,9 +304,7 @@ class _ClauseGenerator:
         self, ctl, fact_program, solver_arguments, seed,
         grounding_seconds, seconds,
     ) -> None:
-        stats = ctl.statistics
-        models = clingo_stat(stats, "summary", "models", "enumerated")
-        grounded = ground_stats(stats)
+        stats = clingo_statistics(ctl)
         clingo_arguments = " ".join(solver_arguments)
         if grounding_seconds is not None:
             record_metric(
@@ -318,8 +316,8 @@ class _ClauseGenerator:
                     "program_size": 1,
                     "program_chars": sum(map(len, map(str, fact_program)))
                     + sum(map(len, map(str, CLAUSE_METAPROGRAM))),
-                    "stats_atoms": grounded["atoms"],
-                    "stats_rules": grounded["rules"],
+                    "stats_atoms": stats["atoms"],
+                    "stats_rules": stats["rules"],
                     "clingo_arguments": clingo_arguments,
                     "model_limit": 0,
                     "sampling_seed": seed,
@@ -335,7 +333,7 @@ class _ClauseGenerator:
                 "operation_category": "solving",
                 "phase_context": "clause_generation",
                 "seconds": seconds,
-                "models": models,
+                "models": stats["models"],
                 "program_size": 1,
                 "has_numeric_evidence": self.capabilities.has_numeric_evidence,
                 "allow_numeric_comparison": self.capabilities.allow_numeric_comparison,
@@ -344,12 +342,8 @@ class _ClauseGenerator:
                 "allow_aggregates": self.capabilities.allow_aggregates,
                 "allow_recursion": self.capabilities.allow_recursion,
                 "clingo_arguments": clingo_arguments,
-                "stats_choices": clingo_stat(
-                    stats, "solving", "solvers", "choices"
-                ),
-                "stats_conflicts": clingo_stat(
-                    stats, "solving", "solvers", "conflicts"
-                ),
+                "stats_choices": stats["choices"],
+                "stats_conflicts": stats["conflicts"],
             },
         )
 

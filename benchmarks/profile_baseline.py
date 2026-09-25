@@ -641,23 +641,21 @@ def read_jsonl_rows(
     text = read_artifact_text(path)
     if text is None:
         return []
-    rows: list[dict[str, object]] = []
-    for line in text.splitlines():
-        if not line.strip():
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        row = {
-            "dataset": dataset,
-            "run": run,
-            "seed": seed,
-            "experiment_id": experiment_id,
-            **row,
-        }
-        rows.append(row)
-    return rows
+    lines = [line for line in text.splitlines() if line.strip()]
+    try:
+        # One decode per file; a run killed mid-write falls back to line by line.
+        parsed = json.loads("[" + ",".join(lines) + "]")
+    except json.JSONDecodeError:
+        parsed = []
+        for line in lines:
+            try:
+                parsed.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return [
+        {"dataset": dataset, "run": run, "seed": seed, "experiment_id": experiment_id, **row}
+        for row in parsed
+    ]
 
 
 def write_outputs(out_dir: Path, results: list[RunResult], instrumentation_level: str) -> None:
@@ -1211,48 +1209,54 @@ def operator_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
 def operator_run_summary(
     operator: str, selected: list[dict[str, object]]
 ) -> dict[str, float | None]:
-    events = len(selected)
-    slots = sum(operator_slots(row) for row in selected)
-    applied_events = sum(1 for row in selected if operator_applied(row))
-    skipped_slots = sum(
-        operator_slots(row)
-        for row in selected
-        if operator_skipped(row)
-    )
-    valid_new_count = operator_valid_new_count(selected, operator)
-    duplicate_count = operator_duplicate_count(selected, operator)
-    invalid_count = operator_invalid_count(selected, operator)
-    accepted_count = sum(to_float(row.get("accepted")) for row in selected)
-    not_competitive_count = sum(
-        to_float(row.get("not_competitive"))
-        for row in selected
-    )
-    best_count = operator_best_count(selected, operator)
+    """Summarize one run of one operator strategy in a single pass over its rows.
+
+    Counters hold 0/1 values and sum exactly; score deltas are kept as lists so
+    their means match summing them in row order.
+    """
     replacement_operator = operator == "replacement"
-    crossover_gain_events = sum(to_float(row.get("crossover_improved")) for row in selected)
-    lost_crossover_gain_events = sum(
-        to_float(row.get("lost_crossover_gain")) for row in selected
-    )
+    events = len(selected)
+    applied_events = 0
+    slots = skipped_slots = valid_new_count = duplicate_count = invalid_count = 0.0
+    accepted_count = not_competitive_count = best_count = 0.0
+    crossover_gain_events = lost_crossover_gain_events = 0.0
+    improved_victims = scored_improved = 0.0
+    changed: list[float] = []
     # Improvement and score delta share one denominator: new results with both scores.
-    scored = [
-        row
-        for row in selected
-        if row.get("valid_new") is True
-        and row.get("new_score") not in (None, "")
-        and row.get("original_score") not in (None, "")
-    ]
-    improved_count = operator_improved_count(
-        selected if replacement_operator else scored, operator
-    )
-    score_deltas = [
-        to_float(row.get("new_score")) - to_float(row.get("original_score"))
-        for row in scored
-    ]
-    replacement_deltas = [
-        to_float(row.get("candidate_score")) - to_float(row.get("victim_score"))
-        for row in selected
-        if row.get("accepted") is True and row.get("victim_score") not in (None, "")
-    ]
+    score_deltas: list[float] = []
+    replacement_deltas: list[float] = []
+    for row in selected:
+        get = row.get
+        row_slots = to_float(get("slots"))
+        slots += row_slots
+        if to_float(get("applied")):
+            applied_events += 1
+        if to_float(get("skipped")):
+            skipped_slots += row_slots
+        valid_new_count += to_float(get("valid_new"))
+        duplicate_count += to_float(get("duplicate"))
+        invalid_count += to_float(get("invalid"))
+        accepted_count += to_float(get("accepted"))
+        not_competitive_count += to_float(get("not_competitive"))
+        best_count += to_float(get("is_best"))
+        crossover_gain_events += to_float(get("crossover_improved"))
+        lost_crossover_gain_events += to_float(get("lost_crossover_gain"))
+        improved_victims += to_float(get("improved_victim"))
+        if get("changed") not in (None, "") and "changed" in row:
+            changed.append(to_float(get("changed")))
+        new_score, original_score = get("new_score"), get("original_score")
+        if (
+            get("valid_new") is True
+            and new_score not in (None, "")
+            and original_score not in (None, "")
+        ):
+            score_deltas.append(to_float(new_score) - to_float(original_score))
+            scored_improved += to_float(get("improved"))
+        if get("accepted") is True and get("victim_score") not in (None, ""):
+            replacement_deltas.append(
+                to_float(get("candidate_score")) - to_float(get("victim_score"))
+            )
+    improved_count = improved_victims if replacement_operator else scored_improved
     improvement_denominator = (
         accepted_count + not_competitive_count
         if replacement_operator
@@ -1292,9 +1296,7 @@ def operator_run_summary(
             else 0.0 if improvement_denominator == 0.0 else None
         ),
         "best_rate": best_count / slots if slots else 0.0,
-        "changed_rate": mean_bool(selected, "changed")
-        if operator == "mutation"
-        else None,
+        "changed_rate": mean(changed) if operator == "mutation" else None,
         "mean_score_delta": mean_score_delta,
         "crossover_gain_events": crossover_gain_events,
         "lost_crossover_gain_rate": (
@@ -1308,48 +1310,6 @@ def operator_run_summary(
             else None
         ),
     }
-
-
-def operator_slots(row: dict[str, object]) -> float:
-    return to_float(row.get("slots"))
-
-
-def operator_applied(row: dict[str, object]) -> bool:
-    return bool(to_float(row.get("applied")))
-
-
-def operator_skipped(row: dict[str, object]) -> bool:
-    return bool(to_float(row.get("skipped")))
-
-
-def operator_valid_new_count(
-    rows: list[dict[str, object]], operator: str
-) -> float:
-    return sum(to_float(row.get("valid_new")) for row in rows)
-
-
-def operator_duplicate_count(
-    rows: list[dict[str, object]], operator: str
-) -> float:
-    return sum(to_float(row.get("duplicate")) for row in rows)
-
-
-def operator_invalid_count(
-    rows: list[dict[str, object]], operator: str
-) -> float:
-    return sum(to_float(row.get("invalid")) for row in rows)
-
-
-def operator_improved_count(
-    rows: list[dict[str, object]], operator: str
-) -> float:
-    if operator == "replacement":
-        return sum(to_float(row.get("improved_victim")) for row in rows)
-    return sum(to_float(row.get("improved")) for row in rows)
-
-
-def operator_best_count(rows: list[dict[str, object]], operator: str) -> float:
-    return sum(to_float(row.get("is_best")) for row in rows)
 
 
 def is_clause_generation_metric(row: dict[str, object]) -> bool:
@@ -1450,6 +1410,12 @@ def mean_optional(values: Iterable[float | None]) -> float | None:
 
 
 def to_float(value: object) -> float:
+    # Parsed metrics are mostly floats and ints; test those types first.
+    kind = type(value)
+    if kind is float:
+        return value if math.isfinite(value) else 0.0  # type: ignore[return-value]
+    if kind is int:
+        return float(value)  # type: ignore[arg-type]
     if value in (None, ""):
         return 0.0
     if isinstance(value, bool):
@@ -1478,15 +1444,6 @@ def json_safe(value: object) -> object:
     if isinstance(value, dict):
         return {key: json_safe(item) for key, item in value.items()}
     return value
-
-
-def mean_bool(rows: list[dict[str, object]], key: str) -> float:
-    values = [
-        to_float(row.get(key))
-        for row in rows
-        if key in row and row.get(key) not in (None, "")
-    ]
-    return mean(values)
 
 
 if __name__ == "__main__":

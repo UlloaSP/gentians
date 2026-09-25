@@ -5,7 +5,7 @@ from functools import lru_cache
 import clingo
 from clingo import ast
 
-from ..clingo_stats import clingo_stat, ground_stats
+from ..clingo_stats import clingo_statistics
 from ..language.asp import AspProgram, add_program
 from ..language.ir.example import Example
 from ..timing import (
@@ -46,6 +46,8 @@ class CoverageSolver:
         # program under this solver's fixed background and isolated contexts.
         self._evidence: deque[tuple[frozenset[str], frozenset[str], int]] = deque(maxlen=64)
         self._partial: OrderedDict[int, CoverageSolver] = OrderedDict()
+        # Characters of the programs every control adds; metrics only.
+        self._static_chars: int | None = None
         self.inherited_examples = 0
         self.skipped_controls = 0
 
@@ -166,8 +168,12 @@ class CoverageSolver:
         if not metric_enabled("clingo"):
             return
         with instrumentation():
-            stats = ctl.statistics
-            grounded = ground_stats(stats)
+            stats = clingo_statistics(ctl)
+            if self._static_chars is None:
+                self._static_chars = sum(
+                    len(str(statement))
+                    for statement in (*self.coverage_program, *self.background)
+                )
             common = {
                 "phase_context": phase,
                 "program_size": len(program),
@@ -180,15 +186,12 @@ class CoverageSolver:
                     "operation_category": "grounding",
                     "seconds": grounding_seconds,
                     "input_clauses": len(self.background) + len(program),
-                    "program_chars": sum(
-                        len(str(statement)) for statement in self.coverage_program
-                    )
-                    + sum(len(str(statement)) for statement in self.background)
+                    "program_chars": self._static_chars
                     + sum(len(str(statement)) for statement in program),
                     "positive_examples": self.positive_examples,
                     "negative_examples": self.negative_examples,
-                    "stats_atoms": grounded["atoms"],
-                    "stats_rules": grounded["rules"],
+                    "stats_atoms": stats["atoms"],
+                    "stats_rules": stats["rules"],
                 },
             )
             record_metric(
@@ -197,15 +200,11 @@ class CoverageSolver:
                     **common,
                     "operation_category": "solving",
                     "seconds": solving_seconds,
-                    "models": clingo_stat(stats, "summary", "models", "enumerated"),
+                    "models": stats["models"],
                     "covered_positive": coverage.pos_mask.bit_count(),
                     "covered_negative": coverage.neg_mask.bit_count(),
-                    "stats_choices": clingo_stat(
-                        stats, "solving", "solvers", "choices"
-                    ),
-                    "stats_conflicts": clingo_stat(
-                        stats, "solving", "solvers", "conflicts"
-                    ),
+                    "stats_choices": stats["choices"],
+                    "stats_conflicts": stats["conflicts"],
                 },
             )
 

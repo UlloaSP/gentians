@@ -1,39 +1,26 @@
+"""Steady-state genetic search over the complete clause space."""
+
 import random
 from itertools import count
 
 from ..arguments import Arguments
-from ..clauses import (
-    ClauseSpace,
-    generate_clause_space,
-)
+from ..clauses import ClauseSpace, generate_clause_space
 from ..clauses.metrics import record_clause_space
-from ..language.ir.inductive_task import InductiveTask
-from ..timing import (
-    net_time,
-    phase,
-    profile_phase,
-    record_ga_generation,
-)
+from ..evaluation import create_evaluator
 from ..evolution.crossovers import create_crossover
-from ..evolution.context import EvolutionContext
-from ..evolution.individual import Individual
-from ..evolution.metrics import (
-    record_crossover,
-    record_mutation,
-    record_replacement,
-    record_selection,
-    record_skipped_crossover,
-)
 from ..evolution.mutations import create_mutation
 from ..evolution.populations import create_population
 from ..evolution.replacements import create_replacement
+from ..evolution.restarts import create_restart
 from ..evolution.selections import create_selection
-from ..evaluation import create_evaluator
-from ..evaluation.result import EvaluationResult
-from ..hypotheses import Genome, HypothesisGenerator
-from .result import SearchResult
-
-_STAGNATION_GENERATIONS = 100
+from ..hypotheses import HypothesisGenerator
+from ..language.ir.inductive_task import InductiveTask
+from ..search.candidates import Candidates
+from ..search.offspring import create_offspring
+from ..search.population import Population
+from ..search.result import SearchResult
+from ..timing import phase, profile_phase
+from .metrics.generations import GenerationMetrics
 
 
 @profile_phase("search")
@@ -42,234 +29,61 @@ def steady_state_genetic_search(
     task: InductiveTask,
     supplied_space: ClauseSpace | None = None,
 ) -> SearchResult:
+    """Replace one population member per generation until a solution or the limit."""
     rng = random.Random(args.random_seed)
-    population_strategy = create_population(args.population)
+    initializer = create_population(args.population)
     selection = create_selection(args.selection)
     crossover = create_crossover(args.crossover)
     replacement = create_replacement(args.replacement)
-    generations = (
-        count() if args.iterations_genetic == 0 else range(args.iterations_genetic)
-    )
+    restart = create_restart(args.restart)
+    operator_names = (str(args.selection["name"]), str(args.crossover["name"]), str(args.mutation["name"]))
+    generations = count() if args.iterations_genetic == 0 else range(args.iterations_genetic)
 
-    space = (
-        supplied_space
-        if supplied_space is not None
-        else generate_clause_space(task, args)
-    )
+    space = supplied_space if supplied_space is not None else generate_clause_space(task, args)
     record_clause_space(task, space)
     if not space:
         raise ValueError("No clauses found")
-    max_program_clauses = (
-        len(space) if task.max_program_clauses is None else task.max_program_clauses
-    )
-    hypotheses = HypothesisGenerator(
-        task,
-        space,
-        max_program_clauses,
-    )
-    space = hypotheses.space
-    if not space:
+    max_program_clauses = len(space) if task.max_program_clauses is None else task.max_program_clauses
+    hypotheses = HypothesisGenerator(task, space, max_program_clauses)
+    if not hypotheses.space:
         raise ValueError("No clauses satisfy the hypothesis generator")
-    context = EvolutionContext(hypotheses, rng)
-
     with phase("initialization"):
-        evaluate_candidate = create_evaluator(task, args.evaluation, space=space)
-
-    evaluated: dict[Genome, Individual] = {}
-    results: dict[Genome, EvaluationResult] = {}
-    evaluations = 0
-    started = net_time()
-
-    def finish(
-        solution: Individual,
-        population: list[Individual],
-        generation: int,
-    ) -> SearchResult:
-        record_ga_generation(
-            generation,
-            best_overall.score,
-            population,
-            elapsed_seconds=net_time() - started,
-            fitness_evaluations=evaluations,
-        )
-        return SearchResult(
-            hypotheses.render(solution.genome), solution.score, is_solution=True
-        )
-
-    def population_with(solution: Individual) -> list[Individual]:
-        updated = replacement(list(population), solution, rng)
-        return (
-            updated
-            if any(item is solution for item in updated)
-            else [*population[:-1], solution]
-        )
-
-    def evaluate(candidate: Genome) -> EvaluationResult:
-        nonlocal evaluations
-        if candidate not in results:
-            evaluations += 1
-            results[candidate] = evaluate_candidate(hypotheses.program(candidate))
-        return results[candidate]
-
-    context = EvolutionContext(hypotheses, rng, evaluate, results)
-
-    def admit(candidate: Genome):
-        if candidate in evaluated:
-            return None
-        result = evaluate(candidate)
-        individual = Individual(
-            genome=candidate,
-            score=result.score,
-            is_solution=result.is_solution,
-            behavior=result.behavior,
-            birth_order=evaluations,
-            is_complete=result.is_complete,
-            is_consistent=result.is_consistent,
-        )
-        evaluated[candidate] = individual
-        return individual
+        evaluator = create_evaluator(task, args.evaluation, space=hypotheses.space)
+    candidates = Candidates(hypotheses, evaluator, rng)
+    population = Population(candidates, initializer, replacement, str(args.replacement["name"]), 0)
+    metrics = GenerationMetrics()
 
     with phase("initialization"):
         mutation = create_mutation(args.mutation)
-        population = []
-        for proposal in population_strategy(context):
-            individual = admit(proposal)
-            if individual is not None:
-                population.append(individual)
-                if individual.is_solution:
-                    break
-    if not population:
-        raise RuntimeError("Could not initialize population")
-    population.sort(key=lambda item: item.score, reverse=True)
-    best_overall = population[0]
-    winner = next((item for item in population if item.is_solution), None)
-    if winner is not None:
-        return finish(winner, population, 0)
-    population_size = len(population)
-    progress_score = best_overall.score
-    last_progress = 0
+        population.seed(initializer(candidates.context))
+    population.rank()
+    # Restarts refill to the size that initialization reached.
+    population.size = len(population.members)
+    if population.winner is not None:
+        return _solution(population, metrics, 0)
+    metrics.record(0, population)
 
-    def restart_population(
-        champion: Individual,
-        current: list[Individual],
-    ) -> list[Individual]:
-        restarted = [champion]
-        failed_attempts = 0
-        while len(restarted) < population_size and failed_attempts < 64:
-            added = False
-            for proposal in population_strategy(context):
-                individual = evaluated.get(proposal)
-                if individual is None:
-                    individual = admit(proposal)
-                if individual is None or any(
-                    item.genome == individual.genome for item in restarted
-                ):
-                    continue
-                restarted.append(individual)
-                added = True
-                if individual.is_solution:
-                    return sorted(
-                        restarted, key=lambda item: item.score, reverse=True
-                    )
-                if len(restarted) == population_size:
-                    break
-            failed_attempts = 0 if added else failed_attempts + 1
-        for individual in current:
-            if len(restarted) == population_size:
-                break
-            if all(item.genome != individual.genome for item in restarted):
-                restarted.append(individual)
-        return sorted(restarted, key=lambda item: item.score, reverse=True)
-
-    record_ga_generation(
-        0,
-        best_overall.score,
-        population,
-        elapsed_seconds=net_time() - started,
-        fitness_evaluations=evaluations,
-    )
     for generation in generations:
-        if hypotheses.all_subsets_evaluated(len(evaluated)):
+        if hypotheses.all_subsets_evaluated(len(candidates.evaluated)):
             break
-        population.sort(key=lambda item: item.score, reverse=True)
-        best_overall = _better(best_overall, population[0])
-        if best_overall.score > progress_score:
-            progress_score = best_overall.score
-            last_progress = generation
-        if (
-            hypotheses.clauses_by_head
-            and generation - last_progress >= _STAGNATION_GENERATIONS
-        ):
+        survivors = restart(generation, population.members, population.best, candidates.context, True)
+        if survivors is not None:
             with phase("replacement"):
-                population = restart_population(best_overall, population)
-            last_progress = generation
-            winner = next((item for item in population if item.is_solution), None)
-            if winner is not None:
-                best_overall = _better(best_overall, winner)
-                return finish(winner, population, generation)
-        with phase("selection"):
-            first, second = selection(population, 2, rng)
-            record_selection(
-                str(args.selection["name"]), first, second, len(population)
-            )
-        with phase("crossover"):
-            crossed = crossover(first.genome, second.genome, context)
-        if crossed is None:
-            record_skipped_crossover(str(args.crossover["name"]), len(population))
-        else:
-            best_parent = first if first.score >= second.score else second
-            record_crossover(
-                str(args.crossover["name"]),
-                best_parent.genome,
-                crossed,
-                duplicate=crossed in evaluated,
-            )
-            with phase("mutation"):
-                proposal = mutation(
-                    crossed,
-                    context,
-                    crossed in evaluated,
-                )
-            final_genome = proposal.genome
-            mutation_changed = final_genome != crossed
-            duplicate = final_genome in evaluated
-            with phase("mutation" if mutation_changed else "crossover"):
-                child = None if duplicate else admit(final_genome)
-            record_mutation(
-                str(args.mutation["name"]),
-                crossed,
-                proposal,
-                duplicate=mutation_changed and duplicate,
-                before=results.get(crossed),
-                after=results.get(final_genome),
-            )
-            if child is not None:
-                if child.is_solution:
-                    best_overall = _better(best_overall, child)
-                    return finish(child, population_with(child), generation + 1)
-                with phase("replacement"):
-                    before = population
-                    population = replacement(population, child, rng)
-                record_replacement(
-                    str(args.replacement["name"]), before, population, child
-                )
-        population.sort(key=lambda item: item.score, reverse=True)
-        best_overall = _better(best_overall, population[0])
-        record_ga_generation(
-            generation + 1,
-            best_overall.score,
-            population,
-            elapsed_seconds=net_time() - started,
-            fitness_evaluations=evaluations,
-        )
-    population.sort(key=lambda item: item.score, reverse=True)
-    best_overall = _better(best_overall, population[0])
-    return SearchResult(
-        hypotheses.render(best_overall.genome),
-        best_overall.score,
-        best_overall.is_solution,
-    )
+                population.restart(survivors, keep_members=True)
+            if population.winner is not None:
+                return _solution(population, metrics, generation)
+
+        child, _ = create_offspring(population, selection, crossover, mutation, operator_names)
+        if child is not None:
+            population.admit_child(child)
+            if child.is_solution:
+                return _solution(population, metrics, generation + 1)
+        population.update_best()
+        metrics.record(generation + 1, population)
+
+    return population.result()
 
 
-def _better(current: Individual | None, candidate: Individual) -> Individual:
-    return candidate if current is None or candidate.score > current.score else current
+def _solution(population: Population, metrics: GenerationMetrics, generation: int) -> SearchResult:
+    metrics.record(generation, population)
+    return population.result()

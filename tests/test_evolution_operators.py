@@ -5,6 +5,7 @@ import pytest
 from gentians.arguments import Arguments
 from gentians.algorithms import steady_state_genetic_search
 from gentians.algorithms import steady_state_genetic as search
+from gentians.algorithms.metrics import generations as generation_metrics
 from gentians.evolution import metrics as evolution_metrics
 from gentians.evolution.crossovers import create_crossover
 from gentians.evolution.context import EvolutionContext
@@ -658,7 +659,7 @@ def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        search,
+        generation_metrics,
         "record_ga_generation",
         lambda generation, best_so_far, population, **kwargs: generations.append(
             (generation, best_so_far, [item.score for item in population])
@@ -701,7 +702,7 @@ def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        search,
+        generation_metrics,
         "record_ga_generation",
         lambda generation, best, population, **kwargs: orders.append(
             [individual.birth_order for individual in population]
@@ -755,7 +756,7 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     )
 
     monkeypatch.setattr(
-        search,
+        generation_metrics,
         "record_ga_generation",
         lambda generation, best_so_far, population, **kwargs: generations.append(
             (generation, best_so_far, [item.score for item in population])
@@ -814,7 +815,7 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        search,
+        generation_metrics,
         "record_ga_generation",
         lambda generation, *_args, **_kwargs: generations.append(generation),
     )
@@ -883,7 +884,7 @@ def test_crossover_child_is_mutated_before_single_evaluation(monkeypatch):
     )
 
     monkeypatch.setattr(
-        search,
+        generation_metrics,
         "record_ga_generation",
         lambda generation, best_so_far, population, **kwargs: generations.append(
             (generation, best_so_far, [item.score for item in population])

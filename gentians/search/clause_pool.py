@@ -9,7 +9,8 @@ from ..clauses import Clause, ClauseSpace, incremental_clause_batches
 from ..clauses.metrics import record_clause_space
 from ..hypotheses import Genome, HypothesisGenerator
 from ..language.ir.inductive_task import InductiveTask
-from .search_budget import SearchBudget
+from ..timing import net_time
+from .budget import SearchBudget
 
 
 class IncrementalClausePool:
@@ -28,6 +29,8 @@ class IncrementalClausePool:
         self.exhausted = False
         self.overflow = False
         self.resources = ExitStack()
+        # Net seconds spent activating clause batches, read by epoch metrics.
+        self.build_seconds = 0.0
 
     def __enter__(self):
         self.batches = (
@@ -75,8 +78,10 @@ class IncrementalClausePool:
                 return hypotheses
 
     def activate(self, hypotheses: HypothesisGenerator, seeds: Sequence[Genome]) -> None:
+        started = net_time()
         target = self.batch_size if self.overflow else hypotheses.clause_count
         activate_clauses(hypotheses, seeds, target, self.rng)
+        self.build_seconds += net_time() - started
 
 
 def activate_clauses(

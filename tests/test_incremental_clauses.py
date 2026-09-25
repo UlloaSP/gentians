@@ -6,9 +6,9 @@ from contextlib import contextmanager
 import pytest
 
 from gentians.algorithms import incremental_clause_genetic as search
-from gentians.algorithms import incremental_clause_pool as clause_pool
-from gentians.algorithms import incremental_progress as progress
-from gentians.algorithms import search_budget
+from gentians.search import clause_pool
+from gentians.algorithms.metrics import generations as progress
+from gentians.search import budget as search_budget
 from gentians.arguments import Arguments
 from gentians.clauses import generate_clause_space, incremental_clause_batches
 from gentians.language import parse_text

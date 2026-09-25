@@ -6,11 +6,11 @@ from ..evolution.metrics import (
 )
 from ..evolution.operator_types import CrossoverFn, MutationFn, SelectionFn
 from ..timing import phase
-from .incremental_population import IncrementalPopulation
+from .population import Population
 
 
 def create_offspring(
-    population: IncrementalPopulation,
+    population: Population,
     selection: SelectionFn, crossover: CrossoverFn, mutation: MutationFn,
     names: tuple[str, str, str],
 ) -> tuple[Individual | None, bool]:

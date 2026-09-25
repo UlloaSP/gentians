@@ -2,8 +2,8 @@ import random
 
 import pytest
 
-from gentians.algorithms.incremental_candidates import IncrementalCandidates
-from gentians.algorithms.search_budget import SearchBudget
+from gentians.search.candidates import Candidates
+from gentians.search.budget import SearchBudget
 from gentians.evaluation.result import EvaluationResult
 from gentians.evolution.individual import Individual
 from gentians.hypotheses import HypothesisGenerator
@@ -31,7 +31,7 @@ def test_renewal_preserves_programs_and_metadata_when_bit_positions_change(const
     def evaluate(_genome):
         pytest.fail("renewal must not evaluate retained candidates")
 
-    candidates = IncrementalCandidates(source, evaluate, rng, SearchBudget(None))
+    candidates = Candidates(source, evaluate, rng, SearchBudget(None))
     candidates.results.update(old_results)
     new_retained, new_champion, additions = candidates.renew(target, retained, champion)
 
@@ -63,7 +63,7 @@ def test_failed_renewal_leaves_previous_population_usable():
     missing = Individual(source.encode(("z.",)), 0.4, False)
     result = EvaluationResult(0.8, False, (1, 0), False, True)
     results = {champion.genome: result}
-    candidates = IncrementalCandidates(source, lambda _: result, random.Random(17), SearchBudget(None))
+    candidates = Candidates(source, lambda _: result, random.Random(17), SearchBudget(None))
     candidates.results.update(results)
 
     with pytest.raises(KeyError):
@@ -86,7 +86,7 @@ def test_context_uses_current_space_and_restart_preserves_evaluation_count():
         score = {("m.",): 0.4, ("z.",): 0.2, ("a.",): 0.9}[text]
         return EvaluationResult(score, False, (0, 0), False, True)
 
-    candidates = IncrementalCandidates(source, evaluate, random.Random(7), SearchBudget(None))
+    candidates = Candidates(source, evaluate, random.Random(7), SearchBudget(None))
     champion = candidates.admit(source.encode(("m.",)))
     candidates.admit(source.encode(("z.",)))
     _, champion, _ = candidates.renew(target, [champion], champion)
@@ -97,7 +97,7 @@ def test_context_uses_current_space_and_restart_preserves_evaluation_count():
     assert child.birth_order == 3
     assert calls == [("m.",), ("z.",), ("a.",)]
 
-    candidates.restart(champion)
+    candidates.restart([champion])
     assert candidates.context.results is candidates.results
     assert candidates.context.evaluate(champion.genome).score == 0.4
     assert candidates.admit(new_genome).birth_order == 4

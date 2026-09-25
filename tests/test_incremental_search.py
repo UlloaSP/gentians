@@ -3,9 +3,9 @@ import importlib
 from contextlib import contextmanager
 
 
-from gentians.algorithms.incremental_clause_pool import activate_clauses
-from gentians.algorithms.incremental_population import retain_population
-from gentians.algorithms import incremental_clause_pool as clause_pool
+from gentians.search.clause_pool import activate_clauses
+from gentians.search.renewal import retain_population
+from gentians.search import clause_pool
 from gentians.evolution.individual import Individual
 from gentians.hypotheses import HypothesisGenerator
 
@@ -13,7 +13,7 @@ import pytest
 
 from gentians import gentians as entrypoint
 from gentians.algorithms import incremental_clause_genetic as incremental_search
-from gentians.algorithms.result import SearchResult
+from gentians.search.result import SearchResult
 from gentians.arguments import Arguments
 from gentians.algorithms.incremental_clause_genetic import incremental_clause_genetic_search
 from gentians.evaluation.evaluator import CandidateEvaluator

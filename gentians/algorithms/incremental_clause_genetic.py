@@ -10,16 +10,19 @@ from ..evolution.crossovers import create_crossover
 from ..evolution.mutations import create_mutation
 from ..evolution.populations import create_population
 from ..evolution.replacements import create_replacement
+from ..evolution.restarts import create_restart
 from ..evolution.selections import create_selection
 from ..language.ir.inductive_task import InductiveTask
+from ..search.budget import SearchBudget
+from ..search.candidates import Candidates
+from ..search.clause_pool import IncrementalClausePool
+from ..search.offspring import create_offspring
+from ..search.population import Population
+from ..search.renewal import probe_constraints, renew_population
+from ..search.result import SearchResult
 from ..timing import phase, profile_phase
-from .incremental_candidates import IncrementalCandidates
-from .incremental_clause_pool import IncrementalClausePool
-from .incremental_offspring import create_offspring
-from .incremental_population import IncrementalPopulation
-from .incremental_progress import IncrementalProgress
-from .result import SearchResult
-from .search_budget import SearchBudget
+from .metrics.generations import GenerationMetrics
+from .metrics.incremental_epochs import EpochMetrics
 
 
 @profile_phase("search")
@@ -48,6 +51,7 @@ def incremental_clause_genetic_search(
     crossover = create_crossover(args.crossover)
     mutation = create_mutation(args.mutation)
     replacement = create_replacement(args.replacement)
+    restart = create_restart(args.restart)
     operator_names = (str(args.selection["name"]), str(args.crossover["name"]), str(args.mutation["name"]))
     generations = count() if args.iterations_genetic == 0 else range(args.iterations_genetic)
 
@@ -58,44 +62,51 @@ def incremental_clause_genetic_search(
             hypotheses = pool.draw()
             if hypotheses is None:
                 raise ValueError("Clause enumeration exhausted without a closed hypothesis")
-            progress = IncrementalProgress()
-            candidates = IncrementalCandidates(hypotheses, create_evaluator(task, args.evaluation), rng, budget)
-            del hypotheses  # The registry owns the current space, including after renewal.
-            population = IncrementalPopulation(
-                candidates, initializer, replacement, population_size, str(args.replacement["name"]),
+            metrics = GenerationMetrics()
+            epochs = EpochMetrics(pool)
+            candidates = Candidates(hypotheses, create_evaluator(task, args.evaluation), rng, budget)
+            del hypotheses  # Candidates own the current space, including after renewal.
+            population = Population(
+                candidates, initializer, replacement, str(args.replacement["name"]), population_size,
             )
+
             with phase("initialization"):
-                population.initialize(pool)
-            progress_score = population.best.score
-            last_progress = 0
+                proposals = initializer(candidates.context)
+                pool.activate(candidates.hypotheses, proposals)
+                population.seed(proposals)
+                population.refill()
+                probe_constraints(population, candidates.hypotheses.available_clauses)
+                population.rank()
             if population.winner is not None:
-                return _solution(population, progress, 0)
-            progress.generation(0, population)
+                return _solution(population, metrics, epochs, 0)
+            metrics.record(0, population)
 
             for generation in generations:
                 budget.check()
                 if (pool.exhausted and not pool.overflow
                         and candidates.hypotheses.all_subsets_evaluated(len(candidates.evaluated))):
-                    progress.end_epoch(generation, "space_exhausted", population)
+                    epochs.end(generation, "space_exhausted", population)
                     return population.result()
-                if population.best.score > progress_score:
-                    progress_score = population.best.score
-                    last_progress = generation
-                # Constraint-only search retains its policy: no stagnation restart.
-                if (pool.exhausted and candidates.hypotheses.clauses_by_head
-                        and generation - last_progress >= 100):
-                    progress.next_epoch(generation, "stagnation", population)
-                    last_progress = generation
+
+                # Batch renewal replaces restarts until the finite space is exhausted.
+                survivors = restart(
+                    generation, population.members, population.best, candidates.context,
+                    pool.exhausted,
+                )
+                if survivors is not None:
+                    epochs.next(generation, "stagnation", population)
                     with phase("replacement"):
-                        population.restart()
+                        candidates.restart(survivors)
+                        population.restart(survivors)
                     if population.winner is not None:
-                        return _solution(population, progress, generation)
-                if not pool.exhausted and generation - progress.epoch_started >= epoch_generations:
-                    progress.next_epoch(generation, "generations", population)
+                        return _solution(population, metrics, epochs, generation)
+
+                if not pool.exhausted and generation - epochs.epoch_started >= epoch_generations:
+                    epochs.next(generation, "generations", population)
                     with phase("replacement"):
-                        population.renew(pool, elite_count)
+                        renew_population(population, pool, elite_count)
                     if population.winner is not None:
-                        return _solution(population, progress, generation)
+                        return _solution(population, metrics, epochs, generation)
 
                 population.update_best()
                 # A batch may expose only one hypothesis; advance to the next epoch.
@@ -103,25 +114,25 @@ def incremental_clause_genetic_search(
                     child, duplicate = create_offspring(
                         population, selection, crossover, mutation, operator_names,
                     )
-                    progress.duplicates += int(duplicate)
+                    epochs.duplicates += int(duplicate)
                     if child is not None:
                         population.admit_child(child)
                         if child.is_solution:
-                            return _solution(population, progress, generation + 1)
+                            return _solution(population, metrics, epochs, generation + 1)
                     population.update_best()
-                progress.generation(generation + 1, population)
+                metrics.record(generation + 1, population)
 
-            progress.end_epoch(args.iterations_genetic, "generation_limit", population)
+            epochs.end(args.iterations_genetic, "generation_limit", population)
             return population.result()
     except SearchBudget.Expired:
         return budget.result()
 
 
 def _solution(
-    population: IncrementalPopulation, progress: IncrementalProgress, generation: int,
+    population: Population, metrics: GenerationMetrics, epochs: EpochMetrics, generation: int,
 ) -> SearchResult:
-    progress.end_epoch(generation, "solution", population)
-    progress.generation(generation, population)
+    epochs.end(generation, "solution", population)
+    metrics.record(generation, population)
     return population.result()
 
 

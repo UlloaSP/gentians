@@ -137,3 +137,27 @@ PAR1. Wall-clock se conserva como dato operacional y no sustituye
 revisión del código y las versiones de Python, Clingo y el hardware.
 
 Esta configuración no contiene resultados de la matriz completa.
+
+## Campaña de 30 minutos por run
+
+La nueva matriz `ilasp-all-1800s-10runs` conserva las 29 tareas anteriores.
+Compara Gentians `steady_state` e `incremental` con ILASP 2 y 2i; excluye ILASP
+3 y 4. Cada método realiza diez runs por dataset con un límite de 1800 segundos
+por run, para un total de 1160 runs. Gentians usa semillas 1–10. ILASP repite
+las ejecuciones sin una semilla configurable en este protocolo. Los demás
+parámetros de Gentians son los defaults del SDK; la instrumentación es `light`.
+
+Los dos IDs de Gentians están en `benchmarks/experiments.toml` y el de ILASP
+en `benchmarks/ilasp_experiments.toml`. Los `.las` y los límites `-ml` son los
+mismos que en la matriz anterior. En los veinte datasets con agregados de
+cuerpo, ILASP recibe el espacio explícito versionado y el tiempo de generarlo
+queda fuera de sus runs. Por eso la comparación de tiempo completo entre
+ambos sistemas mantiene esa limitación. Un timeout registra un resultado
+censurado; la satisfacibilidad de la tarea no garantiza que cada método halle
+una hipótesis dentro del presupuesto ni dentro de su espacio permitido.
+
+`slurm/comparison.env` selecciona los tres IDs y los recursos. Desde la raíz
+del checkout en Shelob, después de construir la imagen y sincronizar `uv`,
+`bash slurm/submit-comparison.sh` envía los jobs en orden. El log de cada job
+registra nodo, commit y hash del ejecutable o imagen. Los resultados de esta
+campaña todavía no se han medido.

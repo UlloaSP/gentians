@@ -258,3 +258,86 @@ timeout_seconds = 120
 instrumentation = "light"
 [experiment.overrides]
 algorithm = "incremental"
+
+# Comparison on all 29 tasks: ten seeds and a 30-minute limit per run.
+[[experiment]]
+id = "ilasp-all-1800s-10runs/gentians-steady_state"
+description = "Gentians steady_state, full pipeline; 29 tasks matched to ILASP 2 and 2i."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+  "hamming_0",
+  "hamming_0_unbalanced",
+  "hamming_1",
+  "hamming_1_unbalanced",
+  "knapsack",
+  "latin_square",
+  "magic_square_no_diag",
+  "set_partition_sum",
+  "set_partition_sum_and_cardinality",
+  "set_partition_sum_cardinality_and_square",
+  "subset_sum",
+  "subset_sum_double",
+  "subset_sum_double_and_prod",
+  "subset_sum_double_and_prod_unbalanced",
+  "subset_sum_double_and_sum",
+  "subset_sum_double_unbalanced",
+  "subset_sum_double_unbalanced_count",
+  "subset_sum_triple",
+  "subset_sum_unbalanced",
+  "subset_sum_unbalanced_ops",
+]
+runs = 10
+seed_base = 1
+timeout_seconds = 1800
+instrumentation = "light"
+[experiment.overrides]
+algorithm = "steady_state"
+
+[[experiment]]
+id = "ilasp-all-1800s-10runs/gentians-incremental"
+description = "Gentians incremental, full pipeline; 29 tasks matched to ILASP 2 and 2i."
+datasets = [
+  "4queens",
+  "5queens",
+  "adj2red",
+  "clique",
+  "coin",
+  "coloring",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+  "hamming_0",
+  "hamming_0_unbalanced",
+  "hamming_1",
+  "hamming_1_unbalanced",
+  "knapsack",
+  "latin_square",
+  "magic_square_no_diag",
+  "set_partition_sum",
+  "set_partition_sum_and_cardinality",
+  "set_partition_sum_cardinality_and_square",
+  "subset_sum",
+  "subset_sum_double",
+  "subset_sum_double_and_prod",
+  "subset_sum_double_and_prod_unbalanced",
+  "subset_sum_double_and_sum",
+  "subset_sum_double_unbalanced",
+  "subset_sum_double_unbalanced_count",
+  "subset_sum_triple",
+  "subset_sum_unbalanced",
+  "subset_sum_unbalanced_ops",
+]
+runs = 10
+seed_base = 1
+timeout_seconds = 1800
+instrumentation = "light"
+[experiment.overrides]
+algorithm = "incremental"

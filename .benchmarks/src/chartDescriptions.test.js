@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { CHART_DESCRIPTIONS, chartDescription } from "./chartDescriptions";
 
 const chartsDirectory = join(dirname(fileURLToPath(import.meta.url)), "charts");

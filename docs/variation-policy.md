@@ -272,14 +272,22 @@ relaxation comparison or quadratic neighbor table is maintained. Replacement
 skips roots with no absent alternative of the permitted kind. No full-space
 forbidden mask per removal is stored.
 
-### Steady-state stagnation restart
+### Stagnation restart
 
-The steady-state search preserves its best individual and resamples the rest of
-the population after 100 generations without a strict score improvement. The
+Restarts are an evolutionary strategy category, selected by `Arguments.restart`
+through `create_restart`. The only registered strategy, `stagnation`, keeps the
+champion and asks the algorithm to resample the rest of the population after
+`restart.generations` (default 100) generations without a strict score
+improvement. The restart applies only when the prepared space contains headed
+clauses; constraint-only search keeps its existing trajectory.
+
+The strategy decides when to restart and which individuals survive. Each
+algorithm rebuilds its own population and caches. In steady-state search the
 global individual and evaluation caches survive the restart, so previously seen
 programs are not solved again and still count toward finite-space exhaustion.
-The restart applies only when the prepared space contains headed clauses;
-constraint-only search keeps its existing trajectory.
+If sampling cannot find enough novel programs, the remaining slots keep current
+members. Incremental search restarts only after the clause space is exhausted
+and clears every evaluation except the survivors'.
 
 This is population renewal in the search loop, not a mutation retry. Mutation
 still makes one proposal per offspring and retains the permissions above. The

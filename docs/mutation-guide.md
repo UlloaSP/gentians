@@ -187,7 +187,7 @@ Fuentes inspeccionadas:
 - [Decisiones y propuestas](../gentians/evolution/mutations/random_group.py).
 - [Obtención de estado](../gentians/evolution/variation.py).
 - [Operaciones y cierre](../gentians/hypotheses/generator.py).
-- [Admisión y evaluación](../gentians/algorithms/steady_state_genetic.py).
+- [Admisión y evaluación](../gentians/search/candidates.py).
 - [Defaults del SDK](../gentians/arguments.py) y [matrices de experimentos](../benchmarks/experiments.toml).
 
 Cada fuente JSON acompaña al HTML correspondiente. Los diagramas de flujo,

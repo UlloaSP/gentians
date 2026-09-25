@@ -60,15 +60,21 @@ def record_skipped_crossover(strategy: str, population_size: int) -> None:
 
 def record_crossover(
     strategy: str,
-    parent_genome: Genome,
+    parent: Individual,
     genome: Genome,
     *,
     duplicate: bool,
+    result: EvaluationResult | None = None,
 ) -> None:
+    """Record one crossover against its best parent.
+
+    The child is scored only when some evaluation already covered it, such as
+    mutation classification; otherwise its score stays unknown.
+    """
     if not operator_metrics_enabled():
         return
     with instrumentation():
-        changed = genome != parent_genome
+        changed = genome != parent.genome
         record_metric(
             "operator",
             {
@@ -80,6 +86,9 @@ def record_crossover(
                 "valid_new": changed and not duplicate,
                 "duplicate": duplicate,
                 "changed": changed,
+                "original_score": parent.score,
+                "new_score": result.score if result is not None else "",
+                "improved": result is not None and result.score > parent.score,
             },
         )
 
@@ -92,11 +101,31 @@ def record_mutation(
     duplicate: bool,
     before: EvaluationResult | None = None,
     after: EvaluationResult | None = None,
+    crossover_strategy: str = "",
+    crossover_parent_score: float | None = None,
 ) -> None:
+    """Record one mutation of a crossover child.
+
+    Scores need both the crossover child and the mutated program evaluated.
+    A crossover gain is a child scored above its best parent; mutation loses
+    it when the mutated program scores below that child.
+    """
     if not operator_metrics_enabled():
         return
     with instrumentation():
         changed = proposal.genome != parent_genome
+        scores = {}
+        if before is not None and after is not None:
+            scores = {
+                "original_score": before.score,
+                "new_score": after.score,
+                "improved": after.score > before.score,
+            }
+        crossover_improved = (
+            before is not None
+            and crossover_parent_score is not None
+            and before.score > crossover_parent_score
+        )
         effects = {}
         if before is not None and after is not None:
             pos_before, neg_before = before.behavior
@@ -127,6 +156,13 @@ def record_mutation(
                 "invalid": False,
                 "semantic_effect_known": bool(effects),
                 **effects,
+                **scores,
+                "crossover_strategy": crossover_strategy,
+                "crossover_improved": crossover_improved,
+                "lost_crossover_gain": (
+                    crossover_improved and after is not None and before is not None
+                    and after.score < before.score
+                ),
             },
         )
 

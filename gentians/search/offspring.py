@@ -27,18 +27,22 @@ def create_offspring(
         record_skipped_crossover(crossover_name, len(population.members))
         return None, False
     best_parent = first if first.score >= second.score else second
-    record_crossover(
-        crossover_name, best_parent.genome, crossed, duplicate=crossed in candidates.evaluated,
-    )
+    crossed_duplicate = crossed in candidates.evaluated
     with phase("mutation"):
-        proposal = mutation(crossed, context, crossed in candidates.evaluated)
+        proposal = mutation(crossed, context, crossed_duplicate)
     final_genome = proposal.genome
     changed = final_genome != crossed
     duplicate = final_genome in candidates.evaluated
     with phase("mutation" if changed else "crossover"):
         child = None if duplicate else candidates.admit(final_genome)
+    # Recorded after mutation, whose classification may have scored the crossover child.
+    crossed_result = candidates.results.get(crossed)
+    record_crossover(
+        crossover_name, best_parent, crossed, duplicate=crossed_duplicate, result=crossed_result,
+    )
     record_mutation(
         mutation_name, crossed, proposal, duplicate=changed and duplicate,
-        before=candidates.results.get(crossed), after=candidates.results.get(final_genome),
+        before=crossed_result, after=candidates.results.get(final_genome),
+        crossover_strategy=crossover_name, crossover_parent_score=best_parent.score,
     )
     return child, duplicate

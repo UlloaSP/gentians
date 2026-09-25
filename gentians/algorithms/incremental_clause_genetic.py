@@ -98,6 +98,7 @@ def incremental_clause_genetic_search(
                     with phase("replacement"):
                         candidates.restart(survivors)
                         population.restart(survivors)
+                    metrics.mark_restart()
                     if population.winner is not None:
                         return _solution(population, metrics, epochs, generation)
 

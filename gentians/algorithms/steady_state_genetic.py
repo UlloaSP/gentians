@@ -70,6 +70,7 @@ def steady_state_genetic_search(
         if survivors is not None:
             with phase("replacement"):
                 population.restart(survivors, keep_members=True)
+            metrics.mark_restart()
             if population.winner is not None:
                 return _solution(population, metrics, generation)
 

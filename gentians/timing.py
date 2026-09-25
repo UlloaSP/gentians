@@ -237,6 +237,7 @@ def record_ga_generation(
     *,
     elapsed_seconds: float = 0.0,
     fitness_evaluations: int = 0,
+    restarted: bool = False,
 ) -> None:
     path = os.environ.get("GENTIANS_GA_METRICS_PATH")
     if not path or not population:
@@ -273,6 +274,7 @@ def record_ga_generation(
                 "invalid_count": invalid,
                 "invalid_rate": invalid / population_size,
                 "mean_program_size": size_total / population_size,
+                "restarted": restarted,
             }
         )
         _ga_dirty = True

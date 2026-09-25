@@ -1,275 +1,53 @@
 # Gentians
 
-Gentians es un solver de Inductive Logic Programming para aprender programas ASP. Su objetivo es buscar hipótesis no monótonas expresadas con sintaxis ASP mediante una heurística evolutiva. Clingo cumple dos papeles distintos: enumera cláusulas legales a partir del language bias y evalúa la semántica del programa candidato completo.
+Gentians es un solver de Inductive Logic Programming que aprende programas ASP. Busca hipótesis no monótonas, expresadas con sintaxis ASP, mediante un algoritmo evolutivo. Clingo cumple dos papeles distintos: enumera las cláusulas legales a partir del language bias y evalúa la semántica del programa candidato completo.
 
 Gentians no es una librería genética genérica ni un wrapper genérico de Clingo. El algoritmo evolutivo existe para explorar programas ASP válidos sin perder sus invariantes sintácticos y semánticos.
 
-## Reglas de trabajo
-
-- Entiende el flujo completo antes de editar. Localiza consumidores, invariantes y tests del concepto tocado.
-- Implementa el cambio mínimo en la capa propietaria del concepto. Reutiliza stdlib, Clingo y código existente antes de añadir abstracciones o dependencias.
-- Conserva cambios ajenos del worktree. El repositorio puede contener experimentos sin commit.
-- Si haces smoke tests temporales, elimínalos al terminar.
-- Para el proyecto Vite de `.benchmarks/`, usa `vp` desde ese directorio.
-- Cambia APIs internas de forma directa. Actualiza todos los usos en el mismo cambio. No dejes wrappers, adaptadores temporales, adaptadores sobre adaptadores ni capas de compatibilidad innecesarias.
-- Un cambio de rendimiento necesita medición reproducible. Una intuición sobre Clingo, grounding o búsqueda no cuenta como resultado.
-
-## Modelo mental
-
-El flujo actual es:
-
-```text
-task file
-  -> language lexer + parser + validación
-  -> InductiveTask, IR de la tarea inductiva
-  -> análisis estático + compilación de modes
-  -> facts + metaprograma ASP
-  -> Clingo enumera y poda cláusulas
-  -> decode + canonicalización
-  -> ClauseSpace
-  -> HypothesisGenerator construye genomas cerrados
-  -> steady_state_genetic_search aplica estrategias evolutivas
-  -> CandidateEvaluator obtiene cobertura y score del programa completo
-  -> mejor hipótesis + score + best_found
-
-instrumentación -> artefactos de benchmark -> preview Vite
-```
-
-La distinción entre cláusulas e hipótesis es obligatoria:
-
-- `generate_clause_space()` genera el espacio finito de cláusulas individuales, un `ClauseSpace`.
-- `HypothesisGenerator` construye hipótesis completas a partir de ese `ClauseSpace`, mantiene cierre de dependencias y las codifica como bitsets.
-- Una cláusula no tiene cobertura o fitness estable por sí sola. ASP es no monótono y añadir una cláusula puede cambiar los modelos del programa completo.
-
-No introduzcas optimizaciones que asuman contribuciones aditivas, cobertura fija por regla o equivalencia global a partir de los ejemplos. Una firma de cobertura solo expresa comportamiento sobre la tarea observada.
-
-## Vocabulario canónico
+## Lo que no se negocia
 
-Usa estos términos en código, docs y conversación:
+### 1. Expresividad no monótona
 
-- **Tarea inductiva**: archivo que contiene background ASP, ejemplos y language bias. También posee los límites estructurales.
-- **`InductiveTask`**: IR parseado de la tarea inductiva. No es la hipótesis aprendida.
-- **Language bias**: lenguaje finito permitido para las hipótesis. Incluye modes, recalls, tipos, direcciones, constantes, límites e invención.
-- **Cláusula**: una cláusula ASP aprendible ya instanciada y canónica.
-- **`Clause`**: AST y texto canónico de una cláusula junto a predicados definidos, dependencias, tamaño de cuerpo.
-- **`ClauseSpace`**: conjunto ordenado y sin duplicados de cláusulas candidatas.
-- **Hipótesis o programa candidato**: conjunto de cláusulas del `ClauseSpace` evaluado como una unidad bajo stable-model semantics.
-- **`Genome`**: entero bitset que representa una hipótesis. El bit `i` selecciona la cláusula `i` del `ClauseSpace` preparado.
-- **`Individual`**: genoma evaluado con score, marca de solución, firma de comportamiento y edad.
-- **`SearchResult`**: hipótesis elegida, score y marca de solución devueltos por cualquier algoritmo completo.
-- **Comportamiento**: pareja de máscaras `(pos_mask, neg_mask)`. La primera marca positivos cubiertos; la segunda, negativos cubiertos.
-- **`Coverage`**: valor inmutable con las máscaras de comportamiento producidas por Clingo.
-- **`EvaluationResult`**: score, marca de solución y comportamiento de un programa candidato evaluado.
-- **Hipótesis perfecta**: cubre todos los ejemplos positivos y ningún negativo. Esto produce `best_found=True`.
-- **Cierre de dependencias**: toda dependencia de una cláusula queda definida por el background o por alguna cabeza del mismo candidato.
-- **Pruning**: exclusión de cláusulas o hipótesis inválidas, redundantes o imposibles antes de gastar evaluaciones de fitness.
-- **`CoverageSolver`**: crea, groundea y resuelve un `clingo.Control` por candidato para obtener `Coverage`.
+Una cláusula no tiene cobertura ni fitness estable por sí sola: añadirla puede cambiar los modelos del programa completo. Nunca asumas contribuciones aditivas, cobertura fija por regla ni equivalencia global a partir de los ejemplos. La solución más rápida que aprende otro lenguaje es una regresión.
 
-Usa `ClauseSpace` para cláusulas candidatas. Usa hipótesis o programa candidato para el conjunto evaluado por fitness.
+### 2. La tarea posee su significado
 
-## Semántica del producto
+La tarea inductiva define el language bias y sus límites. `Arguments` configura ejecución y estrategias; nunca redefine el lenguaje. `docs/language-bias.md` es el contrato de sintaxis y significado: léelo completo antes de tocar lexer, parser, modes, generación o pruning.
 
-Una tarea puede declarar background ASP, ejemplos positivos y negativos con contexto opcional, límites `#maxv/#maxbl/#minhl/#maxhl/#maxpl`, heads normales, disyuntivas, choice o cardinalidad, negación fuerte, negación por defecto, variables tipadas y dirigidas, constantes, términos anidados, condicionales, aggregates, arithmetic, comparisons, predicate invention.
+### 3. Una autoridad por concepto
 
-`docs/language-bias.md` es el contrato de sintaxis y significado. Léelo completo antes de cambiar lexer, grammar, parser, modes, generación o pruning. `README.md` es el resumen de uso, no una segunda especificación.
+`HypothesisGenerator` es la única autoridad para construir o transformar genomas y mantener el cierre de dependencias. La legalidad de una regla vive en el análisis estático o el metaprograma ASP. Si varios operadores necesitan el mismo guard, ese guard pertenece al constructor de hipótesis.
 
-Reglas semánticas que deben sobrevivir cualquier refactor:
+### 4. Medir antes de afirmar
 
-- La tarea posee su significado. `Arguments` configura ejecución y estrategias, no redefine el language bias.
-- Los tipos son nominales. Coincidencia de valores ground no une dominios.
-- `input` debe estar ligado, `output` lo produce un literal positivo y `any` desactiva deliberadamente la restricción de flujo. Negación por defecto no produce variables.
-- Los límites estructurales y recalls deben mantener finito el espacio. `*` significa ilimitado solo cuando los demás límites siguen cerrando el dominio.
-- `#modeh` describe una cabeza completa. `#modeha` combina elementos choice/cardinality. `#modehd` combina elementos disyuntivos. Un recall nunca transforma una forma en otra.
-- `#bias`, `#metarule`, `#predicate` y `#modem` se han retirado. El parser los rechaza explícitamente; usa modes y límites para declarar el lenguaje.
-- Contextos de ejemplos se aíslan por selector. Un contexto nunca filtra hechos o constraints hacia otro ejemplo.
-- Fitness fuerza consecuencias brave. Evalúa el programa candidato completo.
-- Cada evaluación usa el solver normal y un `clingo.Control` nuevo.
-- Canonicalización preserva semántica ASP. Deduplicar texto, renombrado de variables o sistemas aritméticos no autoriza aproximaciones semánticas.
-- Dependencias con negación fuerte conservan el signo. `p/n` y `-p/n` son predicados distintos para cierre y recursión.
+Un cambio de rendimiento necesita una medición reproducible. Una intuición sobre Clingo, grounding o búsqueda no cuenta como resultado. Grounding, solving, Python y closure se miden por separado; reducir llamadas no implica reducir tiempo.
 
-## Arquitectura objetivo y ubicación actual
+## Glosario mínimo
 
-Estos son límites del producto, aunque algunos todavía compartan paquete:
+- **Tarea inductiva**: background ASP, ejemplos y language bias. `InductiveTask` es su IR, no la hipótesis.
+- **Cláusula / `ClauseSpace`**: una cláusula candidata canónica / el conjunto ordenado y sin duplicados de ellas.
+- **Hipótesis o programa candidato**: conjunto de cláusulas evaluado como una unidad bajo stable-model semantics. `Genome` es su bitset.
+- **Hipótesis perfecta**: cubre todos los positivos y ningún negativo; produce `best_found=True`.
+- **Cierre de dependencias**: toda dependencia queda definida por el background o por una cabeza del mismo candidato.
 
-| Módulo | Responsabilidad | Ubicación actual |
-|---|---|---|
-| Lenguaje de tareas | Leer UTF-8, separar sentencias completas, parsear directivas, delegar ASP a `clingo.ast` y construir un IR tipado. | `gentians/language/parser.py`, `lexer.py`, `grammar.py`, `asp.py`, `directives.py`, `declarations.py`, `modes.py`, `language/ir/` |
-| Generación de cláusulas | Compilar bias y análisis estático a facts, enumerar cláusulas mediante metaprograma ASP, podar ilegalidad y redundancia, decodificar y canonicalizar. | `gentians/clauses/generator.py`, `clauses/metaprogram/**/*.lp`, `ClauseSpace` |
-| Generación de hipótesis | Construir programas candidatos, aplicar pruning mientras nacen y cerrar dependencias bajo `#maxpl`. | `gentians/hypotheses/` |
-| Algoritmos de búsqueda | Resolver una tarea completa y devolver `SearchResult`. Cada algoritmo posee su bucle; la implementación actual es un GA de estado estable. | `gentians/algorithms/` |
-| Evolución | Proveer individuo, contexto, operadores y estrategias usados por algoritmos evolutivos. | `gentians/evolution/` |
-| Evaluación | Compilar ejemplos, obtener cobertura con Clingo y convertirla en score y condición de solución. | `gentians/evaluation/` |
-| Docs | Mantener lenguaje, decisiones, arquitectura y experimentos con resultados. | `docs/`, `README.md` |
-| Profiling y logging | Medir tiempo neto, fases, calidad, operadores y estadísticas Clingo sin contaminar la métrica observada. | `gentians/timing.py`, `gentians/clingo_stats.py` |
-| Benchmarks y runners | Definir datasets, matrices reproducibles, aislamiento, fingerprints y agregación. | `benchmarks/`, `benchmarks/gentians/` |
-| Preview de benchmarks | Leer artefactos generados y mostrar detalle y comparación sin reinterpretar métricas. | `.benchmarks/` |
+Usa `ClauseSpace` para cláusulas candidatas e hipótesis para lo que evalúa el fitness. Glosario completo: [docs/glossary.md](docs/glossary.md).
 
-No crees paquetes vacíos para imitar esta tabla. Haz aparecer un límite físico cuando tenga lógica propia y reduzca acoplamiento real. Si mueves una frontera, conecta directamente todos los usos y elimina la ubicación anterior.
+## Tres formas de romper Gentians
 
-La tabla mezcla destino y estado real a propósito. La generación de hipótesis completas usa un bitset engine en Python; logging no tiene aún un módulo general separado de timing, métricas y callbacks. Trátalos como límites de producto pendientes, no como funciones ya implementadas ni como permiso para un refactor masivo no solicitado.
+1. **Tocar la tarea creyendo tocar un fixture.** Los task files de `benchmarks/gentians/` son el problema. Cambiarlos cambia el experimento.
+2. **Borrar resultados sin querer.** `run_experiments.py --force` borra el directorio exacto del experimento antes de repetirlo. Úsalo solo para reemplazar ese resultado. Nunca edites a mano JSON o CSV generados.
+3. **Pisar trabajo ajeno.** El worktree puede contener experimentos sin commit. Consérvalos. Elimina los smoke tests temporales que crees.
 
-## Cómo se genera una cláusula
+## Recorre toda la cadena
 
-`parse_file()` lee UTF-8 y delega en `parse_text()`. El lexer separa sentencias completas sin romper strings, comentarios, delimitadores anidados, rangos o anotaciones. El parser orquesta las declaraciones y construye `InductiveTask`; `directives`, `declarations`, `modes` contienen sus gramáticas específicas. Clingo sigue siendo la autoridad para la gramática y el AST de ASP. El background se parsea en una sola llamada preservando las líneas originales; en ejemplos solo se parsean los campos no vacíos. `InductiveTask` conserva background, átomos incluidos y excluidos, contextos como nodos `clingo.ast.AST`; `Clause` conserva el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
+El defecto más común es un cambio correcto en una capa e incompleto en las demás. Antes de darlo por terminado, di cuáles de estas cadenas aplicaban:
 
-`generate_clause_space()` ejecuta este pipeline:
-
-1. Inspecciona background, ejemplos y declaraciones para derivar tipos, dominios, closed-world properties y capacidades permitidas.
-2. Compila declaraciones a `ClauseMode` y facts reificados.
-3. Carga los módulos `.lp` en el orden de `CLAUSE_METAPROGRAM_MODULES`.
-4. Clingo aplica límites, recall, linkedness, typing, ASP safety, flujo dirigido, coherencia y propiedades de pruning durante enumeración.
-5. Python decodifica `selected/3` y `var_at/4` como `ReifiedClause`.
-6. `_theta_reduced` elimina cuerpos con subcláusulas theta-equivalentes.
-7. `ArithmeticSystem` normaliza relaciones conectadas y `canonical.key` elige un representante.
-8. `ClauseSpace` ordena y deduplica `Clause`.
-
-Prefiere pruning declarativo en los módulos `.lp` cuando la condición depende de la selección reificada. Usa Python para análisis estático de la tarea, AST, decodificación o canonicalización que no conviene recomputar dentro del solver. Evita generar un dominio enorme para filtrarlo después.
-
-Un cambio de lenguaje suele tocar lexer, parser, IR, compilación de modes/facts, metaprograma, decoder/render, `docs/language-bias.md` y tests de hipótesis. Recorre esa cadena completa. Una nueva sintaxis sin semántica de generación, o nueva semántica sin documentación, está incompleta.
-
-## Cómo se genera y busca una hipótesis
-
-`HypothesisGenerator` es la única autoridad para construir o transformar genomas. Prepara el `ClauseSpace`, elimina cláusulas imposibles de cerrar y mantiene índices de heads y dependencies. Añadir cierra los proveedores que falten. Eliminar retira en cascada los consumidores sin proveedor, sin añadir alternativas. Reemplazar considera la cabeza nueva antes de retirar consumidores y cierra el bloque añadido. Los límites y las máscaras de protección se aplican al cambio completo.
-
-Invariantes del candidato:
-
-- No está vacío.
-- Solo contiene cláusulas del espacio preparado.
-- No excede `#maxpl`.
-- Todas sus dependencias tienen proveedor en background o en el candidato.
-- Una transición destructiva no puede reintroducir la regla marcada como forbidden para reparar su propia eliminación.
-
-La factory de mutación se conserva aunque solo registre `random_group`. Esta estrategia reúne los reemplazos por firma de cabeza y las operaciones por bloques. `random_jump_probability=0.1` permite cambiar de firma en un intento de reemplazo. En candidatos completos con positivos y constraints disponibles, las reglas con cabeza solo pueden eliminarse mediante el intento `complete_generator_removal_probability=0.1`; no existe fallback irrestricto en ese caso. Si el espacio activo no contiene constraints, la completitud no protege las cláusulas con cabeza: se permiten operaciones ordinarias. Un candidato incompleto permite cambios encabezados y eliminación o reemplazo de constraints, sin búsqueda de relajaciones. Con positivos y negativos, los reemplazos conservan el tipo de raíz, encabezada o constraint; no se añaden constraints mediante append. Crossover conserva su política propia. `docs/variation-policy.md` documenta las garantías y los límites.
-
-Las estrategias no editan bits arbitrariamente. Selección opera sobre `Individual`; population, crossover y mutation piden genomas válidos a `HypothesisGenerator`; replacement conserva tamaño y orden por score. Los protocolos viven en `evolution/operator_types.py` y el estado compartido mínimo en `EvolutionContext`.
-
-`steady_state_genetic_search` es el bucle del GA de estado estable. Construye factories desde `Arguments`, crea o acepta un `ClauseSpace`, inicializa población, memoiza evaluaciones, registra generación 0, aplica selección, crossover, mutación y replacement, y termina al encontrar una hipótesis perfecta o agotar generaciones. En espacios con cláusulas encabezadas, reinicia la población tras 100 generaciones sin mejorar el mejor score: conserva el campeón y toda la caché de evaluaciones, y vuelve a muestrear el resto. Los espacios solo-constraints no usan este reinicio. `iterations_genetic=0` significa búsqueda sin límite de generaciones.
-
-Al añadir una estrategia:
-
-- Implementa un archivo y una clase top-level. `tests/test_strategy_layout.py` protege ese layout.
-- Cumple el callable type existente. Extiende el protocolo solo si la categoría completa necesita datos nuevos.
-- Regístrala en la factory de su subpaquete.
-- Delega construcción y cierre a `HypothesisGenerator`.
-- Usa el `random.Random` inyectado para reproducibilidad.
-- Añade tests del comportamiento observable y de los invariantes, no tests que copien la implementación.
-
-El archivo semántico agrupa por `Behavior` y conserva los `k` programas más cortos. Es una poda respecto a ejemplos presentes, no equivalencia ASP. `module_mix` transfiere cierres sintácticos de soporte, no módulos semánticos ASP.
-
-## Evaluación y Clingo
-
-`create_evaluator()` usa el score `cov_program`, calculado a partir de `Coverage`; `CandidateEvaluator` devuelve `EvaluationResult` con score, comportamiento y estados de completitud y consistencia, y comparte condición de éxito y `CoverageSolver`.
-
-El solver normal crea un `Control` por evaluación, añade background, programa estático de cobertura y candidato desde AST ya retenido, groundea y resuelve.
-
-Antes de cambiar cobertura, prueba al menos inclusión, exclusión, tarea vacía en uno de los lados, contexts aislados y negación por defecto.
-
-## Profiling y logging
-
-La instrumentación se activa mediante rutas de entorno:
-
-- `GENTIANS_TIMINGS_PATH`: totales y llamadas por métrica.
-- `GENTIANS_GA_METRICS_PATH`: progreso por generación.
-- `GENTIANS_CANDIDATE_METRICS_PATH`: tamaño y propiedades del espacio de reglas.
-- `GENTIANS_OPERATOR_METRICS_PATH`: resultados de selección, crossover, mutation y replacement.
-- `GENTIANS_QUALITY_METRICS_PATH`: score, cobertura y tamaño del candidato.
-- `GENTIANS_CLINGO_METRICS_PATH`: grounding, solving y estadísticas de Clingo.
-
-`timing.phase()` registra total inclusivo y `.self`; `instrumentation()` excluye el overhead de serialización y logging; `net_time()` descuenta instrumentación. Añade el coste de fitness a la fase que pidió la evaluación. `closure` mide trabajo del constructor de hipótesis. No inventes fases para hacer una gráfica más cómoda.
-
-El resultado canónico de tiempo es `total_execution`, cerrado antes de imprimir el programa. Wall-clock sirve para timeouts y operación del runner, nunca como sustituto de esa métrica.
-
-## Benchmarks
-
-- Los task files viven en `benchmarks/gentians/`. Cambiarlos modifica el problema, no solo un fixture.
-- `benchmarks/catalog.py` asigna nombres de dataset a `Arguments`.
-- `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada.
-- `benchmarks/profile_baseline.py` ejecuta runs, recoge JSON/JSONL, CSV y `.prof`, y genera `dashboard_data.json`.
-- `benchmarks/run_experiments.py` carga TOML, aplica overrides, fingerprinta configuración y marca resultados stale cuando deja de coincidir.
-- `benchmarks/experiments.toml` reúne todas las matrices. Añade experimentos de investigación con IDs prefijados, como `pool-policy/control`, y una diferencia interpretable frente a su control. Conserva sus parámetros en el mismo archivo; no crees TOML separados.
-- Resultados generados viven bajo `.benchmarks/experiments/<experimento>/` y están ignorados. No edites JSON o CSV generados a mano.
-- Para comparar algoritmos, fija datasets, seeds, runs, timeout y todos los parámetros salvo la variable estudiada. Registra versión de Python, Clingo, hardware y revisión del código cuando publiques conclusiones.
-- Cinco runs detectan efectos grandes, no establecen una tasa de éxito precisa. Lee éxito junto a tiempo y cobertura.
-- `docs/search-space-experiments.md` registra ideas realmente medidas, variantes rechazadas y límites de la evidencia. No presentes una idea de esa tabla como implementación actual.
-
-Comandos habituales:
-
-```powershell
-uv sync
-uv run python benchmarks/run_experiments.py --list
-uv run python benchmarks/run_experiments.py <experiment-id>
-uv run python benchmarks/profile_clauses.py --datasets <dataset>
-```
-
-Usa `--force` solo cuando se pretende reemplazar el resultado del experimento. El runner borra el directorio exacto de salida antes de repetirlo.
-
-## Preview de benchmarks
-
-`.benchmarks/` contiene el código fuente Vite versionado. Todos los resultados, snapshots y builds de experimentos viven en `.benchmarks/experiments/`, ignorado como una unidad. La UI obtiene `experiments/experiments.json` y cada `dashboard_data.json` relativo a ese índice; no calcula una verdad paralela al agregador Python.
-
-Desde `.benchmarks/`:
-
-```powershell
-vp i
-vp dev
-vp build
-vp test
-```
-
-`src/metrics.js` define schema, orden de fases, tipos y agregaciones compartidas. `main.jsx` muestra un experimento. `ExperimentCompare.jsx` y `charts/ComparisonCharts.jsx` comparan varios. Si cambia el payload, actualiza productor, `DASHBOARD_SCHEMA_VERSION`, consumidores y tests juntos. Un dashboard viejo debe fallar como stale, no reinterpretarse silenciosamente.
-
-## Contrato de charts de benchmarks
-
-No cambies estas gráficas salvo petición explícita:
-
-- Progreso de búsqueda: `max`, `best` y `avg`; eje inicial `generación`, empezando en generación `0`. Puede alternar a evaluaciones de fitness o segundos.
-- Resultado de operadores: una sola categoría por pareja `operador:estrategia`. `duplicate` significa resultado repetido tras normalizar/cerrar, no una categoría duplicada.
-- Cards de tiempos: deben mostrar `total`, `clauses`, `clingo` y `python`; `total` es la media de `total_execution`, nunca wall-clock. `clauses` y `tiempo evolutivo` van juntas.
-- Fases: `clause generation`, `pregrounding`, `initialization`, `selection`, `crossover`, `mutation`, `replacement` y `search orchestration`. No existe fase separada `fitness evaluation`: su coste pertenece a la fase que solicitó la evaluación.
-- Tipos horizontales de tiempo: exactamente `python`, `grounding`, `solving` y `closure`.
-- `pregrounding` solo mide creación y grounding del solver pregenerado; ejecución normal no inventa esa fase.
-- Modelos solve por etapa: usa fases reales; `clause_generation` se muestra como `clauses`. No agrupa fases conocidas como `search setup`, `fitness search` ni `other`.
-- Los títulos de charts identifican la métrica y son funcionales. No añadas títulos de página, hero copy ni texto ornamental.
-- Comparación conserva todas las gráficas y divisiones de la vista individual. Cada experimento añade sus líneas, grupos, stacks o anillos; no se reemplazan por resúmenes distintos.
-- En comparación, el color identifica siempre al experimento; métricas y divisiones usan líneas, símbolos, opacidad o trama. Las leyendas no multiplican `experimento × división` y todo debe distinguirse sin hover.
-- Tabla de comparación: no muestra wall-clock. Usa `total_execution` y su delta; `grounding`, `solving` y `python` con sus deltas; `ground calls` y `solve calls`.
-
-## Dónde vive cada cosa
-
-- `gentians/gentians.py`: entry points `main`, `task_from_arguments` y `solve`.
-- `gentians/arguments.py`: configuración pública del SDK y defaults evolutivos.
-- `gentians/language/`: lexer, gramática de alto nivel, parser, parsers de declaraciones, utilidades `clingo.ast` e IR tipado de la tarea.
-- `gentians/clauses/`: compilación, metaprograma, pruning y representación canónica de cláusulas. `fact_compiler.py` ensambla facts; `mode_facts.py` y `property_facts.py` poseen sus dos vocabularios estáticos.
-- `gentians/clauses/metaprogram/`: `representation/schema.lp` declara el contrato de predicados opcionales; el resto de `representation/` deriva la representación reificada, `inference/` sus consecuencias, `legality/` la legalidad y el flujo, `symmetry/` los representantes y `pruning/{contradictions,redundancy,properties,policies,task}/` la poda. La guía y los ejemplos ejecutables están en `docs/metaprogram/`. El orden de carga es explícito.
-- `gentians/hypotheses/`: plumbing de representación de genomas, cierre y transiciones válidas que usan las estrategias evolutivas.
-- `gentians/algorithms/`: algoritmos completos de búsqueda y su resultado común; `steady_state_genetic.py` contiene el GA actual.
-- `gentians/evolution/{populations,selections,crossovers,mutations,replacements}/`: plumbing evolutivo, estrategias y factories.
-- `gentians/evaluation/`: compilación de cobertura, `CoverageSolver`, scoring y resultado de evaluación.
-- `gentians/clingo_stats.py`: lectura compartida de estadísticas Clingo.
-- `gentians/timing.py`: fases y export de métricas.
-- `tests/test_clause_space.py`: contrato principal del lenguaje y generación de cláusulas.
-- `tests/test_evolution_operators.py`: genomas, cierre, operadores y search loop.
-- `tests/test_evaluation.py`: cobertura, contexts, scoring y solver.
-- `tests/test_profile_baseline.py`: semántica de tiempos y schema del dashboard.
-- `tests/test_run_experiments.py`: manifests, fingerprints y matrices.
-- `tests/test_strategy_layout.py`: forma de módulos de estrategias.
-- `docs/adr/`: decisiones difíciles de revertir. ADR aceptada manda sobre comentarios históricos.
-- `docs/*.json` y sus `.html`: fuentes y renders de diagramas de arquitectura y workflow. Actualiza ambos cuando el flujo cambie.
-
-## Ruta de un cambio
-
-Antes de editar, clasifica el cambio:
-
-- Sintaxis o significado del task file: lexer, parser, IR tipado, language spec, compilación, tests.
-- Legalidad de una regla: análisis estático o metaprograma ASP, decoder/canonicalización si aplica.
-- Legalidad de un programa candidato: `HypothesisGenerator`, nunca guards repartidos entre operadores.
-- Algoritmo completo: `gentians/algorithms/`; comparte `SearchResult`, no el estado interno ni el bucle.
-- Política evolutiva: estrategia y factory bajo `gentians/evolution/`. Mantén `steady_state_genetic_search` agnóstico cuando el contrato existente alcanza.
-- Semántica o score: cobertura compartida y fitness. Demuestra equivalencia entre ejecuciones cuando no pretendes cambiar significado.
-- Medición: `timing.py`, productor del dashboard, schema y preview como una cadena.
-- Optimización: benchmark controlado antes y después. Conserva la versión simple si el efecto no se sostiene.
-
-Una regla colocada en la capa equivocada suele duplicarse. Si crossover, mutation y population necesitan el mismo guard, ese guard pertenece al constructor de hipótesis.
+- **Lenguaje.** Lexer, parser, IR, compilación de modes/facts, metaprograma, decoder/render, `docs/language-bias.md` y tests de generación. Sintaxis sin semántica de generación, o semántica sin documentación, está incompleta.
+- **Algoritmos.** `steady_state` e `incremental` comparten `SearchResult`, evaluación y estrategias, no su bucle ni su estado. Decide qué pasa en cada uno.
+- **Estrategias.** Las factories de cada categoría evolutiva son la frontera de configuración aunque registren una sola estrategia. No las elimines. Una estrategia nueva se registra allí y delega el cierre a `HypothesisGenerator`.
+- **Cobertura.** Prueba inclusión, exclusión, un lado vacío, contexts aislados y negación por defecto.
+- **Medición.** `timing.py`, productor del dashboard, `DASHBOARD_SCHEMA_VERSION`, preview y tests cambian juntos. Los charts tienen un contrato fijo: no los cambies sin petición explícita.
+- **Docs.** Comprueba si el cambio deja inexacta alguna guía existente.
 
 ## Verificación
 
@@ -284,24 +62,50 @@ uv run ruff check <paths-tocados>
 uv run ty check
 ```
 
-Elige los archivos relevantes. Ejecuta la suite completa solo para cambios transversales o cuando se pida. Para UI, ejecuta al menos `vp build` desde `.benchmarks/`; usa `vp test` cuando cambien cálculos o schema.
-
-Tests de generación deben demostrar presencia de formas válidas y ausencia de formas podadas. Tests evolutivos deben fijar seed o inyectar RNG. Tests de rendimiento no deben afirmar velocidad con thresholds frágiles. Benchmarks no sustituyen tests semánticos.
+- Ejecuta la suite completa solo en cambios transversales o cuando se pida.
+- Tests de generación demuestran presencia de formas válidas y ausencia de formas podadas.
+- Tests evolutivos fijan seed o inyectan RNG.
+- Tests de rendimiento no afirman velocidad con thresholds frágiles. Benchmarks no sustituyen tests semánticos.
+- UI: `vp build` desde `.benchmarks/` como mínimo; `vp test` si cambian cálculos o schema. En ese directorio usa siempre `vp`.
 
 ## Documentación
 
-- Cambios visibles del task language actualizan `docs/language-bias.md` y el resumen correspondiente de `README.md`.
-- Una decisión va a `docs/adr/` solo cuando sea difícil de revertir, sorprendente y resultado de un tradeoff real.
-- Experimentos conservan protocolo, control, variables, entorno, resultados y límites. Una idea sin medición se marca como no implementada.
-- Los diagramas describen código existente. No dibujes arquitectura futura como si ya estuviera conectada.
-- No commits de planes, scratch ni resultados locales de benchmark.
+- Cambios visibles del task language actualizan `docs/language-bias.md` y el resumen de `docs/task-language.md`.
+- Una decisión va a `docs/adr/` solo si es difícil de revertir, sorprendente y resultado de un tradeoff real.
+- Un experimento conserva protocolo, control, variables, entorno, resultados y límites. Una idea sin medición se marca como no implementada.
+- Los diagramas describen código existente. Si cambia el flujo de un `docs/*.json`, actualiza su `.html`.
+- No hagas commit de planes, scratch ni resultados locales de benchmark.
 
-## Criterio técnico
+## Cómo funciona
 
-- Deja la combinatoria y constraints declarativos en ASP cuando esa representación sea más directa. Deja parsing, AST, canonicalización, cachés y orquestación en Python.
-- Prefiere dataclasses inmutables y pequeñas para entidades de dominio. Evita dicts sin contrato dentro del core; los dicts de configuración quedan en el boundary de `Arguments` y factories.
-- Conserva orden determinista de modes, reglas y outputs. Aleatoriedad solo mediante el RNG de la búsqueda.
-- Corrige causas comunes una vez. No añadas guards equivalentes en cada estrategia.
-- Evita una interfaz con una implementación, factories fuera de categorías intercambiables y configuración para valores que no varían.
-- Mide coste de grounding, solving, Python y closure por separado. Reducir calls no implica reducir tiempo.
-- Protege expresividad no monótona. La solución más rápida que aprende otro lenguaje es una regresión.
+```text
+task file -> InductiveTask -> modes + metaprograma ASP -> Clingo enumera y poda
+  -> decode + canonicalización -> ClauseSpace -> HypothesisGenerator
+  -> búsqueda evolutiva -> CandidateEvaluator (programa completo) -> SearchResult
+```
+
+Detalle de cada etapa e invariantes: [docs/pipeline.md](docs/pipeline.md).
+
+## Dónde vive el código
+
+- `gentians/language/`: lectura, lexer, parser y el IR `InductiveTask`. Clingo es la autoridad de la gramática ASP.
+- `gentians/clauses/`: análisis estático, compilación de modes, metaprograma `.lp`, decodificación y canonicalización.
+- `gentians/hypotheses/`: `HypothesisGenerator`, genomas y cierre de dependencias.
+- `gentians/algorithms/`: solo los dos algoritmos, como wiring legible de un vistazo, y sus métricas en `algorithms/metrics/`.
+- `gentians/search/`: pasos que los algoritmos conectan: candidatos, población, cruce, lotes de cláusulas, renovación y presupuesto.
+- `gentians/evolution/`: `Individual`, `EvolutionContext`, protocolos y una factory por categoría de estrategia.
+- `gentians/evaluation/`: cobertura, score y `CoverageSolver`, independiente de `evolution/`.
+- `benchmarks/` produce métricas; `.benchmarks/` es el preview Vite que las consume.
+
+Antes de un refactor, una simplificación o un cambio de frontera, lee [docs/architecture.md](docs/architecture.md): dueño del concepto, consumidores, invariantes, tests, estructura deseada y ruta de cada tipo de cambio. Para medición y benchmarks, [docs/benchmark-dashboard.md](docs/benchmark-dashboard.md).
+
+## Criterio
+
+- Entiende el flujo completo antes de editar. Implementa el cambio mínimo en la capa dueña del concepto. Reutiliza stdlib, Clingo y código existente antes de añadir abstracciones o dependencias.
+- Cambia APIs internas de forma directa y actualiza todos sus usos. Sin wrappers, adaptadores temporales ni capas de compatibilidad.
+- Combinatoria y constraints van declarativos en ASP cuando es más directo. Parsing, AST, canonicalización, cachés y orquestación van en Python. No generes un dominio enorme para filtrarlo después.
+- Canonicalizar preserva semántica ASP. `p/n` y `-p/n` son predicados distintos.
+- Dataclasses pequeñas e inmutables para el dominio. Los dicts de configuración se quedan en `Arguments` y las factories.
+- Orden determinista de modes, reglas y outputs. Aleatoriedad solo mediante el RNG de la búsqueda.
+- Sin interfaces de una implementación ni configuración para valores que no varían, salvo las factories evolutivas.
+- Si una regla de este archivo choca con la tarea, dilo claramente y pide confirmación antes de romperla.

@@ -353,17 +353,17 @@ otros sistemas.
 
 | Dimensión | Estado | Evidencia local y matiz |
 | --- | --- | --- |
-| Partial interpretations | Sí | `#pos/#neg` con incluidos y excluidos; [README](../README.md#examples-definition) y [`Example`](../gentians/language/ir/example.py) |
+| Partial interpretations | Sí | `#pos/#neg` con incluidos y excluidos; [task language guide](task-language.md#examples) y [`Example`](../gentians/language/ir/example.py) |
 | Context-dependent examples | Sí | Tercer campo ASP aislado por selector; [`compiler.py`](../gentians/evaluation/compiler.py) |
 | Cobertura brave | Sí | Se fuerza enumeración brave y se unen máscaras de todos los modelos; [`evaluation/__init__.py`](../gentians/evaluation/__init__.py), [`solver.py`](../gentians/evaluation/solver.py) |
 | Propiedades cautious | Parcial, vía negativos | `#neg({}, {p})` prohíbe todo contraejemplo sin `p`; no hay tipo separado de ejemplo cautious |
 | Ordering examples / preferencias | No | Grammar solo declara `#pos/#neg`; [`grammar.py`](../gentians/language/grammar.py) |
-| Weak constraints aprendibles | No | No hay modo de hipótesis ni ordering examples; weak constraints se rechazan en contextos; [README](../README.md#examples-definition) |
+| Weak constraints aprendibles | No | No hay modo de hipótesis ni ordering examples; weak constraints se rechazan en contextos; [task language guide](task-language.md#examples) |
 | Default y strong negation | Sí | Formas independientes; [language bias](language-bias.md#conditional-literals) |
 | Hard constraints | Sí | Cabeza vacía legal bajo límites y pruning documentado; [language bias](language-bias.md#positive-only-constraint-pruning) |
 | Choice/cardinality heads | Sí | `#modeh` completo y combinación `#modeha`; [language bias](language-bias.md#aggregate-head-modes) |
 | Disjunctive heads | Sí | `#modehd`; [language bias](language-bias.md#disjunctive-head-modes) |
-| Body aggregates | Sí | Templates aggregate exactos en `#modeb`; [README](../README.md#aggregates-in-language-bias) |
+| Body aggregates | Sí | Templates aggregate exactos en `#modeb`; [task language guide](task-language.md#aggregates) |
 | Arithmetic/comparisons/conditionals | Sí | Relaciones exactas en `#modeb` y condiciones opcionales con `#modec`; [language bias](language-bias.md#conditional-literals) |
 | Recursión | Sí, explícita | Se activa cuando un predicado permitido en cabeza aparece en body/condition positivo; [`analysis/task.py`](../gentians/clauses/analysis/task.py) |
 | Predicate invention | Sí, prescriptiva | `#invent(recall, template)` crea modo de cabeza y body positivo; el símbolo, aridad, tipos y direcciones los declara el usuario; [language bias](language-bias.md#predicate-invention) |

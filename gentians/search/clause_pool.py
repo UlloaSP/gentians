@@ -31,6 +31,8 @@ class IncrementalClausePool:
         self.resources = ExitStack()
         # Net seconds spent activating clause batches, read by epoch metrics.
         self.build_seconds = 0.0
+        # Clause texts of the batches behind the last drawn space, until activation.
+        self.arrived: tuple[str, ...] = ()
 
     def __enter__(self):
         self.batches = (
@@ -49,6 +51,7 @@ class IncrementalClausePool:
 
     def draw(self, retained: Sequence[Clause] = ()) -> HypothesisGenerator | None:
         # Retain raw clauses: dependency providers may arrive in later batches.
+        arrived: list[str] = []
         while True:
             self.budget.check()
             batch = next(self.batches, None)
@@ -64,6 +67,7 @@ class IncrementalClausePool:
                 if batch is None:
                     return None
                 self.exhausted = False
+            arrived.extend(entry.text for entry in batch.entries)
             for entry in batch.entries:
                 if entry.text not in self.archive:
                     if len(self.archive) < self.archive_size:
@@ -75,37 +79,47 @@ class IncrementalClausePool:
             hypotheses = HypothesisGenerator(self.task, combined, limit)
             if hypotheses.space and hypotheses.create(self.rng) is not None:
                 record_clause_space(self.task, hypotheses.space)
+                self.arrived = tuple(arrived)
                 return hypotheses
 
     def activate(self, hypotheses: HypothesisGenerator, seeds: Sequence[Genome]) -> None:
         started = net_time()
-        target = self.batch_size if self.overflow else hypotheses.clause_count
-        activate_clauses(hypotheses, seeds, target, self.rng)
+        if self.exhausted:
+            # Nothing else arrives: search continues on every archived clause.
+            self.arrived = ()
+            hypotheses.set_available_clauses(hypotheses.all_clauses)
+            self.build_seconds += net_time() - started
+            return
+        arrived = 0
+        for text in self.arrived:
+            clause_id = hypotheses.clause_ids.get(text)
+            if clause_id is not None:
+                arrived |= 1 << clause_id
+        self.arrived = ()
+        activate_clauses(hypotheses, seeds, arrived, self.rng)
         self.build_seconds += net_time() - started
 
 
 def activate_clauses(
-    hypotheses: HypothesisGenerator, seeds: Sequence[Genome], target: int, rng: random.Random,
+    hypotheses: HypothesisGenerator, seeds: Sequence[Genome], arrived: Genome, rng: random.Random,
 ) -> Genome:
-    hypotheses.set_available_clauses(hypotheses.all_clauses)
-    if target >= hypotheses.clause_count:
-        return hypotheses.all_clauses
+    """Activate the seeds and the closed programs of the arriving clauses.
+
+    Each arriving clause joins with the providers that close it, which may
+    come from the whole space. Without arrivals the active clauses stay.
+    """
     active = 0
     for genome in seeds:
         active |= genome
-    target = min(target, hypotheses.clause_count)
-    failures = 0
-    while active.bit_count() < target and failures < 256:
-        candidate = hypotheses.create(rng)
-        if candidate is None or candidate & ~active == 0:
-            failures += 1
-            continue
-        active |= candidate
-        failures = 0
+    if not arrived:
+        active |= hypotheses.available_clauses
+    else:
+        hypotheses.set_available_clauses(hypotheses.all_clauses)
+        for clause_id in hypotheses._ids(arrived):
+            closed = hypotheses.close(1 << clause_id, rng)
+            if closed is not None:
+                active |= closed
     if not active:
-        candidate = hypotheses.create(rng)
-        if candidate is None:
-            raise RuntimeError("Could not construct an active clause batch")
-        active = candidate
+        raise RuntimeError("Could not construct an active clause batch")
     hypotheses.set_available_clauses(active)
     return active

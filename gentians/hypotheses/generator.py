@@ -146,6 +146,11 @@ class HypothesisGenerator:
         return self._build(self._sample_clauses(size, rng), 0, rng)
 
     @_record_closure_time
+    def close(self, genome: Genome, rng: random.Random) -> Genome | None:
+        """Complete `genome` with available providers, or None if it cannot close."""
+        return self._build(genome, 0, rng)
+
+    @_record_closure_time
     def mix(
         self,
         first: Genome,

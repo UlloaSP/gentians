@@ -58,7 +58,7 @@ Reglas semánticas que deben sobrevivir cualquier refactor:
 - `#bias`, `#metarule`, `#predicate` y `#modem` se han retirado. El parser los rechaza explícitamente; usa modes y límites para declarar el lenguaje.
 - Contextos de ejemplos se aíslan por selector. Un contexto nunca filtra hechos o constraints hacia otro ejemplo.
 - Fitness fuerza consecuencias brave. Evalúa el programa candidato completo.
-- La cobertura que requiere Clingo usa el solver normal y un `clingo.Control` nuevo. La herencia exacta de cobertura puede resolver una evaluación sin crear uno.
+- La cobertura que requiere Clingo usa el solver normal y un `clingo.Control` nuevo, o el `Control` compartido de la época incremental resuelto con assumptions. La herencia exacta de cobertura puede resolver una evaluación sin Clingo.
 - Canonicalización preserva semántica ASP. Deduplicar texto, renombrado de variables o sistemas aritméticos no autoriza aproximaciones semánticas.
 - Dependencias con negación fuerte conservan el signo. `p/n` y `-p/n` son predicados distintos para cierre y recursión.
 
@@ -174,8 +174,12 @@ comportamiento y estados de completitud y consistencia, y comparte condición de
 
 Cuando hace falta resolver cobertura, el solver normal crea un `Control` nuevo,
 añade background, programa estático de cobertura y candidato desde AST ya
-retenido, groundea y resuelve. La herencia exacta de cobertura puede reutilizar
-consecuencias ya demostradas y omitir ese Control.
+retenido, groundea y resuelve. En incremental, `prepare` groundea una vez por
+época las cláusulas activas cuyo cuerpo no usa cabezas de otras, cada una tras
+un átomo guarda libre; un candidato formado por ellas solo resuelve, suponiendo
+ciertas sus guardas y falsas las demás. Sus modelos estables son los del
+candidato solo. La herencia exacta de cobertura puede reutilizar consecuencias
+ya demostradas y omitir ese Control.
 
 Antes de cambiar cobertura, prueba al menos inclusión, exclusión, tarea vacía en
 uno de los lados, contexts aislados y negación por defecto.

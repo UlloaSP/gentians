@@ -29,6 +29,9 @@ def renew_population(
     # Release the previous space before sampling the new one.
     del hypotheses, entries, proposed
     pool.activate(candidates.hypotheses, [item.genome for item in retained])
+    # After exhaustion the whole archive is active. Grounding it at once can
+    # cost far more than grounding each candidate alone.
+    candidates.prepare_active(shared=not pool.exhausted)
     population.members = population.fill(retained)
     probe_constraints(population, additions)
     if not population.members:

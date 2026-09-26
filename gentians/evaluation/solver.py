@@ -7,7 +7,7 @@ import clingo
 from clingo import ast
 
 from ..clingo_stats import clingo_statistics
-from ..language.asp import AspProgram, add_program
+from ..language.asp import AspProgram, add_program, clause_predicates
 from ..language.ir.example import Example
 from ..timing import (
     add,
@@ -18,11 +18,17 @@ from ..timing import (
     record_metric,
 )
 from .coverage import Coverage
-from .compiler import compile_coverage_program
+from .prepared import PreparedClauses
+from .compiler import CLAUSE_GUARD_PREDICATE, compile_coverage_program, compile_guarded_clauses
 
 
 class CoverageSolver:
-    """Create, ground, and solve one Clingo control per candidate."""
+    """Ground and solve each candidate program.
+
+    A candidate gets its own Clingo control unless `prepare` grounded a set of
+    clauses that contains it; then it only solves, under assumptions that
+    select its clauses in that shared control.
+    """
 
     def __init__(
         self,
@@ -49,6 +55,7 @@ class CoverageSolver:
         self._partial: OrderedDict[int, CoverageSolver] = OrderedDict()
         # Characters of the programs every control adds; metrics only.
         self._static_chars: int | None = None
+        self._prepared: PreparedClauses | None = None
         self.inherited_examples = 0
         self.skipped_controls = 0
 
@@ -103,17 +110,70 @@ class CoverageSolver:
             return self._inherit(program)
         return self._extract(program)
 
+    def prepare(self, clauses: AspProgram) -> None:
+        """Ground `clauses` once so candidates made of them only solve.
+
+        Each clause is guarded by a free atom; a candidate assumes the atoms of
+        its clauses true and the others false. The stable models match those of
+        the candidate alone, so coverage is unchanged. Replaces the previous set.
+
+        Only clauses whose bodies use no head of the given clauses are grounded.
+        A guarded head is never a fact, so a body over it would be instantiated
+        for every atom any guarded clause might derive; grounding exploded that
+        way on aggregate spaces. Candidates using other clauses ground alone.
+        """
+        self._prepared = None
+        clauses = _independent_clauses(clauses)
+        guarded = compile_guarded_clauses(clauses) if clauses else None
+        if guarded is None:
+            return
+        ctl = clingo.Control(self.clingo_arguments, logger=_coverage_logger)
+        add_program(ctl, self.coverage_program)
+        add_program(ctl, self.background)
+        add_program(ctl, guarded)
+        start = net_time()
+        ctl.ground([("base", [])])
+        seconds = net_time() - start
+        phase = current_phase()
+        add(f"{phase}.grounding", seconds)
+        literals = []
+        for index in range(len(clauses)):
+            # The choice rule defines every guard atom.
+            atom = ctl.symbolic_atoms[
+                clingo.Function(CLAUSE_GUARD_PREDICATE, [clingo.Number(index)])
+            ]
+            assert atom is not None
+            literals.append(atom.literal)
+        self._prepared = PreparedClauses(
+            ctl,
+            {clause: index for index, clause in enumerate(clauses)},
+            [-literal for literal in literals],
+            clauses,
+            (seconds, phase),
+        )
+
     def _extract(self, program: AspProgram) -> Coverage:
+        prepared = self._prepared
+        if prepared is not None and all(clause in prepared.index for clause in program):
+            assumptions = list(prepared.excluded)
+            for clause in program:
+                position = prepared.index[clause]
+                assumptions[position] = -assumptions[position]
+            solving_seconds, coverage = self._solve(
+                prepared.ctl, self._require_exhaustive, assumptions,
+            )
+            if prepared.grounding is not None:
+                # Statistics describe the ground program only after a solve.
+                self._record_grounding(prepared.ctl, prepared.clauses, *prepared.grounding)
+                prepared.grounding = None
+            self._record_solving(
+                prepared.ctl, program, coverage, solving_seconds, current_phase(),
+            )
+            return coverage
         ctl, grounding_seconds, phase = self._ground(program)
         solving_seconds, coverage = self._solve(ctl, self._require_exhaustive)
-        self._record(
-            ctl,
-            program,
-            coverage,
-            grounding_seconds,
-            solving_seconds,
-            phase,
-        )
+        self._record_grounding(ctl, program, grounding_seconds, phase)
+        self._record_solving(ctl, program, coverage, solving_seconds, phase)
         return coverage
 
     def _ground(self, program: AspProgram):
@@ -149,14 +209,8 @@ class CoverageSolver:
         add(f"{current_phase()}.solving", seconds)
         return seconds, Coverage(pos_mask, neg_mask)
 
-    def _record(
-        self,
-        ctl,
-        program: AspProgram,
-        coverage: Coverage,
-        grounding_seconds: float,
-        solving_seconds: float,
-        phase: str,
+    def _record_grounding(
+        self, ctl, program: AspProgram, seconds: float, phase: str,
     ) -> None:
         if not metric_enabled("clingo"):
             return
@@ -167,17 +221,12 @@ class CoverageSolver:
                     len(str(statement))
                     for statement in (*self.coverage_program, *self.background)
                 )
-            common = {
-                "phase_context": phase,
-                "program_size": len(program),
-                "clingo_arguments": " ".join(self.clingo_arguments),
-            }
             record_metric(
                 "clingo",
                 {
-                    **common,
+                    **self._common(program, phase),
                     "operation_category": "grounding",
-                    "seconds": grounding_seconds,
+                    "seconds": seconds,
                     "input_clauses": len(self.background) + len(program),
                     "program_chars": self._static_chars
                     + sum(len(str(statement)) for statement in program),
@@ -187,12 +236,20 @@ class CoverageSolver:
                     "stats_rules": stats["rules"],
                 },
             )
+
+    def _record_solving(
+        self, ctl, program: AspProgram, coverage: Coverage, seconds: float, phase: str,
+    ) -> None:
+        if not metric_enabled("clingo"):
+            return
+        with instrumentation():
+            stats = clingo_statistics(ctl)
             record_metric(
                 "clingo",
                 {
-                    **common,
+                    **self._common(program, phase),
                     "operation_category": "solving",
-                    "seconds": solving_seconds,
+                    "seconds": seconds,
                     "models": stats["models"],
                     "covered_positive": coverage.pos_mask.bit_count(),
                     "covered_negative": coverage.neg_mask.bit_count(),
@@ -200,6 +257,23 @@ class CoverageSolver:
                     "stats_conflicts": stats["conflicts"],
                 },
             )
+
+    def _common(self, program: AspProgram, phase: str) -> dict[str, object]:
+        return {
+            "phase_context": phase,
+            "program_size": len(program),
+            "clingo_arguments": " ".join(self.clingo_arguments),
+        }
+
+
+def _independent_clauses(clauses: AspProgram) -> AspProgram:
+    summaries = [clause_predicates(clause) for clause in clauses]
+    heads = set().union(*(clause_heads for clause_heads, _deps, _body in summaries))
+    return tuple(
+        clause
+        for clause, (_heads, deps, _body) in zip(clauses, summaries, strict=True)
+        if not deps & heads
+    )
 
 
 def _coverage_masks(symbols) -> tuple[int, int]:

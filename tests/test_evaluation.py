@@ -147,6 +147,74 @@ def test_normal_solver_grounds_each_evaluation(monkeypatch):
     assert calls == 2
 
 
+def _guard_task() -> InductiveTask:
+    return inductive_task(
+        ["seed(a). seed(b). node(c)."],
+        [
+            example(("p(a)", "q(a)"), True),
+            example(("p(c)", "", "ctx(c)."), True),
+        ],
+        [example(("q(b)", ""), False), example(("r(a)", "p(a)"), False)],
+        [],
+        [],
+    )
+
+
+# All but the last clause use only background and context predicates, so
+# `prepare` grounds them together; the last consumes a head and grounds alone.
+_GUARD_CLAUSES = [
+    "p(X) :- seed(X), not node(X).",
+    "{ q(X) } :- seed(X).",
+    "p(X) :- ctx(X).",
+    ":- seed(a), not node(a).",
+    "q(b) :- node(c).",
+    "r(X) :- seed(X), X != b.",
+    "s(X) :- q(X), not p(X).",
+]
+
+
+@pytest.mark.parametrize("prepared_count", [len(_GUARD_CLAUSES), 4])
+def test_prepared_clauses_give_the_coverage_of_each_candidate_alone(prepared_count):
+    """Every subset, under negation, choice, constraints and contexts.
+
+    Candidates outside the prepared clauses fall back to their own control.
+    """
+    task = _guard_task()
+    statements = make_clause_space(_GUARD_CLAUSES).statements
+    config = {"scoring": "cov_program", "clingo_arguments": []}
+    alone = create_evaluator(task, config).solver
+    shared = create_evaluator(task, config).solver
+    shared.prepare(statements[:prepared_count])
+    for mask in range(1 << len(statements)):
+        program = tuple(clause for index, clause in enumerate(statements) if mask >> index & 1)
+        assert shared.extract_coverage(program) == alone.extract_coverage(program), program
+
+
+def test_prepared_clauses_ground_once(monkeypatch):
+    solver = create_evaluator(
+        _guard_task(), {"scoring": "cov_program", "clingo_arguments": []},
+    ).solver
+    statements = make_clause_space(
+        ["p(X) :- seed(X).", "{ r(X) } :- seed(X).", ":- ctx(X), not seed(X)."]
+    ).statements
+    solver.prepare(statements)
+    monkeypatch.setattr(solver, "_ground", lambda program: pytest.fail("grounded again"))
+    solver.extract_coverage(statements[:2])
+    solver.extract_coverage(statements[1:])
+
+
+def test_clauses_over_prepared_heads_ground_alone():
+    solver = create_evaluator(
+        _guard_task(), {"scoring": "cov_program", "clingo_arguments": []},
+    ).solver
+    statements = make_clause_space(
+        ["r(X) :- seed(X).", "p(X) :- r(X).", "q(X) :- seed(X), not q(X)."]
+    ).statements
+    solver.prepare(statements)
+    assert solver._prepared is not None
+    assert [str(clause) for clause in solver._prepared.index] == ["r(X) :- seed(X)."]
+
+
 def test_whole_program_forces_brave_consequences():
     solver = _evaluator("cov_program").solver
     assert "--enum-mode=brave" in solver.clingo_arguments

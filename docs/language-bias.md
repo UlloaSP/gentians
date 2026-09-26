@@ -789,13 +789,12 @@ clauses. This changes search order, not clause legality.
 The `incremental.batch_size` budget counts models before theta reduction and
 canonicalization. `incremental.archive_size` bounds the number of distinct raw
 clauses retained across batches, before hypothesis dependency pruning. Providers
-arriving later can therefore close clauses that arrive after them. Each epoch
-activates only the elite clauses and the arriving clauses closed with their
-providers; every archived clause becomes active once enumeration is exhausted.
+arriving later can therefore make earlier clauses constructible. All prepared
+clauses are active while this archive contains every visited clause.
 
-The working space combines the bounded archive, fresh batch and elite hypotheses
-with their providers. An active subset contains closed programs. Providers and
-consumers outside the archive or the active subset can still fail to meet; bounded
+After overflow, the working space combines the bounded archive, fresh batch and
+elite hypotheses with their providers. An active subset contains closed programs.
+Providers and consumers outside the archive can still fail to meet; bounded
 search does not guarantee discovery of every legal solution. These runtime limits
 do not replace `#maxpl` and are not a byte limit on process memory. Whole-program
 coverage uses the normal solver.

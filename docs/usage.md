@@ -107,13 +107,11 @@ Generation pauses while the GA searches.
 
 Each epoch retains the highest-scoring hypotheses and the champion. A bounded
 archive keeps the first `incremental.archive_size` distinct clauses before
-hypothesis dependency pruning. The working `ClauseSpace` combines the archive,
-the next batch and elite programs, but only part of it is active: the elite
-clauses and each arriving clause closed with its providers, which may come from
-the archive. Earlier consumers of an arriving provider stay inactive until
-exhaustion. Once the finite space is exhausted, every archived clause becomes
-active and search continues on that complete space without rebuilding indices or
-clearing caches each epoch.
+hypothesis dependency pruning. This lets providers and consumers from different
+batches meet. The working `ClauseSpace` combines the archive, the next batch and
+elite programs. When the archive contains every visited clause, all prepared
+clauses remain active. Once the finite space is exhausted, search continues on
+that complete space without rebuilding indices or clearing caches each epoch.
 
 After exhaustion, a space containing learned clauses with heads can restart a
 stalled population after `restart.generations` generations without a better
@@ -131,7 +129,8 @@ ASP program. This is a fixed part of incremental search. Historical measurements
 on 5queens, 4queens and nested large spaces are in the
 [constraint-probe report](incremental-crossover-experiment.md).
 
-If the archive overflows, exhaustion starts a new seeded enumeration pass so discarded
+If the archive overflows, the active mask selects retained programs and random
+closed candidates. Exhaustion starts a new seeded enumeration pass so discarded
 clauses can return. Each pass grounds once and enumerates increasing body
 budgets. This bounded search is neither uniform sampling nor complete hypothesis
 search. A supplied `ClauseSpace` bypasses generation. The archive limits clause

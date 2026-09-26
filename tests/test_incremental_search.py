@@ -216,25 +216,23 @@ def test_batch_renewal_evaluates_new_bit_collision_and_reuses_retained_result(mo
 
 
 
-def _chain_hypotheses() -> HypothesisGenerator:
+def test_active_space_preserves_seeds_and_closes_sampled_candidates():
     task = inductive_task(["seed(a)."], [], [], [], [])
     space = make_clause_space(
         ["p(X) :- seed(X).", "q(X) :- p(X).", "r(X) :- q(X).", "s(a)."]
     )
-    return HypothesisGenerator(task, space, max_clauses=3)
-
-
-def test_active_space_closes_arriving_clauses_with_archived_providers():
-    hypotheses = _chain_hypotheses()
-    arrived = hypotheses.encode(("r(X) :- q(X).",))
-    pool = activate_clauses(hypotheses, [], arrived, random.Random(4))
+    hypotheses = HypothesisGenerator(task, space, max_clauses=3)
+    seed = hypotheses.encode(("p(X) :- seed(X).", "q(X) :- p(X)."))
+    pool = activate_clauses(hypotheses, [seed], 3, random.Random(4))
+    assert pool & seed == seed
     assert pool == hypotheses.available_clauses
-    assert pool == hypotheses.encode(("p(X) :- seed(X).", "q(X) :- p(X).", "r(X) :- q(X)."))
+    assert pool.bit_count() >= 3
     for number in range(30):
         candidate = hypotheses.create(random.Random(number))
         if candidate is None:
             continue
         assert candidate & ~pool == 0
+        assert candidate.bit_count() <= 3
         selected = [
             entry
             for index, entry in enumerate(hypotheses.space.entries)
@@ -243,23 +241,6 @@ def test_active_space_closes_arriving_clauses_with_archived_providers():
         heads = {head for entry in selected for head in entry.heads}
         deps = {dependency for entry in selected for dependency in entry.deps}
         assert deps <= heads | {("seed", 1)}
-
-
-def test_active_space_keeps_seeds_and_leaves_archived_consumers_inactive():
-    hypotheses = _chain_hypotheses()
-    seed = hypotheses.encode(("s(a).",))
-    arrived = hypotheses.encode(("p(X) :- seed(X).",))
-    pool = activate_clauses(hypotheses, [seed], arrived, random.Random(4))
-    # q consumes the arriving head p but did not arrive with it.
-    assert pool == hypotheses.encode(("p(X) :- seed(X).", "s(a)."))
-
-
-def test_active_space_without_arrivals_keeps_the_active_clauses():
-    hypotheses = _chain_hypotheses()
-    active = hypotheses.encode(("p(X) :- seed(X).",))
-    hypotheses.set_available_clauses(active)
-    seed = hypotheses.encode(("s(a).",))
-    assert activate_clauses(hypotheses, [seed], 0, random.Random(4)) == active | seed
 
 
 def test_restricted_sampler_preserves_ascending_rank_rng_sequence():

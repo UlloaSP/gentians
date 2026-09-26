@@ -64,8 +64,7 @@ def incremental_clause_genetic_search(
                 raise ValueError("Clause enumeration exhausted without a closed hypothesis")
             metrics = GenerationMetrics()
             epochs = EpochMetrics(pool)
-            evaluator = create_evaluator(task, args.evaluation)
-            candidates = Candidates(hypotheses, evaluator, rng, budget, evaluator.prepare)
+            candidates = Candidates(hypotheses, create_evaluator(task, args.evaluation), rng, budget)
             del hypotheses  # Candidates own the current space, including after renewal.
             population = Population(
                 candidates, initializer, replacement, str(args.replacement["name"]), population_size,
@@ -74,7 +73,6 @@ def incremental_clause_genetic_search(
             with phase("initialization"):
                 proposals = initializer(candidates.context)
                 pool.activate(candidates.hypotheses, proposals)
-                candidates.prepare_active()
                 population.seed(proposals)
                 population.refill()
                 probe_constraints(population, candidates.hypotheses.available_clauses)

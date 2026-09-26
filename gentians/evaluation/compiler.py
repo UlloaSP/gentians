@@ -7,7 +7,6 @@ from ..language.asp import AspProgram, parse_program, parse_rule
 from ..language.ir.example import Example
 
 ACTIVE_CONTEXT_PREDICATE = "gentians_internal_active_context"
-CLAUSE_GUARD_PREDICATE = "gentians_internal_clause"
 COVERAGE_PROGRAM = parse_program(
     (Path(__file__).with_name("rules") / "coverage.lp").read_text(encoding="utf-8")
 )
@@ -48,28 +47,6 @@ def compile_coverage_program(
         statements.extend(_compile_examples(negative_examples, False, context_ids))
     statements.extend(COVERAGE_PROGRAM)
     return tuple(statements)
-
-
-def compile_guarded_clauses(statements: AspProgram) -> AspProgram | None:
-    """Guard clause i with a free atom, so assumptions select any subset.
-
-    Returns None when a statement is not a rule and cannot take a guard.
-    """
-    if any(statement.ast_type != ast.ASTType.Rule for statement in statements):
-        return None
-    guarded = tuple(
-        statement.update(body=[*statement.body, _clause_guard(index)])
-        for index, statement in enumerate(statements)
-    )
-    choice = parse_program(
-        f"{{ {CLAUSE_GUARD_PREDICATE}(0..{len(statements) - 1}) }}."
-    )
-    return guarded + choice
-
-
-@lru_cache(maxsize=8192)
-def _clause_guard(index: int) -> ast.AST:
-    return parse_rule(f":- {CLAUSE_GUARD_PREDICATE}({index}).").body[0]
 
 
 def _compile_examples(

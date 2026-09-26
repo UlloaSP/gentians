@@ -18,7 +18,7 @@ Usa estos términos en código, docs y conversación.
 - **Hipótesis perfecta**: cubre todos los ejemplos positivos y ningún negativo. Esto produce `best_found=True`.
 - **Cierre de dependencias**: toda dependencia de una cláusula queda definida por el background o por alguna cabeza del mismo candidato.
 - **Pruning**: exclusión de cláusulas o hipótesis inválidas, redundantes o imposibles antes de gastar evaluaciones de fitness.
-- **`CoverageSolver`**: groundea y resuelve cada candidato para obtener `Coverage`: con un `clingo.Control` propio o, en incremental, resolviendo con assumptions el `Control` que groundeó una vez las cláusulas activas de la época.
+- **`CoverageSolver`**: crea, groundea y resuelve un `clingo.Control` por candidato para obtener `Coverage`.
 
 Usa `ClauseSpace` para cláusulas candidatas. Usa hipótesis o programa candidato
 para el conjunto evaluado por fitness.

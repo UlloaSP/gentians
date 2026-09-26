@@ -19,10 +19,6 @@ class CandidateEvaluator:
         self.solver = solver
         self.score = score
 
-    def prepare(self, clauses: AspProgram) -> None:
-        """Ground `clauses` once for the candidates built from them."""
-        self.solver.prepare(clauses)
-
     def __call__(self, candidate: AspProgram) -> EvaluationResult:
         coverage = self.solver.extract_coverage(candidate)
         score = self.score(self.task, coverage)

@@ -223,7 +223,6 @@ def test_time_budget_counts_generation_and_rejects_late_evaluations(monkeypatch)
         return EvaluationResult(float(len(calls)), False, (0, 0), False, True)
 
     monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
-    evaluate.prepare = lambda clauses: None
     monkeypatch.setattr(search, "create_evaluator", lambda *a: evaluate)
     monkeypatch.setattr(search, "create_population", lambda *a: lambda ctx: [1, 2])
     args = Arguments(iterations_genetic=0, random_seed=1)

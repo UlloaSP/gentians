@@ -16,19 +16,16 @@ class Candidates:
     """Evaluate each genome once and admit it once as an `Individual`.
 
     `birth_order` counts evaluations, so it is the logical age used by
-    replacement. An optional budget stops evaluation at its deadline. An
-    optional `prepare` grounds the active clauses once for the evaluator.
+    replacement. An optional budget stops evaluation at its deadline.
     """
 
     def __init__(
         self, hypotheses: HypothesisGenerator, evaluator: Callable[[AspProgram], EvaluationResult],
         rng: random.Random, budget: SearchBudget | None = None,
-        prepare: Callable[[AspProgram], None] | None = None,
     ) -> None:
         self.hypotheses = hypotheses
         self.evaluator = evaluator
         self.budget = budget
-        self._prepare = prepare
         self.evaluated: dict[Genome, Individual] = {}
         self.results: dict[Genome, EvaluationResult] = {}
         self.evaluations = 0
@@ -44,16 +41,6 @@ class Candidates:
             if self.budget is not None:
                 self.budget.accept(self.hypotheses, genome, result)
         return self.results[genome]
-
-    def prepare_active(self, shared: bool = True) -> None:
-        """Ground the active clauses once, when the evaluator can reuse them.
-
-        Without `shared`, each candidate grounds alone again.
-        """
-        if self._prepare is not None:
-            self._prepare(
-                self.hypotheses.program(self.hypotheses.available_clauses) if shared else ()
-            )
 
     def admit(self, genome: Genome) -> Individual | None:
         """Return a new individual, or None when the genome was already admitted."""

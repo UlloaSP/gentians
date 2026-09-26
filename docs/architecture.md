@@ -62,10 +62,8 @@ de ellos redefine el language bias de una tarea inductiva.
   `operator_types.py` y `EvolutionContext` son el contrato común mínimo.
 - `evaluation/` es independiente de `evolution/`. `CoverageSolver` evalúa la
   hipótesis completa bajo semántica de modelos estables. Si debe resolver
-  cobertura, crea un `clingo.Control` nuevo o, si incremental groundeó las
-  cláusulas activas con `prepare`, resuelve ese `Control` con assumptions; la
-  herencia exacta puede evitar la llamada. Una cláusula aislada no tiene fitness
-  estable.
+  cobertura, crea un `clingo.Control` nuevo; la herencia exacta puede evitar
+  esa llamada. Una cláusula aislada no tiene fitness estable.
 - `timing.py` conserva la atribución de fases y el tiempo neto; los módulos
   `metrics.py` construyen filas del dominio que poseen. Logging general sigue
   siendo una frontera de producto pendiente, no un paquete que haya que crear

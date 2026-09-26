@@ -197,7 +197,6 @@ def test_batch_renewal_evaluates_new_bit_collision_and_reuses_retained_result(mo
 
     monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
     monkeypatch.setattr(incremental_search, "create_population", lambda config: populate)
-    evaluate.prepare = lambda clauses: None
     monkeypatch.setattr(incremental_search, "create_evaluator", lambda *args: evaluate)
     monkeypatch.setattr(incremental_search, "create_crossover", lambda config: lambda *args: None)
     args = _incremental_arguments(epoch_generations=1, elite_count=1)

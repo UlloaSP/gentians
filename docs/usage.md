@@ -138,14 +138,7 @@ search. A supplied `ClauseSpace` bypasses generation. The archive limits clause
 count, not bytes: the working space also contains the fresh batch and elite
 programs, and Clingo, caches and instrumentation consume additional memory.
 
-Until exhaustion, each epoch grounds its active clauses once in a shared Clingo
-control, each clause behind a free guard atom. A candidate made of those clauses
-only solves, assuming its guards true and the rest false; its stable models and
-coverage equal those of the candidate alone. Clauses whose bodies use a head of
-another active clause are left out, because guarded heads are never facts and
-such bodies made grounding explode on aggregate spaces. Candidates using them,
-the partial queries of constraint inheritance and every candidate after
-exhaustion ground alone. Restarted batch sampling has been removed. `#maxpl`
+Restarted batch sampling and frozen-pool evaluation have been removed. `#maxpl`
 still limits complete hypotheses; unbounded task limits can allow large retained
 programs.
 

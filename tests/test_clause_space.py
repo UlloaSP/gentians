@@ -4763,7 +4763,7 @@ def test_projected_aggregate_random_seed_program_is_clingo_safe():
 
     CoverageSolver(
         program.background,
-        args.evaluation["clingo_arguments"],
+        ["0", "--enum-mode=brave", *args.evaluation["clingo_arguments"]],
         program.positive_examples,
         program.negative_examples,
     ).extract_coverage(parse_program("\n".join(candidate)))

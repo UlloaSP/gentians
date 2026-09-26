@@ -89,6 +89,7 @@ class HypothesisGenerator:
                 )
         self._render_cache: dict[Genome, ProgramText] = {}
         self._summary_cache: dict[Genome, tuple[int, int]] = {}
+        self._signature_cache: dict[int, tuple[tuple[int, int, int, Genome], ...]] = {}
         self._build_cache: dict[tuple[Genome, Genome, Genome], Genome | None] = {}
 
     def set_available_clauses(self, clauses: Genome) -> None:
@@ -419,9 +420,14 @@ class HypothesisGenerator:
                     & ~forbidden
                 )
                 score_groups: dict[tuple[int, int, int], int] = {}
-                for clause_id in self._ids(providers):
-                    clause_heads = self.head_masks[clause_id]
-                    clause_deps = self.dep_masks[clause_id]
+                # A provider's score depends only on its heads, dependencies and
+                # body size, so score each signature once instead of each clause.
+                for clause_heads, clause_deps, body_size, signature in self._signatures(
+                    missing_bit
+                ):
+                    group = signature & providers
+                    if not group:
+                        continue
                     if missing_bit & self.invented_mask and missing_bit & clause_deps:
                         continue
                     score = (
@@ -429,9 +435,9 @@ class HypothesisGenerator:
                         -(
                             clause_deps & ~(self.background_mask | heads | clause_heads)
                         ).bit_count(),
-                        -self.body_sizes[clause_id],
+                        -body_size,
                     )
-                    score_groups[score] = score_groups.get(score, 0) | (1 << clause_id)
+                    score_groups[score] = score_groups.get(score, 0) | group
                 for score in sorted(score_groups, reverse=True):
                     for clause_id in self._random_ids(score_groups[score], rng):
                         if result := search(completed | (1 << clause_id)):
@@ -440,6 +446,18 @@ class HypothesisGenerator:
             return None
 
         return search(candidate)
+
+    def _signatures(self, head_bit: int) -> tuple[tuple[int, int, int, Genome], ...]:
+        """Group the providers of one head predicate by heads, dependencies and body size."""
+        if head_bit not in self._signature_cache:
+            groups: dict[tuple[int, int, int], Genome] = {}
+            for clause_id in self._ids(self.clauses_by_head.get(head_bit, 0)):
+                key = (self.head_masks[clause_id], self.dep_masks[clause_id], self.body_sizes[clause_id])
+                groups[key] = groups.get(key, 0) | (1 << clause_id)
+            self._signature_cache[head_bit] = tuple(
+                (*key, clauses) for key, clauses in groups.items()
+            )
+        return self._signature_cache[head_bit]
 
     def _summary(self, genome: Genome) -> tuple[int, int]:
         if genome not in self._summary_cache:

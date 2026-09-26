@@ -13,6 +13,7 @@ const BLOCKS = [
       "crossover",
       "mutation",
       "replacement",
+      "renewal",
       "gaPython",
     ],
   ],

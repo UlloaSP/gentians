@@ -11,6 +11,7 @@ const PHASE_COLORS = {
   crossover: "#F28E2B",
   mutation: "#E15759",
   replacement: "#59A14F",
+  renewal: "#9C755F",
   search: "#30343B",
 };
 

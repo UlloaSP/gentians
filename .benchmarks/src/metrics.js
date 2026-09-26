@@ -5,6 +5,7 @@ export const phaseOrder = [
   ["crossover", "crossover"],
   ["mutation", "mutation"],
   ["replacement", "replacement"],
+  ["renewal", "renewal"],
   ["gaPython", "search orchestration"],
 ];
 
@@ -35,7 +36,7 @@ export const progressAxes = [
 ];
 export const progressAxisLabel = (axis) =>
   (progressAxes.find(([key]) => key === axis) || progressAxes[0])[1];
-export const DASHBOARD_SCHEMA_VERSION = 12;
+export const DASHBOARD_SCHEMA_VERSION = 13;
 
 // Phase contexts in which the algorithms request Clingo, in pipeline order.
 const clingoPhases = [
@@ -45,6 +46,7 @@ const clingoPhases = [
   ["crossover", "crossover"],
   ["mutation", "mutation"],
   ["replacement", "replacement"],
+  ["renewal", "renewal"],
   ["search", "search orchestration"],
 ];
 export const clingoPhaseLabel = (context) =>
@@ -141,6 +143,7 @@ export const evolutionarySeconds = (benchmark) =>
       "crossover",
       "mutation",
       "replacement",
+      "renewal",
       "gaPython",
     ].map((phase) => phaseTotal(benchmark, phase)),
   );

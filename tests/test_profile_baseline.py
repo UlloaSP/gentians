@@ -597,6 +597,7 @@ def test_dashboard_phases_are_the_phases_the_algorithms_record():
         "crossover",
         "mutation",
         "replacement",
+        "renewal",
         "gaPython",
     ]
 
@@ -1026,7 +1027,7 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 12
+    assert payload["schemaVersion"] == 13
     assert benchmark["total"] == 3.0
     assert benchmark["instrumentedRuns"] == 1
     assert "wall" not in benchmark
@@ -1319,7 +1320,7 @@ def test_build_dashboard_reads_saved_run_artifacts(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     [bench] = payload["benchmarks"]
-    assert payload["schemaVersion"] == 12
+    assert payload["schemaVersion"] == 13
     assert bench["algorithm"] == "incremental"
     assert bench["total"] == 1.25
     assert bench["bestFoundRuns"] == 1

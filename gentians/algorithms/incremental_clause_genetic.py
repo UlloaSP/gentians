@@ -104,7 +104,7 @@ def incremental_clause_genetic_search(
 
                 if not pool.exhausted and generation - epochs.epoch_started >= epoch_generations:
                     epochs.next(generation, "generations", population)
-                    with phase("replacement"):
+                    with phase("renewal"):
                         renew_population(population, pool, elite_count)
                     if population.winner is not None:
                         return _solution(population, metrics, epochs, generation)

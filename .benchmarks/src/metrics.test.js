@@ -40,7 +40,7 @@ describe("solver calls", () => {
 
 describe("dashboard schema", () => {
   it("accepts v12 and rejects stale dashboards", () => {
-    expect(() => assertDashboardSchema({ schemaVersion: 12 })).not.toThrow();
+    expect(() => assertDashboardSchema({ schemaVersion: 13 })).not.toThrow();
     expect(() => assertDashboardSchema({ schemaVersion: 11 }, "old")).toThrow(
       "old: schema 11; vuelve a ejecutar el experimento",
     );

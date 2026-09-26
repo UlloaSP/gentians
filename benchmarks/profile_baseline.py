@@ -17,7 +17,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_BASELINE_PATH = Path(__file__).resolve()
 # Keep in sync with DASHBOARD_SCHEMA_VERSION in .benchmarks/src/metrics.js.
-DASHBOARD_SCHEMA_VERSION = 12
+DASHBOARD_SCHEMA_VERSION = 13
 # Progress points kept per run and positions in each precomputed mean series.
 RUN_PROGRESS_POINTS = 300
 MEAN_PROGRESS_POINTS = 300
@@ -828,6 +828,7 @@ def dashboard_phases(timings: list[TimingMetric]) -> dict[str, dict[str, float]]
         "crossover": phase("crossover"),
         "mutation": phase("mutation"),
         "replacement": phase("replacement"),
+        "renewal": phase("renewal"),
         "gaPython": phase("search"),
     }
     total = values.get("total_execution", 0.0)

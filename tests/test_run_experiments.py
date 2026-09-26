@@ -409,7 +409,7 @@ def test_rerun_with_current_config_is_no_longer_historical(tmp_path):
     out_dir = tmp_path / "saved"
     out_dir.mkdir()
     write_manifest(out_dir, experiment, "complete")
-    (out_dir / "dashboard_data.json").write_text('{"schemaVersion":12}')
+    (out_dir / "dashboard_data.json").write_text('{"schemaVersion":13}')
     (tmp_path / "experiments.json").write_text(
         json.dumps({"experiments": [{"id": "saved", "status": "historical"}]})
     )

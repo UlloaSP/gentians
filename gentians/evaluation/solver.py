@@ -1,5 +1,6 @@
 import sys
 from collections import OrderedDict, deque
+from collections.abc import Sequence
 from functools import lru_cache
 
 import clingo
@@ -128,31 +129,23 @@ class CoverageSolver:
         return ctl, seconds, phase
 
     @staticmethod
-    def _solve(ctl, require_exhaustive: bool = False) -> tuple[float, Coverage]:
-        if require_exhaustive and ctl.configuration.solve.enum_mode != "brave":
-            raise RuntimeError("Coverage inheritance requires brave enumeration")
-        seconds = 0.0
-        pos_mask = 0
-        neg_mask = 0
+    def _solve(
+        ctl, require_exhaustive: bool = False, assumptions: Sequence[int] = (),
+    ) -> tuple[float, Coverage]:
+        # Each brave model extends the previous one, so the last model holds
+        # every brave consequence. Converting only its symbols is exact.
+        if ctl.configuration.solve.enum_mode != "brave":
+            raise RuntimeError("Coverage extraction requires brave enumeration")
+        last = []
         start = net_time()
-        with ctl.solve(yield_=True) as handle:
-            seconds += net_time() - start
-            iterator = iter(handle)
-            while True:
-                start = net_time()
-                try:
-                    model = next(iterator)
-                except StopIteration:
-                    seconds += net_time() - start
-                    break
-                seconds += net_time() - start
-                positive, negative = _coverage_masks(model.symbols(shown=True))
-                pos_mask |= positive
-                neg_mask |= negative
-            if require_exhaustive and not handle.get().exhausted:
-                raise RuntimeError("Coverage inheritance requires exhaustive solving")
-            start = net_time()
-        seconds += net_time() - start
+        result = ctl.solve(
+            assumptions=assumptions,
+            on_last=lambda model: last.append(model.symbols(shown=True)),
+        )
+        seconds = net_time() - start
+        if require_exhaustive and not result.exhausted:
+            raise RuntimeError("Coverage inheritance requires exhaustive solving")
+        pos_mask, neg_mask = _coverage_masks(last[0]) if last else (0, 0)
         add(f"{current_phase()}.solving", seconds)
         return seconds, Coverage(pos_mask, neg_mask)
 

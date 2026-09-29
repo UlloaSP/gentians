@@ -2,7 +2,7 @@ from clingo import ast
 
 from ..language.asp import (
     clause_predicates,
-    symbolic_function,
+    symbolic_functions,
     symbolic_literal_predicate,
 )
 from ..language.ir.inductive_task import InductiveTask
@@ -23,8 +23,7 @@ def _prune_optional_constraints(task: InductiveTask) -> bool:
     if (task.negative_examples or not task.positive_examples
             or task.max_head_literals == 0):
         return False
-    # Predicate extraction does not expand pooled symbolic heads such as
-    # q(a;b). Never mistake an unrecognized head for a missing definition.
+    # Never mistake an unrecognized head for a missing definition.
     if any(
         node.ast_type != ast.ASTType.Rule or not _known_head(node.head)
         for node in task.background
@@ -52,7 +51,7 @@ def _prune_optional_constraints(task: InductiveTask) -> bool:
 def _known_head(node: ast.AST) -> bool:
     """Whether predicate extraction understands every symbolic head element."""
     if node.ast_type == ast.ASTType.SymbolicAtom:
-        return symbolic_function(node.symbol) is not None
+        return bool(symbolic_functions(node.symbol))
     if node.ast_type == ast.ASTType.TheoryAtom:
         return False
     return all(_known_head(child) for child in _children(node))

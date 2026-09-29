@@ -690,9 +690,16 @@ safety and whole-program dependency closure still apply.
 
 ## Runtime boundary
 
-### Pending: predicates provided only by example contexts
+### Dependency providers
 
-The language bias can generate `q :- p.` for this task:
+Dependency closure requires every predicate a learned clause depends on to be
+defined by the background, by some example context, or by a head of the same
+candidate. Only positive head literals define a predicate. Default-negated
+heads, head conditions, and aggregate head conditions are dependencies; a
+top-level pool such as `p(a;b,c).` defines every alternative, here `p/1` and
+`p/2`.
+
+A predicate defined only by example contexts closes the dependency:
 
 ```prolog
 #pos({q},{},{p.}).
@@ -702,12 +709,13 @@ The language bias can generate `q :- p.` for this task:
 #modeb(1,p).
 ```
 
-Evaluating that clause directly covers the positive example and excludes the
-negative one. `prepare_space()` currently removes it because dependency closure
-recognizes providers in the background and candidate hypothesis, but not in an
-individual example context. This is a known end-to-end expressivity gap left
-pending. A future change must define how context-only providers participate in
-closure without allowing one example's context to supply another's predicates.
+`q :- p.` is learnable here. Closure only rules out predicates that can never
+be true; it is not a coverage test. Coverage still evaluates each context in
+isolation, so one example's context never supplies atoms to another example.
+
+`#show` directives in the background never change stable models. Gentians
+ignores them both when it analyses the background and when it evaluates
+coverage.
 
 ### Positive-only constraint pruning
 
@@ -728,8 +736,8 @@ Early pruning activates only when:
 - The task permits a headed mode and `#maxhl` is not zero.
 - The background contains ordinary ASP rules
   rather than directives such as `#const` or `#external`.
-- Predicate extraction understands all background heads. Pooled
-  symbolic heads such as `q(a;b).` and theory heads disable this optimization.
+- Predicate extraction understands all background heads. Theory heads disable
+  this optimization.
 - At least one included positive atom has a signed predicate absent from every
   head in the background and in that example's own ordinary-rule context, whose
   heads must also be understood by predicate extraction.

@@ -5,7 +5,14 @@ import clingo
 from clingo import ast
 from clingo.configuration import Configuration
 
-from ...language.asp import AspProgram, Predicate, add_program, clause_predicates
+from ...language.asp import (
+    AspProgram,
+    Predicate,
+    add_program,
+    clause_predicates,
+    symbolic_functions,
+    without_show,
+)
 from .ast_inspection import _children
 
 # Integers stay integers; every other ground term is its canonical Clingo text.
@@ -149,10 +156,7 @@ def _touches(statement: ast.AST, open_predicates: frozenset[Predicate]) -> bool:
 def _head_predicates_known(node: ast.AST) -> bool:
     """Whether predicate extraction reads every symbolic head element."""
     if node.ast_type == ast.ASTType.SymbolicAtom:
-        return node.symbol.ast_type in {
-            ast.ASTType.Function,
-            ast.ASTType.UnaryOperation,
-        } or (
+        return bool(symbolic_functions(node.symbol)) or (
             node.symbol.ast_type == ast.ASTType.SymbolicTerm
             and node.symbol.symbol.type == clingo.SymbolType.Function
         )
@@ -165,7 +169,7 @@ def _consequences(
     program: AspProgram,
 ) -> tuple[dict[Predicate, set[GroundTuple]], dict[Predicate, set[GroundTuple]]] | None:
     control = clingo.Control(["--models=0"], logger=lambda _code, _message: None)
-    add_program(control, program)
+    add_program(control, without_show(program))
     control.ground([("base", [])])
     atoms = [(atom.symbol, atom.literal) for atom in control.symbolic_atoms]
     results: list[dict[Predicate, set[GroundTuple]]] = []

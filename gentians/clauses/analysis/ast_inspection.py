@@ -3,7 +3,7 @@ from collections.abc import Iterable, Iterator
 import clingo
 from clingo import ast
 
-from ...language.asp import Predicate, clause_predicates, symbolic_function
+from ...language.asp import Predicate, clause_predicates, symbolic_functions
 
 Atom = tuple[str, tuple[ast.AST, ...], ast.Sign]
 
@@ -40,11 +40,10 @@ def _node_atoms(
             node.atom, node.sign if node.sign != ast.Sign.NoSign else sign
         )
     if node.ast_type == ast.ASTType.SymbolicAtom:
-        parsed = symbolic_function(node.symbol)
-        if parsed is not None:
-            name, arguments = parsed
-            return ((name, tuple(arguments), sign),)
-        return ()
+        return tuple(
+            (name, tuple(arguments), sign)
+            for name, arguments in symbolic_functions(node.symbol)
+        )
     return tuple(
         atom
         for child in _children(node)

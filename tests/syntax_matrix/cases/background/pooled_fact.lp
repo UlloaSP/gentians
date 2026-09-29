@@ -1,5 +1,4 @@
 % Pooled background fact provides p for closure.
-% xfail: bug: clause_predicates extracts no head predicate from pooled heads such as p(a;c)
 % expect: target(V0) :- p(V0).
 #maxv(1). #maxbl(1). #maxhl(1). #maxpl(1).
 #modeh(1,target(var(node,input))).

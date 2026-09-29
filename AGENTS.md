@@ -28,7 +28,7 @@ Un cambio de rendimiento necesita una medición reproducible. Una intuición sob
 - **Cláusula / `ClauseSpace`**: una cláusula candidata canónica / el conjunto ordenado y sin duplicados de ellas.
 - **Hipótesis o programa candidato**: conjunto de cláusulas evaluado como una unidad bajo stable-model semantics. `Genome` es su bitset.
 - **Hipótesis perfecta**: cubre todos los positivos y ningún negativo; produce `best_found=True`.
-- **Cierre de dependencias**: toda dependencia queda definida por el background o por una cabeza del mismo candidato.
+- **Cierre de dependencias**: toda dependencia queda definida por el background, por el contexto de algún ejemplo o por una cabeza positiva del mismo candidato.
 
 Usa `ClauseSpace` para cláusulas candidatas e hipótesis para lo que evalúa el fitness. Glosario completo: [docs/glossary.md](docs/glossary.md).
 

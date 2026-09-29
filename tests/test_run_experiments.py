@@ -311,11 +311,12 @@ def test_stale_index_describes_current_config_not_old_manifest(tmp_path):
     assert indexed["overrides"] == {"evaluation.scoring": "cov_program"}
 
 
-def test_historical_index_preserves_saved_runs_and_provenance(tmp_path):
+@pytest.mark.parametrize("original_status", ["completed_with_failures", "stale"])
+def test_historical_index_preserves_saved_runs_and_provenance(tmp_path, original_status):
     experiment = {"id": "saved", "datasets": ["coin"], "runs": 300, "overrides": {}}
     out_dir = tmp_path / "saved"
     out_dir.mkdir()
-    write_manifest(out_dir, experiment, "completed_with_failures")
+    write_manifest(out_dir, experiment, original_status)
     manifest_path = out_dir / "experiment.json"
     original = manifest_path.read_bytes()
     (out_dir / "dashboard_data.json").write_text('{"schemaVersion":10}')
@@ -326,7 +327,7 @@ def test_historical_index_preserves_saved_runs_and_provenance(tmp_path):
     [indexed] = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
     assert indexed["runs"] == 300
     assert indexed["status"] == "historical"
-    assert indexed["original_status"] == "completed_with_failures"
+    assert indexed["original_status"] == original_status
     assert indexed["has_dashboard"] is True
     assert indexed["fingerprint"] == json.loads(original)["fingerprint"]
     assert manifest_path.read_bytes() == original

@@ -7,7 +7,7 @@ import clingo
 from clingo import ast
 
 from ..clingo_stats import clingo_statistics
-from ..language.asp import AspProgram, add_program
+from ..language.asp import AspProgram, add_program, without_show
 from ..language.ir.example import Example
 from ..timing import (
     add,
@@ -33,7 +33,8 @@ class CoverageSolver:
         *,
         constraint_inheritance: bool = False,
     ) -> None:
-        self.background = background
+        # Coverage reads only its own shown atoms.
+        self.background = without_show(background)
         self.clingo_arguments = clingo_arguments
         self.positive_examples = len(positive_examples)
         self.negative_examples = len(negative_examples)

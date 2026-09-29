@@ -26,6 +26,19 @@ def parse_program(source: str, line: int = 1) -> AspProgram:
     return tuple(statements)
 
 
+def without_show(program: AspProgram) -> AspProgram:
+    """Drop ``#show`` directives, which never change the stable models.
+
+    Gentians reads its own shown atoms and brave/cautious consequences, and
+    Clingo computes both over shown atoms only.
+    """
+    return tuple(
+        statement
+        for statement in program
+        if statement.ast_type not in {ast.ASTType.ShowSignature, ast.ASTType.ShowTerm}
+    )
+
+
 def _parse_error_line(source: str, line: int) -> int:
     diagnostics: list[str] = []
     try:
@@ -239,10 +252,38 @@ def _clause_predicates_ast(
         return frozenset(), frozenset(), 0
     heads: set[Predicate] = set()
     deps: set[Predicate] = set()
-    _collect_predicates(statement.head, heads)
+    _collect_head_predicates(statement.head, heads, deps)
     for literal in statement.body:
         _collect_predicates(literal, deps)
     return frozenset(heads), frozenset(deps), len(statement.body)
+
+
+def _collect_head_predicates(
+    node: ast.AST, heads: set[Predicate], deps: set[Predicate]
+) -> None:
+    """Only positive head literals define; negated heads and conditions depend."""
+    if node.ast_type == ast.ASTType.Literal:
+        _collect_predicates(node, heads if node.sign == ast.Sign.NoSign else deps)
+        return
+    if node.ast_type == ast.ASTType.ConditionalLiteral:
+        _collect_head_predicates(node.literal, heads, deps)
+        for condition in node.condition:
+            _collect_predicates(condition, deps)
+        return
+    if node.ast_type == ast.ASTType.TheoryAtom:
+        _collect_predicates(node, heads)
+        return
+    for child in _ast_children(node):
+        _collect_head_predicates(child, heads, deps)
+
+
+def _ast_children(node: ast.AST) -> Iterable[ast.AST]:
+    for key in node.child_keys:
+        child = getattr(node, key)
+        if isinstance(child, ast.AST):
+            yield child
+        elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
+            yield from (item for item in child if isinstance(item, ast.AST))
 
 
 def _collect_atoms(node: ast.AST, result: list[ParsedAtom], negative: bool = False) -> None:
@@ -250,9 +291,7 @@ def _collect_atoms(node: ast.AST, result: list[ParsedAtom], negative: bool = Fal
         _collect_atoms(node.atom, result, negative or node.sign != ast.Sign.NoSign)
         return
     if node.ast_type == ast.ASTType.SymbolicAtom:
-        parsed = symbolic_function(node.symbol)
-        if parsed is not None:
-            name, arguments = parsed
+        for name, arguments in symbolic_functions(node.symbol):
             result.append(
                 (
                     name,
@@ -261,31 +300,17 @@ def _collect_atoms(node: ast.AST, result: list[ParsedAtom], negative: bool = Fal
                 )
             )
         return
-    for key in node.child_keys:
-        child = getattr(node, key)
-        if isinstance(child, ast.AST):
-            _collect_atoms(child, result, negative)
-        elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
-            for item in child:
-                if isinstance(item, ast.AST):
-                    _collect_atoms(item, result, negative)
+    for child in _ast_children(node):
+        _collect_atoms(child, result, negative)
 
 
 def _collect_predicates(node: ast.AST, result: set[Predicate]) -> None:
     if node.ast_type == ast.ASTType.SymbolicAtom:
-        parsed = symbolic_function(node.symbol)
-        if parsed is not None:
-            name, arguments = parsed
+        for name, arguments in symbolic_functions(node.symbol):
             result.add((name, len(arguments)))
         return
-    for key in node.child_keys:
-        child = getattr(node, key)
-        if isinstance(child, ast.AST):
-            _collect_predicates(child, result)
-        elif isinstance(child, list) or child.__class__.__name__ == "ASTSequence":
-            for item in child:
-                if isinstance(item, ast.AST):
-                    _collect_predicates(item, result)
+    for child in _ast_children(node):
+        _collect_predicates(child, result)
 
 
 @lru_cache(maxsize=None)
@@ -325,3 +350,31 @@ def symbolic_function(symbol: ast.AST) -> tuple[str, ast.ASTSequence] | None:
         return None
     name = f"-{symbol.name}" if strong else str(symbol.name)
     return name, symbol.arguments
+
+
+def symbolic_functions(
+    symbol: ast.AST, strong: bool = False
+) -> tuple[tuple[str, ast.ASTSequence], ...]:
+    """Every signed atom of a symbol, one per alternative of a top-level pool.
+
+    Clingo represents ``p(a;b,c)`` as a pool of complete atoms, so the
+    alternatives may differ in arity; ``-p(a;b)`` negates each alternative.
+    """
+    if symbol.ast_type == ast.ASTType.Pool:
+        return tuple(
+            function
+            for alternative in symbol.arguments
+            for function in symbolic_functions(alternative, strong)
+        )
+    if (
+        not strong
+        and symbol.ast_type == ast.ASTType.UnaryOperation
+        and symbol.operator_type == ast.UnaryOperator.Minus
+        and symbol.argument.ast_type == ast.ASTType.Pool
+    ):
+        return symbolic_functions(symbol.argument, True)
+    parsed = symbolic_function(symbol)
+    if parsed is None:
+        return ()
+    name, arguments = parsed
+    return ((f"-{name}" if strong else name, arguments),)

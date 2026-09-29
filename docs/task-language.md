@@ -280,10 +280,10 @@ Contextual facts, rules, constraints, choices, disjunctions, and aggregates are
 supported. Global directives and weak constraints are rejected because they
 cannot be isolated by the per-context ASP selector.
 
-Dependency closure currently recognizes providers in the background or the
-candidate hypothesis, not predicates supplied only by an example context. The
-resulting learnability gap is documented as
-[pending](language-bias.md#pending-predicates-provided-only-by-example-contexts).
+Dependency closure accepts a predicate defined by the background, by any
+example context, or by the candidate itself. Coverage still keeps every
+context isolated. See
+[dependency providers](language-bias.md#dependency-providers).
 
 ## Retired directives
 

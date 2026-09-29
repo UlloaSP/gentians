@@ -40,7 +40,9 @@ change during a run marks its result stale. The manifest retains these inputs.
 
 `--historical-index <ids>` keeps saved results viewable after their
 configuration changes. They stay historical until the experiment runs again with
-the current configuration; `--list` and new runs keep that status.
+the current configuration; `--list` and new runs keep that status. The index
+retains the manifest's original status, including `stale` when source changed
+during execution, so historical results can still be distinguished by provenance.
 
 When the dashboard schema changes, rebuild saved dashboards from their raw run
 artifacts instead of rerunning:

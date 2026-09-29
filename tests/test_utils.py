@@ -18,6 +18,23 @@ class TestUnit:
                 frozenset({("blue", 1), ("e", 2), ("green", 1)}),
                 4,
             ),
+            ("p(a;b,c).", frozenset({("p", 1), ("p", 2)}), frozenset(), 0),
+            ("-p(a;b).", frozenset({("-p", 1)}), frozenset(), 0),
+            ("p :- q(1;2).", frozenset({("p", 0)}), frozenset({("q", 1)}), 1),
+            ("not p :- q.", frozenset(), frozenset({("p", 0), ("q", 0)}), 1),
+            ("sel(X):node(X).", frozenset({("sel", 1)}), frozenset({("node", 1)}), 0),
+            (
+                "1{not b;s(X):n(X)}1.",
+                frozenset({("s", 1)}),
+                frozenset({("b", 0), ("n", 1)}),
+                0,
+            ),
+            (
+                "#count{X:s(X):n(X),not b(X)}=1.",
+                frozenset({("s", 1)}),
+                frozenset({("b", 1), ("n", 1)}),
+                0,
+            ),
         ],
     )
     def test_clause_predicates(self, rule, expected_heads, expected_deps, expected_body_literals):

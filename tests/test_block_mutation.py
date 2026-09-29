@@ -264,7 +264,7 @@ def test_block_transitions_preserve_invariants_across_seeds():
                 heads, deps = h._summary(after)
                 assert 0 < after.bit_count() <= h.max_clauses
                 assert not after & ~h.available_clauses
-                assert not deps & ~(heads | h.background_mask)
+                assert not deps & ~(heads | h.provider_mask)
                 if operation == "remove":
                     assert after & ~before == 0
 

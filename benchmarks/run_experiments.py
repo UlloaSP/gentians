@@ -344,7 +344,9 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
             and manifest_path.exists()
             and manifest.get("fingerprint") != fingerprint(experiment)
             and dashboard_path.exists()
-            and manifest.get("status") in ("complete", "completed_with_failures", "screened_out")
+            and manifest.get("status") in (
+                "complete", "completed_with_failures", "screened_out", "stale"
+            )
         )
         if historical:
             manifest["original_status"] = manifest["status"]

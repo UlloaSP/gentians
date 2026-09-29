@@ -16,7 +16,7 @@ Usa estos términos en código, docs y conversación.
 - **`Coverage`**: valor inmutable con las máscaras de comportamiento producidas por Clingo.
 - **`EvaluationResult`**: score, marca de solución y comportamiento de un programa candidato evaluado.
 - **Hipótesis perfecta**: cubre todos los ejemplos positivos y ningún negativo. Esto produce `best_found=True`.
-- **Cierre de dependencias**: toda dependencia de una cláusula queda definida por el background o por alguna cabeza del mismo candidato.
+- **Cierre de dependencias**: toda dependencia de una cláusula queda definida por el background, por el contexto de algún ejemplo o por alguna cabeza positiva del mismo candidato.
 - **Pruning**: exclusión de cláusulas o hipótesis inválidas, redundantes o imposibles antes de gastar evaluaciones de fitness.
 - **`CoverageSolver`**: crea, groundea y resuelve un `clingo.Control` por candidato para obtener `Coverage`.
 

@@ -7,7 +7,7 @@ from ..language.asp import AspProgram, symbolic_literal_predicate
 from ..language.ir.inductive_task import InductiveTask
 from ..clauses import ClauseSpace
 from ..timing import add, current_phase
-from .space import defined_predicates, prepare_space
+from .space import prepare_space, task_providers
 from .types import Genome, ProgramText
 
 _CACHE_SIZE = 65536
@@ -52,15 +52,15 @@ class HypothesisGenerator:
             clause: index for index, clause in enumerate(self.clauses)
         }
 
-        background = defined_predicates(task.background)
-        predicates = set(background)
+        providers = task_providers(task)
+        predicates = set(providers)
         for entry in self.space.entries:
             predicates.update(entry.heads)
             predicates.update(entry.deps)
         self.predicate_ids = {
             predicate: index for index, predicate in enumerate(sorted(predicates))
         }
-        self.background_mask = self._predicate_mask(background)
+        self.provider_mask = self._predicate_mask(providers)
         self.invented_mask = self._predicate_mask(set(task.invented_predicates))
         target_predicates = {
             symbolic_literal_predicate(literal)
@@ -317,7 +317,7 @@ class HypothesisGenerator:
         """
         while candidate:
             heads, _ = self._summary(candidate)
-            provided = self.background_mask | heads | extra_heads
+            provided = self.provider_mask | heads | extra_heads
             unsupported = sum(
                 1 << i for i in self._ids(candidate) if self.dep_masks[i] & ~provided
             )
@@ -399,7 +399,7 @@ class HypothesisGenerator:
                 return None
             remaining -= 1
             heads, deps = self._summary(completed)
-            missing = deps & ~(self.background_mask | heads)
+            missing = deps & ~(self.provider_mask | heads)
             if not missing:
                 if not self.has_negative_examples:
                     # Optional integrity constraints cannot add brave witnesses.
@@ -433,7 +433,7 @@ class HypothesisGenerator:
                     score = (
                         (clause_heads & missing).bit_count(),
                         -(
-                            clause_deps & ~(self.background_mask | heads | clause_heads)
+                            clause_deps & ~(self.provider_mask | heads | clause_heads)
                         ).bit_count(),
                         -body_size,
                     )

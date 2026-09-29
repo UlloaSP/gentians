@@ -1,5 +1,4 @@
 % #show directives do not change coverage.
-% xfail: bug: brave/cautious consequences in clauses/analysis/ground_relations.py only see shown atoms
 % expect: target(V0) :- p(V0).
 #maxv(1). #maxbl(1). #maxhl(1). #maxpl(1).
 #modeh(1,target(var(node,input))).

@@ -113,5 +113,10 @@ Los tests principales están en `tests/test_clause_space.py` (lenguaje y
 cláusulas), `test_evolution_operators.py` y `test_incremental_*.py` (genomas,
 operadores y algoritmos), `test_evaluation.py` (cobertura),
 `test_profile_baseline.py` (tiempos y dashboard), `test_run_experiments.py`
-(runner) y `test_strategy_layout.py` (estructura de estrategias). Las ADR
+(runner) y `test_strategy_layout.py` (estructura de estrategias).
+`tests/syntax_matrix/` recorre la cadena completa por construcción ASP: cada
+`cases/<eje>/<caso>.lp` es una tarea mínima cuya hipótesis de referencia
+(`% expect:`) debe sobrevivir a generación y cierre, ser perfecta y aprenderse
+con ambos algoritmos. Una construcción nueva del task language añade allí su
+caso; un hueco conocido se marca con `% xfail:`. Las ADR
 aceptadas en `docs/adr/` prevalecen sobre comentarios históricos.

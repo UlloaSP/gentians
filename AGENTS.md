@@ -55,6 +55,7 @@ Usa la prueba más pequeña que pueda fallar por el cambio:
 
 ```powershell
 uv run pytest tests/test_clause_space.py -q
+uv run pytest tests/syntax_matrix -q
 uv run pytest tests/test_evolution_operators.py -q
 uv run pytest tests/test_evaluation.py -q
 uv run pytest tests/test_profile_baseline.py -q

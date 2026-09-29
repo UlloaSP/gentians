@@ -64,6 +64,11 @@ class ClauseMode:
             ),
         )
 
+    def __hash__(self) -> int:
+        # Equal modes share their id. Canonicalization caches key on modes, and
+        # hashing the whole template tree dominated their lookups.
+        return hash(self.id)
+
     @property
     def arity(self) -> int:
         return len(self.arguments)

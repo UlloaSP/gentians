@@ -34,7 +34,7 @@ from gentians.clauses.canonicalization.linear_constraint import LinearConstraint
 from gentians.clauses.clause import Clause
 from gentians.clauses.clause_mode import ClauseMode
 from gentians.clauses.clause_space import ClauseSpace
-from gentians.clauses.decoder import _clause_from_model
+from gentians.clauses.decoder import _clause_from_truth
 from gentians.clauses.generator import (
     _clause_space_args,
     generate_clause_space,
@@ -599,7 +599,7 @@ def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
         ("body", 3, ((3, (), 133),), ()),
     )
 
-    clause = _clause_from_model(model, index)
+    clause = _clause_from_truth(model.is_true, index)
 
     assert [(literal.mode_id, literal.variables) for literal in clause.body] == [
         (2, (1, 0)),

@@ -41,31 +41,64 @@ theta_fixed(Var) :-
 % Section, Slot, Offset) lists every offset combination; they depend on no
 % model, so "some combination is a consistent substitution avoiding O" is
 % stratified negation and no disjunction is needed.
+%
+% Consistency is checked per move and per pair of moves, never per Id and
+% variable: a combination is a substitution iff each move keeps fixed variables
+% and every two moves agree on the image of each shared variable. Only these
+% slot-level verdicts are joined with the offset combinations, so the ground
+% size no longer multiplies the combinations by variables and images.
 
 theta_group_start(Section, Slot, Start) :-
     theta_sigma_section(Section), theta_repeated(Section, Slot),
     selected(Section, Slot, Mode),
     Start = #min { Other : selected(Section, Other, Mode) }.
 
-theta_target(Id, Section, Slot, Target) :-
-    theta_sigma_offset(Id, Section, Slot, Offset),
-    theta_group_start(Section, Slot, Start),
+theta_offset(Section, Offset) :- theta_sigma_offset(_, Section, _, Offset).
+
+% theta_move(Section, Slot, Offset, Target): Offset sends Slot onto Target.
+theta_move(Section, Slot, Offset, Target) :-
+    theta_group_start(Section, Slot, Start), theta_offset(Section, Offset),
     Target = Start + Offset,
     selected(Section, Slot, Mode), selected(Section, Target, Mode).
 
-theta_bad(Id) :-
-    theta_sigma_offset(Id, Section, Slot, _), theta_group_start(Section, Slot, _),
-    not theta_target(Id, Section, Slot, _).
-
-theta_image(Id, Var, Image) :-
-    theta_target(Id, Section, Slot, Target),
-    var_at(Section, Slot, Position, Var),
+% theta_image(Section, Slot, Offset, Position, Image): after that move, the
+% variable at Position of Slot becomes Image.
+theta_image(Section, Slot, Offset, Position, Image) :-
+    theta_move(Section, Slot, Offset, Target),
     var_at(Section, Target, Position, Image).
 
-theta_bad(Id) :- theta_image(Id, Var, Image), theta_fixed(Var), Image != Var.
-theta_bad(Id) :- theta_image(Id, Var, Image), theta_image(Id, Var, Other), Image < Other.
+% A move is blocked when Offset leaves the group or moves a fixed variable.
+theta_blocked(Section, Slot, Offset) :-
+    theta_group_start(Section, Slot, _), theta_offset(Section, Offset),
+    not theta_move(Section, Slot, Offset, _).
+theta_blocked(Section, Slot, Offset) :-
+    theta_move(Section, Slot, Offset, _),
+    var_at(Section, Slot, Position, Var), theta_fixed(Var),
+    not theta_image(Section, Slot, Offset, Position, Var).
 
-theta_uses(Id, Section, Target) :- theta_target(Id, Section, _, Target).
+% theta_shared(Section, Slot, Position, Other, OtherPosition): two positions of
+% repeated literals hold the same variable, ordered to list each pair once.
+theta_shared(Section, Slot, Position, Other, OtherPosition) :-
+    theta_repeated(Section, Slot), theta_repeated(Section, Other),
+    var_at(Section, Slot, Position, Var), var_at(Section, Other, OtherPosition, Var),
+    (Slot, Position) < (Other, OtherPosition).
+
+% Two moves clash when they send one variable to different images.
+theta_clash(Section, Slot, Offset, Other, OtherOffset) :-
+    theta_shared(Section, Slot, Position, Other, OtherPosition),
+    theta_image(Section, Slot, Offset, Position, Image),
+    theta_offset(Section, OtherOffset),
+    not theta_image(Section, Other, OtherOffset, OtherPosition, Image).
+
+theta_bad(Id) :-
+    theta_sigma_offset(Id, Section, Slot, Offset), theta_blocked(Section, Slot, Offset).
+theta_bad(Id) :-
+    theta_sigma_offset(Id, Section, Slot, Offset),
+    theta_sigma_offset(Id, Section, Other, OtherOffset), Slot <= Other,
+    theta_clash(Section, Slot, Offset, Other, OtherOffset).
+
+theta_uses(Id, Section, Target) :-
+    theta_sigma_offset(Id, Section, Slot, Offset), theta_move(Section, Slot, Offset, Target).
 
 theta_witness :-
     theta_sigma_section(Section), theta_repeated(Section, Omitted),

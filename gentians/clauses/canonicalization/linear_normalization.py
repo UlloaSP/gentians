@@ -6,7 +6,6 @@ from ...language.ir.arithmetic_literal import ArithmeticLiteral
 from ...language.ir.comparison_literal import ComparisonLiteral
 from ...language.ir.term_template import TermTemplate
 from ..clause_mode import ClauseMode
-from ..reified_literal import ReifiedLiteral
 from .arithmetic_system import SystemRelation
 from .expression import ArithmeticExpression
 from .expression_constraint import ExpressionConstraint
@@ -110,7 +109,7 @@ def _is_linear(mode: ClauseMode, allow_disequality: bool) -> bool:
 
 @lru_cache(maxsize=8192)
 def _constraint(
-    literal: ReifiedLiteral,
+    variables: tuple[int, ...],
     mode: ClauseMode,
     width: int,
 ) -> LinearConstraint:
@@ -119,9 +118,7 @@ def _constraint(
         arithmetic = mode.literal
         if arithmetic.linear:
             assert arithmetic.coefficients is not None
-            for variable, coefficient in zip(
-                literal.variables, arithmetic.coefficients
-            ):
+            for variable, coefficient in zip(variables, arithmetic.coefficients):
                 coefficients[variable] += coefficient
             return LinearConstraint(tuple(coefficients), "eq")
         raise ValueError(f"arithmetic mode {mode.id} is not linear")
@@ -134,9 +131,7 @@ def _constraint(
     template_coefficients, constant = template
     if constant:
         raise ValueError("linear constraint constants must cancel")
-    for variable, coefficient in zip(
-        literal.variables, template_coefficients, strict=True
-    ):
+    for variable, coefficient in zip(variables, template_coefficients, strict=True):
         coefficients[variable] += coefficient
     operator = mode.literal.operators[0]
     if operator in {">", ">="}:

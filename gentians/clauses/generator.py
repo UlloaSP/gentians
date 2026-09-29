@@ -299,6 +299,40 @@ class _ClauseGenerator:
                             grounding_seconds if ordinal == 0 else None, seconds,
                         )
 
+    def clause_space(self) -> ClauseSpace:
+        """Enumerate the complete space in one callback solve.
+
+        Without batches nothing has to suspend the search, so models are decoded
+        in the solver callback instead of crossing threads one at a time.
+        """
+        ctl, model_index, fact_program, solver_arguments, grounding_seconds = self._prepare(None)
+        clauses: list[ReifiedClause] = []
+        decoding = 0.0
+
+        def decode(model: clingo.Model) -> None:
+            nonlocal decoding
+            start = net_time()
+            clauses.append(_clause_from_model(model, model_index))
+            decoding += net_time() - start
+
+        seconds = 0.0
+        try:
+            with phase("clause_generation"):
+                start = net_time()
+                ctl.solve(on_model=decode)
+                seconds = net_time() - start - decoding
+                add("clause_generation.solving", seconds)
+                return ClauseSpace(
+                    canonicalize_clauses(clauses, self.modes_by_id, self.max_variables)
+                )
+        finally:
+            if metric_enabled("clingo"):
+                with instrumentation():
+                    self._record_solve(
+                        ctl, fact_program, solver_arguments, None,
+                        grounding_seconds, seconds,
+                    )
+
     def _record_solve(
         self, ctl, fact_program, solver_arguments, seed,
         grounding_seconds, seconds,
@@ -349,8 +383,7 @@ class _ClauseGenerator:
 def generate_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSpace:
     with phase("clause_generation"):
         generator = _ClauseGenerator(task, arguments)
-    with closing(generator.batches(0, None)) as batches:
-        return next(batches)
+    return generator.clause_space()
 
 
 @contextmanager

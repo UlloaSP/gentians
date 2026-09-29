@@ -1,4 +1,6 @@
 from collections.abc import Set
+from dataclasses import dataclass
+from functools import cache
 
 from ...language.ir.aggregate_literal import AggregateLiteral
 from ...language.ir.arithmetic_literal import ArithmeticLiteral
@@ -56,6 +58,32 @@ def _is_numeric_builtin(mode: ClauseMode) -> bool:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class _ModeTraits:
+    builtin: bool
+    positive_atom: bool
+    numeric_builtin: bool
+    numeric_positions: tuple[int, ...]
+    output_guard: bool
+
+
+@cache
+def _mode_traits(mode: ClauseMode) -> _ModeTraits:
+    """Classify a mode once; every canonicalized clause asks the same questions."""
+    return _ModeTraits(
+        _is_builtin(mode),
+        _is_positive_atom(mode),
+        _is_numeric_builtin(mode),
+        tuple(
+            position
+            for position, binding in enumerate(mode.bindings)
+            if binding.type == "numeric"
+        ),
+        isinstance(mode.literal, AggregateLiteral)
+        and mode.literal.output_guard is not None,
+    )
+
+
 def canonical_arithmetic_clause(
     clause: ReifiedClause,
     modes: dict[int, ClauseMode],
@@ -63,45 +91,55 @@ def canonical_arithmetic_clause(
     systems_cache: _ArithmeticSystemsCache | None = None,
 ) -> CanonicalArithmeticClause | None:
     """Canonicalize one clause, optionally reusing systems within one mode space."""
+    body_traits = [_mode_traits(modes[literal.mode_id]) for literal in clause.body]
     builtin = tuple(
-        literal for literal in clause.body if _is_builtin(modes[literal.mode_id])
-    )
-    non_builtin = tuple(
-        literal for literal in clause.body if not _is_builtin(modes[literal.mode_id])
+        literal
+        for literal, traits in zip(clause.body, body_traits)
+        if traits.builtin
     )
     if not builtin:
-        return CanonicalArithmeticClause(clause.head, non_builtin, ())
+        return CanonicalArithmeticClause(clause.head, clause.body, ())
+    non_builtin = tuple(
+        literal
+        for literal, traits in zip(clause.body, body_traits)
+        if not traits.builtin
+    )
 
-    external = frozenset(
+    external = {
         variable
-        for literal in (*clause.head, *clause.body)
-        if not _is_builtin(modes[literal.mode_id])
+        for literal in (*clause.head, *non_builtin)
         for variable in literal.variables
-    ) | frozenset(
+    }
+    safe = {
         variable
-        for literal in clause.head
+        for literal, traits in zip(clause.body, body_traits)
+        if traits.positive_atom
         for variable in literal.variables
-    )
-    safe = frozenset(
-        variable
-        for literal in clause.body
-        if _is_positive_atom(modes[literal.mode_id])
-        for variable in literal.variables
-    ) | frozenset(
+    }
+    safe.update(
         literal.variables[-1]
-        for literal in clause.body
-        if isinstance((template := modes[literal.mode_id].literal), AggregateLiteral)
-        and template.output_guard is not None
+        for literal, traits in zip(clause.body, body_traits)
+        if traits.output_guard
     )
-    numeric_variables = frozenset(_numeric_variables(clause, modes))
+    numeric: set[int] = set()
+    for literal, traits in (
+        *((literal, _mode_traits(modes[literal.mode_id])) for literal in clause.head),
+        *zip(clause.body, body_traits),
+    ):
+        if traits.numeric_builtin:
+            numeric.update(literal.variables)
+        else:
+            numeric.update(
+                literal.variables[position] for position in traits.numeric_positions
+            )
 
     # Non-builtins affect arithmetic only through these variable sets. Their
     # literal identities remain in CanonicalArithmeticClause and its final key.
     context_key: _ArithmeticContextKey = (
         tuple((literal.mode_id, literal.variables) for literal in builtin),
-        external,
-        safe,
-        numeric_variables,
+        frozenset(external),
+        frozenset(safe),
+        frozenset(numeric),
     )
     if systems_cache is not None and context_key in systems_cache:
         systems = systems_cache[context_key]
@@ -109,9 +147,9 @@ def canonical_arithmetic_clause(
         systems = _canonical_systems(
             builtin,
             modes,
-            external,
-            safe,
-            numeric_variables,
+            context_key[1],
+            context_key[2],
+            context_key[3],
             max_variables,
         )
         if systems_cache is not None:
@@ -154,7 +192,7 @@ def _canonical_systems(
     systems: list[ArithmeticSystem] = []
     for literals in components.values():
         numeric_component = any(
-            _is_numeric_builtin(modes[literal.mode_id])
+            _mode_traits(modes[literal.mode_id]).numeric_builtin
             or set(literal.variables) <= numeric_variables
             for literal in literals
         )
@@ -178,7 +216,7 @@ def _canonical_systems(
             )
             continue
         constraints = tuple(
-            _constraint(literal, modes[literal.mode_id], max_variables)
+            _constraint(literal.variables, modes[literal.mode_id], max_variables)
             for literal in literals
         )
         component_variables = set().union(
@@ -206,23 +244,6 @@ def _canonical_systems(
 
 def _literal_key(literal: ReifiedLiteral) -> tuple[int, tuple[int, ...]]:
     return literal.mode_id, literal.variables
-
-
-def _numeric_variables(
-    clause: ReifiedClause,
-    modes: dict[int, ClauseMode],
-) -> set[int]:
-    numeric: set[int] = set()
-    for literal in (*clause.head, *clause.body):
-        mode = modes[literal.mode_id]
-        if _is_numeric_builtin(mode):
-            numeric.update(literal.variables)
-        numeric.update(
-            variable
-            for variable, binding in zip(literal.variables, mode.bindings, strict=True)
-            if binding.type == "numeric"
-        )
-    return numeric
 
 
 def _structural_system(

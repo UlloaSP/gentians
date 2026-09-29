@@ -13,7 +13,10 @@
 %   Predicate  integer id of a signed predicate signature; p/n and -p/n differ.
 %   Section    head or body.
 %   Slot       occurrence position inside a section of the candidate clause.
-%   Position   zero-based flattened variable-placeholder position in a mode.
+%   Position   zero-based variable-placeholder position in a mode. For a plain
+%              atom (only variables and constants) it is the source argument
+%              index, so property facts line up with it; otherwise it is the
+%              flattened placeholder index and constants occupy none.
 %   Argument   zero-based source-level predicate argument position.
 %   Variable   integer id rendered as V0, V1, ...; it is not a ground value.
 %   Form       id shared by all elements of one compound head declaration.
@@ -35,11 +38,12 @@
 % hypothesis for this positive-only task needs a learned headed clause.
 #defined prune_optional_constraints/0.
 
-% numeric_domain_nonnegative / numeric_domain_positive: every observed value in
-% the finite numeric domain is respectively >= 0 or > 0. These are evidence for
-% sound numeric consequences; they do not introduce numeric domain members.
-#defined numeric_domain_nonnegative/0.
-#defined numeric_domain_positive/0.
+% positive_arg(Pred, Arg) / nonnegative_arg(Pred, Arg): every value closed
+% predicate Pred takes at source argument Arg, in every model of every context,
+% is an integer > 0 or >= 0. They are evidence for sound numeric consequences of
+% variables a positive body literal grounds there.
+#defined positive_arg/2.
+#defined nonnegative_arg/2.
 
 % Core mode identity and shape.
 
@@ -47,7 +51,7 @@
 #defined mode_section/2.
 
 % mode_kind(Mode, Kind): syntactic family, one of normal, conditional,
-% comparison, arithmetic, aggregate or boolean.
+% comparison, arithmetic, aggregate, head_aggregate or boolean.
 #defined mode_kind/2.
 
 % plain_disjunctive_head_mode(Mode): Mode is an unconditional atom in a normal
@@ -68,21 +72,25 @@
 #defined mode_shape/2.
 
 % mode_atom(Mode, Predicate, Arity): predicate signature represented by a
-% normal mode or by the conclusion of a conditional mode. Operators and
-% aggregates intentionally have no mode_atom fact.
+% normal mode, the conclusion of a conditional mode, or an element of a head
+% aggregate. Operators and body aggregates intentionally have no mode_atom fact.
 #defined mode_atom/3.
 
 % negative_mode(Mode): the atom, conditional conclusion, or head aggregate
 % element is under default negation and cannot produce globally bound variables.
 #defined negative_mode/1.
+
+% double_negative_mode(Mode): the negated form is `not not`; it is also a
+% negative_mode.
 #defined double_negative_mode/1.
 
 % conditional_mode(Mode): cross-module view derived from
 % mode_kind(Mode, conditional).
 #defined conditional_mode/1.
 
-% Argument schema. Position always addresses flattened variable bindings, so a
-% fixed term occupies no Position and a structured term can occupy several.
+% Argument schema. Position follows the convention above: a source argument
+% index for plain atoms, a flattened binding otherwise. A fixed term occupies no
+% Position and a structured term can occupy several.
 
 % mode_variable_arg(Mode, Position): Position is a variable placeholder of Mode.
 #defined mode_variable_arg/2.
@@ -91,19 +99,20 @@
 % Positions declared as any deliberately have no fact.
 #defined mode_arg_type/3.
 
-% mode_arg_direction(Mode, Position, Direction): Direction is input or output.
-% Undirected any positions deliberately have no fact.
+% mode_arg_direction(Mode, Position, Direction): input, output or any.
+% Every variable placeholder with a declared direction has one fact.
 #defined mode_arg_direction/3.
 
-% A pooled body atom is one literal, expanded by Clingo into alternatives.
+% Binding alternatives of a positive body atom whose placeholders do not all
+% ground their variable: a pool expands into alternatives, and a placeholder
+% inside non-invertible arithmetic (q(X+Y), q(|X|), q(X/2)) grounds nothing.
 % A variable is grounding-safe through that atom only if every alternative
-% contains it. Alternative argument positions refer to flattened placeholders.
-#defined pooled_body_mode/1.
+% lists a position holding it. Positions refer to flattened placeholders.
 #defined mode_pool_alternative/2.
 #defined mode_pool_alternative_arg/3.
 
-% A positive condition with a pool binds a local variable only if every
-% alternative contains it. Scope and Element identify its local region.
+% A positive condition binds a local variable only if every binding
+% alternative contains it (pools and non-invertible arithmetic). Scope and Element identify its local region.
 #defined local_pool_condition_arg/5.
 #defined local_pool_alternative/5.
 #defined local_pool_alternative_arg/6.
@@ -149,6 +158,10 @@
 % complete condition syntax, used only to order or deduplicate equal variants.
 #defined conditional_condition_variant/3.
 
+% conditional_shorter_mode(Mode, Condition): the language also contains Mode's
+% template without condition Condition, so a repeated condition is removable.
+#defined conditional_shorter_mode/2.
+
 % mode_condition_count(Mode, Count): number of conditions attached to Mode.
 #defined mode_condition_count/2.
 
@@ -169,18 +182,21 @@
 % mode_arithmetic_result(Mode, Position): result placeholder of that template.
 #defined mode_arithmetic_result/2.
 
-% add_mode / mul_mode: Mode is a complete + or * template whose operand
-% declarations are interchangeable, so commutative ordering is sound.
+% add_mode / mul_mode: Mode is a complete + or * template.
 #defined add_mode/1.
 #defined mul_mode/1.
+
+% interchangeable_operands(Mode): the two operands of an arithmetic template or
+% a simple binary comparison have equal type, direction and label, so swapping
+% them yields another template instance. Symmetry breaking requires it.
+#defined interchangeable_operands/1.
 
 % div_mode / mod_mode: Mode is a complete / or modulo template. Operand order is
 % significant; the flags enable their dedicated semantic views and checks.
 #defined div_mode/1.
 #defined mod_mode/1.
 
-% abs_mode: Mode is a recognized absolute-value template eligible for the
-% existing symmetry and redundancy rules.
+% abs_mode: Mode is a complete |Left-Right| template.
 #defined abs_mode/1.
 
 % Comparison schema.
@@ -243,7 +259,6 @@
 % Exact #modeh head aggregate elements and their positive local conditions.
 #defined head_aggregate_element_arg/2.
 #defined head_aggregate_condition_atom/3.
-#defined head_aggregate_condition_arg/3.
 #defined head_aggregate_positive_condition_arg/3.
 #defined head_guard_arg/2.
 
@@ -257,9 +272,11 @@
 % strong negation, not default negation.
 #defined strong_complement_pred/2.
 
-% Unary properties proved by conservative static analysis of the background.
-% Every argument is a signed Predicate id. Absence means "not proved", not that
-% the mathematical property is false.
+% Unary properties proved by Clingo for closed predicates: predicates that no
+% learned clause can define, directly or through the background. Each property
+% holds in the background plus every example context separately. Every argument
+% is a signed Predicate id. Absence means "not proved", not that the
+% mathematical property is false.
 
 % symmetric_pred: p(X,Y) entails p(Y,X).
 #defined symmetric_pred/1.
@@ -269,15 +286,16 @@
 #defined antisymmetric_pred/1.
 % acyclic_pred: no directed cycle is allowed in the relation.
 #defined acyclic_pred/1.
-% reflexive_pred: p(X,X) holds throughout the analyzed finite domain.
+% reflexive_pred: p(X,X) holds for every X in the field of p (domain field(p)).
 #defined reflexive_pred/1.
 % strict_order_pred: the relation is an irreflexive transitive order.
 #defined strict_order_pred/1.
-% total_order_pred: the relation is a proved total order.
+% total_order_pred: the relation is a total order on its field (domain field(p)).
 #defined total_order_pred/1.
 % transitive_pred: p(X,Y) and p(Y,Z) entail p(X,Z).
 #defined transitive_pred/1.
-% universal_pred: every tuple in the analyzed finite domain belongs to p.
+% universal_pred: p contains every tuple of the product of its argument values
+% (domain universal(p)).
 #defined universal_pred/1.
 % empty_pred: p has no tuples in the analyzed closed-world relation.
 #defined empty_pred/1.
@@ -296,13 +314,20 @@
 % mutex_pred(Left, Right): the predicates cannot hold for the same full tuple.
 #defined mutex_pred/2.
 
-% complement_pred(Left, Right): within the analyzed closed domain, exactly one
-% side holds for each comparable tuple.
+% complement_pred(Left, Right): the predicates are disjoint and their union is
+% the product of its argument values (domain complement(Left, Right)).
 #defined complement_pred/2.
 
-% partition_pred(Group, Predicate): predicates sharing Group are the members of
-% one proved partition of the analyzed domain.
+% partition_pred(Group, Predicate): predicates sharing Group are pairwise
+% disjoint and their union is the product of its argument values (domain
+% partition(Group)).
 #defined partition_pred/2.
+
+% domain_cover(Domain, Position, Predicate, Argument): every value of the
+% closed Predicate at source Argument lies inside Position of Domain, one of
+% field(p), universal(p), complement(p,q) or partition(Group). Domain-relative
+% pruning applies only to variables bound at such arguments.
+#defined domain_cover/4.
 
 % disjoint_arg(Left, LeftArg, Right, RightArg): the projections at the specified
 % source argument positions have disjoint observed values.

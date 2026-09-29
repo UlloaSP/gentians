@@ -13,8 +13,8 @@
     Left > Right.
 
 :- selected(body, Slot, Mode),
-    aggregate_condition_atom(Mode, _, Pred, 2),
+    aggregate_condition_atom(Mode, Condition, Pred, 2),
     symmetric_pred(Pred),
-    aggregate_condition_arg(Slot, Pred, 0, Left),
-    aggregate_condition_arg(Slot, Pred, 1, Right),
+    aggregate_condition_arg(Slot, Condition, Pred, 0, Left),
+    aggregate_condition_arg(Slot, Condition, Pred, 1, Right),
     Left > Right.

@@ -1,5 +1,5 @@
 from ..language.asp import Predicate
-from .analysis.properties import ClosedWorldProperties
+from .analysis.properties import ClosedWorldProperties, DomainKey
 
 
 def compile_property_facts(
@@ -92,13 +92,33 @@ def compile_property_facts(
         right_id = pred_id(right)
         if left_id is not None and right_id is not None:
             parts.append(f"complement_pred({left_id},{right_id}).")
-    partition_id = 0
+    partition_ids: dict[tuple[Predicate, ...], int] = {}
     for group in sorted(properties.partitions):
         ids = [pred_id(predicate) for predicate in group]
         if any(identifier is None for identifier in ids):
             continue
-        parts.extend(f"partition_pred({partition_id},{identifier})." for identifier in ids)
-        partition_id += 1
+        partition_ids[group] = len(partition_ids)
+        parts.extend(
+            f"partition_pred({partition_ids[group]},{identifier})." for identifier in ids
+        )
+
+    def domain_term(key: DomainKey) -> str | None:
+        match key:
+            case ("partition", group):
+                return f"partition({partition_ids[group]})" if group in partition_ids else None
+            case ("complement", left, right):
+                left_id, right_id = pred_id(left), pred_id(right)
+                if left_id is None or right_id is None:
+                    return None
+                return f"complement({left_id},{right_id})"
+            case (kind, predicate):
+                identifier = pred_id(predicate)
+                return None if identifier is None else f"{kind}({identifier})"
+
+    for key, position, predicate, argument in sorted(properties.domain_covers, key=repr):
+        term = domain_term(key)
+        if term is not None and (identifier := pred_id(predicate)) is not None:
+            parts.append(f"domain_cover({term},{position},{identifier},{argument}).")
     for predicate, left, right in sorted(properties.arg_equal):
         if (identifier := pred_id(predicate)) is not None:
             parts.append(f"arg_equal_pred({identifier},{left},{right}).")
@@ -128,4 +148,10 @@ def compile_property_facts(
     for predicate in sorted(properties.transitive):
         if (identifier := pred_id(predicate)) is not None:
             parts.append(f"transitive_pred({identifier}).")
+    for predicate, argument in sorted(properties.positive_args):
+        if (identifier := pred_id(predicate)) is not None:
+            parts.append(f"positive_arg({identifier},{argument}).")
+    for predicate, argument in sorted(properties.nonnegative_args):
+        if (identifier := pred_id(predicate)) is not None:
+            parts.append(f"nonnegative_arg({identifier},{argument}).")
     return parts

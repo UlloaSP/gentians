@@ -21,7 +21,7 @@ aggregate_condition_binding(Slot, Condition, Position, Variable) :-
     mode_aggregate_condition_arg(Mode, Condition, Position, FlatPosition),
     var_at(body, Slot, FlatPosition, Variable).
 
-aggregate_condition_arg(Slot, Predicate, Position, Variable) :-
+aggregate_condition_arg(Slot, Condition, Predicate, Position, Variable) :-
     selected(body, Slot, Mode),
     aggregate_condition_atom(Mode, Condition, Predicate, _),
     aggregate_condition_binding(Slot, Condition, Position, Variable).

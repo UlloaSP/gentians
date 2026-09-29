@@ -23,14 +23,14 @@ from ..timing import (
     profile_phase,
     record_metric,
 )
-from .analysis.domains import _numeric_domain_values
 from .analysis.inference import _closed_world_properties
 from .analysis.task import (
     _clause_capabilities,
-    _closed_body_predicates,
-    _closed_world_nodes,
-    _closed_world_program,
+    _closed_world_contexts,
+    _learned_predicates,
+    _negated_predicates,
     _predicate_arg_types,
+    _property_predicates,
     _task_nodes,
     _validate_invented_predicates,
 )
@@ -96,6 +96,7 @@ CLAUSE_METAPROGRAM_MODULES = (
     "pruning/properties/cardinality_upper.lp",
     "pruning/properties/complement.lp",
     "pruning/properties/disjoint.lp",
+    "pruning/properties/domains.lp",
     "pruning/properties/empty.lp",
     "pruning/properties/equivalent.lp",
     "pruning/properties/functional.lp",
@@ -189,10 +190,10 @@ class _ClauseGenerator:
     @profile_phase("clause_generation")
     def _prepare(self, seed: int | None, by_size: bool = False):
         properties = _closed_world_properties(
-            _closed_world_nodes(self.task),
-            self.predicate_arg_types,
-            _closed_body_predicates(self.task),
-            _closed_world_program(self.task),
+            _closed_world_contexts(self.task),
+            _learned_predicates(self.task),
+            _property_predicates(self.task),
+            _negated_predicates(self.task),
         )
         facts = _facts(
             self.task,
@@ -201,7 +202,6 @@ class _ClauseGenerator:
             self.max_variables,
             self.head_slots,
             self.body_slots,
-            numeric_domain=_numeric_domain_values(self.task),
         )
         if self.prune_constraints:
             # Prune inside ASP enumeration, before decoding/canonicalization.

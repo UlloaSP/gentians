@@ -61,6 +61,11 @@ def compile_mode_facts(
         for mode in modes
         if isinstance((literal := mode.literal), AggregateLiteral)
     )
+    conditional_forms = {
+        _conditional_form(mode.section, literal.conclusion, literal.conditions)
+        for mode in modes
+        if isinstance((literal := mode.literal), ConditionalLiteral)
+    }
     parts: list[str] = []
     for mode in modes:
         parts.extend(
@@ -78,6 +83,17 @@ def compile_mode_facts(
                     mode, mode.literal, predicate_ids, condition_variants
                 )
             )
+            conditions = mode.literal.conditions
+            parts.extend(
+                f"conditional_shorter_mode({mode.id},{index})."
+                for index in range(len(conditions))
+                if _conditional_form(
+                    mode.section,
+                    mode.literal.conclusion,
+                    conditions[:index] + conditions[index + 1 :],
+                )
+                in conditional_forms
+            )
         elif isinstance(mode.literal, ComparisonLiteral):
             parts.extend(_comparison_facts(mode, mode.literal))
         elif isinstance(mode.literal, ArithmeticLiteral):
@@ -87,6 +103,13 @@ def compile_mode_facts(
         elif isinstance(mode.literal, HeadAggregateElement):
             parts.extend(_head_aggregate_facts(mode, mode.literal, predicate_ids))
     return parts
+
+
+def _conditional_form(
+    section: str, conclusion: object, conditions: tuple[object, ...]
+) -> tuple[object, ...]:
+    """A conditional template up to the order of its conditions."""
+    return section, conclusion, tuple(sorted(conditions, key=repr))
 
 
 def _common_mode_facts(
@@ -158,8 +181,7 @@ def _common_mode_facts(
     parts.append(f"mode_shape({mode.id},{shapes.setdefault(shape, len(shapes))}).")
     if mode.section == "body" and isinstance(mode.literal, AtomLiteral):
         alternatives = _pool_alternative_positions(mode.literal.atom)
-        if len(alternatives) > 1:
-            parts.append(f"pooled_body_mode({mode.id}).")
+        if _binds_partially(alternatives, mode.literal.atom):
             for alternative, positions in enumerate(alternatives):
                 parts.append(f"mode_pool_alternative({mode.id},{alternative}).")
                 parts.extend(
@@ -244,11 +266,38 @@ def _aggregate_conclusion_shape(
     return None
 
 
+def _binds_partially(
+    alternatives: tuple[frozenset[int], ...], atom: AtomTemplate
+) -> bool:
+    """Whether some placeholder of a positive atom does not ground its variable."""
+    return len(alternatives) > 1 or alternatives[0] != frozenset(
+        range(len(atom.bindings()))
+    )
+
+
+# Clingo grounds a variable inside arithmetic only by inverting a linear term
+# with that single occurrence: q(X+1), q(2*X-1) and q(-X) bind X, while
+# q(X+Y), q(X+X), q(|X|), q(X/2), q(X\2) and q(X..3) do not.
+_INVERTIBLE_OPERATORS = frozenset({"+", "-", "*", "neg"})
+
+
+def _is_linear(term: TermTemplate) -> bool:
+    if term.kind == "arithmetic":
+        return term.value in _INVERTIBLE_OPERATORS and all(
+            _is_linear(argument) for argument in term.arguments
+        )
+    return term.kind in {"variable", "constant", "fixed"}
+
+
 def _term_alternative_positions(
     term: TermTemplate, offset: int
 ) -> tuple[frozenset[int], ...]:
+    """Placeholder positions each pool alternative grounds, per Clingo safety."""
     if term.kind == "variable":
         return (frozenset((offset,)),)
+    if term.kind in {"arithmetic", "interval"}:
+        binds = len(term.bindings()) == 1 and _is_linear(term)
+        return (frozenset((offset,)) if binds else frozenset(),)
     child_alternatives = []
     for child in term.arguments:
         child_alternatives.append(_term_alternative_positions(child, offset))
@@ -340,6 +389,11 @@ def _comparison_facts(
     )
     if operator_name is not None:
         parts.append(f"comparison_operator({mode.id},{operator_name}).")
+        left, right = (term.bindings()[0] for term in comparison.terms)
+        if (left.type, left.direction, left.label) == (
+            right.type, right.direction, right.label
+        ):
+            parts.append(f"interchangeable_operands({mode.id}).")
     offsets: list[int] = []
     offset = 0
     for term in comparison.terms:
@@ -375,19 +429,17 @@ def _arithmetic_facts(
         f"mode_arithmetic_operand({mode.id},right,{right}).",
         f"mode_arithmetic_result({mode.id},{result}).",
     ]
-    relation = None
-    if arithmetic.operator == "+" and _operands_are_interchangeable(arithmetic):
-        relation = "add_mode"
-    elif arithmetic.operator == "*" and _operands_are_interchangeable(arithmetic):
-        relation = "mul_mode"
-    elif arithmetic.operator == "/":
-        relation = "div_mode"
-    elif arithmetic.operator == "\\":
-        relation = "mod_mode"
-    elif arithmetic.operator == "abs" and _operands_are_interchangeable(arithmetic):
-        relation = "abs_mode"
+    relation = {
+        "+": "add_mode",
+        "*": "mul_mode",
+        "/": "div_mode",
+        "\\": "mod_mode",
+        "abs": "abs_mode",
+    }.get(arithmetic.operator)
     if relation is not None:
         parts.append(f"{relation}({mode.id}).")
+    if _operands_are_interchangeable(arithmetic):
+        parts.append(f"interchangeable_operands({mode.id}).")
     return parts
 
 
@@ -537,7 +589,6 @@ def _head_aggregate_facts(
             )
         for term in literal.arguments:
             for position in range(offset, offset + len(term.bindings())):
-                parts.append(f"head_aggregate_condition_arg({mode.id},{condition},{position}).")
                 parts.append(f"head_aggregate_element_arg({mode.id},{position}).")
                 if isinstance(literal, AtomLiteral) and not literal.default_negated:
                     parts.append(
@@ -557,7 +608,7 @@ def _local_pool_facts(
     atom: AtomTemplate,
 ) -> list[str]:
     alternatives = _pool_alternative_positions(atom)
-    if len(alternatives) < 2:
+    if not _binds_partially(alternatives, atom):
         return []
     parts = [
         f"local_pool_condition_arg({mode},{scope},{element},{condition},{position})."

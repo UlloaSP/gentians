@@ -10,7 +10,7 @@ language and pruning rules are shared.
 | Candidate clause, ordered space and reified literals | `clause.py`, `clause_space.py`, `reified_clause.py`, `reified_literal.py` |
 | Compiled mode representation, including variable positions | `clause_mode.py` |
 | Task declarations, predicate types and observed AST evidence | `analysis/task.py`, `analysis/ast_inspection.py` |
-| Ground relations and numeric/nominal domains | `analysis/ground_relations.py`, `analysis/domains.py` |
+| Closed-world relations computed by Clingo per evaluation context | `analysis/ground_relations.py` |
 | Property inference from ASP rules and ground relations | `analysis/inference.py`, `analysis/rule_properties.py`, `analysis/relation_properties.py` |
 | Mode expansion | `mode_compiler.py` |
 | ASP fact assembly | `fact_compiler.py` |
@@ -34,6 +34,40 @@ condition mappings instead of being emitted a second time.
 bindings. `pruning.py` supplies the conservative
 proof that enables optional-constraint pruning in ASP. The metaprogram still
 owns checks over selected modes and variable assignments.
+
+## Closed-world properties
+
+Property facts let the metaprogram drop clauses that are redundant or
+impossible given the background. They are sound only for relations no learned
+clause can change, so `analysis/ground_relations.py` works per evaluation
+context, the background plus one example context, and Clingo is the authority:
+
+- A predicate is open when a head mode can define it, or when a background rule
+  defining it depends on an open predicate. Only closed predicates get facts.
+- Clingo computes brave and cautious consequences of the closed statements. A
+  closed predicate is fixed when both agree; extension properties such as
+  symmetry, implication, mutual exclusion or keys are checked on fixed
+  extensions only. A context whose closed part has no stable model covers no
+  example and adds no constraint.
+- A property is emitted only if it holds in every context separately. Merging
+  contexts would invent relations that no example is evaluated against.
+- Open predicates keep a lower bound: atoms a normal background rule over closed
+  predicates derives in every model. A closed relation inside it implies the
+  open one, which prunes `p(X) :- q(X)` when the background already makes every
+  `q` a `p`, for plain heads only.
+- Unfixed closed predicates, such as choice atoms, keep a brave upper bound.
+  Their values can cover a domain or bound a numeric sign, but no extension
+  property is read from them.
+- Properties suggested by rule syntax, such as keys of a choice rule, are kept
+  only when Clingo proves that no stable model violates them.
+- Reflexivity, total orders, universal relations, complements and partitions
+  hold on a finite domain. `domain_cover` facts name the arguments whose values
+  stay inside it; the metaprogram prunes only variables bound there.
+- `positive_arg` and `nonnegative_arg` give the sign of every value a closed
+  argument takes, for numeric inference over positive body literals.
+
+Property facts address source argument indexes, so they are emitted only for
+predicates whose templates use plain variables and constants.
 
 After solving, `decoder.py` constructs a `ReifiedClause`. The generator then
 applies theta pruning and calls canonicalization. Decoding itself does not

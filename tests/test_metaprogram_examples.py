@@ -20,8 +20,7 @@ def solve_example(name, *arguments):
 
 def test_flow_example_produces_head_output_from_ready_body():
     assert solve_example("flow") == [{
-        "ready_literal(0)", "flow_bound(0)", "flow_bound(1)",
-        "flow_produced(0)", "flow_produced(1)",
+        "ready_literal(0)", "flow_bound(0)", "flow_bound(1)", "flow_produced(1)",
     }]
 
 

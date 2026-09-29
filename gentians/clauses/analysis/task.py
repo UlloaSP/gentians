@@ -21,16 +21,6 @@ def _task_nodes(task: InductiveTask) -> tuple[ast.AST, ...]:
     )
 
 
-def _closed_body_predicates(task: InductiveTask) -> set[Predicate]:
-    head_predicates = {atom.signature for atom in _head_atoms(task)}
-    return {
-        literal.atom.signature
-        for mode in (*task.language_bias_body, *task.language_bias_condition)
-        for literal in _mode_atom_literals(mode)
-        if literal.atom.signature not in head_predicates
-    }
-
-
 def _recursive_predicates(task: InductiveTask) -> set[Predicate]:
     head_predicates = {atom.signature for atom in _head_atoms(task)}
     return {
@@ -48,6 +38,11 @@ def _head_atoms(task: InductiveTask) -> tuple[AtomTemplate, ...]:
         for atom in declaration.template.elements
         if isinstance(atom, AtomTemplate)
     ) + tuple(
+        element.atom
+        for declaration in task.language_bias_head
+        for element in declaration.template.aggregate_elements
+        if isinstance(element.atom, AtomTemplate)
+    ) + tuple(
         mode.literal.atom
         for mode in (
             *task.language_bias_aggregate_head,
@@ -55,6 +50,62 @@ def _head_atoms(task: InductiveTask) -> tuple[AtomTemplate, ...]:
         )
         if isinstance(mode.literal, AtomLiteral)
     )
+
+
+def _learned_predicates(task: InductiveTask) -> frozenset[Predicate]:
+    """Predicates a learned clause may define, so no closed-world fact holds."""
+    return frozenset(atom.signature for atom in _head_atoms(task))
+
+
+def _property_predicates(task: InductiveTask) -> frozenset[Predicate]:
+    """Bias predicates whose every template argument is a plain term.
+
+    Property facts address source argument indexes; a nested, arithmetic or
+    pooled template flattens its placeholders, so its positions would not line
+    up with the argument the property was checked on.
+    """
+    templates = [
+        *_head_atoms(task),
+        *(
+            literal.atom
+            for mode in (*task.language_bias_body, *task.language_bias_condition)
+            for literal in _mode_atom_literals(mode)
+        ),
+        *(
+            condition.atom
+            for declaration in task.language_bias_head
+            for group in (
+                *declaration.template.conditions,
+                *(element.conditions for element in declaration.template.aggregate_elements),
+            )
+            for condition in group
+            if isinstance(condition, AtomLiteral)
+        ),
+    ]
+    plain: dict[Predicate, bool] = {}
+    for atom in templates:
+        plain[atom.signature] = plain.get(atom.signature, True) and not atom.alternatives and all(
+            term.kind in {"variable", "constant", "fixed", "anonymous"} for term in atom.terms
+        )
+    return frozenset(predicate for predicate, is_plain in plain.items() if is_plain)
+
+
+def _negated_predicates(task: InductiveTask) -> frozenset[Predicate]:
+    """Predicates a body mode may default-negate."""
+    return frozenset(
+        literal.atom.signature
+        for mode in task.language_bias_body
+        if isinstance((literal := mode.literal), AtomLiteral) and literal.default_negated
+    )
+
+
+def _closed_world_contexts(task: InductiveTask) -> tuple[AspProgram, ...]:
+    """Distinct programs an example is evaluated against, in first-seen order."""
+    contexts = dict.fromkeys(
+        tuple(example.context)
+        for example in (*task.positive_examples, *task.negative_examples)
+    ) or {(): None}
+    return tuple(task.background + context for context in contexts)
 
 
 def _mode_atom_literals(mode: ModeDeclaration) -> tuple[AtomLiteral, ...]:
@@ -259,20 +310,4 @@ def _is_numeric_bound(term: ast.AST) -> bool:
         term.ast_type == ast.ASTType.SymbolicTerm
         and term.symbol.type == clingo.SymbolType.Function
         and not term.symbol.arguments
-    )
-
-
-def _closed_world_nodes(task: InductiveTask) -> tuple[ast.AST, ...]:
-    return task.background + tuple(
-        statement
-        for example in (*task.positive_examples, *task.negative_examples)
-        for statement in example.context
-    )
-
-
-def _closed_world_program(task: InductiveTask) -> AspProgram:
-    return task.background + tuple(
-        statement
-        for example in task.positive_examples
-        for statement in example.context
     )

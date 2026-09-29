@@ -35,9 +35,7 @@ x(1,1,1).
 #neg({x(1,1,1),x(1,2,3),x(1,3,2),x(2,1,3),x(2,2,1),x(2,3,2),x(3,1,1),x(3,2,2),x(3,3,3)}, {}).
 #neg({x(1,1,1),x(1,2,1),x(1,3,2),x(2,1,2),x(2,2,2),x(2,3,3),x(3,1,3),x(3,2,3),x(3,3,1)}, {}).
 
-% Explicit hypothesis space: 320 candidate clauses.
-3 ~ :- cell(V0),size(V1),#count{V2:x(V0,V3,V2)}=V1.
-3 ~ :- cell(V0),size(V1),#count{V2:x(V3,V0,V2)}=V1.
+% Explicit hypothesis space: 302 candidate clauses.
 3 ~ :- count_col(V0,V1),#count{V1:x(V0,V2,V1)}=V3,V1-V3!=0.
 3 ~ :- count_col(V0,V1),#count{V1:x(V2,V0,V1)}=V3,V1-V3!=0.
 2 ~ :- count_col(V0,V1),#count{V2:x(V0,V3,V2)}=V1.
@@ -46,8 +44,6 @@ x(1,1,1).
 3 ~ :- count_col(V0,V1),cell(V0),#count{V2:x(V3,V0,V2)}=V1.
 3 ~ :- count_col(V0,V1),cell(V0),size(V1).
 2 ~ :- count_col(V0,V1),cell(V0).
-3 ~ :- count_col(V0,V1),cell(V2),#count{V3:x(V0,V2,V3)}=V1.
-3 ~ :- count_col(V0,V1),cell(V2),#count{V3:x(V2,V0,V3)}=V1.
 3 ~ :- count_col(V0,V1),size(V1),#count{V2:x(V0,V3,V2)}=V1.
 3 ~ :- count_col(V0,V1),size(V1),#count{V2:x(V3,V0,V2)}=V1.
 2 ~ :- count_col(V0,V1),size(V1).
@@ -65,8 +61,6 @@ x(1,1,1).
 3 ~ :- count_row(V0,V1),cell(V0),#count{V2:x(V3,V0,V2)}=V1.
 3 ~ :- count_row(V0,V1),cell(V0),size(V1).
 2 ~ :- count_row(V0,V1),cell(V0).
-3 ~ :- count_row(V0,V1),cell(V2),#count{V3:x(V0,V2,V3)}=V1.
-3 ~ :- count_row(V0,V1),cell(V2),#count{V3:x(V2,V0,V3)}=V1.
 3 ~ :- count_row(V0,V1),count_col(V0,V1),#count{V2:x(V0,V3,V2)}=V1.
 3 ~ :- count_row(V0,V1),count_col(V0,V1),#count{V2:x(V3,V0,V2)}=V1.
 3 ~ :- count_row(V0,V1),count_col(V0,V1),cell(V0).
@@ -115,8 +109,6 @@ x(1,1,1).
 4 ~ count_col(V0,V1) :- count_row(V0,V1),cell(V0),#count{V2:x(V3,V0,V2)}=V1.
 4 ~ count_col(V0,V1) :- count_row(V0,V1),cell(V0),size(V1).
 3 ~ count_col(V0,V1) :- count_row(V0,V1),cell(V0).
-4 ~ count_col(V0,V1) :- count_row(V0,V1),cell(V2),#count{V3:x(V0,V2,V3)}=V1.
-4 ~ count_col(V0,V1) :- count_row(V0,V1),cell(V2),#count{V3:x(V2,V0,V3)}=V1.
 4 ~ count_col(V0,V1) :- count_row(V0,V1),count_col(V0,V2),#count{V1:x(V0,V3,V1)}=V2.
 4 ~ count_col(V0,V1) :- count_row(V0,V1),count_col(V0,V2),#count{V1:x(V3,V0,V1)}=V2.
 4 ~ count_col(V0,V1) :- count_row(V0,V1),count_col(V0,V2),#count{V2:x(V0,V3,V2)}=V1.
@@ -171,8 +163,6 @@ x(1,1,1).
 3 ~ count_col(V0,V3) :- count_col(V0,V1),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_col(V0,V1),cell(V0),#count{V1:x(V0,V2,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_col(V0,V1),cell(V0),#count{V1:x(V2,V0,V1)}=V3.
-4 ~ count_col(V0,V3) :- count_col(V0,V1),cell(V2),#count{V1:x(V0,V2,V1)}=V3.
-4 ~ count_col(V0,V3) :- count_col(V0,V1),cell(V2),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_col(V0,V1),size(V1),#count{V1:x(V0,V2,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_col(V0,V1),size(V1),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_row(V0,V1),#count{V1:x(V0,V2,V1)}=V3,V1-V3!=0.
@@ -181,8 +171,6 @@ x(1,1,1).
 3 ~ count_col(V0,V3) :- count_row(V0,V1),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_row(V0,V1),cell(V0),#count{V1:x(V0,V2,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_row(V0,V1),cell(V0),#count{V1:x(V2,V0,V1)}=V3.
-4 ~ count_col(V0,V3) :- count_row(V0,V1),cell(V2),#count{V1:x(V0,V2,V1)}=V3.
-4 ~ count_col(V0,V3) :- count_row(V0,V1),cell(V2),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_row(V0,V1),count_col(V0,V1),#count{V1:x(V0,V2,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_row(V0,V1),count_col(V0,V1),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_col(V0,V3) :- count_row(V0,V1),count_col(V0,V2),size(V3).
@@ -241,8 +229,6 @@ x(1,1,1).
 4 ~ count_row(V0,V1) :- count_col(V0,V1),cell(V0),#count{V2:x(V3,V0,V2)}=V1.
 4 ~ count_row(V0,V1) :- count_col(V0,V1),cell(V0),size(V1).
 3 ~ count_row(V0,V1) :- count_col(V0,V1),cell(V0).
-4 ~ count_row(V0,V1) :- count_col(V0,V1),cell(V2),#count{V3:x(V0,V2,V3)}=V1.
-4 ~ count_row(V0,V1) :- count_col(V0,V1),cell(V2),#count{V3:x(V2,V0,V3)}=V1.
 4 ~ count_row(V0,V1) :- count_col(V0,V1),size(V1),#count{V2:x(V0,V3,V2)}=V1.
 4 ~ count_row(V0,V1) :- count_col(V0,V1),size(V1),#count{V2:x(V3,V0,V2)}=V1.
 3 ~ count_row(V0,V1) :- count_col(V0,V1),size(V1).
@@ -286,8 +272,6 @@ x(1,1,1).
 3 ~ count_row(V0,V3) :- count_col(V0,V1),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_col(V0,V1),cell(V0),#count{V1:x(V0,V2,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_col(V0,V1),cell(V0),#count{V1:x(V2,V0,V1)}=V3.
-4 ~ count_row(V0,V3) :- count_col(V0,V1),cell(V2),#count{V1:x(V0,V2,V1)}=V3.
-4 ~ count_row(V0,V3) :- count_col(V0,V1),cell(V2),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_col(V0,V1),size(V1),#count{V1:x(V0,V2,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_col(V0,V1),size(V1),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_row(V0,V1),#count{V1:x(V0,V2,V1)}=V3,V1-V3!=0.
@@ -296,8 +280,6 @@ x(1,1,1).
 3 ~ count_row(V0,V3) :- count_row(V0,V1),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_row(V0,V1),cell(V0),#count{V1:x(V0,V2,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_row(V0,V1),cell(V0),#count{V1:x(V2,V0,V1)}=V3.
-4 ~ count_row(V0,V3) :- count_row(V0,V1),cell(V2),#count{V1:x(V0,V2,V1)}=V3.
-4 ~ count_row(V0,V3) :- count_row(V0,V1),cell(V2),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_row(V0,V1),count_col(V0,V1),#count{V1:x(V0,V2,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_row(V0,V1),count_col(V0,V1),#count{V1:x(V2,V0,V1)}=V3.
 4 ~ count_row(V0,V3) :- count_row(V0,V1),count_col(V0,V2),size(V3).

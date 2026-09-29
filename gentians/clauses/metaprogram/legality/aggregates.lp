@@ -26,8 +26,10 @@
     not aggregate_element_tuple_var(Slot, Element, Var),
     global_context_var(Var), not normal_positive_body_var(Var).
 
+% A global element variable needs an independent positive body atom: the
+% aggregate's own output cannot ground it (#count{X:p(X)}=X is unsafe).
 :- aggregate_element_arg(Slot, Element, Position),
     var_at(body, Slot, Position, Var),
-    global_context_var(Var), not asp_safe(Var).
+    global_context_var(Var), not normal_positive_body_var(Var).
 
 :- aggregate_guard_var(_, Var), not asp_safe(Var).

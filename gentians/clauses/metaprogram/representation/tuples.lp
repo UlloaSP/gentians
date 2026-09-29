@@ -29,13 +29,6 @@ same_term_bindings(Section, Slot0, Section, Slot1) :-
     mode_shape(Mode1, Shape),
     not different_variable_binding(Section, Slot0, Section, Slot1).
 
-reversed_binary_vars(Section0, Slot0, Section1, Slot1) :-
-    Section0 != Section1,
-    var_at(Section0, Slot0, 0, Left),
-    var_at(Section0, Slot0, 1, Right),
-    var_at(Section1, Slot1, 0, Right),
-    var_at(Section1, Slot1, 1, Left).
-
 reversed_binary_vars(Section, Slot0, Section, Slot1) :-
     Slot0 != Slot1,
     var_at(Section, Slot0, 0, Left),

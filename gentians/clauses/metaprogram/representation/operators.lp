@@ -7,10 +7,6 @@ arithmetic_mode(Mode) :- mode_kind(Mode, arithmetic).
 
 comparison_mode(Mode) :- mode_kind(Mode, comparison).
 
-strict_comparison_available :- comparison_operator(_, lt).
-
-strict_comparison_available :- comparison_operator(_, gt).
-
 selected_lt(Left, Right) :-
     selected(body, Slot, Mode),
     comparison_operator(Mode, lt),

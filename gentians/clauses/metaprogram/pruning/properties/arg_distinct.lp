@@ -20,7 +20,7 @@ arg_distinct_self_pair_owned_by_irreflexive(Slot, Mode, Pred) :-
     not arg_distinct_self_pair_owned_by_irreflexive(Slot, Mode, Pred).
 
 :- selected(body, Slot, Mode),
-    aggregate_condition_atom(Mode, _, Pred, _),
+    aggregate_condition_atom(Mode, Condition, Pred, _),
     arg_distinct_pred(Pred, LocalArg0, LocalArg1),
-    aggregate_condition_arg(Slot, Pred, LocalArg0, Var),
-    aggregate_condition_arg(Slot, Pred, LocalArg1, Var).
+    aggregate_condition_arg(Slot, Condition, Pred, LocalArg0, Var),
+    aggregate_condition_arg(Slot, Condition, Pred, LocalArg1, Var).

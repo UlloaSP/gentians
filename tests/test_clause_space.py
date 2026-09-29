@@ -15,17 +15,15 @@ from gentians.clauses import fact_compiler as clause_facts
 from gentians.clauses import property_facts
 from gentians.clauses import generator as clause_generation
 from gentians.clauses.analysis.ast_inspection import _contains, _node_atoms
-from gentians.clauses.analysis.domains import _numeric_domain_values
-from gentians.clauses.analysis.ground_relations import (
-    _closed_world_extensions,
-    _ground_key,
-)
+from gentians.clauses.analysis.ground_relations import _closed_world
 from gentians.clauses.analysis.inference import _closed_world_properties
 from gentians.clauses.analysis.task import (
-    _closed_body_predicates,
-    _closed_world_nodes,
-    _closed_world_program,
+    _closed_world_contexts,
+    _learned_predicates,
+    _negated_predicates,
     _predicate_arg_types,
+    _property_predicates,
+    _task_nodes,
 )
 from gentians.clauses.canonicalization import clauses as clause_canonicalizer
 from gentians.clauses.canonicalization.arithmetic import canonical_arithmetic_clause
@@ -145,7 +143,7 @@ def test_default_negated_disjunct_is_dependency_not_definition():
 
 def test_default_negated_normal_head_is_a_dependency():
     task = parse_text(
-        "q. {p}.\n#maxv(0).\n#maxbl(1).\n#modeh(1,not p).\n#modeb(1,q)."
+        "{q}. {p}.\n#maxv(0).\n#maxbl(1).\n#modeh(1,not p).\n#modeb(1,q)."
     )
     space = generate_clause_space(task, Arguments())
     clause = next(entry for entry in space.entries if entry.text == "not p :- q.")
@@ -156,10 +154,10 @@ def test_default_negated_normal_head_is_a_dependency():
     add_program(control, (*task.background, clause.statement))
     control.ground([("base", [])])
     with control.solve(yield_=True) as handle:
-        assert [
+        assert {
             frozenset(str(atom) for atom in model.symbols(atoms=True))
             for model in handle
-        ] == [frozenset({"q"})]
+        } == {frozenset(), frozenset({"q"}), frozenset({"p"})}
 
 
 def test_boolean_modes_and_conditions_generate_exact_body_literals():
@@ -287,20 +285,35 @@ def test_edge_directives_are_rejected(declaration):
         parse_text(declaration)
 
 
-def _compiled_facts(task, modes, arg_types, max_variables, max_head, max_body):
-    properties = _closed_world_properties(
-        _closed_world_nodes(task), arg_types,
-        _closed_body_predicates(task), _closed_world_program(task),
+def _task_properties(task):
+    return _closed_world_properties(
+        _closed_world_contexts(task),
+        _learned_predicates(task),
+        _property_predicates(task),
+        _negated_predicates(task),
     )
+
+
+def _program_properties(statements, learned=frozenset()):
+    return _closed_world_properties((tuple(statements),), frozenset(learned))
+
+
+def _compiled_facts(task, modes, arg_types, max_variables, max_head, max_body):
+    properties = _task_properties(task)
     return clause_facts._facts(
         task, modes, properties, max_variables, max_head, max_body,
-        numeric_domain=_numeric_domain_values(task),
     )
 
 
 def _ground_term(source: str):
-    statement = parse_rule(f"value({source}).")
-    return _ground_key(statement.head.atom.symbol.arguments[0], {})
+    symbol = clingo.parse_term(source)
+    return symbol.number if symbol.type == clingo.SymbolType.Number else str(symbol)
+
+
+def _closed_world_extensions(nodes, learned=frozenset()):
+    world = _closed_world(tuple(nodes), frozenset(learned))
+    assert world is not None
+    return {predicate: set(tuples) for predicate, tuples in world.extensions.items()}
 
 
 def _mode(
@@ -678,19 +691,17 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
     assert "domain_numeric_arg(0,2,0)." not in fact_lines
 
 
-def test_facts_emit_only_strong_positive_numeric_domain_property():
-    facts = _compiled_facts(
-        inductive_task(["p(1).", "p(2)."], [], [], [], []),
-        [],
-        {},
-        3,
-        1,
-        3,
+def test_numeric_sign_evidence_is_per_closed_argument():
+    properties = _program_properties(
+        _asp(["p(1).", "p(2).", "q(0).", "r(-1).", "s(a).", "d(X-1) :- p(X)."])
     )
 
-    assert "numeric_domain_positive." in facts
-    assert "numeric_domain_nonnegative." not in facts
-    assert "zero_not_in_numeric_domain." not in facts
+    assert (("p", 1), 0) in properties.positive_args
+    assert (("q", 1), 0) in properties.nonnegative_args
+    assert (("d", 1), 0) in properties.nonnegative_args
+    assert not {(("r", 1), 0), (("s", 1), 0)} & (
+        properties.positive_args | properties.nonnegative_args
+    )
 
 
 def _reset_timing_state() -> None:
@@ -844,7 +855,7 @@ def test_parser_rejects_invalid_recursive_mode_terms(tmp_path):
             parse_file(str(task))
 
 
-def test_closed_world_extensions_ignore_compound_variable_terms():
+def test_closed_world_extensions_ground_compound_terms_with_clingo():
     extensions = _closed_world_extensions(
         _asp(
             [
@@ -854,8 +865,69 @@ def test_closed_world_extensions_ignore_compound_variable_terms():
         )
     )
 
-    assert ("cell", 1) not in extensions
-    assert ("same_row", 2) not in extensions
+    assert len(extensions[("cell", 1)]) == 16
+    assert len(extensions[("same_row", 2)]) == 64
+
+
+def test_closed_world_extensions_ignore_body_only_and_choice_atoms():
+    extensions = _closed_world_extensions(
+        _asp(["p(1).", "p(2).", "q(1).", "r :- q(2).", "{ s(2) }.", "s(1)."])
+    )
+
+    assert extensions[("q", 1)] == {(_ground_term("1"),)}
+    assert ("s", 1) not in extensions
+
+
+def test_body_only_atom_does_not_make_predicates_equivalent():
+    task = parse_text(
+        "p(1).\np(2).\nq(1).\nr :- q(2).\n"
+        "#maxv(1).\n#maxbl(2).\n"
+        "#modeh(1,h(var(t,input))).\n"
+        "#modeb(1,p(var(t,output))).\n"
+        "#modeb(1,not q(var(t,input))).\n"
+    )
+    properties = _task_properties(task)
+    clauses = generate_clause_space(task, Arguments()).clauses
+
+    assert (("p", 1), ("q", 1)) not in properties.equivalent
+    assert "h(V0) :- p(V0),not q(V0)." in clauses
+
+
+def test_relations_depending_on_learned_predicates_stay_open():
+    task = parse_text(
+        "d(1).\nd(2).\nh(3).\nr(X) :- d(X), not h(X).\n"
+        "#maxv(1).\n#maxbl(2).\n"
+        "#modeh(1,h(var(t,input))).\n"
+        "#modeh(1,t(var(t,input))).\n"
+        "#modeb(1,d(var(t,output))).\n"
+        "#modeb(1,not r(var(t,input))).\n"
+    )
+    properties = _task_properties(task)
+    clauses = generate_clause_space(task, Arguments()).clauses
+
+    assert not any(
+        ("r", 1) in pair for pair in properties.implies | properties.equivalent
+    )
+    assert "t(V0) :- d(V0),not r(V0)." in clauses
+
+
+def test_each_example_context_must_show_a_property():
+    base = (
+        "#maxv(2).\n#maxbl(1).\n"
+        "#modeh(1,h(var(t,input),var(t,input))).\n"
+        "#modeb(1,e(var(t,output),var(t,output))).\n"
+    )
+    both = parse_text(
+        "#pos({h(a,b)},{},{e(a,b). e(b,a).}).\n"
+        "#pos({h(b,a)},{},{e(b,a). e(a,b).}).\n" + base
+    )
+    split = parse_text(
+        "#pos({h(a,b)},{},{e(a,b).}).\n#pos({h(b,a)},{},{e(b,a).}).\n" + base
+    )
+
+    assert ("e", 2) in _task_properties(both).symmetric
+    assert ("e", 2) not in _task_properties(split).symmetric
+    assert "h(V1,V0) :- e(V0,V1)." in generate_clause_space(split, Arguments()).clauses
 
 
 def test_atom_parser_does_not_treat_not_prefix_as_negation():
@@ -2370,12 +2442,7 @@ def test_closed_world_properties_prune_tuple_mutex_permutation():
             _mode(2, "mother", 2, positive=True),
         ],
     )
-    fragments = _closed_world_nodes(program)
-    properties = _closed_world_properties(
-        fragments,
-        _predicate_arg_types(program, fragments),
-        _closed_body_predicates(program),
-    )
+    properties = _task_properties(program)
     clauses = _generate(program, 2, 2).clauses
 
     assert ((("father", 2), ("mother", 2), (1, 0))) in properties.tuple_mutex
@@ -2530,7 +2597,7 @@ def test_closed_world_properties_prune_complement_negative_pair():
 
 
 def test_closed_world_properties_infer_generic_atom_relations():
-    properties = _closed_world_properties(
+    properties = _program_properties(
         _asp(
             [
                 "p(a).",
@@ -2566,7 +2633,7 @@ def test_closed_world_properties_infer_generic_atom_relations():
 
 
 def test_closed_world_extensions_derive_simple_alias_rules():
-    properties = _closed_world_properties(
+    properties = _program_properties(
         _asp(
             [
                 "edge(a,b).",
@@ -2583,7 +2650,7 @@ def test_closed_world_extensions_derive_simple_alias_rules():
 
 
 def test_closed_world_extensions_derive_finite_complement_rules():
-    properties = _closed_world_properties(
+    properties = _program_properties(
         _asp(
             [
                 "v(a).",
@@ -2600,18 +2667,22 @@ def test_closed_world_extensions_derive_finite_complement_rules():
     assert ((("ne", 2), ("v", 1), (1,))) in properties.project_implies
 
 
-def test_closed_world_extensions_do_not_assume_unknown_negative_empty():
-    extensions = _closed_world_extensions(
-        _asp(["v(a).", "p(X) :- not q(X), v(X)."])
-    )
+def test_closed_world_extensions_leave_relations_over_learned_predicates_open():
+    program = _asp(["v(a).", "p(X) :- not q(X), v(X)."])
 
-    assert ("p", 1) not in extensions
+    assert _closed_world_extensions(program)[("p", 1)] == {(_ground_term("a"),)}
+    assert ("p", 1) not in _closed_world_extensions(program, {("q", 1)})
 
 
 def test_rule_defined_inequality_derives_arg_distinct():
-    properties = _closed_world_properties(
+    properties = _program_properties(
         _asp(
             [
+                "block(c1,b1).",
+                "block(c2,b1).",
+                "cell((1,1)).",
+                "cell((2,1)).",
+                "parent(a,b).",
                 "same_block(C1,C2) :- block(C1,B), block(C2,B), C1 != C2.",
                 "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)), X1 != X2.",
                 "parent_child(P,C) :- parent(P,C).",
@@ -2643,10 +2714,7 @@ def test_closed_world_properties_emit_new_property_facts():
             "le(b,b).",
         ]
     )
-    properties = _closed_world_properties(
-        fragments,
-        closed_body_predicates={("rel", 3), ("other", 3)},
-    )
+    properties = _program_properties(fragments)
     ids = {
         ("p", 1): 0,
         ("q", 1): 1,
@@ -2677,18 +2745,12 @@ def test_partition_subsumes_pairwise_mutex_facts():
         [],
         [],
         [
-            _mode(1, "a", 1, positive=True),
-            _mode(1, "b", 1, positive=True),
-            _mode(1, "c", 1, positive=True),
+            _mode(1, "a", 1, positive=False),
+            _mode(1, "b", 1, positive=False),
+            _mode(1, "c", 1, positive=False),
         ],
     )
-    fragments = _closed_world_nodes(program)
-    arg_types = _predicate_arg_types(program, fragments)
-    properties = _closed_world_properties(
-        fragments,
-        arg_types,
-        _closed_body_predicates(program),
-    )
+    properties = _task_properties(program)
 
     assert properties.partitions == frozenset({(("a", 1), ("b", 1), ("c", 1))})
     assert properties.mutex == frozenset()
@@ -2702,13 +2764,7 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
         [],
         [_mode(1, "r", 4, positive=True)],
     )
-    fragments = _closed_world_nodes(program)
-    arg_types = _predicate_arg_types(program, fragments)
-    properties = _closed_world_properties(
-        fragments,
-        arg_types,
-        _closed_body_predicates(program),
-    )
+    properties = _task_properties(program)
 
     assert (("r", 4), 0, 3) in properties.functional
     assert (("r", 4), (0, 1), 3) not in properties.functional_set
@@ -2716,14 +2772,17 @@ def test_functional_set_facts_subsumed_by_smaller_dependencies_are_dropped():
 
 
 def test_choice_rules_infer_modelwise_keys():
-    properties = _closed_world_properties(
+    properties = _program_properties(
         _asp(
             [
                 "#const n = 5.",
                 "number(1..n).",
                 "1 { q(X,Y) : number(Y) } 1 :- number(X).",
                 "1 { q(X,Y) : number(X) } 1 :- number(Y).",
+                "cell(1..2).",
+                "val(1..2).",
                 "1 { x(R,C,N) : val(N) } 1 :- cell(R), cell(C).",
+                "v(1..4).",
                 "3 { in(X) : v(X) } 3.",
             ]
         )
@@ -2780,7 +2839,6 @@ def test_closed_world_extensions_keep_distinct_string_terms():
         (_ground_term('"a b"'),),
         (_ground_term('"ab"'),),
     }
-    assert all(isinstance(arguments[0], ast.AST) for arguments in extensions[("p", 1)])
 
 
 def test_closed_world_extensions_do_not_derive_double_negation_as_negation():
@@ -2809,7 +2867,7 @@ def test_ast_walk_does_not_retain_task_nodes_globally():
 
 
 def test_rule_defined_square_properties_propagate_choice_key():
-    properties = _closed_world_properties(
+    properties = _program_properties(
         _asp(
             [
                 "part(a).",
@@ -2826,7 +2884,7 @@ def test_rule_defined_square_properties_propagate_choice_key():
 
 
 def test_cardinality_upper_facts_are_emitted():
-    properties = _closed_world_properties(
+    properties = _program_properties(
         _asp(["val(1).", "val(2).", "1 { in(X) : val(X) } 1."])
     )
     facts = set(
@@ -2988,28 +3046,12 @@ def test_universal_empty_and_complement_facts_are_emitted():
         [],
         [],
         [
-            _mode(1, "left", 1, positive=True),
-            _mode(1, "right", 1, positive=True),
+            _mode(1, "left", 1, positive=False),
+            _mode(1, "right", 1, positive=False),
         ],
     )
-    universal_fragments = _closed_world_nodes(universal_program)
-    domain_fragments = _closed_world_nodes(domain_program)
-    universal_arg_types = _predicate_arg_types(
-        universal_program, universal_fragments
-    )
-    domain_arg_types = _predicate_arg_types(
-        domain_program, domain_fragments
-    )
-    universal_properties = _closed_world_properties(
-        universal_fragments,
-        universal_arg_types,
-        _closed_body_predicates(universal_program),
-    )
-    domain_properties = _closed_world_properties(
-        domain_fragments,
-        domain_arg_types,
-        _closed_body_predicates(domain_program),
-    )
+    universal_properties = _task_properties(universal_program)
+    domain_properties = _task_properties(domain_program)
     universal_ids = {
         ("dom", 1): 0,
         ("p", 1): 1,
@@ -3028,26 +3070,37 @@ def test_universal_empty_and_complement_facts_are_emitted():
     assert "complement_pred(2,3)." in facts
 
 
-def test_universal_binary_predicate_derives_reflexive_property():
-    metaprogram_dir = Path(clause_generation.__file__).with_name("metaprogram")
-    metaprogram = (
-        (metaprogram_dir / "pruning" / "properties" / "universal.lp").read_text()
-        + """
-universal_pred(1).
-mode_atom(0,1,2).
-#show reflexive_pred/1.
-"""
+def test_universal_binary_predicate_is_reflexive_on_its_field():
+    properties = _program_properties(
+        _asp(["same(a,a).", "same(a,b).", "same(b,a).", "same(b,b).", "n(a)."])
     )
-    ctl = clingo.Control(["--warn=none"])
-    ctl.add("base", [], metaprogram)
-    ctl.ground([("base", [])])
 
-    with ctl.solve(yield_=True) as handle:
-        symbols = {
-            str(symbol) for model in handle for symbol in model.symbols(shown=True)
-        }
+    assert ("same", 2) in properties.universal
+    assert ("same", 2) in properties.reflexive
+    assert (("field", ("same", 2)), 0, ("n", 1), 0) in properties.domain_covers
 
-    assert "reflexive_pred(1)" in symbols
+
+def test_domain_relative_properties_keep_values_outside_their_domain():
+    base = (
+        "#maxv(2).\n#maxbl(3).\n#modeh(1,h(var(t,input))).\n"
+        "#modeb(1,n(var(t,output))).\n#modeb(1,e(var(t,output),var(t,output))).\n"
+    )
+    reflexive = generate_clause_space(parse_text(
+        "le(1,1).\nle(2,2).\nle(1,2).\nn(1).\nn(2).\nn(3).\ne(1,1).\n"
+        "#modeb(1,le(var(t,output),var(t,output))).\n"
+        "#modeb(1,not le(var(t,input),var(t,input))).\n" + base
+    ), Arguments()).clauses
+    complement = generate_clause_space(parse_text(
+        "a(1).\nb(2).\nn(1).\nn(2).\ne(5,5).\n"
+        "#modeb(1,not a(var(t,input))).\n#modeb(1,not b(var(t,input))).\n" + base
+    ), Arguments()).clauses
+
+    assert "h(V0) :- not le(V0,V0),n(V0)." in reflexive
+    assert not any(
+        "not le(V0,V0)" in clause and "le(V0,V1)" in clause for clause in reflexive
+    )
+    assert "h(V0) :- not a(V0),not b(V0),e(V0,V0)." in complement
+    assert "h(V0) :- not a(V0),not b(V0),n(V0)." not in complement
 
 
 def test_empty_predicate_prunes_positive_and_negative_literals():
@@ -4537,9 +4590,7 @@ def test_equal_ground_values_do_not_merge_distinct_declared_types():
         ],
     )
 
-    types = _predicate_arg_types(
-        program, _closed_world_nodes(program)
-    )
+    types = _predicate_arg_types(program, _task_nodes(program))
 
     assert types[("left", 1, 0)] == "node"
     assert types[("right", 1, 0)] == "numeric"
@@ -5872,21 +5923,23 @@ def test_mode_schema_separates_predicates_from_operator_ids():
     assert not any(line.startswith(("mode(", "mode_atom(0,")) for line in lines)
 
     # The arithmetic mode's id deliberately collides with p's predicate id.
-    # The conditional shares p/1 but is not a normal numeric source either.
+    # The conditional shares p/1 but is not a positive body source either.
     program = facts + """
 selected(body,0,0). var_at(body,0,0,10).
 selected(body,1,1). var_at(body,1,0,20).
 selected(body,2,2). var_at(body,2,0,30).
-normal_mode(M) :- mode_kind(M,normal).
-#show numeric_argument_var/1.
+positive_arg(0,0).
+#show positive_value/1.
 """
+    metaprogram = Path(clause_generation.__file__).with_name("metaprogram")
     ctl = clingo.Control(["0", "--warn=none"])
     ctl.add("base", [], program)
-    ctl.load(str(Path(clause_generation.__file__).with_name("metaprogram") / "inference/numeric.lp"))
+    for module in ("representation/schema.lp", "representation/literals.lp", "inference/numeric.lp"):
+        ctl.load(str(metaprogram / module))
     ctl.ground([("base", [])])
     with ctl.solve(yield_=True) as handle:
         assert [set(map(str, model.symbols(shown=True))) for model in handle] == [
-            {"numeric_argument_var(20)"}
+            {"positive_value(20)"}
         ]
 
 

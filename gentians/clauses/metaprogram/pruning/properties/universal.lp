@@ -1,21 +1,16 @@
-% A universal predicate is redundant positively only when every variable remains
-% bound by another positive literal. Its negation is impossible. Binary universal
-% predicates also supply reflexivity for self-pair pruning.
+% A universal predicate holds for every tuple of the product of its argument
+% values (see domains.lp). A positive literal is redundant when other positive
+% literals bind every argument inside that product; its negation is then
+% impossible.
+%   same(a,a). same(a,b). same(b,a). same(b,b). n(a). n(b). n(c).
+%   h(X) :- same(X,Y), n(Y), not same(Y,X).   pruned: X, Y come from same's product
+%   h(X) :- n(X), n(Y), not same(X,Y).         kept: c lies outside the product
 
-
-reflexive_pred(Pred) :-
-    universal_pred(Pred),
-    mode_atom(_, Pred, 2).
-
-universal_literal_missing_guard(Slot) :-
-    positive_body_literal(Slot, _, Pred, _),
-    universal_pred(Pred),
-    var_at(body, Slot, _, Var),
-    not positive_body_var_outside_slot(Slot, Var).
 
 :- positive_body_literal(Slot, _, Pred, _),
     universal_pred(Pred),
-    not universal_literal_missing_guard(Slot).
+    not domain_literal_uncovered_elsewhere(universal(Pred), Slot).
 
 :- negative_body_literal(Slot, _, Pred, _),
-    universal_pred(Pred).
+    universal_pred(Pred),
+    not domain_literal_uncovered(universal(Pred), Slot).

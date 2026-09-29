@@ -17,7 +17,7 @@
 #neg({ok(2)}, {}).
 #neg({ok(10)}, {}).
 
-% Explicit hypothesis space: 4181 candidate clauses.
+% Explicit hypothesis space: 3353 candidate clauses.
 3 ~ :- #sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V2=0.
 2 ~ :- #sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
 3 ~ :- #sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
@@ -299,33 +299,18 @@
 3 ~ :- s0(V0),s1(V0),#sum{V1:el(V2,V1)}=V0.
 3 ~ :- s0(V0),s1(V0),V0=0.
 2 ~ :- s0(V0),s1(V0).
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V0,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V0,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,2*V0-V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0-2*V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V1=0.
-3 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V1,V0)}=V0.
@@ -353,32 +338,14 @@
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V1=0.
 3 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0+V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1+V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1-2*V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V1,V0)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V0,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V0,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V1,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V1,V2)}=V0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,2*V0-V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,#sum{V0:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,#sum{V0:el(V1,V0)}=V1.
@@ -405,29 +372,16 @@
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,V1=0.
 3 ~ :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,2*V0-V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0-2*V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V1=0.
-3 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V0,V1)}=V0.
@@ -451,28 +405,12 @@
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V1=0.
 3 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0+V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1+V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1-2*V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V0,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V0,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,2*V0-V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,#sum{V1:el(V0,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,#sum{V1:el(V0,V1)}=V1.
@@ -495,25 +433,14 @@
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,V1=0.
 3 ~ :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,2*V0-V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0-2*V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V1=0.
-3 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V2)}=V0.
@@ -533,34 +460,15 @@
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V1=0.
 3 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0+V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1+V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1-2*V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,2*V0-V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0-2*V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V1=0.
-3 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V2,V1)}=V0.
@@ -578,31 +486,14 @@
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V1=0.
 3 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0+V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1+V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1-V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1-2*V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,2*V0-V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V0-2*V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V0=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V1=0.
-3 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V0,V2)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V1,V2)}=V0.
@@ -612,19 +503,11 @@
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,V0-2*V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V0,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V1,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,2*V0-V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V0-2*V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V0=0.
-4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V1=0.
-3 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V0,V2)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V2,V0)}=V1.
@@ -633,9 +516,7 @@
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,V0-2*V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,2*V0-V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,#sum{V2:el(V1,V2)}=V1.
@@ -648,22 +529,15 @@
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,V1=0.
 3 ~ :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,2*V0-V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V0-2*V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V0=0.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V1=0.
-3 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V0)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,2*V0-V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,V0-2*V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,V0=0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V0,2*V0-V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,#sum{V2:el(V2,V1)}=V1.
@@ -673,10 +547,6 @@
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,V1=0.
 3 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,2*V0-V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V0-2*V1=0.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V0=0.
-4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V1=0.
-3 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,2*V0-V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0-2*V1=0.
 4 ~ :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0=0.
@@ -723,33 +593,18 @@
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V0-2*V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V0=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0=0.
-4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V2=0.
-3 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,2*V0-V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0-2*V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
-3 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-4 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-3 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-3 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
 3 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
-3 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0=0.
-3 ~ :- s1(V0),#sum{V0:el(V0,V1)}=V2,V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V0,V0=0.
 3 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V0.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V0,V0=0.
@@ -782,24 +637,13 @@
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V0-2*V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
-3 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-4 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-3 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
-3 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 3 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-3 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0=0.
-3 ~ :- s1(V0),#sum{V0:el(V1,V0)}=V2,V2=0.
 4 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0,V0=0.
 3 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0.
 4 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
@@ -824,15 +668,8 @@
 4 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 4 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 4 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
-4 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-4 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-3 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-3 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 3 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-3 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0=0.
-3 ~ :- s1(V0),#sum{V1:el(V0,V1)}=V2,V2=0.
 4 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0,V0=0.
 3 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
 4 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V0,V0=0.
@@ -847,10 +684,7 @@
 3 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 3 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V0,V0=0.
 2 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V0.
-3 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 3 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-3 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0=0.
-3 ~ :- s1(V0),#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ :- s1(V0),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V0,V0=0.
 3 ~ :- s1(V0),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V0.
 4 ~ :- s1(V0),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V0,V0=0.
@@ -1142,33 +976,18 @@
 4 ~ ok(V0) :- s0(V0),s1(V0),#sum{V1:el(V2,V1)}=V0.
 4 ~ ok(V0) :- s0(V0),s1(V0),V0=0.
 3 ~ ok(V0) :- s0(V0),s1(V0).
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V0,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V0,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,2*V0-V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0-2*V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V1=0.
-4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V1,V0)}=V0.
@@ -1196,32 +1015,14 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V1=0.
 4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V1,V0)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V0,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V0,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V1,V2)}=V0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,2*V0-V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,#sum{V0:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,#sum{V0:el(V1,V0)}=V1.
@@ -1248,29 +1049,16 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,V1=0.
 4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,2*V0-V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0-2*V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V1=0.
-4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V0,V1)}=V0.
@@ -1294,28 +1082,12 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V1=0.
 4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V0,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V0,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,2*V0-V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,#sum{V1:el(V0,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,#sum{V1:el(V0,V1)}=V1.
@@ -1338,25 +1110,14 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,V1=0.
 4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,2*V0-V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0-2*V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V1=0.
-4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V2)}=V0.
@@ -1376,34 +1137,15 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V1=0.
 4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,2*V0-V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0-2*V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V1=0.
-4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V2,V1)}=V0.
@@ -1421,31 +1163,14 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V1=0.
 4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V2=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,2*V0-V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V0-2*V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V0=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V1=0.
-4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V0,V2)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V1,V2)}=V0.
@@ -1455,19 +1180,11 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,V0-2*V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,2*V0-V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V0-2*V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V0=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V1=0.
-4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V0,V2)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V2,V0)}=V1.
@@ -1476,9 +1193,7 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,V0-2*V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,2*V0-V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,#sum{V2:el(V1,V2)}=V1.
@@ -1491,22 +1206,15 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,V1=0.
 4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,2*V0-V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V0-2*V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V0=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V1=0.
-4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,2*V0-V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,V0-2*V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,V0=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V0,2*V0-V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,#sum{V2:el(V2,V1)}=V1.
@@ -1516,10 +1224,6 @@
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,V1=0.
 4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,2*V0-V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V0-2*V1=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V0=0.
-5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V1=0.
-4 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,2*V0-V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0-2*V1=0.
 5 ~ ok(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0=0.
@@ -1567,24 +1271,17 @@
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V0=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,2*V0-V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0-2*V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ ok(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V0,V0=0.
 4 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V0,V0=0.
@@ -1618,17 +1315,12 @@
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ ok(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0,V0=0.
 4 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
@@ -1654,10 +1346,7 @@
 5 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ ok(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0,V0=0.
 4 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V0,V0=0.
@@ -1673,7 +1362,6 @@
 4 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0,V0=0.
 3 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0.
 4 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V2=0.
 5 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V0,V0=0.
 4 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V0) :- s1(V0),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V0,V0=0.
@@ -1710,8 +1398,6 @@
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,2*V0-V1=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V1,V0)}=V0.
@@ -1741,7 +1427,6 @@
 4 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1+V2=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V2=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V1,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V0,V1)}=V1.
@@ -1784,8 +1469,6 @@
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,2*V0-V1=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V0,V1)}=V0.
@@ -1811,7 +1494,6 @@
 4 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1+V2=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V2=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V0,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
@@ -1846,8 +1528,6 @@
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,2*V0-V1=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V2)}=V0.
@@ -1869,7 +1549,6 @@
 4 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1+V2=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V2=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
@@ -1877,8 +1556,6 @@
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,2*V0-V1=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V2,V1)}=V0.
@@ -1898,15 +1575,12 @@
 4 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1+V2=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V2=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V1,V2)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,2*V0-V1=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V0=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V1:el(V2,V1)}=V0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V0,V2)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V1,V2)}=V0.
@@ -1921,8 +1595,6 @@
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,2*V0-V1=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V0=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V0,V2)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V1,V2)}=V0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V2,V0)}=V1.
@@ -1947,8 +1619,6 @@
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,2*V0-V1=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V0=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V1)}=V0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,2*V0-V1=0.
@@ -1964,8 +1634,6 @@
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,V1=0.
 4 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,2*V0-V1=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V0=0.
-5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,2*V0-V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0-2*V1=0.
 5 ~ ok(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0=0.
@@ -2147,112 +1815,42 @@
 5 ~ ok(V2) :- s0(V0),s1(V0),#sum{V1:el(V1,V0)}=V2,V0=0.
 5 ~ ok(V2) :- s0(V0),s1(V0),#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ ok(V2) :- s0(V0),s1(V0),#sum{V1:el(V1,V0)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V0,V1)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0+V0=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0+V1=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V1+V1=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V1:el(V0,V1)}=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V0+V0=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V0+V1=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V1+V1=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V1.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V1.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V1.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V0-V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-2*V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0=0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V2=0.
-4 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V0)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0+V0=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0+V1=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V1+V1=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V0,V1)}=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V0+V0=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V0+V1=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V1+V1=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V1.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V1.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V0-V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-2*V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0=0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V2=0.
-4 ~ ok(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0+V0=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0+V1=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V1+V1=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V0+V0=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V0+V1=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V1+V1=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V1.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V0-V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-2*V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0=0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0+V0=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0+V1=V2.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V1+V1=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V0+V0=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V0+V1=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V1+V1=V2.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V0-V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-2*V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0=0.
 5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1=0.
-5 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ ok(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V0,V0+V0=V2.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
@@ -2277,36 +1875,20 @@
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V0=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0-2*V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0=0.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V2=0.
-3 ~ ok(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V0,V0+V0=V2.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
@@ -2325,26 +1907,14 @@
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0=0.
-4 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V2=0.
-3 ~ ok(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2.
 5 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0,V0+V0=V2.
 5 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
@@ -2357,22 +1927,10 @@
 5 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
-5 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0=0.
-4 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V2=0.
-3 ~ ok(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2.
 4 ~ ok(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V0,V0+V0=V2.
-4 ~ ok(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ ok(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ ok(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0=0.
-4 ~ ok(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V2=0.
-3 ~ ok(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V0,V0=0.
 4 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V0,V0=0.
@@ -2414,24 +1972,17 @@
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V0=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,2*V0-V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0-2*V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ s0(V0) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V0,V0=0.
 4 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V0,V0=0.
@@ -2465,17 +2016,12 @@
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ s0(V0) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0,V0=0.
 4 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
@@ -2501,10 +2047,7 @@
 5 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ s0(V0) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0,V0=0.
 4 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V0,V0=0.
@@ -2520,7 +2063,6 @@
 4 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0,V0=0.
 3 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V0.
 4 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V2=0.
 5 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V0,V0=0.
 4 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ s0(V0) :- s1(V0),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V0,V0=0.
@@ -2557,8 +2099,6 @@
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,2*V0-V1=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V1,V0)}=V0.
@@ -2588,7 +2128,6 @@
 4 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1+V2=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V2=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V1,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V0,V1)}=V1.
@@ -2631,8 +2170,6 @@
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,2*V0-V1=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V0,V1)}=V0.
@@ -2658,7 +2195,6 @@
 4 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1+V2=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V2=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V0,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
@@ -2693,8 +2229,6 @@
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,2*V0-V1=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V2)}=V0.
@@ -2716,7 +2250,6 @@
 4 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1+V2=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V2=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
@@ -2724,8 +2257,6 @@
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,2*V0-V1=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V2,V1)}=V0.
@@ -2745,15 +2276,12 @@
 4 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1+V2=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V2=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V1,V2)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,2*V0-V1=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V0=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V1:el(V2,V1)}=V0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V0,V2)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V1,V2)}=V0.
@@ -2768,8 +2296,6 @@
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,2*V0-V1=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V0=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V0,V2)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V1,V2)}=V0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V2,V0)}=V1.
@@ -2794,8 +2320,6 @@
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,2*V0-V1=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V0=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V1)}=V0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,2*V0-V1=0.
@@ -2811,8 +2335,6 @@
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,V1=0.
 4 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,2*V0-V1=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V0=0.
-5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,2*V0-V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0-2*V1=0.
 5 ~ s0(V1) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0=0.
@@ -2994,112 +2516,42 @@
 5 ~ s0(V2) :- s0(V0),s1(V0),#sum{V1:el(V1,V0)}=V2,V0=0.
 5 ~ s0(V2) :- s0(V0),s1(V0),#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ s0(V2) :- s0(V0),s1(V0),#sum{V1:el(V1,V0)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V0,V1)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0+V0=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0+V1=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V1+V1=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V1:el(V0,V1)}=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V0+V0=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V0+V1=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V1+V1=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V1.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V1.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V1.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V0-V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-2*V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0=0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V2=0.
-4 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V0)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0+V0=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0+V1=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V1+V1=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V0,V1)}=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V0+V0=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V0+V1=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V1+V1=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V1.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V1.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V0-V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-2*V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0=0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V2=0.
-4 ~ s0(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0+V0=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0+V1=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V1+V1=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V0+V0=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V0+V1=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V1+V1=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V1.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V0-V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-2*V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0=0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0+V0=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0+V1=V2.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V1+V1=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V0+V0=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V0+V1=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V1+V1=V2.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V0-V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-2*V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0=0.
 5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1=0.
-5 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ s0(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V0,V0+V0=V2.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
@@ -3124,36 +2576,20 @@
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V0=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0-2*V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0=0.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V2=0.
-3 ~ s0(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V0,V0+V0=V2.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
@@ -3172,26 +2608,14 @@
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0=0.
-4 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V2=0.
-3 ~ s0(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2.
 5 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0,V0+V0=V2.
 5 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
@@ -3204,22 +2628,10 @@
 5 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
-5 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0=0.
-4 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V2=0.
-3 ~ s0(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2.
 4 ~ s0(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V0,V0+V0=V2.
-4 ~ s0(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ s0(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ s0(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0=0.
-4 ~ s0(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V2=0.
-3 ~ s0(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2.
 5 ~ s1(V0) :- s0(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V0,V0=0.
 4 ~ s1(V0) :- s0(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V0,V0=0.
@@ -3411,33 +2823,18 @@
 4 ~ s1(V0) :- s0(V0),#sum{V1:el(V2,V1)}=V0,V0=0.
 3 ~ s1(V0) :- s0(V0),#sum{V1:el(V2,V1)}=V0.
 3 ~ s1(V0) :- s0(V0),V0=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V0,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V0,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,2*V0-V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0-2*V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V1=0.
-4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V0,V2)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V1,V0)}=V0.
@@ -3465,32 +2862,14 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V1=0.
 4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V1,V0)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V0:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V0,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V0,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V1,V2)}=V0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V0,2*V0-V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,#sum{V0:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,#sum{V0:el(V1,V0)}=V1.
@@ -3517,29 +2896,16 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1,V1=0.
 4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V0:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,2*V0-V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0-2*V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V1=0.
-4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V0:el(V2,V0)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V0,V1)}=V0.
@@ -3563,28 +2929,12 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V1=0.
 4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V0,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V0,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V0,2*V0-V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,#sum{V1:el(V0,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,#sum{V1:el(V0,V1)}=V1.
@@ -3607,25 +2957,14 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1,V1=0.
 4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V0:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,2*V0-V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0-2*V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V1=0.
-4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V2)}=V0.
@@ -3645,34 +2984,15 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V1=0.
 4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,2*V0-V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0-2*V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V1=0.
-4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V1,V2)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,#sum{V1:el(V2,V1)}=V0.
@@ -3690,31 +3010,14 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V1=0.
 4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V2=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V1:el(V2,V1)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,2*V0-V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V0-2*V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V0=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0,V1=0.
-4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V1:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V0,V2)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,#sum{V2:el(V1,V2)}=V0.
@@ -3724,19 +3027,11 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,V0-2*V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V1,V2)}=V1,V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V0,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V1,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,2*V0-V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V0-2*V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V0=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0,V1=0.
-4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V0,V2)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,#sum{V2:el(V2,V0)}=V1.
@@ -3745,9 +3040,7 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,V0-2*V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V1:el(V2,V1)}=V1,V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V0,2*V0-V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,#sum{V2:el(V1,V2)}=V1.
@@ -3760,22 +3053,15 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1,V1=0.
 4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V0,V2)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V0)}=V1.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,#sum{V2:el(V2,V1)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,2*V0-V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V0-2*V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V0=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0,V1=0.
-4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V0)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,2*V0-V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,V0-2*V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,V0=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V1,V2)}=V1,V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V0,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V0,2*V0-V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,#sum{V2:el(V2,V1)}=V1.
@@ -3785,10 +3071,6 @@
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1,V1=0.
 4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V0)}=V1.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,2*V0-V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V0-2*V1=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V0=0.
-5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0,V1=0.
-4 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,2*V0-V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0-2*V1=0.
 5 ~ s1(V0) :- s0(V0),s1(V1),#sum{V2:el(V2,V1)}=V1,V0=0.
@@ -3973,112 +3255,42 @@
 5 ~ s1(V2) :- s0(V0),s1(V0),#sum{V1:el(V1,V0)}=V2,V0=0.
 5 ~ s1(V2) :- s0(V0),s1(V0),#sum{V1:el(V1,V0)}=V2,V2=0.
 4 ~ s1(V2) :- s0(V0),s1(V0),#sum{V1:el(V1,V0)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V0,V1)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0+V0=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V0+V1=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V0,V1+V1=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V0:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V1:el(V0,V1)}=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V0+V0=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V0+V1=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V1,V1+V1=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V1.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V1.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V1.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V0-V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-2*V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V0=0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2,V2=0.
-4 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V0,V1)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V1,V0)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0+V0=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V0+V1=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V0,V1+V1=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V0,V1)}=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,#sum{V1:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V0+V0=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V0+V1=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V1,V1+V1=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V1.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V1.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V0-V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-2*V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V0=0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2,V2=0.
-4 ~ s1(V2) :- s0(V0),s1(V1),#sum{V0:el(V1,V0)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0+V0=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V0+V1=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V0,V1+V1=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,#sum{V1:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V0+V0=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V0+V1=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V1,V1+V1=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V1.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V0-V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,2*V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0+V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-2*V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1+V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0-V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V0=0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1-2*V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V0,V1)}=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0+V0=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V0+V1=V2.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V0,V1+V1=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V0+V0=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V0+V1=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V1,V1+V1=V2.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V0-V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,2*V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0+V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-2*V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1+V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0-V1-V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V0=0.
 5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1-2*V2=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V1=0.
-5 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ s1(V2) :- s0(V0),s1(V1),#sum{V1:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V0,V0+V0=V2.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V0,#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
@@ -4103,36 +3315,20 @@
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V0=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0,V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V0=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2,V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V0:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0-2*V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V0,V1)}=V2.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,2*V0-V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V0=0.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2,V2=0.
-3 ~ s1(V2) :- s1(V0),#sum{V0:el(V0,V1)}=V2.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V0,V0+V0=V2.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V0,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
@@ -4151,26 +3347,14 @@
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V0=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0,V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V0=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2,V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V0,V1)}=V2.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0-2*V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V0=0.
-4 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2,V2=0.
-3 ~ s1(V2) :- s1(V0),#sum{V0:el(V1,V0)}=V2.
 5 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V0,V0+V0=V2.
 5 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V0,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
@@ -4183,19 +3367,7 @@
 5 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V0=0.
 5 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0,V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V0.
-5 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 5 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-5 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V0=0.
-5 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2,V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,#sum{V1:el(V1,V0)}=V2.
-4 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,2*V0-V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0-2*V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V0=0.
-4 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2,V2=0.
-3 ~ s1(V2) :- s1(V0),#sum{V1:el(V0,V1)}=V2.
 4 ~ s1(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V0,V0+V0=V2.
-4 ~ s1(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,2*V0-V2=0.
 4 ~ s1(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0-2*V2=0.
-4 ~ s1(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V0=0.
-4 ~ s1(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2,V2=0.
-3 ~ s1(V2) :- s1(V0),#sum{V1:el(V1,V0)}=V2.

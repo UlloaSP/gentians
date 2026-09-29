@@ -1,21 +1,21 @@
-% Reject impossible arithmetic/order combinations under the supplied numeric
-% domain evidence. Inferred strict-order cycles are impossible.
-% These checks inherit the task-relative assumptions of inference/numeric.lp.
+% Reject impossible arithmetic/order combinations under the per-argument sign
+% evidence of inference/numeric.lp. Inferred strict-order cycles are impossible.
+% Each rule requires the sign of exactly the operand that makes it impossible:
+%   R = L + Rt, R < L   needs Rt >= 0 (R = A - B can be negative otherwise)
+%   R = L \ D, D <= R   needs D > 0
+%   R = L * Rt, R < L   needs L > 0 and Rt > 0
+%   R = L / Rt, L < R   needs L >= 0 and Rt > 0
 
 % This cycle check also covers opposite selected strict comparisons and
 % strict reversals of the operand/result order inferred from positive addition.
 :- inferred_lt(Var, Var).
 
-:- numeric_domain_nonnegative,
-    addition(Slot, Left, _, Result),
-    numeric_argument_var(Left),
-    numeric_argument_var(Result),
+:- addition(Slot, Left, Right, Result),
+    nonnegative_value(Right),
     selected_lt(Result, Left).
 
-:- numeric_domain_nonnegative,
-    addition(Slot, _, Right, Result),
-    numeric_argument_var(Right),
-    numeric_argument_var(Result),
+:- addition(Slot, Left, Right, Result),
+    nonnegative_value(Left),
     selected_lt(Result, Right).
 
 :- addition(Slot, Left, Right, Result),
@@ -26,29 +26,21 @@
     positive_value(Left),
     selected_leq(Result, Right).
 
-:- numeric_domain_positive,
-    modulo(Slot, _, Divisor, Result),
-    numeric_argument_var(Divisor),
-    numeric_argument_var(Result),
+:- modulo(Slot, _, Divisor, Result),
+    positive_value(Divisor),
     selected_leq(Divisor, Result).
 
-:- numeric_domain_positive,
-    multiplication(Slot, Left, Right, Result),
-    numeric_argument_var(Left),
-    numeric_argument_var(Right),
-    numeric_argument_var(Result),
+:- multiplication(Slot, Left, Right, Result),
+    positive_value(Left),
+    positive_value(Right),
     selected_lt(Result, Left).
 
-:- numeric_domain_positive,
-    multiplication(Slot, Left, Right, Result),
-    numeric_argument_var(Left),
-    numeric_argument_var(Right),
-    numeric_argument_var(Result),
+:- multiplication(Slot, Left, Right, Result),
+    positive_value(Left),
+    positive_value(Right),
     selected_lt(Result, Right).
 
-:- numeric_domain_positive,
-    division(Slot, Left, Right, Result),
-    numeric_argument_var(Left),
-    numeric_argument_var(Right),
-    numeric_argument_var(Result),
+:- division(Slot, Left, Right, Result),
+    nonnegative_value(Left),
+    positive_value(Right),
     selected_lt(Left, Result).

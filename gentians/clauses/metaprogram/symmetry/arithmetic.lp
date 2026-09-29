@@ -1,5 +1,6 @@
 % Order operands only for modes whose types, directions and labels allow
-% interchange. Specialized flags are emitted by the mode compiler.
+% interchange. add_mode, mul_mode and abs_mode name the operator of every
+% complete template; interchangeable_operands says its operands may swap.
 %
 % A commutative mode keeps only the ascending operand-id orientation:
 %   kept:   V0+V1=V2    V0*V1=V2    |V0-V1|=V2    V0+V0=V1 (equal ids)
@@ -8,12 +9,12 @@
 %   V0-V1=V2 and V1-V0=V2    operand order changes the value.
 %   V0/V1=V2 and V1/V0=V2    div_mode is emitted but is not commutative.
 %   var(numeric,input,a)+var(numeric,input,b)=...: both V0+V1=V2 and V1+V0=V2
-%   survive because different labels make the operands non-interchangeable
-%   and add_mode is not emitted; canonicalization merges them afterwards.
+%   survive because different labels make the operands non-interchangeable;
+%   canonicalization merges them afterwards.
 
-commutative_mode(Mode) :- add_mode(Mode).
-commutative_mode(Mode) :- mul_mode(Mode).
-commutative_mode(Mode) :- abs_mode(Mode).
+commutative_mode(Mode) :- add_mode(Mode), interchangeable_operands(Mode).
+commutative_mode(Mode) :- mul_mode(Mode), interchangeable_operands(Mode).
+commutative_mode(Mode) :- abs_mode(Mode), interchangeable_operands(Mode).
 
 :- selected(body,Slot,Mode), 
    commutative_mode(Mode),

@@ -47,6 +47,14 @@ asp_safe(Var) :-
 
 :- head_var(Var), not asp_safe(Var).
 
+% A positive atom need not ground every variable it mentions: a pool
+% alternative may omit it, and non-invertible arithmetic such as q(X+X) or
+% q(|X|) grounds nothing. Such a variable must be safe elsewhere.
+:- selected(body, Slot, _),
+    var_at(body, Slot, _, Var),
+    pooled_body_missing_var(Slot, Var),
+    not asp_safe(Var).
+
 :- negated_var(Var), not asp_safe(Var).
 
 :- comparison_var(Var), not asp_safe(Var).

@@ -1,8 +1,10 @@
 % Closed-world partition property.
 %
 % Python emits partition_pred(Part, Pred) for each predicate Pred in a partition
-% Part where exactly one member predicate is true for a tuple. This file prunes
-% sets of negated partition members that deny the whole partition. Different
+% Part where exactly one member predicate is true for each tuple of the product
+% of the members' argument values. This file prunes sets of negated partition
+% members that deny the whole partition for a tuple inside that product (see
+% domains.lp); outside it every member can be false. Different
 % members of one partition are mutex, so this file exports mutex_pred/2 instead
 % of duplicating mutex pruning here.
 
@@ -31,4 +33,5 @@ partition_neg_missing(Part, Anchor) :-
 
 :- negative_body_literal(Anchor, _, AnchorPred, _),
     partition_pred(Part, AnchorPred),
-    not partition_neg_missing(Part, Anchor).
+    not partition_neg_missing(Part, Anchor),
+    not domain_literal_uncovered(partition(Part), Anchor).

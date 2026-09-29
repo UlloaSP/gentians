@@ -483,14 +483,18 @@ Directions mean:
 
 - `input`: must already be bound.
 - `output`: is produced by a selected positive body literal.
-- `any`: deliberately has no input/output requirement; a positive body literal
-  still binds it for later inputs.
+- `any`: deliberately has no input/output requirement; a positive normal body
+  atom still binds it for later inputs. Comparisons, arithmetic, aggregates and
+  conditional literals never bind a global variable through `any`.
 
 An output requirement in a rule head must be produced by a positive normal
 body output, aggregate result, or arithmetic result. It is also satisfied when
-that variable is unified with an input position of the same head. A body mode
-containing `not` cannot declare output variables. ASP safety remains active
-independently of mode direction.
+that variable is unified with an input position of the same head; a head input
+never satisfies a body output requirement. A body mode containing `not` cannot
+declare output variables. ASP safety remains active independently of mode
+direction and follows Clingo: inside an atom argument, only a linear term with
+a single occurrence of its variable (`q(X+1)`, `q(2*X-1)`, `q(-X)`) grounds it,
+while `q(X+Y)`, `q(X+X)`, `q(|X|)`, `q(X/2)` or an interval do not.
 
 Aggregate condition variables are local or supplied by surrounding terms; an
 equality result declared with `output` produces a binding. Other guards compare

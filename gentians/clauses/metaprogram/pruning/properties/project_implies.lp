@@ -3,7 +3,8 @@
 % Python emits project_implies_pred(Pred0, Pred1, Projection) plus project_arg
 % facts when Pred0 implies Pred1 after mapping source arguments to target
 % arguments. Example: edge(X, Y) may imply node(X) via projection target arg 0
-% from source arg 0.
+% from source arg 0. Target may be a learned predicate whose background lower
+% bound contains the projection; only a plain head is redundant that way.
 
 
 project_vars_differ(Section0, Slot0, Section1, Slot1, Projection) :-
@@ -31,6 +32,7 @@ project_vars_match(Section0, Slot0, Section1, Slot1, Projection) :-
     project_vars_match(body, Slot0, body, Slot1, Projection).
 
 :- positive_body_literal(Slot0, _, Pred0, _),
-    head_literal(Slot1, _, Pred1, _),
+    head_literal(Slot1, Mode, Pred1, _),
+    plain_disjunctive_head_mode(Mode),
     project_implies_pred(Pred0, Pred1, Projection),
     project_vars_match(body, Slot0, head, Slot1, Projection).

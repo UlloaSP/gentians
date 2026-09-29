@@ -13,8 +13,6 @@ def _facts(
     max_variables: int,
     max_head_literals: int,
     max_body_literals: int,
-    *,
-    numeric_domain: set[int],
 ) -> str:
     identifiers = predicate_ids(modes)
     structured_predicates = {
@@ -31,11 +29,6 @@ def _facts(
         f"condition_group_recall({group},{max_body_literals if mode.recall < 0 else mode.recall})."
         for group, mode in enumerate(task.language_bias_condition)
     )
-    all_positive = bool(numeric_domain) and all(value > 0 for value in numeric_domain)
-    if numeric_domain and all(value >= 0 for value in numeric_domain) and not all_positive:
-        parts.append("numeric_domain_nonnegative.")
-    if all_positive:
-        parts.append("numeric_domain_positive.")
     parts.extend(
         compile_property_facts(
             properties,

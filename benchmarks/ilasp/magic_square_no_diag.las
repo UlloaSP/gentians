@@ -110,7 +110,7 @@ val(1..n*n).
 #neg({x(1,1,7),x(1,2,2),x(1,3,6),x(2,1,5),x(2,2,9),x(2,3,3),x(3,1,1),x(3,2,4),x(3,3,8)}, {}).
 #neg({x(1,1,4),x(1,2,5),x(1,3,3),x(2,1,6),x(2,2,1),x(2,3,8),x(3,1,2),x(3,2,9),x(3,3,7)}, {}).
 
-% Explicit hypothesis space: 1568 candidate clauses.
+% Explicit hypothesis space: 1494 candidate clauses.
 4 ~ :- size(V0),sum_col(V0,V1),#sum{V1:x(V0,V2,V1)}=V3,V1-V3!=0.
 4 ~ :- size(V0),sum_col(V0,V1),#sum{V1:x(V2,V0,V1)}=V3,V1-V3!=0.
 3 ~ :- size(V0),sum_col(V0,V1),#sum{V2:x(V0,V3,V2)}=V1.
@@ -128,14 +128,6 @@ val(1..n*n).
 4 ~ :- size(V0),sum_col(V0,V1),sum_col(V2,V3),#sum{V3:x(V2,V0,V3)}=V1.
 4 ~ :- size(V0),sum_col(V0,V1),sum_col(V2,V3),V1-V3!=0.
 2 ~ :- size(V0),sum_col(V0,V1).
-4 ~ :- size(V0),sum_col(V1,V2),#sum{V2:x(V0,V1,V2)}=V3,V2-V3!=0.
-4 ~ :- size(V0),sum_col(V1,V2),#sum{V2:x(V1,V0,V2)}=V3,V2-V3!=0.
-3 ~ :- size(V0),sum_col(V1,V2),#sum{V3:x(V0,V1,V3)}=V2.
-3 ~ :- size(V0),sum_col(V1,V2),#sum{V3:x(V1,V0,V3)}=V2.
-4 ~ :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V2:x(V0,V1,V2)}=V3.
-4 ~ :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V2:x(V1,V0,V2)}=V3.
-4 ~ :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V3:x(V0,V1,V3)}=V2.
-4 ~ :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V3:x(V1,V0,V3)}=V2.
 4 ~ :- size(V0),sum_row(V0,V1),#sum{V1:x(V0,V2,V1)}=V3,V1-V3!=0.
 4 ~ :- size(V0),sum_row(V0,V1),#sum{V1:x(V2,V0,V1)}=V3,V1-V3!=0.
 3 ~ :- size(V0),sum_row(V0,V1),#sum{V2:x(V0,V3,V2)}=V1.
@@ -175,10 +167,6 @@ val(1..n*n).
 4 ~ :- size(V0),sum_row(V0,V1),sum_row(V2,V3),sum_col(V0,V3).
 4 ~ :- size(V0),sum_row(V0,V1),sum_row(V2,V3),sum_col(V2,V1).
 2 ~ :- size(V0),sum_row(V0,V1).
-4 ~ :- size(V0),sum_row(V1,V2),#sum{V2:x(V0,V1,V2)}=V3,V2-V3!=0.
-4 ~ :- size(V0),sum_row(V1,V2),#sum{V2:x(V1,V0,V2)}=V3,V2-V3!=0.
-3 ~ :- size(V0),sum_row(V1,V2),#sum{V3:x(V0,V1,V3)}=V2.
-3 ~ :- size(V0),sum_row(V1,V2),#sum{V3:x(V1,V0,V3)}=V2.
 4 ~ :- size(V0),sum_row(V1,V2),sum_col(V0,V2),#sum{V3:x(V0,V1,V3)}=V2.
 4 ~ :- size(V0),sum_row(V1,V2),sum_col(V0,V2),#sum{V3:x(V1,V0,V3)}=V2.
 4 ~ :- size(V0),sum_row(V1,V2),sum_col(V0,V2),sum_col(V1,V2).
@@ -190,16 +178,6 @@ val(1..n*n).
 4 ~ :- size(V0),sum_row(V1,V2),sum_col(V0,V3),#sum{V3:x(V1,V0,V3)}=V2.
 4 ~ :- size(V0),sum_row(V1,V2),sum_col(V0,V3),V2-V3!=0.
 4 ~ :- size(V0),sum_row(V1,V2),sum_col(V0,V3),sum_col(V1,V3).
-4 ~ :- size(V0),sum_row(V1,V2),sum_col(V1,V2),#sum{V3:x(V0,V1,V3)}=V2.
-4 ~ :- size(V0),sum_row(V1,V2),sum_col(V1,V2),#sum{V3:x(V1,V0,V3)}=V2.
-4 ~ :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V2:x(V0,V1,V2)}=V3.
-4 ~ :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V2:x(V1,V0,V2)}=V3.
-4 ~ :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V3:x(V0,V1,V3)}=V2.
-4 ~ :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V3:x(V1,V0,V3)}=V2.
-4 ~ :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V2:x(V0,V1,V2)}=V3.
-4 ~ :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V2:x(V1,V0,V2)}=V3.
-4 ~ :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V3:x(V0,V1,V3)}=V2.
-4 ~ :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V3:x(V1,V0,V3)}=V2.
 3 ~ :- sum_col(V0,V1),#sum{V1:x(V0,V2,V1)}=V3,V1-V3!=0.
 3 ~ :- sum_col(V0,V1),#sum{V1:x(V2,V0,V1)}=V3,V1-V3!=0.
 2 ~ :- sum_col(V0,V1),#sum{V2:x(V0,V3,V2)}=V1.
@@ -790,10 +768,6 @@ val(1..n*n).
 5 ~ sum_col(V0,V3) :- sum_row(V0,V1),sum_row(V2,V3),sum_col(V2,V3),V1-V3!=0.
 4 ~ sum_col(V0,V3) :- sum_row(V0,V1),sum_row(V2,V3),sum_col(V2,V3).
 3 ~ sum_col(V0,V3) :- sum_row(V0,V1),sum_row(V2,V3).
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),#sum{V2:x(V0,V1,V2)}=V3,V2-V3!=0.
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),#sum{V2:x(V1,V0,V2)}=V3,V2-V3!=0.
-4 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),#sum{V3:x(V0,V1,V3)}=V2.
-4 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),#sum{V3:x(V1,V0,V3)}=V2.
 5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V0,V2),#sum{V3:x(V0,V1,V3)}=V2.
 5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V0,V2),#sum{V3:x(V1,V0,V3)}=V2.
 5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V0,V2),sum_col(V1,V3).
@@ -804,23 +778,7 @@ val(1..n*n).
 5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V0,V3),#sum{V3:x(V1,V0,V3)}=V2.
 5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V0,V3),V2-V3!=0.
 5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V0,V3),sum_col(V1,V3).
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V3:x(V0,V1,V3)}=V2.
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V3:x(V1,V0,V3)}=V2.
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V3:x(V0,V1,V3)}=V2.
-5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V3:x(V1,V0,V3)}=V2.
 5 ~ sum_col(V1,V2) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),sum_col(V0,V3).
-5 ~ sum_col(V1,V3) :- size(V0),sum_col(V1,V2),#sum{V2:x(V0,V1,V2)}=V3,V2-V3!=0.
-4 ~ sum_col(V1,V3) :- size(V0),sum_col(V1,V2),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_col(V1,V3) :- size(V0),sum_col(V1,V2),#sum{V2:x(V1,V0,V2)}=V3,V2-V3!=0.
-4 ~ sum_col(V1,V3) :- size(V0),sum_col(V1,V2),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),#sum{V2:x(V0,V1,V2)}=V3,V2-V3!=0.
-4 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),#sum{V2:x(V1,V0,V2)}=V3,V2-V3!=0.
-4 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),#sum{V2:x(V1,V0,V2)}=V3.
 5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V2),#sum{V2:x(V0,V1,V2)}=V3.
 5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V2),#sum{V2:x(V1,V0,V2)}=V3.
 5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V2),sum_col(V0,V3).
@@ -831,12 +789,6 @@ val(1..n*n).
 5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V3),V2-V3!=0.
 5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V3),sum_col(V1,V2).
 4 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V3).
-5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V1,V2),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V1,V2),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V3:x(V0,V1,V3)}=V2.
-5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),#sum{V3:x(V1,V0,V3)}=V2.
 5 ~ sum_col(V1,V3) :- size(V0),sum_row(V1,V2),sum_row(V1,V3),sum_col(V0,V2).
 5 ~ sum_col(V2,V1) :- size(V0),sum_col(V0,V1),sum_col(V2,V3),#sum{V1:x(V0,V2,V1)}=V3.
 5 ~ sum_col(V2,V1) :- size(V0),sum_col(V0,V1),sum_col(V2,V3),#sum{V1:x(V2,V0,V1)}=V3.
@@ -1389,26 +1341,6 @@ val(1..n*n).
 5 ~ sum_row(V0,V3) :- sum_row(V0,V1),sum_row(V2,V3),sum_col(V2,V3),V1-V3!=0.
 4 ~ sum_row(V0,V3) :- sum_row(V0,V1),sum_row(V2,V3),sum_col(V2,V3).
 3 ~ sum_row(V0,V3) :- sum_row(V0,V1),sum_row(V2,V3).
-5 ~ sum_row(V1,V2) :- size(V0),sum_col(V1,V2),#sum{V2:x(V0,V1,V2)}=V3,V2-V3!=0.
-5 ~ sum_row(V1,V2) :- size(V0),sum_col(V1,V2),#sum{V2:x(V1,V0,V2)}=V3,V2-V3!=0.
-4 ~ sum_row(V1,V2) :- size(V0),sum_col(V1,V2),#sum{V3:x(V0,V1,V3)}=V2.
-4 ~ sum_row(V1,V2) :- size(V0),sum_col(V1,V2),#sum{V3:x(V1,V0,V3)}=V2.
-5 ~ sum_row(V1,V2) :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_row(V1,V2) :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_row(V1,V2) :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V3:x(V0,V1,V3)}=V2.
-5 ~ sum_row(V1,V2) :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V3:x(V1,V0,V3)}=V2.
-5 ~ sum_row(V1,V3) :- size(V0),sum_col(V1,V2),#sum{V2:x(V0,V1,V2)}=V3,V2-V3!=0.
-4 ~ sum_row(V1,V3) :- size(V0),sum_col(V1,V2),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_row(V1,V3) :- size(V0),sum_col(V1,V2),#sum{V2:x(V1,V0,V2)}=V3,V2-V3!=0.
-4 ~ sum_row(V1,V3) :- size(V0),sum_col(V1,V2),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_row(V1,V3) :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_row(V1,V3) :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_row(V1,V3) :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V3:x(V0,V1,V3)}=V2.
-5 ~ sum_row(V1,V3) :- size(V0),sum_col(V1,V2),sum_col(V1,V3),#sum{V3:x(V1,V0,V3)}=V2.
-5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),#sum{V2:x(V0,V1,V2)}=V3,V2-V3!=0.
-4 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),#sum{V2:x(V1,V0,V2)}=V3,V2-V3!=0.
-4 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),#sum{V2:x(V1,V0,V2)}=V3.
 5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V2),#sum{V2:x(V0,V1,V2)}=V3.
 5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V2),#sum{V2:x(V1,V0,V2)}=V3.
 5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V2),sum_col(V0,V3).
@@ -1421,12 +1353,6 @@ val(1..n*n).
 5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V3),sum_col(V1,V2).
 5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V3),sum_col(V1,V3).
 4 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V0,V3).
-5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V1,V2),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V1,V2),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V2:x(V0,V1,V2)}=V3.
-5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V2:x(V1,V0,V2)}=V3.
-5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V3:x(V0,V1,V3)}=V2.
-5 ~ sum_row(V1,V3) :- size(V0),sum_row(V1,V2),sum_col(V1,V3),#sum{V3:x(V1,V0,V3)}=V2.
 5 ~ sum_row(V2,V1) :- size(V0),sum_col(V0,V1),sum_col(V2,V1),#sum{V3:x(V0,V2,V3)}=V1.
 5 ~ sum_row(V2,V1) :- size(V0),sum_col(V0,V1),sum_col(V2,V1),#sum{V3:x(V2,V0,V3)}=V1.
 4 ~ sum_row(V2,V1) :- size(V0),sum_col(V0,V1),sum_col(V2,V1).

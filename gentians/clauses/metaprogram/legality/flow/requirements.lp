@@ -3,7 +3,12 @@
 
 :- conditional_global_input_var(Var), not flow_bound(Var).
 
-:- conditional_global_output_var(Var), not flow_produced(Var).
+:- conditional_global_output_var(body, Var), not flow_produced(Var).
+
+% A head output is also satisfied by an input position of the same head.
+:- conditional_global_output_var(head, Var),
+    not flow_produced(Var),
+    not head_input_var(Var).
 
 :- selected(body, Slot, Mode), arithmetic_mode(Mode), not ready_arithmetic(Slot).
 
@@ -23,4 +28,5 @@
     not conditional_mode(Mode),
     mode_arg_direction(Mode, Arg, output),
     var_at(head, Slot, Arg, Var),
-    not flow_produced(Var).
+    not flow_produced(Var),
+    not head_input_var(Var).

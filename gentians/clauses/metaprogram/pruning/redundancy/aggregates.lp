@@ -3,9 +3,9 @@
 % check uses the existing predicate-level projection of condition arguments.
 
 
-aggregate_key_input_missing(Slot, Pred, Key) :-
+aggregate_key_input_missing(Slot, Condition, Key) :-
     key_arg(Key, Input),
-    aggregate_condition_arg(Slot, Pred, Input, InputVar),
+    aggregate_condition_arg(Slot, Condition, _, Input, InputVar),
     not aggregate_tuple_var(Slot, InputVar).
 
 aggregate_input_differs(Slot0, Slot1) :-
@@ -32,6 +32,6 @@ same_aggregate_inputs(Slot0, Slot1) :-
 
 :- selected(body, Slot, Mode), aggregate_has_shorter_mode(Mode),
     aggregate_tuple_binding(Slot, Position, OutputVariable), Position > 0,
-    aggregate_condition_arg(Slot, Predicate, Output, OutputVariable),
+    aggregate_condition_arg(Slot, Condition, Predicate, Output, OutputVariable),
     key_pred(Predicate, Key), not key_arg(Key, Output),
-    not aggregate_key_input_missing(Slot, Predicate, Key).
+    not aggregate_key_input_missing(Slot, Condition, Key).

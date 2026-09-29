@@ -9,7 +9,7 @@ conditional_global_input_var(Var) :-
     mode_arg_direction(Mode, Arg, input),
     var_at(Section, Slot, Arg, Var).
 
-conditional_global_output_var(Var) :-
+conditional_global_output_var(Section, Var) :-
     selected(Section, Slot, Mode),
     conditional_global_var(Section, Slot, Var),
     mode_arg_direction(Mode, Arg, output),

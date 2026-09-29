@@ -24,6 +24,7 @@ var_at(head,0,1,1).
 
 selected(body,0,1).
 positive_mode(1).
+normal_mode(1).
 mode_arg_direction(1,0,input).
 mode_arg_direction(1,1,output).
 var_at(body,0,0,source).

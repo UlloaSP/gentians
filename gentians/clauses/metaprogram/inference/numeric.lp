@@ -1,25 +1,24 @@
-% Derive positivity and strict value order from selected arithmetic and the
-% numeric-domain evidence supplied by Python. inferred_lt is a transitive
-% closure; selected_lt continues to mean an explicit comparison literal.
+% Derive sign and strict value order from selected arithmetic and the
+% per-argument evidence Python proves with Clingo. positive_arg(Pred, Arg) and
+% nonnegative_arg(Pred, Arg) hold when every value that argument of a closed
+% predicate takes, in every model of every context, is an integer > 0 or >= 0.
+% Only a positive body literal grounds its variable to such a value: a head
+% atom, a negated literal or a learned predicate says nothing about it.
+% inferred_lt is a transitive closure; selected_lt continues to mean an
+% explicit comparison literal.
 
-
-domain_numeric_arg(Pred, Arity, Arg) :-
-    mode_atom(Mode, Pred, Arity),
-    normal_mode(Mode),
-    mode_arg_type(Mode, Arg, numeric).
-
-numeric_domain_nonnegative :- numeric_domain_positive.
-
-numeric_argument_var(Var) :-
-    selected(Section, Slot, Mode),
-    normal_mode(Mode),
-    mode_atom(Mode, Pred, Arity),
-    domain_numeric_arg(Pred, Arity, Arg),
-    var_at(Section, Slot, Arg, Var).
 
 positive_value(Var) :-
-    numeric_domain_positive,
-    numeric_argument_var(Var).
+    positive_body_literal(Slot, _, Pred, _),
+    positive_arg(Pred, Arg),
+    var_at(body, Slot, Arg, Var).
+
+nonnegative_value(Var) :-
+    positive_body_literal(Slot, _, Pred, _),
+    nonnegative_arg(Pred, Arg),
+    var_at(body, Slot, Arg, Var).
+
+nonnegative_value(Var) :- positive_value(Var).
 
 positive_value(Result) :-
     addition(Slot, Left, Right, Result),

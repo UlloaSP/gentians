@@ -1,12 +1,17 @@
+from collections.abc import Iterator, Mapping
 from itertools import combinations, permutations
 
 from ...language.asp import Predicate
 from .ground_relations import GroundTerm, GroundTuple
+from .properties import DomainKey
+
+# Product and partition checks enumerate tuples; larger domains stay unproven.
+MAX_PRODUCT_SIZE = 10000
 
 
 def _collect_argument_properties(
     predicate: Predicate,
-    tuples: set[GroundTuple],
+    tuples: frozenset[GroundTuple],
     arg_equal: set[tuple[Predicate, int, int]],
     arg_distinct: set[tuple[Predicate, int, int]],
 ) -> None:
@@ -19,7 +24,7 @@ def _collect_argument_properties(
 
 def _collect_functional_properties(
     predicate: Predicate,
-    tuples: set[GroundTuple],
+    tuples: frozenset[GroundTuple],
     functional: set[tuple[Predicate, int, int]],
 ) -> None:
     for input_arg in range(predicate[1]):
@@ -41,7 +46,7 @@ def _collect_functional_properties(
 
 def _collect_composite_functional_properties(
     predicate: Predicate,
-    tuples: set[GroundTuple],
+    tuples: frozenset[GroundTuple],
     functional_set: set[tuple[Predicate, tuple[int, ...], int]],
 ) -> None:
     arity = predicate[1]
@@ -164,7 +169,7 @@ def _key_sets_by_predicate(
 
 def _collect_key_properties(
     predicate: Predicate,
-    tuples: set[GroundTuple],
+    tuples: frozenset[GroundTuple],
     keys: set[tuple[Predicate, tuple[int, ...]]],
 ) -> None:
     arity = predicate[1]
@@ -183,9 +188,9 @@ def _collect_key_properties(
 
 def _collect_disjoint_projections(
     left: Predicate,
-    left_tuples: set[GroundTuple],
+    left_tuples: frozenset[GroundTuple],
     right: Predicate,
-    right_tuples: set[GroundTuple],
+    right_tuples: frozenset[GroundTuple],
     disjoint_projection: set[tuple[Predicate, int, Predicate, int]],
 ) -> None:
     if not left_tuples or not right_tuples:
@@ -202,47 +207,86 @@ def _collect_disjoint_projections(
 
 
 def _partition_properties(
-    extensions: dict[Predicate, set[GroundTuple]],
-    tuple_universe_by_arity: dict[int, set[GroundTuple]],
+    extensions: Mapping[Predicate, frozenset[GroundTuple]],
 ) -> set[tuple[Predicate, ...]]:
+    """Minimal groups of pairwise disjoint relations whose union is a product.
+
+    Every tuple of that product satisfies exactly one member, so negating all
+    members of one tuple is impossible whenever each variable ranges over the
+    product. Pairs are complements and are collected separately.
+    """
+    by_arity: dict[int, list[Predicate]] = {}
+    for predicate, tuples in extensions.items():
+        if tuples:
+            by_arity.setdefault(predicate[1], []).append(predicate)
     partitions: set[tuple[Predicate, ...]] = set()
-    for arity, universe in tuple_universe_by_arity.items():
-        predicates = [
-            predicate
-            for predicate, tuples in extensions.items()
-            if predicate[1] == arity and tuples and tuples < universe
-        ]
+    for predicates in by_arity.values():
+        disjoint = {
+            (left, right)
+            for left, right in combinations(predicates, 2)
+            if extensions[left].isdisjoint(extensions[right])
+        }
         for size in range(3, min(len(predicates), 6) + 1):
             for group in combinations(predicates, size):
-                covered: set[GroundTuple] = set()
-                valid = True
-                for predicate in group:
-                    tuples = extensions[predicate]
-                    if covered & tuples:
-                        valid = False
-                        break
-                    covered.update(tuples)
-                if valid and covered == universe:
-                    partitions.add(tuple(sorted(group)))
-    return {
-        group
-        for group in partitions
-        if not any(set(other) < set(group) for other in partitions)
+                if any(pair not in disjoint for pair in combinations(group, 2)):
+                    continue
+                if any(set(other) < set(group) for other in partitions):
+                    continue
+                union = frozenset().union(*(extensions[member] for member in group))
+                if _product_positions(group[0], union) is not None:
+                    partitions.add(group)
+    return partitions
+
+
+def _position_values(
+    arity: int, tuples: frozenset[GroundTuple]
+) -> tuple[frozenset[GroundTerm], ...]:
+    return tuple(frozenset(values[index] for values in tuples) for index in range(arity))
+
+
+def _product_positions(
+    predicate: Predicate, tuples: frozenset[GroundTuple]
+) -> tuple[frozenset[GroundTerm], ...] | None:
+    """Per-position values when the tuples are exactly their product."""
+    if not tuples:
+        return None
+    positions = _position_values(predicate[1], tuples)
+    size = 1
+    for values in positions:
+        size *= len(values)
+    if size != len(tuples) or size > MAX_PRODUCT_SIZE:
+        return None
+    return positions
+
+
+def _domain_covers(
+    domains: Mapping[DomainKey, tuple[frozenset[GroundTerm], ...]],
+    extensions: Mapping[Predicate, frozenset[GroundTuple]],
+) -> Iterator[tuple[DomainKey, int, Predicate, int]]:
+    """Arguments whose values all lie inside one position of a domain."""
+    arguments = {
+        (predicate, index): frozenset(values[index] for values in tuples)
+        for predicate, tuples in extensions.items()
+        for index in range(predicate[1])
     }
+    for key, positions in domains.items():
+        for position, domain in enumerate(positions):
+            for (predicate, index), values in arguments.items():
+                if values <= domain:
+                    yield key, position, predicate, index
 
 
 def _collect_tuple_mutex(
-    extensions: dict[Predicate, set[GroundTuple]],
-    closed_body_predicates: set[Predicate],
+    extensions: Mapping[Predicate, frozenset[GroundTuple]],
     tuple_mutex: set[tuple[Predicate, Predicate, tuple[int, ...]]],
 ) -> None:
-    closed_extensions = {
+    relations = {
         predicate: tuples
         for predicate, tuples in extensions.items()
-        if predicate in closed_body_predicates and predicate[1] > 1
+        if predicate[1] > 1
     }
-    for left, left_tuples in closed_extensions.items():
-        for right, right_tuples in closed_extensions.items():
+    for left, left_tuples in relations.items():
+        for right, right_tuples in relations.items():
             if left[1] != right[1]:
                 continue
             for projection in permutations(range(left[1])):
@@ -257,9 +301,9 @@ def _collect_tuple_mutex(
 
 def _collect_projection_implications(
     source: Predicate,
-    source_tuples: set[GroundTuple],
+    source_tuples: frozenset[GroundTuple],
     target: Predicate,
-    target_tuples: set[GroundTuple],
+    target_tuples: frozenset[GroundTuple],
     project_implies: set[tuple[Predicate, Predicate, tuple[int, ...]]],
 ) -> None:
     if source[1] <= target[1] or not target_tuples:
@@ -272,7 +316,7 @@ def _collect_projection_implications(
             project_implies.add((source, target, projection))
 
 
-def _is_transitive(tuples: set[GroundTuple]) -> bool:
+def _is_transitive(tuples: frozenset[GroundTuple]) -> bool:
     if len(tuples) < 3:
         return False
     for left, middle in tuples:
@@ -282,12 +326,12 @@ def _is_transitive(tuples: set[GroundTuple]) -> bool:
     return True
 
 
-def _is_reflexive(tuples: set[GroundTuple]) -> bool:
+def _is_reflexive(tuples: frozenset[GroundTuple]) -> bool:
     domain = {value for row in tuples for value in row}
     return bool(domain) and all((value, value) in tuples for value in domain)
 
 
-def _is_total_order(tuples: set[GroundTuple]) -> bool:
+def _is_total_order(tuples: frozenset[GroundTuple]) -> bool:
     domain = {value for row in tuples for value in row}
     if (
         len(domain) < 2
@@ -302,7 +346,7 @@ def _is_total_order(tuples: set[GroundTuple]) -> bool:
     return True
 
 
-def _is_acyclic(tuples: set[GroundTuple]) -> bool:
+def _is_acyclic(tuples: frozenset[GroundTuple]) -> bool:
     graph: dict[GroundTerm, set[GroundTerm]] = {}
     for left, right in tuples:
         graph.setdefault(left, set()).add(right)

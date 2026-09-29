@@ -108,21 +108,27 @@ predicate; it must not be mistaken for the occurrence-preserving relation.
 The four files in `legality/flow/` describe a positive fixed point:
 
 1. `declarations.lp` identifies directed modes and counts required input positions.
-2. `seeds.lp` supplies head inputs, aggregate results and undirected positive
-   `any` bindings.
-3. `closure.lp` makes a literal ready when its inputs are bound, propagates its
-   positive outputs, and repeats through recursion until no new facts follow.
+2. `seeds.lp` supplies head inputs, aggregate results and the `any` bindings
+   of undirected positive normal atoms.
+3. `closure.lp` makes a literal ready when its inputs are bound, propagates the
+   outputs and `any` bindings of positive normal atoms, and repeats through
+   recursion until no new facts follow.
 4. `requirements.lp` rejects inputs or head outputs that remain unsupported.
 
 These are explanatory steps, not imperative execution passes. In the code,
-`flow_produced(V)` implies `flow_bound(V)`. A positive `any` position can bind
-a variable without satisfying an explicit output requirement. Head inputs
-also satisfy an output position identified with that input. Default negation
-and conditional conclusions do not produce global variables.
+`flow_produced(V)` implies `flow_bound(V)`. A positive `any` position of a
+normal atom can bind a variable without satisfying an explicit output
+requirement. A head input is bound, not produced: it satisfies only an output
+position of the same head, never a body output requirement. Default negation,
+comparisons, aggregates and conditional conclusions do not bind global
+variables through `any`.
 
 `asp_safe(V)` is a separate condition. A head input can seed directed flow but
 does not by itself ground the variable in ASP. Positive body atoms, supported
-arithmetic results and Clingo-proved relation outputs supply grounding safety.
+arithmetic results and Clingo-proved relation outputs supply grounding safety;
+a relation output is safe only when its other arguments are already safe. A
+placeholder inside non-invertible arithmetic, such as `q(X+Y)` or `q(|X|)`,
+does not ground its variable, matching Clingo.
 Local conditional and aggregate variables have their own scope checks.
 
 ## What each rejection means
@@ -206,8 +212,8 @@ The flow example corresponds to these mode declarations:
 #modeb(1,edge(var(node,input),var(node,output))).
 ```
 
-For the pinned clause `target(V0,V1) :- edge(V0,V1).`, head input `V0` seeds
-flow, making `edge` ready; its output produces `V1`, satisfying the head output.
+For the pinned clause `target(V0,V1) :- edge(V0,V1).`, head input `V0` is
+bound, making `edge` ready; its output produces `V1`, satisfying the head output.
 Changing the body input to `V2` leaves that input unbound. The shown facts expose
 the derivation. `tests/test_metaprogram_examples.py` checks both outcomes and
 the aggregate role and numeric inference facts.

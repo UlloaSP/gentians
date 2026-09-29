@@ -790,11 +790,12 @@ when search finishes or fails. Exhaustion preserves the complete space if it fit
 in the archive. After archive overflow, a new seeded pass can revisit discarded
 clauses. This changes search order, not clause legality.
 
-The `incremental.batch_size` budget counts models before theta reduction and
-canonicalization. `incremental.archive_size` bounds the number of distinct raw
-clauses retained across batches, before hypothesis dependency pruning. Providers
-arriving later can therefore make earlier clauses constructible. All prepared
-clauses are active while this archive contains every visited clause.
+The `incremental.batch_size` budget counts models after theta reduction in
+Clingo and before canonicalization. `incremental.archive_size` bounds the number
+of distinct raw clauses retained across batches, before hypothesis dependency
+pruning. Providers arriving later can therefore make earlier clauses
+constructible. All prepared clauses are active while this archive contains
+every visited clause.
 
 After overflow, the working space combines the bounded archive, fresh batch and
 elite hypotheses with their providers. An active subset contains closed programs.

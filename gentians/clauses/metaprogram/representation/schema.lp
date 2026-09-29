@@ -162,6 +162,17 @@
 % template without condition Condition, so a repeated condition is removable.
 #defined conditional_shorter_mode/2.
 
+% Theta reduction (pruning/redundancy/theta.lp). A section holding repeatable
+% movable literals gets exactly one of two encodings. theta_sigma_section with
+% theta_sigma(Id) and theta_sigma_offset(Id, Section, Slot, Offset) enumerate
+% every offset combination: the literal in Slot maps to the first slot of its
+% mode group plus Offset. theta_saturated_section selects the disjunctive
+% saturation instead, used only when those combinations would be too many.
+#defined theta_sigma_section/1.
+#defined theta_sigma/1.
+#defined theta_sigma_offset/4.
+#defined theta_saturated_section/1.
+
 % mode_condition_count(Mode, Count): number of conditions attached to Mode.
 #defined mode_condition_count/2.
 

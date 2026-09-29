@@ -40,7 +40,6 @@ from gentians.clauses.generator import (
     generate_clause_space,
 )
 from gentians.clauses.mode_compiler import _aggregate_head_templates
-from gentians.clauses.pruning import _theta_reduced
 from gentians.clauses.reified_clause import ReifiedClause
 from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.evaluation.solver import CoverageSolver
@@ -4914,28 +4913,22 @@ def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
 
 
 def test_theta_reduction_rejects_clause_equivalent_to_proper_subclause():
-    modes = {
-        0: _normal_clause_mode(0, 0, "head", "target", 1, 1, head_form=0),
-        1: _normal_clause_mode(1, 1, "body", "edge", 2, 2),
-        2: _normal_clause_mode(2, 2, "body", "other", 2, 1),
-    }
-    reducible = ReifiedClause(
-        (ReifiedLiteral("head", 0, 0, (0,)),),
-        (
-            ReifiedLiteral("body", 0, 1, (0, 1)),
-            ReifiedLiteral("body", 1, 1, (0, 2)),
-        ),
-    )
-    reduced = ReifiedClause(
-        (ReifiedLiteral("head", 0, 0, (0,)),),
-        (
-            ReifiedLiteral("body", 0, 1, (0, 1)),
-            ReifiedLiteral("body", 1, 2, (0, 1)),
-        ),
+    task = parse_text(
+        "\n".join(
+            (
+                "#maxv(3). #maxbl(3). #maxhl(1).",
+                "edge(a,b). edge(a,c). edge(b,a). edge(b,c). edge(c,a). edge(c,b).",
+                "#modeh(1,target(var(node,any))).",
+                "#modeb(3,edge(var(node,any),var(node,any))).",
+            )
+        )
     )
 
-    assert not _theta_reduced(reducible, modes)
-    assert _theta_reduced(reduced, modes)
+    clauses = generate_clause_space(task, Arguments()).clauses
+
+    assert "target(V0) :- edge(V0,V1)." in clauses
+    assert "target(V0) :- edge(V0,V1),edge(V0,V2)." not in clauses
+    assert "target(V0) :- edge(V0,V1),edge(V0,V2),edge(V1,V2)." in clauses
 
 
 def test_parser_parses_aggregate_head_modes_with_optional_recall(tmp_path):

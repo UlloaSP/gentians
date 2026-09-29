@@ -26,8 +26,9 @@ untouched. The runnable matrix now contains only the three pool-source controls.
 The sampler limits Clingo's enumeration to `clause_pool.size` models before
 decoding and canonicalization. It uses one solver thread, a seeded random sign
 policy and random branching. It does not enumerate the complete space and then
-truncate it. These are biased prefixes, not uniform samples; canonicalization
-and theta reduction can produce fewer clauses than the model budget.
+truncate it. These are biased prefixes, not uniform samples; in the historical
+implementation, canonicalization and post-model theta reduction could produce
+fewer clauses than the model budget.
 
 Metarules are already instantiated in the task IR. The sampler chooses at most
 the batch size in bundles and includes each selected bundle whole. Their clauses

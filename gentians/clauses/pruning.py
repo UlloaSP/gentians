@@ -5,72 +5,9 @@ from ..language.asp import (
     symbolic_function,
     symbolic_literal_predicate,
 )
-from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.inductive_task import InductiveTask
 from .analysis.ast_inspection import _children
 from .analysis.task import _head_atoms
-from .clause_mode import ClauseMode
-from .reified_clause import ReifiedClause
-from .reified_literal import ReifiedLiteral
-
-
-def _theta_reduced(
-    clause: ReifiedClause,
-    modes: dict[int, ClauseMode],
-) -> bool:
-    """Reject normal clauses θ-equivalent to one of their proper subclauses."""
-    literals = (*clause.head, *clause.body)
-    if any(
-        not isinstance(modes[literal.mode_id].literal, AtomLiteral)
-        for literal in literals
-    ):
-        return True
-    signatures = tuple((literal.section, literal.mode_id) for literal in literals)
-    repeated = {
-        signature for signature in signatures if signatures.count(signature) > 1
-    }
-    if not repeated:
-        return True
-    return not any(
-        _theta_subsumes(literals, literals[:index] + literals[index + 1 :])
-        for index in range(len(literals))
-        if signatures[index] in repeated
-    )
-
-
-def _theta_subsumes(
-    source: tuple[ReifiedLiteral, ...],
-    target: tuple[ReifiedLiteral, ...],
-) -> bool:
-    candidates = {
-        literal: tuple(
-            candidate
-            for candidate in target
-            if (candidate.section, candidate.mode_id)
-            == (literal.section, literal.mode_id)
-        )
-        for literal in source
-    }
-    if any(not matches for matches in candidates.values()):
-        return False
-    ordered = sorted(source, key=lambda literal: len(candidates[literal]))
-
-    def match(index: int, substitution: dict[int, int]) -> bool:
-        if index == len(ordered):
-            return True
-        literal = ordered[index]
-        for candidate in candidates[literal]:
-            extended = substitution.copy()
-            if all(
-                extended.setdefault(variable, target_variable) == target_variable
-                for variable, target_variable in zip(
-                    literal.variables, candidate.variables, strict=True
-                )
-            ) and match(index + 1, extended):
-                return True
-        return False
-
-    return match(0, {})
 
 
 def _prune_optional_constraints(task: InductiveTask) -> bool:

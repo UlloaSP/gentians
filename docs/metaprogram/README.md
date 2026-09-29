@@ -150,12 +150,26 @@ nearby fragment can still be rejected by another independent restriction.
 | `pruning/contradictions/comparisons.lp` | Selected strict order cannot be reflexive or opposed by its reverse. | `X<Y, Y<=X` / `X<Y`. |
 | `pruning/contradictions/numeric.lp` | Arithmetic and numeric-domain evidence imply an incompatible order. | `X+Y=Z, Z<X` with positive `Y` / the addition without that comparison. |
 | `pruning/redundancy/{literals,conditions}.lp` | Reject identical bindings of repeated literals or condition variants. | Repeated `p(X)` / one occurrence. |
+| `pruning/redundancy/theta.lp` | Reject a clause when a substitution maps all its literals to a subclause without one repeated normal body atom. Other literals map to themselves and fix their variables. | `:- r(A,B),r(A,C),s(A,D),B!=D` / `:- r(A,B),r(A,C),B!=C`. |
 | `pruning/redundancy/comparisons.lp` | A comparison is entailed by others, or a declared strict comparison can replace a non-strict comparison plus disequality. | `X<Y, X!=Y` / `X<Y`. |
 | `pruning/redundancy/numeric.lp` | Positive addition already entails an operand/result comparison. | `X+Y=Z, X<Z` with positive `Y` / the addition alone. |
 | `pruning/redundancy/arithmetic.lp` | Exclude repeated computations with different result ids and the existing removable common-factor form. These require variable-identification/replacement reasoning, not a claim that different ids have different values. | Two identical inputs assigned to different result ids / one computation whose result is reused. |
 | `pruning/redundancy/aggregates.lp` | Compare duplicate inputs; remove a key-determined tuple discriminator only when a shorter declared template exists. | Extra discriminator determined by retained key positions / retain it when no shorter template is available. |
 | `pruning/policies/` | Preserve restrictions on singletons, aggregate bindings/result usage and comparisons that force identification. They are not universal ASP validity rules. | `X<=Y, Y<=X` with distinct ids is excluded by policy, although it can hold when their values are equal. |
 | `pruning/task/optional_constraints.lp` | Python proves that a perfect hypothesis needs a learned head in the applicable positive-only task. | Optional headless clause / retain headless choices when the proof does not apply. |
+
+Theta reduction checks homomorphisms that move repeated normal body atoms onto
+atoms of the same mode; every other literal, including the whole head, maps to
+itself and fixes its variables. Dropping a head literal is never considered: a
+shorter head can leave the language, as under `#minhl`. Because equal modes are
+contiguous, a moved atom can only land on `Start + Offset` inside its mode
+group. Python enumerates every offset combination as facts, so "some
+combination is a consistent substitution" is stratified negation: the program
+stays normal. Only when those combinations exceed `THETA_OFFSET_LIMIT` does
+Python select the disjunctive saturation encoding instead; both are exact and
+prune the same clauses. `mode_recall` keeps the check out of the grounding
+when no body mode can repeat. It does not infer global equivalence from
+example coverage.
 
 Property-specific checks live together under `pruning/properties/` because
 their assumptions belong to static predicate analysis. Their filenames name

@@ -112,6 +112,58 @@ def _conditional_form(
     return section, conclusion, tuple(sorted(conditions, key=repr))
 
 
+def _effective_recall(mode: ClauseMode, max_head_literals: int, max_body_literals: int) -> int:
+    """Recall with an unlimited source recall replaced by its section capacity."""
+    if mode.recall >= 0:
+        return mode.recall
+    return max_head_literals if mode.section == "head" else max_body_literals
+
+
+def _plain_disjunctive_head(mode: ClauseMode) -> bool:
+    return (
+        mode.head is not None
+        and mode.head.kind in {"normal", "disjunction"}
+        and isinstance(mode.literal, AtomLiteral)
+        and not mode.literal.default_negated
+    )
+
+
+# Enumerated theta substitutions ground roughly combinations x slots^2 x vars^2
+# rules. Beyond this many offset combinations the saturation encoding is used.
+THETA_OFFSET_LIMIT = 1024
+
+
+def theta_facts(
+    modes: list[ClauseMode], max_head_literals: int, max_body_literals: int
+) -> list[str]:
+    """Select and parameterize the theta-reduction encoding of theta.lp.
+
+    Only normal body atoms move. A repeated one maps to Start + Offset inside
+    its contiguous mode group; offsets range below the largest group the body
+    can hold, and every combination over the body slots becomes a theta_sigma.
+    """
+    group = max(
+        (
+            min(_effective_recall(mode, max_head_literals, max_body_literals), max_body_literals)
+            for mode in modes
+            if mode.section == "body" and isinstance(mode.literal, AtomLiteral)
+        ),
+        default=1,
+    )
+    if group < 2:
+        return []
+    if group ** max_body_literals > THETA_OFFSET_LIMIT:
+        return ["theta_saturated_section(body)."]
+    parts = ["theta_sigma_section(body)."]
+    for identifier, offsets in enumerate(product(range(group), repeat=max_body_literals)):
+        parts.append(f"theta_sigma({identifier}).")
+        parts.extend(
+            f"theta_sigma_offset({identifier},body,{slot},{offset})."
+            for slot, offset in enumerate(offsets)
+        )
+    return parts
+
+
 def _common_mode_facts(
     mode: ClauseMode,
     predicate_ids: dict[Predicate, int],
@@ -119,9 +171,7 @@ def _common_mode_facts(
     max_head_literals: int,
     max_body_literals: int,
 ) -> list[str]:
-    recall = (
-        max_head_literals if mode.section == "head" else max_body_literals
-    ) if mode.recall < 0 else mode.recall
+    recall = _effective_recall(mode, max_head_literals, max_body_literals)
     parts = [
         f"mode_section({mode.id},{mode.section}).",
         f"mode_recall({mode.id},{recall}).",
@@ -192,12 +242,7 @@ def _common_mode_facts(
         parts.append(f"head_form_member({mode.head_form},{mode.head_position},{mode.id}).")
         if mode.head is not None and mode.head.kind in {"choice", "aggregate"}:
             parts.append(f"composite_head_form({mode.head_form}).")
-        if (
-            mode.head is not None
-            and mode.head.kind in {"normal", "disjunction"}
-            and isinstance(mode.literal, AtomLiteral)
-            and not mode.literal.default_negated
-        ):
+        if _plain_disjunctive_head(mode):
             parts.append(f"plain_disjunctive_head_mode({mode.id}).")
     for index, binding in zip(mode.binding_positions, mode.bindings, strict=True):
         parts.append(f"mode_variable_arg({mode.id},{index}).")

@@ -17,7 +17,7 @@ language and pruning rules are shared.
 | Mode representation facts | `mode_facts.py` |
 | Static predicate-property facts | `property_facts.py` |
 | Declarative legality and redundancy checks during enumeration | `metaprogram/` |
-| Positive-only constraint proof and post-model theta pruning | `pruning.py` |
+| Positive-only constraint proof | `pruning.py` |
 | Clingo model decoding | `decoder.py` |
 | Clause normalization and representative selection | `canonicalization/clauses.py`, `canonicalization/arithmetic.py` |
 | Linear and expression normalization algorithms | `canonicalization/linear_normalization.py`, `canonicalization/expression_normalization.py` |
@@ -69,9 +69,11 @@ context, the background plus one example context, and Clingo is the authority:
 Property facts address source argument indexes, so they are emitted only for
 predicates whose templates use plain variables and constants.
 
-After solving, `decoder.py` constructs a `ReifiedClause`. The generator then
-applies theta pruning and calls canonicalization. Decoding itself does not
-reject theta-redundant clauses, and it reads variable positions from
+Clingo applies theta reduction with the other redundancy checks before returning
+a model. `mode_facts.theta_facts` chooses its encoding: enumerated offsets keep
+the program normal, and saturation takes over only when they would be too many
+(see `docs/metaprogram/README.md`). After solving, `decoder.py` constructs a `ReifiedClause` and the
+generator calls canonicalization. Decoding reads variable positions from
 `ClauseMode` rather than importing the mode compiler.
 
 Arithmetic representation modules own keys, variable sets, remapping and

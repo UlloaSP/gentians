@@ -43,7 +43,7 @@ from .mode_compiler import (
     _condition_limit,
     _section_capacity,
 )
-from .pruning import _prune_optional_constraints, _theta_reduced
+from .pruning import _prune_optional_constraints
 from .reified_clause import ReifiedClause
 
 
@@ -122,6 +122,7 @@ CLAUSE_METAPROGRAM_MODULES = (
     "pruning/redundancy/literals.lp",
     "pruning/redundancy/numeric.lp",
     "pruning/redundancy/tautologies.lp",
+    "pruning/redundancy/theta.lp",
     "pruning/task/optional_constraints.lp",
 )
 
@@ -271,9 +272,7 @@ class _ClauseGenerator:
                                     exhausted = True
                                     break
                                 models += 1
-                                clause = _clause_from_model(model, model_index)
-                                if _theta_reduced(clause, self.modes_by_id):
-                                    clauses.append(clause)
+                                clauses.append(_clause_from_model(model, model_index))
                                 del model
                             seconds += elapsed
                             elapsed = 0.0

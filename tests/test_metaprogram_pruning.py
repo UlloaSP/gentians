@@ -4,7 +4,7 @@ import clingo
 import pytest
 
 from gentians.arguments import Arguments
-from gentians.clauses import generate_clause_space, generator
+from gentians.clauses import generate_clause_space, generator, mode_facts
 from gentians.language import parse_text
 
 
@@ -71,6 +71,50 @@ def test_sum_below_an_operand_needs_the_other_operand_nonnegative():
 
 def _clauses(text):
     return generate_clause_space(parse_text(text), Arguments()).clauses
+
+
+THETA_COMPARISON_TASK = (
+    "r(1,2). r(1,3). s(1,2).\n#maxv(4).\n#maxbl(4).\n#maxhl(0).\n"
+    "#modeb(2,r(var(t,output),var(t,output))).\n"
+    "#modeb(1,s(var(t,output),var(t,output))).\n"
+    "#modeb(1,var(t,input)!=var(t,input))."
+)
+
+
+def test_theta_reduction_moves_only_variables_outside_fixed_literals():
+    clauses = _clauses(THETA_COMPARISON_TASK)
+
+    # V2 occurs only in r(V0,V2): V2 -> V1 folds it onto r(V0,V1).
+    assert ":- r(V0,V1),r(V0,V2),s(V0,V3),V1!=V3." not in clauses
+    # The comparison fixes V2, so no substitution can fold r(V0,V2).
+    assert ":- r(V0,V1),r(V0,V2),V1!=V2." in clauses
+    assert ":- r(V0,V1),r(V1,V2),s(V0,V3),V1!=V3." in clauses
+
+
+def _theta_space(text, limit, monkeypatch):
+    monkeypatch.setattr(mode_facts, "THETA_OFFSET_LIMIT", limit)
+    task = parse_text(text)
+    clause_generator = generator._ClauseGenerator(task, Arguments())
+    control, _index, facts, *_ = clause_generator._prepare(None)
+    control.solve()
+    clauses = generate_clause_space(task, Arguments()).clauses
+    return clauses, int(control.statistics["problem"]["lp"]["disjunctions"]), facts
+
+
+@pytest.mark.parametrize("text", [
+    THETA_COMPARISON_TASK,
+    "edge(a,b). edge(a,c).\n#maxv(3).\n#maxbl(3).\n#maxhl(1).\n"
+    "#modeh(1,target(var(node,any))).\n#modeb(3,edge(var(node,any),var(node,any))).",
+])
+def test_theta_offsets_match_saturation_without_disjunction(text, monkeypatch):
+    offsets, offset_disjunctions, offset_facts = _theta_space(text, 1024, monkeypatch)
+    saturated, saturated_disjunctions, saturated_facts = _theta_space(text, 0, monkeypatch)
+
+    assert offsets == saturated
+    assert any(str(fact).startswith("theta_sigma(") for fact in offset_facts)
+    assert offset_disjunctions == 0
+    assert any(str(fact).startswith("theta_saturated_section(") for fact in saturated_facts)
+    assert saturated_disjunctions > 0
 
 
 def test_disequality_is_oriented_only_between_interchangeable_operands():

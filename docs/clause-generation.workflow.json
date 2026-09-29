@@ -21,7 +21,7 @@
   "groups": [
     { "id": "typed_ir", "label": "Contrato interno", "lane": "input", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
     { "id": "asp_pruning", "label": "Compilación y poda declarativa", "lane": "compiler", "fromCol": 3, "toCol": 4, "variant": "security" },
-    { "id": "canonical_output", "label": "Poda después del modelo", "lane": "post", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+    { "id": "canonical_output", "label": "Decodificación y normalización", "lane": "post", "fromCol": 4, "toCol": 5, "variant": "dashed" }
   ],
   "mainPath": [
     "task_file",
@@ -113,7 +113,7 @@
       "lane": "post",
       "col": 4,
       "type": "backend",
-      "label": "Decoder + pruning",
+      "label": "Decoder",
       "width": 180
     },
     {
@@ -142,8 +142,8 @@
     { "id": "bind-head-forms", "from": "head_forms", "to": "mode_compiler", "label": "miembros y posiciones fijas", "variant": "default", "role": "branch" },
     { "id": "emit-facts", "from": "mode_compiler", "to": "asp_facts", "label": "facts + módulos .lp", "variant": "security", "role": "main" },
     { "id": "solve-space", "from": "asp_facts", "to": "clingo", "label": "programa ASP completo", "variant": "emphasis", "role": "main" },
-    { "id": "decode-model", "from": "clingo", "to": "decoder", "label": "selected/3 + var_at/4", "variant": "default", "role": "main" },
-    { "id": "canonicalize", "from": "decoder", "to": "arithmetic_system", "label": "ReifiedClause theta-reduced", "variant": "emphasis", "role": "main" },
+    { "id": "decode-model", "from": "clingo", "to": "decoder", "label": "modelo θ-reducido", "variant": "default", "role": "main" },
+    { "id": "canonicalize", "from": "decoder", "to": "arithmetic_system", "label": "ReifiedClause", "variant": "emphasis", "role": "main" },
     { "id": "deduplicate", "from": "arithmetic_system", "to": "clause_space", "label": "canonical.key → representante", "variant": "emphasis", "role": "main" }
   ],
   "cards": [
@@ -171,7 +171,7 @@
       "dot": "emerald",
       "title": "Decodificación, ArithmeticSystem y salida",
       "items": [
-        "decoder.py produce ReifiedClause; pruning.py elimina subcuerpos theta-equivalentes",
+        "Clingo elimina cláusulas θ-reducibles; decoder.py produce ReifiedClause",
         "canonicalization/ separa representación aritmética y algoritmos de normalización",
         "Outputs inseguros conservan asignación; div/mod incluyen divisor != 0 sin recall extra",
         "Clause guarda texto, heads, dependencies y tamaño; ClauseSpace ordena y deduplica"

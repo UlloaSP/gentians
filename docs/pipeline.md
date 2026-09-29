@@ -80,11 +80,10 @@ reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenid
 1. Inspecciona background, ejemplos y declaraciones para derivar tipos, dominios, closed-world properties y capacidades permitidas.
 2. Compila declaraciones a `ClauseMode` y facts reificados.
 3. Carga los módulos `.lp` en el orden de `CLAUSE_METAPROGRAM_MODULES`.
-4. Clingo aplica límites, recall, linkedness, typing, ASP safety, flujo dirigido, coherencia y propiedades de pruning durante enumeración.
+4. Clingo aplica límites, recall, linkedness, typing, ASP safety, flujo dirigido, coherencia, reducción θ y propiedades de pruning durante enumeración.
 5. Python decodifica `selected/3` y `var_at/4` como `ReifiedClause`.
-6. `_theta_reduced` elimina cuerpos con subcláusulas theta-equivalentes.
-7. `ArithmeticSystem` normaliza relaciones conectadas y `canonical.key` elige un representante.
-8. `ClauseSpace` ordena y deduplica `Clause`.
+6. `ArithmeticSystem` normaliza relaciones conectadas y `canonical.key` elige un representante.
+7. `ClauseSpace` ordena y deduplica `Clause`.
 
 Prefiere pruning declarativo en los módulos `.lp` cuando la condición depende de
 la selección reificada. Usa Python para análisis estático de la tarea, AST,

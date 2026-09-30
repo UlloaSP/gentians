@@ -238,6 +238,10 @@ def _common_mode_facts(
                     f"mode_pool_alternative_arg({mode.id},{alternative},{position})."
                     for position in sorted(positions)
                 )
+    if isinstance(mode.literal, AtomLiteral) and _atom_arguments_are_interchangeable(
+        mode.literal.atom
+    ):
+        parts.append(f"interchangeable_operands({mode.id}).")
     if mode.head_form is not None:
         parts.append(f"head_form_member({mode.head_form},{mode.head_position},{mode.id}).")
         if mode.head is not None and mode.head.kind in {"choice", "aggregate"}:
@@ -434,10 +438,7 @@ def _comparison_facts(
     )
     if operator_name is not None:
         parts.append(f"comparison_operator({mode.id},{operator_name}).")
-        left, right = (term.bindings()[0] for term in comparison.terms)
-        if (left.type, left.direction, left.label) == (
-            right.type, right.direction, right.label
-        ):
+        if _terms_are_interchangeable(*comparison.terms):
             parts.append(f"interchangeable_operands({mode.id}).")
     offsets: list[int] = []
     offset = 0
@@ -593,6 +594,8 @@ def _aggregate_facts(
         parts.append(
             f"aggregate_condition_atom({mode.id},{condition},{predicate_ids[atom.signature]},{arity})."
         )
+        if _atom_arguments_are_interchangeable(atom):
+            parts.append(f"interchangeable_condition_args({mode.id},{condition}).")
         for argument, term in enumerate(atom.binding_terms):
             binding_count = len(term.bindings())
             parts.extend(
@@ -710,7 +713,21 @@ def _local_comparison_facts(
 
 
 def _operands_are_interchangeable(literal: ArithmeticLiteral) -> bool:
-    left, right = literal.expression.arguments
+    return _terms_are_interchangeable(*literal.expression.arguments)
+
+
+def _atom_arguments_are_interchangeable(atom: AtomTemplate) -> bool:
+    """Whether a binary atom of plain variables admits both argument orders."""
+    return (
+        not atom.alternatives
+        and len(atom.terms) == 2
+        and all(term.kind == "variable" for term in atom.terms)
+        and _terms_are_interchangeable(*atom.terms)
+    )
+
+
+def _terms_are_interchangeable(left: TermTemplate, right: TermTemplate) -> bool:
+    """Whether swapping two single-variable terms yields the same template."""
     left_bindings = left.bindings()
     right_bindings = right.bindings()
     if len(left_bindings) != 1 or len(right_bindings) != 1:

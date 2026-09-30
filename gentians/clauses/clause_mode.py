@@ -30,6 +30,12 @@ class ClauseMode:
         repr=False,
         compare=False,
     )
+    # Derived once: canonicalization reads it for every literal of every clause.
+    dependencies: frozenset[Predicate] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         if self.section not in {"head", "body"}:
@@ -64,6 +70,8 @@ class ClauseMode:
             ),
         )
 
+        object.__setattr__(self, "dependencies", self.literal.dependencies)
+
     def __hash__(self) -> int:
         # Equal modes share their id. Canonicalization caches key on modes, and
         # hashing the whole template tree dominated their lookups.
@@ -95,10 +103,6 @@ class ClauseMode:
         ):
             return tuple(range(len(self.bindings)))
         return tuple(binding.path[0] for binding in self.bindings)
-
-    @property
-    def dependencies(self) -> frozenset[Predicate]:
-        return self.literal.dependencies
 
     @property
     def condition_count(self) -> int:

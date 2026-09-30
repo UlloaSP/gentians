@@ -3,6 +3,13 @@
 % Python emits symmetric_pred(Pred) when binary predicate Pred is symmetric:
 % Pred(X, Y) and Pred(Y, X) have same truth value. This file keeps only one
 % variable orientation for selected literals and aggregate condition atoms.
+%
+% The swapped atom must itself be in the language. Symmetry is a fact about
+% values; a template whose two arguments differ in type, direction or label
+% does not admit both orders. With q(input), r(any) and friend(input,output):
+%   :- q(V0), r(V1), friend(V1,V0).   legal: r binds V1, friend outputs V0
+%   :- q(V0), r(V1), friend(V0,V1).   illegal: nothing binds the input V0
+% so only templates with interchangeable arguments are oriented.
 
 
 % CONSTRAINT. A plain atom of a symmetric predicate writes its two variables
@@ -10,6 +17,8 @@
 %   Section, Slot, Mode  the plain atom, in head or body and of either
 %                        polarity.
 %   Pred                 its predicate, symmetric and binary.
+%   Mode                 also has interchangeable arguments: equal type,
+%                        direction and label (interchangeable_operands).
 %   Left, Right          variable ids at arguments 0 and 1.
 % With friend/2 symmetric:
 %   pruned: h(V0,V1) :- p(V0), p(V1), friend(V1,V0).
@@ -18,6 +27,7 @@
 :- selected(Section, Slot, Mode),
     normal_literal(Section, Slot, Mode, Pred, 2),
     symmetric_pred(Pred),
+    interchangeable_operands(Mode),
     var_at(Section, Slot, 0, Left),
     var_at(Section, Slot, 1, Right),
     Left > Right.
@@ -26,7 +36,8 @@
 % symmetric predicate writes its two variables in ascending id order.
 %   Slot             body slot of an aggregate of the single-element subset.
 %   Condition, Pred  a condition occurrence and its predicate, symmetric and
-%                    binary.
+%                    binary, declared with interchangeable arguments
+%                    (interchangeable_condition_args).
 %   Left, Right      variable ids at arguments 0 and 1 of that condition.
 % With friend/2 symmetric:
 %   pruned: #count{V1 : friend(V1,V0)} = V2
@@ -34,6 +45,7 @@
 :- selected(body, Slot, Mode),
     aggregate_condition_atom(Mode, Condition, Pred, 2),
     symmetric_pred(Pred),
+    interchangeable_condition_args(Mode, Condition),
     aggregate_condition_arg(Slot, Condition, Pred, 0, Left),
     aggregate_condition_arg(Slot, Condition, Pred, 1, Right),
     Left > Right.

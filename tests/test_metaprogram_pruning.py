@@ -215,3 +215,43 @@ def test_transitive_shortcut_must_be_a_third_atom():
     # p(V0,V1),p(V1,V1) is a path whose "shortcut" is its own first atom.
     assert "h(V0) :- p(V0,V1),p(V1,V1)." in clauses
     assert "h(V1) :- p(V0,V0),p(V0,V1),p(V1,V2)." in clauses
+
+
+def test_symmetric_orientation_needs_interchangeable_arguments():
+    facts = "friend(1,2). friend(2,1). friend(3,4). friend(4,3). q(1). q(3). r(2). r(4). r(5).\n"
+    directed = _clauses(
+        facts + "#maxv(2).\n#maxbl(3).\n#maxhl(0).\n"
+        "#modeb(1,q(var(t,input))).\n#modeb(1,r(var(t,any))).\n"
+        "#modeb(1,friend(var(t,input),var(t,output)))."
+    )
+    undirected = _clauses(
+        facts + "#maxv(2).\n#maxbl(3).\n#maxhl(0).\n"
+        "#modeb(2,r(var(t,any))).\n#modeb(1,friend(var(t,any),var(t,any)))."
+    )
+
+    # r binds V1 and friend outputs V0 for q. The swapped atom needs V0 bound
+    # first, so it is not in the language and cannot stand in for this one.
+    assert ":- q(V0),r(V1),friend(V1,V0)." in directed
+    assert ":- q(V0),r(V1),friend(V0,V1)." not in directed
+    # Arguments that may swap keep a single orientation.
+    assert ":- r(V0),r(V1),friend(V0,V1)." in undirected
+    assert ":- r(V0),r(V1),friend(V1,V0)." not in undirected
+
+
+def test_arg_equal_shares_a_variable_only_where_the_template_allows():
+    facts = "same(1,1). same(2,2). a(1). b(2).\n#maxv(2).\n#maxbl(2).\n#maxhl(0).\n"
+    typed = _clauses(
+        facts + "#modeb(1,same(var(a,any),var(b,any))).\n#modeb(1,a(var(a,any)))."
+    )
+    labelled = _clauses(
+        facts + "#modeb(1,same(var(a,any,x),var(a,any,y))).\n#modeb(1,a(var(a,any)))."
+    )
+    shareable = _clauses(
+        facts + "#modeb(1,same(var(a,any),var(a,any))).\n#modeb(1,a(var(a,any)))."
+    )
+
+    # Different types or labels forbid same(V0,V0); two ids must stay legal.
+    assert ":- same(V0,V1),a(V0)." in typed
+    assert ":- same(V0,V1),a(V0)." in labelled
+    assert ":- same(V0,V0)." in shareable
+    assert ":- same(V0,V1)." not in shareable

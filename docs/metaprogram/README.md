@@ -52,6 +52,7 @@ whole metaprogram accepts it.
 | --- | --- |
 | `mode_section(Mode,Section)`, `mode_recall(Mode,Recall)` | Declaration placement and effective recall limit. |
 | `mode_kind(Mode,Kind)` | Explicit template kind: normal, conditional, comparison, arithmetic, Boolean literal, body aggregate, or head aggregate element. |
+| `interchangeable_operands(Mode)`, `interchangeable_condition_args(Mode,Condition)` | The two operands of an arithmetic or simple comparison template, the two arguments of a binary atom of plain variables, or those of one binary aggregate condition have equal type, direction and label. Every rule that picks one orientation requires it. |
 | `comparison_operator(Mode,Operator)` | Simple binary comparison operator: eq, neq, lt, gt, leq or geq. Complex comparison chains have no such fact. |
 | `mode_atom(Mode,Predicate,Arity)` | Predicate signature of a normal atom, atomic conditional conclusion or atomic head aggregate element; absent for operators, body aggregates and non-atomic conclusions. |
 | `pooled_body_mode(Mode)`, `mode_pool_alternative(Mode,Alternative)`, `mode_pool_alternative_arg(Mode,Alternative,Position)` | Alternatives of one pooled body atom and the flattened placeholders present in each alternative. A variable is supplied by the atom only when it occurs in every alternative. |
@@ -219,6 +220,15 @@ substitutions; `subsumption` adds the pairs selected through different modes.
 in whatever slot it sits, because tuple order places it between the two path
 atoms; it only requires the shortcut to be a third atom.
 
+Two more checks replace a literal by an equivalent spelling and therefore
+depend on that spelling being in the language. `symmetric` keeps one argument
+order only for templates whose two arguments have equal type, direction and
+label (`interchangeable_operands` for atoms, `interchangeable_condition_args`
+for aggregate conditions): with `friend(input,output)` the swapped atom can be
+illegal by flow, so both orders stay. `arg_equal` asks for one variable id at
+two equal-valued positions only when the template lets them share a variable;
+positions with different types or different labels keep two ids.
+
 ## Executable examples
 
 Run from the repository root:
@@ -268,8 +278,9 @@ parsed metaprogram; they were added to every `Control` and counted by
 `program_chars`, which now measures code only.
 
 The clause spaces of 34 benchmark tasks (every task in `benchmarks/gentians`
-except the four Alzheimer ones, including the 1,149,016 clauses of
-`synthetic_million`) are text-identical before and after. Sizes and times are
+except `euclid` and the four Alzheimer ones, which exceeded the 150 s allowed
+per task; the 34 include the 1,149,016 clauses of `synthetic_million`) are
+text-identical before and after. Sizes and times are
 medians of 9 runs, in two alternating rounds per variant of one process each,
 default `Arguments`, exhaustive enumeration; Python 3.14, Clingo 5.8.0,
 Windows 11, Intel Core i7-13700H. The second round is shown; the first agreed

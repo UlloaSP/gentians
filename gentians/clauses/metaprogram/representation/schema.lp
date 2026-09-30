@@ -213,8 +213,10 @@
 #defined mul_mode/1.
 
 % interchangeable_operands(Mode): the two operands of an arithmetic template or
-% a simple binary comparison have equal type, direction and label, so swapping
-% them yields another template instance. Symmetry breaking requires it.
+% a simple binary comparison, or the two arguments of a binary atom of plain
+% variables, have equal type, direction and label, so swapping them yields
+% another template instance. Every orientation choice requires it: a swapped
+% literal of a directed or typed template can be illegal.
 #defined interchangeable_operands/1.
 
 % div_mode / mod_mode: Mode is a complete / or modulo template. Operand order is
@@ -262,6 +264,10 @@
 % mode_aggregate_condition_arg(Mode, Condition, Argument, Position): one source
 % argument of a condition occurrence maps to flattened Position.
 #defined mode_aggregate_condition_arg/4.
+
+% interchangeable_condition_args(Mode, Condition): the same guarantee for the
+% two arguments of one binary condition atom of an aggregate template.
+#defined interchangeable_condition_args/2.
 
 % mode_aggregate_result_arg(Mode, Position): variable binding of the aggregate
 % guard/result maps to flattened Position.

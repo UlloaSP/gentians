@@ -38,6 +38,14 @@ evidence. `#defined` does not create facts or rules; it tells Clingo that an
 empty relation is still part of the vocabulary. The remaining modules contain
 the rules that derive views from this schema and do not repeat declarations.
 
+Every rule, choice and constraint in those modules has a comment directly
+above it, following the conventions stated at the top of `schema.lp`. A
+`DEFINITION` says whether the view is reusable (and which modules consume it)
+or a local helper, and lists each head argument. A `CHOICE` shows the
+alternatives it opens. A `CONSTRAINT` gives `pruned` and `kept` example
+clauses; `kept` means that constraint does not reject the clause, not that the
+whole metaprogram accepts it.
+
 ## The shared vocabulary
 
 | Relation | Meaning |

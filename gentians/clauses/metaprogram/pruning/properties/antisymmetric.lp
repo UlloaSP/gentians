@@ -8,6 +8,17 @@
 % their own files.
 
 
+% CONSTRAINT. An antisymmetric predicate may not be written in both directions
+% over two different variable ids. The pair is satisfiable only when both
+% values are equal, which the enumerator expresses by writing one id.
+%   Slot0 < Slot1  body slots of the two positive atoms.
+%   Pred           the antisymmetric binary predicate.
+%   Left, Right    two different variable ids: Pred(Left,Right) at Slot0 and
+%                  Pred(Right,Left) at Slot1.
+% With le/2 antisymmetric:
+%   pruned: h(V0) :- le(V0,V1), le(V1,V0).
+%   kept:   h(V0) :- le(V0,V0).               the same meaning with one id
+%   kept:   h(V0) :- le(V0,V1), le(V1,V2).
 :- positive_body_literal(Slot0, _, Pred, 2),
     positive_body_literal(Slot1, _, Pred, 2),
     Slot0 < Slot1,

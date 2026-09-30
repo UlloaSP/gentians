@@ -4,6 +4,16 @@
 % observed closed world. This file rejects joins over such positions.
 
 
+% CONSTRAINT. Two positive body atoms may not join on argument positions
+% whose value sets are disjoint: no value satisfies both, so the body could
+% never hold.
+%   Slot0 < Slot1  body slots; the atom of Pred0 occupies the earlier one.
+%   Pred0, Arg0    first predicate and one of its argument positions.
+%   Pred1, Arg1    second predicate and one of its argument positions.
+%   Var            the variable id written at both positions.
+% With disjoint_arg(person,0,city,0) (no person is a city):
+%   pruned: :- person(V0), city(V0).
+%   kept:   :- person(V0), city(V1), lives(V0,V1).
 :- positive_body_literal(Slot0, _, Pred0, _),
     positive_body_literal(Slot1, _, Pred1, _),
     Slot0 < Slot1,
@@ -11,12 +21,33 @@
     var_at(body, Slot0, Arg0, Var),
     var_at(body, Slot1, Arg1, Var).
 
+% DEFINITION, local helper. tuple_mutex_vars_differ(Slot0, Slot1, Projection):
+% two body atoms are not aligned the way a tuple-mutex mapping requires.
+%   Slot0       body slot of the atom playing the left predicate.
+%   Slot1       body slot of the atom playing the right predicate.
+%   Projection  id of a tuple-mutex mapping. Each tuple_mutex_arg(Projection,
+%               TargetArg, SourceArg) pairs argument SourceArg of the left
+%               atom with argument TargetArg of the right atom.
+% It holds when some paired positions carry different variable ids. The rule
+% does not check the predicates; the constraint below does. Used only,
+% negated, by that constraint.
 tuple_mutex_vars_differ(Slot0, Slot1, Projection) :-
     tuple_mutex_arg(Projection, TargetArg, SourceArg),
     var_at(body, Slot0, SourceArg, SourceVar),
     var_at(body, Slot1, TargetArg, TargetVar),
     SourceVar != TargetVar.
 
+% CONSTRAINT. Two positive body atoms may not be aligned by a mapping under
+% which their predicates exclude each other: the body could never hold.
+%   Slot0, Slot1  two different body slots, in either order.
+%   Pred0, Pred1  left and right predicate of the mapping; they may be the
+%                 same predicate.
+%   Projection    the mapping; every pair of mapped positions holds the same
+%                 variable id.
+% With lt/2 proved exclusive with its own reverse (tuple_mutex_pred(lt,lt,m),
+% tuple_mutex_arg(m,0,1), tuple_mutex_arg(m,1,0)):
+%   pruned: :- lt(V0,V1), lt(V1,V0).
+%   kept:   :- lt(V0,V1), lt(V1,V2).
 :- positive_body_literal(Slot0, _, Pred0, Arity),
     positive_body_literal(Slot1, _, Pred1, Arity),
     Slot0 != Slot1,

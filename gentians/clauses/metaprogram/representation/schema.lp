@@ -22,6 +22,21 @@
 %   Form       id shared by all elements of one compound head declaration.
 %   Condition  zero-based occurrence id inside a conditional or aggregate.
 %
+% Comment conventions used by every other module. Each rule, choice and
+% constraint carries a comment of one of these kinds directly above it:
+%   DEFINITION  a rule that derives a view. "reusable" names the modules that
+%               consume it and why it is shared; "local helper" is used only
+%               inside its own file; "property bridge" derives a weaker
+%               property so that the file owning that property prunes for it.
+%               Every argument of the head is listed.
+%   CHOICE      a generator: it opens the alternatives that models differ in.
+%   CONSTRAINT  defines nothing and only removes models. "pruned" and "kept"
+%               show rendered candidate clauses (one stable model each) or
+%               body fragments. "kept" means that this constraint does not
+%               reject the clause; another independent constraint still can.
+%               "(policy)" marks a restriction of the enumerator that is not
+%               an ASP impossibility or redundancy.
+%
 % Generation limits and feature switches.
 
 % max_vars(Max): the candidate may use variable ids 0 through Max-1.

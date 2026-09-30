@@ -14,9 +14,8 @@ arithmetic_input_differs(Slot0, Slot1) :-
     selected(body, Slot1, Mode),
     arithmetic_mode(Mode),
     Slot1 = Slot0 + 1,
-    arithmetic_operand(Slot0, Side, Left),
-    arithmetic_operand(Slot1, Side, Right),
-    Left != Right.
+    arithmetic_operand(Slot0, Side, Operand),
+    not arithmetic_operand(Slot1, Side, Operand).
 
 % DEFINITION, local helper. same_arithmetic_inputs(Slot0, Slot1): two adjacent
 % arithmetic literals of the same mode have the same operands, so they

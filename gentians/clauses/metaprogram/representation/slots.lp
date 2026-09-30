@@ -32,8 +32,8 @@ var(0..Max-1) :- max_vars(Max).
 %   Slot  integer in 0..Max-1, with Max from max_body(Max). Max = 0 leaves no
 %         slot, so only bodyless clauses exist.
 % Shared because the body choice below opens one decision per slot, and
-% representation/tuples.lp and pruning/properties/subsumption.lp quantify over
-% slots that may be empty in the current model.
+% representation/tuples.lp quantifies over slots that may be empty in the
+% current model.
 body_slot(0..Max-1) :- max_body(Max), Max > 0.
 
 % DEFINITION, reusable fact. section_order(Section, Order): rank of a section.

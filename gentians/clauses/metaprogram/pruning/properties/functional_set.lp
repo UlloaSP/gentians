@@ -13,13 +13,18 @@
 %   Fd            id of a dependency: an integer emitted by Python, or
 %                 key(Key) derived by pruning/properties/key.lp.
 % It holds when some input position of Fd carries different variable ids in
-% the two literals. The rule does not check their predicate; the constraints
-% below do. Used only, negated, by those constraints.
+% the two literals. It is derived only for the pairs the constraints below
+% inspect: a positive atom at Slot0 and a plain atom of either polarity at
+% Slot1, both of a predicate that has the dependency. Used only, negated, by
+% those constraints.
 fd_inputs_differ(Slot0, Slot1, Fd) :-
+    positive_body_literal(Slot0, _, Pred, _),
+    normal_literal(body, Slot1, _, Pred, _),
+    functional_set_pred(Pred, Fd, _),
     functional_set_arg(Fd, Input),
-    var_at(body, Slot0, Input, In0),
-    var_at(body, Slot1, Input, In1),
-    In0 != In1.
+    var_at(body, Slot0, Input, Var),
+    arg(body, Slot1, Input),
+    not var_at(body, Slot1, Input, Var).
 
 % CONSTRAINT. Two positive atoms of a predicate that share every determining
 % variable must share the determined variable. With two output ids the

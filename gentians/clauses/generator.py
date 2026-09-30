@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import cast
 
 import clingo
+from clingo import ast
 from clingo.configuration import Configuration
 
 from ..arguments import Arguments
@@ -127,11 +128,17 @@ CLAUSE_METAPROGRAM_MODULES = (
 )
 
 
-CLAUSE_METAPROGRAM = parse_program(
-    "\n".join(
-        (Path(__file__).with_name("metaprogram") / module).read_text()
-        for module in CLAUSE_METAPROGRAM_MODULES
+# Clingo keeps every comment line as an AST node. They are not program: left in,
+# each one is added to every Control and counted by the program_chars metric.
+CLAUSE_METAPROGRAM = tuple(
+    statement
+    for statement in parse_program(
+        "\n".join(
+            (Path(__file__).with_name("metaprogram") / module).read_text()
+            for module in CLAUSE_METAPROGRAM_MODULES
+        )
     )
+    if statement.ast_type != ast.ASTType.Comment
 )
 
 

@@ -28,14 +28,19 @@
 %   Projection  id of a tuple-mutex mapping. Each tuple_mutex_arg(Projection,
 %               TargetArg, SourceArg) pairs argument SourceArg of the left
 %               atom with argument TargetArg of the right atom.
-% It holds when some paired positions carry different variable ids. The rule
-% does not check the predicates; the constraint below does. Used only,
-% negated, by that constraint.
+% It holds when some paired positions carry different variable ids. It is
+% derived only for the pairs the constraint below inspects: two positive
+% atoms whose predicates the mapping relates. Used only, negated, by that
+% constraint.
 tuple_mutex_vars_differ(Slot0, Slot1, Projection) :-
+    positive_body_literal(Slot0, _, Pred0, Arity),
+    positive_body_literal(Slot1, _, Pred1, Arity),
+    Slot0 != Slot1,
+    tuple_mutex_pred(Pred0, Pred1, Projection),
     tuple_mutex_arg(Projection, TargetArg, SourceArg),
-    var_at(body, Slot0, SourceArg, SourceVar),
-    var_at(body, Slot1, TargetArg, TargetVar),
-    SourceVar != TargetVar.
+    var_at(body, Slot0, SourceArg, Var),
+    arg(body, Slot1, TargetArg),
+    not var_at(body, Slot1, TargetArg, Var).
 
 % CONSTRAINT. Two positive body atoms may not be aligned by a mapping under
 % which their predicates exclude each other: the body could never hold.

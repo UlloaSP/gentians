@@ -107,9 +107,10 @@ they are derived rather than declared again.
 arity of a conditional rather than the width of its complete template. Numeric
 argument evidence applies only to normal atoms, never to operator identifiers
 or conditional templates. Property checks also use
-`aggregate_condition_arg(Slot,Predicate,Position,Variable)`, the existing
-predicate-level projection. That projection merges occurrences of the same
-predicate; it must not be mistaken for the occurrence-preserving relation.
+`aggregate_condition_arg(Slot,Condition,Predicate,Position,Variable)`, which
+tags each binding of a condition occurrence with its predicate. `Position` is
+the source argument of that predicate, so it lines up with property facts, and
+two occurrences of one predicate keep separate `Condition` ids.
 
 ## Variable flow and ASP safety
 
@@ -200,14 +201,23 @@ equivalence based on example coverage. Likewise, a replacement argument must
 preserve representability under types, labels, recalls and declared templates.
 The directory taxonomy does not itself prove these obligations.
 
-Two preserved implementation assumptions need particular care in a paper's
-soundness argument. Aggregate argument-property checks use the predicate-level
-projection, so repeated occurrences of the same predicate can contribute
-bindings to the same check. Nonnegative-addition pruning tests domain membership
+One preserved implementation assumption needs particular care in a paper's
+soundness argument. Nonnegative-addition pruning tests domain membership
 for one operand and the result without always testing the other operand. Its
 justification needs the broader numeric-domain assumption; those local guards
 alone do not prove the sign of the omitted operand. This refactor preserves
-these policies and does not establish their soundness for every admitted task.
+this policy and does not establish its soundness for every admitted task.
+
+Two checks depend on argument positions and slot order in ways that are easy to
+get wrong. `subsumption` drops a positive atom only when a substitution maps it
+onto a stricter atom of the same predicate and term shape while moving only
+variables that occur nowhere else: a variable the rest of the clause uses must
+sit at the same argument in both atoms, so `:- p(X,X,Y), p(Y,X,Z)` stays.
+Between atoms of one repeatable mode theta reduction already finds these
+substitutions; `subsumption` adds the pairs selected through different modes.
+`transitive` rejects the shortcut `p(X,Z)` of a positive path `p(X,Y), p(Y,Z)`
+in whatever slot it sits, because tuple order places it between the two path
+atoms; it only requires the shortcut to be a third atom.
 
 ## Executable examples
 
@@ -241,6 +251,45 @@ the derivation. `tests/test_metaprogram_examples.py` checks both outcomes and
 the aggregate role and numeric inference facts.
 
 ## Evidence and limits
+
+### Ground size of pairwise helpers
+
+Several helpers compared two placeholders with `var_at(.., V0), var_at(.., V1),
+V0 != V1`, which grounds every pair of variable ids. Each placeholder holds
+exactly one variable, so they now state `var_at(.., V), not var_at(other, V)`
+and are derived only for the literal pairs their consumer inspects:
+`different_variable_binding` (equal term shapes), `tuple_mutex_vars_differ`,
+`project_vars_differ`, `fd_inputs_differ`, `aggregate_input_differs` and
+`arithmetic_input_differs`. Typing is stated per variable instead of per pair
+of placeholders, mode order compares neighbouring slots, and three aggregate
+safety constraints covered by the general element constraint were removed with
+the views only they used. `generator.py` also drops comment nodes from the
+parsed metaprogram; they were added to every `Control` and counted by
+`program_chars`, which now measures code only.
+
+The clause spaces of 34 benchmark tasks (every task in `benchmarks/gentians`
+except the four Alzheimer ones, including the 1,149,016 clauses of
+`synthetic_million`) are text-identical before and after. Sizes and times are
+medians of 9 runs, in two alternating rounds per variant of one process each,
+default `Arguments`, exhaustive enumeration; Python 3.14, Clingo 5.8.0,
+Windows 11, Intel Core i7-13700H. The second round is shown; the first agreed
+within 5 ms of grounding. Total is the whole `generate_clause_space` call.
+
+| Dataset | Ground rules before → after | Grounding ms before → after | Total ms before → after |
+| --- | --- | --- | --- |
+| `grandparent` | 6028 → 3480 | 27.6 → 25.3 | 73.0 → 67.4 |
+| `4queens` | 14903 → 11058 | 35.5 → 34.9 | 118.0 → 120.4 |
+| `8queens` | 37627 → 23586 | 51.6 → 42.6 | 1028.5 → 985.8 |
+| `coloring` | 10008 → 6174 | 30.5 → 27.9 | 64.9 → 61.2 |
+| `subset_sum` | 3887 → 2732 | 25.1 → 25.5 | 39.4 → 38.4 |
+| `latin_square` | 20384 → 9935 | 41.8 → 30.7 | 151.3 → 122.3 |
+| `magic_square_no_diag` | 36357 → 20767 | 55.0 → 39.3 | 460.7 → 413.0 |
+| `subset_sum_double_unbalanced_count` | 12944 → 7580 | 33.9 → 28.3 | 2821.2 → 2753.2 |
+
+Ground rules fall by 26% to 51%. Grounding time follows on the larger programs
+and is within noise on the smallest. Total time barely moves where Python
+canonicalization dominates: grounding is a small share of clause generation,
+so this is a smaller ground program, not a faster pipeline.
 
 ### Readability restructuring
 

@@ -85,10 +85,9 @@ aggregate_condition_arg(Slot, Condition, Predicate, Position, Variable) :-
 % aggregate at body Slot is equated to.
 %   Slot      body slot of an aggregate of the single-element subset.
 %   Variable  variable id of the result: V2 in "#count{V0 : p(V0)} = V2".
-% Shared by representation/variables.lp, legality/aggregates.lp,
-% legality/asp_safety.lp and legality/flow/seeds.lp (the result is a produced,
-% safe output), pruning/policies/aggregates.lp and
-% pruning/redundancy/aggregates.lp.
+% Shared by representation/variables.lp, legality/asp_safety.lp and
+% legality/flow/seeds.lp (the result is a produced, safe output),
+% pruning/policies/aggregates.lp and pruning/redundancy/aggregates.lp.
 aggregate_result_var(Slot, Variable) :-
     selected(body, Slot, Mode), mode_aggregate_result_arg(Mode, Position),
     var_at(body, Slot, Position, Variable).
@@ -119,48 +118,6 @@ aggregate_internal_arg(Slot, Position) :-
 % Consumed by legality/scopes.lp, whose global_context_var rule ranges over
 % both sections and therefore needs a Section argument to negate against.
 aggregate_internal_position(body, Slot, Position) :- aggregate_internal_arg(Slot, Position).
-
-% DEFINITION, local helper. aggregate_element_tuple_binding(Slot, Element,
-% Position, Variable): a tuple term of one element of any body aggregate.
-%   Slot      body slot of an aggregate.
-%   Element   zero-based index of the element ("t1:c1 ; t2:c2" has 0 and 1).
-%   Position  index inside that element's tuple; for a set aggregate, the
-%             argument index of the element's conclusion atom.
-%   Variable  variable id written there.
-% Used only by aggregate_element_tuple_var below.
-aggregate_element_tuple_binding(Slot, Element, Position, Variable) :-
-    selected(body, Slot, Mode),
-    mode_aggregate_element_tuple_arg(Mode, Element, Position, FlatPosition),
-    var_at(body, Slot, FlatPosition, Variable).
-
-% DEFINITION, reusable. aggregate_element_tuple_var(Slot, Element, Variable):
-% Variable is a tuple term of that element.
-%   Slot, Element  the aggregate element.
-%   Variable       variable id at any of its tuple positions.
-% Consumed by legality/aggregates.lp.
-aggregate_element_tuple_var(Slot, Element, Variable) :-
-    aggregate_element_tuple_binding(Slot, Element, _, Variable).
-
-% DEFINITION, local helper. aggregate_element_condition_binding(Slot, Element,
-% Condition, Argument, Variable): an argument of one condition of one element.
-%   Slot, Element  the aggregate element.
-%   Condition      zero-based index of the condition inside that element.
-%   Argument       source argument index inside that condition.
-%   Variable       variable id written there.
-% Used only by aggregate_element_condition_var below.
-aggregate_element_condition_binding(Slot, Element, Condition, Argument, Variable) :-
-    selected(body, Slot, Mode),
-    mode_aggregate_element_condition_arg(Mode, Element, Condition, Argument, FlatPosition),
-    var_at(body, Slot, FlatPosition, Variable).
-
-% DEFINITION, reusable. aggregate_element_condition_var(Slot, Element,
-% Variable): Variable occurs in some condition of that element.
-%   Slot, Element  the aggregate element.
-%   Variable       variable id at any condition placeholder of the element,
-%                  whatever the condition's polarity or kind.
-% Consumed by legality/aggregates.lp.
-aggregate_element_condition_var(Slot, Element, Variable) :-
-    aggregate_element_condition_binding(Slot, Element, _, _, Variable).
 
 % DEFINITION, reusable. aggregate_element_positive_condition_var(Slot,
 % Element, Condition, Variable): a positive atom condition mentions Variable.

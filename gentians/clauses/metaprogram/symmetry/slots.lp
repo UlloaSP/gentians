@@ -14,12 +14,13 @@
 % fixes the order of literals of different modes and makes equal modes
 % contiguous.
 %   Section       head or body.
-%   Slot0, Slot1  two occupied slots, Slot0 first.
+%   Slot0, Slot1  two consecutive occupied slots. Slots have no gaps (see
+%                 above), so checking neighbours orders the whole section.
 %   Mode0, Mode1  their mode ids.
 % With mode 4 = edge/2 and mode 7 = red/1:
 %   pruned: selected(body,0,7), selected(body,1,4)     red(..), edge(..)
 %   kept:   selected(body,0,4), selected(body,1,7)     edge(..), red(..)
-:- selected(Section, Slot0, Mode0), selected(Section, Slot1, Mode1), Slot0 < Slot1, Mode0 > Mode1.
+:- selected(Section, Slot0, Mode0), selected(Section, Slot1, Mode1), Slot1 = Slot0 + 1, Mode0 > Mode1.
 
 % DEFINITION, local helper. same_mode_tuple_gt(Section, Slot0, Slot1): two
 % adjacent literals of the same mode are written in descending order.

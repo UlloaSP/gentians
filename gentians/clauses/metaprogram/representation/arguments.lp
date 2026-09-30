@@ -3,13 +3,16 @@
 % Fixed terms live in mode_shape/2 and require no variable assignment.
 
 
-% DEFINITION, local helper. arg(Section, Slot, Arg): a placeholder of the
-% literal selected at that slot still needs a variable.
+% DEFINITION, reusable. arg(Section, Slot, Arg): the literal selected at that
+% slot has a variable placeholder at Arg.
 %   Section  head or body.
 %   Slot     slot position inside the section.
 %   Arg      zero-based variable-placeholder position of the selected mode
 %            (mode_variable_arg/2); constants and fixed terms have none.
-% Used only by the choice below, which opens one decision per placeholder.
+% The choice below opens one decision per placeholder. It is also shared by
+% pruning/properties/disjoint.lp, project_implies.lp and functional_set.lp,
+% which ask "does that literal hold this variable there?" and need to know
+% the placeholder exists without naming its variable.
 arg(Section, Slot, Arg) :-
     selected(Section, Slot, Mode),
     mode_variable_arg(Mode, Arg).

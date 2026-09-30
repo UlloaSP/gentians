@@ -163,3 +163,55 @@ def test_non_interchangeable_addition_keeps_its_arithmetic_view():
 
     assert "add_mode(0)." in lines
     assert "interchangeable_operands(0)." not in lines
+
+
+def test_subsumption_needs_a_shared_variable_at_the_same_argument():
+    clauses = _clauses(
+        "p(1,2,3). p(2,2,1). p(3,1,1). p(1,1,1). p(2,3,2). p(3,3,3). p(1,3,2). p(2,1,3).\n"
+        "#maxv(3).\n#maxbl(2).\n#maxhl(0).\n"
+        "#modeb(2,p(var(t,any),var(t,any),var(t,any)))."
+    )
+
+    # V1 is argument 2 of the first atom and argument 0 of the second, so no
+    # substitution maps p(V1,V0,V2) onto p(V0,V0,V1): the second atom is a join.
+    assert ":- p(V0,V0,V1),p(V1,V0,V2)." in clauses
+    # V2 occurs only in the second atom: V2 -> V0 maps it onto the first.
+    assert ":- p(V0,V0,V1),p(V0,V2,V1)." not in clauses
+
+
+def test_subsumption_prunes_across_modes_of_one_predicate():
+    # Each mode occurs once, so theta reduction moves neither atom.
+    clauses = _clauses(
+        "p(1,2). p(2,2). p(3,1). p(1,1). p(2,3).\n#maxv(3).\n#maxbl(2).\n"
+        "#modeh(1,h(var(t,any))).\n"
+        "#modeb(1,p(var(t,any,a),var(t,any,b))).\n"
+        "#modeb(1,p(var(t,any),var(t,any)))."
+    )
+
+    # V1 -> V0 maps p(V0,V1) onto p(V0,V0) unless the head needs V1.
+    assert "h(V0) :- p(V0,V1),p(V0,V0)." not in clauses
+    assert "h(V1) :- p(V0,V1),p(V0,V0)." in clauses
+    assert "h(V0) :- p(V0,V0)." in clauses
+
+
+TRANSITIVE_TASK = (
+    "p(1,2). p(2,2). p(3,4). p(4,5). p(3,5).\n#maxv(3).\n#maxbl(3).\n"
+    "#modeh(1,h(var(n,any))).\n#modeb(3,p(var(n,any),var(n,any)))."
+)
+
+
+def test_transitive_shortcut_is_pruned_wherever_slot_order_puts_it():
+    clauses = _clauses(TRANSITIVE_TASK)
+
+    # Tuple order puts the shortcut p(V0,V2) between the two path atoms.
+    assert ":- p(V0,V1),p(V0,V2),p(V1,V2)." not in clauses
+    assert "h(V0) :- p(V0,V1),p(V0,V2),p(V1,V2)." not in clauses
+    assert ":- p(V0,V1),p(V1,V2)." in clauses
+
+
+def test_transitive_shortcut_must_be_a_third_atom():
+    clauses = _clauses(TRANSITIVE_TASK)
+
+    # p(V0,V1),p(V1,V1) is a path whose "shortcut" is its own first atom.
+    assert "h(V0) :- p(V0,V1),p(V1,V1)." in clauses
+    assert "h(V1) :- p(V0,V0),p(V0,V1),p(V1,V2)." in clauses

@@ -5,20 +5,25 @@
 
 
 % DEFINITION, local helper. different_variable_binding(Section0, Slot0,
-% Section1, Slot1): two selected literals disagree at some shared placeholder.
+% Section1, Slot1): two selected literals of equal term shape disagree at
+% some placeholder.
 %   Section0, Slot0  first selected literal.
-%   Section1, Slot1  second selected literal.
-% Holds when a placeholder position that both modes have carries different
-% variable ids, as position 1 of p(V0,V1) and p(V0,V2). Used only, negated, by
-% same_term_bindings below.
+%   Section1, Slot1  a different selected literal whose mode has the same
+%                    mode_shape, hence the same placeholder positions.
+% Holds when some placeholder carries different variable ids, as position 1
+% of p(V0,V1) and p(V0,V2). Every placeholder holds exactly one variable, so
+% "the second literal does not hold Var there" says the two ids differ
+% without grounding every pair of ids. Used only, negated, by
+% same_term_bindings below, which asks about exactly these pairs.
 different_variable_binding(Section0, Slot0, Section1, Slot1) :-
     selected(Section0, Slot0, Mode0),
     selected(Section1, Slot1, Mode1),
+    (Section0, Slot0) != (Section1, Slot1),
+    mode_shape(Mode0, Shape),
+    mode_shape(Mode1, Shape),
     mode_variable_arg(Mode0, Arg),
-    mode_variable_arg(Mode1, Arg),
-    var_at(Section0, Slot0, Arg, Var0),
-    var_at(Section1, Slot1, Arg, Var1),
-    Var0 != Var1.
+    var_at(Section0, Slot0, Arg, Var),
+    not var_at(Section1, Slot1, Arg, Var).
 
 % DEFINITION, reusable. same_term_bindings(Section0, Slot0, Section1, Slot1):
 % two different selected literals have the same arguments.
@@ -65,32 +70,13 @@ reversed_binary_vars(Section, Slot0, Section, Slot1) :-
     var_at(Section, Slot1, 0, Right),
     var_at(Section, Slot1, 1, Left).
 
-% DEFINITION, reusable. var_in_slot(Section, Slot, Var): Var occurs in the
-% literal at that slot.
-%   Section, Slot  the selected literal.
-%   Var            variable id at any of its placeholders.
-% Drops the position. Consumed by pruning/properties/subsumption.lp.
-var_in_slot(Section, Slot, Var) :-
-    var_at(Section, Slot, _, Var).
-
-% DEFINITION, currently unused. positive_body_var_outside_slot(Slot, Var): a
-% positive plain body atom other than the one at Slot mentions Var.
-%   Slot  any body slot, occupied or not; the slot being excluded.
-%   Var   variable id of a positive body atom at a different slot.
-% No module consumes this view at present.
-positive_body_var_outside_slot(Slot, Var) :-
-    body_slot(Slot),
-    positive_body_literal(OtherSlot, _, _, _),
-    OtherSlot != Slot,
-    var_at(body, OtherSlot, _, Var).
-
 % DEFINITION, reusable. var_used_outside_body_slot(Slot, Var): Var occurs
 % somewhere other than in body Slot.
 %   Slot  any body slot, occupied or not; the slot being excluded.
 %   Var   variable id with an occurrence outside that slot.
 % Shared by pruning/policies/aggregates.lp (an aggregate result must be used)
-% and pruning/properties/subsumption.lp (a removed literal must not lose a
-% join).
+% and pruning/properties/subsumption.lp (a removed literal must not move a
+% variable the rest of the clause needs).
 % Case 1: any head occurrence.
 var_used_outside_body_slot(Slot, Var) :- body_slot(Slot), var_at(head, _, _, Var).
 

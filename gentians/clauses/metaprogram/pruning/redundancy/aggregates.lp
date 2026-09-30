@@ -30,9 +30,8 @@ aggregate_input_differs(Slot0, Slot1) :-
     aggregate_shape(Mode, _, _),
     Slot1 = Slot0 + 1,
     aggregate_internal_arg(Slot0, Arg),
-    var_at(body, Slot0, Arg, Left),
-    var_at(body, Slot1, Arg, Right),
-    Left != Right.
+    var_at(body, Slot0, Arg, Var),
+    not var_at(body, Slot1, Arg, Var).
 
 % DEFINITION, local helper. same_aggregate_inputs(Slot0, Slot1): two adjacent
 % aggregates of the same mode have identical interiors, so they compute the

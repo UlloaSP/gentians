@@ -8,23 +8,24 @@
 
 % CONSTRAINT. After a positive path X->Y->Z of a transitive predicate, the
 % positive shortcut Pred(X,Z) is entailed and therefore redundant.
-%   Slot0 < Slot1 < Slot2  body slots of Pred(X,Y), Pred(Y,Z) and the shortcut
-%                          Pred(X,Z), in that slot order.
-%   Pred                   a transitive binary predicate.
-%   X, Y, Z                variable ids.
-% The pattern requires the shortcut in the last of the three slots:
-%   pruned: a body whose slots hold, in order, lt(X,Y), lt(Y,Z), lt(X,Z)
+%   Slot0, Slot1  body slots of Pred(X,Y) and Pred(Y,Z), in any slot order.
+%   Slot2         body slot of the shortcut Pred(X,Z); a third atom, distinct
+%                 from both. Without that, p(X,Y), p(Y,Y) would read p(X,Y) as
+%                 its own shortcut.
+%   Pred          a transitive binary predicate.
+%   X, Y, Z       variable ids.
+% No slot order is required: symmetry/slots.lp sorts atoms of one mode by
+% their variable tuples, which places the shortcut (V0,V2) between the two
+% path atoms.
+% With lt/2 transitive:
+%   pruned: :- lt(V0,V1), lt(V0,V2), lt(V1,V2).     V0->V1->V2 entails V0->V2
 %   kept:   :- lt(V0,V1), lt(V1,V2).
-% symmetry/slots.lp sorts atoms of one mode by their variable tuples, which
-% places (X,Z) before (Y,Z). With the three atoms selected through a single
-% mode the pattern therefore never matches, and
-% ":- lt(V0,V1), lt(V0,V2), lt(V1,V2)." is kept; it can match only when the
-% atoms come from different modes of Pred.
+%   kept:   :- lt(V0,V1), lt(V0,V2).                 no path
 :- positive_body_literal(Slot0, _, Pred, 2),
     positive_body_literal(Slot1, _, Pred, 2),
     positive_body_literal(Slot2, _, Pred, 2),
-    Slot0 < Slot1,
-    Slot1 < Slot2,
+    Slot2 != Slot0,
+    Slot2 != Slot1,
     transitive_pred(Pred),
     var_at(body, Slot0, 0, X),
     var_at(body, Slot0, 1, Y),

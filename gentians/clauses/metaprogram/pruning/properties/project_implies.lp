@@ -18,13 +18,17 @@
 %   Projection       id of a projection. Each project_arg(Projection,
 %                    TargetArg, SourceArg) pairs argument SourceArg of the
 %                    source with argument TargetArg of the target.
-% It holds when some paired positions carry different variable ids. The rule
-% does not check the predicates. Used only, negated, by the next rule.
+% It holds when some paired positions carry different variable ids. It is
+% derived only for the pairs the next rule inspects: two plain atoms whose
+% predicates the projection relates. Used only, negated, by that rule.
 project_vars_differ(Section0, Slot0, Section1, Slot1, Projection) :-
+    normal_literal(Section0, Slot0, _, Pred0, _),
+    normal_literal(Section1, Slot1, _, Pred1, _),
+    project_implies_pred(Pred0, Pred1, Projection),
     project_arg(Projection, TargetArg, SourceArg),
-    var_at(Section0, Slot0, SourceArg, SourceVar),
-    var_at(Section1, Slot1, TargetArg, TargetVar),
-    SourceVar != TargetVar.
+    var_at(Section0, Slot0, SourceArg, Var),
+    arg(Section1, Slot1, TargetArg),
+    not var_at(Section1, Slot1, TargetArg, Var).
 
 % DEFINITION, local helper. project_vars_match(Section0, Slot0, Section1,
 % Slot1, Projection): the target literal is exactly the projection of the

@@ -203,17 +203,29 @@ class CoverageSolver:
             )
 
 
+# Clingo interns symbols process-wide, so a symbol's raw id names the same
+# extended_p/extended_n atom in every control. Reading name and arguments costs
+# several C crossings per symbol and every evaluation shows the same few
+# symbols; the table is bounded by the examples of the tasks seen.
+_SYMBOL_MASKS: dict[int, tuple[int, int]] = {}
+
+
 def _coverage_masks(symbols) -> tuple[int, int]:
     pos_mask = 0
     neg_mask = 0
     for symbol in symbols:
-        if len(symbol.arguments) != 1:
-            continue
-        value = symbol.arguments[0].number
-        if symbol.name == "extended_p":
-            pos_mask |= 1 << value
-        elif symbol.name == "extended_n":
-            neg_mask |= 1 << value
+        masks = _SYMBOL_MASKS.get(symbol._rep)
+        if masks is None:
+            masks = (0, 0)
+            if len(symbol.arguments) == 1:
+                value = symbol.arguments[0].number
+                if symbol.name == "extended_p":
+                    masks = (1 << value, 0)
+                elif symbol.name == "extended_n":
+                    masks = (0, 1 << value)
+            _SYMBOL_MASKS[symbol._rep] = masks
+        pos_mask |= masks[0]
+        neg_mask |= masks[1]
     return pos_mask, neg_mask
 
 

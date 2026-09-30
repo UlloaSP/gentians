@@ -16,6 +16,10 @@ mode_aggregate_result_arg(0,4).
 aggregate_shape(0,2,1).
 count_aggregate_mode(0).
 aggregate_condition_atom(0,0,edge,2).
+% Both tuple terms and both condition arguments share type, direction and
+% label, so the template admits either order and symmetry picks one.
+interchangeable_tuple_args(0,0,1).
+interchangeable_condition_args(0,0,0,1).
 var_at(body,0,0,0).
 var_at(body,0,1,1).
 var_at(body,0,2,swap).

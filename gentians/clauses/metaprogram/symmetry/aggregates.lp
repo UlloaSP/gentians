@@ -6,11 +6,17 @@
 % CONSTRAINT. The tuple of a #count aggregate must list its variables in
 % ascending id order: a count does not depend on the order of its tuple terms.
 %   Slot           body slot of a #count of the single-element subset.
-%   First, Second  two tuple positions, First before Second.
+%   First, Second  two tuple positions, First before Second, that the template
+%                  lets swap: equal type, direction and label
+%                  (interchangeable_tuple_args).
 %   Left, Right    the variable ids written at them.
 %   pruned: #count{V1,V0 : p(V0,V1)} = V2
 %   kept:   #count{V0,V1 : p(V0,V1)} = V2
+% Swapping two tuple terms moves each variable to the other position. With
+% #count{var(node),var(colour) : assigned(var(colour),var(node))} that would
+% give a node variable the colour type, so such a tuple keeps its order.
 :- selected(body, Slot, Mode), count_aggregate_mode(Mode),
+    interchangeable_tuple_args(Mode, First, Second),
     aggregate_tuple_binding(Slot, First, Left),
     aggregate_tuple_binding(Slot, Second, Right), First < Second, Left > Right.
 
@@ -65,12 +71,22 @@ sum_condition_orderable(Slot, Weight) :-
 % CONSTRAINT. In an orderable #count, the condition lists its variables in
 % ascending id order.
 %   Slot           body slot of the aggregate.
-%   First, Second  two argument positions of condition 0, First before Second.
+%   Mode           its template.
+%   First, Second  two argument positions of condition 0, First before Second,
+%                  that the template lets swap
+%                  (interchangeable_condition_args).
 %   Left, Right    the variable ids written at them.
 % Together with the tuple constraint above, only one naming survives:
 %   pruned: #count{V0,V1 : p(V1,V0)} = V2
 %   kept:   #count{V0,V1 : p(V0,V1)} = V2
+% The kept form writes the condition arguments in the other order, so it
+% exists only when the template admits that. With
+% #count{var(node),var(colour) : assigned(var(colour),var(node))} it does
+% not, and the descending form is the only one:
+%   kept:   #count{V1,V2 : assigned(V2,V1)} = V0
 :- count_condition_orderable(Slot),
+    selected(body, Slot, Mode),
+    interchangeable_condition_args(Mode, 0, First, Second),
     aggregate_condition_binding(Slot, 0, First, Left),
     aggregate_condition_binding(Slot, 0, Second, Right), First < Second, Left > Right.
 
@@ -78,12 +94,16 @@ sum_condition_orderable(Slot, Weight) :-
 % variables in ascending id order.
 %   Slot           body slot of the aggregate.
 %   Weight         the summed variable, skipped by the comparison.
-%   First, Second  two argument positions of condition 0, First before Second.
+%   Mode           its template.
+%   First, Second  two argument positions of condition 0, First before Second,
+%                  that the template lets swap.
 %   Left, Right    the variable ids written at them, neither being Weight.
 %   pruned: #sum{V0,V1,V2 : p(V0,V2,V1)} = V3    V2 before V1 among non-weights
 %   kept:   #sum{V0,V1,V2 : p(V0,V1,V2)} = V3
 %   kept:   #sum{V1,V0,V2 : p(V0,V1,V2)} = V3    the weight V1 is exempt
 :- sum_condition_orderable(Slot, Weight),
+    selected(body, Slot, Mode),
+    interchangeable_condition_args(Mode, 0, First, Second),
     aggregate_condition_binding(Slot, 0, First, Left),
     aggregate_condition_binding(Slot, 0, Second, Right), First < Second,
     Left != Weight, Right != Weight, Left > Right.

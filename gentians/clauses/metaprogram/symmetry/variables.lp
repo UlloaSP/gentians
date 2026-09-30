@@ -24,7 +24,8 @@ first_var_pos(Var, Section, Slot, Arg) :-
 % CONSTRAINT. Ids grow in the order of first occurrence: a smaller id never
 % first occurs after a greater one. Renaming variables does not change a
 % clause, so one naming per clause is kept.
-%   Var0, Var1            two used ids with Var0 < Var1.
+%   Var0, Var1            two consecutive used ids. Ids have no gaps (see
+%                         above), so ordering neighbours orders them all.
 %   (S0,L0,A0), (S1,L1,A1)  their first positions.
 %   pruned: :- edge(V1,V0).                   V1 occurs before V0
 %   kept:   :- edge(V0,V1).
@@ -32,5 +33,5 @@ first_var_pos(Var, Section, Slot, Arg) :-
 %                                             head may list ids in any order
 :- first_var_pos(Var0, S0, L0, A0),
     first_var_pos(Var1, S1, L1, A1),
-    Var0 < Var1,
+    Var1 = Var0 + 1,
     (S0, L0, A0) > (S1, L1, A1).

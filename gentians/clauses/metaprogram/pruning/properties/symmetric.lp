@@ -45,7 +45,7 @@
 :- selected(body, Slot, Mode),
     aggregate_condition_atom(Mode, Condition, Pred, 2),
     symmetric_pred(Pred),
-    interchangeable_condition_args(Mode, Condition),
+    interchangeable_condition_args(Mode, Condition, 0, 1),
     aggregate_condition_arg(Slot, Condition, Pred, 0, Left),
     aggregate_condition_arg(Slot, Condition, Pred, 1, Right),
     Left > Right.

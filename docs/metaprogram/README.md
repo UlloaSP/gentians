@@ -16,7 +16,7 @@ metaprogram/
     *.lp                 selected syntax and argument views
   inference/            consequences of selected relations and task evidence
   legality/             structural limits, scopes, types and safety
-    flow/               declarations, seeds, closure, requirements
+    flow/               declarations, seeds, closure, requirements, removal
   symmetry/             ordering of interchangeable encodings
   pruning/
     contradictions/     impossible combinations under stated assumptions
@@ -52,7 +52,7 @@ whole metaprogram accepts it.
 | --- | --- |
 | `mode_section(Mode,Section)`, `mode_recall(Mode,Recall)` | Declaration placement and effective recall limit. |
 | `mode_kind(Mode,Kind)` | Explicit template kind: normal, conditional, comparison, arithmetic, Boolean literal, body aggregate, or head aggregate element. |
-| `interchangeable_operands(Mode)`, `interchangeable_condition_args(Mode,Condition)` | The two operands of an arithmetic or simple comparison template, the two arguments of a binary atom of plain variables, or those of one binary aggregate condition have equal type, direction and label. Every rule that picks one orientation requires it. |
+| `interchangeable_operands(Mode)`, `interchangeable_condition_args(Mode,Condition,First,Second)`, `interchangeable_tuple_args(Mode,First,Second)` | The two operands of an arithmetic or simple comparison template, the two arguments of a binary atom of plain variables, two arguments of one aggregate condition, or two tuple positions of an aggregate have equal type, direction and label. Every rule that picks one orientation requires it. |
 | `comparison_operator(Mode,Operator)` | Simple binary comparison operator: eq, neq, lt, gt, leq or geq. Complex comparison chains have no such fact. |
 | `mode_atom(Mode,Predicate,Arity)` | Predicate signature of a normal atom, atomic conditional conclusion or atomic head aggregate element; absent for operators, body aggregates and non-atomic conclusions. |
 | `pooled_body_mode(Mode)`, `mode_pool_alternative(Mode,Alternative)`, `mode_pool_alternative_arg(Mode,Alternative,Position)` | Alternatives of one pooled body atom and the flattened placeholders present in each alternative. A variable is supplied by the atom only when it occurs in every alternative. |
@@ -124,6 +124,19 @@ The four files in `legality/flow/` describe a positive fixed point:
    outputs and `any` bindings of positive normal atoms, and repeats through
    recursion until no new facts follow.
 4. `requirements.lp` rejects inputs or head outputs that remain unsupported.
+
+`removal.lp` is not part of that fixed point. It defines `flow_needed(Slot)`:
+removing the positive body atom at `Slot` may leave a variable without the
+producer or binder it needs. Every pruning that rejects a clause for holding a
+redundant positive atom (`implies`, `universal`, `reflexive`,
+`project_implies`, `transitive`, `inverse`, `subsumption`) requires the atom
+not to be needed, because the argument "the shorter clause is enumerated
+anyway" fails when directed flow makes that shorter clause illegal. With
+`node(output)` and `red(input)`, where `red` implies `node`,
+`h(X) :- node(X), red(X)` stays: `h(X) :- red(X)` has no binder for the input.
+The test is sufficient, not exact. It accepts a removal only when another atom
+without inputs supplies each variable at least as strongly, so in doubt the
+redundant clause is kept.
 
 These are explanatory steps, not imperative execution passes. In the code,
 `flow_produced(V)` implies `flow_bound(V)`. A positive `any` position of a
@@ -220,13 +233,17 @@ substitutions; `subsumption` adds the pairs selected through different modes.
 in whatever slot it sits, because tuple order places it between the two path
 atoms; it only requires the shortcut to be a third atom.
 
-Two more checks replace a literal by an equivalent spelling and therefore
-depend on that spelling being in the language. `symmetric` keeps one argument
-order only for templates whose two arguments have equal type, direction and
-label (`interchangeable_operands` for atoms, `interchangeable_condition_args`
-for aggregate conditions): with `friend(input,output)` the swapped atom can be
-illegal by flow, so both orders stay. `arg_equal` asks for one variable id at
-two equal-valued positions only when the template lets them share a variable;
+More checks replace a literal by an equivalent spelling and therefore depend
+on that spelling being in the language. `symmetric` keeps one argument order
+only for templates whose two arguments have equal type, direction and label
+(`interchangeable_operands` for atoms, `interchangeable_condition_args` for
+aggregate conditions): with `friend(input,output)` the swapped atom can be
+illegal by flow, so both orders stay. `symmetry/aggregates.lp` orders the tuple
+and the condition arguments of a count or sum under the same requirement
+(`interchangeable_tuple_args`, `interchangeable_condition_args`), and
+`symmetry/conditions.lp` orders only conditions whose variant includes equal
+types, directions and labels. `arg_equal` asks for one variable id at two
+equal-valued positions only when the template lets them share a variable;
 positions with different types or different labels keep two ids.
 
 ## Executable examples
@@ -301,6 +318,49 @@ Ground rules fall by 26% to 51%. Grounding time follows on the larger programs
 and is within noise on the smallest. Total time barely moves where Python
 canonicalization dominates: grounding is a small share of clause generation,
 so this is a smaller ground program, not a faster pipeline.
+
+### Second pass: decoding, rendering and five more rewrites
+
+A later pass measured each stage of `generate_clause_space` without a
+profiler. Decoding models was 26-28% of the call on the arithmetic tasks,
+parsing the rendered clauses 9-22%, and grounding 1-7%. It changed three
+things in Python and five in the metaprogram, all of which leave the 34
+clause spaces above text-identical:
+
+- `decoder.py` reads model literals through clingo's C function with one
+  reused result cell instead of `Model.is_true`.
+- Canonicalization renders each distinct head once per mode space.
+- `CoverageSolver` maps shown symbols to example bits through a table keyed by
+  the raw symbol id; 0.47 ms became 0.03 ms per evaluation on the 99 shown
+  symbols of `magic_square_no_diag`.
+- `subsumption` compares only atoms of different modes (theta reduction is
+  exact within one mode), first-occurrence order compares consecutive ids,
+  `repeated_var` counts placeholders, the doubling check drops slots, and the
+  helpers of `cardinality_upper` and `inverse` exist only with their facts.
+
+The same protocol as above, four alternating rounds of 7 runs per variant; the
+machine was loaded during the first two, so the last two are shown.
+
+| Dataset | Ground rules before → after | Total ms before → after (round 3, round 4) |
+| --- | --- | --- |
+| `grandparent` | 3489 → 3220 | 80 → 75, 71 → 72 |
+| `8queens` | 23592 → 17565 | 1017 → 868, 985 → 829 |
+| `latin_square` | 9947 → 6773 | 113 → 103, 112 → 100 |
+| `magic_square_no_diag` | 20779 → 14675 | 384 → 345, 388 → 324 |
+| `subset_sum_double_unbalanced_count` | 7590 → 5467 | 2681 → 2208, 2669 → 2131 |
+| `set_partition_sum_cardinality_and_square` | 16954 → 12979 | 657 → 521, 627 → 495 |
+
+The after column includes the rules of `legality/flow/removal.lp` and the
+guards added with it. Clause generation is 9% to 21% faster on the larger
+tasks and unchanged within noise on `grandparent`. Decoding relies on clingo's
+private cffi module and the coverage table on `Symbol._rep`; both are pinned by
+the locked clingo version and covered by the generation and evaluation tests.
+
+Prototypes that were measured and dropped: decoding from shown symbols in one
+call (3-7%, less than the direct call), deducing the last candidate variable
+without a probe (no gain), a prefix predicate instead of the two counts in
+`same_mode_tuple_gt` (no gain), adding the static evaluation program as text
+(five times slower than as AST) and single-threaded enumeration (mixed).
 
 ### Readability restructuring
 

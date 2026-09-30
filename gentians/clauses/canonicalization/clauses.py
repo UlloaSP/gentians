@@ -8,6 +8,7 @@ from ...language.ir.head_aggregate_element import HeadAggregateElement
 from ..clause import Clause
 from ..clause_mode import ClauseMode
 from ..reified_clause import ReifiedClause
+from ..reified_literal import ReifiedLiteral
 from .arithmetic import _ArithmeticSystemsCache, canonical_arithmetic_clause
 from .arithmetic_system import ArithmeticSystemKey
 from .linear_constraint import LinearConstraint
@@ -20,6 +21,8 @@ def canonicalize_clauses(
 ) -> list[Clause]:
     representatives: dict[ArithmeticSystemKey, tuple[str, ReifiedClause]] = {}
     systems_cache: _ArithmeticSystemsCache = {}
+    # A space has few distinct heads and many bodies per head.
+    rendered_heads: dict[tuple[ReifiedLiteral, ...], str] = {}
     for clause in clauses:
         canonical = canonical_arithmetic_clause(
             clause, modes, max_variables, systems_cache
@@ -29,7 +32,7 @@ def canonicalize_clauses(
         key = canonical.key
         current = representatives.get(key)
         if current is None:
-            representatives[key] = canonical.render(modes), clause
+            representatives[key] = canonical.render(modes, rendered_heads), clause
         elif len(clause.body) > len(current[1].body):
             continue
         elif all(
@@ -40,7 +43,7 @@ def canonicalize_clauses(
             if len(clause.body) < len(current[1].body):
                 representatives[key] = current[0], clause
         else:
-            rendered = canonical.render(modes)
+            rendered = canonical.render(modes, rendered_heads)
             if (len(clause.body), rendered) < (
                 len(current[1].body),
                 current[0],

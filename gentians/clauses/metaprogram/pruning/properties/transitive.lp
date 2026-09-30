@@ -21,6 +21,9 @@
 %   pruned: :- lt(V0,V1), lt(V0,V2), lt(V1,V2).     V0->V1->V2 entails V0->V2
 %   kept:   :- lt(V0,V1), lt(V1,V2).
 %   kept:   :- lt(V0,V1), lt(V0,V2).                 no path
+% The rejected atom must not be needed by directed flow (legality/flow/
+% removal.lp): otherwise the shorter clause is not in the language and this
+% one has to stay.
 :- positive_body_literal(Slot0, _, Pred, 2),
     positive_body_literal(Slot1, _, Pred, 2),
     positive_body_literal(Slot2, _, Pred, 2),
@@ -32,7 +35,8 @@
     var_at(body, Slot1, 0, Y),
     var_at(body, Slot1, 1, Z),
     var_at(body, Slot2, 0, X),
-    var_at(body, Slot2, 1, Z).
+    var_at(body, Slot2, 1, Z),
+    not flow_needed(Slot2).
 
 % CONSTRAINT. After a positive path X->Y->Z of a transitive predicate,
 % negating the shortcut Pred(X,Z) makes the body unsatisfiable.

@@ -20,11 +20,17 @@
 %   pruned: h(V0) :- parent(V0,V1), ancestor(V0,V1).
 %   kept:   h(V0) :- parent(V0,V1).                     the same meaning
 %   kept:   h(V0) :- parent(V0,V1), ancestor(V1,V0).    different arguments
+% The rejected atom must not be needed by directed flow (legality/flow/
+% removal.lp): otherwise the shorter clause is not in the language and this
+% one has to stay.
+%   kept:   h(V0) :- node(V0), red(V0).    with node(output), red(input) and
+%           red implying node: node(V0) is what binds the input of red
 :- positive_body_literal(Slot0, _, Pred0, Arity),
     positive_body_literal(Slot1, _, Pred1, Arity),
     Slot0 != Slot1,
     implies_pred(Pred0, Pred1),
-    same_term_bindings(body, Slot0, body, Slot1).
+    same_term_bindings(body, Slot0, body, Slot1),
+    not flow_needed(Slot1).
 
 % CONSTRAINT. A plain or disjunctive head atom that a positive body atom
 % already implies on the same arguments makes the clause derive nothing new.

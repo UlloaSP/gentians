@@ -17,9 +17,13 @@
 %   pruned: h(V0) :- k(V0), k(V1), same(V0,V1).
 %   kept:   h(V0) :- same(V0,V1).               nothing else binds V0 and V1
 %   kept:   h(V0) :- n(V0), n(V1), same(V0,V1).   n reaches c; same filters it
+% The rejected atom must not be needed by directed flow (legality/flow/
+% removal.lp): otherwise the shorter clause is not in the language and this
+% one has to stay.
 :- positive_body_literal(Slot, _, Pred, _),
     universal_pred(Pred),
-    not domain_literal_uncovered_elsewhere(universal(Pred), Slot).
+    not domain_literal_uncovered_elsewhere(universal(Pred), Slot),
+    not flow_needed(Slot).
 
 % CONSTRAINT. A negated body atom of a universal predicate is impossible when
 % every one of its arguments is a variable that a positive atom binds inside

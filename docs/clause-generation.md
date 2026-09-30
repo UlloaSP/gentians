@@ -95,7 +95,7 @@ stages.
 | --- | --- |
 | `representation/` | Central input schema plus selected modes, bindings and semantic views of literals, operators and aggregates. |
 | `inference/` | Numeric consequences of selected relations and supplied domain evidence. |
-| `legality/` | Structural limits, recalls, labels, invention, scopes, types and safety. `flow/` separates binding roles, seeds, closure and requirements. |
+| `legality/` | Structural limits, recalls, labels, invention, scopes, types and safety. `flow/` separates binding roles, seeds, closure and requirements, and says when a redundant atom is still needed as a binder. |
 | `symmetry/` | Ordered representatives of interchangeable encodings. |
 | `pruning/contradictions/` | Incompatible relations under stated assumptions. |
 | `pruning/redundancy/` | Repeated or entailed combinations. |

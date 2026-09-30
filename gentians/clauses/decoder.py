@@ -1,4 +1,7 @@
+from collections.abc import Callable
+
 import clingo
+from clingo._internal import _ffi, _lib
 
 from .clause_mode import ClauseMode
 from .reified_clause import ReifiedClause
@@ -64,7 +67,27 @@ def _clause_from_model(
     model: clingo.Model,
     model_index: tuple[_ModelSlot, ...],
 ) -> ReifiedClause:
-    is_true = model.is_true
+    # Decoding probes about 30 literals per model. Model.is_true allocates a
+    # result cell and crosses two Python layers per probe; calling the C
+    # function with one reused cell measured about 13% off clause generation.
+    # This leans on clingo's private cffi module.
+    read = _lib.clingo_model_is_true
+    rep = model._rep
+    truth = _ffi.new("bool*")
+
+    def is_true(literal: int) -> bool:
+        if not read(rep, literal, truth):
+            raise RuntimeError("clingo could not read a model literal")
+        return truth[0]
+
+    return _clause_from_truth(is_true, model_index)
+
+
+def _clause_from_truth(
+    is_true: Callable[[int], bool],
+    model_index: tuple[_ModelSlot, ...],
+) -> ReifiedClause:
+    """Decode one clause, probing as few program literals as the slot order allows."""
     head: list[ReifiedLiteral] = []
     body: list[ReifiedLiteral] = []
     current_section = ""

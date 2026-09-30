@@ -10,12 +10,14 @@
 % outside G: then S already provides a witness for those variables. Position
 % matters: a variable the rest of the clause uses must sit at the same
 % argument in both atoms.
+% With the two atoms declared by different modes of p:
 %   pruned: h(V0) :- p(V0,V1), p(V0,V0).       V1 -> V0 maps p(V0,V1) onto p(V0,V0)
 %   kept:   h(V1) :- p(V0,V1), p(V0,V0).       V1 is needed by the head
 %   kept:   :- p(V0,V0,V1), p(V1,V0,V2).       V1 sits at argument 2 of the
 %                                              first atom and 0 of the second
-% theta.lp already finds these substitutions between atoms of one repeatable
-% mode. This file also covers atoms selected through different modes of the
+% theta.lp finds exactly these substitutions between atoms of one mode: two
+% atoms of a mode need recall > 1, which makes the mode movable there. This
+% file therefore only compares atoms selected through different modes of the
 % same predicate, which theta reduction never moves.
 %
 % In every rule GeneralSlot is the body slot of the candidate redundant atom
@@ -24,14 +26,15 @@
 % DEFINITION, local helper. subsumption_pair(GeneralSlot, SpecificSlot): two
 % different positive body atoms that can be compared argument by argument.
 %   GeneralSlot   body slot of a positive atom.
-%   SpecificSlot  a different body slot holding a positive atom of the same
-%                 predicate and the same term shape, so both atoms have the
-%                 same placeholder positions and the same constants.
+%   SpecificSlot  a body slot holding a positive atom of the same predicate
+%                 and the same term shape, so both atoms have the same
+%                 placeholder positions and constants, selected through a
+%                 different mode.
 % Both orders of a pair are derived. Used by every rule below.
 subsumption_pair(GeneralSlot, SpecificSlot) :-
     positive_body_literal(GeneralSlot, GeneralMode, Pred, Arity),
     positive_body_literal(SpecificSlot, SpecificMode, Pred, Arity),
-    GeneralSlot != SpecificSlot,
+    GeneralMode != SpecificMode,
     mode_shape(GeneralMode, Shape),
     mode_shape(SpecificMode, Shape).
 
@@ -89,7 +92,11 @@ general_var_unsupported(GeneralSlot, SpecificSlot) :-
 %                 used elsewhere sits at the same placeholder of the specific
 %                 atom.
 %   pruned and kept: see the examples in the file header.
+% The rejected atom must not be needed by directed flow (legality/flow/
+% removal.lp): otherwise the shorter clause is not in the language and this
+% one has to stay.
 :- subsumption_pair(GeneralSlot, SpecificSlot),
     specific_adds_equality(GeneralSlot, SpecificSlot),
     not general_has_extra_equality(GeneralSlot, SpecificSlot),
-    not general_var_unsupported(GeneralSlot, SpecificSlot).
+    not general_var_unsupported(GeneralSlot, SpecificSlot),
+    not flow_needed(GeneralSlot).

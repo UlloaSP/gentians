@@ -12,10 +12,11 @@ used_var(Var) :- var_at(_, _, _, Var).
 %        as in p(V0,V0), or in different literals.
 % Consumed by pruning/policies/singletons.lp, where "not repeated" means
 % singleton. Kept here because it states a fact about occurrences, not a policy.
+% Counting the placeholders grounds one rule per variable; comparing them
+% pairwise would ground one per pair of placeholders.
 repeated_var(Var) :-
-    var_at(S0, L0, A0, Var),
-    var_at(S1, L1, A1, Var),
-    (S0, L0, A0) < (S1, L1, A1).
+    used_var(Var),
+    2 <= #count { Section, Slot, Arg : var_at(Section, Slot, Arg, Var) }.
 
 % DEFINITION, reusable. aggregate_local_var(Slot, Var): Var plays only the
 % condition role inside the aggregate at body Slot.

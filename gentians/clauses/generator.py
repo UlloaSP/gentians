@@ -71,6 +71,7 @@ CLAUSE_METAPROGRAM_MODULES = (
     "legality/flow/declarations.lp",
     "legality/flow/closure.lp",
     "legality/flow/requirements.lp",
+    "legality/flow/removal.lp",
     "legality/flow/seeds.lp",
     "legality/invention.lp",
     "legality/labels.lp",

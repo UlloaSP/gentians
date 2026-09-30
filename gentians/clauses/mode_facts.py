@@ -396,6 +396,10 @@ def _conditional_facts(
                 condition.operators,
                 *(term.shape() for term in condition.terms),
             )
+        # Conditions are ordered and deduplicated by variant, which amounts to
+        # swapping them. Only conditions with equal types, directions and
+        # labels can swap.
+        condition_key = (*condition_key, _binding_traits(condition.arguments))
         parts.append(
             f"conditional_condition_variant({mode.id},{index},{condition_variants.setdefault(condition_key, len(condition_variants))})."
         )
@@ -587,6 +591,11 @@ def _aggregate_facts(
             for flat_position in range(offset, offset + binding_count)
         )
         offset += binding_count
+    parts.extend(
+        f"interchangeable_tuple_args({mode.id},{first},{second})."
+        for first, second in combinations(range(tuple_arity), 2)
+        if _terms_are_interchangeable(element.terms[first], element.terms[second])
+    )
     for condition, literal in enumerate(element.conditions):
         assert isinstance(literal, AtomLiteral)
         atom = literal.atom
@@ -594,8 +603,13 @@ def _aggregate_facts(
         parts.append(
             f"aggregate_condition_atom({mode.id},{condition},{predicate_ids[atom.signature]},{arity})."
         )
-        if _atom_arguments_are_interchangeable(atom):
-            parts.append(f"interchangeable_condition_args({mode.id},{condition}).")
+        if not atom.alternatives:
+            parts.extend(
+                f"interchangeable_condition_args({mode.id},{condition},{first},{second})."
+                for first, second in combinations(range(arity), 2)
+                if all(atom.terms[index].kind == "variable" for index in (first, second))
+                and _terms_are_interchangeable(atom.terms[first], atom.terms[second])
+            )
         for argument, term in enumerate(atom.binding_terms):
             binding_count = len(term.bindings())
             parts.extend(
@@ -710,6 +724,16 @@ def _local_comparison_facts(
             )
             variant += 1
     return parts
+
+
+def _binding_traits(
+    terms: tuple[TermTemplate, ...],
+) -> tuple[tuple[str, str, str], ...]:
+    return tuple(
+        (binding.type, binding.direction, binding.label)
+        for term in terms
+        for binding in term.bindings()
+    )
 
 
 def _operands_are_interchangeable(literal: ArithmeticLiteral) -> bool:

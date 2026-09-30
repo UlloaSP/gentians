@@ -1,12 +1,43 @@
 # SDK baseline and matched mutation-probability experiments.
 [suite]
 output_root = ".benchmarks/experiments"
-datasets = ["5queens", "grandparent"]
+datasets = [
+  "coin",
+  "adj2red",
+  "clique",
+  "4queens",
+  "8queens",
+  "5queens",
+  "even_odd",
+  "grandparent",
+  "sudoku",
+  "coloring",
+  "knapsack",
+  "latin_square",
+  "magic_square_no_diag",
+  "penguin",
+]
 runs = 10
 seed_base = 42
 timeout_seconds = 30
 cprofile = false
 instrumentation = "full"
+
+[[experiment]]
+id = "test-defaults/steady_state"
+datasets = ["5queens"]
+description = "Steady-state with current SDK defaults."
+runs = 30
+[experiment.overrides]
+algorithm = "steady_state"
+
+[[experiment]]
+id = "test-defaults/incremental"
+datasets = ["5queens"]
+description = "Incremental with current SDK defaults."
+runs = 30
+[experiment.overrides]
+algorithm = "incremental"
 
 [[experiment]]
 id = "sdk-defaults/steady_state"

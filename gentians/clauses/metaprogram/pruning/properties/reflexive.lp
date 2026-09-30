@@ -13,6 +13,9 @@
 %   Cover  body slot of another positive atom that binds Var inside
 %          field(Pred); it must differ from Slot, since the self-pair cannot
 %          justify its own removal.
+% The rejected atom must not be needed by directed flow (legality/flow/
+% removal.lp): otherwise the shorter clause is not in the language and this
+% one has to stay.
 % With le/2 reflexive on its field:
 %   pruned: h(V0) :- le(V0,V1), le(V0,V0).      V0 is in the field through le(V0,V1)
 %   kept:   h(V0) :- le(V0,V0).                 the self-pair is what binds V0
@@ -23,7 +26,8 @@
     var_at(body, Slot, 0, Var),
     var_at(body, Slot, 1, Var),
     covered_var(field(Pred), 0, Var, Cover),
-    Cover != Slot.
+    Cover != Slot,
+    not flow_needed(Slot).
 
 % CONSTRAINT. A negated self-pair of a reflexive predicate is impossible when
 % a positive body atom binds its variable inside the field.

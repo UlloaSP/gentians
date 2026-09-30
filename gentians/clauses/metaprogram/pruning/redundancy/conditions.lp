@@ -9,7 +9,8 @@
 %   Section, Slot  the selected conditional literal.
 %   Left           index of a condition.
 %   Right          index of a later condition (Left < Right) of the same
-%                  variant: same predicate, polarity and term shape.
+%                  variant: same predicate, polarity, term shape and
+%                  placeholder types, directions and labels.
 % It holds when every argument of Left holds the same variable as the matching
 % argument of Right: the two #count aggregates compare the number of arguments
 % with the number of arguments that agree. Used only by the constraint below.

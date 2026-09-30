@@ -5,12 +5,14 @@
 
 % DEFINITION, local helper. positive_body_tuple_known_distinct(Pred, Slot0,
 % Slot1): two positive atoms of Pred certainly denote different tuples.
-%   Pred           the predicate of both atoms.
+%   Pred           the predicate of both atoms, one with a cardinality cap;
+%                  nothing is derived for predicates without one.
 %   Slot0 < Slot1  their body slots.
 % It holds when, at some argument position, the two atoms hold variables the
 % clause proves unequal (known_unequal_values: an explicit "!=" or "<").
 % Used only, negated, by the next rule.
 positive_body_tuple_known_distinct(Pred, Slot0, Slot1) :-
+    cardinality_upper_pred(Pred, _),
     positive_body_literal(Slot0, _, Pred, Arity),
     positive_body_literal(Slot1, _, Pred, Arity),
     Slot0 < Slot1,
@@ -24,6 +26,7 @@ positive_body_tuple_known_distinct(Pred, Slot0, Slot1) :-
 %   Pred  a predicate with two positive body atoms not proved distinct.
 % Used only, negated, by the constraint below.
 cardinality_upper_not_pairwise_distinct(Pred) :-
+    cardinality_upper_pred(Pred, _),
     positive_body_literal(Slot0, _, Pred, Arity),
     positive_body_literal(Slot1, _, Pred, Arity),
     Slot0 < Slot1,

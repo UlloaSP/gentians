@@ -56,20 +56,6 @@ same_term_bindings(Section, Slot0, Section, Slot1) :-
     mode_shape(Mode1, Shape),
     not different_variable_binding(Section, Slot0, Section, Slot1).
 
-% DEFINITION, reusable. reversed_binary_vars(Section, Slot0, Section, Slot1):
-% two literals of the same section hold the same two variables, swapped.
-%   Section  head or body, the same for both literals.
-%   Slot0    slot of a literal with variables (Left, Right) at positions 0, 1.
-%   Slot1    a different slot, with (Right, Left) at positions 0, 1.
-% Example: p(V0,V1) and q(V1,V0). Predicates are not compared. Consumed by
-% pruning/properties/inverse.lp.
-reversed_binary_vars(Section, Slot0, Section, Slot1) :-
-    Slot0 != Slot1,
-    var_at(Section, Slot0, 0, Left),
-    var_at(Section, Slot0, 1, Right),
-    var_at(Section, Slot1, 0, Right),
-    var_at(Section, Slot1, 1, Left).
-
 % DEFINITION, reusable. var_used_outside_body_slot(Slot, Var): Var occurs
 % somewhere other than in body Slot.
 %   Slot  any body slot, occupied or not; the slot being excluded.

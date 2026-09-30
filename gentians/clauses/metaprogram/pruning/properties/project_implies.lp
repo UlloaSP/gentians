@@ -54,11 +54,15 @@ project_vars_match(Section0, Slot0, Section1, Slot1, Projection) :-
 %   pruned: h(V0) :- edge(V0,V1), node(V0).
 %   kept:   h(V0) :- edge(V0,V1).               the same meaning
 %   kept:   h(V0) :- edge(V0,V1), node(V1).     node(V1) is not implied
+% The rejected atom must not be needed by directed flow (legality/flow/
+% removal.lp): otherwise the shorter clause is not in the language and this
+% one has to stay.
 :- positive_body_literal(Slot0, _, Pred0, _),
     positive_body_literal(Slot1, _, Pred1, _),
     Slot0 != Slot1,
     project_implies_pred(Pred0, Pred1, Projection),
-    project_vars_match(body, Slot0, body, Slot1, Projection).
+    project_vars_match(body, Slot0, body, Slot1, Projection),
+    not flow_needed(Slot1).
 
 % CONSTRAINT. A positive body atom together with the negation of its
 % projection makes the body unsatisfiable.

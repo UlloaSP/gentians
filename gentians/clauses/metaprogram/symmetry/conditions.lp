@@ -8,7 +8,8 @@
 %   Section, Slot  the selected conditional literal.
 %   Left           index of a condition.
 %   Right          index of a later condition (Left < Right) of the same
-%                  variant: same predicate, polarity and term shape.
+%                  variant: same predicate, polarity, term shape and
+%                  placeholder types, directions and labels.
 % It holds when, at the first argument where the two conditions differ, the
 % earlier one has the greater variable id. Relative is that argument: the
 % #count requires every earlier argument (Previous < Relative) to hold equal
@@ -41,4 +42,7 @@ condition_tuple_gt(Section, Slot, Left, Right) :-
 %   pruned: :- r(V0,V1,V2), p(V0) : q(V2), q(V1).
 %   kept:   :- r(V0,V1,V2), p(V0) : q(V1), q(V2).
 %   kept:   :- r(V0,V1,V2), p(V0) : q(V2), not q(V1).   different variants
+% Conditions declared with different types are different variants as well:
+% with e(X) : q(var(a)), q(var(b)) the two q cannot trade places, so
+% ":- nb(V0); e(V1) : q(V1), q(V0)." is kept.
 :- condition_tuple_gt(Section, Slot, Left, Right).

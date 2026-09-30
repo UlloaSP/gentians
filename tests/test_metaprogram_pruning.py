@@ -255,3 +255,63 @@ def test_arg_equal_shares_a_variable_only_where_the_template_allows():
     assert ":- same(V0,V1),a(V0)." in labelled
     assert ":- same(V0,V0)." in shareable
     assert ":- same(V0,V1)." not in shareable
+
+
+DIRECTED_FILTER_TASK = (
+    "node(1). node(2). node(3). red(1). red(3). big(3). big(2).\n"
+    "#maxv(1).\n#maxbl(3).\n#modeh(1,h(var(t,{direction}))).\n"
+    "#modeb(1,node(var(t,{generator}))).\n"
+    "#modeb(1,red(var(t,{filter}))).\n#modeb(1,big(var(t,{filter})))."
+)
+
+
+def test_redundant_atom_stays_when_directed_flow_needs_it():
+    clauses = _clauses(
+        DIRECTED_FILTER_TASK.format(direction="output", generator="output", filter="input")
+    )
+
+    # red implies node, but node(V0) is the only producer of the input of red:
+    # without it no clause could say that h is what is red.
+    assert "h(V0) :- node(V0),red(V0)." in clauses
+    assert "h(V0) :- red(V0)." not in clauses
+    assert "h(V0) :- node(V0),red(V0),big(V0)." in clauses
+
+
+def test_redundant_atom_is_pruned_when_flow_does_not_need_it():
+    clauses = _clauses(
+        DIRECTED_FILTER_TASK.format(direction="any", generator="any", filter="any")
+    )
+
+    assert "h(V0) :- red(V0)." in clauses
+    assert "h(V0) :- node(V0),red(V0)." not in clauses
+
+
+def test_count_orders_only_arguments_the_template_lets_swap():
+    facts = "assigned(red,1). assigned(blue,2). assigned(red,3). r(1). r(2).\n"
+    limits = "#maxv(4).\n#maxbl(2).\n#maxhl(0).\n#modeb(1,r(var(numeric,any))).\n"
+    typed = _clauses(
+        facts + limits
+        + "#modeb(1,#count{var(node,any),var(colour,any):"
+        "assigned(var(colour,any),var(node,any))}=var(numeric,output))."
+    )
+    untyped = _clauses(
+        facts + limits
+        + "#modeb(1,#count{var(t,any),var(t,any):"
+        "assigned(var(t,any),var(t,any))}=var(numeric,output))."
+    )
+
+    # The types fix which variable each position holds: no other spelling exists.
+    assert ":- r(V0),#count{V1,V2:assigned(V2,V1)}=V0." in typed
+    assert ":- r(V0),#count{V1,V2:assigned(V1,V2)}=V0." in untyped
+    assert ":- r(V0),#count{V1,V2:assigned(V2,V1)}=V0." not in untyped
+
+
+def test_conditions_of_different_types_do_not_trade_places():
+    clauses = _clauses(
+        "na(1). nb(2). q(1). q(2). e(1).\n#maxv(2).\n#maxbl(4).\n#maxhl(0).\n"
+        "#modeb(1,nb(var(b,any))).\n#modeb(1,na(var(a,any))).\n"
+        "#modeb(1,e(var(a,any)):q(var(a,any)),q(var(b,any)))."
+    )
+
+    # V0 has type b, so it can only fill the second condition.
+    assert ":- nb(V0);e(V1):q(V1),q(V0)." in clauses

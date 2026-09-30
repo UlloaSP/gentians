@@ -21,8 +21,19 @@ class CanonicalArithmeticClause:
             tuple(system.key for system in self.systems),
         )
 
-    def render(self, modes: dict[int, ClauseMode]) -> str:
-        head = render_head(self.head, modes)
+    def render(
+        self,
+        modes: dict[int, ClauseMode],
+        rendered_heads: dict[tuple[ReifiedLiteral, ...], str] | None = None,
+    ) -> str:
+        """Render the clause, optionally reusing heads within one mode space."""
+        if rendered_heads is None:
+            head = render_head(self.head, modes)
+        else:
+            cached = rendered_heads.get(self.head)
+            if cached is None:
+                cached = rendered_heads[self.head] = render_head(self.head, modes)
+            head = cached
         body = [
             _render_literal(literal, modes[literal.mode_id])
             for literal in self.body

@@ -40,27 +40,34 @@ same_arithmetic_inputs(Slot0, Slot1) :-
     arithmetic_result(Slot1, Result1),
     Result0 != Result1.
 
+% DEFINITION, local helper. doubles_to(Mode, Var, Result): the body states
+% Var + Var = Result through the addition template Mode.
+%   Mode    id of the addition template.
+%   Var     the variable id used as both operands.
+%   Result  the result variable id.
+% The slot is dropped on purpose: the constraint below only needs the
+% variables, and keeping slots would ground it once per pair of slots. Used
+% only by that constraint.
+doubles_to(Mode, Var, Result) :-
+    selected(body, Slot, Mode),
+    add_mode(Mode),
+    arithmetic_operand(Slot, left, Var),
+    arithmetic_operand(Slot, right, Var),
+    arithmetic_result(Slot, Result).
+
 % CONSTRAINT. Two doublings may not share one result: Left+Left = Result and
 % Right+Right = Result force Left = Right, which the enumerator expresses by
 % writing a single variable id instead.
-%   Slot0, Slot1  two addition literals of the same mode, Slot0 first.
-%   Left          the variable id used as both operands at Slot0.
-%   Right         the variable id used as both operands at Slot1; it differs
-%                 from Left.
-%   Result        the result variable id shared by both literals.
+%   Mode    the addition template both literals use.
+%   Left    the smaller of the two doubled variable ids.
+%   Right   the other one; two different doubled variables are necessarily
+%           two literals.
+%   Result  the result variable id shared by both.
 % Both doubled variables must be grounded by positive plain body atoms.
 %   pruned: :- n(V0), n(V1), V0+V0=V2, V1+V1=V2.
 %   kept:   :- n(V0), n(V1), V0+V0=V2, V1+V1=V3, r(V2,V3).   different results
-:- selected(body, Slot0, Mode),
-    selected(body, Slot1, Mode),
-    add_mode(Mode),
-    Slot0 < Slot1,
-    arithmetic_operand(Slot0, left, Left),
-    arithmetic_operand(Slot0, right, Left),
-    arithmetic_result(Slot0, Result),
-    arithmetic_operand(Slot1, left, Right),
-    arithmetic_operand(Slot1, right, Right),
-    arithmetic_result(Slot1, Result),
+:- doubles_to(Mode, Left, Result),
+    doubles_to(Mode, Right, Result),
+    Left < Right,
     normal_positive_body_var(Left),
-    normal_positive_body_var(Right),
-    Left != Right.
+    normal_positive_body_var(Right).

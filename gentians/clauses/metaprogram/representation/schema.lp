@@ -170,7 +170,9 @@
 #defined conditional_condition_arg/4.
 
 % conditional_condition_variant(Mode, Condition, Variant): canonical id of the
-% complete condition syntax, used only to order or deduplicate equal variants.
+% complete condition syntax, including the type, direction and label of each
+% placeholder, used only to order or deduplicate equal variants. Conditions
+% that differ in any of those cannot swap places.
 #defined conditional_condition_variant/3.
 
 % conditional_shorter_mode(Mode, Condition): the language also contains Mode's
@@ -265,9 +267,14 @@
 % argument of a condition occurrence maps to flattened Position.
 #defined mode_aggregate_condition_arg/4.
 
-% interchangeable_condition_args(Mode, Condition): the same guarantee for the
-% two arguments of one binary condition atom of an aggregate template.
-#defined interchangeable_condition_args/2.
+% interchangeable_condition_args(Mode, Condition, First, Second): the same
+% guarantee for two plain-variable arguments, First < Second, of one condition
+% atom of an aggregate template.
+#defined interchangeable_condition_args/4.
+
+% interchangeable_tuple_args(Mode, First, Second): the same guarantee for two
+% tuple positions, First < Second, of an aggregate template.
+#defined interchangeable_tuple_args/3.
 
 % mode_aggregate_result_arg(Mode, Position): variable binding of the aggregate
 % guard/result maps to flattened Position.

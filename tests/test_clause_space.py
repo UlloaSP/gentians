@@ -865,7 +865,7 @@ def test_atom_parser_handles_nested_arguments():
 
 def test_recursive_syntax_tracks_nested_bindings_and_renders_concrete_terms():
     term = ast.Function(LOCATION, 'pair', (mode_terms.variable('node', 'input'), ast.Function(LOCATION, '', (mode_terms.constant('symbol'), mode_terms.variable('node', 'output')), False)), False)
-    concrete = mode_terms.concretizations(term, {"symbol": ("a",)})[0]
+    concrete = mode_terms.concretizations(term, {"symbol": (mode_terms.fixed("a"),)})[0]
     literal = AtomLiteral(AtomTemplate("nested", (concrete,)))
 
     assert [binding.path for binding in literal.atom.bindings()] == [
@@ -1219,7 +1219,7 @@ def test_constant_modes_expand_declared_ground_terms_without_variables(tmp_path)
     program = parse_file(str(task))
     clauses = generate_clause_space(program, Arguments()).clauses
 
-    assert program.constants == {"symbol": ("a", "b")}
+    assert tuple(map(str, program.constants["symbol"])) == ("a", "b")
     assert set(clauses) == {
         '#false :- q(a).',
         '#false :- q(b).',
@@ -4176,7 +4176,7 @@ def test_parser_parses_condition_modes_with_full_atom_syntax(tmp_path):
     assert declaration.literal.default_negated
     assert declaration.literal.atom.strong
     assert declaration.literal.atom.terms[0].ast_type == ast.ASTType.Function
-    assert program.constants == {"colour": ("red",)}
+    assert tuple(map(str, program.constants["colour"])) == ("red",)
 
 
 @pytest.mark.parametrize(

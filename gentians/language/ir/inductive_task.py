@@ -20,7 +20,7 @@ class InductiveTask:
     language_bias_body: list[ModeDeclaration]
     language_bias_condition: list[ModeDeclaration] = field(default_factory=list)
     invented_predicates: tuple[Signature, ...] = ()
-    constants: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    constants: dict[str, tuple[ast.AST, ...]] = field(default_factory=dict)
     max_variables: int | None = 3
     max_body_literals: int | None = 3
     max_head_literals: int | None = 1

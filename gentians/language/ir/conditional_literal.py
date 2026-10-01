@@ -59,7 +59,7 @@ class ConditionalLiteral:
         )
 
     def concretizations(
-        self, constants: dict[str, tuple[str, ...]]
+        self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["ConditionalLiteral", ...]:
         return tuple(
             ConditionalLiteral(conclusion, conditions, self.condition_groups)

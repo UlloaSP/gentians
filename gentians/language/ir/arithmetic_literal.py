@@ -57,7 +57,7 @@ class ArithmeticLiteral:
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset()
 
-    def concretizations(self, constants: dict[str, tuple[str, ...]]) -> tuple["ArithmeticLiteral", ...]:
+    def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> tuple["ArithmeticLiteral", ...]:
         return (self,)
 
     def instantiate(self, variables: Iterator[str]) -> ast.AST:

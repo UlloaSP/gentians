@@ -74,8 +74,10 @@ def test_constant_strings_preserve_delimiters_and_escapes(text):
     value = str(clingo.String(text))
     task = parse_text(f"#constant(word,{value}). #modeh(1,p(const(word))).")
 
-    assert task.constants == {"word": (value,)}
-    assert clingo.parse_term(task.constants["word"][0]).string == text
+    (term,) = task.constants["word"]
+    assert term.ast_type == ast.ASTType.SymbolicTerm
+    assert str(term) == value
+    assert term.symbol == clingo.String(text)
 
 
 def test_example_fields_preserve_string_delimiters_and_isolated_contexts():
@@ -368,7 +370,50 @@ def test_constant_deduplication_preserves_type_and_value_order():
     )
 
     assert list(task.constants) == ["word", "number"]
-    assert task.constants == {"word": ("z", "a"), "number": ("2", "1")}
+    assert {name: tuple(map(str, values)) for name, values in task.constants.items()} == {
+        "word": ("z", "a"), "number": ("2", "1"),
+    }
+
+
+def test_native_constants_keep_canonical_values_order_and_nominal_types():
+    task = parse_text(
+        '#constant(number,1+1). #constant(number,2). #constant(number,-3). '
+        '#constant(node,2). #constant(symbol,-red). #constant(symbol,(a,)). '
+        '#constant(symbol,wrapped("a,b",2)). #constant(symbol,#inf). '
+        '#constant(symbol,#sup).'
+    )
+
+    assert list(task.constants) == ["number", "node", "symbol"]
+    assert {name: tuple(map(str, values)) for name, values in task.constants.items()} == {
+        "number": ("2", "-3"),
+        "node": ("2",),
+        "symbol": ("-red", "(a,)", 'wrapped("a,b",2)', "#inf", "#sup"),
+    }
+    assert all(term.ast_type == ast.ASTType.SymbolicTerm
+               for values in task.constants.values() for term in values)
+
+
+def test_nested_constant_expansion_reuses_native_values_without_reparsing(monkeypatch):
+    task = parse_text(
+        '#constant(word,wrapped("a,b",(c,))). '
+        '#modeh(1,p(var(node,any),const(word))). '
+        '#modeb(1,q(f(const(word)),var(node,any),const(word))).'
+    )
+    original = tuple(map(str, task.constants["word"]))
+
+    def unexpected_parse(*args, **kwargs):
+        pytest.fail("expanding a declared constant must reuse its native term")
+
+    monkeypatch.setattr(clingo, "parse_term", unexpected_parse)
+    head = task.language_bias_head[0].concretizations(task.constants)[0]
+    body = task.language_bias_body[0].literal.concretizations(task.constants)[0]
+
+    placeholder = task.language_bias_head[0].arguments[1]
+    assert mode_terms.concretizations(placeholder, task.constants) == task.constants["word"]
+    assert str(instantiate_literal(head.elements[0], (0,))) == 'p(V0,wrapped("a,b",(c,)))'
+    assert str(instantiate_literal(head.elements[0], (1,))) == 'p(V1,wrapped("a,b",(c,)))'
+    assert str(instantiate_literal(body, (2,))) == 'q(f(wrapped("a,b",(c,))),V2,wrapped("a,b",(c,)))'
+    assert tuple(map(str, task.constants["word"])) == original
 
 
 @pytest.mark.parametrize("source", [
@@ -393,7 +438,7 @@ def test_singleton_tuples_and_quoted_commas_are_not_missing_arguments():
         '#modeh(1,p(const(word))). #pos({p((a,))},{p("a,")}).'
     )
 
-    assert task.constants == {"word": ("(a,)", '"a,"')}
+    assert tuple(map(str, task.constants["word"])) == ("(a,)", '"a,"')
     assert task.positive_examples[0].included_text == "p((a,))"
     assert task.positive_examples[0].excluded_text == 'p("a,")'
 

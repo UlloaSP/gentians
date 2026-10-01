@@ -695,6 +695,11 @@ bias.
 
 Constants allowed in learned literals are enumerated explicitly:
 
+`InductiveTask` retains each declared value as a native Clingo `SymbolicTerm`.
+The ground value is parsed once per declaration; constant expansion reuses those
+nodes without converting them to text and parsing them again. Equal canonical
+values keep their first occurrence within each nominal type.
+
 ```prolog
 #constant(colour,red).
 #constant(colour,green).

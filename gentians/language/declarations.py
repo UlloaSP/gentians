@@ -1,10 +1,10 @@
-import clingo
+from clingo import ast
 
 from .asp import split_top_level_args
 from .directives import _directive_args, _parse_recall, _strip_outer_braces
 from .ir.atom_template import AtomTemplate
 from .modes import _get_mode_atom
-from .terms import validate_type
+from .terms import fixed, validate_type
 
 
 def _get_pos_neg_examples(s: str) -> tuple[str, str] | tuple[str, str, str]:
@@ -29,14 +29,14 @@ def _get_invented_declaration(s: str) -> tuple[int, AtomTemplate]:
     return recall, atom
 
 
-def _get_constant_declaration(s: str) -> tuple[str, str]:
+def _get_constant_declaration(s: str) -> tuple[str, ast.AST]:
     parts = split_top_level_args(_directive_args(s, "#constant"))
     if len(parts) != 2:
         raise ValueError(f"invalid #constant declaration: {s}")
     type_name = parts[0].strip()
     validate_type(type_name, s)
     try:
-        value = str(clingo.parse_term(parts[1].strip()))
+        value = fixed(parts[1].strip())
     except RuntimeError as exc:
         raise ValueError(f"#constant value must be a ground term: {s}") from exc
     return type_name, value

@@ -148,7 +148,7 @@ class HeadTemplate:
         return len(self.elements)
 
     def concretizations(
-        self, constants: dict[str, tuple[str, ...]]
+        self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["HeadTemplate", ...]:
         forms = (self.form,)
         if self.kind in {"choice", "aggregate"}:

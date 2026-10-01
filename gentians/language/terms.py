@@ -155,10 +155,10 @@ def transform(term: ast.AST, replace: Callable[[ast.AST], ast.AST | None]) -> as
 
 
 def concretizations(
-    term: ast.AST, constants: dict[str, tuple[str, ...]]
+    term: ast.AST, constants: dict[str, tuple[ast.AST, ...]]
 ) -> tuple[ast.AST, ...]:
     if kind(term) == "constant":
-        return tuple(fixed(item) for item in constants[str(term.arguments[0])])
+        return constants[str(term.arguments[0])]
     return tuple(
         with_arguments(term, children)
         for children in product(

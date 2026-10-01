@@ -52,7 +52,7 @@ class HeadAggregateElement:
         return frozenset(dependencies)
 
     def concretizations(
-        self, constants: dict[str, tuple[str, ...]]
+        self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["HeadAggregateElement", ...]:
         return tuple(
             HeadAggregateElement(terms, conclusion, conditions)

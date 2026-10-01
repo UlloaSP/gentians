@@ -61,7 +61,7 @@ class AggregateLiteral:
         return None
 
     def concretizations(
-        self, constants: dict[str, tuple[str, ...]]
+        self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["AggregateLiteral", ...]:
         return tuple(
             AggregateLiteral(

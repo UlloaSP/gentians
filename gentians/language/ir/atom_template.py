@@ -50,7 +50,7 @@ class AtomTemplate:
         )
 
     def concretizations(
-        self, constants: dict[str, tuple[str, ...]]
+        self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["AtomTemplate", ...]:
         if self.alternatives:
             choices = tuple(

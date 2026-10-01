@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from clingo import ast
+
 from . import terms as mode_terms
 from .asp import parse_program
 from .declarations import (
@@ -47,7 +49,7 @@ def parse_text(source: str) -> InductiveTask:
     lbb: dict[ModeDeclaration, None] = {}
     lbc: dict[ModeDeclaration, None] = {}
     inventions: list[tuple[int, AtomTemplate]] = []
-    constants: dict[str, dict[str, None]] = {}
+    constants: dict[str, dict[ast.AST, None]] = {}
     limits: dict[str, int | None] = {
         "#maxv": 3,
         "#maxbl": 3,

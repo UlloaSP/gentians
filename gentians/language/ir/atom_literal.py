@@ -30,7 +30,7 @@ class AtomLiteral:
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset((self.atom.signature,))
 
-    def concretizations(self, constants: dict[str, tuple[str, ...]]) -> tuple["AtomLiteral", ...]:
+    def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> tuple["AtomLiteral", ...]:
         return tuple(
             AtomLiteral(atom, self.default_negated, self.double_negated)
             for atom in self.atom.concretizations(constants)

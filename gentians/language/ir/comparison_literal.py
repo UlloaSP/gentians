@@ -58,7 +58,7 @@ class ComparisonLiteral:
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset()
 
-    def concretizations(self, constants: dict[str, tuple[str, ...]]) -> tuple["ComparisonLiteral", ...]:
+    def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> tuple["ComparisonLiteral", ...]:
         return tuple(
             replace(self, terms=concrete_terms)
             for concrete_terms in product(*(mode_terms.concretizations(term, constants) for term in self.terms))

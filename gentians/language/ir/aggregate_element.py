@@ -30,7 +30,7 @@ class AggregateElement:
         )
 
     def concretizations(
-        self, constants: dict[str, tuple[str, ...]]
+        self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["AggregateElement", ...]:
         return tuple(
             AggregateElement(concrete_terms, conditions, conclusion)

@@ -190,6 +190,8 @@ and escapes: `#constant(word,"a,b").` declares one value for `const(word)`.
 Each independent set of constant alternatives is expanded once before its
 Cartesian combination with guards, elements, and conditions. Expansion order
 and the declaration's shared recall are preserved.
+Declared values stay as native Clingo terms in the task, so expansion reuses
+them without another text parsing step.
 
 Mode terms may contain nested functions and tuples. Every leaf stays explicit:
 `var(...)` for a generated variable or `const(...)` for a declared ground value.

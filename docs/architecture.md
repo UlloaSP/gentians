@@ -79,6 +79,9 @@ de ellos redefine el language bias de una tarea inductiva.
   producto cartesiano. Las directivas rechazan argumentos finales vacíos;
   `#modeagg`, `#modearith` y `#modecmp` fallan como directivas retiradas antes
   de convertirse en background ASP.
+  `InductiveTask.constants` conserva valores `SymbolicTerm` de Clingo por tipo
+  nominal. Se parsean al leer la declaración y se reutilizan al expandir
+  placeholders, sin guardar texto intermedio ni volver a parsear el valor.
 - `hypotheses/` es la única autoridad sobre legalidad y transiciones de
   `Genome`. Ningún operador ni algoritmo duplica su cierre de dependencias.
 - `algorithms/` contiene solo los algoritmos y sus métricas. Cada archivo de

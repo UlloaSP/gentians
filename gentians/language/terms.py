@@ -176,16 +176,16 @@ def concretizations(
 
 
 def instantiate(term: ast.AST, variables: Iterator[str]) -> ast.AST:
-    def substitute(node: ast.AST) -> ast.AST | None:
-        if kind(node) == "variable":
-            return binding_term(next(variables))
-        if kind(node) == "constant":
-            raise ValueError(
-                "constant placeholder must be concretized before instantiation"
-            )
-        return None
-
-    return transform(term, substitute)
+    term_kind = kind(term)
+    if term_kind == "variable":
+        return binding_term(next(variables))
+    if term_kind == "constant":
+        raise ValueError(
+            "constant placeholder must be concretized before instantiation"
+        )
+    return with_arguments(
+        term, tuple(instantiate(child, variables) for child in arguments(term))
+    )
 
 
 def validate(term: ast.AST, declaration: str) -> ast.AST:

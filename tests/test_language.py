@@ -433,6 +433,92 @@ def test_changed_constant_expansions_stay_independent_between_calls(directive):
     assert repr(template) == before
 
 
+@pytest.mark.parametrize("source, assignments, expected", [
+    (
+        "#modeb(1,p(box(var(node,input,x),(_,var(node,any,y))),var(node,any,x))).",
+        (4, 1, 4), "p(box(V4,(_,V1)),V4)",
+    ),
+    (
+        "#modeb(1,not -p(box(var(node,input,x)),var(node,input,y))).",
+        (4, 1), "not -p(box(V4),V1)",
+    ),
+    (
+        "#modeb(1,p((var(numeric,input)+1)*var(numeric,input),"
+        "-var(numeric,any),var(numeric,input)..9)).",
+        (4, 1, 8, 3), "p((V4+1)*V1,-V8,V3..9)",
+    ),
+    (
+        "#modeb(1,-p(box(var(node,input,x)),red;wrap(var(node,input,x)),blue)).",
+        (4, 4), "-p(box(V4),red;wrap(V4),blue)",
+    ),
+])
+def test_nested_instantiation_preserves_bindings_and_native_syntax(
+    source, assignments, expected, monkeypatch,
+):
+    template = parse_text(source).language_bias_body[0].literal
+    expected_node = parse_rule(f":- {expected}.").body[0]
+    before = repr(template)
+
+    def unexpected_parse(*args, **kwargs):
+        pytest.fail("instantiating variable bindings must not parse text")
+
+    monkeypatch.setattr(ast, "parse_string", unexpected_parse)
+    monkeypatch.setattr(clingo, "parse_term", unexpected_parse)
+    assert instantiate_literal(template, assignments) == expected_node
+    instantiate_literal(template, tuple(index + 5 for index in assignments))
+    assert instantiate_literal(template, assignments) == expected_node
+    assert repr(template) == before
+
+
+@pytest.mark.parametrize("source", ["red", 'box(("a,b",-2),red)', "()", "_", "1..9"])
+def test_fixed_instantiation_reuses_syntax_without_consuming_bindings(source):
+    term = parse_rule(f":- p({source}).").body[0].atom.symbol.arguments[0]
+    variables = iter(("V7",))
+
+    assert mode_terms.instantiate(term, variables) is term
+    assert next(variables) == "V7"
+
+
+@pytest.mark.parametrize("value", ["V7", "_", "red", "-2", 'wrapped("a,b",(c,))'])
+def test_variable_instantiation_accepts_native_validation_values(value):
+    term = mode_terms.variable("node", "input")
+    variables = iter((value, "V8"))
+
+    result = mode_terms.instantiate(term, variables)
+
+    assert str(result) == value
+    assert result.ast_type == (
+        ast.ASTType.Variable if value in {"V7", "_"} else ast.ASTType.SymbolicTerm
+    )
+    assert next(variables) == "V8"
+    assert str(term) == "var(node,input)"
+
+
+@pytest.mark.parametrize("source", ["const(node)", "box(const(node),var(node,input))"])
+def test_instantiation_rejects_unexpanded_constants_before_later_bindings(source):
+    term = parse_rule(f":- p({source}).").body[0].atom.symbol.arguments[0]
+    variables = iter(("V7",))
+
+    with pytest.raises(ValueError, match="constant placeholder must be concretized"):
+        mode_terms.instantiate(term, variables)
+    assert next(variables) == "V7"
+
+
+def test_literal_instantiation_rejects_surplus_bindings():
+    template = parse_text("#modeb(1,p(box(var(node,input)))).").language_bias_body[0].literal
+
+    with pytest.raises(ValueError, match="literal has more variables than syntax bindings"):
+        instantiate_literal(template, (0, 1))
+
+
+@pytest.mark.parametrize("source", ["var(node,input)", "box(var(node,input))"])
+def test_literal_instantiation_rejects_missing_bindings(source):
+    template = parse_text(f"#modeb(1,p({source})).").language_bias_body[0].literal
+
+    with pytest.raises((StopIteration, RuntimeError)):
+        instantiate_literal(template, ())
+
+
 def test_clause_space_retains_clingo_ast_and_canonical_text() -> None:
     space = make_clause_space([":- p(X), X != 1."])
 

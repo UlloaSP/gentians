@@ -14,7 +14,7 @@ from gentians.arguments import Arguments
 from gentians.clauses import fact_compiler as clause_facts
 from gentians.clauses import generator as clause_generation
 from gentians.clauses import property_facts
-from gentians.clauses.analysis.ast_inspection import _node_atoms
+from gentians.clauses.analysis.ast_inspection import _iter_atoms
 from gentians.clauses.analysis.ground_relations import _closed_world
 from gentians.clauses.analysis.inference import _closed_world_properties
 from gentians.clauses.analysis.task import (
@@ -44,6 +44,7 @@ from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.evaluation.solver import CoverageSolver
 from gentians.language import parse_file, parse_text
 from gentians.language import terms as mode_terms
+from gentians.language.ast_nodes import binding_terms
 from gentians.language.asp import (
     add_program,
     clause_predicates,
@@ -853,7 +854,7 @@ def test_exact_projected_aggregate_does_not_generate_other_tuple_widths():
 
 def test_atom_parser_handles_nested_arguments():
     statement = parse_rule("same_row((X1,Y),(X2,Y)).")
-    name, arguments, _sign = _node_atoms(statement)[0]
+    name, arguments, _sign = next(_iter_atoms((statement,)))
     assert (name, [str(argument) for argument in arguments]) == (
         "same_row",
         ["(X1,Y)", "(X2,Y)"],
@@ -866,7 +867,7 @@ def test_atom_parser_handles_nested_arguments():
 
 def test_recursive_syntax_tracks_nested_bindings_and_renders_concrete_terms():
     term = ast.Function(LOCATION, 'pair', (mode_terms.variable('node', 'input'), ast.Function(LOCATION, '', (mode_terms.constant('symbol'), mode_terms.variable('node', 'output')), False)), False)
-    concrete = mode_terms.concretizations(term, {"symbol": (mode_terms.fixed("a"),)})[0]
+    concrete = next(mode_terms.concretizations(term, {"symbol": (mode_terms.fixed("a"),)}))
     literal = AtomLiteral(AtomTemplate("nested", (concrete,)))
 
     assert [binding.path for binding in literal.atom.bindings()] == [
@@ -1115,12 +1116,12 @@ def test_parser_keeps_strong_and_default_negation_independent(tmp_path):
 
     assert head.signature == ("-p", 1)
     assert head.unsigned_signature == ("p", 1)
-    assert str(head.instantiate(iter(("V0",)))) == "-p(V0)"
+    assert str(head.instantiate(binding_terms(("V0",)))) == "-p(V0)"
     assert positive_body.atom.signature == ("-q", 1)
     assert not positive_body.default_negated
     assert default_negative_body.atom.signature == ("-r", 1)
     assert default_negative_body.default_negated
-    assert str(default_negative_body.instantiate(iter(("V0",)))) == "not -r(V0)"
+    assert str(default_negative_body.instantiate(binding_terms(("V0",)))) == "not -r(V0)"
     generator = clause_generation._ClauseGenerator(program, Arguments())
     assert generator.predicate_arg_types[("p", 1, 0)] == "person"
     assert ("-p", 1, 0) not in generator.predicate_arg_types
@@ -1128,7 +1129,7 @@ def test_parser_keeps_strong_and_default_negation_independent(tmp_path):
 
 def test_parser_preserves_strong_negation_in_atoms_and_rule_dependencies():
     assert tuple((name, tuple(map(str, arguments)), sign != ast.Sign.NoSign)
-                 for name, arguments, sign in _node_atoms(parse_rule(":- -p(a), not -q(a)."))) == (
+                 for name, arguments, sign in _iter_atoms((parse_rule(":- -p(a), not -q(a)."),))) == (
         ("-p", ("a",), False),
         ("-q", ("a",), True),
     )
@@ -2911,7 +2912,7 @@ def test_closed_world_extensions_match_clingo_for_descending_interval():
 
 
 def test_ast_walk_does_not_retain_task_nodes_globally():
-    assert not hasattr(_node_atoms, "cache_info")
+    assert not hasattr(_iter_atoms, "cache_info")
     assert not hasattr(has_variable, "cache_info")
 
 
@@ -4589,9 +4590,9 @@ def test_negative_body_singleton_remains_rejected():
 def test_ast_atom_extraction_handles_choice_rules():
     atoms = {
         (name, tuple(map(str, arguments)))
-        for name, arguments, _sign in _node_atoms(parse_rule(
+        for name, arguments, _sign in _iter_atoms((parse_rule(
             '1 <= { p(P,I): partition(P) } <= 1 :- number(I).'
-        ))
+        ),))
     }
 
     assert ("p", ("P", "I")) in atoms
@@ -4733,7 +4734,7 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
         return {
             (int(str(arguments[0])), int(str(arguments[1]))): int(str(arguments[2]))
             for node in example.included
-            for name, arguments, _sign in _node_atoms(node)
+            for name, arguments, _sign in _iter_atoms((node,))
             if name == "x"
         }
 
@@ -5319,7 +5320,7 @@ def test_modeb_exact_expression_preserves_parentheses_and_unary_abs(tmp_path):
 
     declaration = parse_file(str(task)).language_bias_body[0]
     assert isinstance(declaration, ModeDeclaration)
-    assert str(declaration.literal.instantiate(iter(("V0", "V1", "V2")))) == "((V0+1)*V1) < |(V2-2)|"
+    assert str(declaration.literal.instantiate(binding_terms(("V0", "V1", "V2")))) == "((V0+1)*V1) < |(V2-2)|"
 
 
 def test_modeb_exact_expression_supports_every_clingo_bit_operator(tmp_path):
@@ -5331,7 +5332,7 @@ def test_modeb_exact_expression_supports_every_clingo_bit_operator(tmp_path):
 
     declaration = parse_file(str(task)).language_bias_body[0]
     assert isinstance(declaration, ModeDeclaration)
-    rendered = str(declaration.literal.instantiate(iter(("V0", "V1", "V2", "V3", "V4"))))
+    rendered = str(declaration.literal.instantiate(binding_terms(("V0", "V1", "V2", "V3", "V4"))))
     assert rendered == "((~V0&V1)^(V2?(V3**2))) = V4"
 
 
@@ -5350,7 +5351,7 @@ def test_modeb_unary_operator_preserves_binary_operand_grouping(
 
     declaration = parse_file(str(task)).language_bias_body[0]
     assert isinstance(declaration, ModeDeclaration)
-    assert str(declaration.literal.instantiate(iter(("V0",)))) == expected
+    assert str(declaration.literal.instantiate(binding_terms(("V0",)))) == expected
 
 
 def test_modec_accepts_an_exact_comparison_condition(tmp_path):

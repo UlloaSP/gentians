@@ -29,56 +29,49 @@ def _defined_predicates(nodes: tuple[ast.AST, ...]) -> set[Predicate]:
 
 def _iter_atoms(nodes: Iterable[ast.AST]) -> Iterator[Atom]:
     for node in nodes:
-        yield from _node_atoms(node)
-
-
-def _node_atoms(
-    node: ast.AST, sign: ast.Sign = ast.Sign.NoSign
-) -> tuple[Atom, ...]:
-    if node.ast_type == ast.ASTType.Literal:
-        return _node_atoms(
-            node.atom, node.sign if node.sign != ast.Sign.NoSign else sign
-        )
-    if node.ast_type == ast.ASTType.SymbolicAtom:
-        return tuple(
-            (name, tuple(arguments), sign)
-            for name, arguments in symbolic_functions(node.symbol)
-        )
-    return tuple(
-        atom
-        for child in _children(node)
-        for atom in _node_atoms(child, sign)
-    )
+        pending = [(node, ast.Sign.NoSign)]
+        while pending:
+            node, sign = pending.pop()
+            if node.ast_type == ast.ASTType.Literal:
+                pending.append((node.atom, node.sign if node.sign != ast.Sign.NoSign else sign))
+            elif node.ast_type == ast.ASTType.SymbolicAtom:
+                for name, arguments in symbolic_functions(node.symbol):
+                    yield name, tuple(arguments), sign
+            else:
+                pending.extend((child, sign) for child in reversed(tuple(_children(node))))
 
 
 def _numeric_values(node: ast.AST, constants: dict[str, int]) -> Iterator[int]:
-    value = _integer_value(node, constants)
-    if value is not None:
-        yield value
-        return
-    if node.ast_type == ast.ASTType.Interval:
-        start = _integer_value(node.left, constants)
-        end = _integer_value(node.right, constants)
-        if start is not None and end is not None and 0 <= end - start <= 10000:
-            yield from range(start, end + 1)
-        return
-    for child in _children(node):
-        yield from _numeric_values(child, constants)
+    pending = [node]
+    while pending:
+        node = pending.pop()
+        value = _integer_value(node, constants)
+        if value is not None:
+            yield value
+        elif node.ast_type == ast.ASTType.Interval:
+            start = _integer_value(node.left, constants)
+            end = _integer_value(node.right, constants)
+            if start is not None and end is not None and 0 <= end - start <= 10000:
+                yield from range(start, end + 1)
+        else:
+            pending.extend(reversed(tuple(_children(node))))
 
 
 def _integer_value(term: ast.AST, constants: dict[str, int]) -> int | None:
-    if term.ast_type == ast.ASTType.SymbolicTerm:
-        symbol = term.symbol
-        if symbol.type == clingo.SymbolType.Number:
-            return int(symbol.number)
-        if symbol.type == clingo.SymbolType.Function and not symbol.arguments:
-            return constants.get(symbol.name)
-    if (
+    sign = 1
+    while (
         term.ast_type == ast.ASTType.UnaryOperation
         and term.operator_type == ast.UnaryOperator.Minus
     ):
-        value = _integer_value(term.argument, constants)
-        return -value if value is not None else None
+        sign = -sign
+        term = term.argument
+    if term.ast_type == ast.ASTType.SymbolicTerm:
+        symbol = term.symbol
+        if symbol.type == clingo.SymbolType.Number:
+            return sign * int(symbol.number)
+        if symbol.type == clingo.SymbolType.Function and not symbol.arguments:
+            value = constants.get(symbol.name)
+            return sign * value if value is not None else None
     return None
 
 

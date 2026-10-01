@@ -53,3 +53,14 @@ def directive_name(statement: str) -> str | None:
     if match is None or match.group(1) not in DIRECTIVE_NAMES:
         return None
     return match.group(1)
+
+
+class SourceError(ValueError):
+    """Task diagnostic with source locations kept separate from quoted payloads."""
+
+    def __init__(self, line: int, message: str, related_line: int | None = None) -> None:
+        self.line = line
+        self.message = message
+        self.related_line = related_line
+        related = f" (related declaration on line {related_line})" if related_line else ""
+        super().__init__(f"line {line}: {message}{related}")

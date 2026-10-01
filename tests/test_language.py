@@ -1,3 +1,4 @@
+from dataclasses import replace
 from itertools import product
 
 import clingo
@@ -6,12 +7,16 @@ from clingo import ast
 
 from gentians.arguments import Arguments
 from gentians.clauses import generate_clause_space
+from gentians.clauses.clause_mode import ClauseMode
 from gentians.language import InductiveTask, parse_file, parse_text
 from gentians.language import parser as task_parser
 from gentians.language import modes as mode_parsers
 from gentians.language import terms as mode_terms
-from gentians.language.asp import has_variable, parse_program, parse_rule
+from gentians.language import ast_nodes
+from gentians.language.asp import clause_predicates, has_variable, parse_program, parse_rule
+from gentians.language.ast_nodes import binding_terms
 from gentians.language.ir.literal_template import instantiate_literal
+from gentians.language.ir.atom_template import AtomTemplate
 from gentians.language.lexer import lex
 from tests.task_helpers import make_clause_space
 
@@ -95,7 +100,7 @@ def test_fixed_term_shapes_match_direct_and_constant_syntax_without_reparsing(
         f"#constant(word,{value}). #modeh(1,p({direct})). #modeb(1,p({placeholder}))."
     )
     head = task.language_bias_head[0].conclusions[0].atom
-    (body,) = task.language_bias_body[0].literal.atom.concretizations(task.constants)
+    (body,) = tuple(task.language_bias_body[0].literal.atom.concretizations(task.constants))
 
     def unexpected(*args, **kwargs):
         pytest.fail("fixed-term shapes must not reparse native nodes")
@@ -404,7 +409,7 @@ def test_reused_expansions_allow_independent_instantiation_without_mutating_synt
     is_head = bool(task.language_bias_head)
     template = task.language_bias_head[0] if is_head else task.language_bias_body[0].literal
     before = repr(template)
-    (concrete,) = template.concretizations(task.constants)
+    (concrete,) = tuple(template.concretizations(task.constants))
     assert concrete is template
 
     rendered = []
@@ -437,12 +442,12 @@ def test_changed_constant_expansions_stay_independent_between_calls(directive):
     is_head = bool(task.language_bias_head)
     template = task.language_bias_head[0] if is_head else task.language_bias_body[0].literal
     before = repr(template)
-    red = template.concretizations(task.constants)
-    blue = template.concretizations({"word": (mode_terms.fixed("blue"),)})
+    red = tuple(template.concretizations(task.constants))
+    blue = tuple(template.concretizations({"word": (mode_terms.fixed("blue"),)}))
 
     assert all(concrete is not template for concrete in (*red, *blue))
     assert red != blue
-    assert template.concretizations(task.constants) == red
+    assert tuple(template.concretizations(task.constants)) == red
     assert repr(template) == before
 
 
@@ -488,7 +493,7 @@ def test_fixed_instantiation_reuses_syntax_without_consuming_bindings(source):
     term = parse_rule(f":- p({source}).").body[0].atom.symbol.arguments[0]
     variables = iter(("V7",))
 
-    assert mode_terms.instantiate(term, variables) is term
+    assert mode_terms.instantiate(term, binding_terms(variables)) is term
     assert next(variables) == "V7"
 
 
@@ -497,7 +502,7 @@ def test_variable_instantiation_accepts_native_validation_values(value):
     term = mode_terms.variable("node", "input")
     variables = iter((value, "V8"))
 
-    result = mode_terms.instantiate(term, variables)
+    result = mode_terms.instantiate(term, binding_terms(variables))
 
     assert str(result) == value
     assert result.ast_type == (
@@ -513,7 +518,7 @@ def test_instantiation_rejects_unexpanded_constants_before_later_bindings(source
     variables = iter(("V7",))
 
     with pytest.raises(ValueError, match="constant placeholder must be concretized"):
-        mode_terms.instantiate(term, variables)
+        mode_terms.instantiate(term, binding_terms(variables))
     assert next(variables) == "V7"
 
 
@@ -547,8 +552,8 @@ def test_deep_mode_terms_preserve_expansion_bindings_and_substitution():
     assert mode_terms.constant_types(term) == {"colour"}
     assert not mode_terms.contains_anonymous(term)
     assert not mode_terms.contains_arithmetic(term)
-    concrete = mode_terms.concretizations(term, task.constants)
-    assert tuple(str(mode_terms.instantiate(value, iter(("V7",)))) for value in concrete) == (
+    concrete = tuple(mode_terms.concretizations(term, task.constants))
+    assert tuple(str(mode_terms.instantiate(value, binding_terms(iter(("V7",))))) for value in concrete) == (
         prefix + "pair(V7,red)" + suffix, prefix + "pair(V7,blue)" + suffix,
     )
     shape = mode_terms.shape(concrete[0])
@@ -582,7 +587,7 @@ def test_leaf_constant_expansion_does_not_build_a_cartesian_product(source, monk
         pytest.fail("a leaf without a constant placeholder has one unchanged variant")
 
     monkeypatch.setattr(mode_terms, "product", unexpected_product)
-    (concrete,) = mode_terms.concretizations(term, {})
+    (concrete,) = tuple(mode_terms.concretizations(term, {}))
     assert concrete is term
 
 
@@ -695,7 +700,7 @@ def test_clause_space_retains_clingo_ast_and_canonical_text() -> None:
 
 
 def test_lexer_separates_multiple_statements_and_weak_constraints() -> None:
-    statements = lex("value(1). value(2). :~ value(X). [1@1,X]")
+    statements = tuple(lex("value(1). value(2). :~ value(X). [1@1,X]"))
 
     assert [statement.text for statement in statements] == [
         "value(1).",
@@ -705,10 +710,10 @@ def test_lexer_separates_multiple_statements_and_weak_constraints() -> None:
 
 
 def test_lexer_keeps_all_clingo_annotations_with_their_statements() -> None:
-    statements = lex(
+    statements = tuple(lex(
         "#heuristic p(X): q(X). [1@2,true]\n"
         "#external enabled. % annotation follows a comment\n[false]"
-    )
+    ))
 
     assert [statement.text for statement in statements] == [
         "#heuristic p(X): q(X). [1@2,true]",
@@ -717,13 +722,13 @@ def test_lexer_keeps_all_clingo_annotations_with_their_statements() -> None:
 
 
 def test_lexer_removes_multiline_block_comments_without_corrupting_asp() -> None:
-    statements = lex("before. %* first line\nsecond line *% after.")
+    statements = tuple(lex("before. %* first line\nsecond line *% after."))
 
     assert [statement.text for statement in statements] == ["before.", "after."]
 
 
 def test_lexer_supports_nested_clingo_block_comments() -> None:
-    statements = lex("%* outer %* nested *% outer *% fact.")
+    statements = tuple(lex("%* outer %* nested *% outer *% fact."))
 
     assert [statement.text for statement in statements] == ["fact."]
 
@@ -743,7 +748,7 @@ def test_lexer_comments_agree_with_clingo(source):
         str(node) for node in parse_program(source)
         if node.ast_type != ast.ASTType.Comment
     )
-    framed = "\n".join(statement.text for statement in lex(source))
+    framed = "\n".join(statement.text for statement in tuple(lex(source)))
 
     assert tuple(map(str, parse_program(framed))) == expected
 
@@ -754,7 +759,7 @@ def test_lexer_comments_agree_with_clingo(source):
 ])
 def test_lexer_rejects_unclosed_nested_or_line_commented_blocks(source):
     with pytest.raises(ValueError, match="unterminated block comment"):
-        lex(source)
+        tuple(lex(source))
 
 
 def test_nested_comments_preserve_background_source_lines():
@@ -865,11 +870,11 @@ def test_nested_constant_expansion_reuses_native_values_without_reparsing(monkey
         pytest.fail("expanding a declared constant must reuse its native term")
 
     monkeypatch.setattr(clingo, "parse_term", unexpected_parse)
-    head = task.language_bias_head[0].concretizations(task.constants)[0]
-    body = task.language_bias_body[0].literal.concretizations(task.constants)[0]
+    head = tuple(task.language_bias_head[0].concretizations(task.constants))[0]
+    body = tuple(task.language_bias_body[0].literal.concretizations(task.constants))[0]
 
     placeholder = task.language_bias_head[0].arguments[1]
-    assert mode_terms.concretizations(placeholder, task.constants) == task.constants["word"]
+    assert tuple(mode_terms.concretizations(placeholder, task.constants)) == task.constants["word"]
     assert str(instantiate_literal(head.elements[0], (0,))) == 'p(V0,wrapped("a,b",(c,)))'
     assert str(instantiate_literal(head.elements[0], (1,))) == 'p(V1,wrapped("a,b",(c,)))'
     assert str(instantiate_literal(body, (2,))) == 'q(f(wrapped("a,b",(c,))),V2,wrapped("a,b",(c,)))'
@@ -926,7 +931,7 @@ def test_body_constant_expansion_preserves_cartesian_order_and_exact_literals(sy
         "#constant(low,0). #constant(low,1). #constant(high,2). #constant(high,3). "
         f"#modeb(1,{syntax})."
     )
-    expanded = task.language_bias_body[0].literal.concretizations(task.constants)
+    expanded = tuple(task.language_bias_body[0].literal.concretizations(task.constants))
 
     assert [instantiate_literal(literal, ()) for literal in expanded] == [
         parse_rule(f":- {literal}.").body[0] for literal in expected
@@ -963,7 +968,7 @@ def test_head_constant_expansion_preserves_cartesian_order_and_exact_forms(synta
         "#constant(low,0). #constant(low,1). #constant(high,2). #constant(high,3). "
         f"#modeh(1,{syntax})."
     )
-    expanded = task.language_bias_head[0].concretizations(task.constants)
+    expanded = tuple(task.language_bias_head[0].concretizations(task.constants))
 
     assert [
         head.instantiate(tuple(instantiate_literal(element, ()) for element in head.elements))
@@ -972,7 +977,7 @@ def test_head_constant_expansion_preserves_cartesian_order_and_exact_forms(synta
 
 
 def test_lexer_allows_comment_before_weak_constraint_annotation() -> None:
-    statements = lex(":~ p(X). % cost\n[1@1,X]")
+    statements = tuple(lex(":~ p(X). % cost\n[1@1,X]"))
 
     assert [statement.text for statement in statements] == [":~ p(X). \n[1@1,X]"]
 
@@ -1042,4 +1047,196 @@ def test_parser_rejects_invalid_background_asp(source: str) -> None:
 
 def test_lexer_rejects_script_blocks_instead_of_fragmenting_them() -> None:
     with pytest.raises(ValueError, match="#script blocks are not supported"):
-        lex("#script (python)\nx = 1.0\n#end.")
+        tuple(lex("#script (python)\nx = 1.0\n#end."))
+
+
+def test_predicate_inspection_handles_deep_comparisons_and_signed_scopes():
+    term = "f(" * 1200 + "a" + ")" * 1200
+    rule = parse_rule(f"-q:guard;not r:condition :- -p,{term}=a.")
+
+    assert clause_predicates(rule) == (
+        frozenset({("-q", 0)}),
+        frozenset({("guard", 0), ("r", 0), ("condition", 0), ("-p", 0)}),
+        2,
+    )
+
+
+def test_lexer_delivers_complete_statements_before_inspecting_later_input():
+    statements = lex("p.\nq(].")
+
+    assert next(statements).text == "p."
+    with pytest.raises(ValueError, match="line 2: unmatched"):
+        next(statements)
+    with pytest.raises(ValueError, match="line 2: unmatched"):
+        parse_text("p.\nq(].")
+
+
+def test_constant_expansion_constructs_variants_as_they_are_consumed(monkeypatch):
+    task = parse_text(
+        "#constant(t,a). #constant(t,b). #constant(t,c). "
+        "#modeb(1,p(const(t),const(t)))."
+    )
+    template = task.language_bias_body[0].literal.atom
+    original = AtomTemplate.__post_init__
+    constructed = []
+
+    def record(self):
+        constructed.append(self)
+        original(self)
+
+    monkeypatch.setattr(AtomTemplate, "__post_init__", record)
+    variants = template.concretizations(task.constants)
+    assert constructed == []
+    first = next(variants)
+    assert constructed == [first]
+    assert tuple(map(str, first.terms)) == ("a", "a")
+    remaining = tuple(variants)
+    assert [tuple(map(str, item.terms)) for item in (first, *remaining)] == list(
+        product(("a", "b", "c"), repeat=2)
+    )
+    assert len(constructed) == 9
+    assert tuple(map(str, template.terms)) == ("const(t)", "const(t)")
+
+
+def test_repeated_variables_share_native_nodes_only_within_one_instantiation(monkeypatch):
+    template = parse_text(
+        "#modeb(1,p(var(node,any),box(var(node,any)),var(node,any)))."
+    ).language_bias_body[0].literal
+    original = ast_nodes.binding_term
+    constructed = []
+
+    def record(value):
+        node = original(value)
+        constructed.append(node)
+        return node
+
+    monkeypatch.setattr(ast_nodes, "binding_term", record)
+    node = instantiate_literal(template, (0, 0, 1))
+    assert str(node) == "p(V0,box(V0),V1)"
+    assert [str(value) for value in constructed] == ["V0", "V1"]
+    first_nodes = tuple(constructed)
+    instantiate_literal(template, (0, 0, 1))
+    assert [str(value) for value in constructed] == ["V0", "V1", "V0", "V1"]
+    assert all(a is not b for a, b in zip(first_nodes, constructed[2:], strict=True))
+
+
+def test_fixed_guards_are_retained_during_head_and_body_instantiation(monkeypatch):
+    task = parse_text("#modeh(1,1{p}2). #modeb(1,1<=#count{}<=2).")
+    head = task.language_bias_head[0]
+    body = task.language_bias_body[0].literal
+    expected_head = parse_rule("1{p}2.").head
+    expected_body = parse_rule(":- 1<=#count{}<=2.").body[0]
+    original = ast.AST.update
+
+    def checked(self, **kwargs):
+        if self.ast_type == ast.ASTType.Guard:
+            pytest.fail("fixed guards must not be reconstructed")
+        return original(self, **kwargs)
+
+    monkeypatch.setattr(ast.AST, "update", checked)
+    assert head.instantiate((instantiate_literal(head.elements[0], ()),)) == expected_head
+    assert instantiate_literal(body, ()) == expected_body
+
+
+def test_compiled_metadata_is_rederived_when_a_literal_is_replaced():
+    first = parse_text("#modeb(1,p(var(node,any))).").language_bias_body[0].literal
+    second = parse_text(
+        "#modeb(1,-q(box(var(node,any),var(node,any))))."
+    ).language_bias_body[0].literal
+    mode = ClauseMode(0, 0, "body", 1, first)
+    changed = replace(mode, literal=second)
+
+    assert mode.arguments == first.arguments
+    assert changed.arguments == second.arguments
+    assert changed.binding_positions == (0, 1)
+    assert tuple(binding.path for binding in changed.bindings) == ((0, 0), (0, 1))
+    assert changed.dependencies == frozenset({("-q", 1)})
+    assert mode.dependencies == frozenset({("p", 1)})
+
+
+@pytest.mark.parametrize(("source", "line", "message"), [
+    ("\n\n#modeb(1,p(const(t))).", 3, "constant mode types require"),
+    ("\n#modeh(1,p(var(t,input))).\n#invent(1,p(var(t,input))).", 3, "invented predicates"),
+    ("#modeha(p(var(t,input))).\n#maxhl(1).\n#minhl(2).", 3, "#minhl cannot exceed"),
+    ("#minhl(2).\n#modehd(p(var(t,input))).", 1, "#minhl cannot exceed"),
+])
+def test_cross_declaration_errors_report_the_responsible_source_line(source, line, message):
+    with pytest.raises(ValueError) as caught:
+        parse_text(source)
+    assert str(caught.value).startswith(f"line {line}: {message}")
+
+
+@pytest.mark.parametrize("file_name", ["bk.lp", "exs.lp", "bias.lp"])
+@pytest.mark.parametrize("preceding", ["", "fact.", "fact.\n"])
+def test_directory_errors_report_the_original_file_and_local_line(tmp_path, file_name, preceding):
+    for name in ("bk.lp", "exs.lp", "bias.lp"):
+        (tmp_path / name).write_text(preceding, encoding="utf-8")
+    source = "\n#modeh(1,p(\"line 999\") + )."
+    (tmp_path / file_name).write_text(source, encoding="utf-8")
+
+    with pytest.raises(ValueError) as caught:
+        parse_file(str(tmp_path))
+    message = str(caught.value)
+    assert message.startswith(f"{tmp_path / file_name}:line 2: invalid #modeh")
+    assert "syntax error" in message
+    assert "line 999" in message
+
+
+def test_file_error_reports_the_file_and_clingo_explanation(tmp_path, capsys):
+    path = tmp_path / "task.lp"
+    path.write_text("p.\nq(,).", encoding="utf-8")
+
+    with pytest.raises(ValueError) as caught:
+        parse_file(str(path))
+    assert str(caught.value).startswith(f"{path}:line 2: invalid ASP program")
+    assert "syntax error, unexpected" in str(caught.value)
+    assert capsys.readouterr().err == ""
+
+
+def test_directory_error_reports_both_conflicting_declarations(tmp_path):
+    (tmp_path / "bk.lp").write_text("#maxhl(1).", encoding="utf-8")
+    (tmp_path / "exs.lp").write_text("", encoding="utf-8")
+    (tmp_path / "bias.lp").write_text(
+        "#modeha(p(var(t,input))).\n#minhl(2).", encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError) as caught:
+        parse_file(str(tmp_path))
+    message = str(caught.value)
+    assert message.startswith(f"{tmp_path / 'bias.lp'}:line 2: #minhl cannot exceed")
+    assert f"{tmp_path / 'bk.lp'}:line 1" in message
+
+
+def test_invalid_constant_retains_clingo_explanation_without_duplicate_locations(capsys):
+    with pytest.raises(ValueError) as caught:
+        parse_text("\n#constant(t,a;b).")
+    message = str(caught.value)
+    assert message.startswith("line 2: #constant value must be a ground term")
+    assert "unexpected token" in message
+    assert ";" in message
+    assert message.count("line ") == 1
+    assert "<string>" not in message
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize("declaration", [
+    "#maxbl(1).", "#invent(1,p(var(t,input))).",
+])
+def test_duplicate_declaration_errors_report_both_source_files(tmp_path, declaration):
+    (tmp_path / "bk.lp").write_text(declaration, encoding="utf-8")
+    (tmp_path / "exs.lp").write_text("", encoding="utf-8")
+    (tmp_path / "bias.lp").write_text("\n" + declaration, encoding="utf-8")
+
+    with pytest.raises(ValueError) as caught:
+        parse_file(str(tmp_path))
+    message = str(caught.value)
+    assert message.startswith(f"{tmp_path / 'bias.lp'}:line 2: duplicate")
+    assert f"{tmp_path / 'bk.lp'}:line 1" in message
+
+
+def test_diagnostic_location_stripping_preserves_quoted_location_text():
+    from gentians.language.asp import _diagnostic_detail
+
+    assert _diagnostic_detail(
+        '<string>:1:3: error: unexpected token "<string>:123:4: payload"'
+    ) == 'error: unexpected token "<string>:123:4: payload"'

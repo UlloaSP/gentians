@@ -5,8 +5,14 @@ import clingo
 from clingo import ast
 from clingo.ast import ProgramBuilder
 
+from .grammar import SourceError
+
 Predicate = tuple[str, int]
 AspProgram = tuple[ast.AST, ...]
+
+
+def _diagnostic_detail(message: str) -> str:
+    return re.sub(r"(?m)^<string>:\d+:\d+(?:-\d+)?:[ \t]*", "", message).strip()
 
 
 def parse_program(source: str, line: int = 1) -> AspProgram:
@@ -20,11 +26,11 @@ def parse_program(source: str, line: int = 1) -> AspProgram:
             logger=lambda _code, message: diagnostics.append(message),
         )
     except RuntimeError:
-        match = re.search(r"<string>:(\d+):", "\n".join(diagnostics))
+        diagnostic = "\n".join(diagnostics).strip()
+        match = re.search(r"<string>:(\d+):", diagnostic)
         error_line = line + int(match.group(1)) - 1 if match else line
-        raise ValueError(
-            f"line {error_line}: invalid ASP program: {source.strip()}"
-        ) from None
+        detail = _diagnostic_detail(diagnostic)
+        raise SourceError(error_line, f"invalid ASP program: {detail or source.strip()}") from None
     if statements and _is_implicit_base(statements[0]):
         statements.pop(0)
     return tuple(statements)
@@ -190,19 +196,19 @@ def _collect_head_predicates(
     node: ast.AST, heads: set[Predicate], deps: set[Predicate]
 ) -> None:
     """Only positive head literals define; negated heads and conditions depend."""
-    if node.ast_type == ast.ASTType.Literal:
-        _collect_predicates(node, heads if node.sign == ast.Sign.NoSign else deps)
-        return
-    if node.ast_type == ast.ASTType.ConditionalLiteral:
-        _collect_head_predicates(node.literal, heads, deps)
-        for condition in node.condition:
-            _collect_predicates(condition, deps)
-        return
-    if node.ast_type == ast.ASTType.TheoryAtom:
-        _collect_predicates(node, heads)
-        return
-    for child in _ast_children(node):
-        _collect_head_predicates(child, heads, deps)
+    pending = [node]
+    while pending:
+        node = pending.pop()
+        if node.ast_type == ast.ASTType.Literal:
+            _collect_predicates(node, heads if node.sign == ast.Sign.NoSign else deps)
+        elif node.ast_type == ast.ASTType.ConditionalLiteral:
+            pending.append(node.literal)
+            for condition in node.condition:
+                _collect_predicates(condition, deps)
+        elif node.ast_type == ast.ASTType.TheoryAtom:
+            _collect_predicates(node, heads)
+        else:
+            pending.extend(_ast_children(node))
 
 
 def _ast_children(node: ast.AST) -> Iterable[ast.AST]:
@@ -215,12 +221,14 @@ def _ast_children(node: ast.AST) -> Iterable[ast.AST]:
 
 
 def _collect_predicates(node: ast.AST, result: set[Predicate]) -> None:
-    if node.ast_type == ast.ASTType.SymbolicAtom:
-        for name, arguments in symbolic_functions(node.symbol):
-            result.add((name, len(arguments)))
-        return
-    for child in _ast_children(node):
-        _collect_predicates(child, result)
+    pending = [node]
+    while pending:
+        node = pending.pop()
+        if node.ast_type == ast.ASTType.SymbolicAtom:
+            for name, arguments in symbolic_functions(node.symbol):
+                result.add((name, len(arguments)))
+        else:
+            pending.extend(_ast_children(node))
 
 
 def symbolic_function(symbol: ast.AST) -> tuple[str, ast.ASTSequence] | None:
@@ -244,21 +252,20 @@ def symbolic_functions(
     Clingo represents ``p(a;b,c)`` as a pool of complete atoms, so the
     alternatives may differ in arity; ``-p(a;b)`` negates each alternative.
     """
-    if symbol.ast_type == ast.ASTType.Pool:
-        return tuple(
-            function
-            for alternative in symbol.arguments
-            for function in symbolic_functions(alternative, strong)
-        )
-    if (
-        not strong
-        and symbol.ast_type == ast.ASTType.UnaryOperation
-        and symbol.operator_type == ast.UnaryOperator.Minus
-        and symbol.argument.ast_type == ast.ASTType.Pool
-    ):
-        return symbolic_functions(symbol.argument, True)
-    parsed = symbolic_function(symbol)
-    if parsed is None:
-        return ()
-    name, arguments = parsed
-    return ((f"-{name}" if strong else name, arguments),)
+    result = []
+    pending = [(symbol, strong)]
+    while pending:
+        symbol, strong = pending.pop()
+        if symbol.ast_type == ast.ASTType.Pool:
+            pending.extend((item, strong) for item in reversed(symbol.arguments))
+        elif (
+            not strong
+            and symbol.ast_type == ast.ASTType.UnaryOperation
+            and symbol.operator_type == ast.UnaryOperator.Minus
+            and symbol.argument.ast_type == ast.ASTType.Pool
+        ):
+            pending.append((symbol.argument, True))
+        elif (parsed := symbolic_function(symbol)) is not None:
+            name, arguments = parsed
+            result.append((f"-{name}" if strong else name, arguments))
+    return tuple(result)

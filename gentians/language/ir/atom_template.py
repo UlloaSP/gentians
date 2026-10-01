@@ -1,6 +1,6 @@
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import product
 
 from clingo import ast
@@ -17,6 +17,7 @@ class AtomTemplate:
     terms: tuple[ast.AST, ...]
     strong: bool = False
     alternatives: tuple[tuple[ast.AST, ...], ...] = ()
+    binding_terms: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"[a-z_][A-Za-z0-9_']*", self.name):
@@ -27,12 +28,11 @@ class AtomTemplate:
             or any(len(terms) != len(self.terms) for terms in self.alternatives)
         ):
             raise ValueError("pooled atoms require alternatives of the same arity")
-
-    @property
-    def binding_terms(self) -> tuple[ast.AST, ...]:
-        return tuple(
-            term for alternative in self.alternatives for term in alternative
-        ) if self.alternatives else self.terms
+        object.__setattr__(
+            self, "binding_terms",
+            tuple(term for alternative in self.alternatives for term in alternative)
+            if self.alternatives else self.terms,
+        )
 
     @property
     def signature(self) -> Predicate:
@@ -51,30 +51,20 @@ class AtomTemplate:
 
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
-    ) -> tuple["AtomTemplate", ...]:
+    ) -> Iterator["AtomTemplate"]:
         if self.alternatives:
-            choices = tuple(
-                tuple(product(*(mode_terms.concretizations(term, constants) for term in alternative)))
-                for alternative in self.alternatives
-            )
-            return tuple(
-                self if concrete == self.alternatives
-                else AtomTemplate(self.name, concrete[0], self.strong, concrete)
-                for concrete in product(*choices)
-            )
-        return (
-            tuple(
-                self if terms == self.terms
-                else AtomTemplate(self.name, terms, self.strong)
-                for terms in product(
-                    *(mode_terms.concretizations(term, constants) for term in self.terms)
+            width = len(self.terms)
+            for terms in product(*(mode_terms.concretizations(term, constants) for term in self.binding_terms)):
+                concrete = tuple(
+                    terms[index * width : (index + 1) * width]
+                    for index in range(len(self.alternatives))
                 )
-            )
-            if self.terms
-            else (self,)
-        )
+                yield self if concrete == self.alternatives else AtomTemplate(self.name, concrete[0], self.strong, concrete)
+        else:
+            for terms in product(*(mode_terms.concretizations(term, constants) for term in self.terms)):
+                yield self if terms == self.terms else AtomTemplate(self.name, terms, self.strong)
 
-    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+    def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         groups = self.alternatives or (self.terms,)
         symbols = [
             ast.Function(LOCATION, self.name,

@@ -1,3 +1,4 @@
+from bisect import bisect_right
 from pathlib import Path
 
 from clingo import ast
@@ -10,6 +11,7 @@ from .declarations import (
     _get_pos_neg_examples,
 )
 from .directives import _get_limit
+from .grammar import SourceError
 from .ir.atom_literal import AtomLiteral
 from .ir.atom_template import AtomTemplate
 from .ir.conditional_literal import ConditionalLiteral
@@ -28,14 +30,23 @@ from .modes import (
 
 def parse_file(filename: str) -> InductiveTask:
     path = Path(filename)
-    if path.is_dir():
-        source = "\n".join(
-            (path / name).read_text(encoding="utf-8")
-            for name in ("bk.lp", "exs.lp", "bias.lp")
+    paths = [path / name for name in ("bk.lp", "exs.lp", "bias.lp")] if path.is_dir() else [path]
+    sources = [item.read_text(encoding="utf-8") for item in paths]
+    starts = [1]
+    for source in sources[:-1]:
+        starts.append(starts[-1] + source.count("\n") + 1)
+    try:
+        return parse_text("\n".join(sources))
+    except SourceError as error:
+        def origin(line: int) -> str:
+            index = bisect_right(starts, line) - 1
+            return f"{paths[index]}:line {line - starts[index] + 1}"
+
+        related = (
+            f" (related declaration at {origin(error.related_line)})"
+            if error.related_line else ""
         )
-    else:
-        source = path.read_text(encoding="utf-8")
-    return parse_text(source)
+        raise ValueError(f"{origin(error.line)}: {error.message}{related}") from None
 
 
 def parse_text(source: str) -> InductiveTask:
@@ -43,12 +54,12 @@ def parse_text(source: str) -> InductiveTask:
     background_statements: list[Statement] = []
     pe: dict[Example, None] = {}
     ne: dict[Example, None] = {}
-    lbh: dict[HeadTemplate, None] = {}
-    lbha: dict[ModeDeclaration, None] = {}
-    lbhd: dict[ModeDeclaration, None] = {}
-    lbb: dict[ModeDeclaration, None] = {}
-    lbc: dict[ModeDeclaration, None] = {}
-    inventions: dict[AtomTemplate, int] = {}
+    lbh: dict[HeadTemplate, int] = {}
+    lbha: dict[ModeDeclaration, int] = {}
+    lbhd: dict[ModeDeclaration, int] = {}
+    lbb: dict[ModeDeclaration, int] = {}
+    lbc: dict[ModeDeclaration, int] = {}
+    inventions: dict[AtomTemplate, tuple[int, int]] = {}
     constants: dict[str, dict[ast.AST, None]] = {}
     limits: dict[str, int | None] = {
         "#maxv": 3,
@@ -57,7 +68,7 @@ def parse_text(source: str) -> InductiveTask:
         "#maxpl": 6,
     }
     min_head_literals = 1
-    declared_limits: set[str] = set()
+    declared_limits: dict[str, int] = {}
     for statement in lex(source):
         lc = statement.text
         directive = statement.directive
@@ -70,8 +81,8 @@ def parse_text(source: str) -> InductiveTask:
             )
             if limit is not None:
                 if limit in declared_limits:
-                    raise ValueError(f"duplicate {limit} declaration: {lc}")
-                declared_limits.add(limit)
+                    raise SourceError(statement.line, f"duplicate {limit} declaration: {lc}", declared_limits[limit])
+                declared_limits[limit] = statement.line
                 value = _get_limit(lc, limit, limit in {"#maxv", "#maxbl", "#maxhl"})
                 if limit == "#minhl":
                     if value is None:
@@ -96,13 +107,15 @@ def parse_text(source: str) -> InductiveTask:
                     f"{directive} was removed; use an explicit #modeb literal"
                 )
             elif directive == "#modeha":
-                lbha.update(dict.fromkeys(_get_combinable_head_declarations(lc, directive)))
+                for mode in _get_combinable_head_declarations(lc, directive):
+                    lbha.setdefault(mode, statement.line)
             elif directive == "#modehd":
-                lbhd.update(dict.fromkeys(_get_combinable_head_declarations(lc, directive)))
+                for mode in _get_combinable_head_declarations(lc, directive):
+                    lbhd.setdefault(mode, statement.line)
             elif directive == "#modeh":
-                lbh[_get_head_declaration(lc)] = None
+                lbh.setdefault(_get_head_declaration(lc), statement.line)
             elif directive == "#modeb":
-                lbb[_get_body_mode_declaration(lc)] = None
+                lbb.setdefault(_get_body_mode_declaration(lc), statement.line)
             elif directive == "#pos":
                 res = _get_pos_neg_examples(lc)
                 pe[Example.parse(res, True, statement.line)] = None
@@ -110,38 +123,39 @@ def parse_text(source: str) -> InductiveTask:
                 res = _get_pos_neg_examples(lc)
                 ne[Example.parse(res, False, statement.line)] = None
             elif directive == "#modec":
-                lbc.update(dict.fromkeys(_get_condition_mode_declarations(lc)))
+                for mode in _get_condition_mode_declarations(lc):
+                    lbc.setdefault(mode, statement.line)
             elif directive == "#invent":
                 recall, atom = _get_invented_declaration(lc)
                 if atom in inventions:
-                    raise ValueError(f"duplicate #invent declaration: {lc}")
-                inventions[atom] = recall
+                    raise SourceError(statement.line, f"duplicate #invent declaration: {lc}", inventions[atom][1])
+                inventions[atom] = recall, statement.line
             elif directive == "#constant":
                 type_name, value = _get_constant_declaration(lc)
                 constants.setdefault(type_name, {})[value] = None
             else:
                 background_statements.append(statement)
         except ValueError as error:
-            if str(error).startswith("line "):
+            if isinstance(error, SourceError):
                 raise
-            raise ValueError(f"line {statement.line}: {error}") from None
+            raise SourceError(statement.line, str(error)) from None
 
     invented_predicates = tuple(atom.signature for atom in inventions)
     explicit = (
         {
-            literal.atom.signature
-            for head in lbh
+            literal.atom.signature: line
+            for head, line in lbh.items()
             for literal in head.conclusions
             if isinstance(literal, AtomLiteral)
         }
         | {
-            mode.literal.atom.signature
-            for mode in (*lbha, *lbhd)
+            mode.literal.atom.signature: line
+            for mode, line in (*lbha.items(), *lbhd.items())
             if isinstance(mode.literal, AtomLiteral)
         }
         | {
-            literal.atom.signature
-            for mode in lbb
+            literal.atom.signature: line
+            for mode, line in lbb.items()
             for literal in (
                 (mode.literal.conclusion,)
                 if isinstance(mode.literal, ConditionalLiteral)
@@ -151,28 +165,31 @@ def parse_text(source: str) -> InductiveTask:
         }
     )
 
-    overlap = explicit.intersection(invented_predicates)
+    overlap = explicit.keys() & set(invented_predicates)
     if overlap:
-        raise ValueError(
-            "invented predicates must not also use #modeh/#modeha/#modeb: "
-            f"{sorted(overlap)}"
+        atom = next(atom for atom in inventions if atom.signature in overlap)
+        line = inventions[atom][1]
+        mode_line = explicit[atom.signature]
+        raise SourceError(
+            line, "invented predicates must not also use #modeh/#modeha/#modehd/#modeb: "
+            f"{sorted(overlap)}", mode_line,
         )
-    for atom, recall in inventions.items():
-        lbh[HeadTemplate.normal(AtomLiteral(atom))] = None
-        lbb[ModeDeclaration(recall, AtomLiteral(atom))] = None
-    constant_types = {
-        type_name
-        for terms in (
-            *(head.arguments for head in lbh),
-            *(mode.literal.arguments for mode in (*lbha, *lbhd, *lbc, *lbb)),
-        )
-        for argument in terms
-        for type_name in mode_terms.constant_types(argument)
-    }
-    missing_constants = constant_types - constants.keys()
+    for atom, (recall, line) in inventions.items():
+        lbh.setdefault(HeadTemplate.normal(AtomLiteral(atom)), line)
+        lbb.setdefault(ModeDeclaration(recall, AtomLiteral(atom)), line)
+    constant_types: dict[str, int] = {}
+    for terms, line in (
+        *((head.arguments, line) for head, line in lbh.items()),
+        *((mode.literal.arguments, line) for mode, line in (*lbha.items(), *lbhd.items(), *lbc.items(), *lbb.items())),
+    ):
+        for argument in terms:
+            for type_name in mode_terms.constant_types(argument):
+                constant_types.setdefault(type_name, line)
+    missing_constants = constant_types.keys() - constants.keys()
     if missing_constants:
-        raise ValueError(
-            f"constant mode types require #constant declarations: {sorted(missing_constants)}"
+        line = min(constant_types[name] for name in missing_constants)
+        raise SourceError(
+            line, f"constant mode types require #constant declarations: {sorted(missing_constants)}"
         )
     max_head_literals = limits["#maxhl"]
     if (
@@ -180,7 +197,9 @@ def parse_text(source: str) -> InductiveTask:
         and max_head_literals is not None
         and min_head_literals > max_head_literals
     ):
-        raise ValueError("#minhl cannot exceed #maxhl")
+        line = declared_limits.get("#minhl", declared_limits.get("#maxhl", 1))
+        maximum_line = declared_limits.get("#maxhl")
+        raise SourceError(line, "#minhl cannot exceed #maxhl", maximum_line)
     return InductiveTask(
         background=parse_program(_background_source(background_statements)),
         positive_examples=list(pe),

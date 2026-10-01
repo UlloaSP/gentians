@@ -8,7 +8,7 @@ from itertools import product
 import clingo
 from clingo import ast
 
-from .ast_nodes import BINARY_OPERATORS, LOCATION, UNARY_OPERATORS, binding_term
+from .ast_nodes import BINARY_OPERATORS, LOCATION, UNARY_OPERATORS
 from .ir.term_binding import TermBinding
 
 _BINARY_NAMES = {value: key for key, value in BINARY_OPERATORS.items()}
@@ -219,11 +219,13 @@ def transform(term: ast.AST, replace: Callable[[ast.AST], ast.AST | None]) -> as
 
 def concretizations(
     term: ast.AST, constants: dict[str, tuple[ast.AST, ...]]
-) -> tuple[ast.AST, ...]:
+) -> Iterator[ast.AST]:
     if kind(term) == "constant":
-        return constants[str(term.arguments[0])]
+        yield from constants[str(term.arguments[0])]
+        return
     if not arguments(term) or not constant_types(term):
-        return (term,)
+        yield term
+        return
     result: list[tuple[ast.AST, ...]] = []
     for node, count in _postorder(term):
         if kind(node) == "constant":
@@ -233,38 +235,58 @@ def concretizations(
         else:
             choices = result[-count:]
             del result[-count:]
-            result.append(tuple(
+            variants = (
                 with_arguments(node, children) for children in product(*choices)
-            ))
-    return result[0]
+            )
+            if node is term:
+                yield from variants
+                return
+            result.append(tuple(variants))
 
 
-def instantiate(term: ast.AST, variables: Iterator[str]) -> ast.AST:
+def instantiate(term: ast.AST, variables: Iterator[ast.AST]) -> ast.AST:
     term_kind = kind(term)
     if term_kind == "variable":
-        return binding_term(next(variables))
+        return next(variables)
     if term_kind == "constant":
-        raise ValueError(
-            "constant placeholder must be concretized before instantiation"
-        )
-    if not arguments(term):
+        raise ValueError("constant placeholder must be concretized before instantiation")
+    children = arguments(term)
+    if not children:
         return term
-    result: list[ast.AST] = []
-    for node, count in _postorder(term):
+    pending: list[tuple[ast.AST, tuple[ast.AST, ...], list[ast.AST]]] = [(term, children, [])]
+    node = children[0]
+    while True:
         node_kind = kind(node)
         if node_kind == "variable":
-            result.append(binding_term(next(variables)))
+            concrete = next(variables)
         elif node_kind == "constant":
             raise ValueError(
                 "constant placeholder must be concretized before instantiation"
             )
-        elif count:
-            children = tuple(result[-count:])
-            del result[-count:]
-            result.append(with_arguments(node, children))
+        elif children := arguments(node):
+            pending.append((node, children, []))
+            node = children[0]
+            continue
         else:
-            result.append(node)
-    return result[0]
+            concrete = node
+        while pending:
+            parent, children, completed = pending[-1]
+            completed.append(concrete)
+            if len(completed) < len(children):
+                node = children[len(completed)]
+                break
+            pending.pop()
+            concrete = with_arguments(parent, tuple(completed))
+        else:
+            return concrete
+
+
+def instantiate_guard(guard: ast.AST | None, variables: Iterator[ast.AST]) -> ast.AST | None:
+    if guard is None:
+        return None
+    original = guard.term
+    term = instantiate(original, variables)
+    return guard if term == original else guard.update(term=term)
 
 
 def validate(term: ast.AST, declaration: str) -> ast.AST:

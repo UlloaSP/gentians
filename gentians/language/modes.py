@@ -11,9 +11,11 @@ from .ast_nodes import (
     COMPARISON_OPERATORS,
     LOCATION,
     binding_term,
+    binding_terms,
     literal as ast_literal,
 )
 from .directives import _directive_args, _parse_recall
+from .grammar import SourceError
 from .ir.aggregate_element import AggregateElement
 from .ir.aggregate_literal import AggregateLiteral
 from .ir.atom_literal import AtomLiteral
@@ -154,7 +156,7 @@ def _comparison_outputs_are_safe(literal: ComparisonLiteral) -> bool:
             mode_terms.transform(term, validation_term) for term in literal.terms
         ),
     )
-    relation = validation_literal.instantiate(iter(variable_names))
+    relation = validation_literal.instantiate(binding_terms(variable_names))
     inputs = tuple(
         name
         for name, binding in zip(variable_names, bindings, strict=True)
@@ -226,7 +228,8 @@ def _get_head_declaration(s: str) -> HeadTemplate:
     try:
         head = parse_rule(f"{syntax} :- __modeh_body.").head
     except ValueError as exc:
-        raise ValueError(f"invalid #modeh declaration: {s}") from exc
+        detail = exc.message if isinstance(exc, SourceError) else str(exc)
+        raise ValueError(f"invalid #modeh declaration: {s}: {detail}") from None
     if head.ast_type in {ast.ASTType.Literal, ast.ASTType.ConditionalLiteral}:
         element = _head_literal(head, s)
         return HeadTemplate.normal(element)
@@ -320,7 +323,8 @@ def _get_mode_literals(
     try:
         rule = parse_rule(f":- {raw.strip()}.")
     except ValueError as exc:
-        raise ValueError(f"invalid mode literal: {declaration}") from exc
+        detail = exc.message if isinstance(exc, SourceError) else str(exc)
+        raise ValueError(f"invalid mode literal: {declaration}: {detail}") from None
     expanded = rule.unpool() if unpool else (rule,)
     if any(len(rule.body) != 1 for rule in expanded):
         raise ValueError(f"mode declaration requires one literal: {declaration}")
@@ -435,18 +439,19 @@ def _aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
         node.sign != ast.Sign.NoSign,
         node.sign == ast.Sign.DoubleNegation,
     )
-    if node.sign != ast.Sign.NoSign and literal.output_guard is not None:
+    output_guard = literal.output_guard
+    if node.sign != ast.Sign.NoSign and output_guard is not None:
         raise ValueError(f"negated aggregates cannot produce an output: {declaration}")
     for guard in (left, right):
         if guard is None:
             continue
         for binding in mode_terms.bindings(guard.term):
-            if binding.direction == "output" and guard is not literal.output_guard:
+            if binding.direction == "output" and guard is not output_guard:
                 raise ValueError(
                     f"aggregate output requires one equality result guard: {declaration}"
                 )
-    if literal.output_guard is not None:
-        result = literal.output_guard.term
+    if output_guard is not None:
+        result = output_guard.term
         if function in {"count", "sum", "sum+"} and mode_terms.binding(result).type != "numeric":
             raise ValueError(
                 f"{function} aggregate result must have numeric type: {declaration}"

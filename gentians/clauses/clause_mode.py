@@ -26,6 +26,10 @@ class ClauseMode:
     head_form: int | None = None
     head_position: int = 0
     head: HeadTemplate | None = None
+    arguments: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
+    guard_terms: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
+    binding_positions: tuple[int, ...] = field(init=False, repr=False, compare=False)
+    output_guard: ast.AST | None = field(init=False, repr=False, compare=False)
     bindings: tuple[TermBinding, ...] = field(
         init=False,
         repr=False,
@@ -53,6 +57,10 @@ class ClauseMode:
                 raise ValueError("head modes require a complete head form")
         elif self.head_form is not None or self.head is not None:
             raise ValueError("body modes cannot belong to a head form")
+        guards = self.head.guard_terms if self.head is not None and self.head_position == 0 else ()
+        object.__setattr__(self, "guard_terms", guards)
+        object.__setattr__(self, "arguments", (*self.literal.arguments, *guards))
+        object.__setattr__(self, "output_guard", self.literal.output_guard if isinstance(self.literal, AggregateLiteral) else None)
         object.__setattr__(
             self,
             "bindings",
@@ -64,6 +72,21 @@ class ClauseMode:
         )
 
         object.__setattr__(self, "dependencies", self.literal.dependencies)
+        positions = (
+            tuple(range(len(self.bindings)))
+            if isinstance(
+                self.literal,
+                AggregateLiteral | ConditionalLiteral | ComparisonLiteral | ArithmeticLiteral | HeadAggregateElement,
+            ) or guards or (
+                isinstance(self.literal, AtomLiteral)
+                and (
+                    self.literal.atom.alternatives
+                    or any(mode_terms.kind(term) in {"function", "tuple", "arithmetic", "interval", "pool"} for term in self.literal.atom.terms)
+                )
+            )
+            else tuple(binding.path[0] for binding in self.bindings)
+        )
+        object.__setattr__(self, "binding_positions", positions)
 
     def __hash__(self) -> int:
         # Equal modes share their id. Canonicalization caches key on modes, and
@@ -73,29 +96,6 @@ class ClauseMode:
     @property
     def arity(self) -> int:
         return len(self.arguments)
-
-    @property
-    def guard_terms(self) -> tuple[ast.AST, ...]:
-        return self.head.guard_terms if self.head is not None and self.head_position == 0 else ()
-
-    @property
-    def arguments(self) -> tuple[ast.AST, ...]:
-        return (*self.literal.arguments, *self.guard_terms)
-
-    @property
-    def binding_positions(self) -> tuple[int, ...]:
-        if isinstance(
-            self.literal,
-            AggregateLiteral | ConditionalLiteral | ComparisonLiteral | ArithmeticLiteral | HeadAggregateElement,
-        ) or self.guard_terms or (
-            isinstance(self.literal, AtomLiteral)
-            and (
-                self.literal.atom.alternatives
-                or any(mode_terms.kind(term) in {"function", "tuple", "arithmetic", "interval", "pool"} for term in self.literal.atom.terms)
-            )
-        ):
-            return tuple(range(len(self.bindings)))
-        return tuple(binding.path[0] for binding in self.bindings)
 
     @property
     def condition_count(self) -> int:

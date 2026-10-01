@@ -1,6 +1,6 @@
 from clingo import ast
 
-from .asp import split_top_level_args
+from .asp import _diagnostic_detail, split_top_level_args
 from .directives import _directive_args, _parse_recall, _strip_outer_braces
 from .ir.atom_template import AtomTemplate
 from .modes import _get_mode_atom
@@ -38,5 +38,5 @@ def _get_constant_declaration(s: str) -> tuple[str, ast.AST]:
     try:
         value = fixed(parts[1].strip())
     except RuntimeError as exc:
-        raise ValueError(f"#constant value must be a ground term: {s}") from exc
+        raise ValueError(f"#constant value must be a ground term: {s}: {_diagnostic_detail(str(exc))}") from None
     return type_name, value

@@ -1,6 +1,6 @@
 """Clingo node constructors shared by the language-bias IR."""
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 
 import clingo
 from clingo import ast
@@ -49,6 +49,17 @@ def binding_term(value: str) -> ast.AST:
     return ast.SymbolicTerm(LOCATION, clingo.parse_term(value))
 
 
+def binding_terms(values: Iterable[str]) -> Iterator[ast.AST]:
+    """Share repeated bindings within this instantiation, including probe values."""
+    nodes: dict[str, ast.AST] = {}
+    for value in values:
+        node = nodes.get(value)
+        if node is None:
+            node = binding_term(value)
+            nodes[value] = node
+        yield node
+
+
 def literal(atom: ast.AST, negated: bool = False, double: bool = False) -> ast.AST:
     sign = (
         ast.Sign.DoubleNegation if double else
@@ -78,6 +89,6 @@ def comparison(
     ]), negated, double)
 
 
-def consume_all(variables: Iterator[str]) -> None:
+def consume_all(variables: Iterator[ast.AST]) -> None:
     if next(variables, None) is not None:
         raise ValueError("literal has more variables than syntax bindings")

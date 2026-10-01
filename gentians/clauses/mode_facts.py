@@ -61,7 +61,7 @@ def compile_mode_facts(
     shapes: dict[tuple[object, ...], int] = {}
     condition_variants: dict[tuple[object, ...], int] = {}
     aggregates = tuple(
-        literal
+        (literal, mode.output_guard)
         for mode in modes
         if isinstance((literal := mode.literal), AggregateLiteral)
     )
@@ -519,9 +519,10 @@ def _arithmetic_facts(
 def _aggregate_facts(
     mode: ClauseMode,
     aggregate: AggregateLiteral,
-    aggregates: tuple[AggregateLiteral, ...],
+    aggregates: tuple[tuple[AggregateLiteral, ast.AST | None], ...],
     predicate_ids: dict[Predicate, int],
 ) -> list[str]:
+    output_guard = mode.output_guard
     parts: list[str] = []
     offset = 0
     for element_id, element in enumerate(aggregate.elements):
@@ -570,7 +571,7 @@ def _aggregate_facts(
     for guard in (aggregate.left_guard, aggregate.right_guard):
         if guard is None:
             continue
-        name = "mode_aggregate_output_arg" if guard is aggregate.output_guard else "mode_aggregate_guard_arg"
+        name = "mode_aggregate_output_arg" if guard is output_guard else "mode_aggregate_guard_arg"
         for position in range(offset, offset + len(mode_terms.bindings(guard.term))):
             parts.append(f"{name}({mode.id},{position}).")
         offset += len(mode_terms.bindings(guard.term))
@@ -579,7 +580,7 @@ def _aggregate_facts(
         len(aggregate.elements) != 1
         or aggregate.function == "set"
         or not aggregate.elements[0].conditions
-        or aggregate.output_guard is None
+        or output_guard is None
         or any(
             not isinstance(condition, AtomLiteral) or condition.default_negated
             for condition in aggregate.elements[0].conditions
@@ -596,10 +597,10 @@ def _aggregate_facts(
     if any(
         other.function == aggregate.function
         and len(other.elements) == 1
-        and other.output_guard is not None
+        and other_output_guard is not None
         and other.elements[0].conditions == element.conditions
         and len(other.elements[0].terms) == tuple_arity - 1
-        for other in aggregates
+        for other, other_output_guard in aggregates
     ):
         parts.append(f"aggregate_has_shorter_mode({mode.id}).")
     if aggregate.function == "count":
@@ -640,7 +641,7 @@ def _aggregate_facts(
                 for flat_position in range(offset, offset + binding_count)
             )
             offset += binding_count
-    result_bindings = mode_terms.bindings(aggregate.output_guard.term)
+    result_bindings = mode_terms.bindings(output_guard.term)
     parts.extend(
         f"mode_aggregate_result_arg({mode.id},{position})."
         for position in range(offset, offset + len(result_bindings))

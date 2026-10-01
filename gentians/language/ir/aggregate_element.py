@@ -31,19 +31,20 @@ class AggregateElement:
 
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
-    ) -> tuple["AggregateElement", ...]:
-        return tuple(
-            self if concrete_terms == self.terms and conditions == self.conditions
-            and conclusion == self.conclusion
-            else AggregateElement(concrete_terms, conditions, conclusion)
-            for concrete_terms, conclusion, conditions in product(
-                product(*(mode_terms.concretizations(term, constants) for term in self.terms)),
-                self.conclusion.concretizations(constants) if self.conclusion is not None else (None,),
-                product(*(condition.concretizations(constants) for condition in self.conditions)),
-            )
-        )
+    ) -> Iterator["AggregateElement"]:
+        term_choices = tuple(tuple(mode_terms.concretizations(term, constants)) for term in self.terms)
+        conclusions = tuple(self.conclusion.concretizations(constants)) if self.conclusion is not None else (None,)
+        condition_choices = tuple(tuple(condition.concretizations(constants)) for condition in self.conditions)
+        for concrete_terms in product(*term_choices):
+            for conclusion in conclusions:
+                for conditions in product(*condition_choices):
+                    yield (
+                        self if concrete_terms == self.terms and conditions == self.conditions
+                        and conclusion == self.conclusion
+                        else AggregateElement(concrete_terms, conditions, conclusion)
+                    )
 
-    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+    def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         terms = [mode_terms.instantiate(term, variables) for term in self.terms]
         conclusion = self.conclusion.instantiate(variables) if self.conclusion is not None else None
         conditions = [condition.instantiate(variables) for condition in self.conditions]

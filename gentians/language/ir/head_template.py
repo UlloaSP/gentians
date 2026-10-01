@@ -1,11 +1,12 @@
 from dataclasses import dataclass, replace
+from collections.abc import Iterator
 from itertools import product
 from typing import TypeAlias
 
 from clingo import ast
 
 from .. import terms as mode_terms
-from ..ast_nodes import LOCATION, consume_all, literal
+from ..ast_nodes import LOCATION, binding_terms, consume_all, literal
 from .atom_literal import AtomLiteral
 from .boolean_literal import BooleanLiteral
 from .comparison_literal import ComparisonLiteral
@@ -149,9 +150,11 @@ class HeadTemplate:
 
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
-    ) -> tuple["HeadTemplate", ...]:
-        forms = (self.form,)
-        if self.kind in {"choice", "aggregate"}:
+    ) -> Iterator["HeadTemplate"]:
+        def forms() -> Iterator[ast.AST]:
+            if self.kind not in {"choice", "aggregate"}:
+                yield self.form
+                return
 
             def guards(guard: ast.AST | None) -> tuple[ast.AST | None, ...]:
                 return (
@@ -163,26 +166,23 @@ class HeadTemplate:
                     else (None,)
                 )
 
-            forms = tuple(
-                self.form if left == self.form.left_guard and right == self.form.right_guard
-                else self.form.update(left_guard=left, right_guard=right)
-                for left, right in product(
-                    guards(self.form.left_guard), guards(self.form.right_guard)
+            for left, right in product(guards(self.form.left_guard), guards(self.form.right_guard)):
+                yield (
+                    self.form if left == self.form.left_guard and right == self.form.right_guard
+                    else self.form.update(left_guard=left, right_guard=right)
                 )
-            )
-        return tuple(
-            self if form == self.form and elements == self.elements
-            else replace(self, form=form, elements=elements)
-            for form, elements in product(
-                forms,
-                product(*(element.concretizations(constants) for element in self.elements)),
-            )
-        )
+        choices = tuple(tuple(element.concretizations(constants)) for element in self.elements)
+        for form in forms():
+            for elements in product(*choices):
+                yield (
+                    self if form == self.form and elements == self.elements
+                    else replace(self, form=form, elements=elements)
+                )
 
     def instantiate(
         self, elements: tuple[ast.AST, ...], guard_variables: tuple[str, ...] = ()
     ) -> ast.AST:
-        variables = iter(guard_variables)
+        variables = binding_terms(guard_variables)
         kind = self.kind
         if kind == "normal":
             if len(elements) != 1:
@@ -201,15 +201,8 @@ class HeadTemplate:
                 ]
             guards: dict[str, ast.AST | None] = {}
             if kind in {"choice", "aggregate"}:
-                guards = {
-                    side: guard.update(
-                        term=mode_terms.instantiate(guard.term, variables)
-                    )
-                    if guard
-                    else None
-                    for side in ("left_guard", "right_guard")
-                    for guard in (getattr(self.form, side),)
-                }
+                for side in ("left_guard", "right_guard"):
+                    guards[side] = mode_terms.instantiate_guard(getattr(self.form, side), variables)
             head = self.form.update(elements=items, **guards)
         consume_all(variables)
         return head

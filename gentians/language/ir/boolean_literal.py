@@ -29,8 +29,8 @@ class BooleanLiteral:
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset()
 
-    def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> tuple["BooleanLiteral", ...]:
-        return (self,)
+    def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> Iterator["BooleanLiteral"]:
+        return iter((self,))
 
-    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+    def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         return literal(ast.BooleanConstant(self.value), self.default_negated, self.double_negated)

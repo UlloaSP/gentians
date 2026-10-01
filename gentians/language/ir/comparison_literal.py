@@ -58,12 +58,12 @@ class ComparisonLiteral:
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset()
 
-    def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> tuple["ComparisonLiteral", ...]:
-        return tuple(
+    def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> Iterator["ComparisonLiteral"]:
+        return (
             self if concrete_terms == self.terms else replace(self, terms=concrete_terms)
             for concrete_terms in product(*(mode_terms.concretizations(term, constants) for term in self.terms))
         )
 
-    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+    def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         terms = [mode_terms.instantiate(term, variables) for term in self.terms]
         return comparison(terms, self.operators, self.default_negated, self.double_negated)

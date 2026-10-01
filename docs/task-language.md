@@ -35,6 +35,16 @@ or directives inside them are rejected; directive text in strings is preserved.
 Mode recalls use a positive integer or `*`, never numeric `-1`.
 Errors while reading modes, constants, limits and inventions include the original
 statement's starting line, including when the declaration spans several lines.
+Errors involving several declarations also identify the responsible line.
+Reading a file reports its name and local line; directory tasks distinguish
+`bk.lp`, `exs.lp`, and `bias.lp`, including both locations of conflicting
+declarations. Syntax errors retain Clingo's explanation and unexpected token.
+
+The file is read in full, then the lexer delivers complete statements
+progressively. Constant expansion likewise yields variants in declaration and
+Cartesian-product order, preparing reusable alternatives once. Fixed guards and
+repeated binding nodes are reused during instantiation. Native predicate
+inspection also supports deeply nested terms in background comparisons.
 
 ## Head modes
 

@@ -60,17 +60,16 @@ class ConditionalLiteral:
 
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
-    ) -> tuple["ConditionalLiteral", ...]:
-        return tuple(
-            self if conclusion == self.conclusion and conditions == self.conditions
-            else ConditionalLiteral(conclusion, conditions, self.condition_groups)
-            for conclusion, conditions in product(
-                self.conclusion.concretizations(constants),
-                product(*(item.concretizations(constants) for item in self.conditions)),
-            )
-        )
+    ) -> Iterator["ConditionalLiteral"]:
+        choices = tuple(tuple(item.concretizations(constants)) for item in self.conditions)
+        for conclusion in self.conclusion.concretizations(constants):
+            for conditions in product(*choices):
+                yield (
+                    self if conclusion == self.conclusion and conditions == self.conditions
+                    else ConditionalLiteral(conclusion, conditions, self.condition_groups)
+                )
 
-    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+    def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         conclusion = self.conclusion.instantiate(variables)
         conditions = [condition.instantiate(variables) for condition in self.conditions]
         return ast.ConditionalLiteral(LOCATION, conclusion, conditions)

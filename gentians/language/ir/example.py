@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from clingo import ast
 
 from ..asp import AspProgram, parse_example_fields, render_literals, render_program
+from ..grammar import SourceError
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,13 +30,14 @@ class Example:
                 values[0], values[1], context_source
             )
         except ValueError as error:
-            raise ValueError(f"line {line}: invalid example: {error}") from None
+            detail = error.message if isinstance(error, SourceError) else str(error)
+            raise SourceError(line, f"invalid example: {detail}") from None
         if any(statement.ast_type != ast.ASTType.Rule for statement in context):
             invalid = next(
                 statement for statement in context if statement.ast_type != ast.ASTType.Rule
             )
-            raise ValueError(
-                f"line {line}: unsupported statement in example context: "
+            raise SourceError(
+                line, "unsupported statement in example context: "
                 f"{invalid.ast_type}"
             )
         return cls(

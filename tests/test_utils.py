@@ -1,7 +1,7 @@
 import pytest
 from clingo import ast
 
-from gentians.clauses.analysis.ast_inspection import _node_atoms
+from gentians.clauses.analysis.ast_inspection import _iter_atoms
 from gentians.language.asp import clause_predicates, parse_rule
 
 
@@ -50,7 +50,7 @@ class TestUnit:
     def test_ast_atom_inspection_keeps_duplicate_literals(self):
         statement = parse_rule(":- blue(V1),blue(V1),e(V0,V0),green(V0).")
         assert tuple((name, tuple(map(str, arguments)), sign != ast.Sign.NoSign)
-                     for name, arguments, sign in _node_atoms(statement)) == (
+                     for name, arguments, sign in _iter_atoms((statement,))) == (
             ("blue", ("V1",), False),
             ("blue", ("V1",), False),
             ("e", ("V0", "V0"), False),
@@ -63,7 +63,7 @@ def test_ast_atom_inspection_preserves_string_values(text):
     import clingo
 
     statement = parse_rule(f"p({clingo.String(text)}).")
-    name, arguments, sign = _node_atoms(statement)[0]
+    name, arguments, sign = next(_iter_atoms((statement,)))
 
     assert name == "p"
     assert sign == ast.Sign.NoSign

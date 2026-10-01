@@ -53,19 +53,20 @@ class HeadAggregateElement:
 
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
-    ) -> tuple["HeadAggregateElement", ...]:
-        return tuple(
-            self if terms == self.terms and conclusion == self.conclusion
-            and conditions == self.conditions
-            else HeadAggregateElement(terms, conclusion, conditions)
-            for terms, conclusion, conditions in product(
-                product(*(mode_terms.concretizations(term, constants) for term in self.terms)),
-                self.conclusion.concretizations(constants),
-                product(*(condition.concretizations(constants) for condition in self.conditions)),
-            )
-        )
+    ) -> Iterator["HeadAggregateElement"]:
+        term_choices = tuple(tuple(mode_terms.concretizations(term, constants)) for term in self.terms)
+        conclusions = tuple(self.conclusion.concretizations(constants))
+        condition_choices = tuple(tuple(condition.concretizations(constants)) for condition in self.conditions)
+        for terms in product(*term_choices):
+            for conclusion in conclusions:
+                for conditions in product(*condition_choices):
+                    yield (
+                        self if terms == self.terms and conclusion == self.conclusion
+                        and conditions == self.conditions
+                        else HeadAggregateElement(terms, conclusion, conditions)
+                    )
 
-    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+    def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         terms = [mode_terms.instantiate(term, variables) for term in self.terms]
         conclusion = self.conclusion.instantiate(variables)
         conditions = [condition.instantiate(variables) for condition in self.conditions]

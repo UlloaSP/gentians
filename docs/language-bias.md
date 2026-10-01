@@ -51,6 +51,12 @@ their first appearance within each type.
 Errors while reading modes, constants, limits and inventions report the original
 statement's starting line, as example and lexer errors already do. A diagnostic
 that already carries that location is not prefixed again.
+Cross-declaration errors also identify their responsible declaration, including
+missing constant types, overlapping invented predicates, and incompatible head
+limits. When reading files, diagnostics name the original file and its local
+line; a directory task also identifies the other file when two declarations
+conflict. Quoted payloads remain intact. Syntax errors retain Clingo's
+explanation and unexpected token.
 The complete background is parsed in one Clingo call while preserving original
 task line locations. Background and every
 example's included atoms, excluded atoms, and context remain as
@@ -70,10 +76,20 @@ Each literal owns its constant expansion, reused by head and body conditions
 and aggregate elements. Independent element, condition, and guard alternatives
 are expanded once per call and combined with an ordered Cartesian product.
 Combining one alternative never recomputes another group's expansion.
+The lexer yields statements to the parser as they are framed, while file input
+is still read in full. Constant-expansion methods yield concrete variants in
+the same order. Reusable alternative pools are prepared once; complete
+Cartesian products are consumed progressively instead of retained as another
+collection of results. The compiled modes and final clause space still retain
+the entries they need.
 Atom, comparison, conditional, aggregate and head templates are immutable values.
 When constant expansion leaves them unchanged, it reuses the existing template
 and guards instead of constructing and validating a duplicate. Changed variants remain independent, and instantiation
 constructs native nodes without modifying the retained template.
+Instantiation also retains fixed guards and shares native binding nodes within
+one instantiation. That sharing adds no equality between distinct ASP scopes
+and no cache across instantiations. Compiled modes derive their stable argument,
+binding-position and dependency metadata once.
 Head templates keep their Clingo form (including guards and aggregate function)
 and complete learning elements; signs and exact conditions belong to their
 literal rather than parallel lists. Label validation is shared by head and body
@@ -95,6 +111,8 @@ assembled as `ast.Rule` without a text-to-AST round trip. Retained programs ente
 controls through `ProgramBuilder`. Clingo's `str(AST)` owns output formatting,
 including explicit guards, parentheses, and `#false` constraint heads.
 Static analysis traverses retained nodes directly.
+Predicate and numeric-value inspection use explicit stacks too, including
+deep comparison terms in background rules and example contexts.
 The [clause-generation implementation map](clause-generation.md) describes the
 separation between representation, analysis, pruning and canonicalization.
 `TASK_GRAMMAR` records top-level composition and the directive parsers enforce

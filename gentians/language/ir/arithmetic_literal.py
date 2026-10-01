@@ -57,10 +57,10 @@ class ArithmeticLiteral:
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset()
 
-    def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> tuple["ArithmeticLiteral", ...]:
-        return (self,)
+    def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> Iterator["ArithmeticLiteral"]:
+        return iter((self,))
 
-    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+    def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         expression = mode_terms.instantiate(self.expression, variables)
         output = mode_terms.instantiate(self.output, variables)
         return comparison([expression, output], ("=",))

@@ -107,6 +107,23 @@ de ellos redefine el language bias de una tarea inductiva.
   el análisis de cláusulas conserva la validación de firmas inventadas.
   El parser añade la línea original a errores de lectura de directivas, sin
   repetir las localizaciones ya presentes en los errores de ejemplos.
+  Los diagnósticos separan mensaje y localizaciones de los payloads citados;
+  incluyen conflictos entre declaraciones y el detalle original de Clingo.
+  `parse_file` conserva los offsets de los archivos concatenados y traduce
+  las localizaciones de errores al archivo y línea correspondientes.
+  El lexer entrega un iterador de sentencias y comparte el salto de comentarios
+  entre el recorrido principal y la búsqueda de anotaciones. La lectura UTF-8
+  sigue siendo completa. Las expansiones entregan iteradores de variantes y
+  conservan solo los pools independientes necesarios para reutilizar alternativas;
+  los productos combinados se recorren sin almacenarlos completos.
+  La sustitución recibe bindings AST preparados por instanciación, compartiendo
+  nombres repetidos dentro de esa llamada. No hay una caché global de variables.
+  Cabezas y agregados comparten la instanciación de guards, que conserva un guard
+  fijo sin actualizarlo. `ClauseMode` deriva argumentos, guards, posiciones y
+  dependencias y output guards una vez; los átomos con pools retienen sus
+  argumentos aplanados.
+  La inspección de predicados y valores numéricos también usa pilas explícitas
+  en el análisis de background y contextos.
 - `hypotheses/` es la única autoridad sobre legalidad y transiciones de
   `Genome`. Ningún operador ni algoritmo duplica su cierre de dependencias.
 - `algorithms/` contiene solo los algoritmos y sus métricas. Cada archivo de

@@ -80,6 +80,82 @@ def test_constant_strings_preserve_delimiters_and_escapes(text):
     assert term.symbol == clingo.String(text)
 
 
+@pytest.mark.parametrize("value", [
+    "box(red)", "(a,)", "(a,2)", "()", "-box(red)", "-red", "-1",
+    'box((a,-2),nested("a,b"))',
+])
+@pytest.mark.parametrize("container", ["{}", "outer({})", "({},tail)"])
+def test_fixed_term_shapes_match_direct_and_constant_syntax_without_reparsing(
+    value, container, monkeypatch,
+):
+    direct = container.format(value)
+    placeholder = container.format("const(word)")
+    task = parse_text(
+        f"#constant(word,{value}). #modeh(1,p({direct})). #modeb(1,p({placeholder}))."
+    )
+    head = task.language_bias_head[0].conclusions[0].atom
+    (body,) = task.language_bias_body[0].literal.atom.concretizations(task.constants)
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("fixed-term shapes must not reparse native nodes")
+
+    monkeypatch.setattr(clingo, "parse_term", unexpected)
+    monkeypatch.setattr(ast, "parse_string", unexpected)
+    assert tuple(map(mode_terms.shape, head.terms)) == tuple(map(mode_terms.shape, body.terms))
+
+
+@pytest.mark.parametrize("value", [
+    "box(red)", "(a,)", "(a,2)", "()", "-box(red)", "-red", "-1",
+    'box((a,-2),nested("a,b"))',
+])
+def test_constant_representation_does_not_hide_head_body_tautologies(value):
+    task = parse_text(
+        f"#constant(word,{value}). #modeh(1,p({value})). #modeb(1,p(const(word))). "
+        "#maxv(0). #maxbl(1)."
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+
+    assert str(parse_rule(f"p({value}).")) in clauses
+    assert str(parse_rule(f":- p({value}).")) in clauses
+    assert str(parse_rule(f"p({value}) :- p({value}).")) not in clauses
+
+
+def test_constant_representation_does_not_hide_contradictory_bodies():
+    task = parse_text(
+        "#constant(word,box(red)). #modeh(1,p(box(red))). #modeh(1,q). "
+        "#modeb(1,p(box(red))). #modeb(1,not p(const(word))). "
+        "#maxv(0). #maxbl(2)."
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+
+    assert str(parse_rule("q :- p(box(red)).")) in clauses
+    assert str(parse_rule("q :- not p(box(red)).")) in clauses
+    assert str(parse_rule("q :- p(box(red)),not p(box(red)).")) not in clauses
+
+
+@pytest.mark.parametrize("head", ["{p(box(red))}", "not p(box(red))", "-p(box(red))"])
+def test_fixed_shape_matching_preserves_choice_default_and_strong_heads(head):
+    task = parse_text(
+        f"#constant(word,box(red)). #modeh(1,{head}). #modeh(1,p(box(red))). "
+        "#modeb(1,p(const(word))). "
+        "#maxv(0). #maxbl(1)."
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+
+    assert str(parse_rule(f"{head} :- p(box(red)).")) in clauses
+
+
+@pytest.mark.parametrize("other", ["box(blue)", '"box(red)"', "(red,)", "-box(red)"])
+def test_fixed_shape_matching_keeps_distinct_ground_values(other):
+    task = parse_text(
+        f"#constant(word,{other}). #modeh(1,p(box(red))). #modeb(1,p(const(word))). "
+        "#maxv(0). #maxbl(1)."
+    )
+    clauses = generate_clause_space(task, Arguments()).clauses
+
+    assert str(parse_rule(f"p(box(red)) :- p({other}).")) in clauses
+
+
 def test_example_fields_preserve_string_delimiters_and_isolated_contexts():
     task = parse_text(
         '#pos({p("a},b")},{q("c],d")},{local("e),f").}). '
@@ -147,10 +223,76 @@ def test_body_conditionals_still_require_a_condition():
         parse_text("#modeb(1,p:).")
 
 
-@pytest.mark.parametrize("recall", ["0", "2", "*"])
+@pytest.mark.parametrize("recall", ["-1", "0", "2", "*"])
 def test_complete_heads_require_recall_one(recall):
     with pytest.raises(ValueError, match="complete head modes require recall 1"):
         parse_text(f"#modeh({recall},p).")
+
+
+@pytest.mark.parametrize("directive", ["#modeb", "#modec", "#modeha", "#modehd"])
+@pytest.mark.parametrize("recall", ["-2", "-1", "0"])
+def test_textual_mode_recalls_require_a_positive_integer_or_star(directive, recall):
+    with pytest.raises(ValueError, match="mode recall must be positive or unbounded"):
+        parse_text(f"{directive}({recall},p).")
+
+
+@pytest.mark.parametrize("directive, field", [
+    ("#modeb", "language_bias_body"),
+    ("#modec", "language_bias_condition"),
+    ("#modeha", "language_bias_aggregate_head"),
+    ("#modehd", "language_bias_disjunctive_head"),
+])
+def test_star_remains_the_textual_unbounded_recall(directive, field):
+    task = parse_text(f"{directive}(*,p).")
+
+    assert getattr(task, field)[0].recall == -1
+
+
+@pytest.mark.parametrize("source", [
+    f"{directive}(1,p. {extra})."
+    for directive in ("#modeb", "#modec", "#modeha", "#modehd", "#invent")
+    for extra in ("#show q/0", "#const value=1", "#program ignored", "q")
+] + [
+    f"#modeh(1,{extra}. p)."
+    for extra in ("#show q/0", "#const value=1", "#program ignored", "q")
+])
+def test_modes_reject_additional_asp_statements_in_the_payload(source):
+    with pytest.raises(ValueError, match="invalid (mode literal|#modeh declaration)"):
+        parse_text(source)
+
+
+@pytest.mark.parametrize("directive", [
+    "#modeh", "#modeb", "#modec", "#modeha", "#modehd", "#invent",
+])
+def test_invalid_mode_syntax_is_parsed_once_without_stderr(directive, monkeypatch, capsys):
+    original = ast.parse_string
+    calls = []
+
+    def record(source, *args, **kwargs):
+        calls.append(source)
+        return original(source, *args, **kwargs)
+
+    monkeypatch.setattr(ast, "parse_string", record)
+    with pytest.raises(ValueError, match="invalid (mode literal|#modeh declaration)"):
+        parse_text(f"{directive}(1,p(,)).")
+
+    assert len(calls) == 1
+    assert capsys.readouterr().err == ""
+
+
+def test_directive_text_in_mode_strings_remains_data_and_background_remains_asp():
+    text = 'period. #show q/0. #const value=1. #program ignored.'
+    task = parse_text(
+        '#const value=1. #show q/0. '
+        f'#modeh(1,q({clingo.String(text)})). '
+        f'#modeb(1,p({clingo.String(text)})).'
+    )
+    space = generate_clause_space(task, Arguments())
+
+    assert [node.ast_type for node in task.background] == [
+        ast.ASTType.Definition, ast.ASTType.ShowSignature,
+    ]
+    assert any(str(clingo.String(text)) in clause for clause in space.clauses)
 
 
 @pytest.mark.parametrize("directive, field", [
@@ -225,6 +367,70 @@ def test_native_comparison_safety_still_rejects_unsafe_outputs(monkeypatch):
     monkeypatch.setattr(clingo.Control, "add", unexpected_add)
     with pytest.raises(ValueError, match="comparison outputs are not safe"):
         parse_text("#modeb(1,var(numeric,output)=var(numeric,output)).")
+
+
+@pytest.mark.parametrize("source", [
+    "#modeb(1,p).",
+    "#modeb(1,-p(box(var(node,input,x)))).",
+    "#modeb(1,not -p(var(node,input,x))).",
+    "#modeb(1,not not p(var(node,input,x))).",
+    "#modeb(1,p(1;2)).",
+    "#modeb(1,p(1,red;2,blue)).",
+    "#modeb(1,p(var(node,input,x),red;var(node,input,x),blue)).",
+    "#modeh(1,p(var(node,input,x))).",
+    "#modeh(1,p(var(node,input,x));q(var(node,input,x))).",
+    "#modeh(1,1{p(var(node,any,x)):q(var(node,any,x))}1).",
+    "#modeh(1,p(var(node,any,x)):q(var(node,any,x))).",
+    "#modeh(1,#count{var(node,any,x):p(var(node,any,x)):q(var(node,any,x))}=1).",
+    "#modeh(1,{}).",
+    "#modeh(1,#count{}=0).",
+    "#modeh(1,p(1,red;2,blue)).",
+])
+def test_reused_expansions_allow_independent_instantiation_without_mutating_syntax(source):
+    task = parse_text("#constant(unused,extra). " + source)
+    is_head = bool(task.language_bias_head)
+    template = task.language_bias_head[0] if is_head else task.language_bias_body[0].literal
+    before = repr(template)
+    (concrete,) = template.concretizations(task.constants)
+    assert concrete is template
+
+    rendered = []
+    for offset in (0, 4, 0):
+        if is_head:
+            elements = tuple(
+                instantiate_literal(element, (offset,) * sum(
+                    len(mode_terms.bindings(term)) for term in element.arguments
+                ))
+                for element in concrete.elements
+            )
+            rendered.append(str(concrete.instantiate(elements)))
+        else:
+            count = sum(len(mode_terms.bindings(term)) for term in concrete.arguments)
+            rendered.append(str(instantiate_literal(concrete, (offset,) * count)))
+
+    assert rendered[0] == rendered[2]
+    if any(mode_terms.bindings(term) for term in concrete.arguments):
+        assert rendered[0] != rendered[1]
+    assert repr(template) == before
+
+
+@pytest.mark.parametrize("directive", ["#modeh", "#modeb"])
+def test_changed_constant_expansions_stay_independent_between_calls(directive):
+    task = parse_text(
+        "#constant(word,red). "
+        f"{directive}(1,-p(box(var(node,input,x)),const(word),red;"
+        "box(var(node,input,x)),blue,const(word)))."
+    )
+    is_head = bool(task.language_bias_head)
+    template = task.language_bias_head[0] if is_head else task.language_bias_body[0].literal
+    before = repr(template)
+    red = template.concretizations(task.constants)
+    blue = template.concretizations({"word": (mode_terms.fixed("blue"),)})
+
+    assert all(concrete is not template for concrete in (*red, *blue))
+    assert red != blue
+    assert template.concretizations(task.constants) == red
+    assert repr(template) == before
 
 
 def test_clause_space_retains_clingo_ast_and_canonical_text() -> None:

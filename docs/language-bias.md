@@ -67,6 +67,10 @@ Each literal owns its constant expansion, reused by head and body conditions
 and aggregate elements. Independent element, condition, and guard alternatives
 are expanded once per call and combined with an ordered Cartesian product.
 Combining one alternative never recomputes another group's expansion.
+Atom and head templates are immutable values. When constant expansion leaves
+them unchanged, it reuses the existing template instead of constructing and
+validating a duplicate. Changed variants remain independent, and instantiation
+constructs native nodes without modifying the retained template.
 Head templates keep their Clingo form (including guards and aggregate function)
 and complete learning elements; signs and exact conditions belong to their
 literal rather than parallel lists. Label validation is shared by head and body
@@ -76,6 +80,11 @@ Complete heads are stored directly as `HeadTemplate` values. The parser requires
 recall `1`; no additional declaration object or fixed recall is carried into
 compilation. Head templates own their head-specific validation, including the
 roles of anonymous variables in guards, conclusions, and conditions.
+Mode and invention payloads use the same single-rule parser as other ASP
+fragments. The payload must contain only the declared template; extra ASP rules
+or directives such as `#show`, `#const`, and `#program` are rejected rather than
+silently discarded. Their text remains valid inside string values, and those
+directives remain available as ordinary background ASP.
 ASP predicate inspection consumes retained AST nodes; it does not expose a
 second set of text-parsing helpers or remove whitespace from string values.
 Canonical arithmetic systems also construct native nodes. Generated rules are
@@ -342,6 +351,8 @@ the forms independently to permit them together. `#true` and `#false` can be
 declared as body literals or used in exact conditional literals, including
 `#false:p(X)`. Default negation is also accepted in disjunctive, choice,
 cardinality, and function aggregate head elements.
+An explicit mode recall is a positive integer or `*`; numeric `-1` is invalid.
+Only `*` (or an omitted combinable-head recall) means unbounded recall.
 The anonymous variable `_` is accepted in positive body atoms and positive
 atom conditions. Each occurrence is independent, contributes no named variable
 to `#maxv`, and cannot make a negative literal or a head safe.
@@ -699,6 +710,12 @@ Constants allowed in learned literals are enumerated explicitly:
 The ground value is parsed once per declaration; constant expansion reuses those
 nodes without converting them to text and parsing them again. Equal canonical
 values keep their first occurrence within each nominal type.
+Mode shape matching treats a function or tuple composed entirely of fixed
+leaves, and unary minus on a fixed term, identically whether written directly
+or supplied as the same Clingo-formatted `#constant` value. This keeps redundant
+head/body matches and contradictory bodies subject to the existing pruning.
+Variable-bearing terms, pools, intervals, and general arithmetic expressions
+retain their structural shapes; this is not algebraic evaluation of ground ASP.
 
 ```prolog
 #constant(colour,red).

@@ -58,12 +58,14 @@ class AtomTemplate:
                 for alternative in self.alternatives
             )
             return tuple(
-                AtomTemplate(self.name, concrete[0], self.strong, concrete)
+                self if concrete == self.alternatives
+                else AtomTemplate(self.name, concrete[0], self.strong, concrete)
                 for concrete in product(*choices)
             )
         return (
             tuple(
-                AtomTemplate(self.name, terms, self.strong)
+                self if terms == self.terms
+                else AtomTemplate(self.name, terms, self.strong)
                 for terms in product(
                     *(mode_terms.concretizations(term, constants) for term in self.terms)
                 )

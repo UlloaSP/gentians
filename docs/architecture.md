@@ -82,6 +82,18 @@ de ellos redefine el language bias de una tarea inductiva.
   `InductiveTask.constants` conserva valores `SymbolicTerm` de Clingo por tipo
   nominal. Se parsean al leer la declaración y se reutilizan al expandir
   placeholders, sin guardar texto intermedio ni volver a parsear el valor.
+  Los modes y las invenciones reutilizan `asp.parse_rule` para exigir un único
+  fragmento, sin otro parser que descarte directivas ASP adicionales. El parser
+  de recalls acepta enteros positivos o `*`; el valor interno `-1` no es sintaxis
+  de tarea.
+  `terms.shape` compara funciones y tuplas de hojas fijas, y menos unario fijo,
+  por el formato de Clingo, tanto si proceden de sintaxis como de `#constant`.
+  No reconstruye ni reparsea sus nodos; las formas con variables, pools e
+  intervalos y las expresiones aritméticas generales siguen siendo estructurales.
+  La expansión reutiliza `AtomTemplate`, `AtomLiteral` y `HeadTemplate` inmutables
+  cuando sus campos no cambian, sin reconstruir ni revalidar el mismo valor.
+  Las variantes que sustituyen constantes se construyen y validan normalmente;
+  instanciar nunca modifica la plantilla retenida.
 - `hypotheses/` es la única autoridad sobre legalidad y transiciones de
   `Genome`. Ningún operador ni algoritmo duplica su cierre de dependencias.
 - `algorithms/` contiene solo los algoritmos y sus métricas. Cada archivo de

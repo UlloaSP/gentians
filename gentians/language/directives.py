@@ -7,7 +7,12 @@ def _directive_args(line: str, name: str) -> str:
 
 def _parse_recall(raw: str) -> int:
     raw = raw.strip()
-    return -1 if raw == "*" else int(raw)
+    if raw == "*":
+        return -1
+    value = int(raw)
+    if value < 1:
+        raise ValueError("mode recall must be positive or unbounded")
+    return value
 
 
 def _get_limit(s: str, name: str, allow_zero: bool) -> int | None:

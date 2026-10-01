@@ -32,7 +32,8 @@ class AtomLiteral:
 
     def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> tuple["AtomLiteral", ...]:
         return tuple(
-            AtomLiteral(atom, self.default_negated, self.double_negated)
+            self if atom is self.atom
+            else AtomLiteral(atom, self.default_negated, self.double_negated)
             for atom in self.atom.concretizations(constants)
         )
 

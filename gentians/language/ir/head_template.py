@@ -170,7 +170,8 @@ class HeadTemplate:
                 )
             )
         return tuple(
-            replace(self, form=form, elements=elements)
+            self if form == self.form and elements == self.elements
+            else replace(self, form=form, elements=elements)
             for form, elements in product(
                 forms,
                 product(*(element.concretizations(constants) for element in self.elements)),

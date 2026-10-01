@@ -26,6 +26,9 @@ distinct. Constant values keep declaration order within their type.
 Missing directive arguments, including a comma before the closing parenthesis,
 are rejected. Commas inside strings and singleton tuples such as `(a,)` remain
 valid.
+Mode and invention payloads contain only their template. Additional ASP rules
+or directives inside them are rejected; directive text in strings is preserved.
+Mode recalls use a positive integer or `*`, never numeric `-1`.
 
 ## Head modes
 
@@ -192,6 +195,11 @@ Cartesian combination with guards, elements, and conditions. Expansion order
 and the declaration's shared recall are preserved.
 Declared values stay as native Clingo terms in the task, so expansion reuses
 them without another text parsing step.
+Expansion also reuses unchanged atom and head templates; repeated instantiation
+keeps their retained syntax intact. Variants that replace constants stay separate.
+Matching fixed function and tuple fragments also ignores whether their value
+came from direct mode syntax or `const(...)`. For example, the existing pruning
+removes `p(box(red)) :- p(box(red)).` in either representation.
 
 Mode terms may contain nested functions and tuples. Every leaf stays explicit:
 `var(...)` for a generated variable or `const(...)` for a declared ground value.

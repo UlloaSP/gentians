@@ -142,7 +142,15 @@ def shape(term: ast.AST) -> tuple[object, ...]:
         return ("variable",)
     if term_kind == "fixed":
         return ("fixed", value(term))
-    return term_kind, value(term), tuple(map(shape, arguments(term)))
+    children = tuple(map(shape, arguments(term)))
+    if (
+        term_kind in {"function", "tuple"}
+        or term.ast_type == ast.ASTType.UnaryOperation
+        and term.operator_type == ast.UnaryOperator.Minus
+    ) and all(child[0] == "fixed" for child in children):
+        # The same ground value may come from syntax or a #constant SymbolicTerm.
+        return ("fixed", str(term))
+    return term_kind, value(term), children
 
 
 def transform(term: ast.AST, replace: Callable[[ast.AST], ast.AST | None]) -> ast.AST:

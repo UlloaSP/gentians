@@ -5,7 +5,7 @@ import clingo
 from clingo import ast
 
 from . import terms as mode_terms
-from .asp import add_program, split_top_level_args
+from .asp import add_program, parse_rule, split_top_level_args
 from .ast_nodes import (
     AGGREGATE_FUNCTIONS,
     COMPARISON_OPERATORS,
@@ -216,23 +216,17 @@ def _get_head_declaration(s: str) -> HeadTemplate:
     parts = split_top_level_args(_directive_args(s, "#modeh"))
     if len(parts) < 2:
         raise ValueError(f"invalid #modeh declaration: {s}")
-    recall = _parse_recall(parts[0])
+    try:
+        recall = _parse_recall(parts[0])
+    except ValueError:
+        raise ValueError("complete head modes require recall 1") from None
     if recall != 1:
         raise ValueError("complete head modes require recall 1")
     syntax = ",".join(parts[1:]).strip()
-    rules: list[ast.AST] = []
     try:
-        ast.parse_string(
-            f"{syntax} :- __modeh_body.",
-            lambda node: (
-                rules.append(node) if node.ast_type == ast.ASTType.Rule else None
-            ),
-        )
-    except RuntimeError as exc:
+        head = parse_rule(f"{syntax} :- __modeh_body.").head
+    except ValueError as exc:
         raise ValueError(f"invalid #modeh declaration: {s}") from exc
-    if len(rules) != 1:
-        raise ValueError(f"invalid #modeh declaration: {s}")
-    head = rules[0].head
     if head.ast_type in {ast.ASTType.Literal, ast.ASTType.ConditionalLiteral}:
         element = _head_literal(head, s)
         return HeadTemplate.normal(element)
@@ -329,15 +323,11 @@ def _atom_from_ast(symbol: ast.AST, declaration: str) -> AtomTemplate:
 def _get_mode_literals(
     raw: str, declaration: str, *, unpool: bool = False
 ) -> tuple[AggregateLiteral | AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral, ...]:
-    nodes: list[ast.AST] = []
     try:
-        ast.parse_string(f":- {raw.strip()}.", nodes.append)
-    except RuntimeError as exc:
+        rule = parse_rule(f":- {raw.strip()}.")
+    except ValueError as exc:
         raise ValueError(f"invalid mode literal: {declaration}") from exc
-    rules = [node for node in nodes if node.ast_type == ast.ASTType.Rule]
-    if len(rules) != 1:
-        raise ValueError(f"mode declaration requires one literal: {declaration}")
-    expanded = rules[0].unpool() if unpool else rules
+    expanded = rule.unpool() if unpool else (rule,)
     if any(len(rule.body) != 1 for rule in expanded):
         raise ValueError(f"mode declaration requires one literal: {declaration}")
     return tuple(_literal_from_ast(rule.body[0], declaration) for rule in expanded)

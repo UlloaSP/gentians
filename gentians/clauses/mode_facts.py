@@ -1,4 +1,6 @@
 from collections import Counter
+from collections.abc import Callable
+from functools import lru_cache
 from itertools import combinations, product
 
 from clingo import ast
@@ -59,6 +61,7 @@ def compile_mode_facts(
     max_body_literals: int,
 ) -> list[str]:
     shapes: dict[tuple[object, ...], int] = {}
+    term_shape = lru_cache(maxsize=None)(mode_terms.shape)
     condition_variants: dict[tuple[object, ...], int] = {}
     aggregates = tuple(
         (literal, mode.output_guard)
@@ -77,6 +80,7 @@ def compile_mode_facts(
                 mode,
                 predicate_ids,
                 shapes,
+                term_shape,
                 max_head_literals,
                 max_body_literals,
             )
@@ -84,7 +88,7 @@ def compile_mode_facts(
         if isinstance(mode.literal, ConditionalLiteral):
             parts.extend(
                 _conditional_facts(
-                    mode, mode.literal, predicate_ids, condition_variants
+                    mode, mode.literal, predicate_ids, condition_variants, term_shape
                 )
             )
             conditions = mode.literal.conditions
@@ -172,6 +176,7 @@ def _common_mode_facts(
     mode: ClauseMode,
     predicate_ids: dict[Predicate, int],
     shapes: dict[tuple[object, ...], int],
+    term_shape: Callable[[ast.AST], tuple[object, ...]],
     max_head_literals: int,
     max_body_literals: int,
 ) -> list[str]:
@@ -195,7 +200,7 @@ def _common_mode_facts(
         )
     parts.append(f"recall_group({mode.id},{mode.recall_group}).")
     shape: tuple[object, ...] = tuple(
-        mode_terms.shape(argument) for argument in mode.arguments
+        term_shape(argument) for argument in mode.arguments
     )
     if isinstance(mode.literal, ComparisonLiteral):
         shape = (
@@ -211,7 +216,7 @@ def _common_mode_facts(
         shape = (
             "pooled_atom",
             tuple(
-                tuple(mode_terms.shape(term) for term in alternative)
+                tuple(term_shape(term) for term in alternative)
                 for alternative in mode.literal.atom.alternatives
             ),
         )
@@ -387,6 +392,7 @@ def _conditional_facts(
     conditional: ConditionalLiteral,
     predicate_ids: dict[Predicate, int],
     condition_variants: dict[tuple[object, ...], int],
+    term_shape: Callable[[ast.AST], tuple[object, ...]],
 ) -> list[str]:
     parts: list[str] = []
     argument_index = len(conditional.conclusion.arguments)
@@ -403,7 +409,7 @@ def _conditional_facts(
                 condition.default_negated,
                 condition.double_negated,
                 condition.atom.signature,
-                *(mode_terms.shape(term) for term in condition.atom.binding_terms),
+                *(term_shape(term) for term in condition.atom.binding_terms),
             )
             parts.append(
                 f"conditional_condition({mode.id},{index},{predicate_ids[condition.atom.signature]},{polarity})."
@@ -418,7 +424,7 @@ def _conditional_facts(
                 condition.default_negated,
                 condition.double_negated,
                 condition.operators,
-                *(mode_terms.shape(term) for term in condition.terms),
+                *(term_shape(term) for term in condition.terms),
             )
         # Conditions are ordered and deduplicated by variant, which amounts to
         # swapping them. Only conditions with equal types, directions and

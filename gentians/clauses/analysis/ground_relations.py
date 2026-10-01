@@ -10,9 +10,11 @@ from ...language.asp import (
     Predicate,
     add_program,
     clause_predicates,
+    parse_program,
     symbolic_functions,
     without_show,
 )
+from ...language.ast_nodes import LOCATION, literal
 from .ast_inspection import _children
 
 # Integers stay integers; every other ground term is its canonical Clingo text.
@@ -53,7 +55,8 @@ class ClosedWorld:
 
 
 def _closed_world(
-    program: AspProgram, learned: frozenset[Predicate]
+    program: AspProgram, learned: frozenset[Predicate],
+    relations_cache: dict[ast.AST, tuple[frozenset[Predicate], frozenset[Predicate]]] | None = None,
 ) -> ClosedWorld | None:
     """Return the fixed closed relations, or None when none can be trusted.
 
@@ -61,11 +64,16 @@ def _closed_world(
     cover an example of this context, or that a rule touching open predicates
     has a head whose predicates cannot be read.
     """
+    if relations_cache is None:
+        relations_cache = {}
     relations = {}
     for statement in program:
         if statement.ast_type == ast.ASTType.Rule:
-            heads, dependencies, _body_size = clause_predicates(statement)
-            relations[statement] = heads, dependencies
+            relation = relations_cache.get(statement)
+            if relation is None:
+                heads, dependencies, _body_size = clause_predicates(statement)
+                relation = relations_cache[statement] = heads, dependencies
+            relations[statement] = relation
     open_predicates = _open_predicates(relations, learned)
     if open_predicates is None:
         return None
@@ -209,23 +217,49 @@ def _by_predicate(symbols: list[clingo.Symbol]) -> dict[Predicate, set[GroundTup
 CHECK_TIMEOUT_SECONDS = 2.0
 
 
+def _fresh_violation_name(program: AspProgram) -> str:
+    """Avoid predicates, fixed terms and macros in the task and proof bodies."""
+    names: set[str] = set()
+    pending = list(program)
+    while pending:
+        node = pending.pop()
+        if "name" in node.keys():
+            names.add(str(node.name))
+        if node.ast_type == ast.ASTType.SymbolicTerm:
+            symbols = [node.symbol]
+            while symbols:
+                symbol = symbols.pop()
+                if symbol.type == clingo.SymbolType.Function:
+                    names.add(symbol.name)
+                    symbols.extend(symbol.arguments)
+        pending.extend(_children(node))
+    name = "gentians_violation"
+    suffix = 0
+    while name in names:
+        suffix += 1
+        name = f"gentians_violation_{suffix}"
+    return name
+
+
 def _hold_in_every_model(program: AspProgram, violations: list[str]) -> set[int]:
     """Indexes of violation bodies that no stable model of program satisfies."""
     if not violations:
         return set()
+    probes = parse_program("\n".join(f":- {body}." for body in violations))
+    name = _fresh_violation_name(program + probes)
     control = clingo.Control(logger=lambda _code, _message: None)
     add_program(control, program)
-    control.add(
-        "base",
-        [],
-        "\n".join(
-            f"violation({index}) :- {body}." for index, body in enumerate(violations)
-        ),
+    proof_rules = tuple(
+        probe.update(head=literal(ast.SymbolicAtom(ast.SymbolicTerm(
+            LOCATION, clingo.Function(name, [clingo.Number(index)]),
+        ))))
+        for index, probe in enumerate(probes)
     )
+    add_program(control, (ast.Program(LOCATION, "base", []), *proof_rules))
     control.ground([("base", [])])
     held: set[int] = set()
     for index in range(len(violations)):
-        atom = control.symbolic_atoms[clingo.Function("violation", [clingo.Number(index)])]
+        atom = control.symbolic_atoms[clingo.Function(name, [clingo.Number(index)])]
         if atom is None:
             held.add(index)
             continue

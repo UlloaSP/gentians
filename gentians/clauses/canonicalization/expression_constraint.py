@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 from clingo import ast
@@ -14,6 +14,14 @@ class ExpressionConstraint:
     output: int | None = None
     output_is_safe: bool = True
     guards: tuple[ArithmeticExpression, ...] = ()
+    _ordered_guards: tuple[ArithmeticExpression, ...] = field(
+        init=False, repr=False, compare=False,
+    )
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_ordered_guards", tuple(
+            sorted(self.guards, key=lambda guard: repr(guard.key))
+        ) if self.guards else ())
 
     @property
     def variables(self) -> frozenset[int]:
@@ -27,10 +35,6 @@ class ExpressionConstraint:
     @property
     def guard_keys(self) -> tuple[tuple[object, ...], ...]:
         return tuple(guard.key for guard in self._ordered_guards)
-
-    @property
-    def _ordered_guards(self) -> tuple[ArithmeticExpression, ...]:
-        return tuple(sorted(self.guards, key=lambda guard: repr(guard.key)))
 
     @property
     def key(self) -> tuple[object, ...]:

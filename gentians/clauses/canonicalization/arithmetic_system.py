@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from clingo import ast
 
@@ -21,6 +21,9 @@ SystemRelation = (
 @dataclass(frozen=True, slots=True)
 class ArithmeticSystem:
     relations: tuple[SystemRelation, ...]
+    _literals: tuple[ast.AST, ...] | None = field(
+        default=None, init=False, repr=False, compare=False,
+    )
 
     @property
     def key(self) -> ArithmeticSystemKey:
@@ -31,19 +34,27 @@ class ArithmeticSystem:
         return frozenset().union(*(relation.variables for relation in self.relations))
 
     def instantiate(self) -> tuple[ast.AST, ...]:
+        """Share native syntax for this immutable system; callers use AST.update."""
+        if self._literals is not None:
+            return self._literals
         literals: list[ast.AST] = []
+        seen: set[ast.AST] = set()
         guard_keys: set[tuple[object, ...]] = set()
         for relation in self.relations:
             node = relation.instantiate()
-            if node not in literals:
+            if node not in seen:
+                seen.add(node)
                 literals.append(node)
             if not isinstance(relation, ExpressionConstraint):
                 continue
             for key, guard in zip(relation.guard_keys, relation.guard_literals, strict=True):
                 if key not in guard_keys:
                     guard_keys.add(key)
+                    seen.add(guard)
                     literals.append(guard)
-        return tuple(literals)
+        result = tuple(literals)
+        object.__setattr__(self, "_literals", result)
+        return result
 
     def render(self) -> tuple[str, ...]:
         return tuple(str(node) for node in self.instantiate())

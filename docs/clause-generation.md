@@ -41,10 +41,14 @@ modes. Head and condition combinations are built in the same lexicographic
 order as before, stopping branches when a declaration recall or concrete-literal
 capacity is exhausted. `ClauseMode` owns its derived arithmetic traits without
 an unbounded process-wide traits cache. Other normalization caches remain bounded.
+Mode-fact compilation memoizes native term shapes for that call, including
+pooled alternatives and conditional variants, without changing fact order.
 
 Predicate argument types and capabilities are diagnostic data. They are computed
 on demand, or during generator preparation when Clingo metrics are enabled.
 They do not alter the task's modes or legal clause space.
+Synthetic type names follow sorted predicate positions, independent of Python's
+hash seed. Numeric-term classification also uses an explicit traversal stack.
 
 ## Closed-world properties
 
@@ -80,8 +84,9 @@ context, the background plus one example context, and Clingo is the authority:
 Property facts address source argument indexes, so they are emitted only for
 predicates whose templates use plain variables and constants.
 
-Each context extracts a rule's predicate dependencies once and propagates open
-predicates through an index and worklist. Argument-value sets and tuple
+One property-analysis call shares immutable rule dependencies across contexts;
+each context propagates open predicates through its own index and worklist.
+Ground relations, bounds and proofs remain isolated. Argument-value sets and tuple
 projections are reused inside that context only. Transitivity checks use a
 successor index, and total-order checks reuse the reflexivity and transitivity
 results. These indexes do not merge example contexts or change which
@@ -90,6 +95,9 @@ Dependency checks group tuples once per determinant and share that scan across
 output positions and key detection. Context properties are intersected as each
 world is processed, and subsumption runs only after the intersection. Identical
 violation bodies share one Clingo proof while retaining every associated fact.
+Proof rules use a fresh auxiliary predicate absent from the task and proof
+bodies, including macros and strongly negated names, so they cannot redefine
+the background's predicates or introduce cycles into it.
 Cycle checks and static AST inspection use iterative traversals.
 
 Clingo applies theta reduction with the other redundancy checks before returning
@@ -107,6 +115,12 @@ entries evicted first. Representatives are yielded directly to `ClauseSpace`,
 which alone performs final text sorting and deduplication. Compiled argument
 binding offsets are reused by head instantiation and mode-fact compilation.
 Head-condition products prune over-budget prefixes in the original product order.
+Literal instantiation has a bounded cache keyed by mode and variable bindings;
+its key omits the reified slot. Each immutable arithmetic system constructs its
+native literal tuple lazily once and retains it for its own lifetime. Native AST
+membership uses a set while preserving main-literal and guard insertion order.
+Guard ordering is derived once per immutable expression constraint and rebuilt
+on remapping. Shared native nodes are templates: transformations use `AST.update`.
 
 Arithmetic representation modules own keys, variable sets, remapping and
 rendering through Clingo's AST. Reified modes and normalized systems construct
@@ -115,6 +129,9 @@ Normalization algorithms own connected components, substitutions,
 linear reduction and contradiction detection. Choosing one representative per
 canonical key remains part of canonicalization; no separate duplicate policy
 reimplements that choice. `ClauseSpace` orders and deduplicates the final clauses.
+Expression assignments index their missing inputs and visit only ready entries.
+The queue preserves the former left-to-right scan order, including repeated
+outputs and divisor guards; unresolved cycles retain the structural fallback.
 
 Expression traversal, structural equality, key construction, substitutions and
 native AST construction use explicit stacks and reuse shared expression nodes

@@ -39,7 +39,7 @@ class CanonicalArithmeticClause:
                 cached = heads[self.head] = instantiate_head(self.head, modes)
             head = cached
         body = [
-            _instantiate_literal(literal, modes[literal.mode_id])
+            _instantiate_literal(modes[literal.mode_id], literal.variables)
             for literal in self.body
         ]
         for system in self.systems:

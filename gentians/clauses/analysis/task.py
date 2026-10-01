@@ -257,7 +257,7 @@ def _predicate_arg_types(
     constants_by_root: dict[
         tuple[str, int, int], set[tuple[ast.AST, bool]]
     ] = {}
-    for position in positions:
+    for position in sorted(positions):
         root = find(position)
         constants_by_root.setdefault(root, set()).update(
             constants_by_position.get(position, set())
@@ -284,22 +284,25 @@ def _predicate_arg_types(
         else:
             type_by_root[root] = "any"
 
-    return {position: type_by_root[find(position)] for position in positions}
+    return {position: type_by_root[find(position)] for position in sorted(positions)}
 
 
 def _is_numeric_term(term: ast.AST) -> bool:
-    if term.ast_type == ast.ASTType.SymbolicTerm:
-        return term.symbol.type == clingo.SymbolType.Number
-    if term.ast_type == ast.ASTType.Interval:
-        return _is_numeric_bound(term.left) and _is_numeric_bound(term.right)
-    if term.ast_type == ast.ASTType.UnaryOperation:
-        return _is_numeric_term(term.argument)
-    return False
-
-
-def _is_numeric_bound(term: ast.AST) -> bool:
-    return _is_numeric_term(term) or (
-        term.ast_type == ast.ASTType.SymbolicTerm
-        and term.symbol.type == clingo.SymbolType.Function
-        and not term.symbol.arguments
-    )
+    pending = [(term, False)]
+    while pending:
+        node, bound = pending.pop()
+        if node.ast_type == ast.ASTType.SymbolicTerm:
+            symbol = node.symbol
+            if symbol.type == clingo.SymbolType.Number or (
+                bound and symbol.type == clingo.SymbolType.Function
+                and not symbol.arguments
+            ):
+                continue
+        elif node.ast_type == ast.ASTType.Interval:
+            pending.extend(((node.right, True), (node.left, True)))
+            continue
+        elif node.ast_type == ast.ASTType.UnaryOperation:
+            pending.append((node.argument, False))
+            continue
+        return False
+    return True

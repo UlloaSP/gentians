@@ -1,12 +1,17 @@
 from collections import Counter
 from itertools import combinations, combinations_with_replacement, permutations, product
+import json
+import os
+from random import Random
+import subprocess
+import sys
 
 import clingo
 import pytest
 
 from gentians.arguments import Arguments
-from gentians.clauses import generator, mode_compiler
-from gentians.clauses.analysis import ground_relations, inference, rule_properties
+from gentians.clauses import generator, mode_compiler, mode_facts, reified_clause
+from gentians.clauses.analysis import ground_relations, inference, rule_properties, task as task_analysis
 from gentians.clauses.analysis.inference import _closed_world_properties
 from gentians.clauses.analysis.relation_properties import (
     _collect_projection_implications,
@@ -18,8 +23,11 @@ from gentians.clauses.analysis.relation_properties import (
     _is_acyclic,
 )
 from gentians.clauses.canonicalization import arithmetic, expression as expressions
+from gentians.clauses.canonicalization import expression_constraint, expression_normalization
+from gentians.clauses.canonicalization.arithmetic_system import ArithmeticSystem
 from gentians.clauses.canonicalization.clauses import ClauseCanonicalizer
 from gentians.clauses.canonicalization.expression import ArithmeticExpression
+from gentians.clauses.canonicalization.expression_constraint import ExpressionConstraint
 from gentians.clauses.canonicalization.expression_normalization import _term_comparison
 from gentians.clauses.canonicalization.linear_constraint import LinearConstraint
 from gentians.clauses.canonicalization.linear_normalization import (
@@ -548,3 +556,279 @@ def test_clause_space_owns_final_order_and_text_deduplication():
     assert [entry.text for entry in entries] == ["z.", "a."]
     space = ClauseSpace(iter((*entries, entries[0])))
     assert space.clauses == ("a.", "z.")
+
+
+@pytest.mark.parametrize("predicate", ["violation", "gentians_violation", "gentians_violation_1"])
+def test_property_probes_do_not_change_the_background_models(predicate):
+    program = parse_program(f"a :- {predicate}(0). b :- not a.")
+    assert ground_relations._hold_in_every_model(program, ["b", "a"]) == {1}
+    program = parse_program(f"{predicate}(0). a :- {predicate}(0). b :- not a.")
+    assert ground_relations._hold_in_every_model(program, ["b", "a"]) == {0}
+
+
+def test_property_probe_name_avoids_directives_macros_signed_atoms_and_fixed_terms():
+    program = parse_program("""
+        #external gentians_violation(0).
+        #show gentians_violation_1/1.
+        #const gentians_violation_2 = 7.
+        -gentians_violation_3(0). keep(f(gentians_violation_4)).
+    """)
+    assert ground_relations._fresh_violation_name(program) == "gentians_violation_5"
+    assert ground_relations._hold_in_every_model(program, ["-gentians_violation_3(0)", "missing"]) == {1}
+    assert ground_relations._hold_in_every_model((), ["not gentians_violation(0)"]) == set()
+    assert ground_relations._hold_in_every_model((), []) == set()
+    assert ground_relations._hold_in_every_model(
+        parse_program("b. #program unused. p."), ["b", "p"],
+    ) == {1}
+
+
+def test_diagnostic_type_names_are_reproducible_across_hash_seeds():
+    script = """
+import json
+from gentians.language import parse_text
+from gentians.clauses.analysis.task import _predicate_arg_types, _task_nodes
+task = parse_text('p(a). q(b). r(c). p(X) :- q(X).')
+print(json.dumps(list(_predicate_arg_types(task, _task_nodes(task)).items())))
+"""
+    results = [subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, check=True,
+        env={**os.environ, "PYTHONHASHSEED": str(seed)},
+    ).stdout for seed in (1, 2, 3)]
+    assert len(set(results)) == 1
+    assert json.loads(results[0]) == [
+        [["p", 1, 0], "type_0"], [["q", 1, 0], "type_0"], [["r", 1, 0], "type_1"],
+    ]
+
+
+@pytest.mark.parametrize("term,numeric", [
+    ("1", True), ("-1", True), ("~1", True), ("|1|", True),
+    ("a", False), ("-a", False), ("f(1)", False), ("1+2", False),
+    ("a..b", True), ("-a..b", False), ("1..3", True), ("1..f(3)", False),
+])
+def test_diagnostic_numeric_classification_preserves_term_and_interval_roles(term, numeric):
+    node = parse_rule(f"p({term}).").head.atom.symbol.arguments[0]
+    assert task_analysis._is_numeric_term(node) == numeric
+
+
+def test_diagnostic_types_handle_deep_numeric_terms():
+    task = parse_text("p(" + "-(" * 1200 + "1" + ")" * 1200 + ").")
+    assert task_analysis._predicate_arg_types(task, task_analysis._task_nodes(task)) == {("p", 1, 0): "numeric"}
+
+
+def test_native_literal_cache_reuses_bindings_independently_of_body_slot():
+    task = parse_text("#modeb(2,p(var(node,any))). #modeb(1,not p(var(node,input))).")
+    modes = {mode.id: mode for mode in mode_compiler._clause_modes(task)}
+    reified_clause._instantiate_literal.cache_clear()
+    nodes = []
+    for slot in range(20):
+        clause = arithmetic.canonical_arithmetic_clause(
+            ReifiedClause((), (ReifiedLiteral("body", slot, 0, (0,)),)), modes, 1,
+        )
+        assert clause is not None
+        nodes.append(clause.instantiate(modes).body[0])
+    assert all(node == nodes[0] for node in nodes)
+    info = reified_clause._instantiate_literal.cache_info()
+    assert (info.misses, info.hits, info.maxsize) == (1, 19, 8192)
+    first = reified_clause._instantiate_literal(modes[0], (0,))
+    assert first is reified_clause._instantiate_literal(modes[0], (0,))
+    assert str(reified_clause._instantiate_literal(modes[0], (1,))) == "p(V1)"
+    assert str(reified_clause._instantiate_literal(modes[1], (0,))) == "not p(V0)"
+
+
+def test_contexts_share_syntax_analysis_but_keep_their_relations_isolated(monkeypatch):
+    background = parse_program("p(a,b). -p(c,d). q(X,Y) :- p(X,Y).")
+    contexts = tuple(background + parse_program(source) for source in (
+        "p(b,a).", "p(a,a).", ":-.", "-p(d,c).",
+    ))
+    calls = Counter()
+    original = ground_relations.clause_predicates
+
+    def inspect(rule):
+        calls[rule] += 1
+        return original(rule)
+
+    monkeypatch.setattr(ground_relations, "clause_predicates", inspect)
+    common = _closed_world_properties(contexts)
+    assert all(calls[rule] == 1 for rule in background)
+    assert ("p", 2) not in common.symmetric
+    assert ("p", 2) not in common.arg_distinct
+    # A separate task owns a fresh syntax memo; no global state survives.
+    assert common == _closed_world_properties(contexts)
+    assert all(calls[rule] == 2 for rule in background)
+    first = ground_relations._closed_world(contexts[0], frozenset())
+    second = ground_relations._closed_world(contexts[1], frozenset())
+    assert first is not None and second is not None
+    assert first.extension(("p", 2)) == frozenset({("a", "b"), ("b", "a")})
+    assert second.extension(("p", 2)) == frozenset({("a", "b"), ("a", "a")})
+    assert first.extension(("-p", 2)) == second.extension(("-p", 2)) == frozenset({("c", "d")})
+
+
+def test_mode_facts_reuse_term_shapes_and_keep_all_fact_variants(monkeypatch):
+    task = parse_text("""
+        #maxv(1). #maxhl(2). #maxbl(2).
+        #modeh(1,p(var(node,any));q(var(node,any))).
+        #modec(1,c(var(node,any))). #modec(1,d(var(node,any))).
+        #modeb(1,not -p(var(node,input))).
+        #modeb(1,var(numeric,input)<3).
+    """)
+    modes = mode_compiler._clause_modes(task)
+    ids = mode_facts.predicate_ids(modes)
+    expected = mode_facts.compile_mode_facts(modes, ids, 2, 2)
+    calls = Counter()
+    original = mode_terms.shape
+
+    def shape(term):
+        calls[term] += 1
+        return original(term)
+
+    monkeypatch.setattr(mode_terms, "shape", shape)
+    assert mode_facts.compile_mode_facts(modes, ids, 2, 2) == expected
+    assert calls and max(calls.values()) == 1
+    assert mode_facts.compile_mode_facts(modes, ids, 2, 2) == expected
+    assert max(calls.values()) == 2
+
+
+def test_arithmetic_readiness_preserves_scan_order_with_redefinitions_and_cycles(monkeypatch):
+    task = parse_text("#modeb(10,var(numeric,input)*var(numeric,input)=var(numeric,output)).")
+    modes = {mode.id: mode for mode in mode_compiler._clause_modes(task)}
+    original = expression_normalization._mode_expression
+    seen = []
+
+    def expression(literal, mode, known):
+        seen.append(literal.slot)
+        return original(literal, mode, known)
+
+    monkeypatch.setattr(expression_normalization, "_mode_expression", expression)
+    rng = Random(23)
+    for _ in range(250):
+        literals = [ReifiedLiteral("body", index, 0, tuple(rng.randrange(7) for _ in range(3)))
+                    for index in range(rng.randrange(1, 15))]
+        safe = {variable for variable in range(7) if rng.randrange(3) == 0}
+        available = set(safe)
+        pending = list(literals)
+        expected = []
+        while pending:
+            ready = False
+            for literal in pending[:]:
+                if set(literal.variables[:-1]) <= available:
+                    expected.append(literal.slot)
+                    available.add(literal.variables[-1])
+                    pending.remove(literal)
+                    ready = True
+            if not ready:
+                break
+        seen.clear()
+        system = expression_normalization._expression_system(literals, modes, set(range(7)), safe, set(range(7)))
+        assert seen == expected
+        assert (system is None) == bool(pending)
+
+
+def test_reverse_arithmetic_chain_does_not_rescan_every_unready_assignment():
+    task = parse_text("#modeb(1,var(numeric,input)*var(numeric,input)=var(numeric,output)).")
+
+    class CountModes(dict):
+        reads = 0
+
+        def __getitem__(self, key):
+            self.reads += 1
+            return super().__getitem__(key)
+
+    modes = CountModes({mode.id: mode for mode in mode_compiler._clause_modes(task)})
+    literals = [ReifiedLiteral("body", index, 0, (index, 0, index + 1)) for index in reversed(range(100))]
+    system = expression_normalization._expression_system(literals, modes, {100}, {0}, set(range(101)))
+    assert system is not None and system.variables == frozenset({0, 100})
+    assert modes.reads <= 4 * len(literals)
+
+
+@pytest.mark.parametrize("operator", ["/", "\\"])
+def test_arithmetic_readiness_keeps_inherited_divisor_guards(operator):
+    task = parse_text(f"#modeb(2,var(numeric,input){operator}var(numeric,input)=var(numeric,output)).")
+    modes = {mode.id: mode for mode in mode_compiler._clause_modes(task)}
+    literals = [ReifiedLiteral("body", 0, 0, (2, 1, 3)), ReifiedLiteral("body", 1, 0, (0, 1, 2))]
+    system = expression_normalization._expression_system(literals, modes, {3}, {0, 1}, set(range(4)))
+    assert system is not None
+    assert system.render() == (f"((V0{operator}V1){operator}V1) = V3", "V1 != 0")
+
+
+def test_arithmetic_literal_dedup_keeps_constraint_and_guard_order():
+    variable = ArithmeticExpression.var(0)
+    relation = ExpressionConstraint(variable, "ne")
+    guarded = ExpressionConstraint(variable, "eq", guards=(variable, variable))
+    system = ArithmeticSystem((relation, guarded, relation, guarded))
+    # Guard insertion follows guard keys even when a prior main literal equals it.
+    assert system.render() == ("V0 != 0", "V0 = 0", "V0 != 0")
+    reverse = ArithmeticSystem((guarded, relation))
+    assert reverse.render() == ("V0 = 0", "V0 != 0")
+
+
+def test_arithmetic_literal_membership_uses_native_hashes(monkeypatch):
+    comparisons = 0
+    original = clingo.ast.AST.__eq__
+
+    def equal(left, right):
+        nonlocal comparisons
+        comparisons += 1
+        return original(left, right)
+
+    monkeypatch.setattr(clingo.ast.AST, "__eq__", equal)
+    system = ArithmeticSystem(tuple(LinearConstraint((1, index), "eq") for index in range(100)))
+    assert len(system.instantiate()) == 100
+    assert comparisons < 100
+
+
+def test_expression_guards_are_sorted_once_and_remapped_independently(monkeypatch):
+    sorts = []
+
+    def ordered(values, **kwargs):
+        sorts.append(tuple(values))
+        return sorted(values, **kwargs)
+
+    monkeypatch.setattr(expression_constraint, "sorted", ordered, raising=False)
+    guards = (ArithmeticExpression.var(2), ArithmeticExpression.var(1))
+    relation = ExpressionConstraint(ArithmeticExpression.var(0), "eq", guards=guards)
+    initial_hash = hash(relation)
+    assert relation.guard_keys == (("var", 1), ("var", 2))
+    assert relation.key == relation.key
+    assert relation.rendered_guards == ("V1 != 0", "V2 != 0")
+    assert sorts == [guards]
+    changed = relation.remap({0: 4, 1: 5, 2: 3})
+    assert changed.rendered_guards == ("V3 != 0", "V5 != 0")
+    assert len(sorts) == 2
+    assert hash(relation) == initial_hash
+    assert relation.guards == guards
+
+
+def test_native_arithmetic_system_is_shared_only_within_its_own_lifetime(monkeypatch):
+    task = parse_text("#modeh(1,target(var(numeric,input))). " + " ".join(
+        f"#modeb(1,q{index}(var(numeric,any)))." for index in range(20)
+    ) + " #modeb(1,var(numeric,input)*var(numeric,input)=var(numeric,output)).")
+    modes = {mode.id: mode for mode in mode_compiler._clause_modes(task)}
+    calls = []
+    original = ExpressionConstraint.instantiate
+
+    def instantiate(relation):
+        calls.append(relation)
+        return original(relation)
+
+    monkeypatch.setattr(ExpressionConstraint, "instantiate", instantiate)
+    outputs = []
+    for _batch in range(2):
+        canonicalizer = ClauseCanonicalizer(modes, 2)
+        for index in range(20):
+            canonicalizer.add(ReifiedClause((ReifiedLiteral("head", 0, 0, (1,)),), (
+                ReifiedLiteral("body", 0, index + 1, (0,)),
+                ReifiedLiteral("body", 1, 21, (0, 0, 1)),
+            )))
+        entries = list(canonicalizer.finish())
+        assert len(entries) == 20
+        outputs.append([entry.text for entry in entries])
+    assert len(calls) == 2
+    assert outputs[0] == outputs[1]
+    system = ArithmeticSystem((calls[0],))
+    original_hash = hash(system)
+    nodes = system.instantiate()
+    assert nodes is system.instantiate()
+    changed = system.remap({0: 2, 1: 3}, 4)
+    assert changed.render() == ("(V2*V2) = V3",)
+    assert system.render() == ("(V0*V0) = V1",)
+    assert hash(system) == original_hash

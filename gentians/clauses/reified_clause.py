@@ -26,8 +26,8 @@ def instantiate_literal(
 
 
 @lru_cache(maxsize=8192)
-def _instantiate_literal(literal: ReifiedLiteral, mode: ClauseMode) -> ast.AST:
-    return instantiate_literal(mode.literal, literal.variables)
+def _instantiate_literal(mode: ClauseMode, variables: tuple[int, ...]) -> ast.AST:
+    return instantiate_literal(mode.literal, variables)
 
 
 def instantiate_head(
@@ -41,11 +41,8 @@ def instantiate_head(
         raise ValueError("clause head does not belong to one complete #modeh form")
     atoms = tuple(
         _instantiate_literal(
-            ReifiedLiteral(
-                literal.section, literal.slot, literal.mode_id,
-                literal.variables[:mode.literal_binding_count],
-            ),
             mode,
+            literal.variables[:mode.literal_binding_count],
         )
         for literal, mode in zip(head, head_modes, strict=True)
     )

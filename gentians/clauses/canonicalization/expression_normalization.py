@@ -1,4 +1,5 @@
 from collections.abc import Set
+from heapq import heapify, heappop, heappush
 
 from clingo import ast
 
@@ -91,8 +92,8 @@ def _expression_system(
     guards: dict[int, tuple[ArithmeticExpression, ...]] = {
         variable: () for variable in safe
     }
-    pending = [
-        literal
+    assignments = [
+        (literal, modes[literal.mode_id])
         for literal in literals
         if isinstance(modes[literal.mode_id].literal, ArithmeticLiteral)
     ]
@@ -102,53 +103,69 @@ def _expression_system(
         if isinstance(modes[literal.mode_id].literal, ComparisonLiteral)
     ]
     constraints: list[SystemRelation] = []
-    while pending:
-        progress = False
-        for literal in pending[:]:
-            mode = modes[literal.mode_id]
-            if not isinstance(mode.literal, ArithmeticLiteral):
-                return None
-            input_variables = literal.variables[:-1]
-            if any(variable not in known for variable in input_variables):
-                continue
-            expression = _mode_expression(literal, mode, known)
-            inherited = tuple(
-                guard
-                for variable in input_variables
-                for guard in guards.get(variable, ())
-            )
-            if mode.literal.operator in {"/", "\\"}:
-                inherited = (*inherited, known[input_variables[1]])
-            inherited = tuple(dict.fromkeys(inherited))
-            output = literal.variables[-1]
-            if output in external:
-                constraints.append(
-                    ExpressionConstraint(
-                        expression,
-                        "eq",
-                        output,
-                        output in safe,
-                        inherited,
-                    )
-                )
-                known[output] = ArithmeticExpression.var(output)
-                guards[output] = ()
-            elif output in known:
-                prior_guards = guards.get(output, ())
-                constraints.append(
-                    ExpressionConstraint(
-                        ArithmeticExpression("-", (known[output], expression)),
-                        "eq",
-                        guards=tuple(dict.fromkeys((*prior_guards, *inherited))),
-                    )
-                )
-            else:
-                known[output] = expression
-                guards[output] = inherited
-            pending.remove(literal)
-            progress = True
-        if not progress:
+    waiting: dict[int, list[int]] = {}
+    missing_counts: list[int] = []
+    ready: list[tuple[int, int]] = []
+    for index, (literal, _mode) in enumerate(assignments):
+        missing = set(literal.variables[:-1]) - known.keys()
+        missing_counts.append(len(missing))
+        if not missing:
+            ready.append((0, index))
+        for variable in missing:
+            waiting.setdefault(variable, []).append(index)
+    heapify(ready)
+    resolved = 0
+    while ready:
+        scan, index = heappop(ready)
+        literal, mode = assignments[index]
+        if not isinstance(mode.literal, ArithmeticLiteral):
             return None
+        input_variables = literal.variables[:-1]
+        expression = _mode_expression(literal, mode, known)
+        inherited = tuple(
+            guard
+            for variable in input_variables
+            for guard in guards.get(variable, ())
+        )
+        if mode.literal.operator in {"/", "\\"}:
+            inherited = (*inherited, known[input_variables[1]])
+        inherited = tuple(dict.fromkeys(inherited))
+        output = literal.variables[-1]
+        newly_known = output not in known
+        if output in external:
+            constraints.append(
+                ExpressionConstraint(
+                    expression,
+                    "eq",
+                    output,
+                    output in safe,
+                    inherited,
+                )
+            )
+            known[output] = ArithmeticExpression.var(output)
+            guards[output] = ()
+        elif output in known:
+            prior_guards = guards.get(output, ())
+            constraints.append(
+                ExpressionConstraint(
+                    ArithmeticExpression("-", (known[output], expression)),
+                    "eq",
+                    guards=tuple(dict.fromkeys((*prior_guards, *inherited))),
+                )
+            )
+        else:
+            known[output] = expression
+            guards[output] = inherited
+        if newly_known:
+            for consumer in waiting.pop(output, ()):
+                missing_counts[consumer] -= 1
+                if not missing_counts[consumer]:
+                    # Match left-to-right scans: an earlier slot waits for the
+                    # next scan, so repeated outputs retain their prior order.
+                    heappush(ready, (scan + (consumer <= index), consumer))
+        resolved += 1
+    if resolved != len(assignments):
+        return None
 
     for literal in comparisons:
         comparison = modes[literal.mode_id].literal

@@ -2,6 +2,8 @@ from collections.abc import Callable, Iterator
 from dataclasses import fields
 from itertools import combinations
 
+from clingo import ast
+
 from ...language.asp import AspProgram, Predicate
 from .ground_relations import (
     ClosedWorld,
@@ -58,8 +60,9 @@ def _closed_world_properties(
     separately. Merging contexts would invent relations that no example sees.
     """
     common: ClosedWorldProperties | None = None
+    relations: dict[ast.AST, tuple[frozenset[Predicate], frozenset[Predicate]]] = {}
     for program in contexts:
-        world = _closed_world(program, learned)
+        world = _closed_world(program, learned, relations)
         if world is None:
             continue
         properties = _context_properties(world, relevant, negated)

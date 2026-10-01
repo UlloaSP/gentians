@@ -156,7 +156,7 @@ class HeadTemplate:
             def guards(guard: ast.AST | None) -> tuple[ast.AST | None, ...]:
                 return (
                     tuple(
-                        guard.update(term=term)
+                        guard if term == guard.term else guard.update(term=term)
                         for term in mode_terms.concretizations(guard.term, constants)
                     )
                     if guard
@@ -164,7 +164,8 @@ class HeadTemplate:
                 )
 
             forms = tuple(
-                self.form.update(left_guard=left, right_guard=right)
+                self.form if left == self.form.left_guard and right == self.form.right_guard
+                else self.form.update(left_guard=left, right_guard=right)
                 for left, right in product(
                     guards(self.form.left_guard), guards(self.form.right_guard)
                 )
@@ -198,18 +199,17 @@ class HeadTemplate:
                     else ast.ConditionalLiteral(LOCATION, item, [])
                     for item in items
                 ]
-            head = self.form.update(elements=items)
+            guards: dict[str, ast.AST | None] = {}
             if kind in {"choice", "aggregate"}:
-                head = head.update(
-                    **{
-                        side: guard.update(
-                            term=mode_terms.instantiate(guard.term, variables)
-                        )
-                        if guard
-                        else None
-                        for side in ("left_guard", "right_guard")
-                        for guard in (getattr(self.form, side),)
-                    }
-                )
+                guards = {
+                    side: guard.update(
+                        term=mode_terms.instantiate(guard.term, variables)
+                    )
+                    if guard
+                    else None
+                    for side in ("left_guard", "right_guard")
+                    for guard in (getattr(self.form, side),)
+                }
+            head = self.form.update(elements=items, **guards)
         consume_all(variables)
         return head

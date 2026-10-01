@@ -33,7 +33,9 @@ class AggregateElement:
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["AggregateElement", ...]:
         return tuple(
-            AggregateElement(concrete_terms, conditions, conclusion)
+            self if concrete_terms == self.terms and conditions == self.conditions
+            and conclusion == self.conclusion
+            else AggregateElement(concrete_terms, conditions, conclusion)
             for concrete_terms, conclusion, conditions in product(
                 product(*(mode_terms.concretizations(term, constants) for term in self.terms)),
                 self.conclusion.concretizations(constants) if self.conclusion is not None else (None,),

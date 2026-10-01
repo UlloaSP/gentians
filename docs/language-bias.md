@@ -48,6 +48,9 @@ Equal examples and mode declarations retain their first appearance and source
 location. Deduplication uses insertion order; different recalls, signs, labels,
 directions, or example contexts remain distinct. Constant values likewise keep
 their first appearance within each type.
+Errors while reading modes, constants, limits and inventions report the original
+statement's starting line, as example and lexer errors already do. A diagnostic
+that already carries that location is not prefixed again.
 The complete background is parsed in one Clingo call while preserving original
 task line locations. Background and every
 example's included atoms, excluded atoms, and context remain as
@@ -67,9 +70,9 @@ Each literal owns its constant expansion, reused by head and body conditions
 and aggregate elements. Independent element, condition, and guard alternatives
 are expanded once per call and combined with an ordered Cartesian product.
 Combining one alternative never recomputes another group's expansion.
-Atom and head templates are immutable values. When constant expansion leaves
-them unchanged, it reuses the existing template instead of constructing and
-validating a duplicate. Changed variants remain independent, and instantiation
+Atom, comparison, conditional, aggregate and head templates are immutable values.
+When constant expansion leaves them unchanged, it reuses the existing template
+and guards instead of constructing and validating a duplicate. Changed variants remain independent, and instantiation
 constructs native nodes without modifying the retained template.
 Head templates keep their Clingo form (including guards and aggregate function)
 and complete learning elements; signs and exact conditions belong to their
@@ -242,10 +245,14 @@ type and one direction; `var(type)` without a direction is valid only inside a
 relation, where the inference rules below apply.
 
 Functions and tuples may nest without a depth limit. Arithmetic expressions and
-intervals are also valid in atom arguments. A pool in `#modeh` stays inside one
-complete head: `#modeh(1,p(1;2)).` generates `p(1;2).` as one selectable
-clause, which Clingo expands to both facts. A pool may vary several arguments,
-as in `p(1,2;3,4)`; all alternatives must keep the same predicate and arity.
+intervals are also valid in atom arguments.
+Native term validation, binding inspection, constant expansion and substitution
+use explicit traversal stacks; nesting does not depend on Python's recursion
+limit. They preserve left-to-right depth-first binding and alternative order.
+A pool in `#modeh` stays inside one complete head: `#modeh(1,p(1;2)).` generates
+`p(1;2).` as one selectable clause, which Clingo expands to both facts. A pool may
+vary several arguments, as in `p(1,2;3,4)`; all alternatives must keep the same
+predicate and arity.
 An atom pool in `#modeb`, such as `#modeb(1,p(1;2)).` or
 `#modeb(1,p(f(1;2))).`, stays in one body literal and one learnable clause.
 Canonical output may write the nested example as `p(f(1);f(2))`.

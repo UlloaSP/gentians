@@ -50,7 +50,7 @@ def _get_body_mode_declaration(s: str) -> ModeDeclaration:
     (declaration,) = _get_mode_declarations(s, "#modeb")
     if isinstance(declaration.literal, ComparisonLiteral):
         literal = _prepare_body_comparison(declaration.literal, s)
-        return ModeDeclaration(declaration.recall, literal)
+        return declaration if literal is declaration.literal else ModeDeclaration(declaration.recall, literal)
     return declaration
 
 
@@ -250,15 +250,9 @@ def _get_head_declaration(s: str) -> HeadTemplate:
         raise ValueError(f"unsupported #modeh head form: {s}")
     form = head.update(elements=[])
     if head.ast_type in {ast.ASTType.Aggregate, ast.ASTType.HeadAggregate}:
-        form = form.update(
-            **{
-                side: guard.update(term=mode_terms.validate(guard.term, s))
-                if guard
-                else None
-                for side in ("left_guard", "right_guard")
-                for guard in (getattr(head, side),)
-            }
-        )
+        for guard in (head.left_guard, head.right_guard):
+            if guard is not None:
+                mode_terms.validate(guard.term, s)
     return HeadTemplate(form, elements)
 
 
@@ -432,20 +426,10 @@ def _aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral:
                     )
         elements.append(AggregateElement(tuple_terms, tuple(conditions)))
 
-    left = (
-        ast.Guard(
-            aggregate.left_guard.comparison,
-            mode_terms.validate(aggregate.left_guard.term, declaration),
-        )
-        if aggregate.left_guard is not None else None
-    )
-    right = (
-        ast.Guard(
-            aggregate.right_guard.comparison,
-            mode_terms.validate(aggregate.right_guard.term, declaration),
-        )
-        if aggregate.right_guard is not None else None
-    )
+    left, right = aggregate.left_guard, aggregate.right_guard
+    for guard in (left, right):
+        if guard is not None:
+            mode_terms.validate(guard.term, declaration)
     literal = AggregateLiteral(
         function, tuple(elements), left, right,
         node.sign != ast.Sign.NoSign,
@@ -488,14 +472,10 @@ def _set_aggregate_from_ast(node: ast.AST, declaration: str) -> AggregateLiteral
         elements.append(AggregateElement(
             (), conditions, conclusion,
         ))
-    left = (
-        ast.Guard(aggregate.left_guard.comparison, mode_terms.validate(aggregate.left_guard.term, declaration))
-        if aggregate.left_guard is not None else None
-    )
-    right = (
-        ast.Guard(aggregate.right_guard.comparison, mode_terms.validate(aggregate.right_guard.term, declaration))
-        if aggregate.right_guard is not None else None
-    )
+    left, right = aggregate.left_guard, aggregate.right_guard
+    for guard in (left, right):
+        if guard is not None:
+            mode_terms.validate(guard.term, declaration)
     if any(
         binding.direction == "output"
         for guard in (left, right) if guard is not None

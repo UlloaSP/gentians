@@ -2,7 +2,7 @@ import clingo
 from clingo import ast
 
 from ...language import terms as mode_terms
-from ...language.asp import AspProgram, Predicate
+from ...language.asp import AspProgram, Predicate, has_variable
 from ...language.ir.aggregate_literal import AggregateLiteral
 from ...language.ir.atom_literal import AtomLiteral
 from ...language.ir.atom_template import AtomTemplate
@@ -10,7 +10,7 @@ from ...language.ir.comparison_literal import ComparisonLiteral
 from ...language.ir.conditional_literal import ConditionalLiteral
 from ...language.ir.inductive_task import InductiveTask
 from ...language.ir.mode_declaration import ModeDeclaration
-from .ast_inspection import _has_variable, _iter_atoms
+from .ast_inspection import _iter_atoms
 from .capabilities import ClauseCapabilities
 
 
@@ -226,7 +226,7 @@ def _predicate_arg_types(
                     positions_by_variable.setdefault(
                         str(argument.name), []
                     ).append(position)
-                elif _has_variable(argument):
+                elif has_variable(argument):
                     continue
                 else:
                     constants_by_position.setdefault(position, set()).add(

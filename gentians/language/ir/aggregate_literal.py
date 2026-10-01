@@ -64,15 +64,16 @@ class AggregateLiteral:
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["AggregateLiteral", ...]:
         return tuple(
-            AggregateLiteral(
+            self if elements == self.elements and left == self.left_guard
+            and right == self.right_guard else AggregateLiteral(
                 self.function, elements, left, right,
                 self.default_negated, self.double_negated,
             )
             for elements, left, right in product(
                 product(*(element.concretizations(constants) for element in self.elements)),
-                tuple(self.left_guard.update(term=term) for term in mode_terms.concretizations(self.left_guard.term, constants))
+                tuple(self.left_guard if term == self.left_guard.term else self.left_guard.update(term=term) for term in mode_terms.concretizations(self.left_guard.term, constants))
                 if self.left_guard is not None else (None,),
-                tuple(self.right_guard.update(term=term) for term in mode_terms.concretizations(self.right_guard.term, constants))
+                tuple(self.right_guard if term == self.right_guard.term else self.right_guard.update(term=term) for term in mode_terms.concretizations(self.right_guard.term, constants))
                 if self.right_guard is not None else (None,),
             )
         )

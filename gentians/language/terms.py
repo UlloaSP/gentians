@@ -83,7 +83,10 @@ def variable(type_name: str, direction: str, label: str = "") -> ast.AST:
         if direction
         else (type_name,)
     )
-    return ast.Function(LOCATION, "var", [fixed(item) for item in values], False)
+    return ast.Function(
+        LOCATION, "var",
+        [ast.SymbolicTerm(LOCATION, clingo.Function(item)) for item in values], False,
+    )
 
 
 def constant(type_name: str) -> ast.AST:
@@ -109,31 +112,61 @@ def binding(term: ast.AST, path: tuple[int, ...] = ()) -> TermBinding:
 def bindings(term: ast.AST, path: tuple[int, ...] = ()) -> tuple[TermBinding, ...]:
     if kind(term) == "variable":
         return (binding(term, path),)
-    return tuple(
-        item
-        for index, child in enumerate(arguments(term))
-        for item in bindings(child, (*path, index))
-    )
+    result: list[TermBinding] = []
+    pending = [iter(enumerate(arguments(term)))]
+    indices: list[int] = []
+    while pending:
+        child = next(pending[-1], None)
+        if child is None:
+            pending.pop()
+            if indices:
+                indices.pop()
+        else:
+            index, node = child
+            if kind(node) == "variable":
+                result.append(binding(node, (*path, *indices, index)))
+            elif children := arguments(node):
+                indices.append(index)
+                pending.append(iter(enumerate(children)))
+    return tuple(result)
+
+
+def _walk(term: ast.AST) -> Iterator[ast.AST]:
+    pending = [term]
+    while pending:
+        node = pending.pop()
+        yield node
+        pending.extend(reversed(arguments(node)))
+
+
+def _postorder(term: ast.AST) -> Iterator[tuple[ast.AST, int]]:
+    pending = [(term, iter(arguments(term)))]
+    while pending:
+        child = next(pending[-1][1], None)
+        if child is None:
+            node, _children = pending.pop()
+            children = arguments(node)
+            yield node, len(children)
+        else:
+            children = arguments(child)
+            if children:
+                pending.append((child, iter(children)))
+            else:
+                yield child, 0
 
 
 def constant_types(term: ast.AST) -> frozenset[str]:
-    if kind(term) == "constant":
-        return frozenset((str(term.arguments[0]),))
     return frozenset(
-        item for child in arguments(term) for item in constant_types(child)
+        str(node.arguments[0]) for node in _walk(term) if kind(node) == "constant"
     )
 
 
 def contains_anonymous(term: ast.AST) -> bool:
-    return term.ast_type == ast.ASTType.Variable or any(
-        map(contains_anonymous, arguments(term))
-    )
+    return any(node.ast_type == ast.ASTType.Variable for node in _walk(term))
 
 
 def contains_arithmetic(term: ast.AST) -> bool:
-    return kind(term) in {"arithmetic", "interval"} or any(
-        map(contains_arithmetic, arguments(term))
-    )
+    return any(kind(node) in {"arithmetic", "interval"} for node in _walk(term))
 
 
 def shape(term: ast.AST) -> tuple[object, ...]:
@@ -142,24 +175,46 @@ def shape(term: ast.AST) -> tuple[object, ...]:
         return ("variable",)
     if term_kind == "fixed":
         return ("fixed", value(term))
-    children = tuple(map(shape, arguments(term)))
-    if (
-        term_kind in {"function", "tuple"}
-        or term.ast_type == ast.ASTType.UnaryOperation
-        and term.operator_type == ast.UnaryOperator.Minus
-    ) and all(child[0] == "fixed" for child in children):
-        # The same ground value may come from syntax or a #constant SymbolicTerm.
-        return ("fixed", str(term))
-    return term_kind, value(term), children
+    result: list[tuple[object, ...]] = []
+    for node, count in _postorder(term):
+        children = tuple(result[-count:]) if count else ()
+        if count:
+            del result[-count:]
+        node_kind = kind(node)
+        if node_kind == "variable":
+            result.append(("variable",))
+        elif node_kind == "fixed" or (
+            node_kind in {"function", "tuple"}
+            or node.ast_type == ast.ASTType.UnaryOperation
+            and node.operator_type == ast.UnaryOperator.Minus
+        ) and all(child[0] == "fixed" for child in children):
+            # Direct syntax and #constant values keep the same ground shape.
+            result.append(("fixed", str(node)))
+        else:
+            result.append((node_kind, value(node), children))
+    return result[0]
 
 
 def transform(term: ast.AST, replace: Callable[[ast.AST], ast.AST | None]) -> ast.AST:
-    replacement = replace(term)
-    if replacement is not None:
-        return replacement
-    return with_arguments(
-        term, tuple(transform(child, replace) for child in arguments(term))
-    )
+    pending = [(term, False)]
+    result: list[ast.AST] = []
+    while pending:
+        node, visited = pending.pop()
+        if not visited and (replacement := replace(node)) is not None:
+            result.append(replacement)
+            continue
+        children = arguments(node)
+        if not children:
+            result.append(node)
+        elif visited:
+            count = len(children)
+            concrete = tuple(result[-count:])
+            del result[-count:]
+            result.append(with_arguments(node, concrete))
+        else:
+            pending.append((node, True))
+            pending.extend((child, False) for child in reversed(children))
+    return result[0]
 
 
 def concretizations(
@@ -167,12 +222,21 @@ def concretizations(
 ) -> tuple[ast.AST, ...]:
     if kind(term) == "constant":
         return constants[str(term.arguments[0])]
-    return tuple(
-        with_arguments(term, children)
-        for children in product(
-            *(concretizations(child, constants) for child in arguments(term))
-        )
-    )
+    if not arguments(term) or not constant_types(term):
+        return (term,)
+    result: list[tuple[ast.AST, ...]] = []
+    for node, count in _postorder(term):
+        if kind(node) == "constant":
+            result.append(constants[str(node.arguments[0])])
+        elif not count:
+            result.append((node,))
+        else:
+            choices = result[-count:]
+            del result[-count:]
+            result.append(tuple(
+                with_arguments(node, children) for children in product(*choices)
+            ))
+    return result[0]
 
 
 def instantiate(term: ast.AST, variables: Iterator[str]) -> ast.AST:
@@ -183,41 +247,55 @@ def instantiate(term: ast.AST, variables: Iterator[str]) -> ast.AST:
         raise ValueError(
             "constant placeholder must be concretized before instantiation"
         )
-    return with_arguments(
-        term, tuple(instantiate(child, variables) for child in arguments(term))
-    )
+    if not arguments(term):
+        return term
+    result: list[ast.AST] = []
+    for node, count in _postorder(term):
+        node_kind = kind(node)
+        if node_kind == "variable":
+            result.append(binding_term(next(variables)))
+        elif node_kind == "constant":
+            raise ValueError(
+                "constant placeholder must be concretized before instantiation"
+            )
+        elif count:
+            children = tuple(result[-count:])
+            del result[-count:]
+            result.append(with_arguments(node, children))
+        else:
+            result.append(node)
+    return result[0]
 
 
 def validate(term: ast.AST, declaration: str) -> ast.AST:
     """Validate learning annotations without constructing a second syntax tree."""
-    term_kind = kind(term)
-    if term.ast_type == ast.ASTType.Variable and term.name != "_":
-        raise ValueError(f"unsupported arithmetic term: {declaration}")
-    if term.ast_type == ast.ASTType.Function:
-        if term.external:
-            raise ValueError(f"external function terms are unsupported: {declaration}")
-        if term.name in {"var", "const"}:
-            count = len(term.arguments)
-            if (term.name == "var" and count not in {1, 2, 3}) or (
-                term.name == "const" and count != 1
-            ):
-                raise ValueError(f"invalid arithmetic placeholder: {declaration}")
-            type_name = str(term.arguments[0])
-            validate_type(type_name, declaration)
-            if term_kind == "variable":
-                metadata = binding(term)
-                if metadata.direction not in {"", "input", "output", "any"}:
-                    raise ValueError(
-                        "variables require input, output, or any direction"
-                    )
-                if metadata.label and not re.fullmatch(
-                    r"[a-z][A-Za-z0-9_]*", metadata.label
+    for node in _walk(term):
+        term_kind = kind(node)
+        if node.ast_type == ast.ASTType.Variable and node.name != "_":
+            raise ValueError(f"unsupported arithmetic term: {declaration}")
+        if node.ast_type == ast.ASTType.Function:
+            if node.external:
+                raise ValueError(f"external function terms are unsupported: {declaration}")
+            if node.name in {"var", "const"}:
+                count = len(node.arguments)
+                if (node.name == "var" and count not in {1, 2, 3}) or (
+                    node.name == "const" and count != 1
                 ):
-                    raise ValueError(f"invalid variable label: {metadata.label}")
-        elif term.name == "not":
-            raise ValueError(f"invalid arithmetic placeholder: {declaration}")
-    for child in arguments(term):
-        validate(child, declaration)
+                    raise ValueError(f"invalid arithmetic placeholder: {declaration}")
+                type_name = str(node.arguments[0])
+                validate_type(type_name, declaration)
+                if term_kind == "variable":
+                    metadata = binding(node)
+                    if metadata.direction not in {"", "input", "output", "any"}:
+                        raise ValueError(
+                            "variables require input, output, or any direction"
+                        )
+                    if metadata.label and not re.fullmatch(
+                        r"[a-z][A-Za-z0-9_]*", metadata.label
+                    ):
+                        raise ValueError(f"invalid variable label: {metadata.label}")
+            elif node.name == "not":
+                raise ValueError(f"invalid arithmetic placeholder: {declaration}")
     return term
 
 

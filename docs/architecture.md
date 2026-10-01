@@ -90,10 +90,23 @@ de ellos redefine el language bias de una tarea inductiva.
   por el formato de Clingo, tanto si proceden de sintaxis como de `#constant`.
   No reconstruye ni reparsea sus nodos; las formas con variables, pools e
   intervalos y las expresiones aritméticas generales siguen siendo estructurales.
-  La expansión reutiliza `AtomTemplate`, `AtomLiteral` y `HeadTemplate` inmutables
-  cuando sus campos no cambian, sin reconstruir ni revalidar el mismo valor.
+  La expansión reutiliza las plantillas inmutables de átomos, comparaciones,
+  condicionales, agregados y cabezas cuando sus campos no cambian, sin reconstruir
+  ni revalidar el mismo valor. Sus guards nativos se conservan al validar y al
+  expandir términos sin cambios. Una cabeza instancia elementos y guards en
+  una sola actualización del nodo nativo.
   Las variantes que sustituyen constantes se construyen y validan normalmente;
   instanciar nunca modifica la plantilla retenida.
+  Los recorridos de términos usan pilas explícitas, conservando el orden de
+  bindings y evitando depender de la recursión de Python. Los consumidores de
+  seguridad de pools y aritmética respetan ese mismo soporte de anidamiento.
+  `language.asp.has_variable` inspecciona términos ASP de ejemplos y background;
+  no interpreta funciones `var` o `const` ordinarias como anotaciones de modes.
+  La construcción de anotaciones usa símbolos nativos para sus identificadores.
+  Las invenciones usan claves ordenadas por plantilla para detectar duplicados;
+  el análisis de cláusulas conserva la validación de firmas inventadas.
+  El parser añade la línea original a errores de lectura de directivas, sin
+  repetir las localizaciones ya presentes en los errores de ejemplos.
 - `hypotheses/` es la única autoridad sobre legalidad y transiciones de
   `Genome`. Ningún operador ni algoritmo duplica su cierre de dependencias.
 - `algorithms/` contiene solo los algoritmos y sus métricas. Cada archivo de

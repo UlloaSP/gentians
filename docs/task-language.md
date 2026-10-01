@@ -9,6 +9,10 @@ example, `:- p,q.` is printed as `#false :- p; q.` and a choice can print its
 guards explicitly. Mode templates retain the learning metadata (types,
 directions, labels and recalls); they construct AST nodes directly. These
 format changes preserve the ASP meaning.
+Native term traversals use explicit stacks, preserving binding order without a
+Python recursion limit on nested functions and tuples. Unchanged comparisons,
+conditionals and aggregates reuse their immutable templates during expansion,
+including their original guards.
 Terms and aggregate guards use Clingo nodes throughout mode parsing and
 compilation. Gentians interprets `var(...)` and `const(...)` as learning
 annotations on those terms; pool expansion does not reparse their text.
@@ -29,6 +33,8 @@ valid.
 Mode and invention payloads contain only their template. Additional ASP rules
 or directives inside them are rejected; directive text in strings is preserved.
 Mode recalls use a positive integer or `*`, never numeric `-1`.
+Errors while reading modes, constants, limits and inventions include the original
+statement's starting line, including when the declaration spans several lines.
 
 ## Head modes
 

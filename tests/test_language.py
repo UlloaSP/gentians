@@ -8,8 +8,9 @@ from gentians.arguments import Arguments
 from gentians.clauses import generate_clause_space
 from gentians.language import InductiveTask, parse_file, parse_text
 from gentians.language import parser as task_parser
+from gentians.language import modes as mode_parsers
 from gentians.language import terms as mode_terms
-from gentians.language.asp import parse_program, parse_rule
+from gentians.language.asp import has_variable, parse_program, parse_rule
 from gentians.language.ir.literal_template import instantiate_literal
 from gentians.language.lexer import lex
 from tests.task_helpers import make_clause_space
@@ -385,6 +386,18 @@ def test_native_comparison_safety_still_rejects_unsafe_outputs(monkeypatch):
     "#modeh(1,{}).",
     "#modeh(1,#count{}=0).",
     "#modeh(1,p(1,red;2,blue)).",
+    "#modeb(1,var(numeric,input)<2).",
+    "#modeb(1,not var(numeric,input)=2).",
+    "#modeb(1,p(var(node,any)):q(var(node,any))).",
+    "#modeb(1,#false:q(var(node,any))).",
+    "#modeb(1,var(numeric,input)<2:q(var(node,any))).",
+    "#modeb(1,#count{var(node,any):p(var(node,any))}=1).",
+    "#modeb(1,1<=#sum{2:p(var(node,any))}<=3).",
+    "#modeb(1,not #count{var(node,any):p(var(node,any))}=1).",
+    "#modeb(1,1{p(var(node,any)):q(var(node,any))}2).",
+    "#modeh(1,var(numeric,input)<2).",
+    "#modeh(1,{p(var(node,any)):q(var(node,any))}!=1).",
+    "#modeh(1,1<=#sum{2:p(var(node,any)):q(var(node,any))}<=3).",
 ])
 def test_reused_expansions_allow_independent_instantiation_without_mutating_syntax(source):
     task = parse_text("#constant(unused,extra). " + source)
@@ -517,6 +530,161 @@ def test_literal_instantiation_rejects_missing_bindings(source):
 
     with pytest.raises((StopIteration, RuntimeError)):
         instantiate_literal(template, ())
+
+
+def test_deep_mode_terms_preserve_expansion_bindings_and_substitution():
+    depth = 600
+    prefix, suffix = "f(" * depth, ")" * depth
+    source = prefix + "pair(var(node,input,x),const(colour))" + suffix
+    task = parse_text(
+        "#constant(colour,red). #constant(colour,blue). "
+        f"#modeb(1,p({source}))."
+    )
+    term = task.language_bias_body[0].literal.arguments[0]
+    before = str(term)
+
+    assert mode_terms.bindings(term)[0].path == (0,) * (depth + 1)
+    assert mode_terms.constant_types(term) == {"colour"}
+    assert not mode_terms.contains_anonymous(term)
+    assert not mode_terms.contains_arithmetic(term)
+    concrete = mode_terms.concretizations(term, task.constants)
+    assert tuple(str(mode_terms.instantiate(value, iter(("V7",)))) for value in concrete) == (
+        prefix + "pair(V7,red)" + suffix, prefix + "pair(V7,blue)" + suffix,
+    )
+    shape = mode_terms.shape(concrete[0])
+    for _ in range(depth):
+        assert shape[:2] == ("function", "f")
+        shape = shape[2][0]
+    assert shape == ("function", "pair", (("variable",), ("fixed", "red")))
+    assert str(term) == before
+
+
+def test_deep_transform_keeps_preorder_and_skips_replaced_subtrees():
+    term = parse_rule(":- p(" + "f(" * 600 + "var(node,input)" + ")" * 600 + ").").body[0].atom.symbol.arguments[0]
+    visited = []
+
+    def replace(node):
+        visited.append(node)
+        return mode_terms.fixed("stop") if len(visited) == 301 else None
+
+    result = mode_terms.transform(term, replace)
+
+    assert str(result) == "f(" * 300 + "stop" + ")" * 300
+    assert len(visited) == 301
+    assert len(mode_terms.bindings(term)[0].path) == 600
+
+
+@pytest.mark.parametrize("source", ["var(node,input)", "red", "2", "_", '"a,b"'])
+def test_leaf_constant_expansion_does_not_build_a_cartesian_product(source, monkeypatch):
+    term = parse_rule(f":- p({source}).").body[0].atom.symbol.arguments[0]
+
+    def unexpected_product(*args, **kwargs):
+        pytest.fail("a leaf without a constant placeholder has one unchanged variant")
+
+    monkeypatch.setattr(mode_terms, "product", unexpected_product)
+    (concrete,) = mode_terms.concretizations(term, {})
+    assert concrete is term
+
+
+def test_annotation_construction_does_not_parse_identifiers(monkeypatch):
+    expected = mode_terms.variable("node", "input", "x")
+
+    def unexpected_parse(*args, **kwargs):
+        pytest.fail("known annotation identifiers must be constructed directly")
+
+    monkeypatch.setattr(clingo, "parse_term", unexpected_parse)
+    assert mode_terms.variable("node", "input", "x") == expected
+    assert str(mode_terms.variable("numeric", "")) == "var(numeric)"
+
+
+@pytest.mark.parametrize("source, expected", [
+    ("box((red,2),\"X\")", False),
+    ("box((red,X),2)", True),
+    ("var(X,input)", True),
+    ("const(X)", True),
+    ("var(node,input)", False),
+    ("box(1..3)", False),
+    ("box(1..X)", True),
+    ("box(-X)", True),
+    ("box(X+1)", True),
+    ("@f(X)", True),
+    ("@f(red)", False),
+    ("red;X", True),
+])
+def test_native_asp_variable_inspection_preserves_term_syntax(source, expected):
+    symbol = parse_rule(f":- p({source}).").body[0].atom.symbol
+    assert has_variable(symbol) is expected
+    if expected:
+        with pytest.raises(ValueError, match="examples require ground symbolic atoms"):
+            parse_text(f"#pos({{p({source})}},{{}}).")
+
+
+def test_deep_example_terms_stay_ground_and_reject_nested_variables():
+    prefix, suffix = "f(" * 600, ")" * 600
+    task = parse_text(f"#pos({{p({prefix}red{suffix})}},{{}}).")
+    assert not has_variable(task.positive_examples[0].included[0].atom.symbol)
+    with pytest.raises(ValueError, match="line 1: invalid example"):
+        parse_text(f"#pos({{p({prefix}X{suffix})}},{{}}).")
+
+
+def test_inventions_preserve_order_signs_recalls_and_duplicate_policy():
+    task = parse_text(
+        "#invent(2,z(var(node,input))). #invent(3,-z(var(node,input))). "
+        "#invent(1,a(var(node,output)))."
+    )
+    assert task.invented_predicates == (("z", 1), ("-z", 1), ("a", 1))
+    assert [mode.recall for mode in task.language_bias_body] == [2, 3, 1]
+    with pytest.raises(ValueError, match="line 2: duplicate #invent"):
+        parse_text("#invent(1,z(var(node,input))).\n#invent(2,z(var(node,input))).")
+
+
+@pytest.mark.parametrize("declaration", [
+    "#maxv(bad).", "#maxpl(0).", "#minhl(*).", "#constant(any,red).",
+    "#constant(node,X).", "#modeh(2,p).", "#modeb(0,p).", "#modeb(1,p(X)).",
+    "#modec(1,#true).", "#modeha(1,p(_)).", "#modehd(1,p(_)).", "#invent(0,p).",
+    "#pos({p(X)},{}).", "#neg({p(X)},{}).", "#modecmp(1,p).",
+])
+def test_directive_errors_report_the_original_statement_line_once(declaration):
+    with pytest.raises(ValueError) as result:
+        parse_text("% heading\n\nbk.\n  " + declaration)
+    message = str(result.value)
+    assert message.startswith("line 4: ")
+    assert message.count("line 4: ") == 1
+
+
+def test_unchanged_comparison_modes_do_not_rebuild_their_declaration(monkeypatch):
+    declaration = mode_parsers._get_body_mode_declaration("#modeb(1,var(numeric,input)<2).")
+    monkeypatch.setattr(mode_parsers, "_get_mode_declarations", lambda *args: (declaration,))
+    assert mode_parsers._get_body_mode_declaration("#modeb(1,var(numeric,input)<2).") is declaration
+
+
+@pytest.mark.parametrize("source, expected", [
+    (
+        "#modeh(1,var(numeric,input,n){selected(var(node,any,x))}var(numeric,input,n)).",
+        "V1{selected(V0)}V1",
+    ),
+    (
+        "#modeh(1,var(numeric,input,n)<=#sum{1:selected(var(node,any,x)):"
+        "node(var(node,any,x))}<=var(numeric,input,n)).",
+        "V1<=#sum{1:selected(V0):node(V0)}<=V1",
+    ),
+])
+def test_head_instantiation_preserves_element_and_guard_binding_order(source, expected):
+    head = parse_text(source).language_bias_head[0]
+    before = repr(head)
+    elements = tuple(instantiate_literal(element, (0,) * sum(
+        len(mode_terms.bindings(term)) for term in element.arguments
+    )) for element in head.elements)
+
+    assert head.instantiate(elements, ("V1", "V1")) == parse_rule(expected + ".").head
+    with pytest.raises(ValueError, match="more variables than syntax bindings"):
+        head.instantiate(elements, ("V1", "V1", "V2"))
+    assert repr(head) == before
+
+
+def test_multiline_directive_errors_keep_the_statement_start_line():
+    with pytest.raises(ValueError, match="^line 4: invalid mode literal"):
+        parse_text("bk.\n% comment\n\n#modeb(\n  1,\n  p(,)\n).")
 
 
 def test_clause_space_retains_clingo_ast_and_canonical_text() -> None:

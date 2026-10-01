@@ -14,7 +14,7 @@ from gentians.arguments import Arguments
 from gentians.clauses import fact_compiler as clause_facts
 from gentians.clauses import generator as clause_generation
 from gentians.clauses import property_facts
-from gentians.clauses.analysis.ast_inspection import _contains, _node_atoms
+from gentians.clauses.analysis.ast_inspection import _node_atoms
 from gentians.clauses.analysis.ground_relations import _closed_world
 from gentians.clauses.analysis.inference import _closed_world_properties
 from gentians.clauses.analysis.task import (
@@ -47,6 +47,7 @@ from gentians.language import terms as mode_terms
 from gentians.language.asp import (
     add_program,
     clause_predicates,
+    has_variable,
     parse_program,
     parse_rule,
     render_program,
@@ -2911,7 +2912,7 @@ def test_closed_world_extensions_match_clingo_for_descending_interval():
 
 def test_ast_walk_does_not_retain_task_nodes_globally():
     assert not hasattr(_node_atoms, "cache_info")
-    assert not hasattr(_contains, "cache_info")
+    assert not hasattr(has_variable, "cache_info")
 
 
 def test_rule_defined_square_properties_propagate_choice_key():

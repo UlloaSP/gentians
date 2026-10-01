@@ -76,7 +76,7 @@ def _validate_ground_atoms(atoms: tuple[ast.AST, ...], source: str) -> None:
         literal.ast_type != ast.ASTType.Literal
         or literal.sign != ast.Sign.NoSign
         or literal.atom.ast_type != ast.ASTType.SymbolicAtom
-        or _contains(literal, ast.ASTType.Variable)
+        or has_variable(literal.atom.symbol)
         for literal in atoms
     ):
         raise ValueError(f"examples require ground symbolic atoms: {source}")
@@ -101,10 +101,25 @@ def _is_implicit_base(statement: ast.AST) -> bool:
     return statement.ast_type == ast.ASTType.Program and str(statement) == "#program base."
 
 
-def _contains(node: ast.AST, ast_type: ast.ASTType) -> bool:
-    return node.ast_type == ast_type or any(
-        _contains(child, ast_type) for child in _ast_children(node)
-    )
+def has_variable(term: ast.AST) -> bool:
+    """Inspect native ASP terms, including ordinary functions named var/const."""
+    pending = [term]
+    while pending:
+        node = pending.pop()
+        match node.ast_type:
+            case ast.ASTType.Variable:
+                return True
+            case ast.ASTType.Function | ast.ASTType.Pool:
+                pending.extend(node.arguments)
+            case ast.ASTType.BinaryOperation | ast.ASTType.Interval:
+                pending.extend((node.left, node.right))
+            case ast.ASTType.UnaryOperation:
+                pending.append(node.argument)
+            case ast.ASTType.SymbolicTerm:
+                pass
+            case _:
+                pending.extend(_ast_children(node))
+    return False
 
 
 def signed_predicate(name: str, arity: int, strong: bool = False) -> Predicate:

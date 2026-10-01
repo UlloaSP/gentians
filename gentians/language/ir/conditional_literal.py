@@ -62,7 +62,8 @@ class ConditionalLiteral:
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["ConditionalLiteral", ...]:
         return tuple(
-            ConditionalLiteral(conclusion, conditions, self.condition_groups)
+            self if conclusion == self.conclusion and conditions == self.conditions
+            else ConditionalLiteral(conclusion, conditions, self.condition_groups)
             for conclusion, conditions in product(
                 self.conclusion.concretizations(constants),
                 product(*(item.concretizations(constants) for item in self.conditions)),

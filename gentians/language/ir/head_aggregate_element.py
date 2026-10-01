@@ -55,7 +55,9 @@ class HeadAggregateElement:
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> tuple["HeadAggregateElement", ...]:
         return tuple(
-            HeadAggregateElement(terms, conclusion, conditions)
+            self if terms == self.terms and conclusion == self.conclusion
+            and conditions == self.conditions
+            else HeadAggregateElement(terms, conclusion, conditions)
             for terms, conclusion, conditions in product(
                 product(*(mode_terms.concretizations(term, constants) for term in self.terms)),
                 self.conclusion.concretizations(constants),

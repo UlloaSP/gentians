@@ -335,32 +335,51 @@ _INVERTIBLE_OPERATORS = frozenset({"+", "-", "*", "neg"})
 
 
 def _is_linear(term: ast.AST) -> bool:
-    if mode_terms.kind(term) == "arithmetic":
-        return mode_terms.value(term) in _INVERTIBLE_OPERATORS and all(
-            _is_linear(argument) for argument in mode_terms.arguments(term)
-        )
-    return mode_terms.kind(term) in {"variable", "constant", "fixed"}
+    pending = [term]
+    while pending:
+        node = pending.pop()
+        if mode_terms.kind(node) == "arithmetic":
+            if mode_terms.value(node) not in _INVERTIBLE_OPERATORS:
+                return False
+            pending.extend(mode_terms.arguments(node))
+        elif mode_terms.kind(node) not in {"variable", "constant", "fixed"}:
+            return False
+    return True
 
 
 def _term_alternative_positions(
     term: ast.AST, offset: int
 ) -> tuple[frozenset[int], ...]:
     """Placeholder positions each pool alternative grounds, per Clingo safety."""
-    if mode_terms.kind(term) == "variable":
-        return (frozenset((offset,)),)
-    if mode_terms.kind(term) in {"arithmetic", "interval"}:
-        binds = len(mode_terms.bindings(term)) == 1 and _is_linear(term)
-        return (frozenset((offset,)) if binds else frozenset(),)
-    child_alternatives = []
-    for child in mode_terms.arguments(term):
-        child_alternatives.append(_term_alternative_positions(child, offset))
-        offset += len(mode_terms.bindings(child))
-    if mode_terms.kind(term) == "pool":
-        return tuple(choice for alternatives in child_alternatives for choice in alternatives)
-    return tuple(
-        frozenset().union(*choice)
-        for choice in product(*child_alternatives)
-    )
+    pending = [(term, offset, False)]
+    result: list[tuple[frozenset[int], ...]] = []
+    while pending:
+        node, node_offset, visited = pending.pop()
+        node_kind = mode_terms.kind(node)
+        if node_kind == "variable":
+            result.append((frozenset((node_offset,)),))
+        elif node_kind in {"arithmetic", "interval"}:
+            binds = len(mode_terms.bindings(node)) == 1 and _is_linear(node)
+            result.append((frozenset((node_offset,)) if binds else frozenset(),))
+        elif visited:
+            count = len(mode_terms.arguments(node))
+            alternatives = result[-count:] if count else []
+            if count:
+                del result[-count:]
+            result.append(
+                tuple(choice for group in alternatives for choice in group)
+                if node_kind == "pool" else tuple(
+                    frozenset().union(*choice) for choice in product(*alternatives)
+                )
+            )
+        else:
+            pending.append((node, node_offset, True))
+            children = []
+            for child in mode_terms.arguments(node):
+                children.append((child, node_offset, False))
+                node_offset += len(mode_terms.bindings(child))
+            pending.extend(reversed(children))
+    return result[0]
 
 
 def _conditional_facts(

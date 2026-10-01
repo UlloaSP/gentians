@@ -48,7 +48,7 @@ def parse_text(source: str) -> InductiveTask:
     lbhd: dict[ModeDeclaration, None] = {}
     lbb: dict[ModeDeclaration, None] = {}
     lbc: dict[ModeDeclaration, None] = {}
-    inventions: list[tuple[int, AtomTemplate]] = []
+    inventions: dict[AtomTemplate, int] = {}
     constants: dict[str, dict[ast.AST, None]] = {}
     limits: dict[str, int | None] = {
         "#maxv": 3,
@@ -62,66 +62,71 @@ def parse_text(source: str) -> InductiveTask:
         lc = statement.text
         directive = statement.directive
 
-        limit = (
-            directive
-            if directive in {"#maxv", "#maxbl", "#maxhl", "#maxpl", "#minhl"}
-            else None
-        )
-        if limit is not None:
-            if limit in declared_limits:
-                raise ValueError(f"duplicate {limit} declaration: {lc}")
-            declared_limits.add(limit)
-            value = _get_limit(lc, limit, limit in {"#maxv", "#maxbl", "#maxhl"})
-            if limit == "#minhl":
-                if value is None:
-                    raise ValueError(f"invalid #minhl declaration: {lc}")
-                min_head_literals = value
+        try:
+            limit = (
+                directive
+                if directive in {"#maxv", "#maxbl", "#maxhl", "#maxpl", "#minhl"}
+                else None
+            )
+            if limit is not None:
+                if limit in declared_limits:
+                    raise ValueError(f"duplicate {limit} declaration: {lc}")
+                declared_limits.add(limit)
+                value = _get_limit(lc, limit, limit in {"#maxv", "#maxbl", "#maxhl"})
+                if limit == "#minhl":
+                    if value is None:
+                        raise ValueError(f"invalid #minhl declaration: {lc}")
+                    min_head_literals = value
+                else:
+                    limits[limit] = value
+            elif directive in {
+                "#bias",
+                "#metarule",
+                "#predicate",
+                "#modem",
+                "#modeedge",
+                "#edge",
+            }:
+                # Retired task directives must fail explicitly, never become BK.
+                raise ValueError(
+                    f"{directive} is no longer supported"
+                )
+            elif directive in {"#modeagg", "#modearith", "#modecmp"}:
+                raise ValueError(
+                    f"{directive} was removed; use an explicit #modeb literal"
+                )
+            elif directive == "#modeha":
+                lbha.update(dict.fromkeys(_get_combinable_head_declarations(lc, directive)))
+            elif directive == "#modehd":
+                lbhd.update(dict.fromkeys(_get_combinable_head_declarations(lc, directive)))
+            elif directive == "#modeh":
+                lbh[_get_head_declaration(lc)] = None
+            elif directive == "#modeb":
+                lbb[_get_body_mode_declaration(lc)] = None
+            elif directive == "#pos":
+                res = _get_pos_neg_examples(lc)
+                pe[Example.parse(res, True, statement.line)] = None
+            elif directive == "#neg":
+                res = _get_pos_neg_examples(lc)
+                ne[Example.parse(res, False, statement.line)] = None
+            elif directive == "#modec":
+                lbc.update(dict.fromkeys(_get_condition_mode_declarations(lc)))
+            elif directive == "#invent":
+                recall, atom = _get_invented_declaration(lc)
+                if atom in inventions:
+                    raise ValueError(f"duplicate #invent declaration: {lc}")
+                inventions[atom] = recall
+            elif directive == "#constant":
+                type_name, value = _get_constant_declaration(lc)
+                constants.setdefault(type_name, {})[value] = None
             else:
-                limits[limit] = value
-        elif directive in {
-            "#bias",
-            "#metarule",
-            "#predicate",
-            "#modem",
-            "#modeedge",
-            "#edge",
-        }:
-            # Retired task directives must fail explicitly, never become BK.
-            raise ValueError(
-                f"line {statement.line}: {directive} is no longer supported"
-            )
-        elif directive in {"#modeagg", "#modearith", "#modecmp"}:
-            raise ValueError(
-                f"line {statement.line}: {directive} was removed; use an explicit #modeb literal"
-            )
-        elif directive == "#modeha":
-            lbha.update(dict.fromkeys(_get_combinable_head_declarations(lc, directive)))
-        elif directive == "#modehd":
-            lbhd.update(dict.fromkeys(_get_combinable_head_declarations(lc, directive)))
-        elif directive == "#modeh":
-            lbh[_get_head_declaration(lc)] = None
-        elif directive == "#modeb":
-            lbb[_get_body_mode_declaration(lc)] = None
-        elif directive == "#pos":
-            res = _get_pos_neg_examples(lc)
-            pe[Example.parse(res, True, statement.line)] = None
-        elif directive == "#neg":
-            res = _get_pos_neg_examples(lc)
-            ne[Example.parse(res, False, statement.line)] = None
-        elif directive == "#modec":
-            lbc.update(dict.fromkeys(_get_condition_mode_declarations(lc)))
-        elif directive == "#invent":
-            invention = _get_invented_declaration(lc)
-            if any(existing[1] == invention[1] for existing in inventions):
-                raise ValueError(f"duplicate #invent declaration: {lc}")
-            inventions.append(invention)
-        elif directive == "#constant":
-            type_name, value = _get_constant_declaration(lc)
-            constants.setdefault(type_name, {})[value] = None
-        else:
-            background_statements.append(statement)
+                background_statements.append(statement)
+        except ValueError as error:
+            if str(error).startswith("line "):
+                raise
+            raise ValueError(f"line {statement.line}: {error}") from None
 
-    invented_predicates = tuple(atom.signature for _recall, atom in inventions)
+    invented_predicates = tuple(atom.signature for atom in inventions)
     explicit = (
         {
             literal.atom.signature
@@ -152,7 +157,7 @@ def parse_text(source: str) -> InductiveTask:
             "invented predicates must not also use #modeh/#modeha/#modeb: "
             f"{sorted(overlap)}"
         )
-    for recall, atom in inventions:
+    for atom, recall in inventions.items():
         lbh[HeadTemplate.normal(AtomLiteral(atom))] = None
         lbb[ModeDeclaration(recall, AtomLiteral(atom))] = None
     constant_types = {

@@ -82,16 +82,6 @@ def _integer_value(term: ast.AST, constants: dict[str, int]) -> int | None:
     return None
 
 
-def _has_variable(node: ast.AST) -> bool:
-    return _contains(node, ast.ASTType.Variable)
-
-
-def _contains(node: ast.AST, ast_type: ast.ASTType) -> bool:
-    return node.ast_type == ast_type or any(
-        _contains(child, ast_type) for child in _children(node)
-    )
-
-
 def _children(node: ast.AST) -> Iterator[ast.AST]:
     for key in node.child_keys:
         child = getattr(node, key)

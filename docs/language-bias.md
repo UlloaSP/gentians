@@ -36,7 +36,7 @@ Gentians syntax rather than Popper's `pos/1`, `neg/1`, or `head_pred/2` syntax.
 `parse_text()` orchestrates parsing. `gentians.language.lexer`
 frames complete top-level statements while respecting strings, comments,
 nested delimiters, ranges, and annotations. Declaration parsing lives in
-`directives`, `declarations`, and `modes`. These modules build the
+`declarations` and `modes`, with shared syntax helpers in `grammar`. These modules build the
 `InductiveTask` IR in `gentians.language.ir`: types, directions, recalls,
 labels, and task limits. Generic ASP fragments keep Clingo's AST through
 `gentians.language.asp`; Gentians does not define a competing ASP AST.
@@ -47,18 +47,23 @@ and keeps any following weak-constraint or directive annotation attached.
 Equal examples and mode declarations retain their first appearance and source
 location. Deduplication uses insertion order; different recalls, signs, labels,
 directions, or example contexts remain distinct. Constant values likewise keep
-their first appearance within each type.
-Errors while reading modes, constants, limits and inventions report the original
-statement's starting line, as example and lexer errors already do. A diagnostic
-that already carries that location is not prefixed again.
+their first appearance within each type. Identical successful mode statements
+are skipped before parsing their payload again; other equal templates are still
+deduplicated after decoding.
+Declaration validation errors identify the statement's starting line. Native
+syntax errors identify the original token or cursor line and UTF-8 byte column,
+including multiline modes, inventions, constants and example fields. Comments
+and quoted strings do not shift those locations. Diagnostics carry one source
+location rather than repeated prefixes.
 Cross-declaration errors also identify their responsible declaration, including
 missing constant types, overlapping invented predicates, and incompatible head
 limits. When reading files, diagnostics name the original file and its local
-line; a directory task also identifies the other file when two declarations
+line and, for syntax errors, column; a directory task also identifies the other file when two declarations
 conflict. Quoted payloads remain intact. Syntax errors retain Clingo's
 explanation and unexpected token.
 The complete background is parsed in one Clingo call while preserving original
-task line locations. Background and every
+task line and column locations; comment AST nodes are omitted from the IR.
+Background and every
 example's included atoms, excluded atoms, and context remain as
 `clingo.ast.AST` nodes inside `InductiveTask`. Each non-empty example field is
 parsed directly; empty fields do not invoke Clingo. Candidate `Clause`
@@ -66,7 +71,9 @@ values retain their constructed clause beside their canonical output text.
 ASP diagnostics are collected during that same parse: reporting the original
 error line never reparses the invalid source or prints a second error.
 Mode templates are Gentians' learning IR: they retain typed binding leaves,
-directions, labels, recalls, condition groups, and arithmetic-family metadata.
+directions, labels, recalls and condition groups. Compiled arithmetic-family
+metadata belongs to `ArithmeticLiteral` in `clauses/arithmetic_literal.py`,
+which is not part of the task IR.
 They instantiate native Clingo terms, literals, guards, elements, and heads;
 term syntax and aggregate guards themselves remain native Clingo nodes.
 `language.terms` validates the `var`/`const` annotations and substitutes their
@@ -77,13 +84,17 @@ and aggregate elements. Independent element, condition, and guard alternatives
 are expanded once per call and combined with an ordered Cartesian product.
 Combining one alternative never recomputes another group's expansion.
 The lexer yields statements to the parser as they are framed, while file input
-is still read in full. Constant-expansion methods yield concrete variants in
-the same order. Reusable alternative pools are prepared once; complete
-Cartesian products are consumed progressively instead of retained as another
-collection of results. The compiled modes and final clause space still retain
-the entries they need.
+is still read in full. It buffers text spans and shares quoted-string and
+delimiter scanning with the directive argument splitter. Source spans preserve
+locations; detailed fragment remapping runs only on errors.
+Constant-expansion methods yield concrete variants in the same order. Reusable
+element and guard pools are prepared once. Nested terms retain one current
+variant per node and rebuild only paths whose constant choices changed, without
+retaining their subtree Cartesian products. The compiled modes and final clause
+space still retain the entries they need.
 Atom, comparison, conditional, aggregate and head templates are immutable values.
-When constant expansion leaves them unchanged, it reuses the existing template
+When a template has no constant placeholders, expansion returns it directly.
+When constant expansion leaves it unchanged, it reuses the existing template
 and guards instead of constructing and validating a duplicate. Changed variants remain independent, and instantiation
 constructs native nodes without modifying the retained template.
 Instantiation also retains fixed guards and shares native binding nodes within
@@ -699,7 +710,12 @@ textual names such as `add` or `lt` to operators. `#modearith` and `#modecmp`
 are retired and rejected explicitly.
 Output safety probes are constructed as native AST rules and loaded with
 `ProgramBuilder`. Clingo still grounds the complete probe to establish safety;
-the comparison is not converted to text and parsed again.
+the comparison is not converted to text and parsed again. During one task parse,
+equal complete comparison queries share both successful and unsuccessful safety
+results. The key retains operators, terms, nominal types, labels, directions and
+negation; declarations with different recalls remain distinct. This cache does
+not survive the task parse and retains no Clingo control. Direction inference
+builds the input fallback only when the preceding output candidates fail.
 
 After enumeration, every non-negated numeric relation is owned by its connected
 `ArithmeticSystem`. Linear equalities and inequalities whose constant terms

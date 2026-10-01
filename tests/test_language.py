@@ -13,10 +13,11 @@ from gentians.language import parser as task_parser
 from gentians.language import modes as mode_parsers
 from gentians.language import terms as mode_terms
 from gentians.language import ast_nodes
-from gentians.language.asp import clause_predicates, has_variable, parse_program, parse_rule
+from gentians.language.asp import clause_predicates, has_variable, parse_program, parse_rule, split_top_level_args
 from gentians.language.ast_nodes import binding_terms
-from gentians.language.ir.literal_template import instantiate_literal
+from gentians.clauses.reified_clause import instantiate_literal
 from gentians.language.ir.atom_template import AtomTemplate
+from gentians.language.grammar import SourceError, source_position
 from gentians.language.lexer import lex
 from tests.task_helpers import make_clause_space
 
@@ -687,8 +688,8 @@ def test_head_instantiation_preserves_element_and_guard_binding_order(source, ex
     assert repr(head) == before
 
 
-def test_multiline_directive_errors_keep_the_statement_start_line():
-    with pytest.raises(ValueError, match="^line 4: invalid mode literal"):
+def test_multiline_directive_syntax_errors_report_the_token_line():
+    with pytest.raises(ValueError, match="^line 6: invalid mode literal"):
         parse_text("bk.\n% comment\n\n#modeb(\n  1,\n  p(,)\n).")
 
 
@@ -1240,3 +1241,274 @@ def test_diagnostic_location_stripping_preserves_quoted_location_text():
     assert _diagnostic_detail(
         '<string>:1:3: error: unexpected token "<string>:123:4: payload"'
     ) == 'error: unexpected token "<string>:123:4: payload"'
+
+
+@pytest.mark.parametrize("directive, field", [
+    ("#modeh", "language_bias_head"),
+    ("#modeha", "language_bias_aggregate_head"),
+    ("#modehd", "language_bias_disjunctive_head"),
+    ("#modeb", "language_bias_body"),
+    ("#modec", "language_bias_condition"),
+])
+def test_identical_modes_are_parsed_once_per_task(monkeypatch, directive, field):
+    original = ast.parse_string
+    calls = []
+
+    def record(source, *args, **kwargs):
+        if source:
+            calls.append(source)
+        return original(source, *args, **kwargs)
+
+    monkeypatch.setattr(ast, "parse_string", record)
+    source = f"{directive}(1,-p(var(node,input,x))).\n"
+    task = parse_text(source * 3)
+
+    assert len(getattr(task, field)) == 1
+    assert len(calls) == 1
+    parse_text(source)
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize("relation, probes", [
+    ("var(numeric)+1=var(numeric)", 2),
+    ("var(numeric)<var(numeric)", 1),
+    ("var(numeric)=1..3", 1),
+])
+def test_comparison_safety_cache_retains_false_results_and_distinct_recalls(monkeypatch, relation, probes):
+    original = mode_parsers._comparison_outputs_are_safe
+    results = []
+
+    def record(literal):
+        result = original(literal)
+        results.append(result)
+        return result
+
+    monkeypatch.setattr(mode_parsers, "_comparison_outputs_are_safe", record)
+    source = f"#modeb(1,{relation}). #modeb(2,{relation})."
+    task = parse_text(source)
+
+    assert [mode.recall for mode in task.language_bias_body] == [1, 2]
+    assert len(results) == probes
+    if probes == 2:
+        assert results == [False, True]
+    parse_text(source)
+    assert len(results) == probes * 2
+
+
+def test_comparison_safety_cache_keeps_labels_and_operators_distinct(monkeypatch):
+    original = mode_parsers._comparison_outputs_are_safe
+    calls = []
+
+    def record(literal):
+        calls.append(literal)
+        return original(literal)
+
+    monkeypatch.setattr(mode_parsers, "_comparison_outputs_are_safe", record)
+    task = parse_text(
+        "#modeb(1,var(numeric,output,x)=1..3). "
+        "#modeb(2,var(numeric,output,x)=1..3). "
+        "#modeb(1,var(numeric,output,y)=1..3). "
+        "#modeb(1,1<var(numeric,output,x)<3)."
+    )
+
+    assert len(task.language_bias_body) == 4
+    assert len(calls) == 3
+    assert len(set(calls)) == 3
+
+
+def test_bounded_implicit_comparison_builds_only_the_accepted_direction(monkeypatch):
+    original = mode_parsers._with_binding_directions
+    directions = []
+
+    def record(literal, values):
+        directions.append(values)
+        return original(literal, values)
+
+    monkeypatch.setattr(mode_parsers, "_with_binding_directions", record)
+    task = parse_text("#modeb(1,var(numeric)=1..3).")
+
+    assert directions == [("output",)]
+    assert mode_terms.bindings(task.language_bias_body[0].literal.arguments[0])[0].direction == "output"
+
+
+@pytest.mark.parametrize("syntax", ["const(low)<const(high)", "not const(low)=const(high)", "not not const(low)=const(high)"])
+def test_comparison_constants_expand_with_order_and_exact_negation(syntax):
+    task = parse_text(
+        "#constant(low,0). #constant(low,1). #constant(high,2). #constant(high,3). "
+        f"#modeb(1,{syntax})."
+    )
+    template = task.language_bias_body[0].literal
+    concrete = tuple(template.concretizations(task.constants))
+    expected = [syntax.replace("const(low)", str(low)).replace("const(high)", str(high))
+                for low, high in product((0, 1), (2, 3))]
+
+    assert [instantiate_literal(literal, ()) for literal in concrete] == [
+        parse_rule(f":- {literal}.").body[0] for literal in expected
+    ]
+    assert all(literal is not template for literal in concrete)
+
+
+def test_nested_constant_expansion_is_progressive_and_preserves_cartesian_order(monkeypatch):
+    task = parse_text(
+        "#constant(t,a). #constant(t,b). #constant(t,c). "
+        "#modeh(1,p(f(g(const(t),const(t)))))."
+    )
+    term = task.language_bias_head[0].arguments[0]
+    original = mode_terms.with_arguments
+    calls = []
+
+    def record(node, children):
+        calls.append(node)
+        return original(node, children)
+
+    monkeypatch.setattr(mode_terms, "with_arguments", record)
+    variants = mode_terms.concretizations(term, task.constants)
+    first = next(variants)
+
+    assert str(first) == "f(g(a,a))"
+    assert len(calls) == 2
+    assert list(map(str, (first, *variants))) == [f"f(g({a},{b}))" for a, b in product(("a", "b", "c"), repeat=2)]
+    assert str(term) == "f(g(const(t),const(t)))"
+    assert str(first) == "f(g(a,a))"
+
+
+def test_nested_constant_expansion_reuses_unchanged_branches(monkeypatch):
+    task = parse_text("#constant(t,a). #constant(t,b). #modeh(1,p(f(g(const(t)),h(const(t))))).")
+    term = task.language_bias_head[0].arguments[0]
+    original = mode_terms.with_arguments
+    updated = []
+
+    def record(node, children):
+        updated.append(node.name)
+        return original(node, children)
+
+    monkeypatch.setattr(mode_terms, "with_arguments", record)
+    variants = mode_terms.concretizations(term, task.constants)
+    assert str(next(variants)) == "f(g(a),h(a))"
+    updated.clear()
+    assert str(next(variants)) == "f(g(a),h(b))"
+    assert updated == ["h", "f"]
+
+
+def test_deep_constant_expansion_has_no_python_recursion_limit():
+    depth = 1200
+    source = "#constant(t,a). #constant(t,b). #modeh(1,p(" + "f(" * depth + "const(t)" + ")" * depth + "))."
+    task = parse_text(source)
+    variants = tuple(mode_terms.concretizations(task.language_bias_head[0].arguments[0], task.constants))
+
+    assert tuple(map(str, variants)) == tuple("f(" * depth + value + ")" * depth for value in ("a", "b"))
+
+
+def test_constant_expansion_does_not_treat_missing_or_empty_domains_as_fixed():
+    task = parse_text("#constant(t,a). #modeb(1,const(t)=1).")
+    template = task.language_bias_body[0].literal
+
+    with pytest.raises(KeyError, match="t"):
+        tuple(template.concretizations({}))
+    assert tuple(template.concretizations({"t": ()})) == ()
+
+
+@pytest.mark.parametrize("value", ['"a,.(b)[c]{d}"', r'"a\"b,c"', r'"a\\,b"', "(a,)"])
+def test_statement_and_argument_scanners_preserve_nested_and_quoted_commas(value):
+    statement = f"p({value},f(1,2))."
+
+    assert [item.text for item in lex(statement + "q.")] == [statement, "q."]
+    assert split_top_level_args(f"{value},f(1,2)") == [value, "f(1,2)"]
+
+
+@pytest.mark.parametrize("source", ["p(]", "p(a", '"a,b', "p(a),"])
+def test_argument_scanner_rejects_unbalanced_or_incomplete_fields(source):
+    with pytest.raises(ValueError):
+        split_top_level_args(source)
+
+
+@pytest.mark.parametrize("directive", ["#modeh", "#modeha", "#modehd", "#modeb", "#modec", "#invent"])
+@pytest.mark.parametrize("comment", ["", "%* \u00f1 nested %* inner *% *%"])
+def test_native_mode_errors_use_original_token_line_and_byte_column(directive, comment):
+    source = f'p("\u00f1").\n   {directive}(1,\n  {comment} p(,)\n).'
+
+    with pytest.raises(SourceError) as caught:
+        parse_text(source)
+
+    assert (caught.value.line, caught.value.column) == source_position(source, source.index(",)"))
+    assert "syntax error" in caught.value.message
+
+
+@pytest.mark.parametrize("example", [
+    '#pos({\n p(,)\n},{}).',
+    '#neg({},{\n p(,)\n}).',
+    '#pos({},{},{p("\u00f1").\n p(,).}).',
+    '#neg({},{},{p. %* \u00f1 *% q(,).}).',
+])
+def test_native_example_errors_use_original_field_line_and_byte_column(example):
+    source = "\n\n   " + example
+
+    with pytest.raises(SourceError) as caught:
+        parse_text(source)
+
+    assert (caught.value.line, caught.value.column) == source_position(source, source.index(",)"))
+
+
+@pytest.mark.parametrize("separator", ["\u2028", "\u0085", "\r"])
+def test_error_remapping_counts_only_newlines(separator):
+    source = f'#pos({{}},{{}},{{q("a{separator}b").\nr(,).}}).'
+
+    with pytest.raises(SourceError) as caught:
+        parse_text(source)
+
+    assert (caught.value.line, caught.value.column) == (2, 3)
+
+
+def test_synthetic_mode_suffix_error_stops_at_original_payload_boundary():
+    source = "#modeh(1,\n p(a)\n +\n)."
+
+    with pytest.raises(SourceError) as caught:
+        parse_text(source)
+
+    assert (caught.value.line, caught.value.column) == (4, 1)
+
+
+def test_background_errors_preserve_columns_after_comments_and_task_directives():
+    source = '#modeh(1,p). p("\u00f1"). %* ignored *% q(,).'
+
+    with pytest.raises(SourceError) as caught:
+        parse_text(source)
+
+    assert (caught.value.line, caught.value.column) == source_position(source, source.index(",)"))
+
+
+def test_background_ast_retains_original_byte_columns_and_omits_comment_nodes():
+    source = '#modeh(1,p). p("\u00f1"). %* ignored *% q.'
+    task = parse_text(source)
+
+    assert [node.ast_type for node in task.background] == [ast.ASTType.Rule] * 2
+    assert [(node.location.begin.line, node.location.begin.column) for node in task.background] == [
+        source_position(source, source.index('p("')), source_position(source, source.index("q.")),
+    ]
+
+
+def test_directory_fragment_error_retains_original_file_token_line_and_column(tmp_path):
+    (tmp_path / "bk.lp").write_text('p("\u00f1").\n', encoding="utf-8")
+    (tmp_path / "exs.lp").write_text("", encoding="utf-8")
+    bias = tmp_path / "bias.lp"
+    bias.write_text("#modeb(1,\n    p(,)\n).", encoding="utf-8")
+
+    with pytest.raises(ValueError) as caught:
+        parse_file(str(tmp_path))
+
+    assert str(caught.value).startswith(f"{bias}:line 2:")
+    assert str(caught.value).endswith("(column 7)")
+
+
+@pytest.mark.parametrize("source, position", [
+    ("#constant(t,\n a;b\n).", (2, 4)),
+    ("#constant(t,\n f(a) +\n).", (3, 2)),
+    ('#constant(t,\n f("\u00f1") ;\n).', (2, 11)),
+])
+def test_constant_errors_preserve_the_native_cursor_position(source, position, capsys):
+    with pytest.raises(SourceError) as caught:
+        parse_text(source)
+
+    assert (caught.value.line, caught.value.column) == position
+    assert "#constant value must be a ground term" in caught.value.message
+    assert capsys.readouterr().err == ""

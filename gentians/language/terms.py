@@ -155,6 +155,7 @@ def _postorder(term: ast.AST) -> Iterator[tuple[ast.AST, int]]:
                 yield child, 0
 
 
+@lru_cache(maxsize=8192)
 def constant_types(term: ast.AST) -> frozenset[str]:
     return frozenset(
         str(node.arguments[0]) for node in _walk(term) if kind(node) == "constant"
@@ -223,25 +224,48 @@ def concretizations(
     if kind(term) == "constant":
         yield from constants[str(term.arguments[0])]
         return
-    if not arguments(term) or not constant_types(term):
+    children = arguments(term)
+    if not children or not constant_types(term):
         yield term
         return
-    result: list[tuple[ast.AST, ...]] = []
+    if all(kind(child) == "constant" or not constant_types(child) for child in children):
+        for concrete in product(*(concretizations(child, constants) for child in children)):
+            yield with_arguments(term, concrete)
+        return
+
+    # A postorder recipe retains one current value per node, never the product
+    # of a nested subtree. Dirty paths reuse the previous combination's nodes.
+    values: list[ast.AST] = []
+    changing: list[bool] = []
+    result: list[int] = []
+    leaves: list[int] = []
+    choices: list[tuple[ast.AST, ...]] = []
+    updates: list[tuple[int, ast.AST, tuple[int, ...]]] = []
     for node, count in _postorder(term):
-        if kind(node) == "constant":
-            result.append(constants[str(node.arguments[0])])
-        elif not count:
-            result.append((node,))
-        else:
-            choices = result[-count:]
+        indices = tuple(result[-count:]) if count else ()
+        if count:
             del result[-count:]
-            variants = (
-                with_arguments(node, children) for children in product(*choices)
-            )
-            if node is term:
-                yield from variants
-                return
-            result.append(tuple(variants))
+        index = len(values)
+        values.append(node)
+        if kind(node) == "constant":
+            leaves.append(index)
+            choices.append(constants[str(node.arguments[0])])
+            changing.append(True)
+        else:
+            changing.append(any(changing[child] for child in indices))
+            if changing[-1]:
+                updates.append((index, node, indices))
+        result.append(index)
+    dirty = [False] * len(values)
+    for concrete in product(*choices):
+        for index, replacement in zip(leaves, concrete, strict=True):
+            dirty[index] = values[index] != replacement
+            values[index] = replacement
+        for index, node, indices in updates:
+            dirty[index] = any(dirty[child] for child in indices)
+            if dirty[index]:
+                values[index] = with_arguments(node, tuple(values[child] for child in indices))
+        yield values[result[0]]
 
 
 def instantiate(term: ast.AST, variables: Iterator[ast.AST]) -> ast.AST:

@@ -52,6 +52,9 @@ class AtomTemplate:
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> Iterator["AtomTemplate"]:
+        if not any(mode_terms.constant_types(term) for term in self.binding_terms):
+            yield self
+            return
         if self.alternatives:
             width = len(self.terms)
             for terms in product(*(mode_terms.concretizations(term, constants) for term in self.binding_terms)):

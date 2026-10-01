@@ -5,7 +5,7 @@ from clingo import ast
 from ..language import terms as mode_terms
 from ..language.asp import Predicate
 from ..language.ir.aggregate_literal import AggregateLiteral
-from ..language.ir.arithmetic_literal import ArithmeticLiteral
+from .arithmetic_literal import ArithmeticLiteral
 from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.boolean_literal import BooleanLiteral
 from ..language.ir.comparison_literal import ComparisonLiteral
@@ -22,7 +22,7 @@ class ClauseMode:
     recall_group: int
     section: str
     recall: int
-    literal: LiteralTemplate
+    literal: LiteralTemplate | ArithmeticLiteral
     head_form: int | None = None
     head_position: int = 0
     head: HeadTemplate | None = None

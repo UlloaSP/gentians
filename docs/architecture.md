@@ -69,8 +69,11 @@ de ellos redefine el language bias de una tarea inductiva.
   comentarios de línea dentro de bloques, también al buscar anotaciones.
   El parser deduplica ejemplos y modes mediante claves de diccionarios ordenados,
   conservando la primera localización; las constantes usan claves por tipo.
-  `ArithmeticLiteral` conserva expresión, resultado y procedencia de la familia
-  aditiva; no almacena una complejidad fija sin consumidores.
+  `clauses/arithmetic_literal.py` conserva expresión, resultado y procedencia de
+  la familia aditiva compilada; no pertenece al IR de tarea. La instanciación con
+  índices de variables vive en `clauses/reified_clause.py`. `language/` no depende
+  del IR compilado. Los helpers de sintaxis viven en `grammar.py` y los límites
+  en `declarations.py`, sin otro módulo `directives.py`.
   `#modeha` y `#modehd` comparten parsing de recall opcional y aridad de la
   directiva. El parsing ASP recoge diagnósticos en su única llamada a Clingo;
   localizar un error no vuelve a parsear la fuente.
@@ -93,7 +96,8 @@ de ellos redefine el language bias de una tarea inductiva.
   La expansión reutiliza las plantillas inmutables de átomos, comparaciones,
   condicionales, agregados y cabezas cuando sus campos no cambian, sin reconstruir
   ni revalidar el mismo valor. Sus guards nativos se conservan al validar y al
-  expandir términos sin cambios. Una cabeza instancia elementos y guards en
+  expandir términos sin cambios. Las plantillas sin placeholders constantes se
+  devuelven directamente. Una cabeza instancia elementos y guards en
   una sola actualización del nodo nativo.
   Las variantes que sustituyen constantes se construyen y validan normalmente;
   instanciar nunca modifica la plantilla retenida.
@@ -105,17 +109,31 @@ de ellos redefine el language bias de una tarea inductiva.
   La construcción de anotaciones usa símbolos nativos para sus identificadores.
   Las invenciones usan claves ordenadas por plantilla para detectar duplicados;
   el análisis de cláusulas conserva la validación de firmas inventadas.
-  El parser añade la línea original a errores de lectura de directivas, sin
-  repetir las localizaciones ya presentes en los errores de ejemplos.
+  El parser conserva la línea inicial para errores de validación de directivas;
+  los errores de sintaxis de Clingo conservan línea y columna en bytes UTF-8 del
+  token o cursor original, también dentro de payloads multilínea y comentarios.
   Los diagnósticos separan mensaje y localizaciones de los payloads citados;
   incluyen conflictos entre declaraciones y el detalle original de Clingo.
   `parse_file` conserva los offsets de los archivos concatenados y traduce
-  las localizaciones de errores al archivo y línea correspondientes.
-  El lexer entrega un iterador de sentencias y comparte el salto de comentarios
-  entre el recorrido principal y la búsqueda de anotaciones. La lectura UTF-8
+  las localizaciones de errores al archivo, línea y columna correspondientes.
+  El lexer entrega un iterador de sentencias, almacena fragmentos de texto y
+  comparte el salto de comentarios entre el recorrido principal y la búsqueda
+  de anotaciones. Comparte delimitadores y salto de strings con el separador de
+  argumentos; conserva spans de fuente y los remapea solo al informar errores.
+  El background mantiene sus posiciones originales y omite los nodos Comment.
+  La lectura UTF-8
   sigue siendo completa. Las expansiones entregan iteradores de variantes y
   conservan solo los pools independientes necesarios para reutilizar alternativas;
-  los productos combinados se recorren sin almacenarlos completos.
+  los productos combinados se recorren sin almacenarlos completos. La expansión
+  de términos anidados conserva un valor actual por nodo y reconstruye solo los
+  caminos con elecciones cambiadas, sin productos intermedios de subárboles.
+  Modes textualmente idénticos ya aceptados se omiten antes del parsing del
+  payload; los diccionarios de IR conservan la deduplicación semántica posterior.
+  La seguridad de comparaciones usa una caché local a la lectura de una tarea,
+  con la comparación completa como clave y ambos resultados booleanos. No
+  conserva controles de Clingo ni comparte estado entre tareas. La inferencia
+  construye el fallback de inputs solo si fallan los outputs previos, y conserva
+  los términos anotados cuya dirección ya coincide.
   La sustitución recibe bindings AST preparados por instanciación, compartiendo
   nombres repetidos dentro de esa llamada. No hay una caché global de variables.
   Cabezas y agregados comparten la instanciación de guards, que conserva un guard

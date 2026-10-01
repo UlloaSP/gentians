@@ -3,7 +3,7 @@ from collections.abc import Set
 from clingo import ast
 
 from ...language import terms as mode_terms
-from ...language.ir.arithmetic_literal import ArithmeticLiteral
+from ..arithmetic_literal import ArithmeticLiteral
 from ...language.ir.comparison_literal import ComparisonLiteral
 from ..clause_mode import ClauseMode
 from ..reified_literal import ReifiedLiteral

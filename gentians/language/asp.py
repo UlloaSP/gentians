@@ -5,7 +5,7 @@ import clingo
 from clingo import ast
 from clingo.ast import ProgramBuilder
 
-from .grammar import SourceError
+from .grammar import DELIMITERS, SourceError, quoted_end
 
 Predicate = tuple[str, int]
 AspProgram = tuple[ast.AST, ...]
@@ -15,7 +15,7 @@ def _diagnostic_detail(message: str) -> str:
     return re.sub(r"(?m)^<string>:\d+:\d+(?:-\d+)?:[ \t]*", "", message).strip()
 
 
-def parse_program(source: str, line: int = 1) -> AspProgram:
+def parse_program(source: str, line: int = 1, column: int = 1) -> AspProgram:
     """Parse ASP with Clingo and discard its implicit ``#program base`` node."""
     statements: list[ast.AST] = []
     diagnostics: list[str] = []
@@ -27,13 +27,14 @@ def parse_program(source: str, line: int = 1) -> AspProgram:
         )
     except RuntimeError:
         diagnostic = "\n".join(diagnostics).strip()
-        match = re.search(r"<string>:(\d+):", diagnostic)
+        match = re.search(r"(?m)^<string>:(\d+):(\d+)", diagnostic)
         error_line = line + int(match.group(1)) - 1 if match else line
+        error_column = int(match.group(2)) + (column - 1 if match.group(1) == "1" else 0) if match else column
         detail = _diagnostic_detail(diagnostic)
-        raise SourceError(error_line, f"invalid ASP program: {detail or source.strip()}") from None
+        raise SourceError(error_line, f"invalid ASP program: {detail or source.strip()}", column=error_column) from None
     if statements and _is_implicit_base(statements[0]):
         statements.pop(0)
-    return tuple(statements)
+    return tuple(statement for statement in statements if statement.ast_type != ast.ASTType.Comment)
 
 
 def without_show(program: AspProgram) -> AspProgram:
@@ -49,30 +50,30 @@ def without_show(program: AspProgram) -> AspProgram:
     )
 
 
-def parse_rule(source: str) -> ast.AST:
-    statements = parse_program(source)
+def parse_rule(source: str, line: int = 1, column: int = 1) -> ast.AST:
+    statements = parse_program(source, line, column)
     if len(statements) != 1 or statements[0].ast_type != ast.ASTType.Rule:
         raise ValueError(f"expected one ASP rule: {source}")
     return statements[0]
 
 
 def parse_example_fields(
-    included_source: str,
-    excluded_source: str,
-    context_source: str,
+    included: tuple[str, int, int],
+    excluded: tuple[str, int, int],
+    context: tuple[str, int, int],
 ) -> tuple[tuple[ast.AST, ...], tuple[ast.AST, ...], AspProgram]:
     """Parse each non-empty ASP-owned field of one example with Clingo."""
     return (
-        _parse_ground_atoms(included_source),
-        _parse_ground_atoms(excluded_source),
-        parse_program(context_source) if context_source else (),
+        _parse_ground_atoms(*included),
+        _parse_ground_atoms(*excluded),
+        parse_program(*context) if context[0] else (),
     )
 
 
-def _parse_ground_atoms(source: str) -> tuple[ast.AST, ...]:
+def _parse_ground_atoms(source: str, line: int, column: int) -> tuple[ast.AST, ...]:
     if not source.strip():
         return ()
-    atoms = tuple(parse_rule(f":- {source}.").body)
+    atoms = tuple(parse_rule(f":- {source}.", line, column - 3).body)
     _validate_ground_atoms(atoms, source)
     return atoms
 
@@ -135,28 +136,25 @@ def signed_predicate(name: str, arity: int, strong: bool = False) -> Predicate:
 def split_top_level_args(args: str) -> list[str]:
     parts: list[str] = []
     start = 0
-    pairs = {"(": ")", "[": "]", "{": "}"}
-    closing = set(pairs.values())
     stack: list[str] = []
-    quoted = False
-    escaped = False
-    for index, char in enumerate(args):
-        if quoted:
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == '"':
-                quoted = False
-        elif char == '"':
-            quoted = True
-        elif char in pairs:
-            stack.append(pairs[char])
-        elif char in closing and stack and char == stack[-1]:
+    index = 0
+    while index < len(args):
+        char = args[index]
+        if char == '"':
+            index = quoted_end(args, index)
+            continue
+        if char in DELIMITERS:
+            stack.append(DELIMITERS[char])
+        elif char in ")]}":
+            if not stack or stack[-1] != char:
+                raise ValueError(f"unmatched {char}")
             stack.pop()
         elif char == "," and not stack:
             parts.append(args[start:index].strip())
             start = index + 1
+        index += 1
+    if stack:
+        raise ValueError(f"unclosed delimiter, expected {stack[-1]}")
     tail = args[start:].strip()
     if parts and not tail:
         raise ValueError("empty top-level argument")

@@ -7,7 +7,7 @@ from ..language import terms as mode_terms
 from ..language.asp import Predicate
 from ..language.ast_nodes import COMPARISON_OPERATORS
 from ..language.ir.aggregate_literal import AggregateLiteral
-from ..language.ir.arithmetic_literal import ArithmeticLiteral
+from .arithmetic_literal import ArithmeticLiteral
 from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.atom_template import AtomTemplate
 from ..language.ir.boolean_literal import BooleanLiteral

@@ -151,6 +151,9 @@ class HeadTemplate:
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> Iterator["HeadTemplate"]:
+        if not any(mode_terms.constant_types(term) for term in self.arguments):
+            yield self
+            return
         def forms() -> Iterator[ast.AST]:
             if self.kind not in {"choice", "aggregate"}:
                 yield self.form

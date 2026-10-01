@@ -8,13 +8,14 @@ from .asp import parse_program
 from .declarations import (
     _get_constant_declaration,
     _get_invented_declaration,
+    _get_limit,
     _get_pos_neg_examples,
 )
-from .directives import _get_limit
 from .grammar import SourceError
 from .ir.atom_literal import AtomLiteral
 from .ir.atom_template import AtomTemplate
 from .ir.conditional_literal import ConditionalLiteral
+from .ir.comparison_literal import ComparisonLiteral
 from .ir.example import Example
 from .ir.head_template import HeadTemplate
 from .ir.inductive_task import InductiveTask
@@ -46,7 +47,8 @@ def parse_file(filename: str) -> InductiveTask:
             f" (related declaration at {origin(error.related_line)})"
             if error.related_line else ""
         )
-        raise ValueError(f"{origin(error.line)}: {error.message}{related}") from None
+        position = f" (column {error.column})" if error.column is not None else ""
+        raise ValueError(f"{origin(error.line)}: {error.message}{position}{related}") from None
 
 
 def parse_text(source: str) -> InductiveTask:
@@ -69,9 +71,14 @@ def parse_text(source: str) -> InductiveTask:
     }
     min_head_literals = 1
     declared_limits: dict[str, int] = {}
+    mode_names = {"#modeh", "#modeha", "#modehd", "#modeb", "#modec"}
+    seen_modes: set[str] = set()
+    comparison_safety: dict[ComparisonLiteral, bool] = {}
     for statement in lex(source):
         lc = statement.text
         directive = statement.directive
+        if directive in mode_names and lc in seen_modes:
+            continue
 
         try:
             limit = (
@@ -115,13 +122,13 @@ def parse_text(source: str) -> InductiveTask:
             elif directive == "#modeh":
                 lbh.setdefault(_get_head_declaration(lc), statement.line)
             elif directive == "#modeb":
-                lbb.setdefault(_get_body_mode_declaration(lc), statement.line)
+                lbb.setdefault(_get_body_mode_declaration(lc, comparison_safety), statement.line)
             elif directive == "#pos":
                 res = _get_pos_neg_examples(lc)
-                pe[Example.parse(res, True, statement.line)] = None
+                pe[Example.parse(res, True)] = None
             elif directive == "#neg":
                 res = _get_pos_neg_examples(lc)
-                ne[Example.parse(res, False, statement.line)] = None
+                ne[Example.parse(res, False)] = None
             elif directive == "#modec":
                 for mode in _get_condition_mode_declarations(lc):
                     lbc.setdefault(mode, statement.line)
@@ -135,8 +142,12 @@ def parse_text(source: str) -> InductiveTask:
                 constants.setdefault(type_name, {})[value] = None
             else:
                 background_statements.append(statement)
+            if directive in mode_names:
+                seen_modes.add(lc)
         except ValueError as error:
             if isinstance(error, SourceError):
+                if error.column is not None:
+                    raise statement.locate_error(error) from None
                 raise
             raise SourceError(statement.line, str(error)) from None
 
@@ -221,9 +232,16 @@ def parse_text(source: str) -> InductiveTask:
 
 def _background_source(statements: list[Statement]) -> str:
     parts: list[str] = []
-    line = 1
+    line = column = 1
     for statement in statements:
-        parts.append("\n" * max(0, statement.line - line))
-        parts.append(statement.text)
-        line = statement.line + statement.text.count("\n")
+        if statement.line > line:
+            parts.append("\n" * (statement.line - line))
+            column = 1
+        start_column = statement.column
+        parts.append(" " * max(0, start_column - column))
+        text = statement.source[statement.start:statement.end]
+        parts.append(text)
+        newlines = text.count("\n")
+        line = statement.line + newlines
+        column = len(text.rsplit("\n", 1)[-1].encode("utf-8")) + (1 if newlines else start_column)
     return "".join(parts)

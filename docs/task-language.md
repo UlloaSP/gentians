@@ -20,29 +20,37 @@ Head forms also use Clingo nodes. Each learning element keeps its literal and
 conditions together, while the form supplies the guards and aggregate function.
 The task stores these heads directly. Recall `1` is checked when parsing the
 declaration. Comparison direction checks also pass native AST rules to Clingo;
-their safety continues to be determined by grounding.
+their safety continues to be determined by grounding. Equal full comparison
+queries share safety results only during the same task parse, while modes with
+different recalls remain distinct. Compiled arithmetic-family metadata belongs
+to `clauses/`, rather than the task IR in `language/`.
 
 Task files accept Clingo's nested `%* ... *%` comments, including adjacent
 markers such as `%*%* ignored *%*%`. A `%` line comment inside a block hides
 closing markers until the newline. Repeating an equal mode or example keeps
 its first occurrence; distinct recalls, signs, labels and contexts remain
-distinct. Constant values keep declaration order within their type.
+distinct. Identical successful modes skip repeated payload parsing. Constant
+values keep declaration order within their type.
 Missing directive arguments, including a comma before the closing parenthesis,
 are rejected. Commas inside strings and singleton tuples such as `(a,)` remain
 valid.
 Mode and invention payloads contain only their template. Additional ASP rules
 or directives inside them are rejected; directive text in strings is preserved.
 Mode recalls use a positive integer or `*`, never numeric `-1`.
-Errors while reading modes, constants, limits and inventions include the original
-statement's starting line, including when the declaration spans several lines.
+Declaration validation errors include the original statement's starting line.
+Clingo syntax errors point to the original token or cursor line and UTF-8 byte
+column, including within multiline declarations and example fields.
 Errors involving several declarations also identify the responsible line.
 Reading a file reports its name and local line; directory tasks distinguish
 `bk.lp`, `exs.lp`, and `bias.lp`, including both locations of conflicting
-declarations. Syntax errors retain Clingo's explanation and unexpected token.
+declarations. Syntax errors retain Clingo's explanation and unexpected token;
+comments and strings preserve their original positions.
 
 The file is read in full, then the lexer delivers complete statements
-progressively. Constant expansion likewise yields variants in declaration and
-Cartesian-product order, preparing reusable alternatives once. Fixed guards and
+progressively using source spans and shared string/delimiter scanning. Constant
+expansion likewise yields variants in declaration and Cartesian-product order,
+preparing reusable element and guard alternatives once. Nested terms retain
+only their current variants and rebuild changed paths. Fixed guards and
 repeated binding nodes are reused during instantiation. Native predicate
 inspection also supports deeply nested terms in background comparisons.
 
@@ -211,6 +219,7 @@ Cartesian combination with guards, elements, and conditions. Expansion order
 and the declaration's shared recall are preserved.
 Declared values stay as native Clingo terms in the task, so expansion reuses
 them without another text parsing step.
+Templates without constant placeholders return directly during expansion.
 Expansion also reuses unchanged atom and head templates; repeated instantiation
 keeps their retained syntax intact. Variants that replace constants stay separate.
 Matching fixed function and tuple fragments also ignores whether their value

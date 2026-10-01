@@ -3,9 +3,9 @@ from dataclasses import dataclass, field
 
 from clingo import ast
 
-from .. import terms as mode_terms
-from ..asp import Predicate
-from ..ast_nodes import comparison
+from ..language import terms as mode_terms
+from ..language.asp import Predicate
+from ..language.ast_nodes import comparison
 
 
 @dataclass(frozen=True, slots=True)

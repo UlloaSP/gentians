@@ -57,13 +57,13 @@ from gentians.language.asp import (
 from gentians.language.ast_nodes import LOCATION, operation
 from gentians.language.ir.aggregate_element import AggregateElement
 from gentians.language.ir.aggregate_literal import AggregateLiteral
-from gentians.language.ir.arithmetic_literal import ArithmeticLiteral
+from gentians.clauses.arithmetic_literal import ArithmeticLiteral
 from gentians.language.ir.atom_literal import AtomLiteral
 from gentians.language.ir.atom_template import AtomTemplate
 from gentians.language.ir.comparison_literal import ComparisonLiteral
 from gentians.language.ir.conditional_literal import ConditionalLiteral
 from gentians.language.ir.head_template import HeadTemplate
-from gentians.language.ir.literal_template import instantiate_literal
+from gentians.clauses.reified_clause import instantiate_literal
 from gentians.language.ir.mode_declaration import ModeDeclaration
 from tests.task_helpers import (
     example,

@@ -14,7 +14,7 @@ def inductive_task(background: list[str], *args: Any, **kwargs: Any) -> Inductiv
 
 
 def example(values: tuple[str, str] | tuple[str, str, str], positive: bool) -> Example:
-    return Example.parse(values, positive)
+    return Example.parse(tuple((value.strip(), 1, 1) for value in values), positive)
 
 
 def make_clause_space(sources: list[str]) -> ClauseSpace:

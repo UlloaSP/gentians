@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from functools import cache
 
 from ...language.ir.aggregate_literal import AggregateLiteral
-from ...language.ir.arithmetic_literal import ArithmeticLiteral
+from ..arithmetic_literal import ArithmeticLiteral
 from ...language.ir.atom_literal import AtomLiteral
 from ...language.ir.comparison_literal import ComparisonLiteral
 from ..clause_mode import ClauseMode

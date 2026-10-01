@@ -4,8 +4,9 @@ from functools import lru_cache
 from clingo import ast
 
 from ..language import terms as mode_terms
-from ..language.ast_nodes import literal
-from ..language.ir.literal_template import instantiate_literal
+from ..language.ast_nodes import binding_terms, consume_all, literal
+from ..language.ir.literal_template import LiteralTemplate
+from .arithmetic_literal import ArithmeticLiteral
 from .clause_mode import ClauseMode
 from .reified_literal import ReifiedLiteral
 
@@ -14,6 +15,15 @@ from .reified_literal import ReifiedLiteral
 class ReifiedClause:
     head: tuple[ReifiedLiteral, ...]
     body: tuple[ReifiedLiteral, ...]
+
+
+def instantiate_literal(
+    template: LiteralTemplate | ArithmeticLiteral, variables: tuple[int, ...]
+) -> ast.AST:
+    bindings = binding_terms(f"V{variable}" for variable in variables)
+    node = template.instantiate(bindings)
+    consume_all(bindings)
+    return node
 
 
 @lru_cache(maxsize=8192)

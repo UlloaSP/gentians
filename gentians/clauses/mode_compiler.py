@@ -7,7 +7,7 @@ from clingo import ast
 from ..language import terms as mode_terms
 from ..language.ast_nodes import LOCATION, binding_term
 from ..language.ir.aggregate_literal import AggregateLiteral
-from ..language.ir.arithmetic_literal import ArithmeticLiteral
+from .arithmetic_literal import ArithmeticLiteral
 from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.boolean_literal import BooleanLiteral
 from ..language.ir.comparison_literal import ComparisonLiteral

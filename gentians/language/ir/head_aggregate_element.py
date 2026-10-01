@@ -54,6 +54,9 @@ class HeadAggregateElement:
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> Iterator["HeadAggregateElement"]:
+        if not any(mode_terms.constant_types(term) for term in self.arguments):
+            yield self
+            return
         term_choices = tuple(tuple(mode_terms.concretizations(term, constants)) for term in self.terms)
         conclusions = tuple(self.conclusion.concretizations(constants))
         condition_choices = tuple(tuple(condition.concretizations(constants)) for condition in self.conditions)

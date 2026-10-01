@@ -61,6 +61,9 @@ class ConditionalLiteral:
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> Iterator["ConditionalLiteral"]:
+        if not any(mode_terms.constant_types(term) for term in self.arguments):
+            yield self
+            return
         choices = tuple(tuple(item.concretizations(constants)) for item in self.conditions)
         for conclusion in self.conclusion.concretizations(constants):
             for conditions in product(*choices):

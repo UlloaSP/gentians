@@ -3,9 +3,7 @@ from typing import TypeAlias
 from clingo import ast
 
 from .. import terms as mode_terms
-from ..ast_nodes import binding_terms, consume_all
 from .aggregate_literal import AggregateLiteral
-from .arithmetic_literal import ArithmeticLiteral
 from .atom_literal import AtomLiteral
 from .boolean_literal import BooleanLiteral
 from .comparison_literal import ComparisonLiteral
@@ -16,7 +14,6 @@ LiteralTemplate: TypeAlias = (
     AtomLiteral
     | BooleanLiteral
     | ComparisonLiteral
-    | ArithmeticLiteral
     | AggregateLiteral
     | ConditionalLiteral
     | HeadAggregateElement
@@ -61,12 +58,3 @@ def anonymous_is_safe(template: LiteralTemplate, *, positive_atom: bool = True) 
         and not template.default_negated
         or without_anonymous(template.arguments)
     )
-
-
-def instantiate_literal(
-    template: LiteralTemplate, variables: tuple[int, ...]
-) -> ast.AST:
-    rendered_variables = binding_terms(f"V{variable}" for variable in variables)
-    node = template.instantiate(rendered_variables)
-    consume_all(rendered_variables)
-    return node

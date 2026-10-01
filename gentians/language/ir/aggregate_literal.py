@@ -62,6 +62,9 @@ class AggregateLiteral:
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> Iterator["AggregateLiteral"]:
+        if not any(mode_terms.constant_types(term) for term in self.arguments):
+            yield self
+            return
         choices = tuple(tuple(element.concretizations(constants)) for element in self.elements)
         lefts = tuple(self.left_guard if term == self.left_guard.term else self.left_guard.update(term=term) for term in mode_terms.concretizations(self.left_guard.term, constants)) if self.left_guard is not None else (None,)
         rights = tuple(self.right_guard if term == self.right_guard.term else self.right_guard.update(term=term) for term in mode_terms.concretizations(self.right_guard.term, constants)) if self.right_guard is not None else (None,)

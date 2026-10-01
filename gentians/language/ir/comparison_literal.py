@@ -59,7 +59,10 @@ class ComparisonLiteral:
         return frozenset()
 
     def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> Iterator["ComparisonLiteral"]:
-        return (
+        if not any(mode_terms.constant_types(term) for term in self.terms):
+            yield self
+            return
+        yield from (
             self if concrete_terms == self.terms else replace(self, terms=concrete_terms)
             for concrete_terms in product(*(mode_terms.concretizations(term, constants) for term in self.terms))
         )

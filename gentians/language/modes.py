@@ -14,8 +14,7 @@ from .ast_nodes import (
     binding_terms,
     literal as ast_literal,
 )
-from .directives import _directive_args, _parse_recall
-from .grammar import SourceError
+from .grammar import SourceError, _directive_args, _parse_recall, source_position
 from .ir.aggregate_element import AggregateElement
 from .ir.aggregate_literal import AggregateLiteral
 from .ir.atom_literal import AtomLiteral
@@ -34,31 +33,42 @@ _AGGREGATE_NAMES = {value: key for key, value in AGGREGATE_FUNCTIONS.items()}
 def _get_mode_declarations(
     source: str, name: str, *, unpool: bool = False
 ) -> tuple[ModeDeclaration, ...]:
-    parts = split_top_level_args(_directive_args(source, name))
+    payload = _directive_args(source, name)
+    parts = split_top_level_args(payload)
     combinable_head = name in {"#modeha", "#modehd"}
     if combinable_head and len(parts) == 1:
-        recall, syntax = -1, parts[0]
+        recall, offset = -1, len(name) + 1
     else:
         if len(parts) < 2 or combinable_head and len(parts) != 2:
             raise ValueError(f"invalid {name} declaration: {source}")
-        recall, syntax = _parse_recall(parts[0]), ",".join(parts[1:])
+        recall = _parse_recall(parts[0])
+        offset = source.index(",", len(name) + 1) + 1
+    syntax = source[offset:-2]
     return tuple(
         ModeDeclaration(recall, literal)
-        for literal in _get_mode_literals(syntax, source, unpool=unpool)
+        for literal in _get_mode_literals(syntax, source, offset=offset, unpool=unpool)
     )
 
 
-def _get_body_mode_declaration(s: str) -> ModeDeclaration:
+def _get_body_mode_declaration(s: str, safety: dict[ComparisonLiteral, bool] | None = None) -> ModeDeclaration:
     (declaration,) = _get_mode_declarations(s, "#modeb")
     if isinstance(declaration.literal, ComparisonLiteral):
-        literal = _prepare_body_comparison(declaration.literal, s)
+        literal = _prepare_body_comparison(declaration.literal, s, safety)
         return declaration if literal is declaration.literal else ModeDeclaration(declaration.recall, literal)
     return declaration
 
 
 def _prepare_body_comparison(
-    literal: ComparisonLiteral, declaration: str
+    literal: ComparisonLiteral, declaration: str, safety: dict[ComparisonLiteral, bool] | None = None
 ) -> ComparisonLiteral:
+    def outputs_are_safe(candidate: ComparisonLiteral) -> bool:
+        if safety is None:
+            return _comparison_outputs_are_safe(candidate)
+        result = safety.get(candidate)
+        if result is None:
+            result = safety[candidate] = _comparison_outputs_are_safe(candidate)
+        return result
+
     bindings = tuple(binding for term in literal.terms for binding in mode_terms.bindings(term))
     if literal.default_negated and any(
         binding.direction == "output" for binding in bindings
@@ -75,22 +85,23 @@ def _prepare_body_comparison(
     prepared_outputs_are_safe = False
     if unspecified:
         inferred_inputs = tuple(binding.direction or "input" for binding in bindings)
-        prepared = _with_binding_directions(literal, inferred_inputs)
         if not literal.default_negated:
             inferred_outputs = tuple(
                 binding.direction or "output" for binding in bindings
             )
             all_outputs = _with_binding_directions(literal, inferred_outputs)
-            if _comparison_outputs_are_safe(all_outputs):
+            if outputs_are_safe(all_outputs):
                 prepared = all_outputs
                 prepared_outputs_are_safe = True
             elif (assignment := _implicit_assignment_output(literal)) in unspecified:
                 directions = list(inferred_inputs)
                 directions[assignment] = "output"
                 candidate = _with_binding_directions(literal, tuple(directions))
-                if _comparison_outputs_are_safe(candidate):
+                if outputs_are_safe(candidate):
                     prepared = candidate
                     prepared_outputs_are_safe = True
+        if not prepared_outputs_are_safe:
+            prepared = _with_binding_directions(literal, inferred_inputs)
         prepared = replace(
             prepared, fully_implicit_directions=fully_implicit
         )
@@ -99,7 +110,7 @@ def _prepare_body_comparison(
         binding.direction == "output"
         for term in prepared.terms
         for binding in mode_terms.bindings(term)
-    ) and not prepared_outputs_are_safe and not _comparison_outputs_are_safe(prepared):
+    ) and not prepared_outputs_are_safe and not outputs_are_safe(prepared):
         raise ValueError(
             f"comparison outputs are not safe under Clingo grounding: {declaration}"
         )
@@ -127,7 +138,8 @@ def _with_binding_directions(
         if mode_terms.kind(term) != "variable":
             return None
         metadata = mode_terms.binding(term)
-        return mode_terms.variable(metadata.type, next(direction_iter), metadata.label)
+        direction = next(direction_iter)
+        return term if direction == metadata.direction else mode_terms.variable(metadata.type, direction, metadata.label)
 
     return replace(literal, terms=tuple(mode_terms.transform(term, update) for term in literal.terms))
 
@@ -224,12 +236,19 @@ def _get_head_declaration(s: str) -> HeadTemplate:
         raise ValueError("complete head modes require recall 1") from None
     if recall != 1:
         raise ValueError("complete head modes require recall 1")
-    syntax = ",".join(parts[1:]).strip()
+    offset = s.index(",", len("#modeh(")) + 1
+    syntax = s[offset:-2]
+    line, column = source_position(s, offset)
     try:
-        head = parse_rule(f"{syntax} :- __modeh_body.").head
+        head = parse_rule(f"{syntax} :- __modeh_body.", line, column).head
     except ValueError as exc:
         detail = exc.message if isinstance(exc, SourceError) else str(exc)
-        raise ValueError(f"invalid #modeh declaration: {s}: {detail}") from None
+        message = f"invalid #modeh declaration: {s}: {detail}"
+        if isinstance(exc, SourceError):
+            end = source_position(s, offset + len(syntax))
+            line, column = min((exc.line, exc.column or 1), end)
+            raise SourceError(line, message, column=column) from None
+        raise ValueError(message) from None
     if head.ast_type in {ast.ASTType.Literal, ast.ASTType.ConditionalLiteral}:
         element = _head_literal(head, s)
         return HeadTemplate.normal(element)
@@ -285,8 +304,8 @@ def _head_conditions(
     return tuple(_head_conclusion(node, declaration) for node in nodes)
 
 
-def _get_mode_atom(raw: str, declaration: str) -> AtomTemplate:
-    (literal,) = _get_mode_literals(raw, declaration)
+def _get_mode_atom(raw: str, declaration: str, offset: int) -> AtomTemplate:
+    (literal,) = _get_mode_literals(raw, declaration, offset=offset)
     if not isinstance(literal, AtomLiteral) or literal.default_negated:
         raise ValueError(f"invalid mode atom: {declaration}")
     return literal.atom
@@ -318,13 +337,19 @@ def _atom_from_ast(symbol: ast.AST, declaration: str) -> AtomTemplate:
 
 
 def _get_mode_literals(
-    raw: str, declaration: str, *, unpool: bool = False
+    raw: str, declaration: str, *, offset: int, unpool: bool = False
 ) -> tuple[AggregateLiteral | AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral, ...]:
     try:
-        rule = parse_rule(f":- {raw.strip()}.")
+        line, column = source_position(declaration, offset)
+        rule = parse_rule(f":- {raw}.", line, column - 3)
     except ValueError as exc:
         detail = exc.message if isinstance(exc, SourceError) else str(exc)
-        raise ValueError(f"invalid mode literal: {declaration}: {detail}") from None
+        message = f"invalid mode literal: {declaration}: {detail}"
+        if isinstance(exc, SourceError):
+            end = source_position(declaration, offset + len(raw))
+            line, column = min((exc.line, exc.column or 1), end)
+            raise SourceError(line, message, column=column) from None
+        raise ValueError(message) from None
     expanded = rule.unpool() if unpool else (rule,)
     if any(len(rule.body) != 1 for rule in expanded):
         raise ValueError(f"mode declaration requires one literal: {declaration}")

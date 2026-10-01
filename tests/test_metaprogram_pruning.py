@@ -85,10 +85,10 @@ def test_theta_reduction_moves_only_variables_outside_fixed_literals():
     clauses = _clauses(THETA_COMPARISON_TASK)
 
     # V2 occurs only in r(V0,V2): V2 -> V1 folds it onto r(V0,V1).
-    assert ":- r(V0,V1),r(V0,V2),s(V0,V3),V1!=V3." not in clauses
+    assert '#false :- r(V0,V1); r(V0,V2); s(V0,V3); V1 != V3.' not in clauses
     # The comparison fixes V2, so no substitution can fold r(V0,V2).
-    assert ":- r(V0,V1),r(V0,V2),V1!=V2." in clauses
-    assert ":- r(V0,V1),r(V1,V2),s(V0,V3),V1!=V3." in clauses
+    assert '#false :- r(V0,V1); r(V0,V2); V1 != V2.' in clauses
+    assert '#false :- r(V0,V1); r(V1,V2); s(V0,V3); V1 != V3.' in clauses
 
 
 def _theta_space(text, limit, monkeypatch):
@@ -125,7 +125,7 @@ def test_disequality_is_oriented_only_between_interchangeable_operands():
         "#modeb(1,var(a,input)!=var(b,input))."
     )
 
-    assert "p(V0,V1) :- b(V0),a(V1),V1!=V0." in clauses
+    assert 'p(V0,V1) :- b(V0); a(V1); V1 != V0.' in clauses
 
 
 def test_strict_replacement_needs_a_strict_mode_for_the_same_type():
@@ -138,9 +138,9 @@ def test_strict_replacement_needs_a_strict_mode_for_the_same_type():
     other_type = _clauses(base + "#modeb(1,var(u,input)<var(u,input)).")
     same_type = _clauses(base + "#modeb(1,var(t,input)<var(t,input)).")
 
-    assert "h(V0) :- p(V0,V1),V0<=V1,V0!=V1." in other_type
-    assert "h(V0) :- p(V0,V1),V0<=V1,V0!=V1." not in same_type
-    assert "h(V0) :- p(V0,V1),V0<V1." in same_type
+    assert 'h(V0) :- p(V0,V1); V0 <= V1; V0 != V1.' in other_type
+    assert 'h(V0) :- p(V0,V1); V0 <= V1; V0 != V1.' not in same_type
+    assert 'h(V0) :- p(V0,V1); V0 < V1.' in same_type
 
 
 def test_repeated_condition_stays_without_a_shorter_template():
@@ -149,7 +149,7 @@ def test_repeated_condition_stays_without_a_shorter_template():
         "#modeb(1,e(var(t,input),var(t,any)):d(var(t,any)),d(var(t,any)))."
     )
 
-    assert ":- e(V0,V0):d(V0),d(V0)." in clauses
+    assert '#false :- e(V0,V0): d(V0), d(V0).' in clauses
 
 
 def test_non_interchangeable_addition_keeps_its_arithmetic_view():
@@ -174,9 +174,9 @@ def test_subsumption_needs_a_shared_variable_at_the_same_argument():
 
     # V1 is argument 2 of the first atom and argument 0 of the second, so no
     # substitution maps p(V1,V0,V2) onto p(V0,V0,V1): the second atom is a join.
-    assert ":- p(V0,V0,V1),p(V1,V0,V2)." in clauses
+    assert '#false :- p(V0,V0,V1); p(V1,V0,V2).' in clauses
     # V2 occurs only in the second atom: V2 -> V0 maps it onto the first.
-    assert ":- p(V0,V0,V1),p(V0,V2,V1)." not in clauses
+    assert '#false :- p(V0,V0,V1); p(V0,V2,V1).' not in clauses
 
 
 def test_subsumption_prunes_across_modes_of_one_predicate():
@@ -189,8 +189,8 @@ def test_subsumption_prunes_across_modes_of_one_predicate():
     )
 
     # V1 -> V0 maps p(V0,V1) onto p(V0,V0) unless the head needs V1.
-    assert "h(V0) :- p(V0,V1),p(V0,V0)." not in clauses
-    assert "h(V1) :- p(V0,V1),p(V0,V0)." in clauses
+    assert 'h(V0) :- p(V0,V1); p(V0,V0).' not in clauses
+    assert 'h(V1) :- p(V0,V1); p(V0,V0).' in clauses
     assert "h(V0) :- p(V0,V0)." in clauses
 
 
@@ -204,17 +204,17 @@ def test_transitive_shortcut_is_pruned_wherever_slot_order_puts_it():
     clauses = _clauses(TRANSITIVE_TASK)
 
     # Tuple order puts the shortcut p(V0,V2) between the two path atoms.
-    assert ":- p(V0,V1),p(V0,V2),p(V1,V2)." not in clauses
-    assert "h(V0) :- p(V0,V1),p(V0,V2),p(V1,V2)." not in clauses
-    assert ":- p(V0,V1),p(V1,V2)." in clauses
+    assert '#false :- p(V0,V1); p(V0,V2); p(V1,V2).' not in clauses
+    assert 'h(V0) :- p(V0,V1); p(V0,V2); p(V1,V2).' not in clauses
+    assert '#false :- p(V0,V1); p(V1,V2).' in clauses
 
 
 def test_transitive_shortcut_must_be_a_third_atom():
     clauses = _clauses(TRANSITIVE_TASK)
 
     # p(V0,V1),p(V1,V1) is a path whose "shortcut" is its own first atom.
-    assert "h(V0) :- p(V0,V1),p(V1,V1)." in clauses
-    assert "h(V1) :- p(V0,V0),p(V0,V1),p(V1,V2)." in clauses
+    assert 'h(V0) :- p(V0,V1); p(V1,V1).' in clauses
+    assert 'h(V1) :- p(V0,V0); p(V0,V1); p(V1,V2).' in clauses
 
 
 def test_symmetric_orientation_needs_interchangeable_arguments():
@@ -231,11 +231,11 @@ def test_symmetric_orientation_needs_interchangeable_arguments():
 
     # r binds V1 and friend outputs V0 for q. The swapped atom needs V0 bound
     # first, so it is not in the language and cannot stand in for this one.
-    assert ":- q(V0),r(V1),friend(V1,V0)." in directed
-    assert ":- q(V0),r(V1),friend(V0,V1)." not in directed
+    assert '#false :- q(V0); r(V1); friend(V1,V0).' in directed
+    assert '#false :- q(V0); r(V1); friend(V0,V1).' not in directed
     # Arguments that may swap keep a single orientation.
-    assert ":- r(V0),r(V1),friend(V0,V1)." in undirected
-    assert ":- r(V0),r(V1),friend(V1,V0)." not in undirected
+    assert '#false :- r(V0); r(V1); friend(V0,V1).' in undirected
+    assert '#false :- r(V0); r(V1); friend(V1,V0).' not in undirected
 
 
 def test_arg_equal_shares_a_variable_only_where_the_template_allows():
@@ -251,10 +251,10 @@ def test_arg_equal_shares_a_variable_only_where_the_template_allows():
     )
 
     # Different types or labels forbid same(V0,V0); two ids must stay legal.
-    assert ":- same(V0,V1),a(V0)." in typed
-    assert ":- same(V0,V1),a(V0)." in labelled
-    assert ":- same(V0,V0)." in shareable
-    assert ":- same(V0,V1)." not in shareable
+    assert '#false :- same(V0,V1); a(V0).' in typed
+    assert '#false :- same(V0,V1); a(V0).' in labelled
+    assert '#false :- same(V0,V0).' in shareable
+    assert '#false :- same(V0,V1).' not in shareable
 
 
 DIRECTED_FILTER_TASK = (
@@ -272,9 +272,9 @@ def test_redundant_atom_stays_when_directed_flow_needs_it():
 
     # red implies node, but node(V0) is the only producer of the input of red:
     # without it no clause could say that h is what is red.
-    assert "h(V0) :- node(V0),red(V0)." in clauses
+    assert 'h(V0) :- node(V0); red(V0).' in clauses
     assert "h(V0) :- red(V0)." not in clauses
-    assert "h(V0) :- node(V0),red(V0),big(V0)." in clauses
+    assert 'h(V0) :- node(V0); red(V0); big(V0).' in clauses
 
 
 def test_redundant_atom_is_pruned_when_flow_does_not_need_it():
@@ -283,7 +283,7 @@ def test_redundant_atom_is_pruned_when_flow_does_not_need_it():
     )
 
     assert "h(V0) :- red(V0)." in clauses
-    assert "h(V0) :- node(V0),red(V0)." not in clauses
+    assert 'h(V0) :- node(V0); red(V0).' not in clauses
 
 
 def test_count_orders_only_arguments_the_template_lets_swap():
@@ -301,9 +301,9 @@ def test_count_orders_only_arguments_the_template_lets_swap():
     )
 
     # The types fix which variable each position holds: no other spelling exists.
-    assert ":- r(V0),#count{V1,V2:assigned(V2,V1)}=V0." in typed
-    assert ":- r(V0),#count{V1,V2:assigned(V1,V2)}=V0." in untyped
-    assert ":- r(V0),#count{V1,V2:assigned(V2,V1)}=V0." not in untyped
+    assert '#false :- r(V0); V0 = #count { V1,V2: assigned(V2,V1) }.' in typed
+    assert '#false :- r(V0); V0 = #count { V1,V2: assigned(V1,V2) }.' in untyped
+    assert '#false :- r(V0); V0 = #count { V1,V2: assigned(V2,V1) }.' not in untyped
 
 
 def test_conditions_of_different_types_do_not_trade_places():
@@ -314,4 +314,4 @@ def test_conditions_of_different_types_do_not_trade_places():
     )
 
     # V0 has type b, so it can only fill the second condition.
-    assert ":- nb(V0);e(V1):q(V1),q(V0)." in clauses
+    assert '#false :- nb(V0); e(V1): q(V1), q(V0).' in clauses

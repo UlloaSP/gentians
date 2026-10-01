@@ -1,6 +1,7 @@
 import clingo
 from clingo import ast
 
+from ...language import terms as mode_terms
 from ...language.asp import AspProgram, Predicate
 from ...language.ir.aggregate_literal import AggregateLiteral
 from ...language.ir.atom_literal import AtomLiteral
@@ -33,15 +34,10 @@ def _recursive_predicates(task: InductiveTask) -> set[Predicate]:
 
 def _head_atoms(task: InductiveTask) -> tuple[AtomTemplate, ...]:
     return tuple(
-        atom
+        literal.atom
         for declaration in task.language_bias_head
-        for atom in declaration.template.elements
-        if isinstance(atom, AtomTemplate)
-    ) + tuple(
-        element.atom
-        for declaration in task.language_bias_head
-        for element in declaration.template.aggregate_elements
-        if isinstance(element.atom, AtomTemplate)
+        for literal in declaration.conclusions
+        if isinstance(literal, AtomLiteral)
     ) + tuple(
         mode.literal.atom
         for mode in (
@@ -74,18 +70,14 @@ def _property_predicates(task: InductiveTask) -> frozenset[Predicate]:
         *(
             condition.atom
             for declaration in task.language_bias_head
-            for group in (
-                *declaration.template.conditions,
-                *(element.conditions for element in declaration.template.aggregate_elements),
-            )
-            for condition in group
+            for condition in declaration.conditions
             if isinstance(condition, AtomLiteral)
         ),
     ]
     plain: dict[Predicate, bool] = {}
     for atom in templates:
         plain[atom.signature] = plain.get(atom.signature, True) and not atom.alternatives and all(
-            term.kind in {"variable", "constant", "fixed", "anonymous"} for term in atom.terms
+            mode_terms.kind(term) in {"variable", "constant", "fixed", "anonymous"} for term in atom.terms
         )
     return frozenset(predicate for predicate, is_plain in plain.items() if is_plain)
 
@@ -171,7 +163,7 @@ def _clause_capabilities(
         binding.type == "numeric"
         for comparison in comparisons
         for term in comparison.terms
-        for binding in term.bindings()
+        for binding in mode_terms.bindings(term)
     )
     comparison_operators = {
         operator for comparison in comparisons for operator in comparison.operators
@@ -275,10 +267,10 @@ def _predicate_arg_types(
     for atom in declared_atoms:
         for alternative in atom.alternatives or (atom.terms,):
             for index, argument in enumerate(alternative):
-                if argument.kind not in {"variable", "constant"}:
+                if mode_terms.kind(argument) not in {"variable", "constant"}:
                     continue
                 position = (*atom.unsigned_signature, index)
-                declared_types_by_root.setdefault(find(position), set()).add(argument.type)
+                declared_types_by_root.setdefault(find(position), set()).add(mode_terms.binding(argument).type)
     type_by_root: dict[tuple[str, int, int], str] = {}
     next_type = 0
     for root, constants in constants_by_root.items():

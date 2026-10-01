@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
-from ...language.ir.conditional_literal import ConditionalLiteral
+from clingo import ast
+
+from ...language.ast_nodes import LOCATION
 from ..clause_mode import ClauseMode
-from ..reified_clause import _render_literal, render_head
+from ..reified_clause import _instantiate_literal, instantiate_head
 from ..reified_literal import ReifiedLiteral
 from .arithmetic_system import ArithmeticSystem, ArithmeticSystemKey
 
@@ -21,36 +23,28 @@ class CanonicalArithmeticClause:
             tuple(system.key for system in self.systems),
         )
 
-    def render(
+    def instantiate(
         self,
         modes: dict[int, ClauseMode],
-        rendered_heads: dict[tuple[ReifiedLiteral, ...], str] | None = None,
-    ) -> str:
-        """Render the clause, optionally reusing heads within one mode space."""
-        if rendered_heads is None:
-            head = render_head(self.head, modes)
+        heads: dict[tuple[ReifiedLiteral, ...], ast.AST] | None = None,
+    ) -> ast.AST:
+        """Build the rule once; the evaluator consumes this same AST."""
+        if not self.head and not self.body and not self.systems:
+            raise ValueError("a learned clause cannot have an empty head and body")
+        if heads is None:
+            head = instantiate_head(self.head, modes)
         else:
-            cached = rendered_heads.get(self.head)
+            cached = heads.get(self.head)
             if cached is None:
-                cached = rendered_heads[self.head] = render_head(self.head, modes)
+                cached = heads[self.head] = instantiate_head(self.head, modes)
             head = cached
         body = [
-            _render_literal(literal, modes[literal.mode_id])
+            _instantiate_literal(literal, modes[literal.mode_id])
             for literal in self.body
         ]
         for system in self.systems:
-            body.extend(system.render())
-        separator = (
-            ";"
-            if any(
-                isinstance(modes[literal.mode_id].literal, ConditionalLiteral)
-                for literal in self.body
-            )
-            else ","
-        )
-        rendered_body = separator.join(body)
-        if not rendered_body:
-            if not head:
-                raise ValueError("a learned clause cannot have an empty head and body")
-            return f"{head}."
-        return f"{head} :- {rendered_body}." if head else f":- {rendered_body}."
+            body.extend(system.instantiate())
+        return ast.Rule(LOCATION, head, body)
+
+    def render(self, modes: dict[int, ClauseMode]) -> str:
+        return str(self.instantiate(modes))

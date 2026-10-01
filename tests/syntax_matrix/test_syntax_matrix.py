@@ -29,6 +29,7 @@ from gentians.clauses import generate_clause_space
 from gentians.evaluation import create_evaluator
 from gentians.hypotheses import HypothesisGenerator
 from gentians.language import parse_text
+from gentians.language.asp import parse_rule
 from gentians.language.ir.inductive_task import InductiveTask
 
 CASES_DIR = Path(__file__).parent / "cases"
@@ -53,7 +54,7 @@ def _load(path: Path) -> Case:
     expected, xfail = [], None
     for line in path.read_text(encoding="utf-8").splitlines():
         if line.startswith("% expect:"):
-            expected.append(line.removeprefix("% expect:").strip())
+            expected.append(str(parse_rule(line.removeprefix("% expect:").strip())))
         elif line.startswith("% xfail:"):
             xfail = line.removeprefix("% xfail:").strip()
     if not expected:

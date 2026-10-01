@@ -19,6 +19,7 @@ Older measurements remain historical evidence, not selectable implementations.
 | Constraint coverage inheritance | Enabled by the SDK default. | [Inheritance](semantic-inheritance-experiment.md) |
 | Constraint diagnosis and repair | Removed, including active matrix entries. | [Repair](semantic-repair-experiment.md) |
 | Structural population initialization | Removed, including active matrix entries. | [Population diversity](population-diversity-experiment.md) |
+| Witness-based coverage and constraint selection | Measured offline only; not implemented. Exact, but it does not pay at the current evaluation cost, and direct selection does not scale with the clause space. | [Witnesses](witness-experiment.md) |
 
 Historical reports describe the source and settings at measurement time. Their
 commands and option names are not the current API. Do not infer a universal

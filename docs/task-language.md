@@ -4,6 +4,20 @@ A task file declares background ASP, examples and the language bias. This guide
 introduces each part with examples. [language-bias.md](language-bias.md) is the
 contract for syntax and meaning, and wins wherever the two differ.
 
+Generated programs use Clingo's AST representation and text formatting. For
+example, `:- p,q.` is printed as `#false :- p; q.` and a choice can print its
+guards explicitly. Mode templates retain the learning metadata (types,
+directions, labels and recalls); they construct AST nodes directly. These
+format changes preserve the ASP meaning.
+Terms and aggregate guards use Clingo nodes throughout mode parsing and
+compilation. Gentians interprets `var(...)` and `const(...)` as learning
+annotations on those terms; pool expansion does not reparse their text.
+Head forms also use Clingo nodes. Each learning element keeps its literal and
+conditions together, while the form supplies the guards and aggregate function.
+The task stores these heads directly. Recall `1` is checked when parsing the
+declaration. Comparison direction checks also pass native AST rules to Clingo;
+their safety continues to be determined by grounding.
+
 ## Head modes
 
 Each head declaration describes one complete allowed head:
@@ -49,6 +63,8 @@ never generated. Choice bounds and function aggregate guards may be variables
 when a positive body literal makes them safe.
 
 Pools in `#modeh` remain one complete clause (`p(1;2).` grounds to both facts).
+Pools in multi-argument atoms retain their argument grouping and strong negation;
+for example, `-p(1,red;2,red)` may render as `-p((1;2),red)`.
 An atom pool in `#modeb` stays one body literal, including nested forms such as
 `q :- p(f(1;2)).`; pools in `#modec` and combinable head modes expand to separate
 permitted alternatives. Complete-head atom pools may vary several arguments
@@ -155,6 +171,9 @@ direction and must be enumerated by `#constant(TYPE, VALUE)`. Modes containing
 `not` cannot contain output variables. Types and directions are task
 declarations; Gentians does not infer normal modes from background knowledge or
 examples.
+
+Constant values may be ground Clingo terms or strings, including punctuation
+and escapes: `#constant(word,"a,b").` declares one value for `const(word)`.
 
 Mode terms may contain nested functions and tuples. Every leaf stays explicit:
 `var(...)` for a generated variable or `const(...)` for a declared ground value.

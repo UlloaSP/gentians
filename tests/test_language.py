@@ -1,8 +1,10 @@
+import clingo
 import pytest
 from clingo import ast
 
 from gentians.language import InductiveTask, parse_file, parse_text
 from gentians.language import parser as task_parser
+from gentians.language import terms as mode_terms
 from gentians.language.lexer import lex
 from tests.task_helpers import make_clause_space
 
@@ -49,8 +51,121 @@ def test_parser_accepts_multiline_directives_and_preserves_asp_ranges() -> None:
     assert tuple(map(str, task.background)) == ("node((1..3)).",)
     assert task.background[0].ast_type == ast.ASTType.Rule
     assert isinstance(task, InductiveTask)
-    assert task.language_bias_head[0].recall == 1
-    assert task.language_bias_head[0].template.elements[0].name == "target"
+    assert task.language_bias_head[0].conclusions[0].atom.name == "target"
+
+
+@pytest.mark.parametrize("text", [
+    "a,b",
+    "unmatched ) ], } and ({[",
+    'a quote: ", then a comma',
+    "a backslash: \\, then a comma",
+    '%* comment *% and a period. inside a string',
+])
+def test_constant_strings_preserve_delimiters_and_escapes(text):
+    value = str(clingo.String(text))
+    task = parse_text(f"#constant(word,{value}). #modeh(1,p(const(word))).")
+
+    assert task.constants == {"word": (value,)}
+    assert clingo.parse_term(task.constants["word"][0]).string == text
+
+
+def test_example_fields_preserve_string_delimiters_and_isolated_contexts():
+    task = parse_text(
+        '#pos({p("a},b")},{q("c],d")},{local("e),f").}). '
+        '#neg({q("g{,h")},{p("i[,j")},{}).'
+    )
+
+    positive, negative = task.positive_examples[0], task.negative_examples[0]
+    assert positive.included_text == 'p("a},b")'
+    assert positive.excluded_text == 'q("c],d")'
+    assert positive.context_text == 'local("e),f").'
+    assert negative.included_text == 'q("g{,h")'
+    assert negative.excluded_text == 'p("i[,j")'
+    assert negative.context == ()
+
+
+@pytest.mark.parametrize("source", [
+    "#modeh(1,p(_)).",
+    "#modeh(1,{p(_)}).",
+    "#modeh(1,#count{_:p}=1).",
+    "#modeh(1,{p:not q(_)}).",
+    "#modeh(1,_ {p}).",
+    "#modeb(1,p(_):q(_)).",
+    "#modeb(1,#count{_:q}=1).",
+    "#modeb(1,not p(_)).",
+    "#modeb(1,var(numeric,input)=_).",
+])
+def test_anonymous_variables_require_a_positive_grounding_atom(source):
+    with pytest.raises(ValueError, match="anonymous variables"):
+        parse_text(source)
+
+
+@pytest.mark.parametrize("source", [
+    "#modeb(1,p(_)).",
+    "#modeh(1,{p:q(_)}).",
+    "#modeh(1,#count{1:p:q(_)}=1).",
+    "#modeb(1,#count{1:q(_)}=1).",
+    "#modeb(1,p:q(_)).",
+])
+def test_anonymous_variables_remain_valid_in_positive_conditions(source):
+    parse_text(source)
+
+
+@pytest.mark.parametrize("source", [
+    "#modeh(1,var(bound,input,x){p(var(node,any,x))}).",
+    "#modeh(1,#count{var(tag,any,x):p(var(node,any,x))}=1).",
+    "#modeh(1,p(var(node,any,x)):q(var(other,any,x))).",
+    "#modeb(1,p(var(node,any,x)):q(var(other,any,x))).",
+])
+def test_variable_labels_retain_their_type_across_a_declaration(source):
+    with pytest.raises(ValueError, match="variable label x has incompatible types"):
+        parse_text(source)
+
+
+def test_variable_labels_are_local_to_each_declaration():
+    task = parse_text(
+        "#modeh(1,p(var(node,any,x))). #modeh(1,q(var(other,any,x))). "
+        "#modeb(1,r(var(node,any,x))). #modeb(1,s(var(other,any,x)))."
+    )
+
+    assert len(task.language_bias_head) == len(task.language_bias_body) == 2
+
+
+def test_body_conditionals_still_require_a_condition():
+    with pytest.raises(ValueError, match="conditional literals require at least one condition"):
+        parse_text("#modeb(1,p:).")
+
+
+@pytest.mark.parametrize("recall", ["0", "2", "*"])
+def test_complete_heads_require_recall_one(recall):
+    with pytest.raises(ValueError, match="complete head modes require recall 1"):
+        parse_text(f"#modeh({recall},p).")
+
+
+@pytest.mark.parametrize("relation, expected", [
+    ("var(numeric)+1=var(numeric)", ("input", "output")),
+    ("var(numeric)=1..3", ("output",)),
+    ("1<var(numeric)<4", ("output",)),
+])
+def test_comparison_safety_uses_native_ast_without_text_loading(monkeypatch, relation, expected):
+    def unexpected_add(*args, **kwargs):
+        pytest.fail("the safety probe must load AST, not reparse text")
+
+    monkeypatch.setattr(clingo.Control, "add", unexpected_add)
+    task = parse_text(f"#modeb(1,{relation}).")
+    literal = task.language_bias_body[0].literal
+
+    assert tuple(binding.direction for term in literal.arguments
+                 for binding in mode_terms.bindings(term)) == expected
+
+
+def test_native_comparison_safety_still_rejects_unsafe_outputs(monkeypatch):
+    def unexpected_add(*args, **kwargs):
+        pytest.fail("the safety probe must load AST, not reparse text")
+
+    monkeypatch.setattr(clingo.Control, "add", unexpected_add)
+    with pytest.raises(ValueError, match="comparison outputs are not safe"):
+        parse_text("#modeb(1,var(numeric,output)=var(numeric,output)).")
 
 
 def test_clause_space_retains_clingo_ast_and_canonical_text() -> None:

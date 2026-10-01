@@ -1,157 +1,214 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from itertools import product
+from typing import TypeAlias
 
+from clingo import ast
+
+from .. import terms as mode_terms
+from ..ast_nodes import LOCATION, consume_all, literal
 from .atom_literal import AtomLiteral
 from .boolean_literal import BooleanLiteral
-from .atom_template import AtomTemplate
 from .comparison_literal import ComparisonLiteral
-from .aggregate_guard import AggregateGuard
+from .conditional_literal import ConditionalLiteral
 from .head_aggregate_element import HeadAggregateElement
-from .term_template import TermTemplate
+from .literal_template import anonymous_is_safe
+
+HeadElement: TypeAlias = (
+    AtomLiteral
+    | BooleanLiteral
+    | ComparisonLiteral
+    | ConditionalLiteral
+    | HeadAggregateElement
+)
+_NORMAL_FORM = literal(ast.BooleanConstant(True))
+
+
+def _integer_bound(term: ast.AST) -> int | None:
+    try:
+        return int(str(term))
+    except ValueError:
+        return None
 
 
 @dataclass(frozen=True, slots=True)
 class HeadTemplate:
-    kind: str
-    elements: tuple[AtomTemplate | BooleanLiteral | ComparisonLiteral, ...]
-    lower: int | TermTemplate | None = None
-    upper: int | TermTemplate | None = None
-    conditions: tuple[tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...], ...] = ()
-    aggregate_elements: tuple[HeadAggregateElement, ...] = ()
-    aggregate_function: str = ""
-    aggregate_left_guard: AggregateGuard | None = None
-    aggregate_right_guard: AggregateGuard | None = None
-    signs: tuple[int, ...] = ()
-    lower_operator: str = "<="
-    upper_operator: str = "<="
+    # Clingo owns the form, guards and aggregate function. Element syntax is
+    # filled at instantiation; each learning element keeps its own conditions.
+    form: ast.AST
+    elements: tuple[HeadElement, ...]
 
     def __post_init__(self) -> None:
-        if self.kind not in {"normal", "disjunction", "choice", "aggregate"}:
-            raise ValueError(f"invalid head mode kind: {self.kind}")
-        if not self.elements and self.kind not in {"choice", "aggregate"}:
-            raise ValueError("normal and disjunctive heads require an element")
-        if not self.signs:
-            object.__setattr__(self, "signs", (0,) * len(self.elements))
-        elif len(self.signs) != len(self.elements) or any(sign not in {0, 1, 2} for sign in self.signs):
-            raise ValueError("every head element requires one valid sign")
-        if self.kind not in {"normal", "disjunction", "choice"} and any(self.signs):
-            raise ValueError("this head form does not accept default negation")
-        if not self.conditions:
-            object.__setattr__(self, "conditions", tuple(() for _ in self.elements))
-        elif len(self.conditions) != len(self.elements):
-            raise ValueError("every head element requires one condition list")
-        if self.kind == "normal" and len(self.elements) != 1:
-            raise ValueError("normal head modes require exactly one atom")
-        if self.kind == "aggregate" and (
-            not self.aggregate_function
-            or len(self.aggregate_elements) != len(self.elements)
-            or tuple(item.atom for item in self.aggregate_elements) != self.elements
+        kind = self.kind
+        guard_terms = self.guard_terms
+        if kind == "normal" and len(self.elements) != 1:
+            raise ValueError("normal head modes require exactly one literal")
+        if kind == "disjunction" and not self.elements:
+            raise ValueError("disjunctive heads require an element")
+        if any(mode_terms.contains_anonymous(term) for term in guard_terms):
+            raise ValueError("anonymous variables cannot occur in a head")
+        if any(
+            not anonymous_is_safe(element, positive_atom=False)
+            for element in self.elements
         ):
-            raise ValueError("aggregate head elements must match their atoms")
-        if self.kind != "choice" and (self.lower is not None or self.upper is not None):
-            raise ValueError("only choice heads accept cardinality bounds")
-        if (
-            self.lower_operator == self.upper_operator == "<="
-            and
-            isinstance(self.lower, int)
-            and isinstance(self.upper, int)
-            and self.lower > self.upper
+            raise ValueError("anonymous variables need a positive head condition atom")
+        if any(
+            isinstance(item, HeadAggregateElement) != (kind == "aggregate")
+            for item in self.elements
         ):
-            raise ValueError("head lower bound cannot exceed upper bound")
+            raise ValueError("head elements must match their Clingo form")
+        mode_terms.validate_labels(
+            (
+                *(term for element in self.elements for term in element.arguments),
+                *guard_terms,
+            ),
+            "head",
+        )
+        if any(
+            binding.direction not in {"input", "any"}
+            for term in guard_terms
+            for binding in mode_terms.bindings(term)
+        ):
+            raise ValueError("head guards require input or any variables")
+        if kind == "choice":
+            left, right = self.form.left_guard, self.form.right_guard
+            if (
+                left
+                and right
+                and left.comparison
+                == right.comparison
+                == ast.ComparisonOperator.LessEqual
+            ):
+                lower, upper = _integer_bound(left.term), _integer_bound(right.term)
+                if lower is not None and upper is not None and lower > upper:
+                    raise ValueError("head lower bound cannot exceed upper bound")
 
-        labels: dict[str, str] = {}
-        for atom, conditions in zip(self.elements, self.conditions, strict=True):
-            bindings = (
-                *(atom.bindings() if isinstance(atom, AtomTemplate) else (
-                    binding for term in atom.arguments for binding in term.bindings()
-                )),
-                *(
-                    binding
-                    for condition in conditions
-                    for term in condition.arguments
-                    for binding in term.bindings()
-                ),
-            )
-            for binding in bindings:
-                if not binding.label:
-                    continue
-                previous = labels.setdefault(binding.label, binding.type)
-                if previous != binding.type:
-                    raise ValueError(
-                        f"head variable label {binding.label} has incompatible types"
-                    )
-        for element in self.aggregate_elements:
-            for term in element.arguments:
-                for binding in term.bindings():
-                    if binding.label:
-                        previous = labels.setdefault(binding.label, binding.type)
-                        if previous != binding.type:
-                            raise ValueError(
-                                f"head variable label {binding.label} has incompatible types"
-                            )
-
-        for term in self.guard_terms:
-            for binding in term.bindings():
-                if binding.direction not in {"input", "any"}:
-                    raise ValueError("head guards require input or any variables")
-                if binding.label:
-                    previous = labels.setdefault(binding.label, binding.type)
-                    if previous != binding.type:
-                        raise ValueError(
-                            f"head variable label {binding.label} has incompatible types"
-                        )
+    @classmethod
+    def normal(
+        cls,
+        element: AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral,
+    ) -> "HeadTemplate":
+        return cls(_NORMAL_FORM, (element,))
 
     @property
-    def guard_terms(self) -> tuple[TermTemplate, ...]:
-        if self.kind == "choice":
-            return tuple(
-                value for value in (self.lower, self.upper)
-                if isinstance(value, TermTemplate)
-            )
-        if self.kind == "aggregate":
-            return tuple(
-                guard.term for guard in (
-                    self.aggregate_left_guard, self.aggregate_right_guard
-                ) if guard is not None
-            )
-        return ()
+    def kind(self) -> str:
+        match self.form.ast_type:
+            case ast.ASTType.Literal | ast.ASTType.ConditionalLiteral:
+                return "normal"
+            case ast.ASTType.Disjunction:
+                return "disjunction"
+            case ast.ASTType.Aggregate:
+                return "choice"
+            case ast.ASTType.HeadAggregate:
+                return "aggregate"
+        raise ValueError(f"unsupported Clingo head form: {self.form.ast_type}")
+
+    @property
+    def guard_terms(self) -> tuple[ast.AST, ...]:
+        kind = self.kind
+        if kind not in {"choice", "aggregate"}:
+            return ()
+        return tuple(
+            guard.term
+            for guard in (self.form.left_guard, self.form.right_guard)
+            if guard is not None
+            and (kind == "aggregate" or _integer_bound(guard.term) is None)
+        )
+
+    @property
+    def arguments(self) -> tuple[ast.AST, ...]:
+        return (
+            *(term for element in self.elements for term in element.arguments),
+            *self.guard_terms,
+        )
+
+    @property
+    def conclusions(
+        self,
+    ) -> tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]:
+        return tuple(
+            element.conclusion
+            if isinstance(element, ConditionalLiteral | HeadAggregateElement)
+            else element
+            for element in self.elements
+        )
+
+    @property
+    def conditions(
+        self,
+    ) -> tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]:
+        return tuple(
+            condition
+            for element in self.elements
+            if isinstance(element, ConditionalLiteral | HeadAggregateElement)
+            for condition in element.conditions
+        )
 
     @property
     def width(self) -> int:
         return len(self.elements)
 
-    def render(self, atoms: tuple[str, ...], guard_variables: tuple[str, ...] = ()) -> str:
+    def concretizations(
+        self, constants: dict[str, tuple[str, ...]]
+    ) -> tuple["HeadTemplate", ...]:
+        forms = (self.form,)
+        if self.kind in {"choice", "aggregate"}:
+
+            def guards(guard: ast.AST | None) -> tuple[ast.AST | None, ...]:
+                return (
+                    tuple(
+                        guard.update(term=term)
+                        for term in mode_terms.concretizations(guard.term, constants)
+                    )
+                    if guard
+                    else (None,)
+                )
+
+            forms = tuple(
+                self.form.update(left_guard=left, right_guard=right)
+                for left, right in product(
+                    guards(self.form.left_guard), guards(self.form.right_guard)
+                )
+            )
+        return tuple(
+            replace(self, form=form, elements=elements)
+            for form in forms
+            for elements in product(
+                *(element.concretizations(constants) for element in self.elements)
+            )
+        )
+
+    def instantiate(
+        self, elements: tuple[ast.AST, ...], guard_variables: tuple[str, ...] = ()
+    ) -> ast.AST:
         variables = iter(guard_variables)
-        if self.kind == "normal":
-            if len(atoms) != 1:
-                raise ValueError("normal #modeh form must contain one atom")
-            return atoms[0]
-        if self.kind == "disjunction":
-            return ";".join(atoms)
-        if self.kind == "aggregate":
-            core = f"#{self.aggregate_function}" + "{" + ";".join(atoms if self.elements else ()) + "}"
-            if self.aggregate_left_guard is not None:
-                guard = self.aggregate_left_guard
-                value = guard.term.render(variables)
-                if guard.term.kind == "pool":
-                    value = f"({value})"
-                core = f"{core}={value}" if guard.operator == "=" else f"{value}{guard.operator}{core}"
-            if self.aggregate_right_guard is not None:
-                guard = self.aggregate_right_guard
-                value = guard.term.render(variables)
-                if guard.term.kind == "pool":
-                    value = f"({value})"
-                core = f"{core}{guard.operator}{value}"
-            return core
-        lower = "" if self.lower is None else (
-            self.lower.render(variables) if isinstance(self.lower, TermTemplate) else self.lower
-        )
-        upper = "" if self.upper is None else (
-            self.upper.render(variables) if isinstance(self.upper, TermTemplate) else self.upper
-        )
-        if isinstance(self.lower, TermTemplate) and self.lower.kind == "pool":
-            lower = f"({lower})"
-        if isinstance(self.upper, TermTemplate) and self.upper.kind == "pool":
-            upper = f"({upper})"
-        left = f"{lower}{self.lower_operator}" if self.lower is not None and self.lower_operator != "<=" else str(lower)
-        right = f"{self.upper_operator}{upper}" if self.upper is not None and self.upper_operator != "<=" else str(upper)
-        return f"{left}{{{';'.join(atoms if self.elements else ())}}}{right}"
+        kind = self.kind
+        if kind == "normal":
+            if len(elements) != 1:
+                raise ValueError("normal #modeh form must contain one literal")
+            head = elements[0]
+            if head.ast_type == ast.ASTType.ConditionalLiteral:
+                head = ast.Disjunction(LOCATION, [head])
+        else:
+            items = list(elements) if self.elements else []
+            if kind != "aggregate":
+                items = [
+                    item
+                    if item.ast_type == ast.ASTType.ConditionalLiteral
+                    else ast.ConditionalLiteral(LOCATION, item, [])
+                    for item in items
+                ]
+            head = self.form.update(elements=items)
+            if kind in {"choice", "aggregate"}:
+                head = head.update(
+                    **{
+                        side: guard.update(
+                            term=mode_terms.instantiate(guard.term, variables)
+                        )
+                        if guard
+                        else None
+                        for side in ("left_guard", "right_guard")
+                        for guard in (getattr(self.form, side),)
+                    }
+                )
+        consume_all(variables)
+        return head

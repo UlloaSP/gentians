@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from typing import cast
 
+from clingo import ast
+
+from ...language.ast_nodes import binding_term, comparison, operation
 from .expression import ArithmeticExpression
 
 
@@ -57,24 +60,30 @@ class ExpressionConstraint:
             self.guard_keys,
         )
 
-    def render(self) -> str:
-        expression = self.expression.render()
+    def instantiate(self) -> ast.AST:
+        expression = self.expression.instantiate()
+        right = binding_term("0")
         if self.output is not None:
+            output = binding_term(f"V{self.output}")
             if self.output_is_safe:
-                expression = f"{expression}-V{self.output}"
-                rendered = f"{expression}=0"
+                expression = operation("-", [expression, output])
             else:
-                rendered = f"{expression}=V{self.output}"
+                right = output
+            operator = "="
         else:
-            operator = {"eq": "=", "lt": "<", "le": "<=", "ne": "!="}[
-                self.relation
-            ]
-            rendered = f"{expression}{operator}0"
-        return rendered
+            operator = {"eq": "=", "lt": "<", "le": "<=", "ne": "!="}[self.relation]
+        return comparison([expression, right], (operator,))
+
+    def render(self) -> str:
+        return str(self.instantiate())
+
+    @property
+    def guard_literals(self) -> tuple[ast.AST, ...]:
+        return tuple(comparison([guard.instantiate(), binding_term("0")], ("!=",)) for guard in self._ordered_guards)
 
     @property
     def rendered_guards(self) -> tuple[str, ...]:
-        return tuple(f"{guard.render()}!=0" for guard in self._ordered_guards)
+        return tuple(str(guard) for guard in self.guard_literals)
 
     def remap(self, variables: dict[int, int]) -> "ExpressionConstraint":
         return ExpressionConstraint(

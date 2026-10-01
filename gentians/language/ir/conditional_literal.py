@@ -1,11 +1,15 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
+from itertools import product
 
+from clingo import ast
+
+from .. import terms as mode_terms
+from ..asp import Predicate
+from ..ast_nodes import LOCATION
 from .atom_literal import AtomLiteral
 from .boolean_literal import BooleanLiteral
 from .comparison_literal import ComparisonLiteral
-from ..asp import Predicate
-from .term_template import TermTemplate
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,13 +29,13 @@ class ConditionalLiteral:
             binding.direction == "output"
             for condition in self.conditions
             for term in condition.arguments
-            for binding in term.bindings()
+            for binding in mode_terms.bindings(term)
         ):
             raise ValueError("conditional conditions cannot produce output variables")
         if isinstance(self.conclusion, ComparisonLiteral) and any(
             binding.direction == "output"
             for term in self.conclusion.arguments
-            for binding in term.bindings()
+            for binding in mode_terms.bindings(term)
         ):
             raise ValueError("conditional comparisons cannot produce output variables")
 
@@ -40,7 +44,7 @@ class ConditionalLiteral:
         return "conditional"
 
     @property
-    def arguments(self) -> tuple[TermTemplate, ...]:
+    def arguments(self) -> tuple[ast.AST, ...]:
         return (
             *self.conclusion.arguments,
             *(term for condition in self.conditions for term in condition.arguments),
@@ -57,38 +61,13 @@ class ConditionalLiteral:
     def concretizations(
         self, constants: dict[str, tuple[str, ...]]
     ) -> tuple["ConditionalLiteral", ...]:
-        from itertools import product
-
-        def concrete(
-            literal: AtomLiteral | BooleanLiteral | ComparisonLiteral,
-        ) -> tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]:
-            if isinstance(literal, AtomLiteral):
-                return tuple(
-                    AtomLiteral(atom, literal.default_negated, literal.double_negated)
-                    for atom in literal.atom.concretizations(constants)
-                )
-            if isinstance(literal, BooleanLiteral):
-                return (literal,)
-            return tuple(
-                ComparisonLiteral(
-                    terms, literal.operators, literal.default_negated,
-                    double_negated=literal.double_negated,
-                )
-                for terms in product(
-                    *(term.concretizations(constants) for term in literal.terms)
-                )
-            )
-
         return tuple(
             ConditionalLiteral(conclusion, conditions, self.condition_groups)
-            for conclusion in concrete(self.conclusion)
-            if isinstance(conclusion, AtomLiteral | BooleanLiteral | ComparisonLiteral)
-            for conditions in product(*(concrete(item) for item in self.conditions))
+            for conclusion in self.conclusion.concretizations(constants)
+            for conditions in product(*(item.concretizations(constants) for item in self.conditions))
         )
 
-    def render(self, variables: Iterator[str]) -> str:
-        conclusion = self.conclusion.render(variables)
-        conditions = ",".join(
-            condition.render(variables) for condition in self.conditions
-        )
-        return f"{conclusion}:{conditions}"
+    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+        conclusion = self.conclusion.instantiate(variables)
+        conditions = [condition.instantiate(variables) for condition in self.conditions]
+        return ast.ConditionalLiteral(LOCATION, conclusion, conditions)

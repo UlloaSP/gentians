@@ -1,5 +1,5 @@
 % Body pool stays one literal that expands to alternative bodies.
-% expect: q :- p(1;2).
+% expect: q :- p((1;2)).
 #maxv(0). #maxbl(1). #maxhl(1). #maxpl(1).
 #modeh(1,q).
 #modeb(1,p(1;2)).

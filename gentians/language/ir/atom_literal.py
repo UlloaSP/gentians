@@ -1,9 +1,11 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
 
-from .atom_template import AtomTemplate
+from clingo import ast
+
 from ..asp import Predicate
-from .term_template import TermTemplate
+from ..ast_nodes import literal
+from .atom_template import AtomTemplate
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,15 +23,18 @@ class AtomLiteral:
         return "normal"
 
     @property
-    def arguments(self) -> tuple[TermTemplate, ...]:
+    def arguments(self) -> tuple[ast.AST, ...]:
         return self.atom.binding_terms
 
     @property
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset((self.atom.signature,))
 
-    def render(self, variables: Iterator[str]) -> str:
-        atom = self.atom.render(variables)
-        if self.double_negated:
-            return f"not not {atom}"
-        return f"not {atom}" if self.default_negated else atom
+    def concretizations(self, constants: dict[str, tuple[str, ...]]) -> tuple["AtomLiteral", ...]:
+        return tuple(
+            AtomLiteral(atom, self.default_negated, self.double_negated)
+            for atom in self.atom.concretizations(constants)
+        )
+
+    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+        return literal(self.atom.instantiate(variables), self.default_negated, self.double_negated)

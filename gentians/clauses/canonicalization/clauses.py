@@ -1,8 +1,7 @@
 from clingo import ast
 
-from ...language.asp import Predicate, parse_program
+from ...language.asp import Predicate
 from ...language.ir.atom_literal import AtomLiteral
-from ...language.ir.atom_template import AtomTemplate
 from ...language.ir.conditional_literal import ConditionalLiteral
 from ...language.ir.head_aggregate_element import HeadAggregateElement
 from ..clause import Clause
@@ -19,10 +18,10 @@ def canonicalize_clauses(
     modes: dict[int, ClauseMode],
     max_variables: int,
 ) -> list[Clause]:
-    representatives: dict[ArithmeticSystemKey, tuple[str, ReifiedClause]] = {}
+    representatives: dict[ArithmeticSystemKey, tuple[str, ast.AST, ReifiedClause]] = {}
     systems_cache: _ArithmeticSystemsCache = {}
     # A space has few distinct heads and many bodies per head.
-    rendered_heads: dict[tuple[ReifiedLiteral, ...], str] = {}
+    heads: dict[tuple[ReifiedLiteral, ...], ast.AST] = {}
     for clause in clauses:
         canonical = canonical_arithmetic_clause(
             clause, modes, max_variables, systems_cache
@@ -32,31 +31,32 @@ def canonicalize_clauses(
         key = canonical.key
         current = representatives.get(key)
         if current is None:
-            representatives[key] = canonical.render(modes, rendered_heads), clause
-        elif len(clause.body) > len(current[1].body):
+            statement = canonical.instantiate(modes, heads)
+            representatives[key] = str(statement), statement, clause
+        elif len(clause.body) > len(current[2].body):
             continue
         elif all(
             isinstance(relation, LinearConstraint)
             for system in canonical.systems
             for relation in system.relations
         ):
-            if len(clause.body) < len(current[1].body):
-                representatives[key] = current[0], clause
+            if len(clause.body) < len(current[2].body):
+                representatives[key] = current[0], current[1], clause
         else:
-            rendered = canonical.render(modes, rendered_heads)
+            statement = canonical.instantiate(modes, heads)
+            rendered = str(statement)
             if (len(clause.body), rendered) < (
-                len(current[1].body),
+                len(current[2].body),
                 current[0],
             ):
-                representatives[key] = rendered, clause
+                representatives[key] = rendered, statement, clause
 
     ordered = sorted(
         representatives.values(), key=lambda representative: representative[0]
     )
-    statements = parse_program("\n".join(rendered for rendered, _clause in ordered))
     return [
         _clause_from_reified(rendered, statement, clause, modes)
-        for statement, (rendered, clause) in zip(statements, ordered, strict=True)
+        for rendered, statement, clause in ordered
     ]
 
 
@@ -87,11 +87,11 @@ def _clause_from_reified(
                 for predicate in condition.dependencies
             )
         elif isinstance(mode.literal, HeadAggregateElement):
-            if isinstance(mode.literal.atom, AtomTemplate):
-                if mode.literal.default_negated:
-                    deps.add(mode.literal.atom.signature)
+            if isinstance(mode.literal.conclusion, AtomLiteral):
+                if mode.literal.conclusion.default_negated:
+                    deps.add(mode.literal.conclusion.atom.signature)
                 else:
-                    heads.add(mode.literal.atom.signature)
+                    heads.add(mode.literal.conclusion.atom.signature)
             deps.update(mode.literal.dependencies)
     for literal in clause.body:
         mode = modes[literal.mode_id]

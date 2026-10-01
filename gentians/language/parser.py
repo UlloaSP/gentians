@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from . import terms as mode_terms
 from .asp import parse_program
 from .declarations import (
     _get_constant_declaration,
@@ -11,18 +12,15 @@ from .ir.atom_literal import AtomLiteral
 from .ir.atom_template import AtomTemplate
 from .ir.conditional_literal import ConditionalLiteral
 from .ir.example import Example
-from .ir.head_declaration import HeadDeclaration
 from .ir.head_template import HeadTemplate
-from .ir.mode_declaration import ModeDeclaration
 from .ir.inductive_task import InductiveTask
+from .ir.mode_declaration import ModeDeclaration
 from .lexer import Statement, lex
 from .modes import (
-    _get_aggregate_head_declaration,
     _get_body_mode_declaration,
-    _get_condition_mode_declaration,
-    _get_disjunctive_head_declaration,
+    _get_combinable_head_declarations,
+    _get_condition_mode_declarations,
     _get_head_declaration,
-    _unpool_mode_declarations,
 )
 
 
@@ -43,7 +41,7 @@ def parse_text(source: str) -> InductiveTask:
     background_statements: list[Statement] = []
     pe: list[Example] = []
     ne: list[Example] = []
-    lbh: list[HeadDeclaration] = []
+    lbh: list[HeadTemplate] = []
     lbha: list[ModeDeclaration] = []
     lbhd: list[ModeDeclaration] = []
     lbb: list[ModeDeclaration] = []
@@ -78,31 +76,34 @@ def parse_text(source: str) -> InductiveTask:
                 min_head_literals = value
             else:
                 limits[limit] = value
-        elif directive in {"#bias", "#metarule", "#predicate", "#modem", "#modeedge", "#edge"}:
+        elif directive in {
+            "#bias",
+            "#metarule",
+            "#predicate",
+            "#modem",
+            "#modeedge",
+            "#edge",
+        }:
             # Retired task directives must fail explicitly, never become BK.
             raise ValueError(
                 f"line {statement.line}: {directive} is no longer supported"
             )
         elif directive == "#modeha":
-            for variant in _unpool_mode_declarations(lc, directive):
-                md = _get_aggregate_head_declaration(variant)
+            for md in _get_combinable_head_declarations(lc, directive):
                 if md not in lbha:
                     lbha.append(md)
         elif directive == "#modehd":
-            for variant in _unpool_mode_declarations(lc, directive):
-                md = _get_disjunctive_head_declaration(variant)
+            for md in _get_combinable_head_declarations(lc, directive):
                 if md not in lbhd:
                     lbhd.append(md)
         elif directive == "#modeh":
-            for variant in _unpool_mode_declarations(lc, directive):
-                md = _get_head_declaration(variant)
-                if md not in lbh:
-                    lbh.append(md)
+            md = _get_head_declaration(lc)
+            if md not in lbh:
+                lbh.append(md)
         elif directive == "#modeb":
-            for variant in _unpool_mode_declarations(lc, directive):
-                md = _get_body_mode_declaration(variant)
-                if md not in lbb:
-                    lbb.append(md)
+            md = _get_body_mode_declaration(lc)
+            if md not in lbb:
+                lbb.append(md)
         elif directive == "#pos":
             res = _get_pos_neg_examples(lc)
             ex = Example.parse(res, True, statement.line)
@@ -118,8 +119,7 @@ def parse_text(source: str) -> InductiveTask:
         elif directive == "#modecmp":
             raise ValueError("#modecmp was removed; use #modeb")
         elif directive == "#modec":
-            for variant in _unpool_mode_declarations(lc, directive):
-                md = _get_condition_mode_declaration(variant)
+            for md in _get_condition_mode_declarations(lc):
                 if md not in lbc:
                     lbc.append(md)
         elif directive == "#modearith":
@@ -139,8 +139,12 @@ def parse_text(source: str) -> InductiveTask:
 
     invented_predicates = tuple(atom.signature for _recall, atom in inventions)
     explicit = (
-        {atom.signature for head in lbh for atom in head.template.elements
-         if isinstance(atom, AtomTemplate)}
+        {
+            literal.atom.signature
+            for head in lbh
+            for literal in head.conclusions
+            if isinstance(literal, AtomLiteral)
+        }
         | {
             mode.literal.atom.signature
             for mode in (*lbha, *lbhd)
@@ -165,33 +169,16 @@ def parse_text(source: str) -> InductiveTask:
             f"{sorted(overlap)}"
         )
     for recall, atom in inventions:
-        lbh.append(
-            HeadDeclaration(1, HeadTemplate("normal", (atom,)))
-        )
+        lbh.append(HeadTemplate.normal(AtomLiteral(atom)))
         lbb.append(ModeDeclaration(recall, AtomLiteral(atom)))
     constant_types = {
         type_name
-        for terms in [
-            *(
-                atom.binding_terms if isinstance(atom, AtomTemplate) else atom.arguments
-                for head in lbh for atom in head.template.elements
-            ),
-            *(
-                element.arguments
-                for head in lbh
-                for element in head.template.aggregate_elements
-            ),
-            *(
-                condition.arguments
-                for head in lbh
-                for conditions in head.template.conditions
-                for condition in conditions
-            ),
-            *(mode.literal.arguments for mode in (*lbha, *lbhd, *lbc)),
-            *(mode.literal.arguments for mode in lbb),
-        ]
+        for terms in (
+            *(head.arguments for head in lbh),
+            *(mode.literal.arguments for mode in (*lbha, *lbhd, *lbc, *lbb)),
+        )
         for argument in terms
-        for type_name in argument.constant_types()
+        for type_name in mode_terms.constant_types(argument)
     }
     missing_constants = constant_types - constants.keys()
     if missing_constants:

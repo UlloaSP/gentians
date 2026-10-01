@@ -55,23 +55,23 @@ def test_every_generated_clause_grounds_in_clingo(name):
 def test_relation_output_needs_safe_arguments_not_head_inputs():
     clauses = _clauses(*SPACES["relation_any"])
 
-    assert "h(V0) :- V0=(V0*V0)+1." not in clauses
-    assert "h(V0) :- d(V0),V1=(V0*V1)+1." not in clauses
-    assert "h(V1) :- d(V0),V1=(V0*V0)+1." in clauses
+    assert 'h(V0) :- V0 = ((V0*V0)+1).' not in clauses
+    assert 'h(V0) :- d(V0); V1 = ((V0*V1)+1).' not in clauses
+    assert 'h(V1) :- d(V0); V1 = ((V0*V0)+1).' in clauses
 
 
 def test_aggregate_output_cannot_ground_its_own_elements():
     clauses = _clauses(*SPACES["aggregate_output"])
 
-    assert "h(V0) :- #count{V0:p(V0),V0<3}=V0." not in clauses
-    assert "h(V0) :- #count{V0:p(V1),V1<3}=V0." not in clauses
-    assert "h(V1) :- #count{V0:p(V0),V0<3}=V1." in clauses
+    assert 'h(V0) :- V0 = #count { V0: p(V0), V0 < 3 }.' not in clauses
+    assert 'h(V0) :- V0 = #count { V0: p(V1), V1 < 3 }.' not in clauses
+    assert 'h(V1) :- V1 = #count { V0: p(V0), V0 < 3 }.' in clauses
 
 
 def test_only_invertible_arithmetic_in_an_atom_grounds_its_variable():
     clauses = _clauses(*SPACES["arithmetic_atom"])
 
-    assert "a(V0) :- q(V0+1)." in clauses
+    assert 'a(V0) :- q((V0+1)).' in clauses
     assert not any("V0+V0" in clause or "|" in clause for clause in clauses)
 
 
@@ -90,7 +90,7 @@ def test_invented_predicates_respect_layers_inside_set_aggregates():
         clause.startswith("ha(") and ("{hb(" in clause or "{target(" in clause)
         for clause in clauses
     )
-    assert "target(V0) :- d(V0),1<={hb(V1):d(V1)}." in clauses
+    assert 'target(V0) :- d(V0); 1 <= { hb(V1): d(V1) }.' in clauses
 
 
 def test_negated_head_does_not_make_its_atom_learnable():
@@ -128,5 +128,5 @@ def test_head_input_does_not_satisfy_a_body_output():
         "#modeb(1,d(var(t,any))).\n#modeb(1,q(var(t,output)):r(var(t,any))).",
     )
 
-    assert "h(V0) :- d(V0);q(V0):r(V0)." not in clauses
+    assert 'h(V0) :- d(V0); q(V0): r(V0).' not in clauses
     assert "h(V0) :- d(V0)." in clauses

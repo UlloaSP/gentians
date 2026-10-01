@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 from functools import lru_cache
 
+import clingo
+from clingo import ast
+
+from ...language.ast_nodes import LOCATION, binding_term, operation
+
 
 @dataclass(frozen=True, slots=True)
 class ArithmeticExpression:
@@ -86,38 +91,22 @@ class ArithmeticExpression:
             tuple(argument.substitute(variables) for argument in self.arguments),
         )
 
-    def render(self, *, nested: bool = False) -> str:
+    def instantiate(self) -> ast.AST:
         if self.variable is not None:
-            return f"V{self.variable}"
+            return binding_term(f"V{self.variable}")
         if self.constant is not None:
-            return str(self.constant)
+            return ast.SymbolicTerm(LOCATION, clingo.Number(self.constant))
         if self.symbol is not None:
-            return self.symbol
-        if self.operator == "absolute":
-            return f"|{self.arguments[0].render()}|"
-        if self.operator in {"neg", "bitnot"}:
-            symbol = "-" if self.operator == "neg" else "~"
-            value = f"{symbol}{self.arguments[0].render(nested=True)}"
-            return f"({value})" if nested else value
-        if self.operator == "interval":
-            left, right = self.arguments
-            value = f"{left.render(nested=True)}..{right.render(nested=True)}"
-            return f"({value})" if nested else value
+            return ast.SymbolicTerm(LOCATION, clingo.parse_term(self.symbol))
+        arguments = [argument.instantiate() for argument in self.arguments]
         if self.operator.startswith("function:"):
-            name = self.operator.removeprefix("function:")
-            return f"{name}({','.join(arg.render() for arg in self.arguments)})"
+            return ast.Function(LOCATION, self.operator.removeprefix("function:"), arguments, False)
         if self.operator == "tuple":
-            values = ",".join(arg.render() for arg in self.arguments)
-            suffix = "," if len(self.arguments) == 1 else ""
-            return f"({values}{suffix})"
-        left, right = self.arguments
-        if self.operator == "abs":
-            value = f"|{left.render(nested=True)}-{right.render(nested=True)}|"
-        else:
-            value = (
-                f"{left.render(nested=True)}{self.operator}{right.render(nested=True)}"
-            )
-        return f"({value})" if nested and self.operator != "abs" else value
+            return ast.Function(LOCATION, "", arguments, False)
+        return operation(self.operator, arguments)
+
+    def render(self) -> str:
+        return str(self.instantiate())
 
 
 @lru_cache(maxsize=8192)

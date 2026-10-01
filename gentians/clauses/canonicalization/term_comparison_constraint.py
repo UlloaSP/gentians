@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 
+from clingo import ast
+
+from ...language.ast_nodes import comparison
 from .expression import ArithmeticExpression
 
 
@@ -19,11 +22,11 @@ class TermComparisonConstraint:
             keys = min(keys, tuple(reversed(keys)), key=repr)
         return "term-comparison", self.operators, keys
 
+    def instantiate(self) -> ast.AST:
+        return comparison([term.instantiate() for term in self.terms], self.operators)
+
     def render(self) -> str:
-        rendered = self.terms[0].render()
-        for operator, term in zip(self.operators, self.terms[1:], strict=True):
-            rendered += operator + term.render()
-        return rendered
+        return str(self.instantiate())
 
     def remap(self, variables: dict[int, int]) -> "TermComparisonConstraint":
         return TermComparisonConstraint(

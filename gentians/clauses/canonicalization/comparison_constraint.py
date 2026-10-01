@@ -1,5 +1,9 @@
 from dataclasses import dataclass
 
+from clingo import ast
+
+from ...language.ast_nodes import binding_term, comparison
+
 
 @dataclass(frozen=True, slots=True)
 class ComparisonConstraint:
@@ -18,8 +22,11 @@ class ComparisonConstraint:
             variables = tuple(sorted(variables))
         return "comparison", self.operator, variables
 
+    def instantiate(self) -> ast.AST:
+        return comparison([binding_term(f"V{self.left}"), binding_term(f"V{self.right}")], (self.operator,))
+
     def render(self) -> str:
-        return f"V{self.left}{self.operator}V{self.right}"
+        return str(self.instantiate())
 
     def remap(self, variables: dict[int, int]) -> "ComparisonConstraint":
         return ComparisonConstraint(

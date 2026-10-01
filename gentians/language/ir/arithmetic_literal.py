@@ -1,21 +1,24 @@
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
+from clingo import ast
+
+from .. import terms as mode_terms
 from ..asp import Predicate
-from .term_template import TermTemplate
+from ..ast_nodes import comparison
 
 
 @dataclass(frozen=True, slots=True)
 class ArithmeticLiteral:
-    expression: TermTemplate
-    output: TermTemplate
+    expression: ast.AST
+    output: ast.AST
     complexity: int = 1
     implicit_additive_family_member: bool = field(
         default=False, repr=False
     )
 
     def __post_init__(self) -> None:
-        if self.expression.kind != "arithmetic" or len(self.expression.arguments) != 2:
+        if mode_terms.kind(self.expression) != "arithmetic" or len(self.arguments) != 3:
             raise ValueError(
                 "arithmetic literals require a binary arithmetic expression"
             )
@@ -25,12 +28,20 @@ class ArithmeticLiteral:
         return "arithmetic"
 
     @property
-    def arguments(self) -> tuple[TermTemplate, ...]:
-        return (*self.expression.arguments, self.output)
+    def arguments(self) -> tuple[ast.AST, ...]:
+        expression = self.expression.argument if self.operator == "abs" else self.expression
+        return (*mode_terms.arguments(expression), self.output)
 
     @property
     def operator(self) -> str:
-        return self.expression.value
+        if (
+            self.expression.ast_type == ast.ASTType.UnaryOperation
+            and self.expression.operator_type == ast.UnaryOperator.Absolute
+            and self.expression.argument.ast_type == ast.ASTType.BinaryOperation
+            and self.expression.argument.operator_type == ast.BinaryOperator.Minus
+        ):
+            return "abs"
+        return mode_terms.value(self.expression)
 
     @property
     def coefficients(self) -> tuple[int, ...] | None:
@@ -47,22 +58,26 @@ class ArithmeticLiteral:
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset()
 
-    def render(self, variables: Iterator[str]) -> str:
-        expression = self.expression.render(variables)
-        return f"{expression}={self.output.render(variables)}"
+    def concretizations(self, constants: dict[str, tuple[str, ...]]) -> tuple["ArithmeticLiteral", ...]:
+        return (self,)
+
+    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+        expression = mode_terms.instantiate(self.expression, variables)
+        output = mode_terms.instantiate(self.output, variables)
+        return comparison([expression, output], ("=",))
 
 
 def _linear_coefficients(
-    expression: TermTemplate, multiplier: int
+    expression: ast.AST, multiplier: int
 ) -> tuple[int, ...] | None:
-    if expression.kind == "variable":
+    if mode_terms.kind(expression) == "variable":
         return (multiplier,)
-    if expression.kind != "arithmetic" or expression.value not in {"+", "-"}:
+    if mode_terms.kind(expression) != "arithmetic" or mode_terms.value(expression) not in {"+", "-"}:
         return None
-    left, right = expression.arguments
+    left, right = mode_terms.arguments(expression)
     left_coefficients = _linear_coefficients(left, multiplier)
     right_coefficients = _linear_coefficients(
-        right, multiplier if expression.value == "+" else -multiplier
+        right, multiplier if mode_terms.value(expression) == "+" else -multiplier
     )
     if left_coefficients is None or right_coefficients is None:
         return None

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from clingo import ast
 
 from .example import Example
-from .head_declaration import HeadDeclaration
+from .head_template import HeadTemplate
 from .mode_declaration import ModeDeclaration
 
 Signature = tuple[str, int]
@@ -16,7 +16,7 @@ class InductiveTask:
     background: tuple[ast.AST, ...]
     positive_examples: list[Example]
     negative_examples: list[Example]
-    language_bias_head: list[HeadDeclaration]
+    language_bias_head: list[HeadTemplate]
     language_bias_body: list[ModeDeclaration]
     language_bias_condition: list[ModeDeclaration] = field(default_factory=list)
     invented_predicates: tuple[Signature, ...] = ()

@@ -2,15 +2,18 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import product
 
+from clingo import ast
+
+from .. import terms as mode_terms
+from ..ast_nodes import LOCATION
 from .atom_literal import AtomLiteral
 from .boolean_literal import BooleanLiteral
 from .comparison_literal import ComparisonLiteral
-from .term_template import TermTemplate
 
 
 @dataclass(frozen=True, slots=True)
 class AggregateElement:
-    terms: tuple[TermTemplate, ...]
+    terms: tuple[ast.AST, ...]
     conditions: tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]
     conclusion: AtomLiteral | BooleanLiteral | ComparisonLiteral | None = None
 
@@ -19,7 +22,7 @@ class AggregateElement:
             raise ValueError("aggregate element needs a tuple or a set atom")
 
     @property
-    def arguments(self) -> tuple[TermTemplate, ...]:
+    def arguments(self) -> tuple[ast.AST, ...]:
         return (
             *self.terms,
             *(self.conclusion.arguments if self.conclusion is not None else ()),
@@ -30,52 +33,16 @@ class AggregateElement:
         self, constants: dict[str, tuple[str, ...]]
     ) -> tuple["AggregateElement", ...]:
         return tuple(
-            AggregateElement(
-                terms, conditions, conclusion,
-            )
-            for terms in product(*(term.concretizations(constants) for term in self.terms))
-            for conclusion in (
-                tuple(
-                    AtomLiteral(atom, self.conclusion.default_negated, self.conclusion.double_negated)
-                    for atom in self.conclusion.atom.concretizations(constants)
-                ) if isinstance(self.conclusion, AtomLiteral) else
-                tuple(
-                    ComparisonLiteral(terms, self.conclusion.operators,
-                                      self.conclusion.default_negated,
-                                      double_negated=self.conclusion.double_negated)
-                    for terms in product(
-                        *(term.concretizations(constants) for term in self.conclusion.terms)
-                    )
-                ) if isinstance(self.conclusion, ComparisonLiteral) else
-                (self.conclusion,)
-            )
-            for conditions in product(
-                *(
-                    tuple(
-                        AtomLiteral(atom, condition.default_negated,
-                                    condition.double_negated)
-                        for atom in condition.atom.concretizations(constants)
-                    ) if isinstance(condition, AtomLiteral) else (condition,) if isinstance(condition, BooleanLiteral) else tuple(
-                        ComparisonLiteral(
-                            terms, condition.operators, condition.default_negated,
-                            double_negated=condition.double_negated,
-                        )
-                        for terms in product(
-                            *(term.concretizations(constants) for term in condition.terms)
-                        )
-                    )
-                    for condition in self.conditions
-                )
-            )
+            AggregateElement(concrete_terms, conditions, conclusion)
+            for concrete_terms in product(*(mode_terms.concretizations(term, constants) for term in self.terms))
+            for conclusion in (self.conclusion.concretizations(constants) if self.conclusion is not None else (None,))
+            for conditions in product(*(condition.concretizations(constants) for condition in self.conditions))
         )
 
-    def render(self, variables: Iterator[str]) -> str:
-        terms = ",".join(
-            f"({rendered})" if term.kind == "pool" else rendered
-            for term in self.terms
-            for rendered in (term.render(variables),)
-        )
-        if self.conclusion is not None:
-            terms += self.conclusion.render(variables)
-        conditions = ",".join(condition.render(variables) for condition in self.conditions)
-        return f"{terms}:{conditions}" if conditions else terms
+    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+        terms = [mode_terms.instantiate(term, variables) for term in self.terms]
+        conclusion = self.conclusion.instantiate(variables) if self.conclusion is not None else None
+        conditions = [condition.instantiate(variables) for condition in self.conditions]
+        if conclusion is not None:
+            return ast.ConditionalLiteral(LOCATION, conclusion, conditions)
+        return ast.BodyAggregateElement(terms, conditions)

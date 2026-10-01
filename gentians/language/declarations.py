@@ -1,10 +1,10 @@
 import clingo
 
-
 from .asp import split_top_level_args
 from .directives import _directive_args, _parse_recall, _strip_outer_braces
 from .ir.atom_template import AtomTemplate
-from .modes import _get_mode_atom, _validate_type
+from .modes import _get_mode_atom
+from .terms import validate_type
 
 
 def _get_pos_neg_examples(s: str) -> tuple[str, str] | tuple[str, str, str]:
@@ -34,7 +34,7 @@ def _get_constant_declaration(s: str) -> tuple[str, str]:
     if len(parts) != 2:
         raise ValueError(f"invalid #constant declaration: {s}")
     type_name = parts[0].strip()
-    _validate_type(type_name, s)
+    validate_type(type_name, s)
     try:
         value = str(clingo.parse_term(parts[1].strip()))
     except RuntimeError as exc:

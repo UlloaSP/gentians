@@ -59,13 +59,15 @@ main(arguments)
 
 Gentians searches candidate hypotheses built from a generated `ClauseSpace`.
 `gentians.language` owns task I/O, lexical framing, parsing, ASP syntax helpers,
-and the typed `InductiveTask` IR. Background, examples, contexts, bias, and
+and the typed `InductiveTask` IR. Background, examples, contexts, and
 candidate clauses stay as Clingo AST nodes and enter controls through
 `ProgramBuilder`. The background is parsed once; only non-empty example fields
 invoke Clingo. The static coverage program is retained as AST instead of being
 reparsed for every candidate. Candidate `Clause` values retain their AST
-beside canonical output text. `gentians.clauses` compiles task IR into candidate
-clauses.
+beside canonical output text. Bias templates retain Gentians' learning metadata;
+`gentians.clauses` instantiates them and normalized arithmetic directly as Clingo
+nodes, assembling candidate rules without a text-to-AST round trip. Clingo's
+`str(AST)` determines their output format.
 
 The mandatory `HypothesisGenerator` in `gentians.hypotheses` is plumbing used by
 evolutionary strategies to preserve size, membership, and dependency

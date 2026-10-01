@@ -1,8 +1,10 @@
 from collections.abc import Set
 
+from clingo import ast
+
+from ...language import terms as mode_terms
 from ...language.ir.arithmetic_literal import ArithmeticLiteral
 from ...language.ir.comparison_literal import ComparisonLiteral
-from ...language.ir.term_template import TermTemplate
 from ..clause_mode import ClauseMode
 from ..reified_literal import ReifiedLiteral
 from .arithmetic_system import ArithmeticSystem, SystemRelation
@@ -48,24 +50,24 @@ def _term_comparison(
 ) -> TermComparisonConstraint:
     variables = iter(literal.variables)
 
-    def instantiate(term: TermTemplate) -> ArithmeticExpression:
-        if term.kind == "variable":
+    def instantiate(term: ast.AST) -> ArithmeticExpression:
+        if mode_terms.kind(term) == "variable":
             return ArithmeticExpression.var(next(variables))
-        if term.kind == "fixed":
+        if mode_terms.kind(term) == "fixed":
             try:
-                return ArithmeticExpression.const(int(term.value))
+                return ArithmeticExpression.const(int(mode_terms.value(term)))
             except ValueError:
-                return ArithmeticExpression.fixed(term.value)
-        if term.kind == "constant":
+                return ArithmeticExpression.fixed(mode_terms.value(term))
+        if mode_terms.kind(term) == "constant":
             raise ValueError("constant placeholder was not concretized")
         operator = {
-            "function": f"function:{term.value}",
+            "function": f"function:{mode_terms.value(term)}",
             "tuple": "tuple",
             "interval": "interval",
-        }.get(term.kind, term.value)
+        }.get(mode_terms.kind(term), mode_terms.value(term))
         return ArithmeticExpression(
             operator,
-            tuple(instantiate(argument) for argument in term.arguments),
+            tuple(instantiate(argument) for argument in mode_terms.arguments(term)),
         )
 
     terms = tuple(instantiate(term) for term in comparison.terms)
@@ -189,14 +191,16 @@ def _mode_expression(
     inputs = literal.variables[:-1]
     variables = iter(inputs)
 
-    def instantiate(term: TermTemplate) -> ArithmeticExpression:
-        if term.kind == "variable":
+    def instantiate(term: ast.AST) -> ArithmeticExpression:
+        if mode_terms.kind(term) == "variable":
             return known[next(variables)]
-        if term.kind != "arithmetic":
+        if mode_terms.kind(term) != "arithmetic":
             raise ValueError("unsupported arithmetic term in compiled mode")
         return ArithmeticExpression(
-            term.value,
-            tuple(instantiate(argument) for argument in term.arguments),
+            mode_terms.value(term),
+            tuple(instantiate(argument) for argument in mode_terms.arguments(term)),
         )
 
+    if mode.literal.operator == "abs":
+        return ArithmeticExpression("abs", tuple(instantiate(term) for term in mode.literal.arguments[:-1]))
     return instantiate(mode.literal.expression)

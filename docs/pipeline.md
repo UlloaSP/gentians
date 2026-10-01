@@ -75,6 +75,13 @@ incluidos y excluidos, y contextos como nodos `clingo.ast.AST`; `Clause` conserv
 el nodo de cada cláusula candidata junto al texto canónico de salida. Los solvers
 reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenido.
 
+Las plantillas de modes son el IR del aprendizaje: conservan bindings tipados,
+direcciones, labels, recalls y grupos de condiciones. Al instanciarlas se
+construyen términos y literales nativos de Clingo. Las cabezas y los sistemas
+aritméticos canonicalizados también producen nodos; la cláusula se ensambla
+como `ast.Rule` sin construir y volver a parsear su texto. `str(AST)` determina
+el formato de salida, incluidas las constraints con cabeza `#false`.
+
 `generate_clause_space()` ejecuta este pipeline:
 
 1. Inspecciona background, ejemplos y declaraciones para derivar tipos, dominios, closed-world properties y capacidades permitidas.

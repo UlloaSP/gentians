@@ -12,8 +12,8 @@ from benchmarks.catalog import CASES
 from gentians import timing
 from gentians.arguments import Arguments
 from gentians.clauses import fact_compiler as clause_facts
-from gentians.clauses import property_facts
 from gentians.clauses import generator as clause_generation
+from gentians.clauses import property_facts
 from gentians.clauses.analysis.ast_inspection import _contains, _node_atoms
 from gentians.clauses.analysis.ground_relations import _closed_world
 from gentians.clauses.analysis.inference import _closed_world_properties
@@ -25,7 +25,6 @@ from gentians.clauses.analysis.task import (
     _property_predicates,
     _task_nodes,
 )
-from gentians.clauses.canonicalization import clauses as clause_canonicalizer
 from gentians.clauses.canonicalization.arithmetic import canonical_arithmetic_clause
 from gentians.clauses.canonicalization.arithmetic_system import ArithmeticSystem
 from gentians.clauses.canonicalization.expression import ArithmeticExpression
@@ -44,29 +43,26 @@ from gentians.clauses.reified_clause import ReifiedClause
 from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.evaluation.solver import CoverageSolver
 from gentians.language import parse_file, parse_text
+from gentians.language import terms as mode_terms
 from gentians.language.asp import (
     add_program,
     clause_predicates,
-    extract_name_arity,
-    fragment_atoms,
-    parse_atom,
     parse_program,
     parse_rule,
     render_program,
+    symbolic_literal_predicate,
 )
+from gentians.language.ast_nodes import LOCATION, operation
 from gentians.language.ir.aggregate_element import AggregateElement
-from gentians.language.ir.aggregate_guard import AggregateGuard
 from gentians.language.ir.aggregate_literal import AggregateLiteral
 from gentians.language.ir.arithmetic_literal import ArithmeticLiteral
 from gentians.language.ir.atom_literal import AtomLiteral
 from gentians.language.ir.atom_template import AtomTemplate
 from gentians.language.ir.comparison_literal import ComparisonLiteral
 from gentians.language.ir.conditional_literal import ConditionalLiteral
-from gentians.language.ir.head_declaration import HeadDeclaration
 from gentians.language.ir.head_template import HeadTemplate
-from gentians.language.ir.literal_template import render_literal
+from gentians.language.ir.literal_template import instantiate_literal
 from gentians.language.ir.mode_declaration import ModeDeclaration
-from gentians.language.ir.term_template import TermTemplate
 from tests.task_helpers import (
     example,
     inductive_task,
@@ -78,6 +74,79 @@ def _generate(program, max_body_literals=3, max_variables=3):
     program.max_body_literals = max_body_literals
     program.max_variables = max_variables
     return generate_clause_space(program, Arguments())
+
+
+@pytest.mark.parametrize("source", [
+    "#modeh(1,-p(box(var(node,input,x)),red;box(var(node,input,x)),blue)).",
+    "#modeb(1,-p(box(var(node,input,x)),(1,2))).",
+    "#modeha(2,-p(box(var(node,input,x)),red;box(var(node,input,x)),blue)).",
+    "#modehd(2,-p(box(var(node,input,x)),red;box(var(node,input,x)),blue)).",
+    "#modec(1,p(box(var(node,input,x)),red;box(var(node,input,x)),blue)).",
+    "#modeb(1,1<=#count{box(var(node,any,x)):p(box(var(node,any,x)))}<=3).",
+    "#modeh(1,#count{1:p(var(node,any,x)):node(var(node,any,x))}=1).",
+    "#invent(2,-helper(box(var(node,input,x)))).",
+])
+def test_mode_parsing_reads_each_declaration_once(source, monkeypatch):
+    parsed = []
+    original = ast.parse_string
+
+    def record(text, *args, **kwargs):
+        parsed.append(text)
+        return original(text, *args, **kwargs)
+
+    monkeypatch.setattr(ast, "parse_string", record)
+    parse_text(source)
+
+    assert len(parsed) == 2  # One declaration and the empty background.
+    assert sum(bool(text.strip()) for text in parsed) == 1
+
+
+def test_instantiating_native_terms_preserves_the_shared_mode_syntax():
+    task = parse_text("#modeb(1,p(box(var(node,input,x)),red;box(var(node,input,x)),blue)).")
+    literal = task.language_bias_body[0].literal
+    before = tuple(str(term) for term in literal.arguments)
+
+    first = instantiate_literal(literal, (0,))
+    second = instantiate_literal(literal, (4,))
+
+    assert str(first) == "p(box(V0),(red;blue))"
+    assert str(second) == "p(box(V4),(red;blue))"
+    assert tuple(str(term) for term in literal.arguments) == before
+
+
+def test_instantiating_native_head_forms_preserves_guards_conditions_and_signs():
+    head = parse_text(
+        "#modeh(1,var(numeric,input,n){not p(var(node,any,x)):"
+        "q(var(node,any,x))}var(numeric,input,n))."
+    ).language_bias_head[0]
+    before = str(head.form), tuple(map(str, head.arguments))
+    element = instantiate_literal(head.elements[0], (0, 0))
+
+    first = head.instantiate((element,), ("V1", "V1"))
+    second = head.instantiate((element,), ("V2", "V2"))
+
+    assert first == parse_rule("V1{not p(V0):q(V0)}V1.").head
+    assert second == parse_rule("V2{not p(V0):q(V0)}V2.").head
+    assert (str(head.form), tuple(map(str, head.arguments))) == before
+
+
+@pytest.mark.parametrize("head", [
+    "const(bound){p}",
+    "#count{1:p}=const(bound)",
+])
+def test_head_guards_require_declared_constant_types(head):
+    with pytest.raises(ValueError, match="constant mode types require #constant declarations"):
+        parse_text(f"#modeh(1,{head}).")
+
+
+@pytest.mark.parametrize("head, expected", [
+    ("const(bound){p}", "1{p}."),
+    ("#count{1:p}=const(bound)", "#count{1:p}=1."),
+])
+def test_head_guards_instantiate_declared_constants(head, expected):
+    task = parse_text(f"#constant(bound,1). #modeh(1,{head}).")
+
+    assert str(parse_rule(expected)) in generate_clause_space(task, Arguments()).clauses
 
 
 def _asp(sources: list[str]):
@@ -112,7 +181,7 @@ def test_default_negated_disjunctive_head_keeps_both_models():
     )
     space = generate_clause_space(task, Arguments())
 
-    assert space.clauses == ("p;not p.",)
+    assert space.clauses == ('p; not p.',)
     assert _models_for_clause(space.entries[0]) == {
         frozenset(), frozenset({"p"})
     }
@@ -126,7 +195,7 @@ def test_default_negated_head_variable_is_safe_when_bound_by_body():
     )
     space = generate_clause_space(task, Arguments())
 
-    assert "p(V0);not p(V0) :- d(V0)." in space.clauses
+    assert 'p(V0); not p(V0) :- d(V0).' in space.clauses
 
 
 def test_default_negated_disjunct_is_dependency_not_definition():
@@ -135,7 +204,7 @@ def test_default_negated_disjunct_is_dependency_not_definition():
     )
     space = generate_clause_space(task, Arguments())
 
-    assert space.clauses == ("q;not p.",)
+    assert space.clauses == ('q; not p.',)
     assert space.entries[0].heads == frozenset({("q", 0)})
     assert space.entries[0].deps == frozenset({("p", 0)})
 
@@ -169,12 +238,12 @@ def test_boolean_modes_and_conditions_generate_exact_body_literals():
     clauses = space.clauses
 
     assert "q :- #true." in clauses
-    assert "q :- #false:p(1)." in clauses
-    assert "q :- p(1):#true." in clauses
-    assert "q :- 1=#count{1:#true}." in clauses
-    conditional = next(entry for entry in space.entries if entry.text == "q :- #false:p(1).")
+    assert 'q :- #false: p(1).' in clauses
+    assert 'q :- p(1): #true.' in clauses
+    assert 'q :- 1 = #count { 1: #true }.' in clauses
+    conditional = next(entry for entry in space.entries if entry.text == 'q :- #false: p(1).')
     control = clingo.Control(["0"])
-    add_program(control, (*parse_program("{p(1)}."), conditional.statement))
+    add_program(control, (*parse_program('{ p(1) }.'), conditional.statement))
     control.ground([("base", [])])
     with control.solve(yield_=True) as handle:
         assert {
@@ -187,7 +256,7 @@ def test_head_pool_is_one_clause_with_both_ground_atoms():
     task = parse_text("#maxv(0).\n#maxbl(0).\n#maxhl(1).\n#modeh(1,p(1;2)).")
     space = generate_clause_space(task, Arguments())
 
-    assert space.clauses == ("p(1;2).",)
+    assert space.clauses == ('p((1;2)).',)
     assert _models_for_clause(space.entries[0]) == {frozenset({"p(1)", "p(2)"})}
 
 
@@ -212,7 +281,7 @@ def test_multiargument_head_pool_tracks_variables_in_each_alternative():
     )
 
     assert (
-        "p(V0,1;2,V1) :- d(V0),d(V1)."
+        'p(V0,1;2,V1) :- d(V0); d(V1).'
         in generate_clause_space(task, Arguments()).clauses
     )
 
@@ -224,7 +293,7 @@ def test_default_negated_choice_head_is_retained():
     )
     space = generate_clause_space(task, Arguments())
 
-    assert space.clauses == ("1{not p;q}1.",)
+    assert space.clauses == ('1 <= { not p; q } <= 1.',)
     assert space.entries[0].heads == frozenset({("q", 0)})
     assert space.entries[0].deps == frozenset({("p", 0)})
 
@@ -237,8 +306,8 @@ def test_modeha_and_modehd_allow_default_negated_elements():
     )
     space = generate_clause_space(task, Arguments())
 
-    assert "1{not p;q}1." in space.clauses
-    assert "not p;q." in space.clauses
+    assert '1 <= { not p; q } <= 1.' in space.clauses
+    assert 'not p; q.' in space.clauses
 
 
 def test_default_negated_function_aggregate_head_is_retained():
@@ -248,7 +317,7 @@ def test_default_negated_function_aggregate_head_is_retained():
     )
     space = generate_clause_space(task, Arguments())
 
-    assert space.clauses == ("#count{1:not p}=1.",)
+    assert space.clauses == ('1 = #count { 1: not p }.',)
     assert space.entries[0].deps == frozenset({("p", 0)})
 
 
@@ -258,7 +327,7 @@ def test_comparison_can_be_a_conditional_conclusion():
         "#modeb(1,var(n,any,x)=1:d(var(n,any,x)))."
     )
 
-    assert "q :- V0=1:d(V0)." in generate_clause_space(task, Arguments()).clauses
+    assert 'q :- V0 = 1: d(V0).' in generate_clause_space(task, Arguments()).clauses
 
 
 def test_clingo_predicate_identifiers_are_accepted_in_modes():
@@ -323,13 +392,13 @@ def _mode(
     head: bool = False,
     positive: bool = True,
     type_name: str = "numeric",
-) -> ModeDeclaration | HeadDeclaration:
+) -> ModeDeclaration | HeadTemplate:
     atom = AtomTemplate(
         name,
-        tuple(TermTemplate.variable(type_name, "any") for _ in range(arity)),
+        tuple(mode_terms.variable(type_name, 'any') for _ in range(arity)),
     )
     return (
-        HeadDeclaration(recall, HeadTemplate("normal", (atom,)))
+        HeadTemplate.normal(AtomLiteral(atom))
         if head
         else ModeDeclaration(recall, AtomLiteral(atom, not positive))
     )
@@ -344,7 +413,7 @@ def _aggregate_mode(
     conditions = tuple(
         AtomLiteral(AtomTemplate(
             name.removeprefix("-"),
-            tuple(TermTemplate.variable("any", "") for _ in range(arity)),
+            tuple(mode_terms.variable('any', '') for _ in range(arity)),
             name.startswith("-"),
         ))
         for name, arity in atoms
@@ -354,10 +423,10 @@ def _aggregate_mode(
         AggregateLiteral(
             function,
             (AggregateElement(
-                tuple(TermTemplate.variable("any", "") for _ in range(tuple_arity)),
+                tuple(mode_terms.variable('any', '') for _ in range(tuple_arity)),
                 conditions,
             ),),
-            AggregateGuard("=", TermTemplate.variable("numeric", "output")),
+            ast.Guard(ast.ComparisonOperator.Equal, mode_terms.variable('numeric', 'output')),
         ),
     )
 
@@ -376,13 +445,13 @@ def _normal_clause_mode(
     head_form: int | None = None,
 ) -> ClauseMode:
     terms = tuple(
-        TermTemplate.fixed(value)
+        mode_terms.fixed(value)
         if value is not None
-        else TermTemplate.variable(types[index] if types else "any", "")
+        else mode_terms.variable(types[index] if types else 'any', '')
         for index, value in enumerate(fixed or (None,) * arity)
     )
     head = (
-        HeadTemplate("normal", (AtomTemplate(name, terms),))
+        HeadTemplate.normal(AtomLiteral(AtomTemplate(name, terms)))
         if section == "head"
         else None
     )
@@ -411,21 +480,14 @@ def _arithmetic_clause_mode(
         "body",
         recall,
         ArithmeticLiteral(
-            TermTemplate(
-                "arithmetic",
-                operator,
-                (
-                    TermTemplate.variable("numeric", ""),
-                    TermTemplate.variable("numeric", ""),
-                ),
-            ),
-            TermTemplate.variable("numeric", ""),
+            operation(operator, list((mode_terms.variable('numeric', ''), mode_terms.variable('numeric', '')))),
+            mode_terms.variable('numeric', ''),
         ),
     )
 
 
 def _comparison_clause_mode(id: int, operator: str) -> ClauseMode:
-    term = TermTemplate.variable("any", "")
+    term = mode_terms.variable('any', '')
     return ClauseMode(
         id,
         id,
@@ -539,22 +601,15 @@ def test_clause_package_exposes_full_and_sampled_generation():
     assert not hasattr(clause_package, "ClauseGenerator")
 
 
-def test_clause_generator_batches_dynamic_and_output_parsing(monkeypatch):
+def test_clause_generator_parses_facts_once_and_constructs_output_ast(monkeypatch):
     fact_sources: list[str] = []
-    output_sources: list[str] = []
     original_facts_parse = clause_generation.parse_program
-    original_output_parse = clause_canonicalizer.parse_program
 
     def record_facts_parse(source: str):
         fact_sources.append(source)
         return original_facts_parse(source)
 
-    def record_output_parse(source: str):
-        output_sources.append(source)
-        return original_output_parse(source)
-
     monkeypatch.setattr(clause_generation, "parse_program", record_facts_parse)
-    monkeypatch.setattr(clause_canonicalizer, "parse_program", record_output_parse)
     task = inductive_task(
         ["edge(1,2)."],
         [],
@@ -565,10 +620,21 @@ def test_clause_generator_batches_dynamic_and_output_parsing(monkeypatch):
         max_body_literals=2,
     )
 
-    generate_clause_space(task, Arguments())
+    parsed_sources: list[str] = []
+    original_parse = ast.parse_string
+
+    def record_parse(source, *args, **kwargs):
+        parsed_sources.append(source)
+        return original_parse(source, *args, **kwargs)
+
+    monkeypatch.setattr(ast, "parse_string", record_parse)
+    space = generate_clause_space(task, Arguments())
 
     assert len(fact_sources) == 1
-    assert len(output_sources) == 1
+    assert parsed_sources == fact_sources
+    assert space.entries
+    assert all(entry.statement.ast_type == ast.ASTType.Rule for entry in space.entries)
+    assert all(entry.text == str(entry.statement) for entry in space.entries)
 
 
 def test_model_decoder_uses_gapless_and_nondecreasing_slot_invariants():
@@ -646,7 +712,7 @@ def test_comparison_facts_encode_the_simple_operator_once(operator, name):
 
     fact_lines = set(facts.splitlines())
 
-    assert f"comparison_operator(0,{name})." in fact_lines
+    assert str(parse_rule(f"comparison_operator(0,{name}).")) in fact_lines
     assert sum(line.startswith("comparison_operator(") for line in fact_lines) == 1
     assert "comparison_mode(0)." not in fact_lines
     assert "symmetric_comparison_mode(0)." not in fact_lines
@@ -692,7 +758,7 @@ def test_facts_do_not_emit_derived_numeric_domain_args():
 
 def test_numeric_sign_evidence_is_per_closed_argument():
     properties = _program_properties(
-        _asp(["p(1).", "p(2).", "q(0).", "r(-1).", "s(a).", "d(X-1) :- p(X)."])
+        _asp(["p(1).", "p(2).", "q(0).", "r(-1).", "s(a).", 'd((X-1)) :- p(X).'])
     )
 
     assert (("p", 1), 0) in properties.positive_args
@@ -778,46 +844,35 @@ def test_exact_projected_aggregate_does_not_generate_other_tuple_widths():
     )
     clauses = generate_clause_space(program, Arguments()).clauses
 
-    assert not any("#sum{V0:el(V0,V0)}" in clause for clause in clauses)
-    assert any("#sum{V0:el(V0,V1)}" in clause for clause in clauses)
-    assert not any("#sum{V0,V1:el(V0,V1)}" in clause for clause in clauses)
-    assert not any(clause.count("#sum{") > 1 for clause in clauses)
+    assert not any("#sum { V0: el(V0,V0) }" in clause for clause in clauses)
+    assert any("#sum { V0: el(V0,V1) }" in clause for clause in clauses)
+    assert not any("#sum { V0,V1: el(V0,V1) }" in clause for clause in clauses)
+    assert not any(clause.count("#sum {") > 1 for clause in clauses)
 
 
 def test_atom_parser_handles_nested_arguments():
-    assert parse_atom("same_row((X1,Y),(X2,Y))") == (
+    statement = parse_rule("same_row((X1,Y),(X2,Y)).")
+    name, arguments, _sign = _node_atoms(statement)[0]
+    assert (name, [str(argument) for argument in arguments]) == (
         "same_row",
         ["(X1,Y)", "(X2,Y)"],
     )
-    assert extract_name_arity("same_row((X1,Y),(X2,Y))") == (
+    assert symbolic_literal_predicate(statement.head) == (
         "same_row",
         2,
     )
 
 
 def test_recursive_syntax_tracks_nested_bindings_and_renders_concrete_terms():
-    term = TermTemplate(
-        "function",
-        "pair",
-        (
-            TermTemplate.variable("node", "input"),
-            TermTemplate(
-                "tuple",
-                arguments=(
-                    TermTemplate.constant("symbol"),
-                    TermTemplate.variable("node", "output"),
-                ),
-            ),
-        ),
-    )
-    concrete = term.concretizations({"symbol": ("a",)})[0]
+    term = ast.Function(LOCATION, 'pair', (mode_terms.variable('node', 'input'), ast.Function(LOCATION, '', (mode_terms.constant('symbol'), mode_terms.variable('node', 'output')), False)), False)
+    concrete = mode_terms.concretizations(term, {"symbol": ("a",)})[0]
     literal = AtomLiteral(AtomTemplate("nested", (concrete,)))
 
     assert [binding.path for binding in literal.atom.bindings()] == [
         (0, 0),
         (0, 1, 1),
     ]
-    assert render_literal(literal, (2, 5)) == "nested(pair(V2,(a,V5)))"
+    assert str(instantiate_literal(literal, (2, 5))) == "nested(pair(V2,(a,V5)))"
 
 
 def test_parser_parses_recursive_function_and_tuple_mode_terms(tmp_path):
@@ -829,11 +884,11 @@ def test_parser_parses_recursive_function_and_tuple_mode_terms(tmp_path):
         encoding="utf-8",
     )
 
-    atom = parse_file(str(task)).language_bias_head[0].template.elements[0]
+    atom = parse_file(str(task)).language_bias_head[0].conclusions[0].atom
 
-    assert atom.terms[0].kind == "function"
-    assert atom.terms[0].value == "box"
-    assert atom.terms[0].arguments[1].arguments[0].kind == "tuple"
+    assert atom.terms[0].ast_type == ast.ASTType.Function
+    assert atom.terms[0].name == "box"
+    assert atom.terms[0].arguments[1].arguments[0].name == ""
     assert [binding.path for binding in atom.bindings()] == [
         (0, 0),
         (0, 1, 0, 1),
@@ -858,8 +913,8 @@ def test_closed_world_extensions_ground_compound_terms_with_clingo():
     extensions = _closed_world_extensions(
         _asp(
             [
-                "cell((1..4,1..4)).",
-                "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)).",
+                'cell(((1..4),(1..4))).',
+                'same_row((X1,Y),(X2,Y)) :- cell((X1,Y)); cell((X2,Y)).',
             ]
         )
     )
@@ -889,7 +944,7 @@ def test_body_only_atom_does_not_make_predicates_equivalent():
     clauses = generate_clause_space(task, Arguments()).clauses
 
     assert (("p", 1), ("q", 1)) not in properties.equivalent
-    assert "h(V0) :- p(V0),not q(V0)." in clauses
+    assert 'h(V0) :- p(V0); not q(V0).' in clauses
 
 
 def test_relations_depending_on_learned_predicates_stay_open():
@@ -907,7 +962,7 @@ def test_relations_depending_on_learned_predicates_stay_open():
     assert not any(
         ("r", 1) in pair for pair in properties.implies | properties.equivalent
     )
-    assert "t(V0) :- d(V0),not r(V0)." in clauses
+    assert 't(V0) :- d(V0); not r(V0).' in clauses
 
 
 def test_each_example_context_must_show_a_property():
@@ -930,8 +985,11 @@ def test_each_example_context_must_show_a_property():
 
 
 def test_atom_parser_does_not_treat_not_prefix_as_negation():
-    assert parse_atom("notable(X)") == ("notable", ["X"])
-    assert parse_atom("not notable(X)") == ("notable", ["X"])
+    positive = parse_rule("p :- notable(X).").body[0]
+    negative = parse_rule("p :- not notable(X).").body[0]
+    assert symbolic_literal_predicate(positive) == symbolic_literal_predicate(negative) == ("notable", 1)
+    assert positive.sign == ast.Sign.NoSign
+    assert negative.sign == ast.Sign.Negation
 
 
 def test_clause_space_args_keep_numeric_strings():
@@ -1050,29 +1108,30 @@ def test_parser_keeps_strong_and_default_negation_independent(tmp_path):
     )
 
     program = parse_file(str(task))
-    head = program.language_bias_head[0].template.elements[0]
+    head = program.language_bias_head[0].conclusions[0].atom
     positive_body = program.language_bias_body[0].literal
     default_negative_body = program.language_bias_body[1].literal
 
     assert head.signature == ("-p", 1)
     assert head.unsigned_signature == ("p", 1)
-    assert head.render(iter(("V0",))) == "-p(V0)"
+    assert str(head.instantiate(iter(("V0",)))) == "-p(V0)"
     assert positive_body.atom.signature == ("-q", 1)
     assert not positive_body.default_negated
     assert default_negative_body.atom.signature == ("-r", 1)
     assert default_negative_body.default_negated
-    assert default_negative_body.render(iter(("V0",))) == "not -r(V0)"
+    assert str(default_negative_body.instantiate(iter(("V0",)))) == "not -r(V0)"
     generator = clause_generation._ClauseGenerator(program, Arguments())
     assert generator.predicate_arg_types[("p", 1, 0)] == "person"
     assert ("-p", 1, 0) not in generator.predicate_arg_types
 
 
 def test_parser_preserves_strong_negation_in_atoms_and_rule_dependencies():
-    assert fragment_atoms("-p(a), not -q(a)") == (
+    assert tuple((name, tuple(map(str, arguments)), sign != ast.Sign.NoSign)
+                 for name, arguments, sign in _node_atoms(parse_rule(":- -p(a), not -q(a)."))) == (
         ("-p", ("a",), False),
         ("-q", ("a",), True),
     )
-    assert clause_predicates("-p(X) :- q(X), not -r(X).") == (
+    assert clause_predicates(parse_rule('-p(X) :- q(X); not -r(X).')) == (
         frozenset((("-p", 1),)),
         frozenset((("q", 1), ("-r", 1))),
         2,
@@ -1121,7 +1180,7 @@ def test_default_negated_body_aggregates_are_generated(prefix):
         f"#modeb(1,{prefix} #count{{var(numeric,any):q(var(numeric,any))}}=1)."
     )
     assert (
-        f":- {prefix} 1=#count{{V0:q(V0)}}."
+        str(parse_rule(f":- {prefix} 1=#count{{V0:q(V0)}}."))
         in generate_clause_space(task, Arguments()).clauses
     )
 
@@ -1162,8 +1221,8 @@ def test_constant_modes_expand_declared_ground_terms_without_variables(tmp_path)
 
     assert program.constants == {"symbol": ("a", "b")}
     assert set(clauses) == {
-        ":- q(a).",
-        ":- q(b).",
+        '#false :- q(a).',
+        '#false :- q(b).',
         "p(a).",
         "p(b).",
         "p(a) :- q(a).",
@@ -1258,12 +1317,11 @@ def test_invent_replaces_head_and_body_modes(tmp_path):
     assert program.invented_predicates == (("helper", 2),)
     assert [
         (
-            head.recall,
-            head.template.elements[0].name,
-            len(head.template.elements[0].terms),
+            head.conclusions[0].atom.name,
+            len(head.conclusions[0].atom.terms),
         )
         for head in program.language_bias_head
-    ] == [(1, "helper", 2)]
+    ] == [("helper", 2)]
     assert [
         (
             mode.recall,
@@ -1338,7 +1396,7 @@ def test_invented_predicates_follow_layers_and_do_not_enter_constraints(tmp_path
     assert "early(V0) :- target(V0)." not in clauses
     assert "late(V0) :- target(V0)." not in clauses
     assert not any(
-        clause.startswith(":-") and ("early(" in clause or "late(" in clause)
+        clause.startswith("#false :-") and ("early(" in clause or "late(" in clause)
         for clause in clauses
     )
 
@@ -1362,7 +1420,7 @@ def test_invented_definition_cannot_call_learnable_target_through_aggregate(tmp_
 
     clauses = _generate(program, 3, 2).clauses
 
-    assert "helper(V1) :- #count{V0:target(V0)}=V1." not in clauses
+    assert 'helper(V1) :- V1 = #count { V0: target(V0) }.' not in clauses
 
 
 def test_clause_generation_prunes_arg_distinct_modes_before_rendering():
@@ -1458,7 +1516,7 @@ def test_clause_generation_prunes_reversed_symmetric_comparisons_before_renderin
     clauses = _generate(program, 4, 2).clauses
 
     assert not any("V0-V1!=0,V0-V1!=0" in clause for clause in clauses)
-    assert any("V0-V1!=0" in clause for clause in clauses)
+    assert any("(V0-V1) != 0" in clause for clause in clauses)
 
 
 def test_clause_generation_prunes_comparison_redundancy_before_rendering():
@@ -1517,7 +1575,7 @@ def test_clause_generation_prunes_leq_neq_when_strict_comparison_exists():
     )
     clauses = _generate(program, 4, 2).clauses
 
-    assert not any("V0<=V1" in clause and "V0!=V1" in clause for clause in clauses)
+    assert not any("V0 <= V1" in clause and "V0 != V1" in clause for clause in clauses)
 
 
 def test_clause_generation_prunes_transitive_comparison_redundancy():
@@ -1536,11 +1594,11 @@ def test_clause_generation_prunes_transitive_comparison_redundancy():
     clauses = _generate(program, 6, 3).clauses
 
     assert not any(
-        "V0<V1" in clause and "V1<V2" in clause and "V0<V2" in clause
+        "V0 < V1" in clause and "V1 < V2" in clause and "V0 < V2" in clause
         for clause in clauses
     )
     assert not any(
-        "V0<V1" in clause and "V1<V2" in clause and "V0!=V2" in clause
+        "V0 < V1" in clause and "V1 < V2" in clause and "V0 != V2" in clause
         for clause in clauses
     )
 
@@ -1559,7 +1617,7 @@ def test_clause_generation_prunes_duplicate_arithmetic_inputs_before_rendering()
     )
     clauses = _generate(program, 4, 4).clauses
 
-    assert not any("V0+V1=V2" in clause and "V0+V1=V3" in clause for clause in clauses)
+    assert not any("(V0+V1) = V2" in clause and "(V0+V1) = V3" in clause for clause in clauses)
 
 
 def test_positive_domain_prunes_impossible_mul_and_div_comparisons():
@@ -1578,9 +1636,9 @@ def test_positive_domain_prunes_impossible_mul_and_div_comparisons():
     )
     clauses = _generate(program, 3, 3).clauses
 
-    assert not any("V0*V1=V2" in clause and "V2<V0" in clause for clause in clauses)
-    assert not any("V0*V1=V2" in clause and "V2<V1" in clause for clause in clauses)
-    assert not any("V0/V1=V2" in clause and "V0<V2" in clause for clause in clauses)
+    assert not any("(V0*V1) = V2" in clause and "V2 < V0" in clause for clause in clauses)
+    assert not any("(V0*V1) = V2" in clause and "V2 < V1" in clause for clause in clauses)
+    assert not any("(V0/V1) = V2" in clause and "V0 < V2" in clause for clause in clauses)
 
 
 def test_clause_generation_prunes_duplicate_aggregate_inputs_before_rendering():
@@ -1594,7 +1652,7 @@ def test_clause_generation_prunes_duplicate_aggregate_inputs_before_rendering():
     clauses = _generate(program, 3, 4).clauses
 
     assert not any(
-        "#sum{V0:el(V0)}=V1" in clause and "#sum{V0:el(V0)}=V2" in clause
+        "V1 = #sum { V0: el(V0) }" in clause and "V2 = #sum { V0: el(V0) }" in clause
         for clause in clauses
     )
 
@@ -1643,14 +1701,14 @@ def test_linear_canonicalization_merges_equivalent_add_sub_equations():
     arithmetic = {
         clause
         for clause in _generate(program, 2, 3).clauses
-        for match in [re.search(r",V(\d+)\+V(\d+)-V(\d+)=0", clause)]
+        for match in [re.search(r"; \(\(V(\d+)\+V(\d+)\)-V(\d+)\) = 0", clause)]
         if clause.count("=") == 1
         and clause.count("+") == 1
         and match is not None
         and len(set(match.groups())) == 3
     }
 
-    assert arithmetic == {":- q(V0,V1,V2),V0+V1-V2=0."}
+    assert arithmetic == {'#false :- q(V0,V1,V2); ((V0+V1)-V2) = 0.'}
 
 
 def test_nested_constants_expand_and_structured_modes_render(tmp_path):
@@ -1730,7 +1788,7 @@ def test_flat_constants_keep_outer_argument_positions(tmp_path):
         generator.body_slots,
     )
 
-    assert f"mode_variable_arg({body_mode.id},1)." in facts
+    assert str(parse_rule(f"mode_variable_arg({body_mode.id},1).")) in facts
     assert (
         "target(V0) :- source(a,V0)."
         in generate_clause_space(program, Arguments()).clauses
@@ -1785,7 +1843,7 @@ def test_linear_canonicalization_preserves_sub_only_bias(recall):
     assert arithmetic_modes[0].literal.operator == "-"
     assert arithmetic_modes[0].literal.coefficients == (1, -1, -1)
     assert any(
-        "V0-V1-V2=0" in clause
+        "((V0-V1)-V2) = 0" in clause
         for clause in generate_clause_space(program, Arguments()).clauses
     )
 
@@ -1798,12 +1856,12 @@ def test_invention_preserves_structured_argument_templates(tmp_path):
     )
 
     program = parse_file(str(task))
-    head_atom = program.language_bias_head[0].template.elements[0]
+    head_atom = program.language_bias_head[0].conclusions[0].atom
     body_atom = program.language_bias_body[0].literal.atom
 
     assert program.invented_predicates == (("helper", 1),)
     assert head_atom == body_atom
-    assert head_atom.terms[0].kind == "function"
+    assert head_atom.terms[0].ast_type == ast.ASTType.Function
     assert [binding.direction for binding in head_atom.bindings()] == [
         "input",
         "output",
@@ -1846,15 +1904,15 @@ def test_linear_canonicalization_reduces_complete_nqueens_systems():
     assert clauses
     assert len(clauses) == len(set(clauses))
     assert clauses == tuple(sorted(clauses))
-    assert ":- q(V0,V1),q(V2,V3),V0+V1-V2-V3=0,-V1+V3<0." in clauses
-    assert ":- q(V0,V1),q(V2,V3),V0-V1-V2+V3=0,V1-V3<0." in clauses
+    assert '#false :- q(V0,V1); q(V2,V3); (((V0+V1)-V2)-V3) = 0; (-V1+V3) < 0.' in clauses
+    assert '#false :- q(V0,V1); q(V2,V3); (((V0-V1)-V2)+V3) = 0; (V1-V3) < 0.' in clauses
 
 
 def test_nonlinear_canonicalization_keeps_lexicographic_render():
     args = copy.deepcopy(CASES["subset_sum_double_and_prod"])
     clauses = generate_clause_space(parse_file(args.filename), args).clauses
 
-    assert ":- #sum{V0,V1:el(V0,V1)}=V2,(V2*V2)+(V2*V2)-V2=0." in clauses
+    assert '#false :- V2 = #sum { V0,V1: el(V0,V1) }; (((V2*V2)+(V2*V2))-V2) = 0.' in clauses
     assert not any("V1*V0=" in clause for clause in clauses)
 
 
@@ -1885,7 +1943,7 @@ def test_linear_modes_render_direct_equations_with_bounded_complexity():
         == 1
     )
     assert any(
-        "V0+V1-V2-V3=0" in clause
+        "(((V0+V1)-V2)-V3) = 0" in clause
         for clause in generate_clause_space(program, Arguments()).clauses
     )
 
@@ -1920,18 +1978,9 @@ def test_direct_linear_equation_can_safely_produce_a_head_variable():
         [],
         [],
         [
-            HeadDeclaration(
-                1,
-                HeadTemplate(
-                    "normal",
-                    (
-                        AtomTemplate(
-                            "target",
-                            (TermTemplate.variable("numeric", "output"),),
-                        ),
-                    ),
-                ),
-            )
+            HeadTemplate.normal(AtomLiteral(AtomTemplate(
+                    "target", (mode_terms.variable('numeric', 'output'),),
+                ))),
         ],
         [
             _mode(1, "q", 3, positive=True),
@@ -1945,7 +1994,7 @@ def test_direct_linear_equation_can_safely_produce_a_head_variable():
 
     clauses = generate_clause_space(program, Arguments()).clauses
 
-    assert "target(V3) :- q(V0,V1,V2),V0+V1=V3." in clauses
+    assert 'target(V3) :- q(V0,V1,V2); (V0+V1) = V3.' in clauses
 
 
 def test_linear_canonicalization_eliminates_connected_auxiliary_variables():
@@ -2037,7 +2086,7 @@ def test_linear_canonicalization_preserves_unsafe_output_assignment():
 
     assert canonical is not None
     assert isinstance(canonical.systems[0].relations[0], ExpressionConstraint)
-    assert canonical.render(modes) == "target(V1) :- p(V0),V0+V0=V1."
+    assert canonical.render(modes) == 'target(V1) :- p(V0); (V0+V0) = V1.'
 
 
 def test_linear_canonicalization_preserves_components_with_multiplication():
@@ -2063,7 +2112,7 @@ def test_linear_canonicalization_preserves_components_with_multiplication():
         isinstance(relation, ExpressionConstraint)
         for relation in canonical.systems[0].relations
     )
-    assert canonical.render(modes) == ":- q(V0,V1,V2,V3),V2*V0-V3=0,V0+V1-V2=0."
+    assert canonical.render(modes) == '#false :- q(V0,V1,V2,V3); ((V2*V0)-V3) = 0; ((V0+V1)-V2) = 0.'
 
 
 def test_arithmetic_system_inlines_mixed_nonlinear_auxiliaries():
@@ -2085,7 +2134,7 @@ def test_arithmetic_system_inlines_mixed_nonlinear_auxiliaries():
     canonical = canonical_arithmetic_clause(clause, modes, 5)
 
     assert canonical is not None
-    assert canonical.render(modes) == "target(V4) :- q(V0,V1,V2),(V0+V1)*V2=V4."
+    assert canonical.render(modes) == 'target(V4) :- q(V0,V1,V2); ((V0+V1)*V2) = V4.'
 
 
 def test_arithmetic_expression_key_normalizes_associativity_and_signs():
@@ -2122,8 +2171,8 @@ def test_arithmetic_system_preserves_multiple_definitions_of_an_auxiliary():
 
     assert canonical is not None
     rendered = canonical.render(modes)
-    assert "(V0+V1)-(V2*V3)=0" in rendered
-    assert "(V0+V1)-V0<0" in rendered
+    assert "((V0+V1)-(V2*V3)) = 0" in rendered
+    assert "((V0+V1)-V0) < 0" in rendered
 
 
 def test_arithmetic_system_eliminates_repeated_auxiliary_coefficients():
@@ -2143,7 +2192,7 @@ def test_arithmetic_system_eliminates_repeated_auxiliary_coefficients():
     canonical = canonical_arithmetic_clause(clause, modes, 3)
 
     assert canonical is not None
-    assert canonical.render(modes) == ":- q(V0,V1),4*V0-V1=0."
+    assert canonical.render(modes) == '#false :- q(V0,V1); ((4*V0)-V1) = 0.'
 
 
 def test_arithmetic_system_preserves_independent_rows_in_one_component():
@@ -2168,7 +2217,7 @@ def test_arithmetic_system_preserves_independent_rows_in_one_component():
 
 
 @pytest.mark.parametrize(
-    ("operator", "rendered"), [("/", "V0/V1-V2=0"), ("\\", "V0\\V1-V2=0")]
+    ("operator", "rendered"), [("/", "((V0/V1)-V2) = 0"), ("\\", "((V0\\V1)-V2) = 0")]
 )
 def test_arithmetic_system_carries_nonzero_domain_guards(operator, rendered):
     modes = {
@@ -2186,7 +2235,7 @@ def test_arithmetic_system_carries_nonzero_domain_guards(operator, rendered):
     canonical = canonical_arithmetic_clause(clause, modes, 3)
 
     assert canonical is not None
-    assert canonical.render(modes) == f":- q(V0,V1,V2),{rendered},V1!=0."
+    assert canonical.render(modes) == str(parse_rule(f":- q(V0,V1,V2),{rendered},V1!=0."))
 
 
 def test_arithmetic_system_deduplicates_shared_divisor_guards():
@@ -2209,7 +2258,7 @@ def test_arithmetic_system_deduplicates_shared_divisor_guards():
     )
 
     assert len(system.render()) == 3
-    assert system.render() == ("V0/V1-V2=0", "V1!=0", "V3\\V1-V4=0")
+    assert system.render() == ("((V0/V1)-V2) = 0", "V1 != 0", "((V3\\V1)-V4) = 0")
 
 
 def test_arithmetic_system_renders_one_guard_per_canonical_expression():
@@ -2226,9 +2275,9 @@ def test_arithmetic_system_renders_one_guard_per_canonical_expression():
     assert left_nested.key == right_nested.key
     assert len(system.render()) == 3
     assert system.render() == (
-        "V0-V3=0",
-        "(V0*V1)*V2!=0",
-        "V1-V4=0",
+        "(V0-V3) = 0",
+        "((V0*V1)*V2) != 0",
+        "(V1-V4) = 0",
     )
 
 
@@ -2250,7 +2299,7 @@ def test_arithmetic_expression_parenthesizes_composite_abs_operands():
         "+", (ArithmeticExpression.var(2), ArithmeticExpression.var(3))
     )
 
-    assert ArithmeticExpression("abs", (left, right)).render() == ("|(V0+V1)-(V2+V3)|")
+    assert ArithmeticExpression("abs", (left, right)).render() == ("|((V0+V1)-(V2+V3))|")
 
 
 def test_division_guard_does_not_consume_another_body_slot():
@@ -2273,7 +2322,7 @@ def test_division_guard_does_not_consume_another_body_slot():
     guarded = [
         entry
         for entry in generate_clause_space(program, Arguments()).entries
-        if "/" in entry.text and "!=0" in entry.text
+        if "/" in entry.text and "!= 0" in entry.text
     ]
     assert guarded
     assert all(entry.body_literals <= 2 for entry in guarded)
@@ -2294,8 +2343,8 @@ def test_symbolic_disequality_is_not_rewritten_as_subtraction():
 
     clauses = _generate(program, 3, 2).clauses
 
-    assert ":- p(V0),p(V1),V0!=V1." in clauses
-    assert not any("V0-V1!=0" in clause for clause in clauses)
+    assert '#false :- p(V0); p(V1); V0 != V1.' in clauses
+    assert not any("(V0-V1) != 0" in clause for clause in clauses)
 
 
 def test_mixed_numeric_system_keeps_cross_type_disequality_symbolic():
@@ -2315,16 +2364,16 @@ def test_mixed_numeric_system_keeps_cross_type_disequality_symbolic():
 
     clauses = _generate(program, 5, 3).clauses
 
-    target = ":- p(V0),n(V1),n(V2),V0!=V1,V1-V2<0."
+    target = '#false :- p(V0); n(V1); n(V2); V0 != V1; (V1-V2) < 0.'
     assert target in clauses
     assert not any(
-        "p(V0),n(V1),n(V2)" in clause and "V0-V1!=0" in clause for clause in clauses
+        "p(V0)" in clause and "(V0-V1) != 0" in clause for clause in clauses
     )
 
 
 def test_canonicalization_prevents_reversed_add_operands_by_default():
     program_without_zero = inductive_task(
-        ["#const n = 2.", "number(1..n).", "q(1,1)."],
+        ["#const n = 2.", 'number((1..n)).', "q(1,1)."],
         [],
         [],
         [],
@@ -2346,7 +2395,7 @@ def test_canonicalization_prevents_reversed_add_operands_by_default():
 
 def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
     program = inductive_task(
-        ["#const n = 2.", "number(1..n).", "q(1,1)."],
+        ["#const n = 2.", 'number((1..n)).', "q(1,1)."],
         [],
         [],
         [],
@@ -2361,8 +2410,8 @@ def test_domain_arithmetic_prune_propagates_zero_and_positive_values():
     clauses = _generate(program, 4, 3).clauses
 
     assert clauses
-    assert ":- q(V0,V0),V1<V0,V0+V0=V1." not in clauses
-    assert ":- q(V0,V1),V1<V0,V1+V1=V0." not in clauses
+    assert '#false :- q(V0,V0); V1 < V0; (V0+V0) = V1.' not in clauses
+    assert '#false :- q(V0,V1); V1 < V0; (V1+V1) = V0.' not in clauses
 
 
 def test_closed_world_properties_prune_symmetric_predicate_orientation():
@@ -2394,9 +2443,9 @@ def test_closed_world_properties_prune_implied_and_mutex_literals():
     )
     clauses = _generate(program, 2, 1).clauses
 
-    assert ":- p(V0),q(V0)." not in clauses
-    assert ":- p(V0),not q(V0)." not in clauses
-    assert ":- p(V0),r(V0)." not in clauses
+    assert '#false :- p(V0); q(V0).' not in clauses
+    assert '#false :- p(V0); not q(V0).' not in clauses
+    assert '#false :- p(V0); r(V0).' not in clauses
 
 
 def test_closed_world_properties_prune_functional_dependency():
@@ -2409,7 +2458,7 @@ def test_closed_world_properties_prune_functional_dependency():
     )
     clauses = _generate(program, 2, 3).clauses
 
-    assert ":- parent(V0,V1),parent(V0,V2)." not in clauses
+    assert '#false :- parent(V0,V1); parent(V0,V2).' not in clauses
 
 
 def test_closed_world_properties_prune_projection_implication():
@@ -2426,8 +2475,8 @@ def test_closed_world_properties_prune_projection_implication():
     )
     clauses = _generate(program, 2, 2).clauses
 
-    assert ":- edge(V0,V1),node(V0)." not in clauses
-    assert ":- edge(V0,V1),not node(V0)." not in clauses
+    assert '#false :- edge(V0,V1); node(V0).' not in clauses
+    assert '#false :- edge(V0,V1); not node(V0).' not in clauses
 
 
 def test_closed_world_properties_prune_tuple_mutex_permutation():
@@ -2445,7 +2494,7 @@ def test_closed_world_properties_prune_tuple_mutex_permutation():
     clauses = _generate(program, 2, 2).clauses
 
     assert ((("father", 2), ("mother", 2), (1, 0))) in properties.tuple_mutex
-    assert ":- father(V0,V1),mother(V1,V0)." not in clauses
+    assert '#false :- father(V0,V1); mother(V1,V0).' not in clauses
 
 
 def test_count_aggregate_full_local_condition_is_canonical():
@@ -2458,8 +2507,8 @@ def test_count_aggregate_full_local_condition_is_canonical():
     )
     clauses = _generate(program, 2, 3).clauses
 
-    assert "out(V2) :- #count{V0,V1:p(V0,V1)}=V2." in clauses
-    assert "out(V2) :- #count{V0,V1:p(V1,V0)}=V2." not in clauses
+    assert 'out(V2) :- V2 = #count { V0,V1: p(V0,V1) }.' in clauses
+    assert 'out(V2) :- V2 = #count { V0,V1: p(V1,V0) }.' not in clauses
 
 
 def test_aggregate_condition_keeps_its_explicit_nominal_types():
@@ -2501,9 +2550,9 @@ def test_sum_aggregate_full_local_non_weight_condition_is_canonical():
     )
     clauses = _generate(program, 2, 4).clauses
 
-    assert "out(V3) :- #sum{V0,V1,V2:p(V0,V1,V2)}=V3." in clauses
-    assert "out(V3) :- #sum{V0,V1,V2:p(V0,V2,V1)}=V3." not in clauses
-    assert "out(V3) :- #sum{V0,V1,V2:p(V1,V0,V2)}=V3." in clauses
+    assert 'out(V3) :- V3 = #sum { V0,V1,V2: p(V0,V1,V2) }.' in clauses
+    assert 'out(V3) :- V3 = #sum { V0,V1,V2: p(V0,V2,V1) }.' not in clauses
+    assert 'out(V3) :- V3 = #sum { V0,V1,V2: p(V1,V0,V2) }.' in clauses
 
 
 def test_projected_aggregate_prunes_key_determined_discriminator():
@@ -2513,7 +2562,7 @@ def test_projected_aggregate_prunes_key_determined_discriminator():
             "val(2).",
             "part(a).",
             "part(b).",
-            "1 { p(P,V) : part(P) } 1 :- val(V).",
+            '1 <= { p(P,V): part(P) } <= 1 :- val(V).',
         ],
         [],
         [],
@@ -2525,8 +2574,8 @@ def test_projected_aggregate_prunes_key_determined_discriminator():
     )
     clauses = _generate(program, 2, 3).clauses
 
-    assert "out(V2) :- #sum{V0:p(V1,V0)}=V2." in clauses
-    assert "out(V2) :- #sum{V0,V1:p(V1,V0)}=V2." not in clauses
+    assert 'out(V2) :- V2 = #sum { V0: p(V1,V0) }.' in clauses
+    assert 'out(V2) :- V2 = #sum { V0,V1: p(V1,V0) }.' not in clauses
 
 
 def test_full_tuple_aggregate_keeps_key_determined_discriminator():
@@ -2536,7 +2585,7 @@ def test_full_tuple_aggregate_keeps_key_determined_discriminator():
             "val(2).",
             "part(a).",
             "part(b).",
-            "1 { p(P,V) : part(P) } 1 :- val(V).",
+            '1 <= { p(P,V): part(P) } <= 1 :- val(V).',
         ],
         [],
         [],
@@ -2545,7 +2594,7 @@ def test_full_tuple_aggregate_keeps_key_determined_discriminator():
     )
     clauses = _generate(program, 2, 3).clauses
 
-    assert "out(V2) :- #sum{V0,V1:p(V1,V0)}=V2." in clauses
+    assert 'out(V2) :- V2 = #sum { V0,V1: p(V1,V0) }.' in clauses
 
 
 def test_closed_world_properties_prune_composite_functional_dependency():
@@ -2562,7 +2611,7 @@ def test_closed_world_properties_prune_composite_functional_dependency():
     )
     clauses = _generate(program, 2, 4).clauses
 
-    assert ":- assign(V0,V1,V2),assign(V0,V1,V3)." not in clauses
+    assert '#false :- assign(V0,V1,V2); assign(V0,V1,V3).' not in clauses
 
 
 def test_closed_world_properties_prune_acyclic_body_cycle():
@@ -2575,7 +2624,7 @@ def test_closed_world_properties_prune_acyclic_body_cycle():
     )
     clauses = _generate(program, 3, 3).clauses
 
-    assert ":- edge(V0,V1),edge(V1,V2),edge(V2,V0)." not in clauses
+    assert '#false :- edge(V0,V1); edge(V1,V2); edge(V2,V0).' not in clauses
 
 
 def test_closed_world_properties_prune_complement_negative_pair():
@@ -2592,7 +2641,7 @@ def test_closed_world_properties_prune_complement_negative_pair():
     )
     clauses = _generate(program, 3, 2).clauses
 
-    assert ":- not p(V0),not q(V0),safe(V0,V1)." not in clauses
+    assert '#false :- not p(V0); not q(V0); safe(V0,V1).' not in clauses
 
 
 def test_closed_world_properties_infer_generic_atom_relations():
@@ -2656,7 +2705,7 @@ def test_closed_world_extensions_derive_finite_complement_rules():
                 "v(b).",
                 "e(a,b).",
                 "e(b,a).",
-                "ne(X,Y) :- not e(X,Y), v(X), v(Y).",
+                'ne(X,Y) :- not e(X,Y); v(X); v(Y).',
             ]
         )
     )
@@ -2667,7 +2716,7 @@ def test_closed_world_extensions_derive_finite_complement_rules():
 
 
 def test_closed_world_extensions_leave_relations_over_learned_predicates_open():
-    program = _asp(["v(a).", "p(X) :- not q(X), v(X)."])
+    program = _asp(["v(a).", 'p(X) :- not q(X); v(X).'])
 
     assert _closed_world_extensions(program)[("p", 1)] == {(_ground_term("a"),)}
     assert ("p", 1) not in _closed_world_extensions(program, {("q", 1)})
@@ -2682,8 +2731,8 @@ def test_rule_defined_inequality_derives_arg_distinct():
                 "cell((1,1)).",
                 "cell((2,1)).",
                 "parent(a,b).",
-                "same_block(C1,C2) :- block(C1,B), block(C2,B), C1 != C2.",
-                "same_row((X1,Y),(X2,Y)) :- cell((X1,Y)), cell((X2,Y)), X1 != X2.",
+                'same_block(C1,C2) :- block(C1,B); block(C2,B); C1 != C2.',
+                'same_row((X1,Y),(X2,Y)) :- cell((X1,Y)); cell((X2,Y)); X1 != X2.',
                 "parent_child(P,C) :- parent(P,C).",
             ]
         )
@@ -2775,14 +2824,14 @@ def test_choice_rules_infer_modelwise_keys():
         _asp(
             [
                 "#const n = 5.",
-                "number(1..n).",
-                "1 { q(X,Y) : number(Y) } 1 :- number(X).",
-                "1 { q(X,Y) : number(X) } 1 :- number(Y).",
-                "cell(1..2).",
-                "val(1..2).",
-                "1 { x(R,C,N) : val(N) } 1 :- cell(R), cell(C).",
-                "v(1..4).",
-                "3 { in(X) : v(X) } 3.",
+                'number((1..n)).',
+                '1 <= { q(X,Y): number(Y) } <= 1 :- number(X).',
+                '1 <= { q(X,Y): number(X) } <= 1 :- number(Y).',
+                'cell((1..2)).',
+                'val((1..2)).',
+                '1 <= { x(R,C,N): val(N) } <= 1 :- cell(R); cell(C).',
+                'v((1..4)).',
+                '3 <= { in(X): v(X) } <= 3.',
             ]
         )
     )
@@ -2803,9 +2852,9 @@ def test_closed_world_extensions_expand_numeric_ranges():
         _asp(
             [
                 "#const n = 3.",
-                "number(1..n).",
-                "pair(1..2,3..4).",
-                "negative(-2..0).",
+                'number((1..n)).',
+                'pair((1..2),(3..4)).',
+                'negative((-2..0)).',
                 "exact(-1).",
                 "alias(n).",
             ]
@@ -2842,14 +2891,14 @@ def test_closed_world_extensions_keep_distinct_string_terms():
 
 def test_closed_world_extensions_do_not_derive_double_negation_as_negation():
     extensions = _closed_world_extensions(
-        _asp(["dom(a).", "p(b).", "q(X) :- dom(X), not not p(X)."])
+        _asp(["dom(a).", "p(b).", 'q(X) :- dom(X); not not p(X).'])
     )
 
     assert ("q", 1) not in extensions
 
 
 def test_closed_world_extensions_match_clingo_for_descending_interval():
-    source = "p(3..1)."
+    source = 'p((3..1)).'
     control = clingo.Control()
     control.add("base", [], source)
     control.ground([("base", [])])
@@ -2872,8 +2921,8 @@ def test_rule_defined_square_properties_propagate_choice_key():
                 "part(a).",
                 "val(1).",
                 "val(2).",
-                "1 { p(P,V) : val(V) } 1 :- part(P).",
-                "sq(P,S) :- p(P,V), S = V*V.",
+                '1 <= { p(P,V): val(V) } <= 1 :- part(P).',
+                'sq(P,S) :- p(P,V); S = (V*V).',
             ]
         )
     )
@@ -2884,7 +2933,7 @@ def test_rule_defined_square_properties_propagate_choice_key():
 
 def test_cardinality_upper_facts_are_emitted():
     properties = _program_properties(
-        _asp(["val(1).", "val(2).", "1 { in(X) : val(X) } 1."])
+        _asp(["val(1).", "val(2).", '1 <= { in(X): val(X) } <= 1.'])
     )
     facts = set(
         property_facts.compile_property_facts(
@@ -2902,9 +2951,9 @@ def test_cardinality_upper_facts_are_emitted():
 def test_choice_rule_keys_prune_conflicting_positive_literals():
     program = inductive_task(
         [
-            "number(1..5).",
-            "1 { q(X,Y) : number(Y) } 1 :- number(X).",
-            "1 { q(X,Y) : number(X) } 1 :- number(Y).",
+            'number((1..5)).',
+            '1 <= { q(X,Y): number(Y) } <= 1 :- number(X).',
+            '1 <= { q(X,Y): number(X) } <= 1 :- number(Y).',
         ],
         [],
         [],
@@ -2913,15 +2962,15 @@ def test_choice_rule_keys_prune_conflicting_positive_literals():
     )
     clauses = _generate(program, 2, 3).clauses
 
-    assert ":- q(V0,V1),q(V0,V2)." not in clauses
-    assert ":- q(V0,V1),q(V2,V1)." not in clauses
+    assert '#false :- q(V0,V1); q(V0,V2).' not in clauses
+    assert '#false :- q(V0,V1); q(V2,V1).' not in clauses
 
 
 def test_choice_projection_prunes_redundant_domain_literal():
     program = inductive_task(
         [
-            "number(1..5).",
-            "1 { q(X,Y) : number(Y) } 1 :- number(X).",
+            'number((1..5)).',
+            '1 <= { q(X,Y): number(Y) } <= 1 :- number(X).',
         ],
         [],
         [],
@@ -2933,7 +2982,7 @@ def test_choice_projection_prunes_redundant_domain_literal():
     )
     clauses = _generate(program, 2, 2).clauses
 
-    assert ":- q(V0,V1),number(V1)." not in clauses
+    assert '#false :- q(V0,V1); number(V1).' not in clauses
 
 
 def test_partition_prunes_all_negative_partition_literals():
@@ -2958,8 +3007,8 @@ def test_partition_prunes_all_negative_partition_literals():
     )
     clauses = _generate(program, 4, 1).clauses
 
-    assert ":- node(V0),not red(V0),not green(V0)." in clauses
-    assert ":- node(V0),not red(V0),not green(V0),not blue(V0)." not in clauses
+    assert '#false :- node(V0); not red(V0); not green(V0).' in clauses
+    assert '#false :- node(V0); not red(V0); not green(V0); not blue(V0).' not in clauses
 
 
 def test_mutex_complement_and_partition_prune_positive_negative_redundancy():
@@ -2978,8 +3027,8 @@ def test_mutex_complement_and_partition_prune_positive_negative_redundancy():
     )
     clauses = _generate(program, 3, 1).clauses
 
-    assert ":- safe(V0),q(V0),not p(V0)." not in clauses
-    assert ":- safe(V0),not p(V0),not q(V0)." not in clauses
+    assert '#false :- safe(V0); q(V0); not p(V0).' not in clauses
+    assert '#false :- safe(V0); not p(V0); not q(V0).' not in clauses
 
 
 def test_inverse_and_transitive_negative_closure_prune():
@@ -3007,8 +3056,8 @@ def test_inverse_and_transitive_negative_closure_prune():
     inverse_clauses = _generate(inverse, 2, 2).clauses
     transitive_clauses = _generate(transitive, 3, 3).clauses
 
-    assert ":- p(V0,V1),not q(V1,V0)." not in inverse_clauses
-    assert ":- p(V0,V1),p(V1,V2),not p(V0,V2)." not in transitive_clauses
+    assert '#false :- p(V0,V1); not q(V1,V0).' not in inverse_clauses
+    assert '#false :- p(V0,V1); p(V1,V2); not p(V0,V2).' not in transitive_clauses
 
 
 def test_acyclic_negative_back_edge_prune():
@@ -3024,7 +3073,7 @@ def test_acyclic_negative_back_edge_prune():
     )
     clauses = _generate(program, 3, 3).clauses
 
-    assert ":- edge(V0,V1),edge(V1,V2),not edge(V2,V0)." not in clauses
+    assert '#false :- edge(V0,V1); edge(V1,V2); not edge(V2,V0).' not in clauses
 
 
 def test_universal_empty_and_complement_facts_are_emitted():
@@ -3094,12 +3143,12 @@ def test_domain_relative_properties_keep_values_outside_their_domain():
         "#modeb(1,not a(var(t,input))).\n#modeb(1,not b(var(t,input))).\n" + base
     ), Arguments()).clauses
 
-    assert "h(V0) :- not le(V0,V0),n(V0)." in reflexive
+    assert 'h(V0) :- not le(V0,V0); n(V0).' in reflexive
     assert not any(
         "not le(V0,V0)" in clause and "le(V0,V1)" in clause for clause in reflexive
     )
-    assert "h(V0) :- not a(V0),not b(V0),e(V0,V0)." in complement
-    assert "h(V0) :- not a(V0),not b(V0),n(V0)." not in complement
+    assert 'h(V0) :- not a(V0); not b(V0); e(V0,V0).' in complement
+    assert 'h(V0) :- not a(V0); not b(V0); n(V0).' not in complement
 
 
 def test_empty_predicate_prunes_positive_and_negative_literals():
@@ -3139,7 +3188,7 @@ def test_functional_negative_redundancy_with_inequality_prunes():
         "parent(V0,V1)" in clause
         and "not parent(V0,V2)" in clause
         and "child(V2)" in clause
-        and "V1!=V2" in clause
+        and "V1 != V2" in clause
         for clause in clauses
     )
 
@@ -3164,14 +3213,14 @@ def test_functional_negative_redundancy_uses_strict_comparison():
         "p(V0,V1)" in clause
         and "not p(V0,V2)" in clause
         and "value(V2)" in clause
-        and "V1<V2" in clause
+        and "V1 < V2" in clause
         for clause in clauses
     )
 
 
 def test_cardinality_upper_prunes_pairwise_distinct_positive_tuples():
     program = inductive_task(
-        ["value(a).", "value(b).", "1 { in(X) : value(X) } 1."],
+        ["value(a).", "value(b).", '1 <= { in(X): value(X) } <= 1.'],
         [],
         [],
         [],
@@ -3183,7 +3232,7 @@ def test_cardinality_upper_prunes_pairwise_distinct_positive_tuples():
     )
     clauses = _generate(program, 3, 2).clauses
 
-    assert ":- in(V0),in(V1),V0!=V1." not in clauses
+    assert '#false :- in(V0); in(V1); V0 != V1.' not in clauses
 
 
 def test_empty_join_and_total_order_prune_impossible_bodies():
@@ -3212,8 +3261,8 @@ def test_empty_join_and_total_order_prune_impossible_bodies():
     empty_clauses = _generate(empty_join, 3, 1).clauses
     order_clauses = _generate(order, 3, 2).clauses
 
-    assert ":- safe(V0),p(V0),q(V0)." not in empty_clauses
-    assert ":- pair(V0,V1),not le(V0,V1),not le(V1,V0)." not in order_clauses
+    assert '#false :- safe(V0); p(V0); q(V0).' not in empty_clauses
+    assert '#false :- pair(V0,V1); not le(V0,V1); not le(V1,V0).' not in order_clauses
 
 
 def test_reflexive_key_antisymmetric_and_subsumption_prunes():
@@ -3247,11 +3296,11 @@ def test_reflexive_key_antisymmetric_and_subsumption_prunes():
     key_clauses = _generate(key, 2, 5).clauses
     subsumption_clauses = _generate(subsumption, 2, 2).clauses
 
-    assert ":- node(V0),le(V0,V0)." not in reflexive_clauses
-    assert ":- node(V0),not le(V0,V0)." not in reflexive_clauses
-    assert ":- le(V0,V1),le(V1,V0)." not in reflexive_clauses
-    assert ":- rel(V0,V1,V2),rel(V0,V3,V4)." not in key_clauses
-    assert ":- p(V0,V1),p(V0,V0)." not in subsumption_clauses
+    assert '#false :- node(V0); le(V0,V0).' not in reflexive_clauses
+    assert '#false :- node(V0); not le(V0,V0).' not in reflexive_clauses
+    assert '#false :- le(V0,V1); le(V1,V0).' not in reflexive_clauses
+    assert '#false :- rel(V0,V1,V2); rel(V0,V3,V4).' not in key_clauses
+    assert '#false :- p(V0,V1); p(V0,V0).' not in subsumption_clauses
 
 
 def test_equivalent_head_body_redundancy_is_pruned():
@@ -3314,15 +3363,15 @@ def test_mul_and_abs_operands_are_canonicalized():
     (
         (
             "var(foo,input)+var(bar,input)=var(numeric,output)",
-            "p(V2) :- b(V0),a(V1),V0+V1=V2.",
+            'p(V2) :- b(V0); a(V1); (V0+V1) = V2.',
         ),
         (
             "var(foo,input)*var(bar,input)=var(numeric,output)",
-            "p(V2) :- b(V0),a(V1),V1*V0=V2.",
+            'p(V2) :- b(V0); a(V1); (V1*V0) = V2.',
         ),
         (
             "|var(foo,input)-var(bar,input)|=var(numeric,output)",
-            "p(V2) :- b(V0),a(V1),|V1-V0|=V2.",
+            'p(V2) :- b(V0); a(V1); |(V1-V0)| = V2.',
         ),
     ),
 )
@@ -3384,7 +3433,7 @@ def test_parser_parses_directives_without_regex_space_loss(tmp_path):
     )
     assert program.positive_examples[0].context[0].ast_type == ast.ASTType.Rule
     assert program.negative_examples[0].included_text == "bad(1)"
-    assert program.language_bias_head[0].template.elements[0].name == "red"
+    assert program.language_bias_head[0].conclusions[0].atom.name == "red"
     assert program.language_bias_body[0].literal.atom.name == "edge"
     aggregates = [
         mode
@@ -3420,7 +3469,7 @@ def test_parser_parses_complete_head_forms_and_variable_labels(tmp_path):
 
     program = parse_file(str(task))
 
-    assert [head.template.kind for head in program.language_bias_head] == [
+    assert [head.kind for head in program.language_bias_head] == [
         "normal",
         "disjunction",
         "choice",
@@ -3428,12 +3477,13 @@ def test_parser_parses_complete_head_forms_and_variable_labels(tmp_path):
         "disjunction",
     ]
     assert [head.width for head in program.language_bias_head] == [1, 2, 2, 2, 2]
-    assert program.language_bias_head[3].template.lower == 1
-    assert program.language_bias_head[3].template.upper == 1
-    assert program.language_bias_head[1].template.elements[1].terms[0].label == "x"
+    assert str(program.language_bias_head[3].form.left_guard.term) == "1"
+    assert str(program.language_bias_head[3].form.right_guard.term) == "1"
+    assert mode_terms.binding(program.language_bias_head[1].conclusions[1].atom.terms[0]).label == "x"
     assert tuple(
-        atom.terms[0].direction
-        for atom in program.language_bias_head[4].template.elements
+        mode_terms.binding(atom.terms[0]).direction
+        for literal in program.language_bias_head[4].conclusions
+        for atom in (literal.atom,)
     ) == ("input", "output")
 
 
@@ -3458,7 +3508,7 @@ def test_complete_head_forms_are_alternatives_not_implicit_combinations(tmp_path
 
     assert "p(V0) :- node(V0)." in clauses
     assert "q(V0) :- node(V0)." in clauses
-    assert not any("p(V0);q(V0)" in clause for clause in clauses)
+    assert not any("__fixture(p(V0))" in clause for clause in clauses)
 
 
 @pytest.mark.parametrize(
@@ -3466,23 +3516,23 @@ def test_complete_head_forms_are_alternatives_not_implicit_combinations(tmp_path
     [
         (
             "p(var(node,input,x));q(var(node,input,x))",
-            "p(V0);q(V0) :- node(V0).",
+            'p(V0); q(V0) :- node(V0).',
         ),
         (
-            "{p(var(node,input,x));q(var(node,input,x))}",
-            "{p(V0);q(V0)} :- node(V0).",
+            "{ p(var(node,input,x)); q(var(node,input,x)) }",
+            '{ p(V0); q(V0) } :- node(V0).',
         ),
         (
             "1 {p(var(node,input,x));q(var(node,input,x))} 1",
-            "1{p(V0);q(V0)}1 :- node(V0).",
+            '1 <= { p(V0); q(V0) } <= 1 :- node(V0).',
         ),
         (
             "-p(var(node,input,x));q(var(node,input,x))",
-            "-p(V0);q(V0) :- node(V0).",
+            '-p(V0); q(V0) :- node(V0).',
         ),
         (
-            "{-p(var(node,input,x));q(var(node,input,x))}",
-            "{-p(V0);q(V0)} :- node(V0).",
+            "{ -p(var(node,input,x)); q(var(node,input,x)) }",
+            '{ -p(V0); q(V0) } :- node(V0).',
         ),
     ],
 )
@@ -3521,7 +3571,7 @@ def test_body_set_aggregate_is_generated(tmp_path):
         )), encoding="utf-8",
     )
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
-    assert ":- 1<={p(V0):d(V0),not q(V0),V0>0}<=2." in clauses
+    assert '#false :- 1 <= { p(V0): d(V0), not q(V0), V0 > 0 } <= 2.' in clauses
 
 
 def test_default_negated_set_element_keeps_clingo_semantics():
@@ -3530,7 +3580,7 @@ def test_default_negated_set_element_keeps_clingo_semantics():
         "#modeh(1,q).\n#modeb(1,1 {not p} 1)."
     )
     space = generate_clause_space(task, Arguments())
-    clause = next(entry for entry in space.entries if entry.text == "q :- 1<={not p}<=1.")
+    clause = next(entry for entry in space.entries if entry.text == 'q :- 1 <= { not p } <= 1.')
     control = clingo.Control(["0"])
     add_program(control, (*task.background, clause.statement))
     control.ground([("base", [])])
@@ -3547,7 +3597,7 @@ def test_default_negated_set_element_local_variable_needs_positive_condition():
         "#modeb(1,1 {not p(var(n,any,x)):d(var(n,any,x))} 1)."
     )
     clauses = generate_clause_space(task, Arguments()).clauses
-    assert "q :- 1<={not p(V0):d(V0)}<=1." in clauses
+    assert 'q :- 1 <= { not p(V0): d(V0) } <= 1.' in clauses
 
 
 def test_double_negated_set_element_is_distinct():
@@ -3555,7 +3605,7 @@ def test_double_negated_set_element_is_distinct():
         "{p}.\n#maxv(0).\n#maxbl(1).\n#modeh(1,q).\n"
         "#modeb(1,1 {not not p} 1)."
     )
-    assert "q :- 1<={not not p}<=1." in generate_clause_space(task, Arguments()).clauses
+    assert 'q :- 1 <= { not not p } <= 1.' in generate_clause_space(task, Arguments()).clauses
 
 
 def test_set_aggregate_accepts_comparison_element_with_local_variable():
@@ -3567,7 +3617,7 @@ def test_set_aggregate_accepts_comparison_element_with_local_variable():
     space = generate_clause_space(task, Arguments())
     clause = next(
         entry for entry in space.entries
-        if entry.text == "q :- 1<={V0>1:d(V0)}<=1."
+        if entry.text == 'q :- 1 <= { V0 > 1: d(V0) } <= 1.'
     )
     control = clingo.Control(["0"])
     add_program(control, (*task.background, clause.statement))
@@ -3585,7 +3635,7 @@ def test_set_aggregate_accepts_boolean_element(value):
         "d.\n#maxv(0).\n#maxbl(1).\n"
         f"#modeh(1,q).\n#modeb(1,1 {{{value}:d}} 1)."
     )
-    assert f"q :- 1<={{{value}:d}}<=1." in generate_clause_space(task, Arguments()).clauses
+    assert str(parse_rule(f"q :- 1<={{{value}:d}}<=1.")) in generate_clause_space(task, Arguments()).clauses
 
 
 def test_set_comparison_element_cannot_bind_its_own_local_variable():
@@ -3594,7 +3644,7 @@ def test_set_comparison_element_cannot_bind_its_own_local_variable():
         "#modeh(1,q).\n#modeb(1,1 {var(n,any)>1} 1)."
     )
     assert not any(
-        "{V0>1}" in clause
+        "{ V0 > 1 }" in clause
         for clause in generate_clause_space(task, Arguments()).clauses
     )
 
@@ -3603,13 +3653,13 @@ def test_set_comparison_element_cannot_bind_its_own_local_variable():
     ("mode", "fragment"),
     [
         (
-            "#count{var(n,any):p(var(n,any)),not q(var(n,any)),var(n,any)>0}=1",
-            "#count{V0:p(V0),not q(V0),V0>0}",
+            "1 = #count { var(n,any): p(var(n,any)), not q(var(n,any)), var(n,any) > 0 }",
+            "#count { V0: p(V0), not q(V0), V0 > 0 }",
         ),
-        ("#sum{1;2}=3", "#sum{1;2}"),
+        ("3 = #sum { 1; 2 }", "#sum { 1; 2 }"),
         (
-            "#sum{var(n,any)+var(n,any):p(var(n,any),var(n,any))}=3",
-            "#sum{V0+V1:p(V0,V1)}",
+            "3 = #sum { (var(n,any)+var(n,any)): p(var(n,any),var(n,any)) }",
+            "#sum { (V0+V1): p(V0,V1) }",
         ),
     ],
 )
@@ -3630,7 +3680,7 @@ def test_condition_free_aggregate_can_use_a_global_variable():
         "#modeb(1,#count{var(n,any)}=1).",
     ))
     clauses = generate_clause_space(parse_text(source), Arguments()).clauses
-    assert ":- p(V0),1=#count{V0}." in clauses
+    assert '#false :- p(V0); 1 = #count { V0 }.' in clauses
 
 
 def test_aggregate_local_variable_needs_a_positive_condition():
@@ -3658,8 +3708,8 @@ def test_head_guards_can_use_safe_body_variables():
         "#modeb(1,n(var(n,output))).",
     ))
     clauses = generate_clause_space(parse_text(source), Arguments()).clauses
-    assert "V0{p(V0):d(V0)}V0 :- n(V0)." in clauses
-    assert "V0{p(V0):d(V0)}V0." not in clauses
+    assert 'V0 <= { p(V0): d(V0) } <= V0 :- n(V0).' in clauses
+    assert 'V0 <= { p(V0): d(V0) } <= V0.' not in clauses
 
 
 def test_head_function_aggregate_variable_guard_and_rich_conditions():
@@ -3671,7 +3721,7 @@ def test_head_function_aggregate_variable_guard_and_rich_conditions():
     ))
     clauses = generate_clause_space(parse_text(source), Arguments()).clauses
     assert (
-        "#count{V1:p(V1):d(V1),not q(V1),V1>0}=V0 :- n(V0)."
+        'V0 = #count { V1: p(V1): d(V1), not q(V1), V1 > 0 } :- n(V0).'
         in clauses
     )
 
@@ -3685,9 +3735,9 @@ def test_atom_arguments_accept_arithmetic_intervals_and_mode_pools():
         "#modeb(1,n(var(n,output))).",
     ))
     clauses = generate_clause_space(parse_text(source), Arguments()).clauses
-    assert "p(V0+1) :- n(V0)." in clauses
-    assert "q(1..3)." in clauses
-    assert "r(1;2)." in clauses
+    assert 'p((V0+1)) :- n(V0).' in clauses
+    assert 'q((1..3)).' in clauses
+    assert 'r((1;2)).' in clauses
     assert "r(1)." not in clauses
     assert "r(2)." not in clauses
 
@@ -3700,7 +3750,7 @@ def test_body_atom_pool_stays_in_one_learned_clause():
     task = parse_text(source)
     assert len(task.language_bias_body) == 1
     assert generate_clause_space(task, Arguments()).clauses == (
-        ":- p(1;2).",
+        '#false :- p((1;2)).',
     )
 
 
@@ -3712,7 +3762,7 @@ def test_nested_body_pool_stays_in_one_learned_clause():
     assert len(task.language_bias_body) == 1
     space = generate_clause_space(task, Arguments())
     clause = next(
-        entry for entry in space.entries if entry.text == "q :- p(f(1);f(2))."
+        entry for entry in space.entries if entry.text == 'q :- p(f(1;2)).'
     )
     control = clingo.Control(["0"])
     add_program(control, (*task.background, clause.statement))
@@ -3730,7 +3780,7 @@ def test_body_pool_retains_clingo_disjunctive_body_semantics():
         "#modeh(1,q).\n#modeb(1,p(1;2))."
     )
     space = generate_clause_space(task, Arguments())
-    clause = next(entry for entry in space.entries if entry.text == "q :- p(1;2).")
+    clause = next(entry for entry in space.entries if entry.text == 'q :- p((1;2)).')
     control = clingo.Control(["0"])
     add_program(control, (*task.background, clause.statement))
     control.ground([("base", [])])
@@ -3749,7 +3799,11 @@ def test_body_pool_only_binds_variables_present_in_every_alternative():
         "#modeb(1,d(var(n,output,x)))."
     )
     clauses = generate_clause_space(task, Arguments()).clauses
-    assert "q(V0) :- p(V0,1;2)." in clauses
+    clause = "q(V0) :- p(V0,(1;2))."
+    assert clause in clauses
+    assert _models_for_source("\n".join((*render_program(task.background), clause))) == {
+        frozenset({"d(1)", "p(1,1)", "p(2,2)", "q(1)", "q(2)"})
+    }
     assert all("p(V0;V1)" not in clause for clause in clauses)
 
 
@@ -3775,7 +3829,7 @@ def test_body_pool_variables_can_be_grounded_by_other_literals():
     space = generate_clause_space(task, Arguments())
     clause = next(
         entry for entry in space.entries
-        if entry.text == "q(V0,V1) :- d(V0),d(V1),p(V0;V1)."
+        if entry.text == 'q(V0,V1) :- d(V0); d(V1); p((V0;V1)).'
     )
     control = clingo.Control(["0"])
     add_program(control, (*task.background, clause.statement))
@@ -3805,7 +3859,7 @@ def test_strong_negation_is_rendered_in_heads_and_default_negated_bodies(tmp_pat
 
     clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
-    assert "-target(V0) :- node(V0),not -blocked(V0)." in clauses
+    assert '-target(V0) :- node(V0); not -blocked(V0).' in clauses
 
 
 def test_strongly_negated_hypothesis_covers_strongly_negated_example():
@@ -3926,7 +3980,7 @@ def test_two_default_negated_strong_complements_remain_legal(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert ":- node(V0),not p(V0),not -p(V0)." in clauses
+    assert '#false :- node(V0); not p(V0); not -p(V0).' in clauses
 
 
 def test_strong_negation_is_preserved_in_aggregate_conditions(tmp_path):
@@ -3970,8 +4024,8 @@ def test_distinct_head_labels_require_distinct_variables(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "p(V0);q(V1) :- edge(V0,V1)." in clauses
-    assert "p(V0);q(V0) :- edge(V0,V1)." not in clauses
+    assert 'p(V0); q(V1) :- edge(V0,V1).' in clauses
+    assert 'p(V0); q(V0) :- edge(V0,V1).' not in clauses
 
 
 def test_learnable_ground_facts_have_no_empty_rule_body(tmp_path):
@@ -3992,7 +4046,7 @@ def test_learnable_ground_facts_have_no_empty_rule_body(tmp_path):
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
     assert "ready(a)." in clauses
-    assert all(":- ." not in clause for clause in clauses)
+    assert all('#false.' not in clause for clause in clauses)
     assert all(not clause.startswith("unsafe(") for clause in clauses)
 
 
@@ -4012,9 +4066,9 @@ def test_bodyless_complete_heads_keep_their_declared_asp_form(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "a;b." in clauses
-    assert "1{c;d}1." in clauses
-    assert ":-." not in clauses
+    assert 'a; b.' in clauses
+    assert '1 <= { c; d } <= 1.' in clauses
+    assert '#false.' not in clauses
 
 
 def test_completely_empty_clause_is_not_learnable():
@@ -4054,7 +4108,7 @@ def test_positive_head_condition_can_safely_ground_a_bodyless_rule(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "p(V0):node(V0)." in clauses
+    assert 'p(V0): node(V0).' in clauses
 
 
 def test_parser_rejects_invalid_or_empty_bias(tmp_path):
@@ -4084,8 +4138,8 @@ def test_nested_head_labels_control_flattened_placeholders(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "p(f(V0));q(g(V0)) :- edge(V0,V1)." in clauses
-    assert "p(f(V0));q(g(V1)) :- edge(V0,V1)." not in clauses
+    assert 'p(f(V0)); q(g(V0)) :- edge(V0,V1).' in clauses
+    assert 'p(f(V0)); q(g(V1)) :- edge(V0,V1).' not in clauses
 
 
 @pytest.mark.parametrize(
@@ -4121,7 +4175,7 @@ def test_parser_parses_condition_modes_with_full_atom_syntax(tmp_path):
     assert declaration.recall == 2
     assert declaration.literal.default_negated
     assert declaration.literal.atom.strong
-    assert declaration.literal.atom.terms[0].kind == "function"
+    assert declaration.literal.atom.terms[0].ast_type == ast.ASTType.Function
     assert program.constants == {"colour": ("red",)}
 
 
@@ -4164,9 +4218,9 @@ def test_condition_modes_generate_head_and_body_conditional_literals(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "target(V0):node(V0) :- base(V0)." in clauses
-    assert "target(V0):node(V1) :- base(V0)." in clauses
-    assert "target(V0) :- base(V0):node(V0)." not in clauses
+    assert 'target(V0): node(V0) :- base(V0).' in clauses
+    assert 'target(V0): node(V1) :- base(V0).' in clauses
+    assert 'target(V0) :- base(V0): node(V0).' not in clauses
 
 
 @pytest.mark.parametrize(
@@ -4174,11 +4228,11 @@ def test_condition_modes_generate_head_and_body_conditional_literals(tmp_path):
     (
         (
             "p(var(node,input,x));q(var(node,input,x))",
-            "p(V0):node(V1);q(V0) :- base(V0).",
+            'p(V0): node(V1); q(V0) :- base(V0).',
         ),
         (
             "1 {p(var(node,input,x));q(var(node,input,x))} 1",
-            "1{p(V0):node(V1);q(V0)}1 :- base(V0).",
+            '1 <= { p(V0): node(V1); q(V0) } <= 1 :- base(V0).',
         ),
     ),
 )
@@ -4229,8 +4283,8 @@ def test_positive_condition_binds_each_local_conditional_variable(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "target :- p(V0):q(V0)." in clauses
-    assert "target :- p(V0):q(V1)." not in clauses
+    assert 'target :- p(V0): q(V0).' in clauses
+    assert 'target :- p(V0): q(V1).' not in clauses
 
 
 def test_body_conditional_uses_unambiguous_semicolon_separators(tmp_path):
@@ -4253,7 +4307,7 @@ def test_body_conditional_uses_unambiguous_semicolon_separators(tmp_path):
     )
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
-    clause = "target :- base(V0);p(V1):q(V1)."
+    clause = 'target :- base(V0); p(V1): q(V1).'
 
     assert clause in clauses
     control = clingo.Control(["0"])
@@ -4284,7 +4338,7 @@ def test_conditional_local_names_can_be_reused_between_scopes(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "target :- p(V0):q(V0);r(V0):s(V0)." in clauses
+    assert 'target :- p(V0): q(V0); r(V0): s(V0).' in clauses
 
 
 def test_conditional_global_output_requires_an_external_producer(tmp_path):
@@ -4306,7 +4360,7 @@ def test_conditional_global_output_requires_an_external_producer(tmp_path):
         )
         return generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    clause = "target(V0):node(V0) :- source(V0)."
+    clause = 'target(V0): node(V0) :- source(V0).'
 
     assert clause in clauses("output")
     assert clause not in clauses("any")
@@ -4359,7 +4413,7 @@ def test_multiple_conditions_preserve_negation_terms_and_dependencies(tmp_path):
     )
 
     space = generate_clause_space(parse_file(str(task)), Arguments())
-    clause = "target(V0):node(box(V0,red)),not blocked(V0) :- base(V0)."
+    clause = 'target(V0): node(box(V0,red)), not blocked(V0) :- base(V0).'
     entry = next(entry for entry in space.entries if entry.text == clause)
 
     assert entry.heads == frozenset({("target", 1)})
@@ -4386,8 +4440,8 @@ def test_negative_body_conclusion_can_be_grounded_by_its_condition(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "target :- not p(V0):q(V0)." in clauses
-    assert "target :- not p(V0):q(V1)." not in clauses
+    assert 'target :- not p(V0): q(V0).' in clauses
+    assert 'target :- not p(V0): q(V1).' not in clauses
 
 
 def test_unbounded_body_requires_finite_condition_recalls(tmp_path):
@@ -4409,7 +4463,7 @@ def test_unbounded_body_requires_finite_condition_recalls(tmp_path):
 
 
 def test_conditional_literal_ir_renders_variables_in_syntax_order():
-    variable = TermTemplate.variable("node", "any")
+    variable = mode_terms.variable('node', 'any')
     literal = ConditionalLiteral(
         AtomLiteral(AtomTemplate("p", (variable,))),
         (
@@ -4419,7 +4473,7 @@ def test_conditional_literal_ir_renders_variables_in_syntax_order():
         (0, 1),
     )
 
-    assert render_literal(literal, (2, 2, 5)) == "p(V2):q(V2),not r(V5)"
+    assert str(instantiate_literal(literal, (2, 2, 5))) == "p(V2): q(V2), not r(V5)"
 
 
 def test_parser_accepts_strongly_negated_invention(tmp_path):
@@ -4446,7 +4500,7 @@ def test_complete_head_width_must_fit_maxhl(tmp_path):
 
 def test_language_bias_is_not_generated_when_bias_is_missing():
     program = inductive_task(
-        ["a :- b, not c."],
+        ['a :- b; not c.'],
         [],
         [],
         [],
@@ -4472,7 +4526,8 @@ def test_language_bias_keeps_explicit_head_without_generating_body():
     assert {
         atom.signature
         for head in program.language_bias_head
-        for atom in head.template.elements
+        for literal in head.conclusions
+        for atom in (literal.atom,)
     } == {
         ("heads", 1),
         ("tails", 1),
@@ -4527,15 +4582,15 @@ def test_negative_body_singleton_remains_rejected():
 
     clauses = _generate(program, 3, 2).clauses
 
-    assert "target(V0) :- node(V0),not edge(V0,V1)." not in clauses
+    assert 'target(V0) :- node(V0); not edge(V0,V1).' not in clauses
 
 
 def test_ast_atom_extraction_handles_choice_rules():
     atoms = {
-        (name, arguments)
-        for name, arguments, _negative in fragment_atoms(
-            "1 { p(P,I) : partition(P) } 1 :- number(I)."
-        )
+        (name, tuple(map(str, arguments)))
+        for name, arguments, _sign in _node_atoms(parse_rule(
+            '1 <= { p(P,I): partition(P) } <= 1 :- number(I).'
+        ))
     }
 
     assert ("p", ("P", "I")) in atoms
@@ -4554,7 +4609,8 @@ def test_bundled_benchmarks_use_explicit_non_any_directions():
         head_modes = [
             atom
             for head in program.language_bias_head
-            for atom in head.template.elements
+            for literal in head.conclusions
+        for atom in (literal.atom,)
         ]
         body_atoms = [
             mode.literal.atom
@@ -4563,7 +4619,7 @@ def test_bundled_benchmarks_use_explicit_non_any_directions():
         ]
         for atom in [*head_modes, *body_atoms]:
             assert all(
-                argument.kind == "constant" or argument.direction != "any"
+                mode_terms.kind(argument) == "constant" or mode_terms.binding(argument).direction != "any"
                 for argument in atom.terms
             ), arguments.filename
 
@@ -4599,24 +4655,24 @@ def test_coloring_clause_generation_contains_target_clauses():
     clauses = _benchmark_clauses("coloring")
 
     assert len(clauses) >= 59
-    assert "red(V0);green(V0);blue(V0) :- node(V0)." in clauses
-    assert ":- e(V0,V1),red(V0),red(V1)." in clauses
-    assert ":- e(V0,V1),green(V0),green(V1)." in clauses
-    assert ":- e(V0,V1),blue(V0),blue(V1)." in clauses
+    assert 'red(V0); green(V0); blue(V0) :- node(V0).' in clauses
+    assert '#false :- e(V0,V1); red(V0); red(V1).' in clauses
+    assert '#false :- e(V0,V1); green(V0); green(V1).' in clauses
+    assert '#false :- e(V0,V1); blue(V0); blue(V1).' in clauses
 
 
 def test_coin_clause_generation_contains_target_clauses():
     clauses = _benchmark_clauses("coin")
 
-    assert "heads(V0) :- coin(V0),not tails(V0)." in clauses
-    assert "tails(V0) :- coin(V0),not heads(V0)." in clauses
+    assert 'heads(V0) :- coin(V0); not tails(V0).' in clauses
+    assert 'tails(V0) :- coin(V0); not heads(V0).' in clauses
 
 
 def test_even_odd_clause_generation_contains_mutual_recursion():
     clauses = _benchmark_clauses("even_odd")
 
-    assert "even(V1) :- odd(V0),prev(V1,V0)." in clauses
-    assert "odd(V1) :- even(V0),prev(V1,V0)." in clauses
+    assert 'even(V1) :- odd(V0); prev(V1,V0).' in clauses
+    assert 'odd(V1) :- even(V0); prev(V1,V0).' in clauses
 
 
 def test_grandparent_clause_generation_contains_invented_predicate_solution():
@@ -4626,7 +4682,7 @@ def test_grandparent_clause_generation_contains_invented_predicate_solution():
 
     assert program.invented_predicates == (("target_1", 2),)
     assert len(program.positive_examples) == 7
-    assert "target(V0,V2) :- target_1(V0,V1),target_1(V1,V2)." in clauses
+    assert 'target(V0,V2) :- target_1(V0,V1); target_1(V1,V2).' in clauses
     assert "target_1(V0,V1) :- mother(V0,V1)." in clauses
     assert "target_1(V0,V1) :- father(V0,V1)." in clauses
     assert not any(
@@ -4640,10 +4696,10 @@ def test_latin_square_clause_generation_contains_covering_target_program():
     program = parse_file(args.filename)
     clauses = set(generate_clause_space(program, args).clauses)
     target = (
-        "count_row(V0,V3) :- cell(V0),#count{V1:x(V0,V2,V1)}=V3.",
-        "count_col(V0,V3) :- cell(V0),#count{V1:x(V2,V0,V1)}=V3.",
-        ":- count_row(V0,V1),size(V2),V1-V2!=0.",
-        ":- count_col(V0,V1),size(V2),V1-V2!=0.",
+        'count_row(V0,V3) :- cell(V0); V3 = #count { V1: x(V0,V2,V1) }.',
+        'count_col(V0,V3) :- cell(V0); V3 = #count { V1: x(V2,V0,V1) }.',
+        '#false :- count_row(V0,V1); size(V2); (V1-V2) != 0.',
+        '#false :- count_col(V0,V1); size(V2); (V1-V2) != 0.',
     )
 
     aggregates = [
@@ -4674,8 +4730,9 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
 
     def example_cells(example):
         return {
-            (int(arguments[0]), int(arguments[1])): int(arguments[2])
-            for name, arguments, _negative in fragment_atoms(example.included_text)
+            (int(str(arguments[0])), int(str(arguments[1]))): int(str(arguments[2]))
+            for node in example.included
+            for name, arguments, _sign in _node_atoms(node)
             if name == "x"
         }
 
@@ -4693,10 +4750,10 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
         for cells in positive_cells + negative_cells
     ]
     target = {
-        "sum_row(V0,V3) :- size(V0),#sum{V1:x(V0,V2,V1)}=V3.",
-        "sum_col(V0,V3) :- size(V0),#sum{V1:x(V2,V0,V1)}=V3.",
-        ":- sum_row(V0,V1),sum_row(V2,V3),V1-V3!=0.",
-        ":- sum_col(V0,V1),sum_col(V2,V3),V1-V3!=0.",
+        'sum_row(V0,V3) :- size(V0); V3 = #sum { V1: x(V0,V2,V1) }.',
+        'sum_col(V0,V3) :- size(V0); V3 = #sum { V1: x(V2,V0,V1) }.',
+        '#false :- sum_row(V0,V1); sum_row(V2,V3); (V1-V3) != 0.',
+        '#false :- sum_col(V0,V1); sum_col(V2,V3); (V1-V3) != 0.',
     }
 
     assert len(program.positive_examples) == 72
@@ -4713,7 +4770,6 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     assert program.max_body_literals == 4
     assert program.max_variables == 4
     assert program.max_program_clauses == 6
-    assert all(mode.recall == 1 for mode in program.language_bias_head)
 
     definition_program = copy.deepcopy(program)
     definition_program.max_body_literals = 3
@@ -4735,9 +4791,9 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
     ]
     constraint_clauses = set(generate_clause_space(constraint_program, args).clauses)
 
-    assert {clause for clause in target if "#sum{" in clause} <= definition_clauses
+    assert {clause for clause in target if "#sum {" in clause} <= definition_clauses
     assert {
-        clause for clause in target if clause.startswith(":-")
+        clause for clause in target if clause.startswith("#false :-")
     } <= constraint_clauses
 
     solver = CoverageSolver(
@@ -4747,12 +4803,12 @@ def test_magic_square_no_diag_requires_row_and_column_rules():
         program.negative_examples,
     )
     row_program = (
-        "sum_row(R,S) :- size(R),#sum{V:x(R,C,V)}=S.",
-        ":- sum_row(R0,S0),sum_row(R1,S1),R0!=R1,S0!=S1.",
+        'sum_row(R,S) :- size(R); S = #sum { V: x(R,C,V) }.',
+        '#false :- sum_row(R0,S0); sum_row(R1,S1); R0 != R1; S0 != S1.',
     )
     column_program = (
-        "sum_col(C,S) :- size(C),#sum{V:x(R,C,V)}=S.",
-        ":- sum_col(C0,S0),sum_col(C1,S1),C0!=C1,S0!=S1.",
+        'sum_col(C,S) :- size(C); S = #sum { V: x(R,C,V) }.',
+        '#false :- sum_col(C0,S0); sum_col(C1,S1); C0 != C1; S0 != S1.',
     )
     full_coverage = solver.extract_coverage(
         parse_program("\n".join(row_program + column_program))
@@ -4773,20 +4829,20 @@ def test_fixed_benchmark_definitions_expose_real_target_shapes():
     set_partition = _benchmark_clauses("set_partition_sum")
 
     assert any(
-        clause.startswith(":- ") and clause.count("q(") == 2 and "+" in clause
+        clause.startswith("#false :- ") and clause.count("q(") == 2 and "+" in clause
         for clause in queens
     )
     assert any(
-        clause.startswith(":- ") and clause.count("q(") == 2 and "-" in clause
+        clause.startswith("#false :- ") and clause.count("q(") == 2 and "-" in clause
         for clause in queens
     )
-    assert "ok(V0) :- s0(V0),s1(V0)." in subset_double
+    assert 'ok(V0) :- s0(V0); s1(V0).' in subset_double
     assert any(
-        clause.startswith("ok(") and clause.count("#sum{") >= 2 and "+" in clause
+        clause.startswith("ok(") and clause.count("#sum {") >= 2 and "+" in clause
         for clause in subset_sum
     )
     assert any(
-        clause.startswith(":- ")
+        clause.startswith("#false :- ")
         and clause.count("sum_partition(") >= 2
         and "!=" in clause
         for clause in set_partition
@@ -4797,7 +4853,7 @@ def test_coloring_complete_head_never_generates_partial_disjunctions():
     clauses = _benchmark_clauses("coloring")
 
     assert all(
-        clause.startswith(":-") or clause.partition(" :-")[0].count(";") == 2
+        clause.startswith("#false :-") or clause.partition(" :-")[0].count(";") == 2
         for clause in clauses
     )
 
@@ -4831,10 +4887,10 @@ def test_aggregate_local_names_can_be_reused_for_coordinate_products(projected):
     """)
     space = generate_clause_space(task, Arguments())
     tuple_text = "V0" if projected else "V0,V1"
-    expected = (
+    expected = str(parse_rule(
         f"ok(V4) :- #sum{{{tuple_text}:el(V0,V1)}}=V2,"
         f"#sum{{{tuple_text}:el(V1,V0)}}=V3,V2*V3=V4."
-    )
+    ))
     assert expected in space.clauses
     # The repair must not let a local aggregate variable escape into arithmetic,
     # a head, or an aggregate result. Ground every generated rule separately.
@@ -4853,8 +4909,8 @@ def test_aggregate_local_names_do_not_connect_independent_literals():
         #modeb(1,#sum{var(numeric,any):q(var(numeric,any))}=var(numeric,output)).
     """)
     clauses = generate_clause_space(task, Arguments()).clauses
-    assert "target(V1) :- #sum{V0:p(V0)}=V1,#sum{V0:q(V0)}=V1." in clauses
-    assert "target(V1) :- #sum{V0:p(V0)}=V1,#sum{V0:q(V0)}=V2." not in clauses
+    assert 'target(V1) :- V1 = #sum { V0: p(V0) }; V1 = #sum { V0: q(V0) }.' in clauses
+    assert 'target(V1) :- V1 = #sum { V0: p(V0) }; V2 = #sum { V0: q(V0) }.' not in clauses
 
 
 def test_separate_aggregate_scopes_can_reuse_a_name_with_different_nominal_types():
@@ -4866,7 +4922,7 @@ def test_separate_aggregate_scopes_can_reuse_a_name_with_different_nominal_types
         #modeb(1,#count{var(right,any):q(var(right,any))}=var(numeric,output)).
     """)
     clauses = generate_clause_space(task, Arguments()).clauses
-    assert "target(V1) :- #count{V0:p(V0)}=V1,#count{V0:q(V0)}=V1." in clauses
+    assert 'target(V1) :- V1 = #count { V0: p(V0) }; V1 = #count { V0: q(V0) }.' in clauses
 
 
 def test_linkedness_prunes_disconnected_global_variable_components():
@@ -4884,8 +4940,8 @@ def test_linkedness_prunes_disconnected_global_variable_components():
 
     clauses = _generate(program, 4, 2).clauses
 
-    assert "target(V0) :- p(V0),q(V1),r(V1)." not in clauses
-    assert "target(V0) :- p(V0),q(V0),r(V0)." in clauses
+    assert 'target(V0) :- p(V0); q(V1); r(V1).' not in clauses
+    assert 'target(V0) :- p(V0); q(V0); r(V0).' in clauses
 
 
 def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
@@ -4905,8 +4961,8 @@ def test_mode_directions_bind_inputs_and_produce_head_outputs(tmp_path):
     clauses = _generate(program, 2, 2).clauses
 
     assert tuple(
-        argument.direction
-        for argument in program.language_bias_head[0].template.elements[0].terms
+        mode_terms.binding(argument).direction
+        for argument in program.language_bias_head[0].conclusions[0].atom.terms
     ) == ("input", "output")
     assert "target(V0,V1) :- edge(V0,V1)." in clauses
     assert "target(V0,V1) :- edge(V1,V0)." not in clauses
@@ -4927,8 +4983,8 @@ def test_theta_reduction_rejects_clause_equivalent_to_proper_subclause():
     clauses = generate_clause_space(task, Arguments()).clauses
 
     assert "target(V0) :- edge(V0,V1)." in clauses
-    assert "target(V0) :- edge(V0,V1),edge(V0,V2)." not in clauses
-    assert "target(V0) :- edge(V0,V1),edge(V0,V2),edge(V1,V2)." in clauses
+    assert 'target(V0) :- edge(V0,V1); edge(V0,V2).' not in clauses
+    assert 'target(V0) :- edge(V0,V1); edge(V0,V2); edge(V1,V2).' in clauses
 
 
 def test_parser_parses_aggregate_head_modes_with_optional_recall(tmp_path):
@@ -4976,12 +5032,12 @@ def test_modeha_generates_nonredundant_cardinality_heads(tmp_path):
 
     clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
-    assert "0{p(a)}1 :- seed(a)." in clauses
-    assert "0{p(b)}1 :- seed(a)." in clauses
+    assert '0 <= { p(a) } <= 1 :- seed(a).' in clauses
+    assert '0 <= { p(b) } <= 1 :- seed(a).' in clauses
     assert {
-        "0{p(a);p(b)}1 :- seed(a).",
-        "1{p(a);p(b)}1 :- seed(a).",
-        "1{p(a);p(b)}2 :- seed(a).",
+        '0 <= { p(a); p(b) } <= 1 :- seed(a).',
+        '1 <= { p(a); p(b) } <= 1 :- seed(a).',
+        '1 <= { p(a); p(b) } <= 2 :- seed(a).',
     } <= clauses
     assert not any("0{p(a);p(b)}2" in clause for clause in clauses)
     assert not any("2{p(a);p(b)}2" in clause for clause in clauses)
@@ -5011,9 +5067,9 @@ def test_modeha_recall_and_minhl_bound_generated_width(tmp_path):
     clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
     assert clauses
-    choice_clauses = {clause for clause in clauses if not clause.startswith(":-")}
+    choice_clauses = {clause for clause in clauses if not clause.startswith("#false :-")}
     assert all(clause.partition(" :-")[0].count(";") >= 1 for clause in choice_clauses)
-    assert any("{p(a);p(b);q(a)}" in clause for clause in choice_clauses)
+    assert any("{ p(a); p(b); q(a) }" in clause for clause in choice_clauses)
     assert not any("q(a);q(b)" in clause for clause in choice_clauses)
 
 
@@ -5036,8 +5092,8 @@ def test_modeha_reuses_one_template_for_distinct_compatible_variables(tmp_path):
 
     clauses = set(generate_clause_space(parse_file(str(task)), Arguments()).clauses)
 
-    assert "0{p(V0);p(V1)}1 :- node(V0),node(V1)." in clauses
-    assert not any("p(V0);p(V0)" in clause for clause in clauses)
+    assert '0 <= { p(V0); p(V1) } <= 1 :- node(V0); node(V1).' in clauses
+    assert not any("__fixture(p(V0))" in clause for clause in clauses)
 
 
 def test_exact_choice_head_connects_its_elements_with_distinct_variables():
@@ -5050,7 +5106,7 @@ def test_exact_choice_head_connects_its_elements_with_distinct_variables():
 
     clauses = generate_clause_space(task, Arguments()).clauses
 
-    assert "{p(V0);q(V1)} :- d(V0),d(V1)." in clauses
+    assert '{ p(V0); q(V1) } :- d(V0); d(V1).' in clauses
 
 
 def test_unbounded_modeha_requires_finite_maxhl(tmp_path):
@@ -5132,7 +5188,7 @@ def test_modeha_elements_accept_generated_conditions(tmp_path):
     program = parse_file(str(task))
     clauses = set(generate_clause_space(program, Arguments()).clauses)
 
-    assert "0{p(V0):allowed(V0)}1 :- node(V0)." in clauses
+    assert '0 <= { p(V0): allowed(V0) } <= 1 :- node(V0).' in clauses
     control = clingo.Control(["0"])
     control.add("base", [], "\n".join([*render_program(program.background), *clauses]))
     control.ground([("base", [])])
@@ -5181,7 +5237,7 @@ def test_modeb_accepts_exact_nested_relations(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert any("-V0+3*V1<=0" in clause for clause in clauses)
+    assert any("(-V0+(3*V1)) <= 0" in clause for clause in clauses)
 
 
 def test_complete_head_keeps_exact_conditional_attachment(tmp_path):
@@ -5202,7 +5258,7 @@ def test_complete_head_keeps_exact_conditional_attachment(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "p(V0):node(V0) :- base(V0)." in clauses
+    assert 'p(V0): node(V0) :- base(V0).' in clauses
 
 
 def test_modehd_combines_declared_disjunction_elements(tmp_path):
@@ -5223,7 +5279,7 @@ def test_modehd_combines_declared_disjunction_elements(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "p(a);p(b)." in clauses
+    assert 'p(a); p(b).' in clauses
     assert not any("{" in clause for clause in clauses)
 
 
@@ -5245,7 +5301,7 @@ def test_modeb_exact_equality_can_produce_its_declared_output(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert any("V0+1=V1" in clause and clause.startswith("p(V1)") for clause in clauses)
+    assert any("(V0+1) = V1" in clause and clause.startswith("p(V1)") for clause in clauses)
 
 
 def test_modeb_exact_expression_preserves_parentheses_and_unary_abs(tmp_path):
@@ -5262,7 +5318,7 @@ def test_modeb_exact_expression_preserves_parentheses_and_unary_abs(tmp_path):
 
     declaration = parse_file(str(task)).language_bias_body[0]
     assert isinstance(declaration, ModeDeclaration)
-    assert declaration.literal.render(iter(("V0", "V1", "V2"))) == "(V0+1)*V1<|V2-2|"
+    assert str(declaration.literal.instantiate(iter(("V0", "V1", "V2")))) == "((V0+1)*V1) < |(V2-2)|"
 
 
 def test_modeb_exact_expression_supports_every_clingo_bit_operator(tmp_path):
@@ -5274,15 +5330,15 @@ def test_modeb_exact_expression_supports_every_clingo_bit_operator(tmp_path):
 
     declaration = parse_file(str(task)).language_bias_body[0]
     assert isinstance(declaration, ModeDeclaration)
-    rendered = declaration.literal.render(iter(("V0", "V1", "V2", "V3", "V4")))
-    assert rendered == "((~V0)&V1)^(V2?(V3**2))=V4"
+    rendered = str(declaration.literal.instantiate(iter(("V0", "V1", "V2", "V3", "V4"))))
+    assert rendered == "((~V0&V1)^(V2?(V3**2))) = V4"
 
 
 @pytest.mark.parametrize(
     ("expression", "expected"),
     (
-        ("-(var(numeric,input)+1)=0", "-(V0+1)=0"),
-        ("~(var(numeric,input)&1)=0", "~(V0&1)=0"),
+        ("-(var(numeric,input)+1)=0", "-(V0+1) = 0"),
+        ("~(var(numeric,input)&1)=0", "~(V0&1) = 0"),
     ),
 )
 def test_modeb_unary_operator_preserves_binary_operand_grouping(
@@ -5293,7 +5349,7 @@ def test_modeb_unary_operator_preserves_binary_operand_grouping(
 
     declaration = parse_file(str(task)).language_bias_body[0]
     assert isinstance(declaration, ModeDeclaration)
-    assert declaration.literal.render(iter(("V0",))) == expected
+    assert str(declaration.literal.instantiate(iter(("V0",)))) == expected
 
 
 def test_modec_accepts_an_exact_comparison_condition(tmp_path):
@@ -5314,7 +5370,7 @@ def test_modec_accepts_an_exact_comparison_condition(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert any(":V0<3" in clause for clause in clauses)
+    assert any(": V0 < 3" in clause for clause in clauses)
 
 
 def test_exact_comparison_condition_can_share_a_locally_grounded_variable(tmp_path):
@@ -5335,7 +5391,7 @@ def test_exact_comparison_condition_can_share_a_locally_grounded_variable(tmp_pa
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "target :- p(V0):q(V0),V0<3." in clauses
+    assert 'target :- p(V0): q(V0), V0 < 3.' in clauses
 
 
 def test_complete_choice_head_keeps_each_exact_condition(tmp_path):
@@ -5350,9 +5406,9 @@ def test_complete_choice_head_keeps_each_exact_condition(tmp_path):
         encoding="utf-8",
     )
 
-    head = parse_file(str(task)).language_bias_head[0].template
-    assert tuple(condition.atom.name for condition in head.conditions[0]) == ("left",)
-    assert tuple(condition.atom.name for condition in head.conditions[1]) == ("right",)
+    head = parse_file(str(task)).language_bias_head[0]
+    assert tuple(condition.atom.name for condition in head.elements[0].conditions) == ("left",)
+    assert tuple(condition.atom.name for condition in head.elements[1].conditions) == ("right",)
 
 
 def test_exact_simple_modeb_relation_is_not_algebraically_rewritten(tmp_path):
@@ -5374,8 +5430,8 @@ def test_exact_simple_modeb_relation_is_not_algebraically_rewritten(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert any("V0<V1" in clause for clause in clauses)
-    assert not any("V0-V1<0" in clause for clause in clauses)
+    assert any("V0 < V1" in clause for clause in clauses)
+    assert not any("(V0-V1) < 0" in clause for clause in clauses)
 
 
 @pytest.mark.parametrize(
@@ -5383,16 +5439,16 @@ def test_exact_simple_modeb_relation_is_not_algebraically_rewritten(tmp_path):
     (
         "p(var(node,any)):q(var(node,any)),r(var(node,any))",
         "p(var(node,any)):q(var(node,any)),r(var(node,any));s",
-        "{p(var(node,any)):q(var(node,any)),r(var(node,any));s}",
+        "{ p(var(node,any)): q(var(node,any)), r(var(node,any)); s }",
     ),
 )
 def test_modeh_accepts_multiple_exact_conditions(tmp_path, head):
     task = tmp_path / "multiple-head-conditions.las"
     task.write_text(f"#maxhl(2).\n#modeh(1,{head}).\n", encoding="utf-8")
 
-    template = parse_file(str(task)).language_bias_head[0].template
+    template = parse_file(str(task)).language_bias_head[0]
 
-    assert len(template.conditions[0]) == 2
+    assert len(template.conditions) == 2
 
 
 def test_modeb_accepts_bare_comparisons(tmp_path):
@@ -5424,7 +5480,7 @@ def test_modeb_infers_forward_arithmetic_assignment_directions(tmp_path):
     literal = parse_file(str(task)).language_bias_body[0].literal
     assert isinstance(literal, ComparisonLiteral)
     assert [
-        binding.direction for term in literal.terms for binding in term.bindings()
+        binding.direction for term in literal.terms for binding in mode_terms.bindings(term)
     ] == [
         "input",
         "input",
@@ -5565,7 +5621,7 @@ def test_modeb_infers_an_omitted_output_beside_an_explicit_input(tmp_path):
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
 
-    assert "p(V1) :- q(V0),V1=1..V0." in clauses
+    assert 'p(V1) :- q(V0); V1 = (1..V0).' in clauses
 
 
 def test_modeb_rejects_external_function_terms_instead_of_dropping_at_sign():
@@ -5595,12 +5651,12 @@ def test_modeb_chained_comparison_can_produce_multiple_variables(tmp_path):
     assert literal.operators == ("<", "<", "<")
     assert all(
         binding.direction == "output"
-        for binding in program.language_bias_body[0].literal.terms[1].bindings()
-        + program.language_bias_body[0].literal.terms[2].bindings()
+        for binding in mode_terms.bindings(program.language_bias_body[0].literal.terms[1])
+        + mode_terms.bindings(program.language_bias_body[0].literal.terms[2])
     )
     clauses = generate_clause_space(program, Arguments()).clauses
-    assert "p(V0,V1) :- 1<V0<V1<5." in clauses
-    assert not any("1<V0<V0<5" in clause for clause in clauses)
+    assert 'p(V0,V1) :- 1 < V0 < V1 < 5.' in clauses
+    assert not any("1 < V0 < V0 < 5" in clause for clause in clauses)
 
 
 def test_modeb_interval_can_produce_a_variable(tmp_path):
@@ -5618,7 +5674,7 @@ def test_modeb_interval_can_produce_a_variable(tmp_path):
     )
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
-    assert "p(V0) :- V0=1..3." in clauses
+    assert 'p(V0) :- V0 = (1..3).' in clauses
 
 
 def test_modeb_can_compare_with_a_concrete_zero(tmp_path):
@@ -5636,7 +5692,7 @@ def test_modeb_can_compare_with_a_concrete_zero(tmp_path):
     )
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
-    assert "p(V0) :- 0=V0." in clauses
+    assert 'p(V0) :- 0 = V0.' in clauses
 
 
 def test_modeb_rejects_outputs_that_clingo_cannot_make_safe(tmp_path):
@@ -5690,7 +5746,7 @@ def test_body_aggregate_supports_multiple_elements_and_range_guards():
         """
     )
     clauses = generate_clause_space(task, Arguments()).clauses
-    assert ":- 1<=#count{V0:p(V0);V1:q(V1)}<=2." in clauses
+    assert '#false :- 1 <= #count { V0: p(V0); V1: q(V1) } <= 2.' in clauses
     for clause in clauses:
         control = clingo.Control(["--warn=none"])
         control.add("base", [], "p(1). q(2)." + clause)
@@ -5708,7 +5764,7 @@ def test_body_aggregate_input_guard_requires_a_safe_source():
         """
     )
     clauses = generate_clause_space(task, Arguments()).clauses
-    assert ":- d(V0),V0=#count{V1:p(V1)}." in clauses
+    assert '#false :- d(V0); V0 = #count { V1: p(V1) }.' in clauses
     assert not any(clause.startswith(":- V0=#count") for clause in clauses)
 
 
@@ -5724,7 +5780,7 @@ def test_body_aggregate_elements_have_independent_nominal_local_scopes():
         """
     )
     clauses = generate_clause_space(task, Arguments()).clauses
-    assert ":- 1=#count{V0:p(V0);V0:q(V0)}." in clauses
+    assert '#false :- 1 = #count { V0: p(V0); V0: q(V0) }.' in clauses
 
 
 def test_exact_head_aggregate_generates_count_and_sum_with_local_elements():
@@ -5740,10 +5796,13 @@ def test_exact_head_aggregate_generates_count_and_sum_with_local_elements():
         )
         space = generate_clause_space(task, Arguments())
         clauses = space.clauses
-        aggregate_clauses = [clause for clause in clauses if clause.startswith("#")]
+        aggregate_clauses = [
+            entry.text for entry in space.entries
+            if entry.statement.head.ast_type == ast.ASTType.HeadAggregate
+        ]
         assert aggregate_clauses
         if head.startswith("#count"):
-            assert "#count{V0:p(V0):d(V0);V1:q(V1):d(V1)}=1." in clauses
+            assert '1 = #count { V0: p(V0): d(V0); V1: q(V1): d(V1) }.' in clauses
             assert all(
                 entry.heads == frozenset({("p", 1), ("q", 1)})
                 and entry.deps == frozenset({("d", 1)})
@@ -5800,7 +5859,7 @@ def test_head_aggregate_tuple_constant_requires_a_declaration():
         parse_text(source)
 
     task = parse_text("#constant(tag,a)." + source)
-    assert "#count{a,V0:p(V0):d(V0)}=1." in generate_clause_space(
+    assert '1 = #count { a,V0: p(V0): d(V0) }.' in generate_clause_space(
         task, Arguments()
     ).clauses
 
@@ -5822,7 +5881,7 @@ def test_exact_power_mode_keeps_valid_result_operand_instantiations(tmp_path):
     )
 
     clauses = generate_clause_space(parse_file(str(task)), Arguments()).clauses
-    assert ":- q(V0,V1),V0**V1-V0=0." in clauses
+    assert '#false :- q(V0,V1); ((V0**V1)-V0) = 0.' in clauses
 
 
 def test_integer_division_by_a_constant_is_not_linearized(tmp_path):
@@ -5847,14 +5906,14 @@ def test_integer_division_by_a_constant_is_not_linearized(tmp_path):
         mode
         for mode in modes
         if isinstance(mode.literal, ComparisonLiteral)
-        and mode.literal.terms[0].kind == "arithmetic"
-        and mode.literal.terms[0].value == "/"
+        and mode.literal.terms[0].ast_type == ast.ASTType.BinaryOperation
+        and mode.literal.terms[0].operator_type == ast.BinaryOperator.Division
     )
 
     assert isinstance(division_mode.literal, ComparisonLiteral)
     clauses = generate_clause_space(program, Arguments()).clauses
-    assert "p(V1) :- q(V0),V0/2=V1." in clauses
-    assert not any("V0-2*V1=0" in clause for clause in clauses)
+    assert 'p(V1) :- q(V0); (V0/2) = V1.' in clauses
+    assert not any("(V0-(2*V1)) = 0" in clause for clause in clauses)
 
 
 @pytest.mark.parametrize("operator", ("+", "-", "*", "/", "\\", "**", "&", "?", "^"))
@@ -5900,7 +5959,7 @@ def test_modeb_accepts_every_clingo_comparison_operator(tmp_path, operator):
 
 
 def test_mode_schema_separates_predicates_from_operator_ids():
-    variable = TermTemplate.variable("numeric", "")
+    variable = mode_terms.variable('numeric', '')
     atom = AtomLiteral(AtomTemplate("p", (variable,)))
     conditional = ConditionalLiteral(atom, (atom,), (-1,))
     modes = [
@@ -5937,15 +5996,15 @@ positive_arg(0,0).
 
 
 def test_aggregate_schema_declares_shape_without_duplicate_internal_positions():
-    variable = TermTemplate.variable("any", "")
-    nested_variable = TermTemplate("function", "f", (variable,))
+    variable = mode_terms.variable('any', '')
+    nested_variable = ast.Function(LOCATION, 'f', (variable,), False)
     aggregate = AggregateLiteral(
         "count",
         (AggregateElement(
-            (TermTemplate.fixed("tag"), variable),
-            (AtomLiteral(AtomTemplate("p", (TermTemplate.fixed("anchor"), nested_variable))),),
+            (mode_terms.fixed('tag'), variable),
+            (AtomLiteral(AtomTemplate("p", (mode_terms.fixed('anchor'), nested_variable))),),
         ),),
-        AggregateGuard("=", TermTemplate.variable("numeric", "output")),
+        ast.Guard(ast.ComparisonOperator.Equal, mode_terms.variable('numeric', 'output')),
     )
     mode = ClauseMode(0, 0, "body", 1, aggregate)
 
@@ -5983,6 +6042,22 @@ def test_pool_parentheses_preserve_head_term_semantics(head, expected):
     assert _models_for_clause(space.entries[0]) == {expected}
 
 
+@pytest.mark.parametrize("head, expected", [
+    ("p(1,red;2,red)", "p((1;2),red)."),
+    ("p(red,1;red,2)", "p(red,(1;2))."),
+    ("p(1,red,blue;2,red,blue)", "p((1;2),red,blue)."),
+    ("-p(1,red;2,red)", "-p((1;2),red)."),
+    ("-p(1;2)", '-p((1;2)).'),
+    ("-p(1,red;2,blue)", "-p(1,red;2,blue)."),
+])
+def test_atom_pool_with_shared_arguments_preserves_arity_and_models(head, expected):
+    task = parse_text(f"#maxv(0). #maxbl(0). #modeh(1,{head}).")
+    space = generate_clause_space(task, Arguments())
+
+    assert space.clauses == (expected,)
+    assert _models_for_clause(space.entries[0]) == _models_for_source(head + ".")
+
+
 def test_pool_parentheses_preserve_aggregate_tuple_and_choice_guard():
     task = parse_text(
         "#maxv(0). #maxbl(1). #modeh(1,q). "
@@ -5991,14 +6066,14 @@ def test_pool_parentheses_preserve_aggregate_tuple_and_choice_guard():
     clauses = generate_clause_space(task, Arguments()).clauses
     body_clause = next(clause for clause in clauses if clause.startswith("q :-"))
     assert _models_for_source(body_clause) == _models_for_source(
-        "q :- #count{(1;2):p}=1."
+        'q :- 1 = #count { (1;2): p }.'
     )
 
     head_task = parse_text(
         "#maxv(0). #maxbl(0). #maxhl(2). #modeh(1,(0;1){p;q}1)."
     )
     head_clause = generate_clause_space(head_task, Arguments()).clauses[0]
-    assert _models_for_source(head_clause) == _models_for_source("(0;1){p;q}1.")
+    assert _models_for_source(head_clause) == _models_for_source('(0;1) <= { p; q } <= 1.')
 
 
 def test_cardinality_bounds_apply_after_grounding_elements():
@@ -6007,23 +6082,23 @@ def test_cardinality_bounds_apply_after_grounding_elements():
         "#modeh(1,0{p(var(n,any)):d(var(n,any))}2)."
     )
     clauses = generate_clause_space(task, Arguments()).clauses
-    assert "0{p(V0):d(V0)}2." in clauses
+    assert '0 <= { p(V0): d(V0) } <= 2.' in clauses
     assert len(_models_for_source("d(1..3). 0{p(X):d(X)}2.")) == 7
 
     pooled = parse_text("#maxv(0). #maxbl(0). #modeh(1,2{p(1;2)}2).")
-    assert "2{p(1;2)}2." in generate_clause_space(pooled, Arguments()).clauses
+    assert '2 <= { p((1;2)) } <= 2.' in generate_clause_space(pooled, Arguments()).clauses
 
 
 def test_set_aggregate_guards_keep_all_clingo_comparisons():
     head = parse_text("#maxv(0). #maxbl(0). #maxhl(2). #modeh(1,{p;q}!=1).")
     clause = generate_clause_space(head, Arguments()).clauses[0]
-    assert _models_for_source(clause) == _models_for_source("{p;q}!=1.")
+    assert _models_for_source(clause) == _models_for_source('1 != { p; q }.')
 
     body = parse_text(
         "{p}. #maxv(0). #maxbl(1). #modeh(1,q). #modeb(1,0<{p}<2)."
     )
     clauses = generate_clause_space(body, Arguments()).clauses
-    assert "q :- 0<{p}<2." in clauses
+    assert 'q :- 0 < { p } < 2.' in clauses
 
 
 def test_local_comparisons_can_bind_conditional_and_aggregate_variables():
@@ -6032,14 +6107,14 @@ def test_local_comparisons_can_bind_conditional_and_aggregate_variables():
         "#modeb(1,2=#count{var(n,any):var(n,any)=1..2})."
     )
     clauses = generate_clause_space(body, Arguments()).clauses
-    assert any(clause.startswith("q :- 2=#count{") for clause in clauses)
+    assert any(clause.startswith("q :- 2 = #count {") for clause in clauses)
 
     chained = parse_text(
         "#maxv(2). #maxbl(1). #modeh(1,q). "
         "#modeb(1,2=#count{var(n,any,x):"
         "var(n,any,x)=var(n,any,y),var(n,any,y)=1..2})."
     )
-    assert "q :- 2=#count{V0:V0=V1,V1=1..2}." in generate_clause_space(
+    assert 'q :- 2 = #count { V0: V0 = V1, V1 = (1..2) }.' in generate_clause_space(
         chained, Arguments()
     ).clauses
 
@@ -6047,15 +6122,15 @@ def test_local_comparisons_can_bind_conditional_and_aggregate_variables():
         "#maxv(1). #maxbl(1). #modeh(1,{p(var(n,any)):var(n,any)=1..2})."
     )
     clauses = generate_clause_space(head, Arguments()).clauses
-    assert "{p(V0):V0=1..2}." in clauses
-    assert len(_models_for_source("{p(X):X=1..2}.")) == 4
+    assert '{ p(V0): V0 = (1..2) }.' in clauses
+    assert len(_models_for_source('{ p(X): X = (1..2) }.')) == 4
 
     chained_head = parse_text(
         "#maxv(2). #maxbl(2). "
         "#modeh(1,p(var(n,any,x)):"
         "var(n,any,x)=var(n,any,y),var(n,any,y)=1..2)."
     )
-    assert "p(V0):V0=V1,V1=1..2." in generate_clause_space(
+    assert 'p(V0): V0 = V1, V1 = (1..2).' in generate_clause_space(
         chained_head, Arguments()
     ).clauses
 
@@ -6063,7 +6138,7 @@ def test_local_comparisons_can_bind_conditional_and_aggregate_variables():
         "p(1). p(2). #maxv(1). #maxbl(2). #modeh(1,q). "
         "#modeb(1,p(var(n,any)):var(n,any)=1..2)."
     )
-    assert "q :- p(V0):V0=1..2." in generate_clause_space(
+    assert 'q :- p(V0): V0 = (1..2).' in generate_clause_space(
         conditional, Arguments()
     ).clauses
 
@@ -6071,7 +6146,7 @@ def test_local_comparisons_can_bind_conditional_and_aggregate_variables():
         "#maxv(1). #maxbl(1). "
         "#modeh(1,#count{var(n,any):p(var(n,any)):var(n,any)=1..2}=2)."
     )
-    assert "#count{V0:p(V0):V0=1..2}=2." in generate_clause_space(
+    assert '2 = #count { V0: p(V0): V0 = (1..2) }.' in generate_clause_space(
         aggregate_head, Arguments()
     ).clauses
 
@@ -6079,7 +6154,7 @@ def test_local_comparisons_can_bind_conditional_and_aggregate_variables():
         "#maxv(1). #maxbl(1). #modeh(1,q). "
         "#modeb(1,1{p(var(n,any)):var(n,any)=1..2}2)."
     )
-    assert "q :- 1<={p(V0):V0=1..2}<=2." in generate_clause_space(
+    assert 'q :- 1 <= { p(V0): V0 = (1..2) } <= 2.' in generate_clause_space(
         set_body, Arguments()
     ).clauses
 
@@ -6101,7 +6176,7 @@ def test_global_aggregate_tuple_variable_can_use_independent_body_binding():
         "#modeb(1,var(numeric,output)=#count{var(n,any):p(var(n,any))})."
     )
     space = generate_clause_space(task, Arguments())
-    clause = "q(V0,V1) :- d(V0),#count{V0:p(V0)}=V1."
+    clause = 'q(V0,V1) :- d(V0); V1 = #count { V0: p(V0) }.'
     assert clause in space.clauses
     assert _models_for_source("d(1). d(2). p(1). " + clause) == {
         frozenset({"d(1)", "d(2)", "p(1)", "q(1,1)", "q(2,0)"})
@@ -6117,13 +6192,13 @@ def test_body_pool_grouping_is_one_mode_and_one_clause():
     )
     assert len(task.language_bias_body) == 1
     clauses = generate_clause_space(task, Arguments()).clauses
-    assert "q :- (1;3)=#count{V0:p(V0)}." in clauses
+    assert 'q :- (1;3) = #count { V0: p(V0) }.' in clauses
 
     conditional = parse_text(
         "#maxv(0). #maxbl(2). #modeh(1,q). #modeb(1,p(1;2):d)."
     )
     assert len(conditional.language_bias_body) == 1
-    assert "q :- p(1;2):d." in generate_clause_space(conditional, Arguments()).clauses
+    assert 'q :- p((1;2)): d.' in generate_clause_space(conditional, Arguments()).clauses
 
 
 def test_pooled_local_conditions_only_bind_variables_in_every_alternative():
@@ -6145,7 +6220,7 @@ def test_pooled_local_conditions_only_bind_variables_in_every_alternative():
         "p((var(n,any,x);1)),d(var(n,any,x)))."
     )
     clauses = generate_clause_space(safe, Arguments()).clauses
-    assert "q(V0):p(V0;1),d(V0)." in clauses
+    assert 'q(V0): p((V0;1)), d(V0).' in clauses
     for clause in clauses:
         _models_for_source("d(1). p(1). " + clause)
 
@@ -6156,7 +6231,7 @@ def test_boolean_comparison_and_empty_heads_are_exact_modes():
     )
     assert "#false :- p." in generate_clause_space(constraint, Arguments()).clauses
 
-    for head in ("p;1=2", "{p;1=2}", "{}", "0{}0", "#count{}=0", "1=#count{1:#true}"):
+    for head in ("p;1=2", "{ p; 1 = 2 }", "{ }", "0{}0", "0 = #count { }", "1=#count{1:#true}"):
         task = parse_text(f"#maxv(0). #maxbl(0). #maxhl(2). #modeh(1,{head}).")
         clause = generate_clause_space(task, Arguments()).clauses[0]
         assert _models_for_source(clause) == _models_for_source(head + ".")
@@ -6164,14 +6239,14 @@ def test_boolean_comparison_and_empty_heads_are_exact_modes():
     conditioned = parse_text(
         "p. #maxv(0). #maxbl(1). #modeh(1,#false). #modec(1,p)."
     )
-    assert "#false:p." in generate_clause_space(conditioned, Arguments()).clauses
+    assert '#false: p.' in generate_clause_space(conditioned, Arguments()).clauses
 
 
 def test_empty_tuple_body_aggregate_and_anonymous_positive_atom():
     task = parse_text(
         "p. #maxv(0). #maxbl(1). #modeh(1,q). #modeb(1,#count{:p}=1)."
     )
-    assert "q :- 1=#count{:p}." in generate_clause_space(task, Arguments()).clauses
+    assert 'q :- 1 = #count { : p }.' in generate_clause_space(task, Arguments()).clauses
 
     anonymous = parse_text(
         "p(1). #maxv(0). #maxbl(1). #modeh(1,q). #modeb(1,p(_))."

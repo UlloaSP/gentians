@@ -1,5 +1,9 @@
 from dataclasses import dataclass
 
+from clingo import ast
+
+from ...language.ast_nodes import binding_term, comparison, operation
+
 
 @dataclass(frozen=True, slots=True)
 class LinearConstraint:
@@ -16,28 +20,25 @@ class LinearConstraint:
     def key(self) -> tuple[object, ...]:
         return self.relation, self.coefficients
 
-    def render(self) -> str:
-        terms: list[tuple[str, int]] = []
+    def instantiate(self) -> ast.AST:
+        expression: ast.AST | None = None
         for variable, coefficient in enumerate(self.coefficients):
             if not coefficient:
                 continue
-            magnitude = abs(coefficient)
-            value = (
-                f"V{variable}"
-                if magnitude == 1
-                else f"{int(magnitude)}*V{variable}"
-            )
-            terms.append((value, 1 if coefficient > 0 else -1))
-        expression = ""
-        for value, sign in terms:
-            if not expression:
-                expression = value if sign > 0 else f"-{value}"
+            term = binding_term(f"V{variable}")
+            if abs(coefficient) != 1:
+                term = operation("*", [binding_term(str(abs(coefficient))), term])
+            if expression is None:
+                expression = term if coefficient > 0 else operation("neg", [term])
             else:
-                expression += ("+" if sign > 0 else "-") + value
-        operator = {"eq": "=", "lt": "<", "le": "<=", "ne": "!="}[
-            self.relation
-        ]
-        return f"{expression}{operator}0"
+                expression = operation("+" if coefficient > 0 else "-", [expression, term])
+        if expression is None:
+            raise ValueError("a linear constraint requires a nonzero coefficient")
+        operator = {"eq": "=", "lt": "<", "le": "<=", "ne": "!="}[self.relation]
+        return comparison([expression, binding_term("0")], (operator,))
+
+    def render(self) -> str:
+        return str(self.instantiate())
 
     def remap(
         self, variables: dict[int, int], width: int

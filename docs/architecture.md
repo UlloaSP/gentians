@@ -43,6 +43,28 @@ de ellos redefine el language bias de una tarea inductiva.
   `legality/` la legalidad, `symmetry/` los representantes y `pruning/` la poda.
   `representation/schema.lp` declara predicados opcionales; el orden de carga
   es explícito. `docs/metaprogram/` explica ese contrato.
+- Las plantillas en `language/ir/` representan el language bias y sus bindings,
+  no un programa candidato. Conservan los metadatos que Clingo no interpreta
+  sobre términos y guards nativos de Clingo. `language/terms.py` interpreta las
+  anotaciones `var` y `const`, recorre sus bindings y realiza las sustituciones;
+  no existe otro árbol de sintaxis de términos. Cada literal posee su expansión
+  de constantes, compartida por cabezas, condicionales y agregados. Los modes
+  se decodifican desde los nodos parseados, también al expandir pools, sin volver
+  a parsear átomos ni argumentos. `clauses/canonicalization/` ensambla
+  `ast.Rule` y conserva el nodo hasta evaluación; Clingo es dueño del formato
+  textual. No añadas renderers ASP manuales ni conversiones de la cláusula
+  completa de texto a AST en esta frontera.
+  `HeadTemplate` conserva una forma nativa de Clingo y elementos completos:
+  signos y condiciones pertenecen a cada literal, sin listas paralelas ni otra
+  representación de límites u operadores. Las declaraciones comparten la
+  validación de labels y anonimato; el parser consume sus argumentos completos
+  para verificar constantes, respetando los roles de conclusión y condición.
+  `InductiveTask` conserva las cabezas como `HeadTemplate`, sin otra declaración
+  que envuelva el mismo dato y un recall fijo. El parser valida recall `1`; la
+  plantilla posee la validación de cabeza. La inspección ASP consume AST
+  retenidos, sin helpers de parsing de texto usados solo por los tests. Las
+  pruebas de seguridad de outputs construyen reglas AST y las cargan con
+  `ProgramBuilder`; Clingo conserva la autoridad del grounding.
 - `hypotheses/` es la única autoridad sobre legalidad y transiciones de
   `Genome`. Ningún operador ni algoritmo duplica su cierre de dependencias.
 - `algorithms/` contiene solo los algoritmos y sus métricas. Cada archivo de

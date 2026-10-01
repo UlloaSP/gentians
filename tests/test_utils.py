@@ -1,5 +1,8 @@
 import pytest
-from gentians.language.asp import clause_predicates, fragment_atoms
+from clingo import ast
+
+from gentians.clauses.analysis.ast_inspection import _node_atoms
+from gentians.language.asp import clause_predicates, parse_rule
 
 
 class TestUnit:
@@ -38,17 +41,31 @@ class TestUnit:
         ],
     )
     def test_clause_predicates(self, rule, expected_heads, expected_deps, expected_body_literals):
-        assert clause_predicates(rule) == (
+        assert clause_predicates(parse_rule(rule)) == (
             expected_heads,
             expected_deps,
             expected_body_literals,
         )
 
-    def test_fragment_atoms_keeps_duplicate_literals(self):
-        assert fragment_atoms("blue(V1),blue(V1),e(V0,V0),green(V0)") == (
+    def test_ast_atom_inspection_keeps_duplicate_literals(self):
+        statement = parse_rule(":- blue(V1),blue(V1),e(V0,V0),green(V0).")
+        assert tuple((name, tuple(map(str, arguments)), sign != ast.Sign.NoSign)
+                     for name, arguments, sign in _node_atoms(statement)) == (
             ("blue", ("V1",), False),
             ("blue", ("V1",), False),
             ("e", ("V0", "V0"), False),
             ("green", ("V0",), False),
         )
+
+
+@pytest.mark.parametrize("text", ["hello world", "a,b", "a ) { [", 'an escaped "quote"'])
+def test_ast_atom_inspection_preserves_string_values(text):
+    import clingo
+
+    statement = parse_rule(f"p({clingo.String(text)}).")
+    name, arguments, sign = _node_atoms(statement)[0]
+
+    assert name == "p"
+    assert sign == ast.Sign.NoSign
+    assert arguments[0].symbol.string == text
 

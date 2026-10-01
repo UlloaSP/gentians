@@ -3,17 +3,20 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import product
 
+from clingo import ast
+
+from .. import terms as mode_terms
 from ..asp import Predicate, signed_predicate
+from ..ast_nodes import LOCATION
 from .term_binding import TermBinding
-from .term_template import TermTemplate
 
 
 @dataclass(frozen=True, slots=True)
 class AtomTemplate:
     name: str
-    terms: tuple[TermTemplate, ...]
+    terms: tuple[ast.AST, ...]
     strong: bool = False
-    alternatives: tuple[tuple[TermTemplate, ...], ...] = ()
+    alternatives: tuple[tuple[ast.AST, ...], ...] = ()
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"[a-z_][A-Za-z0-9_']*", self.name):
@@ -26,7 +29,7 @@ class AtomTemplate:
             raise ValueError("pooled atoms require alternatives of the same arity")
 
     @property
-    def binding_terms(self) -> tuple[TermTemplate, ...]:
+    def binding_terms(self) -> tuple[ast.AST, ...]:
         return tuple(
             term for alternative in self.alternatives for term in alternative
         ) if self.alternatives else self.terms
@@ -43,7 +46,7 @@ class AtomTemplate:
         return tuple(
             binding
             for index, term in enumerate(self.binding_terms)
-            for binding in term.bindings((index,))
+            for binding in mode_terms.bindings(term, (index,))
         )
 
     def concretizations(
@@ -51,7 +54,7 @@ class AtomTemplate:
     ) -> tuple["AtomTemplate", ...]:
         if self.alternatives:
             choices = tuple(
-                tuple(product(*(term.concretizations(constants) for term in alternative)))
+                tuple(product(*(mode_terms.concretizations(term, constants) for term in alternative)))
                 for alternative in self.alternatives
             )
             return tuple(
@@ -62,21 +65,21 @@ class AtomTemplate:
             tuple(
                 AtomTemplate(self.name, terms, self.strong)
                 for terms in product(
-                    *(term.concretizations(constants) for term in self.terms)
+                    *(mode_terms.concretizations(term, constants) for term in self.terms)
                 )
             )
             if self.terms
             else (self,)
         )
 
-    def render(self, variables: Iterator[str]) -> str:
-        if self.alternatives:
-            arguments = ";".join(
-                ",".join(term.render(variables) for term in alternative)
-                for alternative in self.alternatives
-            )
-            atom = f"{self.name}({arguments})"
-        else:
-            arguments = tuple(term.render(variables) for term in self.terms)
-            atom = f"{self.name}({','.join(arguments)})" if arguments else self.name
-        return f"-{atom}" if self.strong else atom
+    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+        groups = self.alternatives or (self.terms,)
+        symbols = [
+            ast.Function(LOCATION, self.name,
+                         [mode_terms.instantiate(term, variables) for term in terms], False)
+            for terms in groups
+        ]
+        symbol = ast.Pool(LOCATION, symbols) if self.alternatives else symbols[0]
+        if self.strong:
+            symbol = ast.UnaryOperation(LOCATION, ast.UnaryOperator.Minus, symbol)
+        return ast.SymbolicAtom(symbol)

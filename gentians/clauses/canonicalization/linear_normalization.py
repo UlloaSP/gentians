@@ -2,9 +2,11 @@ from collections.abc import Set
 from functools import lru_cache
 from math import gcd
 
+from clingo import ast
+
+from ...language import terms as mode_terms
 from ...language.ir.arithmetic_literal import ArithmeticLiteral
 from ...language.ir.comparison_literal import ComparisonLiteral
-from ...language.ir.term_template import TermTemplate
 from ..clause_mode import ClauseMode
 from .arithmetic_system import SystemRelation
 from .expression import ArithmeticExpression
@@ -150,32 +152,32 @@ def _comparison_linear_template(
     position = 0
 
     def coefficients(
-        term: TermTemplate,
+        term: ast.AST,
     ) -> tuple[dict[int, int], int] | None:
         nonlocal position
-        if term.kind == "variable":
+        if mode_terms.kind(term) == "variable":
             result = ({position: 1}, 0)
             position += 1
             return result
-        if term.kind == "fixed":
+        if mode_terms.kind(term) == "fixed":
             try:
-                return {}, int(term.value)
+                return {}, int(mode_terms.value(term))
             except ValueError:
                 return None
-        if term.kind != "arithmetic":
+        if mode_terms.kind(term) != "arithmetic":
             return None
-        if term.value in {"neg"}:
-            value = coefficients(term.arguments[0])
+        if mode_terms.value(term) in {"neg"}:
+            value = coefficients(mode_terms.arguments(term)[0])
             return None if value is None else _scale_linear(value, -1)
-        if term.value not in {"+", "-", "*"}:
+        if mode_terms.value(term) not in {"+", "-", "*"}:
             return None
-        left = coefficients(term.arguments[0])
-        right = coefficients(term.arguments[1])
+        left = coefficients(mode_terms.arguments(term)[0])
+        right = coefficients(mode_terms.arguments(term)[1])
         if left is None or right is None:
             return None
-        if term.value in {"+", "-"}:
+        if mode_terms.value(term) in {"+", "-"}:
             return _combine_linear(
-                left, right, 1 if term.value == "+" else -1
+                left, right, 1 if mode_terms.value(term) == "+" else -1
             )
         left_variables, left_constant = left
         right_variables, right_constant = right

@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from clingo import ast
+
 from .comparison_constraint import ComparisonConstraint
 from .expression_constraint import ExpressionConstraint
 from .linear_constraint import LinearConstraint
@@ -28,22 +30,23 @@ class ArithmeticSystem:
     def variables(self) -> frozenset[int]:
         return frozenset().union(*(relation.variables for relation in self.relations))
 
-    def render(self) -> tuple[str, ...]:
-        rendered: list[str] = []
-        rendered_guard_keys: set[tuple[object, ...]] = set()
+    def instantiate(self) -> tuple[ast.AST, ...]:
+        literals: list[ast.AST] = []
+        guard_keys: set[tuple[object, ...]] = set()
         for relation in self.relations:
-            value = relation.render()
-            if value not in rendered:
-                rendered.append(value)
+            node = relation.instantiate()
+            if node not in literals:
+                literals.append(node)
             if not isinstance(relation, ExpressionConstraint):
                 continue
-            for key, guard in zip(
-                relation.guard_keys, relation.rendered_guards, strict=True
-            ):
-                if key not in rendered_guard_keys:
-                    rendered_guard_keys.add(key)
-                    rendered.append(guard)
-        return tuple(rendered)
+            for key, guard in zip(relation.guard_keys, relation.guard_literals, strict=True):
+                if key not in guard_keys:
+                    guard_keys.add(key)
+                    literals.append(guard)
+        return tuple(literals)
+
+    def render(self) -> tuple[str, ...]:
+        return tuple(str(node) for node in self.instantiate())
 
     def remap(self, variables: dict[int, int], width: int) -> "ArithmeticSystem":
         return ArithmeticSystem(

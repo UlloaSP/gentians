@@ -77,7 +77,9 @@ generator calls canonicalization. Decoding reads variable positions from
 `ClauseMode` rather than importing the mode compiler.
 
 Arithmetic representation modules own keys, variable sets, remapping and
-rendering. Normalization algorithms own connected components, substitutions,
+rendering through Clingo's AST. Reified modes and normalized systems construct
+native nodes; canonicalization assembles and retains `ast.Rule` directly.
+Normalization algorithms own connected components, substitutions,
 linear reduction and contradiction detection. Choosing one representative per
 canonical key remains part of canonicalization; no separate duplicate policy
 reimplements that choice. `ClauseSpace` orders and deduplicates the final clauses.

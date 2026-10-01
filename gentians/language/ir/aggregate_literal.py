@@ -2,19 +2,21 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import product
 
+from clingo import ast
+
+from .. import terms as mode_terms
 from ..asp import Predicate
+from ..ast_nodes import AGGREGATE_FUNCTIONS, LOCATION, literal
 from .aggregate_element import AggregateElement
-from .aggregate_guard import AggregateGuard
 from .atom_literal import AtomLiteral
-from .term_template import TermTemplate
 
 
 @dataclass(frozen=True, slots=True)
 class AggregateLiteral:
     function: str
     elements: tuple[AggregateElement, ...]
-    left_guard: AggregateGuard | None
-    right_guard: AggregateGuard | None = None
+    left_guard: ast.AST | None
+    right_guard: ast.AST | None = None
     default_negated: bool = False
     double_negated: bool = False
 
@@ -27,7 +29,7 @@ class AggregateLiteral:
         return "aggregate"
 
     @property
-    def arguments(self) -> tuple[TermTemplate, ...]:
+    def arguments(self) -> tuple[ast.AST, ...]:
         return (
             *(term for element in self.elements for term in element.arguments),
             *((self.left_guard.term,) if self.left_guard else ()),
@@ -47,13 +49,13 @@ class AggregateLiteral:
         )
 
     @property
-    def output_guard(self) -> AggregateGuard | None:
+    def output_guard(self) -> ast.AST | None:
         if (
             self.left_guard is not None
-            and self.left_guard.operator == "="
+            and self.left_guard.comparison == ast.ComparisonOperator.Equal
             and self.right_guard is None
-            and self.left_guard.term.kind == "variable"
-            and self.left_guard.term.direction == "output"
+            and mode_terms.kind(self.left_guard.term) == "variable"
+            and mode_terms.binding(self.left_guard.term).direction == "output"
         ):
             return self.left_guard
         return None
@@ -70,34 +72,22 @@ class AggregateLiteral:
                 *(element.concretizations(constants) for element in self.elements)
             )
             for left in (
-                self.left_guard.concretizations(constants)
+                tuple(self.left_guard.update(term=term) for term in mode_terms.concretizations(self.left_guard.term, constants))
                 if self.left_guard is not None else (None,)
             )
             for right in (
-                self.right_guard.concretizations(constants)
+                tuple(self.right_guard.update(term=term) for term in mode_terms.concretizations(self.right_guard.term, constants))
                 if self.right_guard is not None else (None,)
             )
         )
 
-    def render(self, variables: Iterator[str]) -> str:
-        name = "" if self.function == "set" else f"#{self.function}"
-        core = name + "{" + ";".join(
-            element.render(variables) for element in self.elements
-        ) + "}"
-        if self.left_guard is not None:
-            left = self.left_guard.term.render(variables)
-            if self.left_guard.term.kind == "pool":
-                left = f"({left})"
-            core = (
-                f"{core}={left}"
-                if self.output_guard is not None
-                else f"{left}{self.left_guard.operator}{core}"
-            )
-        if self.right_guard is not None:
-            right = self.right_guard.term.render(variables)
-            if self.right_guard.term.kind == "pool":
-                right = f"({right})"
-            core = f"{core}{self.right_guard.operator}{right}"
-        if self.double_negated:
-            return f"not not {core}"
-        return f"not {core}" if self.default_negated else core
+    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+        # The generator numbers element bindings before guard bindings.
+        elements = [element.instantiate(variables) for element in self.elements]
+        left = self.left_guard.update(term=mode_terms.instantiate(self.left_guard.term, variables)) if self.left_guard else None
+        right = self.right_guard.update(term=mode_terms.instantiate(self.right_guard.term, variables)) if self.right_guard else None
+        aggregate = (
+            ast.Aggregate(LOCATION, left, elements, right) if self.function == "set" else
+            ast.BodyAggregate(LOCATION, left, AGGREGATE_FUNCTIONS[self.function], elements, right)
+        )
+        return literal(aggregate, self.default_negated, self.double_negated)

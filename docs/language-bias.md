@@ -45,11 +45,32 @@ task line locations. Background and every
 example's included atoms, excluded atoms, and context remain as
 `clingo.ast.AST` nodes inside `InductiveTask`. Each non-empty example field is
 parsed directly; empty fields do not invoke Clingo. Candidate `Clause`
-values retain their parsed clause beside their canonical output text. Retained
-programs enter controls through
-`ProgramBuilder`; rendering AST back to text is limited to diagnostics,
-canonical output, and the single batched conversion of generated reified
-clauses into Clingo AST nodes. Static analysis traverses those nodes directly.
+values retain their constructed clause beside their canonical output text.
+Mode templates are Gentians' learning IR: they retain typed binding leaves,
+directions, labels, recalls, condition groups, and arithmetic-family metadata.
+They instantiate native Clingo terms, literals, guards, elements, and heads;
+term syntax and aggregate guards themselves remain native Clingo nodes.
+`language.terms` validates the `var`/`const` annotations and substitutes their
+leaves without building a parallel term tree. Mode parsing and pool expansion
+decode already parsed nodes without reparsing atom or argument strings.
+Each literal owns its constant expansion, reused by head and body conditions
+and aggregate elements.
+Head templates keep their Clingo form (including guards and aggregate function)
+and complete learning elements; signs and exact conditions belong to their
+literal rather than parallel lists. Label validation is shared by head and body
+declarations; anonymous-variable checks retain each conclusion and condition's
+role and polarity.
+Complete heads are stored directly as `HeadTemplate` values. The parser requires
+recall `1`; no additional declaration object or fixed recall is carried into
+compilation. Head templates own their head-specific validation, including the
+roles of anonymous variables in guards, conclusions, and conditions.
+ASP predicate inspection consumes retained AST nodes; it does not expose a
+second set of text-parsing helpers or remove whitespace from string values.
+Canonical arithmetic systems also construct native nodes. Generated rules are
+assembled as `ast.Rule` without a text-to-AST round trip. Retained programs enter
+controls through `ProgramBuilder`. Clingo's `str(AST)` owns output formatting,
+including explicit guards, parentheses, and `#false` constraint heads.
+Static analysis traverses retained nodes directly.
 The [clause-generation implementation map](clause-generation.md) describes the
 separation between representation, analysis, pruning and canonicalization.
 `TASK_GRAMMAR` records top-level composition and the directive parsers enforce
@@ -211,6 +232,10 @@ as independent body modes. Variables supplied by a positive pooled atom are safe
 they occur in every alternative; other variables need a separate safe source.
 The same rule applies to positive conditions inside conditional literals and
 aggregate elements.
+When a pool occupies one argument of an atom with several arguments, its
+parentheses are preserved: `p(1,red;2,red)` may be factored to
+`p((1;2),red)`, never `p(1;2,red)`, which changes predicate arity.
+Factoring a strongly negated atom retains its sign on every alternative.
 Pools inside body aggregate guards and conditional conclusions likewise stay in
 one declared literal. Rendering preserves parentheses when a pool is nested in
 arithmetic, an aggregate tuple, or a guard; those parentheses can change the
@@ -617,6 +642,9 @@ bias rather than shorthand for the additive family.
 Clingo is the authority for parsing and output safety; Gentians does not map
 textual names such as `add` or `lt` to operators. `#modearith` and `#modecmp`
 are retired and rejected explicitly.
+Output safety probes are constructed as native AST rules and loaded with
+`ProgramBuilder`. Clingo still grounds the complete probe to establish safety;
+the comparison is not converted to text and parsed again.
 
 After enumeration, every non-negated numeric relation is owned by its connected
 `ArithmeticSystem`. Linear equalities and inequalities whose constant terms
@@ -654,6 +682,10 @@ Constants allowed in learned literals are enumerated explicitly:
 
 #modeb(1,colour(var(node,input),const(colour))).
 ```
+
+Values may be any ground Clingo term, including strings containing commas,
+delimiters, periods, and escaped quotes or backslashes. For example,
+`#constant(word,"a,b").` supplies the single string value `"a,b"`.
 
 `const(colour)` expands independently to each declared colour, including inside
 a function or tuple. Multiple constant positions expand to their Cartesian

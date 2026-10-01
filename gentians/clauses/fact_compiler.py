@@ -1,3 +1,4 @@
+from ..language import terms as mode_terms
 from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.inductive_task import InductiveTask
 from .analysis.properties import ClosedWorldProperties
@@ -19,7 +20,7 @@ def _facts(
         mode.literal.atom.signature
         for mode in modes
         if isinstance(mode.literal, AtomLiteral)
-        and any(term.kind in {"function", "tuple"} for term in mode.literal.atom.terms)
+        and any(mode_terms.kind(term) in {"function", "tuple"} for term in mode.literal.atom.terms)
     }
     parts = [
         f"max_body({max_body_literals}).",

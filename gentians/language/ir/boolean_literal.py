@@ -1,8 +1,10 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
 
+from clingo import ast
+
 from ..asp import Predicate
-from .term_template import TermTemplate
+from ..ast_nodes import literal
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,15 +22,15 @@ class BooleanLiteral:
         return "boolean"
 
     @property
-    def arguments(self) -> tuple[TermTemplate, ...]:
+    def arguments(self) -> tuple[ast.AST, ...]:
         return ()
 
     @property
     def dependencies(self) -> frozenset[Predicate]:
         return frozenset()
 
-    def render(self, variables: Iterator[str]) -> str:
-        value = "#true" if self.value else "#false"
-        if self.double_negated:
-            return f"not not {value}"
-        return f"not {value}" if self.default_negated else value
+    def concretizations(self, constants: dict[str, tuple[str, ...]]) -> tuple["BooleanLiteral", ...]:
+        return (self,)
+
+    def instantiate(self, variables: Iterator[str]) -> ast.AST:
+        return literal(ast.BooleanConstant(self.value), self.default_negated, self.double_negated)

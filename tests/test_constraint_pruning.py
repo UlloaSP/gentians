@@ -53,7 +53,7 @@ def test_prunes_inside_enumeration_before_decoder(monkeypatch, sampled):
 def test_negative_examples_keep_constraints(sampled):
     problem = task()
     problem.negative_examples = [example(("q", ""), False)]
-    assert ":- q." in generate(problem, sampled).clauses
+    assert '#false :- q.' in generate(problem, sampled).clauses
 
 
 @pytest.mark.parametrize("sampled", [False, True])
@@ -76,9 +76,9 @@ def test_constraint_only_solution_survives_even_with_head_modes(sampled):
         #pos({q},{p}).
     """)
     space = generate(problem, sampled)
-    assert ":- r." in space.clauses
+    assert '#false :- r.' in space.clauses
     evaluator = create_evaluator(problem, {"scoring": "cov_program"})
-    assert evaluator(parse_program(":- r.")).is_solution
+    assert evaluator(parse_program('#false :- r.')).is_solution
     assert not evaluator(parse_program("p.")).is_complete
 
 
@@ -93,7 +93,7 @@ def test_contexts_are_isolated_and_strong_negation_keeps_its_sign():
 @pytest.mark.parametrize("sampled", [False, True])
 @pytest.mark.parametrize("in_context", [False, True])
 def test_pooled_heads_disable_early_pruning(monkeypatch, sampled, in_context):
-    background = "" if in_context else "q(a;b)."
+    background = "" if in_context else 'q((a;b)).'
     context = ",{q(a;b).}" if in_context else ""
     problem = parse_text(background + """
         {r}.
@@ -105,7 +105,7 @@ def test_pooled_heads_disable_early_pruning(monkeypatch, sampled, in_context):
     monkeypatch.setattr(generation, "_prune_optional_constraints", lambda _: False)
     assert actual == generate(problem, sampled).clauses
     evaluator = create_evaluator(problem, {"scoring": "cov_program"})
-    assert evaluator(parse_program(":- r.")).is_solution
+    assert evaluator(parse_program('#false :- r.')).is_solution
     assert not evaluator(parse_program("p.")).is_complete
 
 
@@ -140,10 +140,10 @@ def test_empty_equivalent_rules_do_not_conflate_default_negation(sampled):
     """
     clauses = generate(parse_text(source), sampled).clauses
     assert "p(V0) :- p(V0)." not in clauses
-    assert ":- p(V0),not p(V0)." not in clauses
-    assert "p(V0) :- p(V0),not p(V0)." not in clauses
+    assert '#false :- p(V0); not p(V0).' not in clauses
+    assert 'p(V0) :- p(V0); not p(V0).' not in clauses
     # This rule is not a tautology: p :- not p can impose inconsistency.
-    assert "p(V0) :- dom(V0),not p(V0)." in clauses
+    assert 'p(V0) :- dom(V0); not p(V0).' in clauses
 
 
 def test_head_body_tautology_check_does_not_discard_cardinality_head():
@@ -151,4 +151,4 @@ def test_head_body_tautology_check_does_not_discard_cardinality_head():
         p. #maxv(0). #maxbl(1).
         #modeh(1,0 {p} 0). #modeb(1,p).
     """)
-    assert "0{p}0 :- p." in generate(problem, False).clauses
+    assert '0 <= { p } <= 0 :- p.' in generate(problem, False).clauses

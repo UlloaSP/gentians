@@ -51,24 +51,26 @@ def _term_comparison(
     variables = iter(literal.variables)
 
     def instantiate(term: ast.AST) -> ArithmeticExpression:
-        if mode_terms.kind(term) == "variable":
-            return ArithmeticExpression.var(next(variables))
-        if mode_terms.kind(term) == "fixed":
-            try:
-                return ArithmeticExpression.const(int(mode_terms.value(term)))
-            except ValueError:
-                return ArithmeticExpression.fixed(mode_terms.value(term))
-        if mode_terms.kind(term) == "constant":
-            raise ValueError("constant placeholder was not concretized")
-        operator = {
-            "function": f"function:{mode_terms.value(term)}",
-            "tuple": "tuple",
-            "interval": "interval",
-        }.get(mode_terms.kind(term), mode_terms.value(term))
-        return ArithmeticExpression(
-            operator,
-            tuple(instantiate(argument) for argument in mode_terms.arguments(term)),
-        )
+        results: list[ArithmeticExpression] = []
+        for node, count in mode_terms._postorder(term):
+            children = tuple(results[-count:]) if count else ()
+            if count:
+                del results[-count:]
+            kind = mode_terms.kind(node)
+            if kind == "variable":
+                result = ArithmeticExpression.var(next(variables))
+            elif kind == "fixed":
+                try:
+                    result = ArithmeticExpression.const(int(mode_terms.value(node)))
+                except ValueError:
+                    result = ArithmeticExpression.fixed(mode_terms.value(node))
+            elif kind == "constant":
+                raise ValueError("constant placeholder was not concretized")
+            else:
+                operator = {"function": f"function:{mode_terms.value(node)}", "tuple": "tuple", "interval": "interval"}.get(kind, mode_terms.value(node))
+                result = ArithmeticExpression(operator, children)
+            results.append(result)
+        return results[0]
 
     terms = tuple(instantiate(term) for term in comparison.terms)
     try:

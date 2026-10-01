@@ -63,14 +63,23 @@ def _linear_assignment_expression(
     constraint: LinearConstraint, output: int
 ) -> ArithmeticExpression:
     divisor = constraint.coefficients[output]
+    assert abs(divisor) == 1
     positive: list[ArithmeticExpression] = []
     negative: list[ArithmeticExpression] = []
     for variable, coefficient in enumerate(constraint.coefficients):
         if variable == output or not coefficient:
             continue
-        scaled = int(-coefficient / divisor)
+        scaled = -coefficient // divisor
         target = positive if scaled > 0 else negative
-        target.extend(ArithmeticExpression.var(variable) for _ in range(abs(scaled)))
+        term = ArithmeticExpression.var(variable)
+        if scaled == -2:
+            target.extend((term, term))
+            continue
+        if abs(scaled) == 2:
+            term = ArithmeticExpression("+", (term, term))
+        elif abs(scaled) > 2:
+            term = ArithmeticExpression("scale", (ArithmeticExpression.const(abs(scaled)), term))
+        target.append(term)
     expression = (
         _fold_expression("+", positive) if positive else ArithmeticExpression.const(0)
     )
@@ -155,37 +164,36 @@ def _comparison_linear_template(
         term: ast.AST,
     ) -> tuple[dict[int, int], int] | None:
         nonlocal position
-        if mode_terms.kind(term) == "variable":
-            result = ({position: 1}, 0)
-            position += 1
-            return result
-        if mode_terms.kind(term) == "fixed":
-            try:
-                return {}, int(mode_terms.value(term))
-            except ValueError:
-                return None
-        if mode_terms.kind(term) != "arithmetic":
-            return None
-        if mode_terms.value(term) in {"neg"}:
-            value = coefficients(mode_terms.arguments(term)[0])
-            return None if value is None else _scale_linear(value, -1)
-        if mode_terms.value(term) not in {"+", "-", "*"}:
-            return None
-        left = coefficients(mode_terms.arguments(term)[0])
-        right = coefficients(mode_terms.arguments(term)[1])
-        if left is None or right is None:
-            return None
-        if mode_terms.value(term) in {"+", "-"}:
-            return _combine_linear(
-                left, right, 1 if mode_terms.value(term) == "+" else -1
-            )
-        left_variables, left_constant = left
-        right_variables, right_constant = right
-        if not left_variables:
-            return _scale_linear(right, left_constant)
-        if not right_variables:
-            return _scale_linear(left, right_constant)
-        return None
+        results: list[tuple[dict[int, int], int] | None] = []
+        for node, count in mode_terms._postorder(term):
+            children = results[-count:] if count else []
+            if count:
+                del results[-count:]
+            kind = mode_terms.kind(node)
+            value: tuple[dict[int, int], int] | None = None
+            if kind == "variable":
+                value = {position: 1}, 0
+                position += 1
+            elif kind == "fixed":
+                try:
+                    value = {}, int(mode_terms.value(node))
+                except ValueError:
+                    pass
+            elif kind == "arithmetic":
+                operator = mode_terms.value(node)
+                if operator == "neg" and children[0] is not None:
+                    value = _scale_linear(children[0], -1)
+                elif operator in {"+", "-", "*"}:
+                    left, right = children
+                    if left is not None and right is not None:
+                        if operator in {"+", "-"}:
+                            value = _combine_linear(left, right, 1 if operator == "+" else -1)
+                        elif not left[0]:
+                            value = _scale_linear(right, left[1])
+                        elif not right[0]:
+                            value = _scale_linear(left, right[1])
+            results.append(value)
+        return results[0]
 
     left = coefficients(comparison.terms[0])
     right = coefficients(comparison.terms[1])

@@ -101,6 +101,16 @@ de ellos redefine el language bias de una tarea inductiva.
   una sola actualización del nodo nativo.
   Las variantes que sustituyen constantes se construyen y validan normalmente;
   instanciar nunca modifica la plantilla retenida.
+  `ClauseMode` posee sus traits aritméticos derivados, sin caché global ilimitada
+  de modes. El compilador prepara y reutiliza las variantes de condiciones dentro
+  de una tarea, y construye combinaciones respetando recalls y capacidades antes
+  de descender. Tipos observados y capacidades diagnósticas se calculan bajo
+  demanda, o durante preparación cuando están activadas las métricas de Clingo.
+  El análisis de cada contexto indexa dependencias, argumentos y proyecciones
+  sin mezclar contextos. `ClauseCanonicalizer` mantiene el representante preferido
+  por clave durante enumeración completa; cada batch incremental tiene su propia
+  instancia y no conserva historial. Las expresiones canónicas también usan
+  recorridos, hash y comparación sin recursión de Python.
   Los recorridos de términos usan pilas explícitas, conservando el orden de
   bindings y evitando depender de la recursión de Python. Los consumidores de
   seguridad de pools y aritmética respetan ese mismo soporte de anidamiento.

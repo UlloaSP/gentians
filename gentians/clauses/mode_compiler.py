@@ -1,6 +1,6 @@
-from collections import Counter
+from collections.abc import Iterator
 from dataclasses import replace
-from itertools import combinations_with_replacement, product
+from itertools import product
 
 from clingo import ast
 
@@ -18,10 +18,101 @@ from ..language.ir.mode_declaration import ModeDeclaration
 from .clause_mode import ClauseMode
 
 
+type _Conditionable = AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral
+
+
+def _bounded_combinations(
+    groups: tuple[tuple[int, ...], ...],
+    capacities: tuple[int, ...],
+    length: int,
+) -> Iterator[tuple[int, ...]]:
+    """Yield lexicographic combinations, pruning exhausted groups before descent."""
+    counts = [0] * len(capacities)
+    selected: list[int] = []
+    index = 0
+    while True:
+        if len(selected) == length:
+            yield tuple(selected)
+        elif index < len(groups):
+            if all(counts[group] < capacities[group] for group in groups[index]):
+                selected.append(index)
+                for group in groups[index]:
+                    counts[group] += 1
+                continue
+            index += 1
+            continue
+        if not selected:
+            return
+        previous = selected.pop()
+        for group in groups[previous]:
+            counts[group] -= 1
+        index = previous + 1
+
+
+class _Conditions:
+    """Condition alternatives shared by the modes of one inductive task."""
+
+    __slots__ = ("limit", "modes", "groups", "capacities", "_variants")
+
+    def __init__(self, task: InductiveTask) -> None:
+        self.limit = _condition_limit(task)
+        self.modes = tuple(
+            (literal, group)
+            for group, declaration in enumerate(task.language_bias_condition)
+            for literal in declaration.literal.concretizations(task.constants)
+            if isinstance(literal, AtomLiteral | ComparisonLiteral)
+        )
+        capacities = [
+            self.limit if declaration.recall < 0 else declaration.recall
+            for declaration in task.language_bias_condition
+        ]
+        groups: list[tuple[int, ...]] = []
+        for literal, group in self.modes:
+            if any(mode_terms.bindings(term) for term in literal.arguments):
+                groups.append((group,))
+            else:
+                groups.append((group, len(capacities)))
+                capacities.append(1)
+        self.groups = tuple(groups)
+        self.capacities = tuple(capacities)
+        self._variants: dict[_Conditionable, tuple[_Conditionable, ...]] = {}
+
+    def expand(self, conclusion: _Conditionable) -> tuple[_Conditionable, ...]:
+        if conclusion not in self._variants:
+            self._variants[conclusion] = self._expand(conclusion)
+        return self._variants[conclusion]
+
+    def _expand(self, conclusion: _Conditionable) -> tuple[_Conditionable, ...]:
+        if isinstance(conclusion, ComparisonLiteral) and any(
+            binding.direction == "output"
+            for term in conclusion.arguments
+            for binding in mode_terms.bindings(term)
+        ):
+            return (conclusion,)
+        literals: list[_Conditionable] = [conclusion]
+        conditional = isinstance(conclusion, ConditionalLiteral)
+        base_conclusion = conclusion.conclusion if conditional else conclusion
+        base_conditions = conclusion.conditions if conditional else ()
+        base_groups = conclusion.condition_groups if conditional else ()
+        remaining = max(0, self.limit - len(base_conditions))
+        for length in range(1, remaining + 1):
+            for indices in _bounded_combinations(self.groups, self.capacities, length):
+                selected = tuple(self.modes[index] for index in indices)
+                literals.append(
+                    ConditionalLiteral(
+                        base_conclusion,
+                        (*base_conditions, *(literal for literal, _ in selected)),
+                        (*base_groups, *(group for _, group in selected)),
+                    )
+                )
+        return tuple(literals)
+
+
 def _combined_head_templates(
     task: InductiveTask,
     declarations: list[ModeDeclaration],
     kind: str,
+    conditions: _Conditions,
 ) -> tuple[HeadTemplate, ...]:
     if not declarations:
         return ()
@@ -52,11 +143,9 @@ def _combined_head_templates(
         if isinstance(declaration.literal, AtomLiteral)
         for atom in declaration.literal.atom.concretizations(task.constants)
     )
-    condition_limit = _condition_limit(task)
-    condition_modes = _condition_modes(task) if condition_limit else ()
     atom_capacities = {
         literal: _aggregate_head_atom_capacity(
-            task, literal, max_width, condition_modes, condition_limit
+            task, literal, max_width, conditions
         )
         for _declaration_index, literal in choices
     }
@@ -78,28 +167,21 @@ def _combined_head_templates(
             for index, capacity in declaration_capacities.items()
         ),
     )
+    literals = tuple(atom_capacities)
+    literal_groups = {literal: len(declarations) + index for index, literal in enumerate(literals)}
+    groups = tuple((index, literal_groups[literal]) for index, literal in choices)
+    capacities = (
+        *(max_width if mode.recall < 0 else mode.recall for mode in declarations),
+        *(atom_capacities[literal] for literal in literals),
+    )
     templates: list[HeadTemplate] = []
     seen: set[HeadTemplate] = set()
     minimum = max(2 if kind == "disjunction" else 1, task.min_aggregate_head_literals)
     for width in range(minimum, max_width + 1):
-        for combination in combinations_with_replacement(choices, width):
-            declaration_counts = Counter(index for index, _atom in combination)
-            if any(
-                declarations[index].recall >= 0 and count > declarations[index].recall
-                for index, count in declaration_counts.items()
-            ):
-                continue
-            if any(
-                count > atom_capacities[literal]
-                for literal, count in Counter(
-                    literal for _index, literal in combination
-                ).items()
-            ):
-                continue
+        bounds = _aggregate_head_bounds(width) if kind == "choice" else ((None, None),)
+        for indices in _bounded_combinations(groups, capacities, width):
+            combination = tuple(choices[index] for index in indices)
             elements = tuple(literal for _index, literal in combination)
-            bounds = (
-                _aggregate_head_bounds(width) if kind == "choice" else ((None, None),)
-            )
             for lower, upper in bounds:
                 form = (
                     ast.Aggregate(
@@ -122,28 +204,15 @@ def _combined_head_templates(
     return tuple(templates)
 
 
-def _aggregate_head_templates(task: InductiveTask) -> tuple[HeadTemplate, ...]:
-    return _combined_head_templates(task, task.language_bias_aggregate_head, "choice")
-
-
-def _disjunctive_head_templates(task: InductiveTask) -> tuple[HeadTemplate, ...]:
-    return _combined_head_templates(
-        task, task.language_bias_disjunctive_head, "disjunction"
-    )
-
-
 def _aggregate_head_atom_capacity(
     task: InductiveTask,
     literal: AtomLiteral,
     max_width: int,
-    condition_modes: tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...],
-    condition_limit: int,
+    conditions: _Conditions,
 ) -> int:
     variants = tuple(
         variant
-        for variant in _conditioned_literals(
-            literal, condition_modes, condition_limit
-        )
+        for variant in conditions.expand(literal)
         if isinstance(variant, AtomLiteral | ConditionalLiteral)
     )
     return min(
@@ -180,7 +249,6 @@ def _aggregate_head_bounds(width: int) -> tuple[tuple[int, int], ...]:
 
 def _clause_modes(
     task: InductiveTask,
-    predicate_arg_types: dict[tuple[str, int, int], str],
 ) -> list[ClauseMode]:
     modes: list[ClauseMode] = []
     next_id = 0
@@ -190,15 +258,15 @@ def _clause_modes(
         modes.append(mode)
         next_id += 1
 
-    condition_limit = _condition_limit(task)
-    condition_modes = _condition_modes(task)
+    conditions = _Conditions(task)
+    condition_limit = conditions.limit
     next_head_form = 0
     head_templates = tuple(
         concrete
         for template in (
             *task.language_bias_head,
-            *_aggregate_head_templates(task),
-            *_disjunctive_head_templates(task),
+            *_combined_head_templates(task, task.language_bias_aggregate_head, "choice", conditions),
+            *_combined_head_templates(task, task.language_bias_disjunctive_head, "disjunction", conditions),
         )
         for concrete in template.concretizations(task.constants)
     )
@@ -258,7 +326,7 @@ def _clause_modes(
             )
             continue
         alternatives = tuple(
-            _conditioned_literals(literal, condition_modes, condition_limit)
+            conditions.expand(literal)
             for literal in concrete_literals_base
         )
         for concrete_literals in product(*alternatives):
@@ -304,9 +372,7 @@ def _clause_modes(
                 for literal in (
                     (conclusion,)
                     if isinstance(conclusion, AggregateLiteral | ArithmeticLiteral)
-                    else _conditioned_literals(
-                        conclusion, condition_modes, condition_limit
-                    )
+                    else conditions.expand(conclusion)
                 )
             ),
         )
@@ -365,79 +431,6 @@ def _condition_limit(task: InductiveTask) -> int:
     if any(mode.recall < 0 for mode in task.language_bias_condition):
         raise ValueError("#maxbl(*) requires finite recalls for every condition mode")
     return sum(mode.recall for mode in task.language_bias_condition)
-
-
-def _condition_modes(
-    task: InductiveTask,
-) -> tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...]:
-    return tuple(
-        (literal, group, declaration.recall)
-        for group, declaration in enumerate(task.language_bias_condition)
-        for literal in declaration.literal.concretizations(task.constants)
-        if isinstance(literal, AtomLiteral | ComparisonLiteral)
-    )
-
-
-def _conditioned_literals(
-    conclusion: AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral,
-    condition_modes: tuple[tuple[AtomLiteral | ComparisonLiteral, int, int], ...],
-    limit: int,
-) -> tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral, ...]:
-    if isinstance(conclusion, ComparisonLiteral) and any(
-        binding.direction == "output"
-        for term in conclusion.arguments
-        for binding in mode_terms.bindings(term)
-    ):
-        return (conclusion,)
-    literals: list[AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral] = [conclusion]
-    base_conclusion = (
-        conclusion.conclusion
-        if isinstance(conclusion, ConditionalLiteral)
-        else conclusion
-    )
-    base_conditions = (
-        conclusion.conditions if isinstance(conclusion, ConditionalLiteral) else ()
-    )
-    base_groups = (
-        conclusion.condition_groups
-        if isinstance(conclusion, ConditionalLiteral)
-        else ()
-    )
-    remaining = max(0, limit - len(base_conditions))
-    for length in range(1, remaining + 1):
-        for indices in combinations_with_replacement(
-            range(len(condition_modes)), length
-        ):
-            selected = tuple(condition_modes[index] for index in indices)
-            if any(
-                sum(
-                    candidate_group == group
-                    for _literal, candidate_group, _ in selected
-                )
-                > recall
-                for _literal, group, recall in selected
-                if recall >= 0
-            ):
-                continue
-            if any(
-                indices.count(index) > 1
-                and not any(
-                    mode_terms.bindings(term) for term in condition_modes[index][0].arguments
-                )
-                for index in set(indices)
-            ):
-                continue
-            literals.append(
-                ConditionalLiteral(
-                    base_conclusion,
-                    (
-                        *base_conditions,
-                        *(literal for literal, _group, _recall in selected),
-                    ),
-                    (*base_groups, *(group for _literal, group, _recall in selected)),
-                )
-            )
-    return tuple(literals)
 
 
 def _specialize_body_literal(

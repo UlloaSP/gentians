@@ -38,7 +38,7 @@ from gentians.clauses.generator import (
     _clause_space_args,
     generate_clause_space,
 )
-from gentians.clauses.mode_compiler import _aggregate_head_templates
+from gentians.clauses.mode_compiler import _Conditions, _combined_head_templates
 from gentians.clauses.reified_clause import ReifiedClause
 from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.evaluation.solver import CoverageSolver
@@ -784,7 +784,7 @@ def test_candidate_clause_space_runs_inside_clause_generation_phase(monkeypatch)
         phases.append(timing.current_phase())
         return make_clause_space(["p."]).entries
 
-    monkeypatch.setattr(clause_generation, "canonicalize_clauses", canonicalize)
+    monkeypatch.setattr(clause_generation.ClauseCanonicalizer, "finish", canonicalize)
 
     clauses = clause_generation.generate_clause_space(
         inductive_task([], [], [], [], []), Arguments()
@@ -804,7 +804,7 @@ def test_clause_generation_is_generated_each_time(monkeypatch):
         generated.append(True)
         return make_clause_space(["p."]).entries
 
-    monkeypatch.setattr(clause_generation, "canonicalize_clauses", canonicalize)
+    monkeypatch.setattr(clause_generation.ClauseCanonicalizer, "finish", canonicalize)
     program = inductive_task([], [], [], [], [])
 
     first = clause_generation.generate_clause_space(program, Arguments())
@@ -5129,7 +5129,8 @@ def test_ground_modeha_caps_impossible_repeated_elements_before_grounding(tmp_pa
         encoding="utf-8",
     )
 
-    templates = _aggregate_head_templates(parse_file(str(task)))
+    parsed = parse_file(str(task))
+    templates = _combined_head_templates(parsed, parsed.language_bias_aggregate_head, "choice", _Conditions(parsed))
 
     assert len(templates) == 1
     assert templates[0].width == 1
@@ -5142,7 +5143,8 @@ def test_bodyless_condition_budget_expands_ground_modeha_capacity(tmp_path):
         encoding="utf-8",
     )
 
-    templates = _aggregate_head_templates(parse_file(str(task)))
+    parsed = parse_file(str(task))
+    templates = _combined_head_templates(parsed, parsed.language_bias_aggregate_head, "choice", _Conditions(parsed))
 
     assert len(templates) == 4
     assert {template.width for template in templates} == {1, 2}
@@ -5163,7 +5165,8 @@ def test_modeha_capacity_deduplicates_equal_constant_expansions(tmp_path):
         encoding="utf-8",
     )
 
-    templates = _aggregate_head_templates(parse_file(str(task)))
+    parsed = parse_file(str(task))
+    templates = _combined_head_templates(parsed, parsed.language_bias_aggregate_head, "choice", _Conditions(parsed))
 
     assert len(templates) == 1
     assert templates[0].width == 1

@@ -39,7 +39,12 @@ def _expression(node: ast.AST) -> ArithmeticExpression:
         return ArithmeticExpression.fixed(str(node))
     if node.ast_type == ast.ASTType.BinaryOperation:
         operator = next(key for key, value in BINARY_OPERATORS.items() if value == node.operator_type)
-        return ArithmeticExpression(operator, (_expression(node.left), _expression(node.right)))
+        left, right = _expression(node.left), _expression(node.right)
+        if operator == "*":
+            for coefficient, term in ((left, right), (right, left)):
+                if coefficient.constant is not None and term.variable is not None:
+                    return ArithmeticExpression("scale", (coefficient, term))
+        return ArithmeticExpression(operator, (left, right))
     if node.ast_type == ast.ASTType.UnaryOperation:
         if node.operator_type == ast.UnaryOperator.Absolute and node.argument.ast_type == ast.ASTType.BinaryOperation and node.argument.operator_type == ast.BinaryOperator.Minus:
             return ArithmeticExpression("abs", (_expression(node.argument.left), _expression(node.argument.right)))

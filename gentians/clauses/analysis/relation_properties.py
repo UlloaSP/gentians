@@ -188,17 +188,17 @@ def _collect_key_properties(
 
 def _collect_disjoint_projections(
     left: Predicate,
-    left_tuples: frozenset[GroundTuple],
+    left_positions: tuple[frozenset[GroundTerm], ...],
     right: Predicate,
-    right_tuples: frozenset[GroundTuple],
+    right_positions: tuple[frozenset[GroundTerm], ...],
     disjoint_projection: set[tuple[Predicate, int, Predicate, int]],
 ) -> None:
-    if not left_tuples or not right_tuples:
+    if not left_positions or not right_positions or not all(left_positions) or not all(right_positions):
         return
     for left_arg in range(left[1]):
-        left_values = {values[left_arg] for values in left_tuples}
+        left_values = left_positions[left_arg]
         for right_arg in range(right[1]):
-            right_values = {values[right_arg] for values in right_tuples}
+            right_values = right_positions[right_arg]
             if left_values.isdisjoint(right_values):
                 if left[1] == right[1] == 1:
                     continue
@@ -285,44 +285,50 @@ def _collect_tuple_mutex(
         for predicate, tuples in extensions.items()
         if predicate[1] > 1
     }
+    by_arity: dict[int, list[tuple[Predicate, frozenset[GroundTuple]]]] = {}
+    for predicate, tuples in relations.items():
+        by_arity.setdefault(predicate[1], []).append((predicate, tuples))
     for left, left_tuples in relations.items():
-        for right, right_tuples in relations.items():
-            if left[1] != right[1]:
+        identity = tuple(range(left[1]))
+        for projection in permutations(identity):
+            if projection == identity:
                 continue
-            for projection in permutations(range(left[1])):
-                if projection == tuple(range(left[1])):
-                    continue
-                projected = {
-                    tuple(values[arg] for arg in projection) for values in left_tuples
-                }
+            projected = {tuple(values[arg] for arg in projection) for values in left_tuples}
+            for right, right_tuples in by_arity[left[1]]:
                 if projected.isdisjoint(right_tuples):
                     tuple_mutex.add((left, right, projection))
 
 
 def _collect_projection_implications(
-    source: Predicate,
-    source_tuples: frozenset[GroundTuple],
-    target: Predicate,
-    target_tuples: frozenset[GroundTuple],
+    sources: Mapping[Predicate, frozenset[GroundTuple]],
+    targets: Mapping[Predicate, frozenset[GroundTuple]],
     project_implies: set[tuple[Predicate, Predicate, tuple[int, ...]]],
 ) -> None:
-    if source[1] <= target[1] or not target_tuples:
-        return
-    for projection in permutations(range(source[1]), target[1]):
-        projected = {
-            tuple(values[arg] for arg in projection) for values in source_tuples
-        }
-        if projected <= target_tuples:
-            project_implies.add((source, target, projection))
+    by_arity: dict[int, list[tuple[Predicate, frozenset[GroundTuple]]]] = {}
+    for target, tuples in targets.items():
+        if tuples:
+            by_arity.setdefault(target[1], []).append((target, tuples))
+    for source, tuples in sources.items():
+        for arity, candidates in by_arity.items():
+            if source[1] <= arity:
+                continue
+            for projection in permutations(range(source[1]), arity):
+                projected = {tuple(values[arg] for arg in projection) for values in tuples}
+                for target, target_tuples in candidates:
+                    if projected <= target_tuples:
+                        project_implies.add((source, target, projection))
 
 
 def _is_transitive(tuples: frozenset[GroundTuple]) -> bool:
     if len(tuples) < 3:
         return False
+    successors: dict[GroundTerm, set[GroundTerm]] = {}
+    for left, right in tuples:
+        successors.setdefault(left, set()).add(right)
     for left, middle in tuples:
-        for other_middle, right in tuples:
-            if middle == other_middle and (left, right) not in tuples:
-                return False
+        following = successors.get(middle)
+        if following is not None and not following <= successors[left]:
+            return False
     return True
 
 
@@ -331,12 +337,12 @@ def _is_reflexive(tuples: frozenset[GroundTuple]) -> bool:
     return bool(domain) and all((value, value) in tuples for value in domain)
 
 
-def _is_total_order(tuples: frozenset[GroundTuple]) -> bool:
+def _is_total_order(tuples: frozenset[GroundTuple], transitive: bool, reflexive: bool) -> bool:
     domain = {value for row in tuples for value in row}
     if (
         len(domain) < 2
-        or not _is_reflexive(tuples)
-        or not _is_transitive(tuples)
+        or not reflexive
+        or not transitive
         or any(left != right and (right, left) in tuples for left, right in tuples)
     ):
         return False

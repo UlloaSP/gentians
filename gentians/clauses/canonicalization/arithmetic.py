@@ -1,11 +1,5 @@
 from collections.abc import Set
-from dataclasses import dataclass
-from functools import cache
 
-from ...language.ir.aggregate_literal import AggregateLiteral
-from ..arithmetic_literal import ArithmeticLiteral
-from ...language.ir.atom_literal import AtomLiteral
-from ...language.ir.comparison_literal import ComparisonLiteral
 from ..clause_mode import ClauseMode
 from ..reified_clause import ReifiedClause
 from ..reified_literal import ReifiedLiteral
@@ -31,59 +25,6 @@ _ArithmeticSystemsCache = dict[
 ]
 
 
-def _is_builtin(mode: ClauseMode) -> bool:
-    return isinstance(mode.literal, ArithmeticLiteral) or (
-        isinstance(mode.literal, ComparisonLiteral)
-        and not mode.literal.default_negated
-        and bool(mode.bindings)
-        and (
-            mode.literal.canonicalizable
-            or mode.literal.arithmetic
-            or all(binding.type == "numeric" for binding in mode.bindings)
-        )
-    )
-
-
-def _is_positive_atom(mode: ClauseMode) -> bool:
-    return isinstance(mode.literal, AtomLiteral) and not mode.literal.default_negated
-
-
-def _is_numeric_builtin(mode: ClauseMode) -> bool:
-    return isinstance(mode.literal, ArithmeticLiteral) or (
-        isinstance(mode.literal, ComparisonLiteral)
-        and (
-            mode.literal.arithmetic
-            or all(binding.type == "numeric" for binding in mode.bindings)
-        )
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class _ModeTraits:
-    builtin: bool
-    positive_atom: bool
-    numeric_builtin: bool
-    numeric_positions: tuple[int, ...]
-    output_guard: bool
-
-
-@cache
-def _mode_traits(mode: ClauseMode) -> _ModeTraits:
-    """Classify a mode once; every canonicalized clause asks the same questions."""
-    return _ModeTraits(
-        _is_builtin(mode),
-        _is_positive_atom(mode),
-        _is_numeric_builtin(mode),
-        tuple(
-            position
-            for position, binding in enumerate(mode.bindings)
-            if binding.type == "numeric"
-        ),
-        isinstance(mode.literal, AggregateLiteral)
-        and mode.literal.output_guard is not None,
-    )
-
-
 def canonical_arithmetic_clause(
     clause: ReifiedClause,
     modes: dict[int, ClauseMode],
@@ -91,7 +32,7 @@ def canonical_arithmetic_clause(
     systems_cache: _ArithmeticSystemsCache | None = None,
 ) -> CanonicalArithmeticClause | None:
     """Canonicalize one clause, optionally reusing systems within one mode space."""
-    body_traits = [_mode_traits(modes[literal.mode_id]) for literal in clause.body]
+    body_traits = [modes[literal.mode_id] for literal in clause.body]
     builtin = tuple(
         literal
         for literal, traits in zip(clause.body, body_traits)
@@ -123,7 +64,7 @@ def canonical_arithmetic_clause(
     )
     numeric: set[int] = set()
     for literal, traits in (
-        *((literal, _mode_traits(modes[literal.mode_id])) for literal in clause.head),
+        *((literal, modes[literal.mode_id]) for literal in clause.head),
         *zip(clause.body, body_traits),
     ):
         if traits.numeric_builtin:
@@ -192,7 +133,7 @@ def _canonical_systems(
     systems: list[ArithmeticSystem] = []
     for literals in components.values():
         numeric_component = any(
-            _mode_traits(modes[literal.mode_id]).numeric_builtin
+            modes[literal.mode_id].numeric_builtin
             or set(literal.variables) <= numeric_variables
             for literal in literals
         )

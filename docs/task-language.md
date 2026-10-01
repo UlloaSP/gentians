@@ -304,6 +304,10 @@ finite, apart from that documented additive-family canonicalization. Numeric
 relations enter `ArithmeticSystem`: linear systems are canonicalized
 algebraically while nonlinear, bitwise and interval terms remain structurally
 exact.
+Canonical expressions support deep nesting without Python recursion. Linear
+assignments retain exact integer coefficients and render magnitudes above two
+compactly with multiplication; Clingo still determines arithmetic and output
+formatting.
 
 ## Predicate invention
 

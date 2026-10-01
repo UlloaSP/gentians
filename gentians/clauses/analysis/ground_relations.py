@@ -61,18 +61,33 @@ def _closed_world(
     cover an example of this context, or that a rule touching open predicates
     has a head whose predicates cannot be read.
     """
-    open_predicates = _open_predicates(program, learned)
+    relations = {}
+    for statement in program:
+        if statement.ast_type == ast.ASTType.Rule:
+            heads, dependencies, _body_size = clause_predicates(statement)
+            relations[statement] = heads, dependencies
+    open_predicates = _open_predicates(relations, learned)
     if open_predicates is None:
         return None
     closed_program = tuple(
         statement
         for statement in program
-        if not _touches(statement, open_predicates)
+        if statement not in relations or not (
+            relations[statement][0] & open_predicates
+            or relations[statement][1] & open_predicates
+        )
     )
     lower_rules = tuple(
         statement
         for statement in program
-        if _derives_open_atom_from_closed_body(statement, open_predicates)
+        if statement in relations
+        and statement.head.ast_type == ast.ASTType.Literal
+        and statement.head.sign == ast.Sign.NoSign
+        and statement.head.atom.ast_type == ast.ASTType.SymbolicAtom
+        and _head_predicates_known(statement.head)
+        and bool(relations[statement][0])
+        and relations[statement][0] <= open_predicates
+        and not relations[statement][1] & open_predicates
     )
     consequences = _consequences(closed_program + lower_rules)
     if consequences is None:
@@ -108,49 +123,28 @@ def _closed_world(
     )
 
 
-def _derives_open_atom_from_closed_body(
-    statement: ast.AST, open_predicates: frozenset[Predicate]
-) -> bool:
-    """A normal rule with one positive head atom and a body over closed predicates."""
-    if (
-        statement.ast_type != ast.ASTType.Rule
-        or statement.head.ast_type != ast.ASTType.Literal
-        or statement.head.sign != ast.Sign.NoSign
-        or statement.head.atom.ast_type != ast.ASTType.SymbolicAtom
-        or not _head_predicates_known(statement.head)
-    ):
-        return False
-    heads, dependencies, _body_size = clause_predicates(statement)
-    return bool(heads) and heads <= open_predicates and not dependencies & open_predicates
-
-
 def _open_predicates(
-    program: AspProgram, learned: frozenset[Predicate]
+    relations: dict[ast.AST, tuple[frozenset[Predicate], frozenset[Predicate]]],
+    learned: frozenset[Predicate],
 ) -> frozenset[Predicate] | None:
     open_predicates = set(learned)
-    rules = [
-        statement for statement in program if statement.ast_type == ast.ASTType.Rule
-    ]
-    changed = True
-    while changed:
-        changed = False
-        for rule in rules:
-            heads, dependencies, _body_size = clause_predicates(rule)
-            if not (heads & open_predicates or dependencies & open_predicates):
+    affected: dict[Predicate, list[ast.AST]] = {}
+    for rule, (heads, dependencies) in relations.items():
+        for predicate in heads | dependencies:
+            affected.setdefault(predicate, []).append(rule)
+    pending = list(sorted(learned))
+    visited: set[ast.AST] = set()
+    while pending:
+        for rule in affected.get(pending.pop(), ()):
+            if rule in visited:
                 continue
+            visited.add(rule)
             if not _head_predicates_known(rule.head):
                 return None
-            if not heads <= open_predicates:
-                open_predicates.update(heads)
-                changed = True
+            new = relations[rule][0] - open_predicates
+            open_predicates.update(new)
+            pending.extend(sorted(new))
     return frozenset(open_predicates)
-
-
-def _touches(statement: ast.AST, open_predicates: frozenset[Predicate]) -> bool:
-    if statement.ast_type != ast.ASTType.Rule:
-        return False
-    heads, dependencies, _body_size = clause_predicates(statement)
-    return bool(heads & open_predicates or dependencies & open_predicates)
 
 
 def _head_predicates_known(node: ast.AST) -> bool:

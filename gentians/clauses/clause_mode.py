@@ -41,6 +41,10 @@ class ClauseMode:
         repr=False,
         compare=False,
     )
+    builtin: bool = field(init=False, repr=False, compare=False)
+    positive_atom: bool = field(init=False, repr=False, compare=False)
+    numeric_builtin: bool = field(init=False, repr=False, compare=False)
+    numeric_positions: tuple[int, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.section not in {"head", "body"}:
@@ -72,6 +76,16 @@ class ClauseMode:
         )
 
         object.__setattr__(self, "dependencies", self.literal.dependencies)
+        comparison = isinstance(self.literal, ComparisonLiteral)
+        arithmetic = isinstance(self.literal, ArithmeticLiteral)
+        numeric = all(binding.type == "numeric" for binding in self.bindings)
+        object.__setattr__(self, "builtin", arithmetic or (
+            comparison and not self.literal.default_negated and bool(self.bindings)
+            and (self.literal.canonicalizable or self.literal.arithmetic or numeric)
+        ))
+        object.__setattr__(self, "positive_atom", isinstance(self.literal, AtomLiteral) and not self.literal.default_negated)
+        object.__setattr__(self, "numeric_builtin", arithmetic or comparison and (self.literal.arithmetic or numeric))
+        object.__setattr__(self, "numeric_positions", tuple(index for index, binding in enumerate(self.bindings) if binding.type == "numeric"))
         positions = (
             tuple(range(len(self.bindings)))
             if isinstance(

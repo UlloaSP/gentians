@@ -84,12 +84,12 @@ el formato de salida, incluidas las constraints con cabeza `#false`.
 
 `generate_clause_space()` ejecuta este pipeline:
 
-1. Inspecciona background, ejemplos y declaraciones para derivar tipos, dominios, closed-world properties y capacidades permitidas.
+1. Inspecciona background, ejemplos y declaraciones para derivar dominios y closed-world properties. Tipos observados y capacidades se calculan cuando se consultan o se activan sus métricas; no redefinen el lenguaje.
 2. Compila declaraciones a `ClauseMode` y facts reificados.
 3. Carga los módulos `.lp` en el orden de `CLAUSE_METAPROGRAM_MODULES`.
 4. Clingo aplica límites, recall, linkedness, typing, ASP safety, flujo dirigido, coherencia, reducción θ y propiedades de pruning durante enumeración.
 5. Python decodifica `selected/3` y `var_at/4` como `ReifiedClause`.
-6. `ArithmeticSystem` normaliza relaciones conectadas y `canonical.key` elige un representante.
+6. `ArithmeticSystem` normaliza relaciones conectadas y `ClauseCanonicalizer` conserva un representante por clave mientras llegan los modelos. La enumeración completa comparte esa selección; cada batch incremental conserva su propia selección.
 7. `ClauseSpace` ordena y deduplica `Clause`.
 
 Prefiere pruning declarativo en los módulos `.lp` cuando la condición depende de

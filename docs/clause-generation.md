@@ -35,6 +35,17 @@ bindings. `pruning.py` supplies the conservative
 proof that enables optional-constraint pruning in ASP. The metaprogram still
 owns checks over selected modes and variable assignments.
 
+The mode compiler prepares condition declarations once per task and shares the
+conditioned alternatives across ordinary, choice and disjunctive heads and body
+modes. Head and condition combinations are built in the same lexicographic
+order as before, stopping branches when a declaration recall or concrete-literal
+capacity is exhausted. `ClauseMode` owns its derived arithmetic traits without
+an unbounded process-wide traits cache. Other normalization caches remain bounded.
+
+Predicate argument types and capabilities are diagnostic data. They are computed
+on demand, or during generator preparation when Clingo metrics are enabled.
+They do not alter the task's modes or legal clause space.
+
 ## Closed-world properties
 
 Property facts let the metaprogram drop clauses that are redundant or
@@ -69,11 +80,22 @@ context, the background plus one example context, and Clingo is the authority:
 Property facts address source argument indexes, so they are emitted only for
 predicates whose templates use plain variables and constants.
 
+Each context extracts a rule's predicate dependencies once and propagates open
+predicates through an index and worklist. Argument-value sets and tuple
+projections are reused inside that context only. Transitivity checks use a
+successor index, and total-order checks reuse the reflexivity and transitivity
+results. These indexes do not merge example contexts or change which
+properties are emitted.
+
 Clingo applies theta reduction with the other redundancy checks before returning
 a model. `mode_facts.theta_facts` chooses its encoding: enumerated offsets keep
 the program normal, and saturation takes over only when they would be too many
-(see `docs/metaprogram/README.md`). After solving, `decoder.py` constructs a `ReifiedClause` and the
-generator calls canonicalization. Decoding reads variable positions from
+(see `docs/metaprogram/README.md`). As models arrive, `decoder.py` constructs a
+`ReifiedClause` and the generator passes it to `ClauseCanonicalizer`. Complete
+enumeration retains the preferred representative per canonical key rather than
+all decoded clauses. Incremental enumeration uses a fresh canonicalizer per
+batch; its model budget still counts models before deduplication and it retains
+no cross-batch history. Decoding reads variable positions from
 `ClauseMode` rather than importing the mode compiler.
 
 Arithmetic representation modules own keys, variable sets, remapping and
@@ -83,6 +105,19 @@ Normalization algorithms own connected components, substitutions,
 linear reduction and contradiction detection. Choosing one representative per
 canonical key remains part of canonicalization; no separate duplicate policy
 reimplements that choice. `ClauseSpace` orders and deduplicates the final clauses.
+
+Expression traversal, structural equality, key construction, substitutions and
+native AST construction use explicit stacks. Linear assignments use exact
+integer coefficients and multiplication for magnitudes above two instead of
+repeating a variable once per coefficient unit. Oversized derived coefficients
+use arithmetic composed of native integer leaves. The output still follows
+Clingo's arithmetic and formatting. The internal `scale` expression preserves
+the canonical key of repeated addition; ordinary multiplication keeps its
+structural key, so compact formatting does not change representative selection.
+
+Solving timers exclude decoding and canonicalization inside callbacks or between
+yielded models. Those Python costs stay in `clause_generation`; grounding and
+solving remain separately reported with the existing metric fields.
 
 These stages concern individual clauses. Dependency closure and coverage of a
 complete candidate hypothesis remain in `hypotheses/` and `evaluation/`.

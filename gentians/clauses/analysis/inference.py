@@ -138,16 +138,18 @@ def _context_properties(
             transitive_pred = _is_transitive(tuples)
             if transitive_pred:
                 transitive.add(predicate)
-            if _is_reflexive(tuples):
+            reflexive_pred = _is_reflexive(tuples)
+            if reflexive_pred:
                 reflexive.add(predicate)
             if tuples and tuples.isdisjoint(reversed_tuples) and transitive_pred:
                 strict_order.add(predicate)
-            if _is_total_order(tuples):
+            if _is_total_order(tuples, transitive_pred, reflexive_pred):
                 total_order.add(predicate)
             if predicate in reflexive or predicate in total_order:
                 field = frozenset(value for row in tuples for value in row)
                 domains[("field", predicate)] = (field,)
 
+    positions_by_predicate = {predicate: _position_values(predicate[1], tuples) for predicate, tuples in extensions.items()}
     for left, right in combinations(sorted(extensions), 2):
         left_tuples = extensions[left]
         right_tuples = extensions[right]
@@ -171,13 +173,7 @@ def _context_properties(
             if left[1] == 2 and left_tuples == {(b, a) for a, b in right_tuples}:
                 inverse.add((left, right))
         _collect_disjoint_projections(
-            left, left_tuples, right, right_tuples, disjoint_projection
-        )
-        _collect_projection_implications(
-            left, left_tuples, right, right_tuples, project_implies
-        )
-        _collect_projection_implications(
-            right, right_tuples, left, left_tuples, project_implies
+            left, positions_by_predicate[left], right, positions_by_predicate[right], disjoint_projection
         )
     # A closed relation inside the lower bound of a learned one implies it in
     # every model: learned clauses only add tuples to that bound.
@@ -190,9 +186,7 @@ def _context_properties(
         for source, tuples in extensions.items():
             if source[1] == target[1] and tuples <= bound:
                 implies.add((source, target))
-            _collect_projection_implications(
-                source, tuples, target, bound, project_implies
-            )
+    _collect_projection_implications(extensions, {**extensions, **lower_targets}, project_implies)
     _collect_tuple_mutex(extensions, tuple_mutex)
     partitions = _partition_properties(
         extensions

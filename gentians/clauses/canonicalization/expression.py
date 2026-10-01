@@ -1,5 +1,7 @@
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from functools import lru_cache
+from typing import cast
 
 import clingo
 from clingo import ast
@@ -7,24 +9,49 @@ from clingo import ast
 from ...language.ast_nodes import LOCATION, binding_term, operation
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ArithmeticExpression:
     operator: str = ""
-    arguments: tuple[ArithmeticExpression, ...] = ()
+    arguments: tuple["ArithmeticExpression", ...] = ()
     variable: int | None = None
     constant: int | None = None
     symbol: str | None = None
+    _hash: int = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_hash", hash((
+            self.operator, tuple(hash(argument) for argument in self.arguments),
+            self.variable, self.constant, self.symbol,
+        )))
+
+    def __hash__(self) -> int:
+        return self._hash
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ArithmeticExpression):
+            return NotImplemented
+        pending: list[tuple[ArithmeticExpression, ArithmeticExpression]] = [(self, other)]
+        while pending:
+            left, right = pending.pop()
+            if left is right:
+                continue
+            if (left.operator, left.variable, left.constant, left.symbol, len(left.arguments)) != (
+                right.operator, right.variable, right.constant, right.symbol, len(right.arguments)
+            ):
+                return False
+            pending.extend(zip(left.arguments, right.arguments, strict=True))
+        return True
 
     @classmethod
-    def var(cls, variable: int) -> ArithmeticExpression:
+    def var(cls, variable: int) -> "ArithmeticExpression":
         return cls(variable=variable)
 
     @classmethod
-    def const(cls, constant: int) -> ArithmeticExpression:
+    def const(cls, constant: int) -> "ArithmeticExpression":
         return cls(constant=constant)
 
     @classmethod
-    def fixed(cls, symbol: str) -> ArithmeticExpression:
+    def fixed(cls, symbol: str) -> "ArithmeticExpression":
         return cls(symbol=symbol)
 
     @property
@@ -33,109 +60,132 @@ class ArithmeticExpression:
 
     @property
     def variables(self) -> frozenset[int]:
-        if self.variable is not None:
-            return frozenset((self.variable,))
-        return frozenset().union(*(argument.variables for argument in self.arguments))
+        result: set[int] = set()
+        pending: list[ArithmeticExpression] = [self]
+        while pending:
+            node = pending.pop()
+            if node.variable is not None:
+                result.add(node.variable)
+            else:
+                pending.extend(node.arguments)
+        return frozenset(result)
 
-    def _additive_terms(
-        self,
-        coefficient: int = 1,
-    ) -> tuple[tuple[tuple[object, ...], int], ...]:
-        if (
-            self.variable is not None
-            or self.constant is not None
-            or self.symbol is not None
-            or self.operator not in {"+", "-"}
-        ):
-            return ((self.key, coefficient),)
-        left, right = self.arguments
-        right_coefficient = coefficient if self.operator == "+" else -coefficient
-        return (
-            *left._additive_terms(coefficient),
-            *right._additive_terms(right_coefficient),
-        )
+    def _transform(self, replace: Callable[["ArithmeticExpression"], "ArithmeticExpression"]) -> "ArithmeticExpression":
+        results: list[ArithmeticExpression] = []
+        for node, count in _postorder(self):
+            children = tuple(results[-count:]) if count else ()
+            if count:
+                del results[-count:]
+            if node.variable is not None:
+                results.append(replace(node))
+            elif all(child is original for child, original in zip(children, node.arguments, strict=True)):
+                results.append(node)
+            else:
+                results.append(ArithmeticExpression(node.operator, children))
+        return results[0]
 
-    def _multiplicative_factors(self) -> tuple[tuple[object, ...], ...]:
-        if (
-            self.variable is not None
-            or self.constant is not None
-            or self.symbol is not None
-            or self.operator != "*"
-        ):
-            return (self.key,)
-        return tuple(
-            factor
-            for argument in self.arguments
-            for factor in argument._multiplicative_factors()
-        )
+    def remap(self, variables: dict[int, int]) -> "ArithmeticExpression":
+        def replace(node: ArithmeticExpression) -> ArithmeticExpression:
+            assert node.variable is not None
+            variable = variables[node.variable]
+            return node if variable == node.variable else ArithmeticExpression.var(variable)
 
-    def remap(self, variables: dict[int, int]) -> ArithmeticExpression:
-        if self.variable is not None:
-            return ArithmeticExpression.var(variables[self.variable])
-        if self.constant is not None or self.symbol is not None:
-            return self
-        return ArithmeticExpression(
-            self.operator,
-            tuple(argument.remap(variables) for argument in self.arguments),
-        )
+        return self._transform(replace)
 
-    def substitute(
-        self, variables: dict[int, ArithmeticExpression]
-    ) -> ArithmeticExpression:
-        if self.variable is not None:
-            return variables.get(self.variable, self)
-        if self.constant is not None or self.symbol is not None:
-            return self
-        return ArithmeticExpression(
-            self.operator,
-            tuple(argument.substitute(variables) for argument in self.arguments),
-        )
+    def substitute(self, variables: dict[int, "ArithmeticExpression"]) -> "ArithmeticExpression":
+        def replace(node: ArithmeticExpression) -> ArithmeticExpression:
+            assert node.variable is not None
+            return variables.get(node.variable, node)
+
+        return self._transform(replace)
 
     def instantiate(self) -> ast.AST:
-        if self.variable is not None:
-            return binding_term(f"V{self.variable}")
-        if self.constant is not None:
-            return ast.SymbolicTerm(LOCATION, clingo.Number(self.constant))
-        if self.symbol is not None:
-            return ast.SymbolicTerm(LOCATION, clingo.parse_term(self.symbol))
-        arguments = [argument.instantiate() for argument in self.arguments]
-        if self.operator.startswith("function:"):
-            return ast.Function(LOCATION, self.operator.removeprefix("function:"), arguments, False)
-        if self.operator == "tuple":
-            return ast.Function(LOCATION, "", arguments, False)
-        return operation(self.operator, arguments)
+        results: list[ast.AST] = []
+        for node, count in _postorder(self):
+            arguments = results[-count:] if count else []
+            if count:
+                del results[-count:]
+            if node.variable is not None:
+                result = binding_term(f"V{node.variable}")
+            elif node.constant is not None:
+                result = _integer_term(node.constant)
+            elif node.symbol is not None:
+                result = ast.SymbolicTerm(LOCATION, clingo.parse_term(node.symbol))
+            elif node.operator.startswith("function:"):
+                result = ast.Function(LOCATION, node.operator.removeprefix("function:"), arguments, False)
+            elif node.operator == "tuple":
+                result = ast.Function(LOCATION, "", arguments, False)
+            else:
+                result = operation("*" if node.operator == "scale" else node.operator, arguments)
+            results.append(result)
+        return results[0]
 
     def render(self) -> str:
         return str(self.instantiate())
 
 
+def _integer_term(value: int) -> ast.AST:
+    """Express oversized exact coefficients using native integer leaves."""
+    if -(2**31) <= value < 2**31:
+        return ast.SymbolicTerm(LOCATION, clingo.Number(value))
+    radix = 2**30
+    digits: list[int] = []
+    remaining = abs(value)
+    while remaining:
+        remaining, digit = divmod(remaining, radix)
+        digits.append(digit)
+    result = ast.SymbolicTerm(LOCATION, clingo.Number(digits.pop()))
+    factor = ast.SymbolicTerm(LOCATION, clingo.Number(radix))
+    while digits:
+        result = operation("*", [result, factor])
+        if digit := digits.pop():
+            result = operation("+", [result, ast.SymbolicTerm(LOCATION, clingo.Number(digit))])
+    return operation("neg", [result]) if value < 0 else result
+
+
+def _postorder(expression: ArithmeticExpression) -> Iterator[tuple[ArithmeticExpression, int]]:
+    pending = [(expression, False)]
+    while pending:
+        node, visited = pending.pop()
+        children = () if node.variable is not None or node.constant is not None or node.symbol is not None else node.arguments
+        if visited or not children:
+            yield node, len(children)
+        else:
+            pending.append((node, True))
+            pending.extend((child, False) for child in reversed(children))
+
+
 @lru_cache(maxsize=8192)
 def _expression_key(expression: ArithmeticExpression) -> tuple[object, ...]:
-    """Return the structural normal form shared by equal expression trees."""
-    if expression.variable is not None:
-        return "var", expression.variable
-    if expression.constant is not None:
-        return "const", expression.constant
-    if expression.symbol is not None:
-        return "fixed", expression.symbol
-    if expression.operator in {"+", "-"}:
-        coefficients: dict[tuple[object, ...], int] = {}
-        for key, coefficient in expression._additive_terms():
-            coefficients[key] = coefficients.get(key, 0) + coefficient
-        return "sum", tuple(
-            sorted(
-                (
-                    (key, coefficient)
-                    for key, coefficient in coefficients.items()
-                    if coefficient
-                ),
-                key=repr,
-            )
-        )
-    if expression.operator == "*":
-        factors = expression._multiplicative_factors()
-        return "product", tuple(sorted(factors, key=repr))
-    keys = tuple(argument.key for argument in expression.arguments)
-    if expression.operator == "abs":
-        keys = tuple(sorted(keys, key=repr))
-    return expression.operator, keys
+    """Normalize keys bottom-up; expression hashing and equality are iterative."""
+    results: list[tuple[object, ...]] = []
+    for node, count in _postorder(expression):
+        children = tuple(results[-count:]) if count else ()
+        if count:
+            del results[-count:]
+        if node.variable is not None:
+            key = "var", node.variable
+        elif node.constant is not None:
+            key = "const", node.constant
+        elif node.symbol is not None:
+            key = "fixed", node.symbol
+        elif node.operator in {"+", "-", "scale"}:
+            coefficients: dict[tuple[object, ...], int] = {}
+            if node.operator == "scale":
+                coefficient = node.arguments[0].constant
+                assert coefficient is not None
+                terms_to_add = ((children[1], coefficient),)
+            else:
+                terms_to_add = tuple(zip(children, (1, 1 if node.operator == "+" else -1), strict=True))
+            for child, multiplier in terms_to_add:
+                terms = cast(tuple[tuple[tuple[object, ...], int], ...], child[1]) if child[0] == "sum" else ((child, 1),)
+                for term, coefficient in terms:
+                    coefficients[term] = coefficients.get(term, 0) + coefficient * multiplier
+            key = "sum", tuple(sorted(((term, coefficient) for term, coefficient in coefficients.items() if coefficient), key=repr))
+        elif node.operator == "*":
+            factors = tuple(factor for child in children for factor in (cast(tuple[tuple[object, ...], ...], child[1]) if child[0] == "product" else (child,)))
+            key = "product", tuple(sorted(factors, key=repr))
+        else:
+            key = node.operator, tuple(sorted(children, key=repr)) if node.operator == "abs" else children
+        results.append(key)
+    return results[0]

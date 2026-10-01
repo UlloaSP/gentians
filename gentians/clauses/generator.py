@@ -1,6 +1,7 @@
 import random
 from collections.abc import Generator, Iterator
 from contextlib import closing, contextmanager
+from functools import cached_property
 from pathlib import Path
 from typing import cast
 
@@ -25,6 +26,7 @@ from ..timing import (
     record_metric,
 )
 from .analysis.inference import _closed_world_properties
+from .analysis.capabilities import ClauseCapabilities
 from .analysis.task import (
     _clause_capabilities,
     _closed_world_contexts,
@@ -35,7 +37,7 @@ from .analysis.task import (
     _task_nodes,
     _validate_invented_predicates,
 )
-from .canonicalization.clauses import canonicalize_clauses
+from .canonicalization.clauses import ClauseCanonicalizer
 from .clause_space import ClauseSpace
 from .decoder import _clause_from_model, _model_literal_index
 from .fact_compiler import _facts
@@ -45,7 +47,6 @@ from .mode_compiler import (
     _section_capacity,
 )
 from .pruning import _prune_optional_constraints
-from .reified_clause import ReifiedClause
 
 
 def _raise_on_clingo_error(code, message):
@@ -160,14 +161,10 @@ class _ClauseGenerator:
         ):
             raise ValueError("#minhl cannot exceed #maxhl")
         _validate_invented_predicates(task, self.nodes)
-        self.predicate_arg_types = _predicate_arg_types(task, self.nodes)
-        self.capabilities = _clause_capabilities(
-            task, self.predicate_arg_types
-        )
-        self.modes = _clause_modes(
-            task,
-            self.predicate_arg_types,
-        )
+        if metric_enabled("clingo"):
+            # Keep enabled diagnostics inside the existing preparation phase.
+            _ = self.capabilities
+        self.modes = _clause_modes(task)
         self.modes_by_id = {mode.id: mode for mode in self.modes}
         self.head_slots = _section_capacity(task.max_head_literals, self.modes, "head")
         self.body_slots = _section_capacity(task.max_body_literals, self.modes, "body")
@@ -195,6 +192,14 @@ class _ClauseGenerator:
                 default=0,
             )
         )
+
+    @cached_property
+    def predicate_arg_types(self) -> dict[tuple[str, int, int], str]:
+        return _predicate_arg_types(self.task, self.nodes)
+
+    @cached_property
+    def capabilities(self) -> ClauseCapabilities:
+        return _clause_capabilities(self.task, self.predicate_arg_types)
 
     @profile_phase("clause_generation")
     def _prepare(self, seed: int | None, by_size: bool = False):
@@ -270,7 +275,7 @@ class _ClauseGenerator:
                     exhausted = False
                     while not exhausted:
                         with phase("clause_generation"):
-                            clauses: list[ReifiedClause] = []
+                            canonicalizer = ClauseCanonicalizer(self.modes_by_id, self.max_variables)
                             models = 0
                             while not size or models < size:
                                 start = net_time()
@@ -280,18 +285,16 @@ class _ClauseGenerator:
                                     exhausted = True
                                     break
                                 models += 1
-                                clauses.append(_clause_from_model(model, model_index))
+                                canonicalizer.add(_clause_from_model(model, model_index))
                                 del model
                             seconds += elapsed
                             elapsed = 0.0
-                            entries = canonicalize_clauses(
-                                clauses, self.modes_by_id, self.max_variables
-                            )
-                            batch = ClauseSpace(entries)
+                            batch = ClauseSpace(canonicalizer.finish())
+                            del canonicalizer
                         # No timing phase may span a yield: the consumer runs its GA here.
                         if models or not size:
                             yield batch
-                            del batch, entries, clauses
+                            del batch
                 finally:
                     with phase("clause_generation"):
                         start = net_time()
@@ -314,25 +317,23 @@ class _ClauseGenerator:
         in the solver callback instead of crossing threads one at a time.
         """
         ctl, model_index, fact_program, solver_arguments, grounding_seconds = self._prepare(None)
-        clauses: list[ReifiedClause] = []
-        decoding = 0.0
+        canonicalizer = ClauseCanonicalizer(self.modes_by_id, self.max_variables)
+        callback_seconds = 0.0
 
         def decode(model: clingo.Model) -> None:
-            nonlocal decoding
+            nonlocal callback_seconds
             start = net_time()
-            clauses.append(_clause_from_model(model, model_index))
-            decoding += net_time() - start
+            canonicalizer.add(_clause_from_model(model, model_index))
+            callback_seconds += net_time() - start
 
         seconds = 0.0
         try:
             with phase("clause_generation"):
                 start = net_time()
                 ctl.solve(on_model=decode)
-                seconds = net_time() - start - decoding
+                seconds = net_time() - start - callback_seconds
                 add("clause_generation.solving", seconds)
-                return ClauseSpace(
-                    canonicalize_clauses(clauses, self.modes_by_id, self.max_variables)
-                )
+                return ClauseSpace(canonicalizer.finish())
         finally:
             if metric_enabled("clingo"):
                 with instrumentation():

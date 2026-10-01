@@ -13,51 +13,54 @@ from .arithmetic_system import ArithmeticSystemKey
 from .linear_constraint import LinearConstraint
 
 
-def canonicalize_clauses(
-    clauses: list[ReifiedClause],
-    modes: dict[int, ClauseMode],
-    max_variables: int,
-) -> list[Clause]:
-    representatives: dict[ArithmeticSystemKey, tuple[str, ast.AST, ReifiedClause]] = {}
-    systems_cache: _ArithmeticSystemsCache = {}
-    # A space has few distinct heads and many bodies per head.
-    heads: dict[tuple[ReifiedLiteral, ...], ast.AST] = {}
-    for clause in clauses:
+class ClauseCanonicalizer:
+    """Retain the globally preferred representative of each canonical rule."""
+
+    def __init__(self, modes: dict[int, ClauseMode], max_variables: int) -> None:
+        self.modes = modes
+        self.max_variables = max_variables
+        self.representatives: dict[ArithmeticSystemKey, tuple[str, ast.AST, ReifiedClause]] = {}
+        self.systems_cache: _ArithmeticSystemsCache = {}
+        # A space has few distinct heads and many bodies per head.
+        self.heads: dict[tuple[ReifiedLiteral, ...], ast.AST] = {}
+
+    def add(self, clause: ReifiedClause) -> None:
         canonical = canonical_arithmetic_clause(
-            clause, modes, max_variables, systems_cache
+            clause, self.modes, self.max_variables, self.systems_cache
         )
         if canonical is None:
-            continue
+            return
         key = canonical.key
-        current = representatives.get(key)
+        current = self.representatives.get(key)
         if current is None:
-            statement = canonical.instantiate(modes, heads)
-            representatives[key] = str(statement), statement, clause
+            statement = canonical.instantiate(self.modes, self.heads)
+            self.representatives[key] = str(statement), statement, clause
         elif len(clause.body) > len(current[2].body):
-            continue
+            return
         elif all(
             isinstance(relation, LinearConstraint)
             for system in canonical.systems
             for relation in system.relations
         ):
             if len(clause.body) < len(current[2].body):
-                representatives[key] = current[0], current[1], clause
+                self.representatives[key] = current[0], current[1], clause
         else:
-            statement = canonical.instantiate(modes, heads)
+            statement = canonical.instantiate(self.modes, self.heads)
             rendered = str(statement)
             if (len(clause.body), rendered) < (
                 len(current[2].body),
                 current[0],
             ):
-                representatives[key] = rendered, statement, clause
+                self.representatives[key] = rendered, statement, clause
 
-    ordered = sorted(
-        representatives.values(), key=lambda representative: representative[0]
-    )
-    return [
-        _clause_from_reified(rendered, statement, clause, modes)
-        for rendered, statement, clause in ordered
-    ]
+    def finish(self) -> list[Clause]:
+        ordered = sorted(
+            self.representatives.values(), key=lambda representative: representative[0]
+        )
+        return [
+            _clause_from_reified(rendered, statement, clause, self.modes)
+            for rendered, statement, clause in ordered
+        ]
 
 
 def _clause_from_reified(

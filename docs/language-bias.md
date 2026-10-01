@@ -124,6 +124,9 @@ including explicit guards, parentheses, and `#false` constraint heads.
 Static analysis traverses retained nodes directly.
 Predicate and numeric-value inspection use explicit stacks too, including
 deep comparison terms in background rules and example contexts.
+Canonical expression inspection, hashing, equality, substitutions and native
+AST construction likewise avoid Python recursion, preserving the left-to-right
+order of declared bindings for deeply nested terms.
 The [clause-generation implementation map](clause-generation.md) describes the
 separation between representation, analysis, pruning and canonicalization.
 `TASK_GRAMMAR` records top-level composition and the directive parsers enforce
@@ -721,6 +724,11 @@ After enumeration, every non-negated numeric relation is owned by its connected
 `ArithmeticSystem`. Linear equalities and inequalities whose constant terms
 cancel use canonical coefficient rows, including nested addition,
 subtraction, unary minus, and multiplication by an integer.
+Assignments keep integer coefficients exact. Magnitudes above two are rendered
+with multiplication rather than repeated variable occurrences; derived values
+too large for a native integer leaf use arithmetic over native integer leaves.
+This changes the compactness of output expressions, not the declared language
+or Clingo's arithmetic semantics.
 Nonlinear, bitwise, interval, and other Clingo terms retain an exact structural
 representation. Canonicalization never changes an operator into an
 approximation. Emitted rules contain only the final system representation.

@@ -65,6 +65,20 @@ de ellos redefine el language bias de una tarea inductiva.
   retenidos, sin helpers de parsing de texto usados solo por los tests. Las
   pruebas de seguridad de outputs construyen reglas AST y las cargan con
   `ProgramBuilder`; Clingo conserva la autoridad del grounding.
+  El lexer consume completos los marcadores de comentarios anidados y respeta
+  comentarios de línea dentro de bloques, también al buscar anotaciones.
+  El parser deduplica ejemplos y modes mediante claves de diccionarios ordenados,
+  conservando la primera localización; las constantes usan claves por tipo.
+  `ArithmeticLiteral` conserva expresión, resultado y procedencia de la familia
+  aditiva; no almacena una complejidad fija sin consumidores.
+  `#modeha` y `#modehd` comparten parsing de recall opcional y aridad de la
+  directiva. El parsing ASP recoge diagnósticos en su única llamada a Clingo;
+  localizar un error no vuelve a parsear la fuente.
+  Las expansiones de constantes calculan una vez las alternativas independientes
+  de guards, elementos y condiciones por llamada y conservan el orden de su
+  producto cartesiano. Las directivas rechazan argumentos finales vacíos;
+  `#modeagg`, `#modearith` y `#modecmp` fallan como directivas retiradas antes
+  de convertirse en background ASP.
 - `hypotheses/` es la única autoridad sobre legalidad y transiciones de
   `Genome`. Ningún operador ni algoritmo duplica su cierre de dependencias.
 - `algorithms/` contiene solo los algoritmos y sus métricas. Cada archivo de

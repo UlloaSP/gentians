@@ -68,16 +68,12 @@ class AggregateLiteral:
                 self.function, elements, left, right,
                 self.default_negated, self.double_negated,
             )
-            for elements in product(
-                *(element.concretizations(constants) for element in self.elements)
-            )
-            for left in (
+            for elements, left, right in product(
+                product(*(element.concretizations(constants) for element in self.elements)),
                 tuple(self.left_guard.update(term=term) for term in mode_terms.concretizations(self.left_guard.term, constants))
-                if self.left_guard is not None else (None,)
-            )
-            for right in (
+                if self.left_guard is not None else (None,),
                 tuple(self.right_guard.update(term=term) for term in mode_terms.concretizations(self.right_guard.term, constants))
-                if self.right_guard is not None else (None,)
+                if self.right_guard is not None else (None,),
             )
         )
 

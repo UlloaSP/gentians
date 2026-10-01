@@ -34,9 +34,11 @@ class AggregateElement:
     ) -> tuple["AggregateElement", ...]:
         return tuple(
             AggregateElement(concrete_terms, conditions, conclusion)
-            for concrete_terms in product(*(mode_terms.concretizations(term, constants) for term in self.terms))
-            for conclusion in (self.conclusion.concretizations(constants) if self.conclusion is not None else (None,))
-            for conditions in product(*(condition.concretizations(constants) for condition in self.conditions))
+            for concrete_terms, conclusion, conditions in product(
+                product(*(mode_terms.concretizations(term, constants) for term in self.terms)),
+                self.conclusion.concretizations(constants) if self.conclusion is not None else (None,),
+                product(*(condition.concretizations(constants) for condition in self.conditions)),
+            )
         )
 
     def instantiate(self, variables: Iterator[str]) -> ast.AST:

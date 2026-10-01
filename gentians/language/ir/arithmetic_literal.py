@@ -12,7 +12,6 @@ from ..ast_nodes import comparison
 class ArithmeticLiteral:
     expression: ast.AST
     output: ast.AST
-    complexity: int = 1
     implicit_additive_family_member: bool = field(
         default=False, repr=False
     )

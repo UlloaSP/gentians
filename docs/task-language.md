@@ -18,6 +18,15 @@ The task stores these heads directly. Recall `1` is checked when parsing the
 declaration. Comparison direction checks also pass native AST rules to Clingo;
 their safety continues to be determined by grounding.
 
+Task files accept Clingo's nested `%* ... *%` comments, including adjacent
+markers such as `%*%* ignored *%*%`. A `%` line comment inside a block hides
+closing markers until the newline. Repeating an equal mode or example keeps
+its first occurrence; distinct recalls, signs, labels and contexts remain
+distinct. Constant values keep declaration order within their type.
+Missing directive arguments, including a comma before the closing parenthesis,
+are rejected. Commas inside strings and singleton tuples such as `(a,)` remain
+valid.
+
 ## Head modes
 
 Each head declaration describes one complete allowed head:
@@ -104,6 +113,10 @@ disjunctions instead of choices:
 #modehd(1,q(var(node,input))).
 ```
 
+Its recall is also optional: `#modehd(p(var(node,input))).` means
+`#modehd(*,p(var(node,input))).`. A finite `#maxhl` is required whenever
+a combinable declaration uses an omitted or explicit `*` recall.
+
 The head form is always explicit: `#modeh` is a complete head, `#modeha`
 combines choice elements, and `#modehd` combines disjunctive elements. Recall
 never changes one form into another.
@@ -174,6 +187,9 @@ examples.
 
 Constant values may be ground Clingo terms or strings, including punctuation
 and escapes: `#constant(word,"a,b").` declares one value for `const(word)`.
+Each independent set of constant alternatives is expanded once before its
+Cartesian combination with guards, elements, and conditions. Expansion order
+and the declaration's shared recall are preserved.
 
 Mode terms may contain nested functions and tuples. Every leaf stays explicit:
 `var(...)` for a generated variable or `const(...)` for a declared ground value.

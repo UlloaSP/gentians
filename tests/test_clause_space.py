@@ -1948,7 +1948,7 @@ def test_linear_modes_render_direct_equations_with_bounded_complexity():
     )
 
 
-def test_linear_mode_complexity_is_capped_by_body_limit():
+def test_high_arithmetic_recall_keeps_one_direct_mode():
     program = inductive_task(
         ["q(1,2,3)."],
         [],
@@ -1969,7 +1969,7 @@ def test_linear_mode_complexity_is_capped_by_body_limit():
     ]
     assert len(arithmetic_modes) == 1
     assert arithmetic_modes[0].recall == 100
-    assert arithmetic_modes[0].literal.complexity == 1
+    assert arithmetic_modes[0].literal.coefficients == (1, 1, -1)
 
 
 def test_direct_linear_equation_can_safely_produce_a_head_variable():

@@ -20,7 +20,7 @@ def lex(source: str) -> tuple[Statement, ...]:
     escaped = False
     line_comment = False
     block_comment_depth = 0
-    skip_block_end = False
+    skip_comment_marker = False
     annotated_statement = False
 
     def next_significant(offset: int) -> str:
@@ -37,6 +37,11 @@ def lex(source: str) -> tuple[Statement, ...]:
                     elif source.startswith("*%", offset):
                         depth -= 1
                         offset += 2
+                    elif source[offset] == "%":
+                        end = source.find("\n", offset + 1)
+                        if end < 0:
+                            return ""
+                        offset = end + 1
                     else:
                         offset += 1
                 if depth:
@@ -63,8 +68,15 @@ def lex(source: str) -> tuple[Statement, ...]:
         annotated_statement = False
 
     for index, char in enumerate(source):
-        if skip_block_end:
-            skip_block_end = False
+        if skip_comment_marker:
+            skip_comment_marker = False
+            continue
+        if line_comment:
+            if char == "\n":
+                line_comment = False
+                line += 1
+                if buffer:
+                    buffer.append("\n")
             continue
         if block_comment_depth:
             if char == "\n":
@@ -73,22 +85,19 @@ def lex(source: str) -> tuple[Statement, ...]:
                     buffer.append("\n")
             elif char == "%" and source[index + 1 : index + 2] == "*":
                 block_comment_depth += 1
+                skip_comment_marker = True
             elif char == "*" and source[index + 1 : index + 2] == "%":
                 block_comment_depth -= 1
-                skip_block_end = True
+                skip_comment_marker = True
                 if not block_comment_depth and buffer and not buffer[-1].isspace():
                     buffer.append(" ")
-            continue
-        if line_comment:
-            if char == "\n":
-                line_comment = False
-                line += 1
-                if buffer and not buffer[-1].isspace():
-                    buffer.append("\n")
+            elif char == "%":
+                line_comment = True
             continue
         if not quoted and char == "%":
             if source[index + 1 : index + 2] == "*":
                 block_comment_depth = 1
+                skip_comment_marker = True
             else:
                 line_comment = True
             continue

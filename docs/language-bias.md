@@ -40,12 +40,22 @@ nested delimiters, ranges, and annotations. Declaration parsing lives in
 `InductiveTask` IR in `gentians.language.ir`: types, directions, recalls,
 labels, and task limits. Generic ASP fragments keep Clingo's AST through
 `gentians.language.asp`; Gentians does not define a competing ASP AST.
+Comments follow Clingo's lexer: `%* ... *%` blocks may nest without spaces
+between markers, and `%` starts a line comment even inside a block. A `*%`
+inside that line comment does not close the block. Framing retains source lines
+and keeps any following weak-constraint or directive annotation attached.
+Equal examples and mode declarations retain their first appearance and source
+location. Deduplication uses insertion order; different recalls, signs, labels,
+directions, or example contexts remain distinct. Constant values likewise keep
+their first appearance within each type.
 The complete background is parsed in one Clingo call while preserving original
 task line locations. Background and every
 example's included atoms, excluded atoms, and context remain as
 `clingo.ast.AST` nodes inside `InductiveTask`. Each non-empty example field is
 parsed directly; empty fields do not invoke Clingo. Candidate `Clause`
 values retain their constructed clause beside their canonical output text.
+ASP diagnostics are collected during that same parse: reporting the original
+error line never reparses the invalid source or prints a second error.
 Mode templates are Gentians' learning IR: they retain typed binding leaves,
 directions, labels, recalls, condition groups, and arithmetic-family metadata.
 They instantiate native Clingo terms, literals, guards, elements, and heads;
@@ -54,7 +64,9 @@ term syntax and aggregate guards themselves remain native Clingo nodes.
 leaves without building a parallel term tree. Mode parsing and pool expansion
 decode already parsed nodes without reparsing atom or argument strings.
 Each literal owns its constant expansion, reused by head and body conditions
-and aggregate elements.
+and aggregate elements. Independent element, condition, and guard alternatives
+are expanded once per call and combined with an ordered Cartesian product.
+Combining one alternative never recomputes another group's expansion.
 Head templates keep their Clingo form (including guards and aggregate function)
 and complete learning elements; signs and exact conditions belong to their
 literal rather than parallel lists. Label validation is shared by head and body
@@ -89,6 +101,8 @@ aggregate-head-minimum = "#minhl(", positive-integer, ")." ;
 
 Additional validity rules:
 
+- Directive arguments cannot end with a comma and a missing value. A comma
+  inside a string or a singleton tuple such as `(a,)` remains valid ASP syntax.
 - Each directive occurs at most once in a task.
 - `#maxpl` requires an integer greater than zero or `*`.
 - `#maxv(0).` allows only clauses without variables.
@@ -357,6 +371,8 @@ selectable, empty-element heads.
 are no longer supported.
 The parser rejects each with its source line before compiling background ASP.
 There is no compatibility mode or replacement payload in `InductiveTask`.
+The retired `#modeagg`, `#modearith`, and `#modecmp` directives also fail at
+this stage, rather than reaching Clingo as background statements.
 
 The language bias still consists of modes, recalls, types, variable labels,
 constants, structural limits, and `#invent`. Variable labels always enforce
@@ -434,7 +450,10 @@ disjunction and never a choice or cardinality head:
 ```
 
 This can generate `painted(V0,red);painted(V0,blue)`. Recall counts uses of a
-declaration across constant expansions. A disjunction has at least two
+declaration across constant expansions. As with `#modeha`, omitting recall
+means `*`: `#modehd(painted(var(node,input),const(colour))).` is equivalent
+to an explicit `#modehd(*,painted(var(node,input),const(colour))).`.
+A disjunction has at least two
 elements; `#minhl`, `#maxhl`, safety, labels, `#modec`, and the finite-recall
 requirement for `#maxhl(*)` otherwise behave as for `#modeha`. Keeping
 `#modehd` separate makes the object-level ASP semantics explicit: recall never

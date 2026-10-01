@@ -63,8 +63,10 @@ class ConditionalLiteral:
     ) -> tuple["ConditionalLiteral", ...]:
         return tuple(
             ConditionalLiteral(conclusion, conditions, self.condition_groups)
-            for conclusion in self.conclusion.concretizations(constants)
-            for conditions in product(*(item.concretizations(constants) for item in self.conditions))
+            for conclusion, conditions in product(
+                self.conclusion.concretizations(constants),
+                product(*(item.concretizations(constants) for item in self.conditions)),
+            )
         )
 
     def instantiate(self, variables: Iterator[str]) -> ast.AST:

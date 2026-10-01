@@ -33,10 +33,11 @@ def _get_mode_declarations(
     source: str, name: str, *, unpool: bool = False
 ) -> tuple[ModeDeclaration, ...]:
     parts = split_top_level_args(_directive_args(source, name))
-    if name == "#modeha" and len(parts) == 1:
+    combinable_head = name in {"#modeha", "#modehd"}
+    if combinable_head and len(parts) == 1:
         recall, syntax = -1, parts[0]
     else:
-        if len(parts) < 2 or name == "#modeha" and len(parts) != 2:
+        if len(parts) < 2 or combinable_head and len(parts) != 2:
             raise ValueError(f"invalid {name} declaration: {source}")
         recall, syntax = _parse_recall(parts[0]), ",".join(parts[1:])
     return tuple(

@@ -56,12 +56,10 @@ class HeadAggregateElement:
     ) -> tuple["HeadAggregateElement", ...]:
         return tuple(
             HeadAggregateElement(terms, conclusion, conditions)
-            for terms in product(
-                *(mode_terms.concretizations(term, constants) for term in self.terms)
-            )
-            for conclusion in self.conclusion.concretizations(constants)
-            for conditions in product(
-                *(condition.concretizations(constants) for condition in self.conditions)
+            for terms, conclusion, conditions in product(
+                product(*(mode_terms.concretizations(term, constants) for term in self.terms)),
+                self.conclusion.concretizations(constants),
+                product(*(condition.concretizations(constants) for condition in self.conditions)),
             )
         )
 

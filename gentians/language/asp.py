@@ -12,10 +12,16 @@ AspProgram = tuple[ast.AST, ...]
 def parse_program(source: str, line: int = 1) -> AspProgram:
     """Parse ASP with Clingo and discard its implicit ``#program base`` node."""
     statements: list[ast.AST] = []
+    diagnostics: list[str] = []
     try:
-        ast.parse_string(source, statements.append)
+        ast.parse_string(
+            source,
+            statements.append,
+            logger=lambda _code, message: diagnostics.append(message),
+        )
     except RuntimeError:
-        error_line = _parse_error_line(source, line)
+        match = re.search(r"<string>:(\d+):", "\n".join(diagnostics))
+        error_line = line + int(match.group(1)) - 1 if match else line
         raise ValueError(
             f"line {error_line}: invalid ASP program: {source.strip()}"
         ) from None
@@ -35,20 +41,6 @@ def without_show(program: AspProgram) -> AspProgram:
         for statement in program
         if statement.ast_type not in {ast.ASTType.ShowSignature, ast.ASTType.ShowTerm}
     )
-
-
-def _parse_error_line(source: str, line: int) -> int:
-    diagnostics: list[str] = []
-    try:
-        ast.parse_string(
-            source,
-            lambda _statement: None,
-            logger=lambda _code, message: diagnostics.append(message),
-        )
-    except RuntimeError:
-        pass
-    match = re.search(r"<string>:(\d+):", "\n".join(diagnostics))
-    return line + int(match.group(1)) - 1 if match else line
 
 
 def parse_rule(source: str) -> ast.AST:
@@ -145,6 +137,8 @@ def split_top_level_args(args: str) -> list[str]:
             parts.append(args[start:index].strip())
             start = index + 1
     tail = args[start:].strip()
+    if parts and not tail:
+        raise ValueError("empty top-level argument")
     if tail:
         parts.append(tail)
     return parts

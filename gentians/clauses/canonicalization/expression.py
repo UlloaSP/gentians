@@ -31,14 +31,17 @@ class ArithmeticExpression:
         if not isinstance(other, ArithmeticExpression):
             return NotImplemented
         pending: list[tuple[ArithmeticExpression, ArithmeticExpression]] = [(self, other)]
+        compared: set[tuple[int, int]] = set()
         while pending:
             left, right = pending.pop()
-            if left is right:
+            pair = id(left), id(right)
+            if left is right or pair in compared:
                 continue
             if (left.operator, left.variable, left.constant, left.symbol, len(left.arguments)) != (
                 right.operator, right.variable, right.constant, right.symbol, len(right.arguments)
             ):
                 return False
+            compared.add(pair)
             pending.extend(zip(left.arguments, right.arguments, strict=True))
         return True
 
@@ -61,28 +64,23 @@ class ArithmeticExpression:
     @property
     def variables(self) -> frozenset[int]:
         result: set[int] = set()
-        pending: list[ArithmeticExpression] = [self]
-        while pending:
-            node = pending.pop()
+        for node in _postorder(self):
             if node.variable is not None:
                 result.add(node.variable)
-            else:
-                pending.extend(node.arguments)
         return frozenset(result)
 
     def _transform(self, replace: Callable[["ArithmeticExpression"], "ArithmeticExpression"]) -> "ArithmeticExpression":
-        results: list[ArithmeticExpression] = []
-        for node, count in _postorder(self):
-            children = tuple(results[-count:]) if count else ()
-            if count:
-                del results[-count:]
+        results: dict[int, ArithmeticExpression] = {}
+        for node in _postorder(self):
+            children = tuple(results[id(child)] for child in node.arguments)
             if node.variable is not None:
-                results.append(replace(node))
+                result = replace(node)
             elif all(child is original for child, original in zip(children, node.arguments, strict=True)):
-                results.append(node)
+                result = node
             else:
-                results.append(ArithmeticExpression(node.operator, children))
-        return results[0]
+                result = ArithmeticExpression(node.operator, children)
+            results[id(node)] = result
+        return results[id(self)]
 
     def remap(self, variables: dict[int, int]) -> "ArithmeticExpression":
         def replace(node: ArithmeticExpression) -> ArithmeticExpression:
@@ -100,11 +98,9 @@ class ArithmeticExpression:
         return self._transform(replace)
 
     def instantiate(self) -> ast.AST:
-        results: list[ast.AST] = []
-        for node, count in _postorder(self):
-            arguments = results[-count:] if count else []
-            if count:
-                del results[-count:]
+        results: dict[int, ast.AST] = {}
+        for node in _postorder(self):
+            arguments = [results[id(child)] for child in node.arguments]
             if node.variable is not None:
                 result = binding_term(f"V{node.variable}")
             elif node.constant is not None:
@@ -117,8 +113,8 @@ class ArithmeticExpression:
                 result = ast.Function(LOCATION, "", arguments, False)
             else:
                 result = operation("*" if node.operator == "scale" else node.operator, arguments)
-            results.append(result)
-        return results[0]
+            results[id(node)] = result
+        return results[id(self)]
 
     def render(self) -> str:
         return str(self.instantiate())
@@ -143,13 +139,18 @@ def _integer_term(value: int) -> ast.AST:
     return operation("neg", [result]) if value < 0 else result
 
 
-def _postorder(expression: ArithmeticExpression) -> Iterator[tuple[ArithmeticExpression, int]]:
+def _postorder(expression: ArithmeticExpression) -> Iterator[ArithmeticExpression]:
+    """Visit shared immutable subexpressions once, after their children."""
     pending = [(expression, False)]
+    completed: set[int] = set()
     while pending:
         node, visited = pending.pop()
+        if id(node) in completed:
+            continue
         children = () if node.variable is not None or node.constant is not None or node.symbol is not None else node.arguments
         if visited or not children:
-            yield node, len(children)
+            completed.add(id(node))
+            yield node
         else:
             pending.append((node, True))
             pending.extend((child, False) for child in reversed(children))
@@ -158,11 +159,9 @@ def _postorder(expression: ArithmeticExpression) -> Iterator[tuple[ArithmeticExp
 @lru_cache(maxsize=8192)
 def _expression_key(expression: ArithmeticExpression) -> tuple[object, ...]:
     """Normalize keys bottom-up; expression hashing and equality are iterative."""
-    results: list[tuple[object, ...]] = []
-    for node, count in _postorder(expression):
-        children = tuple(results[-count:]) if count else ()
-        if count:
-            del results[-count:]
+    results: dict[int, tuple[object, ...]] = {}
+    for node in _postorder(expression):
+        children = tuple(results[id(child)] for child in node.arguments)
         if node.variable is not None:
             key = "var", node.variable
         elif node.constant is not None:
@@ -187,5 +186,5 @@ def _expression_key(expression: ArithmeticExpression) -> tuple[object, ...]:
             key = "product", tuple(sorted(factors, key=repr))
         else:
             key = node.operator, tuple(sorted(children, key=repr)) if node.operator == "abs" else children
-        results.append(key)
-    return results[0]
+        results[id(node)] = key
+    return results[id(expression)]

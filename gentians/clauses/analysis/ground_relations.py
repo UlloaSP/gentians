@@ -149,14 +149,20 @@ def _open_predicates(
 
 def _head_predicates_known(node: ast.AST) -> bool:
     """Whether predicate extraction reads every symbolic head element."""
-    if node.ast_type == ast.ASTType.SymbolicAtom:
-        return bool(symbolic_functions(node.symbol)) or (
-            node.symbol.ast_type == ast.ASTType.SymbolicTerm
-            and node.symbol.symbol.type == clingo.SymbolType.Function
-        )
-    if node.ast_type == ast.ASTType.TheoryAtom:
-        return False
-    return all(_head_predicates_known(child) for child in _children(node))
+    pending = [node]
+    while pending:
+        node = pending.pop()
+        if node.ast_type == ast.ASTType.SymbolicAtom:
+            if not (symbolic_functions(node.symbol) or (
+                node.symbol.ast_type == ast.ASTType.SymbolicTerm
+                and node.symbol.symbol.type == clingo.SymbolType.Function
+            )):
+                return False
+        elif node.ast_type == ast.ASTType.TheoryAtom:
+            return False
+        else:
+            pending.extend(_children(node))
+    return True
 
 
 def _consequences(

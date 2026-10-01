@@ -3,7 +3,6 @@ from functools import lru_cache
 
 from clingo import ast
 
-from ..language import terms as mode_terms
 from ..language.ast_nodes import binding_terms, consume_all, literal
 from ..language.ir.literal_template import LiteralTemplate
 from .arithmetic_literal import ArithmeticLiteral
@@ -44,7 +43,7 @@ def instantiate_head(
         _instantiate_literal(
             ReifiedLiteral(
                 literal.section, literal.slot, literal.mode_id,
-                literal.variables[:sum(len(mode_terms.bindings(term)) for term in mode.literal.arguments)],
+                literal.variables[:mode.literal_binding_count],
             ),
             mode,
         )
@@ -53,6 +52,6 @@ def instantiate_head(
     template = head_modes[0].head
     if template is None or any(mode.head != template for mode in head_modes):
         raise ValueError("clause head does not share one complete #modeh template")
-    first_count = sum(len(mode_terms.bindings(term)) for term in head_modes[0].literal.arguments)
+    first_count = head_modes[0].literal_binding_count
     guard_variables = tuple(f"V{variable}" for variable in head[0].variables[first_count:])
     return template.instantiate(atoms, guard_variables)

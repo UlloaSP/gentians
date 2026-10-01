@@ -264,7 +264,7 @@ def _common_mode_facts(
             parts.append(f"mode_arg_label({mode.id},{index},{binding.label}).")
         if binding.direction:
             parts.append(f"mode_arg_direction({mode.id},{index},{binding.direction}).")
-    guard_start = sum(len(mode_terms.bindings(term)) for term in mode.literal.arguments)
+    guard_start = mode.literal_binding_count
     parts.extend(
         f"head_guard_arg({mode.id},{position})."
         for position in range(guard_start, len(mode.bindings))
@@ -389,7 +389,8 @@ def _conditional_facts(
     condition_variants: dict[tuple[object, ...], int],
 ) -> list[str]:
     parts: list[str] = []
-    offset = sum(len(mode_terms.bindings(term)) for term in conditional.conclusion.arguments)
+    argument_index = len(conditional.conclusion.arguments)
+    offset = mode.argument_offsets[argument_index]
     parts.extend(f"conditional_main_arg({mode.id},{arg})." for arg in range(offset))
     for index, condition in enumerate(conditional.conditions):
         if isinstance(condition, AtomLiteral):
@@ -422,11 +423,16 @@ def _conditional_facts(
         # Conditions are ordered and deduplicated by variant, which amounts to
         # swapping them. Only conditions with equal types, directions and
         # labels can swap.
-        condition_key = (*condition_key, _binding_traits(condition.arguments))
+        argument_index += len(condition.arguments)
+        end = mode.argument_offsets[argument_index]
+        condition_key = (*condition_key, tuple(
+            (binding.type, binding.direction, binding.label)
+            for binding in mode.bindings[offset:end]
+        ))
         parts.append(
             f"conditional_condition_variant({mode.id},{index},{condition_variants.setdefault(condition_key, len(condition_variants))})."
         )
-        binding_count = sum(len(mode_terms.bindings(term)) for term in condition.arguments)
+        binding_count = end - offset
         if isinstance(condition, ComparisonLiteral):
             parts.extend(_local_comparison_facts(
                 mode.id, "conditional", -1, index, offset, condition,
@@ -467,11 +473,7 @@ def _comparison_facts(
         parts.append(f"comparison_operator({mode.id},{operator_name}).")
         if _terms_are_interchangeable(*comparison.terms):
             parts.append(f"interchangeable_operands({mode.id}).")
-    offsets: list[int] = []
-    offset = 0
-    for term in comparison.terms:
-        offsets.append(offset)
-        offset += len(mode_terms.bindings(term))
+    offsets = mode.argument_offsets
     for index, operator in enumerate(comparison.operators):
         if (
             operator in {"<", ">"}
@@ -487,12 +489,7 @@ def _comparison_facts(
 def _arithmetic_facts(
     mode: ClauseMode, arithmetic: ArithmeticLiteral
 ) -> list[str]:
-    positions: list[tuple[int, ...]] = []
-    offset = 0
-    for term in arithmetic.arguments:
-        bindings = mode_terms.bindings(term)
-        positions.append(tuple(range(offset, offset + len(bindings))))
-        offset += len(bindings)
+    positions = [tuple(range(start, end)) for start, end in zip(mode.argument_offsets, mode.argument_offsets[1:])]
     complete = all(len(term_positions) == 1 for term_positions in positions)
     if not complete:
         return []
@@ -525,13 +522,15 @@ def _aggregate_facts(
     output_guard = mode.output_guard
     parts: list[str] = []
     offset = 0
+    ranges = iter(zip(mode.argument_offsets, mode.argument_offsets[1:]))
     for element_id, element in enumerate(aggregate.elements):
         for tuple_position, term in enumerate(element.terms):
-            for position in range(offset, offset + len(mode_terms.bindings(term))):
+            offset, end = next(ranges)
+            for position in range(offset, end):
                 parts.append(
                     f"mode_aggregate_element_tuple_arg({mode.id},{element_id},{tuple_position},{position})."
                 )
-            offset += len(mode_terms.bindings(term))
+            offset = end
         if element.conclusion is not None:
             if isinstance(element.conclusion, AtomLiteral):
                 atom = element.conclusion.atom
@@ -539,11 +538,12 @@ def _aggregate_facts(
                     f"aggregate_element_atom({mode.id},{element_id},{predicate_ids[atom.signature]},{len(atom.terms)})."
                 )
             for argument, term in enumerate(element.conclusion.arguments):
-                for position in range(offset, offset + len(mode_terms.bindings(term))):
+                offset, end = next(ranges)
+                for position in range(offset, end):
                     parts.append(
                         f"mode_aggregate_element_tuple_arg({mode.id},{element_id},{argument},{position})."
                     )
-                offset += len(mode_terms.bindings(term))
+                offset = end
         for condition, literal in enumerate(element.conditions):
             if isinstance(literal, AtomLiteral) and not literal.default_negated:
                 parts.extend(_local_pool_facts(
@@ -559,7 +559,8 @@ def _aggregate_facts(
                     f"aggregate_element_condition_atom({mode.id},{element_id},{condition},{predicate_ids[atom.signature]},{len(atom.terms)})."
                 )
             for argument, term in enumerate(literal.arguments):
-                for position in range(offset, offset + len(mode_terms.bindings(term))):
+                offset, end = next(ranges)
+                for position in range(offset, end):
                     parts.append(
                         f"mode_aggregate_element_condition_arg({mode.id},{element_id},{condition},{argument},{position})."
                     )
@@ -567,14 +568,15 @@ def _aggregate_facts(
                         parts.append(
                             f"mode_aggregate_element_positive_arg({mode.id},{element_id},{condition},{position})."
                         )
-                offset += len(mode_terms.bindings(term))
+                offset = end
     for guard in (aggregate.left_guard, aggregate.right_guard):
         if guard is None:
             continue
         name = "mode_aggregate_output_arg" if guard is output_guard else "mode_aggregate_guard_arg"
-        for position in range(offset, offset + len(mode_terms.bindings(guard.term))):
+        offset, end = next(ranges)
+        for position in range(offset, end):
             parts.append(f"{name}({mode.id},{position}).")
-        offset += len(mode_terms.bindings(guard.term))
+        offset = end
 
     if (
         len(aggregate.elements) != 1
@@ -586,8 +588,8 @@ def _aggregate_facts(
             for condition in aggregate.elements[0].conditions
         )
         or any(
-            len(mode_terms.bindings(term)) > 1
-            for term in aggregate.elements[0].arguments
+            end - start > 1
+            for start, end in zip(mode.argument_offsets, mode.argument_offsets[1:len(aggregate.elements[0].arguments) + 1])
         )
     ):
         return parts
@@ -608,13 +610,14 @@ def _aggregate_facts(
     elif aggregate.function == "sum":
         parts.append(f"sum_aggregate_mode({mode.id}).")
     offset = 0
+    ranges = iter(zip(mode.argument_offsets, mode.argument_offsets[1:]))
     for tuple_position, term in enumerate(element.terms):
-        binding_count = len(mode_terms.bindings(term))
+        offset, end = next(ranges)
         parts.extend(
             f"mode_aggregate_tuple_arg({mode.id},{tuple_position},{flat_position})."
-            for flat_position in range(offset, offset + binding_count)
+            for flat_position in range(offset, end)
         )
-        offset += binding_count
+        offset = end
     parts.extend(
         f"interchangeable_tuple_args({mode.id},{first},{second})."
         for first, second in combinations(range(tuple_arity), 2)
@@ -635,16 +638,16 @@ def _aggregate_facts(
                 and _terms_are_interchangeable(atom.terms[first], atom.terms[second])
             )
         for argument, term in enumerate(atom.binding_terms):
-            binding_count = len(mode_terms.bindings(term))
+            offset, end = next(ranges)
             parts.extend(
                 f"mode_aggregate_condition_arg({mode.id},{condition},{argument},{flat_position})."
-                for flat_position in range(offset, offset + binding_count)
+                for flat_position in range(offset, end)
             )
-            offset += binding_count
-    result_bindings = mode_terms.bindings(output_guard.term)
+            offset = end
+    offset, end = next(ranges)
     parts.extend(
         f"mode_aggregate_result_arg({mode.id},{position})."
-        for position in range(offset, offset + len(result_bindings))
+        for position in range(offset, end)
     )
     return parts
 
@@ -656,10 +659,12 @@ def _head_aggregate_facts(
 ) -> list[str]:
     parts: list[str] = []
     offset = 0
+    ranges = iter(zip(mode.argument_offsets, mode.argument_offsets[1:]))
     for term in (*element.terms, *element.conclusion.arguments):
-        for position in range(offset, offset + len(mode_terms.bindings(term))):
+        offset, end = next(ranges)
+        for position in range(offset, end):
             parts.append(f"head_aggregate_element_arg({mode.id},{position}).")
-        offset += len(mode_terms.bindings(term))
+        offset = end
     for condition, literal in enumerate(element.conditions):
         if isinstance(literal, AtomLiteral) and not literal.default_negated:
             parts.extend(_local_pool_facts(
@@ -674,13 +679,14 @@ def _head_aggregate_facts(
                 f"head_aggregate_condition_atom({mode.id},{condition},{predicate_ids[literal.atom.signature]})."
             )
         for term in literal.arguments:
-            for position in range(offset, offset + len(mode_terms.bindings(term))):
+            offset, end = next(ranges)
+            for position in range(offset, end):
                 parts.append(f"head_aggregate_element_arg({mode.id},{position}).")
                 if isinstance(literal, AtomLiteral) and not literal.default_negated:
                     parts.append(
                         f"head_aggregate_positive_condition_arg({mode.id},{condition},{position})."
                     )
-            offset += len(mode_terms.bindings(term))
+            offset = end
     parts.append(f"mode_condition_count({mode.id},{len(element.conditions)}).")
     return parts
 
@@ -748,16 +754,6 @@ def _local_comparison_facts(
             )
             variant += 1
     return parts
-
-
-def _binding_traits(
-    terms: tuple[ast.AST, ...],
-) -> tuple[tuple[str, str, str], ...]:
-    return tuple(
-        (binding.type, binding.direction, binding.label)
-        for term in terms
-        for binding in mode_terms.bindings(term)
-    )
 
 
 def _operands_are_interchangeable(literal: ArithmeticLiteral) -> bool:

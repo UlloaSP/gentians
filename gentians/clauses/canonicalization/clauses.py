@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 from clingo import ast
 
 from ...language.asp import Predicate
@@ -20,7 +22,7 @@ class ClauseCanonicalizer:
         self.modes = modes
         self.max_variables = max_variables
         self.representatives: dict[ArithmeticSystemKey, tuple[str, ast.AST, ReifiedClause]] = {}
-        self.systems_cache: _ArithmeticSystemsCache = {}
+        self.systems_cache = _ArithmeticSystemsCache()
         # A space has few distinct heads and many bodies per head.
         self.heads: dict[tuple[ReifiedLiteral, ...], ast.AST] = {}
 
@@ -53,14 +55,10 @@ class ClauseCanonicalizer:
             ):
                 self.representatives[key] = rendered, statement, clause
 
-    def finish(self) -> list[Clause]:
-        ordered = sorted(
-            self.representatives.values(), key=lambda representative: representative[0]
-        )
-        return [
-            _clause_from_reified(rendered, statement, clause, self.modes)
-            for rendered, statement, clause in ordered
-        ]
+    def finish(self) -> Iterator[Clause]:
+        # ClauseSpace owns final text deduplication and deterministic ordering.
+        for rendered, statement, clause in self.representatives.values():
+            yield _clause_from_reified(rendered, statement, clause, self.modes)
 
 
 def _clause_from_reified(

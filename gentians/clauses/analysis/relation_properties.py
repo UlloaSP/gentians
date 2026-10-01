@@ -22,51 +22,38 @@ def _collect_argument_properties(
             arg_distinct.add((predicate, left, right))
 
 
-def _collect_functional_properties(
+def _collect_dependency_properties(
     predicate: Predicate,
     tuples: frozenset[GroundTuple],
     functional: set[tuple[Predicate, int, int]],
-) -> None:
-    for input_arg in range(predicate[1]):
-        if len(tuples) < 2:
-            continue
-        for output_arg in range(predicate[1]):
-            if input_arg == output_arg:
-                continue
-            outputs: dict[GroundTerm, GroundTerm] = {}
-            valid = True
-            for values in tuples:
-                previous = outputs.setdefault(values[input_arg], values[output_arg])
-                if previous != values[output_arg]:
-                    valid = False
-                    break
-            if valid:
-                functional.add((predicate, input_arg, output_arg))
-
-
-def _collect_composite_functional_properties(
-    predicate: Predicate,
-    tuples: frozenset[GroundTuple],
     functional_set: set[tuple[Predicate, tuple[int, ...], int]],
+    keys: set[tuple[Predicate, tuple[int, ...]]],
 ) -> None:
+    """Group each determinant once, sharing the scan across outputs and keys."""
     arity = predicate[1]
-    if arity < 3 or len(tuples) < 2:
+    if arity < 2 or len(tuples) < 2:
         return
-    for size in range(2, arity):
+    found_keys: list[frozenset[int]] = []
+    for size in range(1, arity):
         for input_args in combinations(range(arity), size):
-            for output_arg in range(arity):
-                if output_arg in input_args:
-                    continue
-                outputs: dict[GroundTuple, GroundTerm] = {}
-                valid = True
-                for values in tuples:
-                    key = tuple(values[arg] for arg in input_args)
-                    previous = outputs.setdefault(key, values[output_arg])
-                    if previous != values[output_arg]:
-                        valid = False
+            inputs = frozenset(input_args)
+            valid = set(range(arity)) - inputs
+            groups: dict[GroundTuple, GroundTuple] = {}
+            for values in tuples:
+                key = tuple(values[arg] for arg in input_args)
+                previous = groups.setdefault(key, values)
+                if previous is not values:
+                    valid.difference_update(arg for arg in tuple(valid) if previous[arg] != values[arg])
+                    if not valid:
                         break
-                if valid:
+            for output_arg in valid:
+                if size == 1:
+                    functional.add((predicate, input_args[0], output_arg))
+                else:
                     functional_set.add((predicate, input_args, output_arg))
+            if len(groups) == len(tuples) and not any(key <= inputs for key in found_keys):
+                keys.add((predicate, input_args))
+                found_keys.append(inputs)
 
 
 def _without_key_subsumed_functional(
@@ -165,25 +152,6 @@ def _key_sets_by_predicate(
     for predicate, args in keys:
         result.setdefault(predicate, []).append(set(args))
     return result
-
-
-def _collect_key_properties(
-    predicate: Predicate,
-    tuples: frozenset[GroundTuple],
-    keys: set[tuple[Predicate, tuple[int, ...]]],
-) -> None:
-    arity = predicate[1]
-    if arity < 2 or len(tuples) < 2:
-        return
-    found: list[tuple[int, ...]] = []
-    for size in range(1, arity):
-        for args in combinations(range(arity), size):
-            if any(set(existing) <= set(args) for existing in found):
-                continue
-            projected = {tuple(values[arg] for arg in args) for values in tuples}
-            if len(projected) == len(tuples):
-                found.append(args)
-                keys.add((predicate, args))
 
 
 def _collect_disjoint_projections(
@@ -353,24 +321,19 @@ def _is_total_order(tuples: frozenset[GroundTuple], transitive: bool, reflexive:
 
 
 def _is_acyclic(tuples: frozenset[GroundTuple]) -> bool:
-    graph: dict[GroundTerm, set[GroundTerm]] = {}
+    graph: dict[GroundTerm, list[GroundTerm]] = {}
+    incoming: dict[GroundTerm, int] = {}
     for left, right in tuples:
-        graph.setdefault(left, set()).add(right)
-        graph.setdefault(right, set())
-    visiting: set[GroundTerm] = set()
-    visited: set[GroundTerm] = set()
-
-    def visit(node: GroundTerm) -> bool:
-        if node in visiting:
-            return False
-        if node in visited:
-            return True
-        visiting.add(node)
-        for next_node in graph[node]:
-            if not visit(next_node):
-                return False
-        visiting.remove(node)
-        visited.add(node)
-        return True
-
-    return bool(tuples) and all(visit(node) for node in graph)
+        graph.setdefault(left, []).append(right)
+        incoming.setdefault(left, 0)
+        incoming[right] = incoming.get(right, 0) + 1
+    pending = [node for node, count in incoming.items() if not count]
+    visited = 0
+    while pending:
+        node = pending.pop()
+        visited += 1
+        for successor in graph.get(node, ()):
+            incoming[successor] -= 1
+            if not incoming[successor]:
+                pending.append(successor)
+    return bool(tuples) and visited == len(incoming)

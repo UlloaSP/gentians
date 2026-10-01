@@ -1,20 +1,23 @@
 from collections import Counter
-from itertools import combinations_with_replacement, permutations, product
+from itertools import combinations, combinations_with_replacement, permutations, product
 
 import clingo
 import pytest
 
 from gentians.arguments import Arguments
 from gentians.clauses import generator, mode_compiler
-from gentians.clauses.analysis import ground_relations
+from gentians.clauses.analysis import ground_relations, inference, rule_properties
 from gentians.clauses.analysis.inference import _closed_world_properties
 from gentians.clauses.analysis.relation_properties import (
     _collect_projection_implications,
+    _collect_dependency_properties,
     _collect_tuple_mutex,
     _is_reflexive,
     _is_total_order,
     _is_transitive,
+    _is_acyclic,
 )
+from gentians.clauses.canonicalization import arithmetic, expression as expressions
 from gentians.clauses.canonicalization.clauses import ClauseCanonicalizer
 from gentians.clauses.canonicalization.expression import ArithmeticExpression
 from gentians.clauses.canonicalization.expression_normalization import _term_comparison
@@ -23,10 +26,11 @@ from gentians.clauses.canonicalization.linear_normalization import (
     _comparison_linear_template,
     _linear_assignment_expression,
 )
-from gentians.clauses.reified_clause import ReifiedClause
+from gentians.clauses.clause_space import ClauseSpace
+from gentians.clauses.reified_clause import ReifiedClause, instantiate_head
 from gentians.clauses.reified_literal import ReifiedLiteral
-from gentians.language import parse_text
-from gentians.language.asp import parse_program
+from gentians.language import parse_text, terms as mode_terms
+from gentians.language.asp import parse_program, parse_rule
 from gentians.language.ir.comparison_literal import ComparisonLiteral
 
 
@@ -313,7 +317,7 @@ def test_streaming_canonicalizer_keeps_the_globally_shortest_representative(shor
     canonicalizer = ClauseCanonicalizer(modes, 5)
     for clause in (short, long) if short_first else (long, short):
         canonicalizer.add(clause)
-    entries = canonicalizer.finish()
+    entries = list(canonicalizer.finish())
     assert len(entries) == 1
     assert entries[0].body_literals == 3
     assert entries[0].deps == frozenset({("q", 3)})
@@ -342,7 +346,205 @@ def test_compact_assignment_keeps_mixed_system_keys_and_minimum_clause_cost(shor
     canonicalizer = ClauseCanonicalizer(modes, 4)
     for clause in (short, mixed) if short_first else (mixed, short):
         canonicalizer.add(clause)
-    entries = canonicalizer.finish()
+    entries = list(canonicalizer.finish())
     assert len(entries) == 1
     assert entries[0].body_literals == 2
     assert entries[0].text == "target(V1) :- q(V0); (3*V0) = V1."
+
+
+def test_acyclicity_handles_deep_paths_and_disconnected_cycles():
+    path = frozenset((index, index + 1) for index in range(10000))
+    assert _is_acyclic(path)
+    assert not _is_acyclic(path | {(10000, 0)})
+    assert not _is_acyclic(path | {("a", "b"), ("b", "a")})
+    assert not _is_acyclic(frozenset({("a", "a")}))
+    assert not _is_acyclic(frozenset())
+
+
+def test_acyclicity_matches_all_three_element_relations():
+    pairs = tuple(product(range(3), repeat=2))
+    for mask in range(1 << len(pairs)):
+        rows = frozenset(pair for bit, pair in enumerate(pairs) if mask & (1 << bit))
+        reachable = set(rows)
+        for middle in range(3):
+            reachable |= {(left, right) for left in range(3) for right in range(3)
+                          if (left, middle) in reachable and (middle, right) in reachable}
+        assert _is_acyclic(rows) == (bool(rows) and not any((node, node) in reachable for node in range(3)))
+
+
+def test_static_ast_analysis_and_variable_substitution_handle_deep_terms():
+    nested = "f(" * 1200 + "X" + ")" * 1200
+    rule = parse_rule(f"p(X) :- d({nested},Y), X != Y.")
+    assert rule_properties._term_variables(rule) == {"X", "Y"}
+    swapped = rule_properties._substitute_variables(rule, {"X": "Y", "Y": "X"})
+    assert str(swapped) == str(parse_rule(f"p(Y) :- d({'f(' * 1200}Y{')' * 1200},X), Y != X."))
+    head = parse_rule(f"p(X): {nested} > 1 :- d(X).").head
+    assert ground_relations._head_predicates_known(head)
+    assert not ground_relations._head_predicates_known(parse_rule("&unknown{} :- d.").head)
+
+
+def test_static_tuple_analysis_handles_deep_pairs_and_conflicting_mappings():
+    left = "(" * 1200 + "X" + ",a)" * 1200
+    right = "(" * 1200 + "Y" + ",a)" * 1200
+    rule = parse_rule(f"p({left},{right}) :- X != Y.")
+    arguments = rule.head.atom.symbol.arguments
+    inequality = rule.body[0].atom
+    assert rule_properties._terms_known_distinct(arguments[0], arguments[1], {(inequality.term, inequality.guards[0].term)})
+    assert rule_properties._term_pair_mapping(arguments[0], arguments[1]) == {"X": "Y", "Y": "X"}
+    conflict = parse_rule("p((X,X),(Y,Z)) :- d(X,Y,Z).").head.atom.symbol.arguments
+    assert rule_properties._term_pair_mapping(conflict[0], conflict[1]) is None
+
+
+def test_shared_arithmetic_subexpressions_are_processed_once_and_remain_shared(monkeypatch):
+    left = ArithmeticExpression.var(0)
+    right = ArithmeticExpression.var(0)
+    for _ in range(24):
+        left = ArithmeticExpression("+", (left, left))
+        right = ArithmeticExpression("+", (right, right))
+    assert left == right
+    assert left != right.remap({0: 1})
+    assert left.variables == frozenset({0})
+    assert len(list(expressions._postorder(left))) == 25
+    assert left.key == ("sum", ((("var", 0), 2**24),))
+    changed = left.remap({0: 3})
+    assert changed.arguments[0] is changed.arguments[1]
+    assert changed.variables == frozenset({3})
+    substituted = left.substitute({0: ArithmeticExpression.const(7)})
+    assert substituted.arguments[0] is substituted.arguments[1]
+    calls = []
+    original = expressions.binding_term
+
+    def binding(name):
+        calls.append(name)
+        return original(name)
+
+    monkeypatch.setattr(expressions, "binding_term", binding)
+    node = left.instantiate()
+    assert node.left == node.right
+    assert calls == ["V0"]
+
+
+@pytest.mark.parametrize("generated_limit,total_limit", [(0, 0), (0, 3), (2, 2), (3, 5), (3, None)])
+def test_bounded_head_conditions_match_filtered_product_order(generated_limit, total_limit):
+    task = parse_text("""
+        #maxbl(3). #modeh(1,p:q;r;s;t).
+        #modec(1,c). #modec(1,d). #modec(1,e).
+    """)
+    conditions = mode_compiler._Conditions(task)
+    alternatives = tuple(conditions.expand(literal) for literal in task.language_bias_head[0].elements)
+    expected = []
+    for choice in product(*alternatives):
+        generated = sum(sum(group >= 0 for group in literal.condition_groups)
+                        for literal in choice if hasattr(literal, "condition_groups"))
+        total = sum(len(literal.conditions) for literal in choice if hasattr(literal, "conditions"))
+        if generated <= generated_limit and (total_limit is None or total <= total_limit):
+            expected.append(choice)
+    assert list(mode_compiler._bounded_condition_product(alternatives, generated_limit, total_limit)) == expected
+    assert list(mode_compiler._bounded_condition_product((), generated_limit, total_limit)) == [()]
+    assert list(mode_compiler._bounded_condition_product(((),), generated_limit, total_limit)) == []
+
+
+@pytest.mark.parametrize("violated", [False, True])
+def test_identical_property_proofs_are_shared_without_losing_acceptance(monkeypatch, violated):
+    source = "d(1..3). 1 {p(X,Y):d(Y)} 1 :- d(X)."
+    if violated:
+        source += " p(1,4). p(1,5)."
+    world = ground_relations._closed_world(parse_program(source), frozenset())
+    assert world is not None
+    calls = []
+    original = inference._hold_in_every_model
+
+    def prove(program, violations):
+        calls.extend(violations)
+        return original(program, violations)
+
+    monkeypatch.setattr(inference, "_hold_in_every_model", prove)
+    keys, functional = set(), set()
+    inference._syntactic_properties(world, keys, functional, set(), set(), set(), set())
+    assert len(calls) == len(set(calls)) == 2
+    assert ((("p", 2), (0,)) in keys) == (not violated)
+    assert ((("p", 2), 0, 1) in functional) == (not violated)
+
+
+def test_context_intersection_keeps_dependencies_hidden_by_a_local_key():
+    first = parse_program("p(a,b,1). p(c,d,2).")
+    second = parse_program("p(a,b,1). p(a,b,2). p(c,d,3).")
+    assert not _closed_world_properties((first,)).functional
+    common = _closed_world_properties((first, second))
+    assert (("p", 3), 0, 1) in common.functional
+    assert (("p", 3), (0,)) not in common.keys
+    assert _closed_world_properties(()) == _closed_world_properties((parse_program(":-."),))
+    assert common == _closed_world_properties((first, parse_program(":-."), second))
+
+
+def test_bounded_arithmetic_cache_eviction_preserves_results_including_rejections(monkeypatch):
+    task = parse_text("#modeb(1,q(var(numeric,any),var(numeric,any))). #modeb(1,var(numeric,input)=var(numeric,input)). #modeb(1,var(numeric,input)<var(numeric,input)).")
+    modes = {mode.id: mode for mode in mode_compiler._clause_modes(task)}
+    monkeypatch.setattr(arithmetic, "MAX_CACHED_SYSTEMS", 2)
+    cache = arithmetic._ArithmeticSystemsCache()
+    results = []
+    for left, right, contradictory in ((0, 1, True), (0, 1, True), (0, 1, False), (1, 2, False), (0, 1, True)):
+        second = (left, right) if contradictory else (left, 3)
+        clause = ReifiedClause((), (
+            ReifiedLiteral("body", 0, 0, (left, right)),
+            ReifiedLiteral("body", 1, 1, (left, right)),
+            ReifiedLiteral("body", 2, 2, second),
+        ))
+        cached = arithmetic.canonical_arithmetic_clause(clause, modes, 4, cache)
+        uncached = arithmetic.canonical_arithmetic_clause(clause, modes, 4)
+        assert cached == uncached
+        assert len(cache) <= 2
+        results.append(cached)
+    assert results[0] is results[1] is results[-1] is None
+
+
+def test_dependency_grouping_matches_tuple_semantics_before_context_reduction():
+    for arity in range(2, 5):
+        predicate = ("p", arity)
+        rows = tuple(product(range(2), repeat=arity))
+        cases = [frozenset(), frozenset(rows[:1]), frozenset(rows), frozenset(rows[::3]),
+                 frozenset(tuple(value for _ in range(arity)) for value in ("a", "b"))]
+        for tuples in cases:
+            functional, composite, keys = set(), set(), set()
+            _collect_dependency_properties(predicate, tuples, functional, composite, keys)
+            expected_functional, expected_composite, expected_keys = set(), set(), set()
+            if len(tuples) >= 2:
+                for size in range(1, arity):
+                    for inputs in combinations(range(arity), size):
+                        if len({tuple(row[i] for i in inputs) for row in tuples}) == len(tuples) and not any(set(existing) <= set(inputs) for _, existing in expected_keys):
+                            expected_keys.add((predicate, inputs))
+                        for output in set(range(arity)) - set(inputs):
+                            if all(left[output] == right[output] for left in tuples for right in tuples
+                                   if all(left[i] == right[i] for i in inputs)):
+                                if size == 1:
+                                    expected_functional.add((predicate, inputs[0], output))
+                                else:
+                                    expected_composite.add((predicate, inputs, output))
+            assert (functional, composite, keys) == (expected_functional, expected_composite, expected_keys)
+
+
+def test_compiled_binding_offsets_separate_head_elements_conditions_and_guards():
+    task = parse_text("""
+        #modeh(1,var(numeric,input,n) {p(f(var(node,any,x))):q(var(node,any,x))} var(numeric,input,n)).
+        #modeb(1,#sum{var(numeric,any,w):q(var(node,any,x)),r(var(numeric,any,w))}=var(numeric,output,n)).
+        #modeb(1,var(numeric,input,x)<var(numeric,input,y)<3).
+    """)
+    modes = {mode.id: mode for mode in mode_compiler._clause_modes(task)}
+    for mode in modes.values():
+        counts = [len(mode_terms.bindings(term)) for term in mode.arguments]
+        assert mode.argument_offsets == tuple(sum(counts[:index]) for index in range(len(counts) + 1))
+    head_mode = next(mode for mode in modes.values() if mode.section == "head")
+    head = (ReifiedLiteral("head", 0, head_mode.id, (0, 1, 2, 2)),)
+    assert str(instantiate_head(head, modes)) == "V2 <= { p(f(V0)): q(V1) } <= V2"
+
+
+def test_clause_space_owns_final_order_and_text_deduplication():
+    task = parse_text("#modeh(1,z). #modeh(1,a).")
+    modes = {mode.id: mode for mode in mode_compiler._clause_modes(task)}
+    canonicalizer = ClauseCanonicalizer(modes, 0)
+    for mode in modes.values():
+        canonicalizer.add(ReifiedClause((ReifiedLiteral("head", 0, mode.id, ()),), ()))
+    entries = list(canonicalizer.finish())
+    assert [entry.text for entry in entries] == ["z.", "a."]
+    space = ClauseSpace(iter((*entries, entries[0])))
+    assert space.clauses == ("a.", "z.")

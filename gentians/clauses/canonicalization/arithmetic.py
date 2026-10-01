@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from collections.abc import Set
 
 from ..clause_mode import ClauseMode
@@ -19,10 +20,13 @@ _ArithmeticContextKey = tuple[
     frozenset[int],
     frozenset[int],
 ]
-_ArithmeticSystemsCache = dict[
+_ArithmeticSystemsCache = OrderedDict[
     _ArithmeticContextKey,
     tuple[ArithmeticSystem, ...] | None,
 ]
+
+# Bound task-local reuse even when many raw encodings share one representative.
+MAX_CACHED_SYSTEMS = 8192
 
 
 def canonical_arithmetic_clause(
@@ -94,6 +98,8 @@ def canonical_arithmetic_clause(
             max_variables,
         )
         if systems_cache is not None:
+            if len(systems_cache) >= MAX_CACHED_SYSTEMS:
+                systems_cache.popitem(last=False)
             systems_cache[context_key] = systems
     if systems is None:
         return None

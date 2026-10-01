@@ -109,8 +109,15 @@ de ellos redefine el language bias de una tarea inductiva.
   El análisis de cada contexto indexa dependencias, argumentos y proyecciones
   sin mezclar contextos. `ClauseCanonicalizer` mantiene el representante preferido
   por clave durante enumeración completa; cada batch incremental tiene su propia
-  instancia y no conserva historial. Las expresiones canónicas también usan
-  recorridos, hash y comparación sin recursión de Python.
+  instancia y no conserva historial. Su caché de sistemas aritméticos conserva
+  como máximo 8192 contextos y expulsa el más antiguo al alcanzar ese límite.
+  `ClauseSpace` posee la deduplicación textual y el único ordenamiento final.
+  Las expresiones canónicas usan recorridos, hash y comparación sin recursión
+  de Python, reutilizando subexpresiones compartidas por identidad en cada
+  operación. Los walkers estáticos y la comprobación de ciclos también son
+  iterativos. Las propiedades se intersectan a medida que se procesa cada
+  contexto, antes de eliminar hechos subsumidos; cada prueba idéntica en Clingo
+  se consulta una vez y conserva todas las propiedades que demuestra.
   Los recorridos de términos usan pilas explícitas, conservando el orden de
   bindings y evitando depender de la recursión de Python. Los consumidores de
   seguridad de pools y aritmética respetan ese mismo soporte de anidamiento.
@@ -146,6 +153,10 @@ de ellos redefine el language bias de una tarea inductiva.
   los términos anotados cuya dirección ya coincide.
   La sustitución recibe bindings AST preparados por instanciación, compartiendo
   nombres repetidos dentro de esa llamada. No hay una caché global de variables.
+  Los offsets de bindings por argumento se derivan una vez en `ClauseMode` y
+  se reutilizan para instanciar cabezas y compilar facts. El producto de
+  condiciones de cabeza descarta prefijos que exceden sus presupuestos,
+  conservando el orden de las alternativas válidas.
   Cabezas y agregados comparten la instanciación de guards, que conserva un guard
   fijo sin actualizarlo. `ClauseMode` deriva argumentos, guards, posiciones y
   dependencias y output guards una vez; los átomos con pools retienen sus

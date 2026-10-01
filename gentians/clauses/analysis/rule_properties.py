@@ -3,7 +3,7 @@ from collections import Counter
 from clingo import ast
 
 from ...language.asp import AspProgram, Predicate
-from .ast_inspection import _integer_value
+from .ast_inspection import _children, _integer_value
 from .relation_properties import _key_sets_by_predicate
 
 
@@ -241,19 +241,16 @@ def _terms_known_distinct(
     right: ast.AST,
     inequalities: set[tuple[ast.AST, ast.AST]],
 ) -> bool:
-    if (left, right) in inequalities or (right, left) in inequalities:
-        return True
-    left_parts = _tuple_parts(left)
-    right_parts = _tuple_parts(right)
-    return (
-        left_parts is not None
-        and right_parts is not None
-        and len(left_parts) == len(right_parts)
-        and any(
-            _terms_known_distinct(a, b, inequalities)
-            for a, b in zip(left_parts, right_parts)
-        )
-    )
+    pending = [(left, right)]
+    while pending:
+        left, right = pending.pop()
+        if (left, right) in inequalities or (right, left) in inequalities:
+            return True
+        left_parts = _tuple_parts(left)
+        right_parts = _tuple_parts(right)
+        if left_parts is not None and right_parts is not None and len(left_parts) == len(right_parts):
+            pending.extend(zip(left_parts, right_parts))
+    return False
 
 
 def _tuple_parts(term: ast.AST) -> tuple[ast.AST, ...] | None:
@@ -279,38 +276,52 @@ def _clause_head_args_symmetric(node: ast.AST) -> bool:
 
 
 def _term_pair_mapping(left: ast.AST, right: ast.AST) -> dict[str, str] | None:
-    if left == right:
-        return {}
-    if left.ast_type == right.ast_type == ast.ASTType.Variable:
-        left_name = str(left.name)
-        right_name = str(right.name)
-        return {left_name: right_name, right_name: left_name}
-    left_parts = _tuple_parts(left)
-    right_parts = _tuple_parts(right)
-    if left_parts is None or right_parts is None or len(left_parts) != len(right_parts):
-        return None
     mapping: dict[str, str] = {}
-    for left_part, right_part in zip(left_parts, right_parts):
-        part_mapping = _term_pair_mapping(left_part, right_part)
-        if part_mapping is None:
-            return None
-        for source, target in part_mapping.items():
-            if source in mapping and mapping[source] != target:
+    pending = [(left, right)]
+    while pending:
+        left, right = pending.pop()
+        if left == right:
+            continue
+        if left.ast_type == right.ast_type == ast.ASTType.Variable:
+            for source, target in ((str(left.name), str(right.name)), (str(right.name), str(left.name))):
+                if source in mapping and mapping[source] != target:
+                    return None
+                mapping[source] = target
+        else:
+            left_parts = _tuple_parts(left)
+            right_parts = _tuple_parts(right)
+            if left_parts is None or right_parts is None or len(left_parts) != len(right_parts):
                 return None
-            mapping[source] = target
+            pending.extend(reversed(tuple(zip(left_parts, right_parts))))
     return mapping
 
 
-class _VariableSubstitution(ast.Transformer):
-    def __init__(self, mapping: dict[str, str]) -> None:
-        self.mapping = mapping
-
-    def visit_Variable(self, node: ast.AST) -> ast.AST:
-        return node.update(name=self.mapping.get(str(node.name), str(node.name)))
-
-
 def _substitute_variables(node: ast.AST, mapping: dict[str, str]) -> ast.AST:
-    return _VariableSubstitution(mapping).visit(node)
+    pending = [(node, False)]
+    results: list[ast.AST] = []
+    while pending:
+        node, visited = pending.pop()
+        if node.ast_type == ast.ASTType.Variable:
+            results.append(node.update(name=mapping.get(str(node.name), str(node.name))))
+            continue
+        children = tuple(_children(node))
+        if not children:
+            results.append(node)
+        elif visited:
+            replacements = iter(results[-len(children):])
+            updates = {}
+            for key in node.child_keys:
+                child = getattr(node, key)
+                updates[key] = next(replacements) if isinstance(child, ast.AST) else (
+                    [next(replacements) if isinstance(item, ast.AST) else item for item in child]
+                    if isinstance(child, ast.ASTSequence) else child
+                )
+            del results[-len(children):]
+            results.append(node.update(**updates))
+        else:
+            pending.append((node, True))
+            pending.extend((child, False) for child in reversed(children))
+    return results[0]
 
 
 def _canonical_literal_key(literal: ast.AST) -> object:
@@ -410,15 +421,11 @@ def _positive_symbolic_atom(literal: ast.AST) -> tuple[str, tuple[ast.AST, ...]]
 
 def _term_variables(node: ast.AST) -> set[str]:
     variables: set[str] = set()
-    if node.ast_type == ast.ASTType.Variable:
-        variables.add(str(node.name))
-        return variables
-    for key in node.child_keys:
-        child = getattr(node, key)
-        if isinstance(child, ast.AST):
-            variables.update(_term_variables(child))
-        elif isinstance(child, (list, ast.ASTSequence)):
-            for item in child:
-                if isinstance(item, ast.AST):
-                    variables.update(_term_variables(item))
+    pending = [node]
+    while pending:
+        node = pending.pop()
+        if node.ast_type == ast.ASTType.Variable:
+            variables.add(str(node.name))
+        else:
+            pending.extend(_children(node))
     return variables

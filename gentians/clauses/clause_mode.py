@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from itertools import accumulate
 
 from clingo import ast
 
@@ -29,6 +30,7 @@ class ClauseMode:
     arguments: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
     guard_terms: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
     binding_positions: tuple[int, ...] = field(init=False, repr=False, compare=False)
+    argument_offsets: tuple[int, ...] = field(init=False, repr=False, compare=False)
     output_guard: ast.AST | None = field(init=False, repr=False, compare=False)
     bindings: tuple[TermBinding, ...] = field(
         init=False,
@@ -75,6 +77,11 @@ class ClauseMode:
             ),
         )
 
+        counts = [0] * len(self.arguments)
+        for binding in self.bindings:
+            counts[binding.path[0]] += 1
+        object.__setattr__(self, "argument_offsets", tuple(accumulate(counts, initial=0)))
+
         object.__setattr__(self, "dependencies", self.literal.dependencies)
         comparison = isinstance(self.literal, ComparisonLiteral)
         arithmetic = isinstance(self.literal, ArithmeticLiteral)
@@ -110,6 +117,10 @@ class ClauseMode:
     @property
     def arity(self) -> int:
         return len(self.arguments)
+
+    @property
+    def literal_binding_count(self) -> int:
+        return self.argument_offsets[len(self.arguments) - len(self.guard_terms)]
 
     @property
     def condition_count(self) -> int:

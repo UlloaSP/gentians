@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from dataclasses import replace
-from itertools import product
 
 from clingo import ast
 
@@ -19,6 +18,44 @@ from .clause_mode import ClauseMode
 
 
 type _Conditionable = AtomLiteral | BooleanLiteral | ComparisonLiteral | ConditionalLiteral
+
+
+def _bounded_condition_product(
+    alternatives: tuple[tuple[_Conditionable, ...], ...],
+    generated_limit: int,
+    total_limit: int | None,
+) -> Iterator[tuple[_Conditionable, ...]]:
+    """Keep product order, rejecting over-budget prefixes before descent."""
+    costs = tuple(tuple(
+        (sum(group >= 0 for group in literal.condition_groups), len(literal.conditions))
+        if isinstance(literal, ConditionalLiteral) else (0, 0)
+        for literal in variants
+    ) for variants in alternatives)
+    indices = [0] * len(alternatives)
+    selected: list[_Conditionable] = []
+    totals = [(0, 0)]
+    position = 0
+    while True:
+        if position == len(alternatives):
+            yield tuple(selected)
+        elif indices[position] < len(alternatives[position]):
+            index = indices[position]
+            indices[position] += 1
+            generated = totals[-1][0] + costs[position][index][0]
+            total = totals[-1][1] + costs[position][index][1]
+            if generated > generated_limit or total_limit is not None and total > total_limit:
+                continue
+            selected.append(alternatives[position][index])
+            totals.append((generated, total))
+            position += 1
+            if position < len(alternatives):
+                indices[position] = 0
+            continue
+        if not selected:
+            return
+        position -= 1
+        selected.pop()
+        totals.pop()
 
 
 def _bounded_combinations(
@@ -329,24 +366,9 @@ def _clause_modes(
             conditions.expand(literal)
             for literal in concrete_literals_base
         )
-        for concrete_literals in product(*alternatives):
-            generated_conditions = sum(
-                sum(group >= 0 for group in literal.condition_groups)
-                for literal in concrete_literals
-                if isinstance(literal, ConditionalLiteral)
-            )
-            if generated_conditions > condition_limit:
-                continue
-            if (
-                sum(
-                    len(literal.conditions)
-                    for literal in concrete_literals
-                    if isinstance(literal, ConditionalLiteral)
-                )
-                > (task.max_body_literals or 0)
-                and task.max_body_literals is not None
-            ):
-                continue
+        for concrete_literals in _bounded_condition_product(
+            alternatives, condition_limit, task.max_body_literals
+        ):
             form_id = next_head_form
             next_head_form += 1
             for position, literal in enumerate(concrete_literals):

@@ -17,10 +17,8 @@ from .ground_relations import (
 from .properties import ClosedWorldProperties, DomainKey
 from .relation_properties import (
     _collect_argument_properties,
-    _collect_composite_functional_properties,
+    _collect_dependency_properties,
     _collect_disjoint_projections,
-    _collect_functional_properties,
-    _collect_key_properties,
     _collect_projection_implications,
     _collect_tuple_mutex,
     _domain_covers,
@@ -59,24 +57,20 @@ def _closed_world_properties(
     property may prune a clause only if it holds in each of those programs
     separately. Merging contexts would invent relations that no example sees.
     """
-    worlds = [
-        world
-        for program in contexts
-        if (world := _closed_world(program, learned)) is not None
-    ]
-    if not worlds:
-        return ClosedWorldProperties.none()
-    per_context = [_context_properties(world, relevant, negated) for world in worlds]
-    return _reduced(
-        ClosedWorldProperties(
-            *(
-                frozenset.intersection(
-                    *(getattr(properties, field.name) for properties in per_context)
-                )
-                for field in fields(ClosedWorldProperties)
-            )
-        )
-    )
+    common: ClosedWorldProperties | None = None
+    for program in contexts:
+        world = _closed_world(program, learned)
+        if world is None:
+            continue
+        properties = _context_properties(world, relevant, negated)
+        del world
+        common = properties if common is None else ClosedWorldProperties(*(
+            getattr(common, field.name) & getattr(properties, field.name)
+            for field in fields(ClosedWorldProperties)
+        ))
+    # Subsumption is valid only after intersection: a key present in one context
+    # must not hide a functional dependency that holds in every context.
+    return ClosedWorldProperties.none() if common is None else _reduced(common)
 
 
 def _context_properties(
@@ -117,9 +111,7 @@ def _context_properties(
 
     for predicate, tuples in extensions.items():
         _collect_argument_properties(predicate, tuples, arg_equal, arg_distinct)
-        _collect_functional_properties(predicate, tuples, functional)
-        _collect_composite_functional_properties(predicate, tuples, functional_set)
-        _collect_key_properties(predicate, tuples, keys)
+        _collect_dependency_properties(predicate, tuples, functional, functional_set, keys)
         if (positions := _product_positions(predicate, tuples)) is not None:
             universal.add(predicate)
             domains[("universal", predicate)] = positions
@@ -308,12 +300,10 @@ def _syntactic_properties(
         rule_symmetric,
         world.program,
     )
-    violations: list[str] = []
-    accept: list[Callable[[], None]] = []
+    violations: dict[str, list[Callable[[], None]]] = {}
 
     def candidate(violation: str, add: Callable[[], None]) -> None:
-        violations.append(violation)
-        accept.append(add)
+        violations.setdefault(violation, []).append(add)
 
     for predicate, args in sorted(rule_keys - keys):
         outputs = tuple(index for index in range(predicate[1]) if index not in args)
@@ -352,8 +342,10 @@ def _syntactic_properties(
             _cardinality_violation(predicate, upper),
             lambda item=(predicate, upper): cardinality_upper.add(item),
         )
-    for index in _hold_in_every_model(world.program, violations):
-        accept[index]()
+    accept = list(violations.values())
+    for index in _hold_in_every_model(world.program, list(violations)):
+        for add in accept[index]:
+            add()
     return cardinality_upper
 
 

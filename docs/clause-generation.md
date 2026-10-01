@@ -86,6 +86,11 @@ projections are reused inside that context only. Transitivity checks use a
 successor index, and total-order checks reuse the reflexivity and transitivity
 results. These indexes do not merge example contexts or change which
 properties are emitted.
+Dependency checks group tuples once per determinant and share that scan across
+output positions and key detection. Context properties are intersected as each
+world is processed, and subsumption runs only after the intersection. Identical
+violation bodies share one Clingo proof while retaining every associated fact.
+Cycle checks and static AST inspection use iterative traversals.
 
 Clingo applies theta reduction with the other redundancy checks before returning
 a model. `mode_facts.theta_facts` chooses its encoding: enumerated offsets keep
@@ -97,6 +102,11 @@ all decoded clauses. Incremental enumeration uses a fresh canonicalizer per
 batch; its model budget still counts models before deduplication and it retains
 no cross-batch history. Decoding reads variable positions from
 `ClauseMode` rather than importing the mode compiler.
+Arithmetic system reuse is task-local and capped at 8192 contexts, with oldest
+entries evicted first. Representatives are yielded directly to `ClauseSpace`,
+which alone performs final text sorting and deduplication. Compiled argument
+binding offsets are reused by head instantiation and mode-fact compilation.
+Head-condition products prune over-budget prefixes in the original product order.
 
 Arithmetic representation modules own keys, variable sets, remapping and
 rendering through Clingo's AST. Reified modes and normalized systems construct
@@ -107,7 +117,8 @@ canonical key remains part of canonicalization; no separate duplicate policy
 reimplements that choice. `ClauseSpace` orders and deduplicates the final clauses.
 
 Expression traversal, structural equality, key construction, substitutions and
-native AST construction use explicit stacks. Linear assignments use exact
+native AST construction use explicit stacks and reuse shared expression nodes
+by identity within each operation. Linear assignments use exact
 integer coefficients and multiplication for magnitudes above two instead of
 repeating a variable once per coefficient unit. Oversized derived coefficients
 use arithmetic composed of native integer leaves. The output still follows

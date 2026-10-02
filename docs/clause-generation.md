@@ -41,6 +41,10 @@ modes. Head and condition combinations are built in the same lexicographic
 order as before, stopping branches when a declaration recall or concrete-literal
 capacity is exhausted. `ClauseMode` owns its derived arithmetic traits without
 an unbounded process-wide traits cache. Other normalization caches remain bounded.
+It also prepares head predicates, head dependencies and condition counts once;
+decoded clauses reuse these immutable values. Positive and strongly negated
+predicates retain their distinct signatures, and default-negated heads remain
+dependencies.
 Mode-fact compilation memoizes native term shapes for that call, including
 pooled alternatives and conditional variants, without changing fact order.
 It also reuses relative pool-binding alternatives and complete local-comparison
@@ -100,6 +104,12 @@ projections are reused inside that context only. Transitivity checks use a
 successor index, and total-order checks reuse the reflexivity and transitivity
 results. These indexes do not merge example contexts or change which
 properties are emitted.
+Within that analysis call, a cache of at most eight exact effective ASP programs
+reuses brave and cautious bounds, including unsatisfiable results. Its input
+includes the closed statements and lower-bound rules. It retains no Clingo
+controls or worlds; open-predicate classification and property proofs still run
+per context. Consequence extraction uses Clingo's native atom-symbol collection,
+independently of `#show` declarations.
 Each context shares positional value sets between product checks, projection
 filtering, domain coverage and numeric signs. Complement and partition domains
 are unions of those positions. Empty relations retain their vacuous sign and
@@ -112,13 +122,20 @@ Partition enumeration keeps the existing sizes three through six and minimality
 rule; it abandons non-disjoint prefixes and prefixes whose growing domain
 product cannot be completed by the remaining tuple capacity.
 Dependency checks group tuples once per determinant and share that scan across
-output positions and key detection. Context properties are intersected as each
+output positions and key detection. A determinant containing a proven key needs
+no further tuple scan, but still emits its dependent-position facts before
+context intersection. Tuple-mutex checks share projections between predicates
+with identical extensions and arity, then emit facts for every original signed
+predicate pair. Context properties are intersected as each
 world is processed, and subsumption runs only after the intersection. Identical
 violation bodies share one Clingo proof while retaining every associated fact.
 Proof rules use a fresh auxiliary predicate absent from the task and proof
 bodies, including macros and strongly negated names, so they cannot redefine
 the background's predicates or introduce cycles into it.
 Cycle checks and static AST inspection use iterative traversals.
+Rule-variable substitutions return unchanged AST nodes by identity and rebuild
+only paths containing a renamed variable. Optional-constraint head inspection
+also uses an explicit stack and still rejects unknown theory heads.
 
 Clingo applies theta reduction with the other redundancy checks before returning
 a model. `mode_facts.theta_facts` chooses its encoding: enumerated offsets keep
@@ -158,6 +175,10 @@ Linear orientation indexes missing variables too. It always consumes fully safe
 constraints before assignments, choosing the earliest original constraint in
 either category. Only unit-coefficient equality outputs can make a new variable
 safe; unresolved systems retain their existing fallback.
+Auxiliary-variable elimination reuses rows whose elimination factor is zero.
+Each immutable expression and linear constraint caches its variable set lazily
+for its own lifetime, including an empty set. These caches do not participate
+in equality or hashing; remapping creates independently cached values.
 
 Expression traversal, structural equality, key construction, substitutions and
 native AST construction use explicit stacks and reuse shared expression nodes
@@ -168,6 +189,9 @@ use arithmetic composed of native integer leaves. The output still follows
 Clingo's arithmetic and formatting. The internal `scale` expression preserves
 the canonical key of repeated addition; ordinary multiplication keeps its
 structural key, so compact formatting does not change representative selection.
+Compiled arithmetic-mode instantiation and linear-coefficient collection also
+use explicit stacks, preserving left-to-right binding order without Python's
+recursion-depth limit.
 
 Solving timers exclude decoding and canonicalization inside callbacks or between
 yielded models. Those Python costs stay in `clause_generation`; grounding and

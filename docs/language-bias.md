@@ -47,14 +47,17 @@ and keeps any following weak-constraint or directive annotation attached.
 Equal examples and mode declarations retain their first appearance and source
 location. Deduplication uses insertion order; different recalls, signs, labels,
 directions, or example contexts remain distinct. Constant values likewise keep
-their first appearance within each type. Identical successful mode statements
-are skipped before parsing their payload again; other equal templates are still
-deduplicated after decoding.
+their first appearance within each type. Identical successful mode, example and
+constant statements skip repeated payload parsing; other equal values are still
+deduplicated after decoding. Limits and inventions retain duplicate errors.
 Declaration validation errors identify the statement's starting line. Native
 syntax errors identify the original token or cursor line and UTF-8 byte column,
 including multiline modes, inventions, constants and example fields. Comments
 and quoted strings do not shift those locations. Diagnostics carry one source
 location rather than repeated prefixes.
+Unterminated strings and block comments identify their opening position. An
+unclosed delimiter identifies the innermost unmatched opening delimiter, with
+its original line and UTF-8 byte column.
 Cross-declaration errors also identify their responsible declaration, including
 missing constant types, overlapping invented predicates, and incompatible head
 limits. When reading files, diagnostics name the original file and its local
@@ -68,6 +71,10 @@ example's included atoms, excluded atoms, and context remain as
 `clingo.ast.AST` nodes inside `InductiveTask`. Each non-empty example field is
 parsed directly; empty fields do not invoke Clingo. Candidate `Clause`
 values retain their constructed clause beside their canonical output text.
+Included and excluded example fields require single ground symbolic atoms.
+Pools and intervals, including nested occurrences, are rejected rather than
+expanded implicitly. Ground arithmetic, strings, tuples and strong negation
+remain valid; example contexts retain ordinary ASP pool and interval syntax.
 ASP diagnostics are collected during that same parse: reporting the original
 error line never reparses the invalid source or prints a second error.
 Mode templates are Gentians' learning IR: they retain typed binding leaves,
@@ -80,15 +87,18 @@ term syntax and aggregate guards themselves remain native Clingo nodes.
 leaves without building a parallel term tree. Mode parsing and pool expansion
 decode already parsed nodes without reparsing atom or argument strings.
 Each literal owns its constant expansion, reused by head and body conditions
-and aggregate elements. Independent element, condition, and guard alternatives
-are expanded once per call and combined with an ordered Cartesian product.
-Combining one alternative never recomputes another group's expansion.
+and aggregate elements. Constant domains across terms, elements, conditions and
+guards are prepared once per call and combined in their ordered Cartesian
+product. No subtree or literal variant pool is materialized before yielding
+the first result.
 The lexer yields statements to the parser as they are framed, while file input
-is still read in full. It buffers text spans and shares quoted-string and
+is still read in full. It retains source spans and normalizes declaration
+payloads only when requested; background statements never retain a second
+normalized copy. It shares quoted-string and
 delimiter scanning with the directive argument splitter. Source spans preserve
 locations; detailed fragment remapping runs only on errors.
-Constant-expansion methods yield concrete variants in the same order. Reusable
-element and guard pools are prepared once. Nested terms retain one current
+Constant-expansion methods yield concrete variants in the same order. The
+declared constant domains are reused directly. Nested terms retain one current
 variant per node and rebuild only paths whose constant choices changed, without
 retaining their subtree Cartesian products. The compiled modes and final clause
 space still retain the entries they need.
@@ -122,6 +132,9 @@ assembled as `ast.Rule` without a text-to-AST round trip. Retained programs ente
 controls through `ProgramBuilder`. Clingo's `str(AST)` owns output formatting,
 including explicit guards, parentheses, and `#false` constraint heads.
 Static analysis traverses retained nodes directly.
+Term-kind inspection uses a bounded identity cache retaining its native nodes,
+so cache hits do not hash their complete subtrees. Other structural metadata
+caches remain bounded.
 Predicate and numeric-value inspection use explicit stacks too, including
 deep comparison terms in background rules and example contexts.
 Canonical expression inspection, hashing, equality, substitutions and native
@@ -133,8 +146,11 @@ separation between representation, analysis, pruning and canonicalization.
 the productions below.
 
 Every background statement must parse through `clingo.ast`. Task files reject
-`#script ... #end.` blocks; embedded host-language code is outside the task
-language.
+`#script ... #end.` blocks, `#theory` definitions and theory atoms in every task
+section. Embedded host-language code and theory extensions are outside the
+task language. External `@function(...)` calls are likewise rejected in
+background, examples, contexts and modes because tasks have no host-language
+grounding context. Quoted occurrences remain ordinary strings.
 
 ```ebnf
 limit-directive = limit-name, "(", limit, ")", "." ;
@@ -145,6 +161,8 @@ aggregate-head-minimum = "#minhl(", positive-integer, ")." ;
 
 Additional validity rules:
 
+- Integer spellings use ASCII decimal digits only. Signs, digit separators such
+  as `1_0`, and non-ASCII numerals are invalid in limits and recalls.
 - Directive arguments cannot end with a comma and a missing value. A comma
   inside a string or a singleton tuple such as `(a,)` remains valid ASP syntax.
 - Each directive occurs at most once in a task.
@@ -802,6 +820,8 @@ Invented predicates use the same complete template:
 The template generates a head mode with recall 1 and a positive body mode with
 the declared recall. This keeps invented arguments typed and directed without
 fallback inference. The invented predicate may also be strongly negated.
+The body recall accepts a positive integer or `*`. An unbounded invention
+requires a finite `#maxbl`, like an ordinary unbounded body mode.
 Invented predicates are ordered by declaration. A definition may depend on
 background predicates or earlier invented predicates, but not on its own or
 later invented predicates or on an ordinary learnable head predicate. Integrity
@@ -858,8 +878,8 @@ Early pruning activates only when:
 - The task permits a headed mode and `#maxhl` is not zero.
 - The background contains ordinary ASP rules
   rather than directives such as `#const` or `#external`.
-- Predicate extraction understands all background heads. Theory heads disable
-  this optimization.
+- Predicate extraction understands all background heads. Theory syntax is
+  rejected when parsing the task.
 - At least one included positive atom has a signed predicate absent from every
   head in the background and in that example's own ordinary-rule context, whose
   heads must also be understood by predicate extraction.

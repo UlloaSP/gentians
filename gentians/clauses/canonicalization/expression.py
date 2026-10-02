@@ -17,6 +17,7 @@ class ArithmeticExpression:
     constant: int | None = None
     symbol: str | None = None
     _hash: int = field(init=False, repr=False)
+    _variables: frozenset[int] | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "_hash", hash((
@@ -63,11 +64,15 @@ class ArithmeticExpression:
 
     @property
     def variables(self) -> frozenset[int]:
-        result: set[int] = set()
-        for node in _postorder(self):
-            if node.variable is not None:
-                result.add(node.variable)
-        return frozenset(result)
+        variables = self._variables
+        if variables is None:
+            result: set[int] = set()
+            for node in _postorder(self):
+                if node.variable is not None:
+                    result.add(node.variable)
+            variables = frozenset(result)
+            object.__setattr__(self, "_variables", variables)
+        return variables
 
     def _transform(self, replace: Callable[["ArithmeticExpression"], "ArithmeticExpression"]) -> "ArithmeticExpression":
         results: dict[int, ArithmeticExpression] = {}

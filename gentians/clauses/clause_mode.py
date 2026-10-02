@@ -47,6 +47,9 @@ class ClauseMode:
     positive_atom: bool = field(init=False, repr=False, compare=False)
     numeric_builtin: bool = field(init=False, repr=False, compare=False)
     numeric_positions: tuple[int, ...] = field(init=False, repr=False, compare=False)
+    head_predicates: frozenset[Predicate] = field(init=False, repr=False, compare=False)
+    head_dependencies: frozenset[Predicate] = field(init=False, repr=False, compare=False)
+    condition_count: int = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.section not in {"head", "body"}:
@@ -83,6 +86,21 @@ class ClauseMode:
         object.__setattr__(self, "argument_offsets", tuple(accumulate(counts, initial=0)))
 
         object.__setattr__(self, "dependencies", self.literal.dependencies)
+        head_predicates: set[Predicate] = set()
+        head_dependencies: set[Predicate] = set()
+        if self.section == "head":
+            if isinstance(conclusion, AtomLiteral):
+                (head_dependencies if conclusion.default_negated else head_predicates).add(conclusion.atom.signature)
+            if isinstance(self.literal, ConditionalLiteral):
+                head_dependencies.update(
+                    predicate for condition in self.literal.conditions for predicate in condition.dependencies
+                )
+            elif isinstance(self.literal, HeadAggregateElement):
+                head_dependencies.update(self.literal.dependencies)
+        object.__setattr__(self, "head_predicates", frozenset(head_predicates))
+        object.__setattr__(self, "head_dependencies", frozenset(head_dependencies))
+        object.__setattr__(self, "condition_count", len(self.literal.conditions)
+                           if isinstance(self.literal, ConditionalLiteral | HeadAggregateElement) else 0)
         comparison = isinstance(self.literal, ComparisonLiteral)
         arithmetic = isinstance(self.literal, ArithmeticLiteral)
         numeric = all(binding.type == "numeric" for binding in self.bindings)
@@ -121,11 +139,3 @@ class ClauseMode:
     @property
     def literal_binding_count(self) -> int:
         return self.argument_offsets[len(self.arguments) - len(self.guard_terms)]
-
-    @property
-    def condition_count(self) -> int:
-        return (
-            len(self.literal.conditions)
-            if isinstance(self.literal, ConditionalLiteral | HeadAggregateElement)
-            else 0
-        )

@@ -5,17 +5,41 @@ from dataclasses import dataclass, field
 from .grammar import DELIMITERS, SourceError, directive_name, quoted_end, source_position
 
 _COMMENT_MARKER = re.compile(r"%\*|\*%|%")
+_TEXT_MARKER = re.compile(r'["%]')
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class Statement:
-    text: str
+    """A framed source token; equality uses token identity, not partial metadata."""
+
     line: int
     directive: str | None
     source: str = field(repr=False, compare=False)
     start: int = field(repr=False, compare=False)
     end: int = field(repr=False, compare=False)
     column: int = field(repr=False, compare=False)
+
+    @property
+    def text(self) -> str:
+        """Normalize only payloads requested by declaration parsers."""
+        chunks: list[str] = []
+        span_start = index = self.start
+        while match := _TEXT_MARKER.search(self.source, index, self.end):
+            index = match.start()
+            if match[0] == '"':
+                index = quoted_end(self.source, index)
+                continue
+            if span_start < index:
+                chunks.append(self.source[span_start:index])
+            index, _closed = _comment_end(self.source, index)
+            newlines = self.source.count("\n", match.start(), index)
+            if newlines:
+                chunks.append("\n" * newlines)
+            elif chunks and not chunks[-1][-1].isspace():
+                chunks.append(" ")
+            span_start = index
+        chunks.append(self.source[span_start:self.end])
+        return "".join(chunks).strip()
 
     def locate_error(self, error: SourceError) -> SourceError:
         """Map a normalized fragment diagnostic back to its original source."""
@@ -68,14 +92,14 @@ def _comment_end(source: str, offset: int) -> tuple[int, bool]:
                 break
             offset = end + 1
     return len(source), False
+
+
 def lex(source: str) -> Iterator[Statement]:
-    """Frame statements with text spans; read strings and comments in bulk."""
-    chunks: list[str] = []
-    expected: list[str] = []
+    """Frame source spans without copying background payloads."""
+    expected: list[tuple[str, int]] = []
     line = start_line = column = start_column = 1
     column_index = 0
     start: int | None = None
-    span_start = 0
     annotated = False
     size = len(source)
 
@@ -91,13 +115,12 @@ def lex(source: str) -> Iterator[Statement]:
                 return source[offset]
         return ""
 
-    def emit(text: str, end: int) -> Statement:
-        nonlocal chunks, start, annotated
-        if text.startswith("#script"):
-            raise SourceError(start_line, "#script blocks are not supported in task files")
+    def emit(end: int) -> Statement:
+        nonlocal start, annotated
         assert start is not None
-        result = Statement(text, start_line, directive_name(text), source, start, end, start_column)
-        chunks = []
+        if source.startswith("#script", start):
+            raise SourceError(start_line, "#script blocks are not supported in task files")
+        result = Statement(start_line, directive_name(source, start, end), source, start, end, start_column)
         start = None
         annotated = False
         return result
@@ -107,20 +130,14 @@ def lex(source: str) -> Iterator[Statement]:
         char = source[index]
         if char == "%":
             end, closed = _comment_end(source, index)
+            if not closed:
+                error_line, error_column = source_position(source, index)
+                raise SourceError(error_line, "unterminated block comment", column=error_column)
             newlines = source.count("\n", index, end)
             line += newlines
             if newlines:
                 column, column_index = 1, source.rfind("\n", index, end) + 1
-            if start is not None:
-                if span_start < index:
-                    chunks.append(source[span_start:index])
-                if newlines:
-                    chunks.append("\n" * newlines)
-                elif chunks and not chunks[-1][-1].isspace():
-                    chunks.append(" ")
-            if not closed:
-                raise SourceError(line, "unterminated block comment")
-            index = span_start = end
+            index = end
             continue
         if start is None:
             if char.isspace():
@@ -131,12 +148,13 @@ def lex(source: str) -> Iterator[Statement]:
                 continue
             column += len(source[column_index:index].encode("utf-8"))
             column_index = index
-            start, start_line, span_start, start_column = index, line, index, column
+            start, start_line, start_column = index, line, column
         if char == '"':
             try:
                 end = quoted_end(source, index)
             except ValueError:
-                raise SourceError(start_line, "unterminated string") from None
+                error_line, error_column = source_position(source, index)
+                raise SourceError(error_line, "unterminated string", column=error_column) from None
             newlines = source.count("\n", index, end)
             line += newlines
             if newlines:
@@ -148,15 +166,14 @@ def lex(source: str) -> Iterator[Statement]:
             line += 1
             column, column_index = 1, index
         if char in DELIMITERS:
-            expected.append(DELIMITERS[char])
+            expected.append((DELIMITERS[char], index - 1))
             continue
         if char in ")]}":
-            if not expected or expected.pop() != char:
+            if not expected or expected.pop()[0] != char:
                 error_column = column + len(source[column_index:index - 1].encode("utf-8"))
                 raise SourceError(line, f"unmatched {char}", column=error_column)
             if annotated and not expected and char == "]":
-                chunks.append(source[span_start:index])
-                yield emit("".join(chunks).strip(), index)
+                yield emit(index)
             continue
         if char != "." or expected:
             continue
@@ -164,15 +181,14 @@ def lex(source: str) -> Iterator[Statement]:
         following = source[index] if index < size else ""
         if previous == "." or following == ".":
             continue
-        chunks.append(source[span_start:index])
-        span_start = index
-        text = "".join(chunks).strip()
-        if text.startswith((":~", "#heuristic", "#external")) and next_significant(index) == "[":
+        if source.startswith((":~", "#heuristic", "#external"), start) and next_significant(index) == "[":
             annotated = True
             continue
-        yield emit(text, index)
+        yield emit(index)
 
     if expected:
-        raise SourceError(start_line, f"unclosed delimiter, expected {expected[-1]}")
+        delimiter, offset = expected[-1]
+        error_line, error_column = source_position(source, offset)
+        raise SourceError(error_line, f"unclosed delimiter, expected {delimiter}", column=error_column)
     if start is not None:
         raise SourceError(start_line, "statement must end with '.'")

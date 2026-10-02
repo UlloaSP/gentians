@@ -4,7 +4,7 @@ from pathlib import Path
 from clingo import ast
 
 from . import terms as mode_terms
-from .asp import parse_program
+from .asp import parse_program, validate_task_program
 from .declarations import (
     _get_constant_declaration,
     _get_invented_declaration,
@@ -71,13 +71,16 @@ def parse_text(source: str) -> InductiveTask:
     }
     min_head_literals = 1
     declared_limits: dict[str, int] = {}
-    mode_names = {"#modeh", "#modeha", "#modehd", "#modeb", "#modec"}
-    seen_modes: set[str] = set()
+    deduplicated_names = {"#modeh", "#modeha", "#modehd", "#modeb", "#modec", "#pos", "#neg", "#constant"}
+    seen_declarations: set[str] = set()
     comparison_safety: dict[ComparisonLiteral, bool] = {}
     for statement in lex(source):
-        lc = statement.text
         directive = statement.directive
-        if directive in mode_names and lc in seen_modes:
+        if directive is None:
+            background_statements.append(statement)
+            continue
+        lc = statement.text
+        if directive in deduplicated_names and lc in seen_declarations:
             continue
 
         try:
@@ -140,10 +143,8 @@ def parse_text(source: str) -> InductiveTask:
             elif directive == "#constant":
                 type_name, value = _get_constant_declaration(lc)
                 constants.setdefault(type_name, {})[value] = None
-            else:
-                background_statements.append(statement)
-            if directive in mode_names:
-                seen_modes.add(lc)
+            if directive in deduplicated_names:
+                seen_declarations.add(lc)
         except ValueError as error:
             if isinstance(error, SourceError):
                 if error.column is not None:
@@ -211,8 +212,11 @@ def parse_text(source: str) -> InductiveTask:
         line = declared_limits.get("#minhl", declared_limits.get("#maxhl", 1))
         maximum_line = declared_limits.get("#maxhl")
         raise SourceError(line, "#minhl cannot exceed #maxhl", maximum_line)
+    background_source = _background_source(background_statements)
+    background = parse_program(background_source)
+    validate_task_program(background_source, background)
     return InductiveTask(
-        background=parse_program(_background_source(background_statements)),
+        background=background,
         positive_examples=list(pe),
         negative_examples=list(ne),
         language_bias_head=list(lbh),

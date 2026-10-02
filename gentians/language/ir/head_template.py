@@ -1,6 +1,5 @@
 from dataclasses import dataclass, replace
 from collections.abc import Iterator
-from itertools import product
 from typing import TypeAlias
 
 from clingo import ast
@@ -154,33 +153,26 @@ class HeadTemplate:
         if not any(mode_terms.constant_types(term) for term in self.arguments):
             yield self
             return
-        def forms() -> Iterator[ast.AST]:
-            if self.kind not in {"choice", "aggregate"}:
-                yield self.form
-                return
-
-            def guards(guard: ast.AST | None) -> tuple[ast.AST | None, ...]:
-                return (
-                    tuple(
-                        guard if term == guard.term else guard.update(term=term)
-                        for term in mode_terms.concretizations(guard.term, constants)
-                    )
-                    if guard
-                    else (None,)
-                )
-
-            for left, right in product(guards(self.form.left_guard), guards(self.form.right_guard)):
-                yield (
-                    self.form if left == self.form.left_guard and right == self.form.right_guard
-                    else self.form.update(left_guard=left, right_guard=right)
-                )
-        choices = tuple(tuple(element.concretizations(constants)) for element in self.elements)
-        for form in forms():
-            for elements in product(*choices):
-                yield (
-                    self if form == self.form and elements == self.elements
-                    else replace(self, form=form, elements=elements)
-                )
+        guarded = self.kind in {"choice", "aggregate"}
+        # Head guards are the outer alternatives; preserve their declared order.
+        guards = (self.form.left_guard, self.form.right_guard) if guarded else ()
+        terms = (
+            *(guard.term for guard in guards if guard is not None),
+            *(term for element in self.elements for term in element.arguments),
+        )
+        for concrete in mode_terms.concretize_terms(terms, constants):
+            arguments = iter(concrete)
+            form = self.form
+            if guarded:
+                left = mode_terms.replace_guard_term(self.form.left_guard, arguments)
+                right = mode_terms.replace_guard_term(self.form.right_guard, arguments)
+                if left != self.form.left_guard or right != self.form.right_guard:
+                    form = self.form.update(left_guard=left, right_guard=right)
+            elements = tuple(element.with_arguments(arguments) for element in self.elements)
+            yield (
+                self if form == self.form and elements == self.elements
+                else replace(self, form=form, elements=elements)
+            )
 
     def instantiate(
         self, elements: tuple[ast.AST, ...], guard_variables: tuple[str, ...] = ()

@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
-from itertools import product
 
 from clingo import ast
 
@@ -65,18 +64,18 @@ class AggregateLiteral:
         if not any(mode_terms.constant_types(term) for term in self.arguments):
             yield self
             return
-        choices = tuple(tuple(element.concretizations(constants)) for element in self.elements)
-        lefts = tuple(self.left_guard if term == self.left_guard.term else self.left_guard.update(term=term) for term in mode_terms.concretizations(self.left_guard.term, constants)) if self.left_guard is not None else (None,)
-        rights = tuple(self.right_guard if term == self.right_guard.term else self.right_guard.update(term=term) for term in mode_terms.concretizations(self.right_guard.term, constants)) if self.right_guard is not None else (None,)
-        for elements in product(*choices):
-            for left, right in product(lefts, rights):
-                yield (
-                    self if elements == self.elements and left == self.left_guard
-                    and right == self.right_guard else AggregateLiteral(
-                        self.function, elements, left, right,
-                        self.default_negated, self.double_negated,
-                    )
+        for concrete in mode_terms.concretize_terms(self.arguments, constants):
+            arguments = iter(concrete)
+            elements = tuple(element.with_arguments(arguments) for element in self.elements)
+            left = mode_terms.replace_guard_term(self.left_guard, arguments)
+            right = mode_terms.replace_guard_term(self.right_guard, arguments)
+            yield (
+                self if elements == self.elements and left == self.left_guard
+                and right == self.right_guard else AggregateLiteral(
+                    self.function, elements, left, right,
+                    self.default_negated, self.double_negated,
                 )
+            )
 
     def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         # The generator numbers element bindings before guard bindings.

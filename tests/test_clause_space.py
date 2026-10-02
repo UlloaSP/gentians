@@ -525,8 +525,12 @@ def test_clause_generator_compiles_aggregate_body_modes_directly():
 
 
 def test_clause_generator_decodes_models_without_shown_symbols(monkeypatch):
-    def fail_if_called(*_args, **_kwargs):
-        raise AssertionError("clause generation must not materialize shown symbols")
+    original = clingo.Model.symbols
+
+    def fail_if_called(model, *args, **kwargs):
+        if model.type == clingo.ModelType.StableModel:
+            raise AssertionError("clause decoding must not materialize symbols")
+        return original(model, *args, **kwargs)
 
     monkeypatch.setattr(clingo.Model, "symbols", fail_if_called)
     program = inductive_task(

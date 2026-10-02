@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
-from itertools import product
 
 from clingo import ast
 
@@ -57,17 +56,17 @@ class HeadAggregateElement:
         if not any(mode_terms.constant_types(term) for term in self.arguments):
             yield self
             return
-        term_choices = tuple(tuple(mode_terms.concretizations(term, constants)) for term in self.terms)
-        conclusions = tuple(self.conclusion.concretizations(constants))
-        condition_choices = tuple(tuple(condition.concretizations(constants)) for condition in self.conditions)
-        for terms in product(*term_choices):
-            for conclusion in conclusions:
-                for conditions in product(*condition_choices):
-                    yield (
-                        self if terms == self.terms and conclusion == self.conclusion
-                        and conditions == self.conditions
-                        else HeadAggregateElement(terms, conclusion, conditions)
-                    )
+        for concrete in mode_terms.concretize_terms(self.arguments, constants):
+            yield self.with_arguments(iter(concrete))
+
+    def with_arguments(self, arguments: Iterator[ast.AST]) -> "HeadAggregateElement":
+        terms = tuple(next(arguments) for _ in self.terms)
+        conclusion = self.conclusion.with_arguments(arguments)
+        conditions = tuple(condition.with_arguments(arguments) for condition in self.conditions)
+        return (
+            self if terms == self.terms and conclusion == self.conclusion and conditions == self.conditions
+            else HeadAggregateElement(terms, conclusion, conditions)
+        )
 
     def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         terms = [mode_terms.instantiate(term, variables) for term in self.terms]

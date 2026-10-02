@@ -29,14 +29,17 @@ Task files accept Clingo's nested `%* ... *%` comments, including adjacent
 markers such as `%*%* ignored *%*%`. A `%` line comment inside a block hides
 closing markers until the newline. Repeating an equal mode or example keeps
 its first occurrence; distinct recalls, signs, labels and contexts remain
-distinct. Identical successful modes skip repeated payload parsing. Constant
-values keep declaration order within their type.
+distinct. Identical successful modes, examples and constants skip repeated
+payload parsing. Constants keep declaration order within their type; duplicate
+limits and inventions still fail.
 Missing directive arguments, including a comma before the closing parenthesis,
 are rejected. Commas inside strings and singleton tuples such as `(a,)` remain
 valid.
 Mode and invention payloads contain only their template. Additional ASP rules
 or directives inside them are rejected; directive text in strings is preserved.
 Mode recalls use a positive integer or `*`, never numeric `-1`.
+Limits and recalls use ASCII decimal digits, without signs, separators such as
+`1_0`, or non-ASCII numerals.
 Declaration validation errors include the original statement's starting line.
 Clingo syntax errors point to the original token or cursor line and UTF-8 byte
 column, including within multiline declarations and example fields.
@@ -45,11 +48,18 @@ Reading a file reports its name and local line; directory tasks distinguish
 `bk.lp`, `exs.lp`, and `bias.lp`, including both locations of conflicting
 declarations. Syntax errors retain Clingo's explanation and unexpected token;
 comments and strings preserve their original positions.
+Unclosed strings, comments and delimiters identify their opening line and byte
+column. Theory atoms and `#theory` definitions are unsupported in every task
+section. External `@function(...)` calls are also rejected in background,
+examples and contexts; strings containing their spelling remain valid.
 
 The file is read in full, then the lexer delivers complete statements
-progressively using source spans and shared string/delimiter scanning. Constant
+progressively using source spans and shared string/delimiter scanning. Only
+declarations request normalized payload text; background retains its source
+spans. Constant
 expansion likewise yields variants in declaration and Cartesian-product order,
-preparing reusable element and guard alternatives once. Nested terms retain
+combining declared constant domains directly across elements and guards,
+without retaining intermediate variant pools. Nested terms retain
 only their current variants and rebuild changed paths. Fixed guards and
 repeated binding nodes are reused during instantiation. Native predicate
 inspection also supports deeply nested terms in background comparisons.
@@ -324,6 +334,7 @@ only on earlier invented predicates, preventing recursive invention cycles.
 ```
 
 Here `target_1/2` is learned in rule heads and may occur twice in rule bodies.
+The invented body's recall also accepts `*`, provided `#maxbl` remains finite.
 
 ## Examples
 
@@ -341,6 +352,11 @@ atoms:
 #pos({odd(1), odd(3), even(2)}, {}).
 #neg({even(3)}, {}).
 ```
+
+Each included or excluded literal must be one ground symbolic atom. Pools and
+intervals, including inside nested terms, are rejected here; enumerate their
+atoms explicitly. Ground arithmetic, strings, tuples and strong negation remain
+valid. This restriction does not apply to the contextual ASP program.
 
 An example can optionally include a contextual ASP program as its third
 argument:

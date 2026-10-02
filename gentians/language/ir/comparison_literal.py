@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
-from itertools import product
 
 from clingo import ast
 
@@ -62,10 +61,12 @@ class ComparisonLiteral:
         if not any(mode_terms.constant_types(term) for term in self.terms):
             yield self
             return
-        yield from (
-            self if concrete_terms == self.terms else replace(self, terms=concrete_terms)
-            for concrete_terms in product(*(mode_terms.concretizations(term, constants) for term in self.terms))
-        )
+        for concrete in mode_terms.concretize_terms(self.terms, constants):
+            yield self.with_arguments(iter(concrete))
+
+    def with_arguments(self, arguments: Iterator[ast.AST]) -> "ComparisonLiteral":
+        terms = tuple(next(arguments) for _ in self.terms)
+        return self if terms == self.terms else replace(self, terms=terms)
 
     def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         terms = [mode_terms.instantiate(term, variables) for term in self.terms]

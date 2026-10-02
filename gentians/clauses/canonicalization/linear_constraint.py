@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from clingo import ast
 
@@ -9,12 +9,15 @@ from ...language.ast_nodes import binding_term, comparison, operation
 class LinearConstraint:
     coefficients: tuple[int, ...]
     relation: str
+    _variables: frozenset[int] | None = field(default=None, init=False, repr=False, compare=False)
 
     @property
     def variables(self) -> frozenset[int]:
-        return frozenset(
-            index for index, coefficient in enumerate(self.coefficients) if coefficient
-        )
+        variables = self._variables
+        if variables is None:
+            variables = frozenset(index for index, coefficient in enumerate(self.coefficients) if coefficient)
+            object.__setattr__(self, "_variables", variables)
+        return variables
 
     @property
     def key(self) -> tuple[object, ...]:

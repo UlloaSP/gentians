@@ -1,6 +1,7 @@
 """Learning annotations and substitutions over Clingo's native term syntax."""
 
 import re
+from collections import OrderedDict
 from collections.abc import Callable, Iterable, Iterator
 from functools import lru_cache
 from itertools import product
@@ -14,30 +15,39 @@ from .ir.term_binding import TermBinding
 _BINARY_NAMES = {value: key for key, value in BINARY_OPERATORS.items()}
 _UNARY_NAMES = {value: key for key, value in UNARY_OPERATORS.items()}
 
-# Mode syntax is immutable: substitutions use AST.update(). These bounded
-# caches avoid repeated native attribute reads when compiling the same terms.
+# Mode syntax is immutable: substitutions use AST.update(). Retaining each
+# identity-cache key's node prevents Python object IDs from being reused.
+_kinds: OrderedDict[int, tuple[ast.AST, str]] = OrderedDict()
 
 
-@lru_cache(maxsize=8192)
 def kind(term: ast.AST) -> str:
+    identity = id(term)
+    if cached := _kinds.get(identity):
+        return cached[1]
     match term.ast_type:
         case ast.ASTType.Function:
             if term.name in {"var", "const"}:
-                return "variable" if term.name == "var" else "constant"
-            if not term.name:
-                return "tuple"
-            return "function" if term.arguments else "fixed"
+                result = "variable" if term.name == "var" else "constant"
+            elif not term.name:
+                result = "tuple"
+            else:
+                result = "function" if term.arguments else "fixed"
         case ast.ASTType.BinaryOperation | ast.ASTType.UnaryOperation:
-            return "arithmetic"
+            result = "arithmetic"
         case ast.ASTType.Interval:
-            return "interval"
+            result = "interval"
         case ast.ASTType.Pool:
-            return "pool"
+            result = "pool"
         case ast.ASTType.Variable:
-            return "anonymous"
+            result = "anonymous"
         case ast.ASTType.SymbolicTerm:
-            return "fixed"
-    raise ValueError(f"unsupported mode term: {term}")
+            result = "fixed"
+        case _:
+            raise ValueError(f"unsupported mode term: {term}")
+    if len(_kinds) == 8192:
+        _kinds.popitem(last=False)
+    _kinds[identity] = term, result
+    return result
 
 
 def value(term: ast.AST) -> str:
@@ -224,13 +234,19 @@ def concretizations(
     if kind(term) == "constant":
         yield from constants[str(term.arguments[0])]
         return
-    children = arguments(term)
-    if not children or not constant_types(term):
+    if not constant_types(term):
         yield term
         return
-    if all(kind(child) == "constant" or not constant_types(child) for child in children):
-        for concrete in product(*(concretizations(child, constants) for child in children)):
-            yield with_arguments(term, concrete)
+    for concrete in concretize_terms((term,), constants):
+        yield concrete[0]
+
+
+def concretize_terms(
+    terms: tuple[ast.AST, ...], constants: dict[str, tuple[ast.AST, ...]]
+) -> Iterator[tuple[ast.AST, ...]]:
+    """Expand a term forest over declared constant domains, never subtree pools."""
+    if not any(constant_types(term) for term in terms):
+        yield terms
         return
 
     # A postorder recipe retains one current value per node, never the product
@@ -241,21 +257,22 @@ def concretizations(
     leaves: list[int] = []
     choices: list[tuple[ast.AST, ...]] = []
     updates: list[tuple[int, ast.AST, tuple[int, ...]]] = []
-    for node, count in _postorder(term):
-        indices = tuple(result[-count:]) if count else ()
-        if count:
-            del result[-count:]
-        index = len(values)
-        values.append(node)
-        if kind(node) == "constant":
-            leaves.append(index)
-            choices.append(constants[str(node.arguments[0])])
-            changing.append(True)
-        else:
-            changing.append(any(changing[child] for child in indices))
-            if changing[-1]:
-                updates.append((index, node, indices))
-        result.append(index)
+    for term in terms:
+        for node, count in _postorder(term):
+            indices = tuple(result[-count:]) if count else ()
+            if count:
+                del result[-count:]
+            index = len(values)
+            values.append(node)
+            if kind(node) == "constant":
+                leaves.append(index)
+                choices.append(constants[str(node.arguments[0])])
+                changing.append(True)
+            else:
+                changing.append(any(changing[child] for child in indices))
+                if changing[-1]:
+                    updates.append((index, node, indices))
+            result.append(index)
     dirty = [False] * len(values)
     for concrete in product(*choices):
         for index, replacement in zip(leaves, concrete, strict=True):
@@ -265,7 +282,14 @@ def concretizations(
             dirty[index] = any(dirty[child] for child in indices)
             if dirty[index]:
                 values[index] = with_arguments(node, tuple(values[child] for child in indices))
-        yield values[result[0]]
+        yield tuple(values[index] for index in result)
+
+
+def replace_guard_term(guard: ast.AST | None, terms: Iterator[ast.AST]) -> ast.AST | None:
+    if guard is None:
+        return None
+    term = next(terms)
+    return guard if term == guard.term else guard.update(term=term)
 
 
 def instantiate(term: ast.AST, variables: Iterator[ast.AST]) -> ast.AST:

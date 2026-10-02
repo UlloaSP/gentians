@@ -268,6 +268,9 @@ def _normalize_component(
         reduced: list[tuple[list[int], str]] = []
         for coefficients, relation in rows:
             factor = coefficients[variable] // divisor
+            if not factor:
+                reduced.append((coefficients, relation))
+                continue
             reduced.append(
                 (
                     [

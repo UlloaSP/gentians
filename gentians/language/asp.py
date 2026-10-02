@@ -37,6 +37,32 @@ def parse_program(source: str, line: int = 1, column: int = 1) -> AspProgram:
     return tuple(statement for statement in statements if statement.ast_type != ast.ASTType.Comment)
 
 
+def validate_task_program(source: str, program: Iterable[ast.AST], line: int = 1, column: int = 1) -> None:
+    """Reject task features requiring unsupported theory or host contexts.
+
+    The introducers only gate inspection; native nodes decide validity, so
+    their occurrences inside strings and comments remain ordinary ASP data.
+    """
+    if "@" not in source and "&" not in source and "#theory" not in source:
+        return
+    pending = list(reversed(tuple(program)))
+    while pending:
+        node = pending.pop()
+        node_type = node.ast_type
+        message = None
+        if node_type in {ast.ASTType.TheoryAtom, ast.ASTType.TheoryDefinition}:
+            message = "theory atoms and definitions are unsupported in task files"
+        elif node_type == ast.ASTType.Function and node.external:
+            message = "external function terms are unsupported in task files"
+        if message is not None:
+            position = node.location.begin
+            raise SourceError(
+                line + position.line - 1, message,
+                column=position.column + (column - 1 if position.line == 1 else 0),
+            )
+        pending.extend(reversed(tuple(_ast_children(node))))
+
+
 def without_show(program: AspProgram) -> AspProgram:
     """Drop ``#show`` directives, which never change the stable models.
 
@@ -63,10 +89,14 @@ def parse_example_fields(
     context: tuple[str, int, int],
 ) -> tuple[tuple[ast.AST, ...], tuple[ast.AST, ...], AspProgram]:
     """Parse each non-empty ASP-owned field of one example with Clingo."""
+    included_atoms = _parse_ground_atoms(*included)
+    excluded_atoms = _parse_ground_atoms(*excluded)
+    program = parse_program(*context) if context[0] else ()
+    validate_task_program(context[0], program, context[1], context[2])
     return (
-        _parse_ground_atoms(*included),
-        _parse_ground_atoms(*excluded),
-        parse_program(*context) if context[0] else (),
+        included_atoms,
+        excluded_atoms,
+        program,
     )
 
 
@@ -75,6 +105,7 @@ def _parse_ground_atoms(source: str, line: int, column: int) -> tuple[ast.AST, .
         return ()
     atoms = tuple(parse_rule(f":- {source}.", line, column - 3).body)
     _validate_ground_atoms(atoms, source)
+    validate_task_program(source, atoms, line, column - 3)
     return atoms
 
 
@@ -83,10 +114,20 @@ def _validate_ground_atoms(atoms: tuple[ast.AST, ...], source: str) -> None:
         literal.ast_type != ast.ASTType.Literal
         or literal.sign != ast.Sign.NoSign
         or literal.atom.ast_type != ast.ASTType.SymbolicAtom
-        or has_variable(literal.atom.symbol)
+        or not _single_ground_term(literal.atom.symbol)
         for literal in atoms
     ):
         raise ValueError(f"examples require ground symbolic atoms: {source}")
+
+
+def _single_ground_term(term: ast.AST) -> bool:
+    pending = [term]
+    while pending:
+        node = pending.pop()
+        if node.ast_type in {ast.ASTType.Variable, ast.ASTType.Pool, ast.ASTType.Interval}:
+            return False
+        pending.extend(_ast_children(node))
+    return True
 
 
 def add_program(control: clingo.Control, statements: Iterable[ast.AST]) -> None:
@@ -180,6 +221,8 @@ def symbolic_literal_predicate(literal: ast.AST) -> Predicate:
 def clause_predicates(
     statement: ast.AST,
 ) -> tuple[frozenset[Predicate], frozenset[Predicate], int]:
+    if statement.ast_type == ast.ASTType.TheoryDefinition:
+        raise ValueError("theory definitions are unsupported")
     if statement.ast_type != ast.ASTType.Rule:
         return frozenset(), frozenset(), 0
     heads: set[Predicate] = set()
@@ -204,7 +247,7 @@ def _collect_head_predicates(
             for condition in node.condition:
                 _collect_predicates(condition, deps)
         elif node.ast_type == ast.ASTType.TheoryAtom:
-            _collect_predicates(node, heads)
+            raise ValueError("theory atoms are unsupported")
         else:
             pending.extend(_ast_children(node))
 
@@ -222,6 +265,8 @@ def _collect_predicates(node: ast.AST, result: set[Predicate]) -> None:
     pending = [node]
     while pending:
         node = pending.pop()
+        if node.ast_type == ast.ASTType.TheoryAtom:
+            raise ValueError("theory atoms are unsupported")
         if node.ast_type == ast.ASTType.SymbolicAtom:
             for name, arguments in symbolic_functions(node.symbol):
                 result.add((name, len(arguments)))

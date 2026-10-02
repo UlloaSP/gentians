@@ -1,3 +1,4 @@
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import cast
 
@@ -23,6 +24,8 @@ type GroundTerm = int | str
 
 
 type GroundTuple = tuple[GroundTerm, ...]
+
+type _Consequences = tuple[dict[Predicate, set[GroundTuple]], dict[Predicate, set[GroundTuple]]] | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +60,7 @@ class ClosedWorld:
 def _closed_world(
     program: AspProgram, learned: frozenset[Predicate],
     relations_cache: dict[ast.AST, tuple[frozenset[Predicate], frozenset[Predicate]]] | None = None,
+    consequences: Callable[[AspProgram], _Consequences] | None = None,
 ) -> ClosedWorld | None:
     """Return the fixed closed relations, or None when none can be trusted.
 
@@ -97,10 +101,10 @@ def _closed_world(
         and relations[statement][0] <= open_predicates
         and not relations[statement][1] & open_predicates
     )
-    consequences = _consequences(closed_program + lower_rules)
-    if consequences is None:
+    bounds = (_consequences if consequences is None else consequences)(closed_program + lower_rules)
+    if bounds is None:
         return None
-    brave, cautious = consequences
+    brave, cautious = bounds
     unfixed = frozenset(
         predicate
         for predicate in brave.keys() | cautious.keys()
@@ -175,25 +179,24 @@ def _head_predicates_known(node: ast.AST) -> bool:
 
 def _consequences(
     program: AspProgram,
-) -> tuple[dict[Predicate, set[GroundTuple]], dict[Predicate, set[GroundTuple]]] | None:
+) -> _Consequences:
     control = clingo.Control(["--models=0"], logger=lambda _code, _message: None)
     add_program(control, without_show(program))
     control.ground([("base", [])])
-    atoms = [(atom.symbol, atom.literal) for atom in control.symbolic_atoms]
     results: list[dict[Predicate, set[GroundTuple]]] = []
     for mode in ("brave", "cautious"):
         cast(Configuration, control.configuration.solve).enum_mode = mode
-        last: list[clingo.Symbol] | None = None
+        last: Sequence[clingo.Symbol] | None = None
         with control.solve(yield_=True) as handle:
             for model in handle:
-                last = [symbol for symbol, literal in atoms if model.is_true(literal)]
+                last = model.symbols(atoms=True)
         if last is None:
             return None
         results.append(_by_predicate(last))
     return results[0], results[1]
 
 
-def _by_predicate(symbols: list[clingo.Symbol]) -> dict[Predicate, set[GroundTuple]]:
+def _by_predicate(symbols: Sequence[clingo.Symbol]) -> dict[Predicate, set[GroundTuple]]:
     relations: dict[Predicate, set[GroundTuple]] = {}
     for symbol in symbols:
         if symbol.type != clingo.SymbolType.Function or not symbol.name:

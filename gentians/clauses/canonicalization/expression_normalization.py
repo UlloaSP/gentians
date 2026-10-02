@@ -211,14 +211,20 @@ def _mode_expression(
     variables = iter(inputs)
 
     def instantiate(term: ast.AST) -> ArithmeticExpression:
-        if mode_terms.kind(term) == "variable":
-            return known[next(variables)]
-        if mode_terms.kind(term) != "arithmetic":
-            raise ValueError("unsupported arithmetic term in compiled mode")
-        return ArithmeticExpression(
-            mode_terms.value(term),
-            tuple(instantiate(argument) for argument in mode_terms.arguments(term)),
-        )
+        results: list[ArithmeticExpression] = []
+        for node, count in mode_terms._postorder(term):
+            children = tuple(results[-count:]) if count else ()
+            if count:
+                del results[-count:]
+            kind = mode_terms.kind(node)
+            if kind == "variable":
+                result = known[next(variables)]
+            elif kind == "arithmetic":
+                result = ArithmeticExpression(mode_terms.value(node), children)
+            else:
+                raise ValueError("unsupported arithmetic term in compiled mode")
+            results.append(result)
+        return results[0]
 
     if mode.literal.operator == "abs":
         return ArithmeticExpression("abs", tuple(instantiate(term) for term in mode.literal.arguments[:-1]))

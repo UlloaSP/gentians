@@ -39,20 +39,22 @@ def _collect_dependency_properties(
         for input_args in combinations(range(arity), size):
             inputs = frozenset(input_args)
             valid = set(range(arity)) - inputs
+            has_key = bool(found_keys) and any(key <= inputs for key in found_keys)
             groups: dict[GroundTuple, GroundTuple] = {}
-            for values in tuples:
-                key = tuple(values[arg] for arg in input_args)
-                previous = groups.setdefault(key, values)
-                if previous is not values:
-                    valid.difference_update(arg for arg in tuple(valid) if previous[arg] != values[arg])
-                    if not valid:
-                        break
+            if not has_key:
+                for values in tuples:
+                    key = tuple(values[arg] for arg in input_args)
+                    previous = groups.setdefault(key, values)
+                    if previous is not values:
+                        valid.difference_update(arg for arg in tuple(valid) if previous[arg] != values[arg])
+                        if not valid:
+                            break
             for output_arg in valid:
                 if size == 1:
                     functional.add((predicate, input_args[0], output_arg))
                 else:
                     functional_set.add((predicate, input_args, output_arg))
-            if len(groups) == len(tuples) and not any(key <= inputs for key in found_keys):
+            if not has_key and len(groups) == len(tuples):
                 keys.add((predicate, input_args))
                 found_keys.append(inputs)
 
@@ -266,23 +268,26 @@ def _collect_tuple_mutex(
     extensions: Mapping[Predicate, frozenset[GroundTuple]],
     tuple_mutex: set[tuple[Predicate, Predicate, tuple[int, ...]]],
 ) -> None:
-    relations = {
-        predicate: tuples
-        for predicate, tuples in extensions.items()
-        if predicate[1] > 1
-    }
-    by_arity: dict[int, list[tuple[Predicate, frozenset[GroundTuple]]]] = {}
-    for predicate, tuples in relations.items():
-        by_arity.setdefault(predicate[1], []).append((predicate, tuples))
-    for left, left_tuples in relations.items():
-        identity = tuple(range(left[1]))
-        for projection in permutations(identity):
-            if projection == identity:
-                continue
-            projected = {tuple(values[arg] for arg in projection) for values in left_tuples}
-            for right, right_tuples in by_arity[left[1]]:
-                if projected.isdisjoint(right_tuples):
-                    tuple_mutex.add((left, right, projection))
+    by_arity: dict[int, dict[frozenset[GroundTuple], list[Predicate]]] = {}
+    for predicate, tuples in extensions.items():
+        if predicate[1] > 1:
+            by_arity.setdefault(predicate[1], {}).setdefault(tuples, []).append(predicate)
+    for arity, groups in by_arity.items():
+        identity = tuple(range(arity))
+        for left_tuples, left_predicates in groups.items():
+            for projection in permutations(identity):
+                if projection == identity:
+                    continue
+                projected = {tuple(values[arg] for arg in projection) for values in left_tuples}
+                for right_tuples, right_predicates in groups.items():
+                    if projected.isdisjoint(right_tuples):
+                        if len(left_predicates) == len(right_predicates) == 1:
+                            tuple_mutex.add((left_predicates[0], right_predicates[0], projection))
+                        else:
+                            tuple_mutex.update(
+                                (left, right, projection)
+                                for left in left_predicates for right in right_predicates
+                            )
 
 
 def _collect_projection_implications(

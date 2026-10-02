@@ -5,7 +5,7 @@ import clingo
 from clingo import ast
 
 from . import terms as mode_terms
-from .asp import add_program, parse_rule, split_top_level_args
+from .asp import add_program, parse_rule, split_top_level_args, validate_task_program
 from .ast_nodes import (
     AGGREGATE_FUNCTIONS,
     COMPARISON_OPERATORS,
@@ -240,7 +240,9 @@ def _get_head_declaration(s: str) -> HeadTemplate:
     syntax = s[offset:-2]
     line, column = source_position(s, offset)
     try:
-        head = parse_rule(f"{syntax} :- __modeh_body.", line, column).head
+        rule = parse_rule(f"{syntax} :- __modeh_body.", line, column)
+        validate_task_program(syntax, (rule,), line, column)
+        head = rule.head
     except ValueError as exc:
         detail = exc.message if isinstance(exc, SourceError) else str(exc)
         message = f"invalid #modeh declaration: {s}: {detail}"
@@ -342,6 +344,7 @@ def _get_mode_literals(
     try:
         line, column = source_position(declaration, offset)
         rule = parse_rule(f":- {raw}.", line, column - 3)
+        validate_task_program(raw, (rule,), line, column - 3)
     except ValueError as exc:
         detail = exc.message if isinstance(exc, SourceError) else str(exc)
         message = f"invalid mode literal: {declaration}: {detail}"

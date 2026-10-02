@@ -50,8 +50,14 @@ def _prune_optional_constraints(task: InductiveTask) -> bool:
 
 def _known_head(node: ast.AST) -> bool:
     """Whether predicate extraction understands every symbolic head element."""
-    if node.ast_type == ast.ASTType.SymbolicAtom:
-        return bool(symbolic_functions(node.symbol))
-    if node.ast_type == ast.ASTType.TheoryAtom:
-        return False
-    return all(_known_head(child) for child in _children(node))
+    pending = [node]
+    while pending:
+        node = pending.pop()
+        if node.ast_type == ast.ASTType.SymbolicAtom:
+            if not symbolic_functions(node.symbol):
+                return False
+        elif node.ast_type == ast.ASTType.TheoryAtom:
+            return False
+        else:
+            pending.extend(reversed(tuple(_children(node))))
+    return True

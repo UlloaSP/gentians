@@ -77,9 +77,10 @@ de ellos redefine el language bias de una tarea inductiva.
   `#modeha` y `#modehd` comparten parsing de recall opcional y aridad de la
   directiva. El parsing ASP recoge diagnósticos en su única llamada a Clingo;
   localizar un error no vuelve a parsear la fuente.
-  Las expansiones de constantes calculan una vez las alternativas independientes
-  de guards, elementos y condiciones por llamada y conservan el orden de su
-  producto cartesiano. Las directivas rechazan argumentos finales vacíos;
+  Las expansiones de constantes recorren los dominios declarados sobre los
+  términos de guards, elementos y condiciones, conservando el orden de su
+  producto cartesiano sin almacenar pools de variantes intermedias.
+  Las directivas rechazan argumentos finales vacíos;
   `#modeagg`, `#modearith` y `#modecmp` fallan como directivas retiradas antes
   de convertirse en background ASP.
   `InductiveTask.constants` conserva valores `SymbolicTerm` de Clingo por tipo
@@ -133,19 +134,23 @@ de ellos redefine el language bias de una tarea inductiva.
   incluyen conflictos entre declaraciones y el detalle original de Clingo.
   `parse_file` conserva los offsets de los archivos concatenados y traduce
   las localizaciones de errores al archivo, línea y columna correspondientes.
-  El lexer entrega un iterador de sentencias, almacena fragmentos de texto y
+  El lexer entrega un iterador de sentencias, conserva spans de fuente y
   comparte el salto de comentarios entre el recorrido principal y la búsqueda
   de anotaciones. Comparte delimitadores y salto de strings con el separador de
   argumentos; conserva spans de fuente y los remapea solo al informar errores.
   El background mantiene sus posiciones originales y omite los nodos Comment.
   La lectura UTF-8
-  sigue siendo completa. Las expansiones entregan iteradores de variantes y
-  conservan solo los pools independientes necesarios para reutilizar alternativas;
-  los productos combinados se recorren sin almacenarlos completos. La expansión
+  sigue siendo completa. Solo las declaraciones normalizan su texto bajo
+  demanda; el background no conserva otra copia normalizada. Las expansiones
+  entregan iteradores y combinan directamente los dominios de constantes.
+  La expansión
   de términos anidados conserva un valor actual por nodo y reconstruye solo los
   caminos con elecciones cambiadas, sin productos intermedios de subárboles.
-  Modes textualmente idénticos ya aceptados se omiten antes del parsing del
-  payload; los diccionarios de IR conservan la deduplicación semántica posterior.
+  Modes, ejemplos y constantes textualmente idénticos ya aceptados se omiten
+  antes del parsing del payload; los diccionarios de IR conservan la
+  deduplicación semántica posterior. Límites e invenciones conservan errores de
+  duplicados. La inspección de kind usa una caché acotada por identidad que
+  retiene los nodos nativos y evita hashear subárboles en cada consulta.
   La seguridad de comparaciones usa una caché local a la lectura de una tarea,
   con la comparación completa como clave y ambos resultados booleanos. No
   conserva controles de Clingo ni comparte estado entre tareas. La inferencia

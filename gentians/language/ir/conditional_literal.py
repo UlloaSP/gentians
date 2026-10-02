@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
-from itertools import product
 
 from clingo import ast
 
@@ -64,13 +63,16 @@ class ConditionalLiteral:
         if not any(mode_terms.constant_types(term) for term in self.arguments):
             yield self
             return
-        choices = tuple(tuple(item.concretizations(constants)) for item in self.conditions)
-        for conclusion in self.conclusion.concretizations(constants):
-            for conditions in product(*choices):
-                yield (
-                    self if conclusion == self.conclusion and conditions == self.conditions
-                    else ConditionalLiteral(conclusion, conditions, self.condition_groups)
-                )
+        for concrete in mode_terms.concretize_terms(self.arguments, constants):
+            yield self.with_arguments(iter(concrete))
+
+    def with_arguments(self, arguments: Iterator[ast.AST]) -> "ConditionalLiteral":
+        conclusion = self.conclusion.with_arguments(arguments)
+        conditions = tuple(condition.with_arguments(arguments) for condition in self.conditions)
+        return (
+            self if conclusion == self.conclusion and conditions == self.conditions
+            else ConditionalLiteral(conclusion, conditions, self.condition_groups)
+        )
 
     def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         conclusion = self.conclusion.instantiate(variables)

@@ -2,6 +2,7 @@ import re
 
 DELIMITERS = {"(": ")", "[": "]", "{": "}"}
 _STRING_END = re.compile(r'\\[\s\S]|"')
+_DECIMAL_INTEGER = re.compile(r"[0-9]+")
 
 
 def quoted_end(source: str, offset: int) -> int:
@@ -24,11 +25,20 @@ def _directive_args(line: str, name: str) -> str:
     return line[len(name) + 1 : -2]
 
 
+def _parse_integer(raw: str) -> int:
+    if not _DECIMAL_INTEGER.fullmatch(raw):
+        raise ValueError("expected an ASCII decimal integer")
+    return int(raw)
+
+
 def _parse_recall(raw: str) -> int:
     raw = raw.strip()
     if raw == "*":
         return -1
-    value = int(raw)
+    try:
+        value = _parse_integer(raw)
+    except ValueError:
+        raise ValueError("mode recall must be positive or unbounded") from None
     if value < 1:
         raise ValueError("mode recall must be positive or unbounded")
     return value
@@ -54,6 +64,8 @@ example             = ("#pos" | "#neg") "(" asp-set "," asp-set
 constant            = "#constant" "(" identifier "," ground-term ")" "." ;
 invention           = "#invent" "(" recall "," atom-template ")" "." ;
 asp-statement       = clingo-asp-statement ;
+integer             = ascii-digit, { ascii-digit } ;
+ascii-digit         = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 """
 
 # Retired names remain recognizable only to report explicit parser errors.
@@ -85,11 +97,11 @@ DIRECTIVE_NAMES = frozenset(
     }
 )
 
-_DIRECTIVE_NAME = re.compile(r"^(#[a-z][A-Za-z0-9_]*)\b")
+_DIRECTIVE_NAME = re.compile(r"(#[a-z][A-Za-z0-9_]*)\b")
 
 
-def directive_name(statement: str) -> str | None:
-    match = _DIRECTIVE_NAME.match(statement.lstrip())
+def directive_name(source: str, start: int, end: int) -> str | None:
+    match = _DIRECTIVE_NAME.match(source, start, end)
     if match is None or match.group(1) not in DIRECTIVE_NAMES:
         return None
     return match.group(1)

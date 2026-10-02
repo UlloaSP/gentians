@@ -3,9 +3,6 @@ from collections.abc import Iterator
 from clingo import ast
 
 from ...language.asp import Predicate
-from ...language.ir.atom_literal import AtomLiteral
-from ...language.ir.conditional_literal import ConditionalLiteral
-from ...language.ir.head_aggregate_element import HeadAggregateElement
 from ..clause import Clause
 from ..clause_mode import ClauseMode
 from ..reified_clause import ReifiedClause
@@ -69,38 +66,16 @@ def _clause_from_reified(
 ) -> Clause:
     heads: set[Predicate] = set()
     deps: set[Predicate] = set()
+    body_literals = len(clause.body)
     for literal in clause.head:
         mode = modes[literal.mode_id]
-        if isinstance(mode.literal, AtomLiteral):
-            if mode.literal.default_negated:
-                deps.add(mode.literal.atom.signature)
-            else:
-                heads.add(mode.literal.atom.signature)
-        elif isinstance(mode.literal, ConditionalLiteral):
-            if isinstance(mode.literal.conclusion, AtomLiteral):
-                if mode.literal.conclusion.default_negated:
-                    deps.add(mode.literal.conclusion.atom.signature)
-                else:
-                    heads.add(mode.literal.conclusion.atom.signature)
-            deps.update(
-                predicate
-                for condition in mode.literal.conditions
-                for predicate in condition.dependencies
-            )
-        elif isinstance(mode.literal, HeadAggregateElement):
-            if isinstance(mode.literal.conclusion, AtomLiteral):
-                if mode.literal.conclusion.default_negated:
-                    deps.add(mode.literal.conclusion.atom.signature)
-                else:
-                    heads.add(mode.literal.conclusion.atom.signature)
-            deps.update(mode.literal.dependencies)
+        heads.update(mode.head_predicates)
+        deps.update(mode.head_dependencies)
+        body_literals += mode.condition_count
     for literal in clause.body:
         mode = modes[literal.mode_id]
         deps.update(mode.dependencies)
-    body_literals = len(clause.body) + sum(
-        modes[literal.mode_id].condition_count
-        for literal in (*clause.head, *clause.body)
-    )
+        body_literals += mode.condition_count
     return Clause(
         rendered,
         statement,

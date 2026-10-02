@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import fields
+from functools import lru_cache
 from itertools import combinations
 
 from clingo import ast
@@ -11,6 +12,7 @@ from .ground_relations import (
     _arg_distinct_violation,
     _cardinality_violation,
     _closed_world,
+    _consequences,
     _dependency_violation,
     _hold_in_every_model,
     _project_implies_violation,
@@ -61,8 +63,11 @@ def _closed_world_properties(
     """
     common: ClosedWorldProperties | None = None
     relations: dict[ast.AST, tuple[frozenset[Predicate], frozenset[Predicate]]] = {}
+    # Retain only a small window of native bounds, never Clingo controls or
+    # worlds. Classification and proofs remain separate for each context.
+    consequences = lru_cache(maxsize=8)(_consequences)
     for program in contexts:
-        world = _closed_world(program, learned, relations)
+        world = _closed_world(program, learned, relations, consequences)
         if world is None:
             continue
         properties = _context_properties(world, relevant, negated)

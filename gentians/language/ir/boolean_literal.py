@@ -32,5 +32,8 @@ class BooleanLiteral:
     def concretizations(self, constants: dict[str, tuple[ast.AST, ...]]) -> Iterator["BooleanLiteral"]:
         return iter((self,))
 
+    def with_arguments(self, arguments: Iterator[ast.AST]) -> "BooleanLiteral":
+        return self
+
     def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         return literal(ast.BooleanConstant(self.value), self.default_negated, self.double_negated)

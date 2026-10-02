@@ -37,5 +37,9 @@ class AtomLiteral:
             for atom in self.atom.concretizations(constants)
         )
 
+    def with_arguments(self, arguments: Iterator[ast.AST]) -> "AtomLiteral":
+        atom = self.atom.with_arguments(arguments)
+        return self if atom is self.atom else AtomLiteral(atom, self.default_negated, self.double_negated)
+
     def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         return literal(self.atom.instantiate(variables), self.default_negated, self.double_negated)

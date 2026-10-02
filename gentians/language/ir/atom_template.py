@@ -1,7 +1,6 @@
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from itertools import product
 
 from clingo import ast
 
@@ -55,17 +54,21 @@ class AtomTemplate:
         if not any(mode_terms.constant_types(term) for term in self.binding_terms):
             yield self
             return
+        for concrete in mode_terms.concretize_terms(self.binding_terms, constants):
+            yield self.with_arguments(iter(concrete))
+
+    def with_arguments(self, arguments: Iterator[ast.AST]) -> "AtomTemplate":
+        concrete = tuple(next(arguments) for _ in self.binding_terms)
+        if concrete == self.binding_terms:
+            return self
         if self.alternatives:
             width = len(self.terms)
-            for terms in product(*(mode_terms.concretizations(term, constants) for term in self.binding_terms)):
-                concrete = tuple(
-                    terms[index * width : (index + 1) * width]
-                    for index in range(len(self.alternatives))
-                )
-                yield self if concrete == self.alternatives else AtomTemplate(self.name, concrete[0], self.strong, concrete)
-        else:
-            for terms in product(*(mode_terms.concretizations(term, constants) for term in self.terms)):
-                yield self if terms == self.terms else AtomTemplate(self.name, terms, self.strong)
+            alternatives = tuple(
+                concrete[index * width:(index + 1) * width]
+                for index in range(len(self.alternatives))
+            )
+            return AtomTemplate(self.name, alternatives[0], self.strong, alternatives)
+        return AtomTemplate(self.name, concrete, self.strong)
 
     def instantiate(self, variables: Iterator[ast.AST]) -> ast.AST:
         groups = self.alternatives or (self.terms,)

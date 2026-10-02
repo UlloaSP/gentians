@@ -3,7 +3,7 @@ import re
 from clingo import ast
 
 from .asp import _diagnostic_detail, split_top_level_args
-from .grammar import SourceError, _directive_args, _parse_recall, _strip_outer_braces, source_position
+from .grammar import SourceError, _directive_args, _parse_integer, _parse_recall, _strip_outer_braces, source_position
 from .ir.atom_template import AtomTemplate
 from .modes import _get_mode_atom
 from .terms import fixed, validate_type
@@ -14,7 +14,7 @@ def _get_limit(s: str, name: str, allow_zero: bool) -> int | None:
     if raw == "*":
         return None
     try:
-        value = int(raw)
+        value = _parse_integer(raw)
     except ValueError as exc:
         raise ValueError(f"invalid {name} declaration: {s}") from exc
     if value < (0 if allow_zero else 1):
@@ -47,8 +47,6 @@ def _get_invented_declaration(s: str) -> tuple[int, AtomTemplate]:
     recall = _parse_recall(parts[0])
     offset = s.index(",", len("#invent(")) + 1
     atom = _get_mode_atom(s[offset:-2], s, offset)
-    if recall < 1:
-        raise ValueError(f"invalid #invent declaration: {s}")
     return recall, atom
 
 

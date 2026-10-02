@@ -297,17 +297,22 @@ def _term_pair_mapping(left: ast.AST, right: ast.AST) -> dict[str, str] | None:
 
 
 def _substitute_variables(node: ast.AST, mapping: dict[str, str]) -> ast.AST:
-    pending = [(node, False)]
+    if not mapping:
+        return node
+    pending: list[tuple[ast.AST, tuple[ast.AST, ...] | None]] = [(node, None)]
     results: list[ast.AST] = []
     while pending:
-        node, visited = pending.pop()
+        node, children = pending.pop()
         if node.ast_type == ast.ASTType.Variable:
-            results.append(node.update(name=mapping.get(str(node.name), str(node.name))))
+            name = mapping.get(str(node.name), str(node.name))
+            results.append(node if name == node.name else node.update(name=name))
             continue
-        children = tuple(_children(node))
-        if not children:
-            results.append(node)
-        elif visited:
+        if children is not None:
+            originals = results[-len(children):]
+            if all(original is replacement for original, replacement in zip(children, originals, strict=True)):
+                del results[-len(children):]
+                results.append(node)
+                continue
             replacements = iter(results[-len(children):])
             updates = {}
             for key in node.child_keys:
@@ -319,8 +324,12 @@ def _substitute_variables(node: ast.AST, mapping: dict[str, str]) -> ast.AST:
             del results[-len(children):]
             results.append(node.update(**updates))
         else:
-            pending.append((node, True))
-            pending.extend((child, False) for child in reversed(children))
+            children = tuple(_children(node))
+            if not children:
+                results.append(node)
+            else:
+                pending.append((node, children))
+                pending.extend((child, None) for child in reversed(children))
     return results[0]
 
 

@@ -69,15 +69,16 @@ class ArithmeticLiteral:
 def _linear_coefficients(
     expression: ast.AST, multiplier: int
 ) -> tuple[int, ...] | None:
-    if mode_terms.kind(expression) == "variable":
-        return (multiplier,)
-    if mode_terms.kind(expression) != "arithmetic" or mode_terms.value(expression) not in {"+", "-"}:
-        return None
-    left, right = mode_terms.arguments(expression)
-    left_coefficients = _linear_coefficients(left, multiplier)
-    right_coefficients = _linear_coefficients(
-        right, multiplier if mode_terms.value(expression) == "+" else -multiplier
-    )
-    if left_coefficients is None or right_coefficients is None:
-        return None
-    return (*left_coefficients, *right_coefficients)
+    pending = [(expression, multiplier)]
+    coefficients = []
+    while pending:
+        node, factor = pending.pop()
+        if mode_terms.kind(node) == "variable":
+            coefficients.append(factor)
+            continue
+        if mode_terms.kind(node) != "arithmetic" or mode_terms.value(node) not in {"+", "-"}:
+            return None
+        left, right = mode_terms.arguments(node)
+        pending.append((right, factor if mode_terms.value(node) == "+" else -factor))
+        pending.append((left, factor))
+    return tuple(coefficients)

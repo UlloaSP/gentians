@@ -166,7 +166,7 @@ def test_kind_inspection_does_not_hash_native_subtrees(monkeypatch):
 def test_nested_template_expansion_does_not_consume_future_variants(monkeypatch, declaration):
     task = parse_text("#constant(t,a). #constant(t,b). #constant(t,c). " + declaration)
     template = task.language_bias_head[0] if task.language_bias_head else task.language_bias_body[0].literal
-    original = terms.with_arguments
+    original = terms._replace_arguments
     expanded = []
 
     def record(term, children):
@@ -174,7 +174,7 @@ def test_nested_template_expansion_does_not_consume_future_variants(monkeypatch,
             expanded.append(tuple(map(str, children)))
         return original(term, children)
 
-    monkeypatch.setattr(terms, "with_arguments", record)
+    monkeypatch.setattr(terms, "_replace_arguments", record)
     stream = template.concretizations(task.constants)
     assert expanded == []
     first = next(stream)

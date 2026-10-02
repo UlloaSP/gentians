@@ -6,6 +6,7 @@ from .grammar import DELIMITERS, SourceError, directive_name, quoted_end, source
 
 _COMMENT_MARKER = re.compile(r"%\*|\*%|%")
 _TEXT_MARKER = re.compile(r'["%]')
+_EXTENSION_MARKER = re.compile(r'["%@&]|#theory\b')
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -92,6 +93,21 @@ def _comment_end(source: str, offset: int) -> tuple[int, bool]:
                 break
             offset = end + 1
     return len(source), False
+
+
+def has_task_extensions(source: str) -> bool:
+    """Gate native feature inspection using introducers outside quoted data."""
+    if "@" not in source and "&" not in source and "#theory" not in source:
+        return False
+    index = 0
+    while match := _EXTENSION_MARKER.search(source, index):
+        if match[0] == '"':
+            index = quoted_end(source, match.start())
+        elif match[0] == "%":
+            index, _closed = _comment_end(source, match.start())
+        else:
+            return True
+    return False
 
 
 def lex(source: str) -> Iterator[Statement]:

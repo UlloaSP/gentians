@@ -20,33 +20,31 @@ class Example:
         cls,
         values: tuple[tuple[str, int, int], ...],
         positive: bool,
+        *, cache: dict[tuple[bool, str], AspProgram] | None = None,
     ) -> "Example":
         context_source, context_line, context_column = values[2] if len(values) == 3 else ("", 1, 1)
         if context_source and not context_source.endswith((".", "]")):
             context_source += "."
         try:
             included, excluded, context = parse_example_fields(
-                values[0], values[1], (context_source, context_line, context_column)
+                values[0], values[1], (context_source, context_line, context_column),
+                {} if cache is None else cache,
             )
         except ValueError as error:
             detail = error.message if isinstance(error, SourceError) else str(error)
             if isinstance(error, SourceError):
                 raise SourceError(error.line, f"invalid example: {detail}", column=error.column) from None
             raise ValueError(f"invalid example: {detail}") from None
-        if any(statement.ast_type != ast.ASTType.Rule for statement in context):
-            invalid = next(
-                statement for statement in context if statement.ast_type != ast.ASTType.Rule
-            )
-            raise SourceError(
-                context_line + invalid.location.begin.line - 1, "unsupported statement in example context: "
-                f"{invalid.ast_type}", column=invalid.location.begin.column + (context_column - 1 if invalid.location.begin.line == 1 else 0)
-            )
         return cls(
             included,
             excluded,
             context,
             positive,
         )
+
+    @property
+    def deduplication_key(self) -> tuple[frozenset[ast.AST], frozenset[ast.AST], AspProgram, bool]:
+        return frozenset(self.included), frozenset(self.excluded), self.context, self.positive
 
     @property
     def included_text(self) -> str:

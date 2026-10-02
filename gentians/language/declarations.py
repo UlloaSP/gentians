@@ -6,7 +6,7 @@ from .asp import _diagnostic_detail, split_top_level_args
 from .grammar import SourceError, _directive_args, _parse_integer, _parse_recall, _strip_outer_braces, source_position
 from .ir.atom_template import AtomTemplate
 from .modes import _get_mode_atom
-from .terms import fixed, validate_type
+from .terms import fixed, validate_labels, validate_type
 
 
 def _get_limit(s: str, name: str, allow_zero: bool) -> int | None:
@@ -24,44 +24,54 @@ def _get_limit(s: str, name: str, allow_zero: bool) -> int | None:
 
 def _get_pos_neg_examples(s: str) -> tuple[tuple[str, int, int], ...]:
     name = "#pos" if s.startswith("#pos") else "#neg"
-    parts = split_top_level_args(_directive_args(s, name))
+    payload = _directive_args(s, name)
+    parts = split_top_level_args(payload)
     if len(parts) not in (2, 3):
         raise ValueError(f"invalid example declaration: {s}")
     fields = []
-    cursor = len(name) + 1
-    for part in parts:
+    for start, end in parts:
+        part = payload[start:end]
         value = _strip_outer_braces(part)
-        start = s.index(part, cursor)
         interior = part[1:-1]
-        offset = start + 1 + len(interior) - len(interior.lstrip())
+        offset = len(name) + 1 + start + 1 + len(interior) - len(interior.lstrip())
         line, column = source_position(s, offset)
         fields.append((value, line, column))
-        cursor = start + len(part)
     return tuple(fields)
 
 
 def _get_invented_declaration(s: str) -> tuple[int, AtomTemplate]:
-    parts = split_top_level_args(_directive_args(s, "#invent"))
+    payload = _directive_args(s, "#invent")
+    parts = split_top_level_args(payload)
     if len(parts) != 2:
         raise ValueError(f"invalid #invent declaration: {s}")
-    recall = _parse_recall(parts[0])
-    offset = s.index(",", len("#invent(")) + 1
-    atom = _get_mode_atom(s[offset:-2], s, offset)
+    recall = _parse_recall(payload[slice(*parts[0])])
+    offset = len("#invent(") + parts[1][0]
+    atom = _get_mode_atom(payload[slice(*parts[1])], s, offset)
+    try:
+        validate_labels(atom.binding_terms, "head")
+    except SourceError as error:
+        line, column = source_position(s, offset)
+        raise error.with_origin(line, column - 3) from None
     return recall, atom
 
 
 def _get_constant_declaration(s: str) -> tuple[str, ast.AST]:
-    parts = split_top_level_args(_directive_args(s, "#constant"))
+    payload = _directive_args(s, "#constant")
+    parts = split_top_level_args(payload)
     if len(parts) != 2:
         raise ValueError(f"invalid #constant declaration: {s}")
-    type_name = parts[0].strip()
-    validate_type(type_name, s)
+    type_name = payload[slice(*parts[0])]
     try:
-        value = fixed(parts[1].strip())
+        validate_type(type_name, s)
+    except ValueError as error:
+        line, column = source_position(s, len("#constant(") + parts[0][0])
+        raise SourceError(line, str(error), column=column) from None
+    try:
+        value = fixed(payload[slice(*parts[1])])
     except RuntimeError as exc:
         detail = str(exc)
         match = re.search(r"(?m)^<string>:(\d+):(\d+)", detail)
-        offset = s.index(parts[1], s.index(",") + 1)
+        offset = len("#constant(") + parts[1][0]
         line, column = source_position(s, offset)
         if match:
             column = int(match[2]) + (column - 1 if match[1] == "1" else 0)

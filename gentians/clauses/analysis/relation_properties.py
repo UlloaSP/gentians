@@ -17,9 +17,14 @@ def _collect_argument_properties(
     arg_distinct: set[tuple[Predicate, int, int]],
 ) -> None:
     for left, right in combinations(range(predicate[1]), 2):
-        if len(tuples) > 1 and all(values[left] == values[right] for values in tuples):
-            arg_equal.add((predicate, left, right))
-        if all(values[left] != values[right] for values in tuples):
+        remaining = iter(tuples)
+        first = next(remaining, None)
+        if first is None:
+            arg_distinct.add((predicate, left, right))
+        elif first[left] == first[right]:
+            if len(tuples) > 1 and all(values[left] == values[right] for values in remaining):
+                arg_equal.add((predicate, left, right))
+        elif all(values[left] != values[right] for values in remaining):
             arg_distinct.add((predicate, left, right))
 
 
@@ -61,26 +66,28 @@ def _collect_dependency_properties(
 
 def _without_key_subsumed_functional(
     functional: set[tuple[Predicate, int, int]],
-    keys: set[tuple[Predicate, tuple[int, ...]]],
+    key_sets: Mapping[Predicate, list[set[int]]],
 ) -> set[tuple[Predicate, int, int]]:
-    key_sets = _key_sets_by_predicate(keys)
-    return {
-        (predicate, input_arg, output_arg)
-        for predicate, input_arg, output_arg in functional
-        if not any(key <= {input_arg} for key in key_sets.get(predicate, ()))
-    }
+    result = set()
+    for item in functional:
+        predicate, input_arg, _output_arg = item
+        inputs = {input_arg}
+        if not any(key <= inputs for key in key_sets.get(predicate, ())):
+            result.add(item)
+    return result
 
 
 def _without_key_subsumed_functional_set(
     functional_set: set[tuple[Predicate, tuple[int, ...], int]],
-    keys: set[tuple[Predicate, tuple[int, ...]]],
+    key_sets: Mapping[Predicate, list[set[int]]],
 ) -> set[tuple[Predicate, tuple[int, ...], int]]:
-    key_sets = _key_sets_by_predicate(keys)
-    return {
-        (predicate, input_args, output_arg)
-        for predicate, input_args, output_arg in functional_set
-        if not any(key <= set(input_args) for key in key_sets.get(predicate, ()))
-    }
+    result = set()
+    for item in functional_set:
+        predicate, input_args, _output_arg = item
+        inputs = set(input_args)
+        if not any(key <= inputs for key in key_sets.get(predicate, ())):
+            result.add(item)
+    return result
 
 
 def _without_subsumed_functional_set(
@@ -311,6 +318,11 @@ def _collect_projection_implications(
                     index for index, values in enumerate(source_positions) if values <= domain
                 ) for domain in positions[target]) for target, _tuples in candidates)
             for projection, matches in _projection_matches(alternatives, arity):
+                if len(matches) == 1:
+                    target, target_tuples = candidates[matches[0]]
+                    if all(tuple(values[arg] for arg in projection) in target_tuples for values in tuples):
+                        project_implies.add((source, target, projection))
+                    continue
                 projected = {tuple(values[arg] for arg in projection) for values in tuples}
                 for index in matches:
                     target, target_tuples = candidates[index]
@@ -343,53 +355,50 @@ def _projection_matches(
             )))
 
 
-def _is_transitive(tuples: frozenset[GroundTuple]) -> bool:
-    if len(tuples) < 3:
-        return False
+def _binary_successors(tuples: frozenset[GroundTuple]) -> dict[GroundTerm, set[GroundTerm]]:
     successors: dict[GroundTerm, set[GroundTerm]] = {}
     for left, right in tuples:
         successors.setdefault(left, set()).add(right)
-    for left, middle in tuples:
-        following = successors.get(middle)
-        if following is not None and not following <= successors[left]:
-            return False
+    return successors
+
+
+def _is_transitive(successors: Mapping[GroundTerm, set[GroundTerm]], tuple_count: int) -> bool:
+    if tuple_count < 3:
+        return False
+    for following in successors.values():
+        for middle in following:
+            following_middle = successors.get(middle)
+            if following_middle is not None and not following_middle <= following:
+                return False
     return True
 
 
-def _is_reflexive(tuples: frozenset[GroundTuple]) -> bool:
-    domain = {value for row in tuples for value in row}
+def _is_reflexive(tuples: frozenset[GroundTuple], domain: frozenset[GroundTerm]) -> bool:
     return bool(domain) and all((value, value) in tuples for value in domain)
 
 
-def _is_total_order(tuples: frozenset[GroundTuple], transitive: bool, reflexive: bool) -> bool:
-    domain = {value for row in tuples for value in row}
-    if (
-        len(domain) < 2
-        or not reflexive
-        or not transitive
-        or any(left != right and (right, left) in tuples for left, right in tuples)
-    ):
-        return False
-    for left, right in permutations(domain, 2):
-        if (left, right) not in tuples and (right, left) not in tuples:
-            return False
-    return True
+def _is_total_order(
+    tuple_count: int, domain_size: int, transitive: bool, reflexive: bool, antisymmetric: bool,
+) -> bool:
+    # Reflexivity supplies every diagonal. Antisymmetry allows at most one edge
+    # per unordered pair, so this cardinality proves comparability of all pairs.
+    return (domain_size >= 2 and transitive and reflexive and antisymmetric
+            and tuple_count == domain_size * (domain_size + 1) // 2)
 
 
-def _is_acyclic(tuples: frozenset[GroundTuple]) -> bool:
-    graph: dict[GroundTerm, list[GroundTerm]] = {}
+def _is_acyclic(successors: Mapping[GroundTerm, set[GroundTerm]]) -> bool:
     incoming: dict[GroundTerm, int] = {}
-    for left, right in tuples:
-        graph.setdefault(left, []).append(right)
+    for left, following in successors.items():
         incoming.setdefault(left, 0)
-        incoming[right] = incoming.get(right, 0) + 1
+        for right in following:
+            incoming[right] = incoming.get(right, 0) + 1
     pending = [node for node, count in incoming.items() if not count]
     visited = 0
     while pending:
         node = pending.pop()
         visited += 1
-        for successor in graph.get(node, ()):
+        for successor in successors.get(node, ()):
             incoming[successor] -= 1
             if not incoming[successor]:
                 pending.append(successor)
-    return bool(tuples) and visited == len(incoming)
+    return bool(successors) and visited == len(incoming)

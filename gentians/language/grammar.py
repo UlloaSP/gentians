@@ -1,5 +1,7 @@
 import re
 
+from clingo import ast
+
 DELIMITERS = {"(": ")", "[": "]", "{": "}"}
 _STRING_END = re.compile(r'\\[\s\S]|"')
 _DECIMAL_INTEGER = re.compile(r"[0-9]+")
@@ -118,3 +120,14 @@ class SourceError(ValueError):
         related = f" (related declaration on line {related_line})" if related_line else ""
         position = f" (column {column})" if column is not None else ""
         super().__init__(f"line {line}: {message}{related}{position}")
+
+    @classmethod
+    def at_node(cls, node: ast.AST, message: str) -> "SourceError":
+        position = node.location.begin
+        return cls(position.line, message, column=position.column)
+
+    def with_origin(self, line: int, column: int) -> "SourceError":
+        return SourceError(
+            line + self.line - 1, self.message, self.related_line,
+            column=self.column + (column - 1 if self.line == 1 else 0) if self.column is not None else None,
+        )

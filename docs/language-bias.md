@@ -50,7 +50,15 @@ directions, or example contexts remain distinct. Constant values likewise keep
 their first appearance within each type. Identical successful mode, example and
 constant statements skip repeated payload parsing; other equal values are still
 deduplicated after decoding. Limits and inventions retain duplicate errors.
-Declaration validation errors identify the statement's starting line. Native
+Example inclusion and exclusion fields are sets for deduplication: atom order
+and repeated occurrences do not create another example. The first example keeps
+its original atom order, repetitions and native locations. Inclusion and
+exclusion remain separate, and context and polarity belong to the key.
+Declaration validation errors identify the statement's starting line unless
+the invalid native node is known. Invalid example terms and variable types,
+directions and labels identify that node's original line and byte column. A
+missing constant domain points to its first type reference in source order,
+including references inside factored pools. Native
 syntax errors identify the original token or cursor line and UTF-8 byte column,
 including multiline modes, inventions, constants and example fields. Comments
 and quoted strings do not shift those locations. Diagnostics carry one source
@@ -68,8 +76,11 @@ The complete background is parsed in one Clingo call while preserving original
 task line and column locations; comment AST nodes are omitted from the IR.
 Background and every
 example's included atoms, excluded atoms, and context remain as
-`clingo.ast.AST` nodes inside `InductiveTask`. Each non-empty example field is
-parsed directly; empty fields do not invoke Clingo. Candidate `Clause`
+`clingo.ast.AST` nodes inside `InductiveTask`. Each distinct non-empty example
+field spelling is parsed and validated once per task; successful fields share
+their retained nodes. Ground-atom fields and rule contexts have separate cache
+keys. Failed fields are not cached, and empty fields do not invoke Clingo.
+Sharing syntax does not merge example contexts or their coverage. Candidate `Clause`
 values retain their constructed clause beside their canonical output text.
 Included and excluded example fields require single ground symbolic atoms.
 Pools and intervals, including nested occurrences, are rejected rather than
@@ -96,11 +107,16 @@ is still read in full. It retains source spans and normalizes declaration
 payloads only when requested; background statements never retain a second
 normalized copy. It shares quoted-string and
 delimiter scanning with the directive argument splitter. Source spans preserve
-locations; detailed fragment remapping runs only on errors.
+locations; the argument splitter returns trimmed spans instead of discarding
+offsets and searching for the same text again. Detailed fragment remapping runs
+only on errors. Unsupported-feature introducers inside strings and comments do
+not trigger an additional walk of the complete background AST.
 Constant-expansion methods yield concrete variants in the same order. The
 declared constant domains are reused directly. Nested terms retain one current
 variant per node and rebuild only paths whose constant choices changed, without
-retaining their subtree Cartesian products. The compiled modes and final clause
+retaining their subtree Cartesian products. Fixed subtrees are single recipe
+nodes, and the ordered product advances its rightmost domain first. Each step
+visits only changed choices and their ancestor paths. The compiled modes and final clause
 space still retain the entries they need.
 Atom, comparison, conditional, aggregate and head templates are immutable values.
 When a template has no constant placeholders, expansion returns it directly.
@@ -132,9 +148,14 @@ assembled as `ast.Rule` without a text-to-AST round trip. Retained programs ente
 controls through `ProgramBuilder`. Clingo's `str(AST)` owns output formatting,
 including explicit guards, parentheses, and `#false` constraint heads.
 Static analysis traverses retained nodes directly.
-Term-kind inspection uses a bounded identity cache retaining its native nodes,
-so cache hits do not hash their complete subtrees. Other structural metadata
-caches remain bounded.
+Term kind, arguments, bindings and constant-type summaries share an identity
+cache, so hits do not hash complete subtrees. Parsing uses a temporary cache of
+at most 8192 entries, released on success or error. Expansion preparation uses
+the same scope mechanism and closes its scope before yielding. Queries outside
+these operations use one bounded cache of at most 1024 entries. Entries retain
+their native node to prevent reuse of its identity; these are entry limits,
+not byte limits. Binding paths are cached relative to the term and prefixed
+when requested. Constant-type summaries are computed bottom-up.
 Predicate and numeric-value inspection use explicit stacks too, including
 deep comparison terms in background rules and example contexts.
 Canonical expression inspection, hashing, equality, substitutions and native

@@ -21,6 +21,7 @@ from gentians.clauses.analysis.relation_properties import (
     _is_total_order,
     _is_transitive,
     _is_acyclic,
+    _binary_successors,
     _position_values,
     _partition_properties,
 )
@@ -295,13 +296,14 @@ def test_indexed_transitivity_and_total_orders_match_all_three_element_relations
     for mask in range(1 << len(pairs)):
         rows = frozenset(pair for bit, pair in enumerate(pairs) if mask & (1 << bit))
         transitive = len(rows) >= 3 and all((left, right) in rows for left, middle in rows for other_middle, right in rows if middle == other_middle)
-        reflexive = _is_reflexive(rows)
-        domain = {value for pair in rows for value in pair}
+        domain = frozenset(value for pair in rows for value in pair)
+        reflexive = _is_reflexive(rows, domain)
         ordered = len(domain) >= 2 and reflexive and transitive and all(
             (left, right) in rows or (right, left) in rows for left, right in permutations(domain, 2)
         ) and not any(left != right and (right, left) in rows for left, right in rows)
-        assert _is_transitive(rows) == transitive
-        assert _is_total_order(rows, transitive, reflexive) == ordered
+        antisymmetric = not any(left != right and (right, left) in rows for left, right in rows)
+        assert _is_transitive(_binary_successors(rows), len(rows)) == transitive
+        assert _is_total_order(len(rows), len(domain), transitive, reflexive, antisymmetric) == ordered
 
 
 @pytest.mark.parametrize("diagnostics", [False, True])
@@ -370,11 +372,11 @@ def test_compact_assignment_keeps_mixed_system_keys_and_minimum_clause_cost(shor
 
 def test_acyclicity_handles_deep_paths_and_disconnected_cycles():
     path = frozenset((index, index + 1) for index in range(10000))
-    assert _is_acyclic(path)
-    assert not _is_acyclic(path | {(10000, 0)})
-    assert not _is_acyclic(path | {("a", "b"), ("b", "a")})
-    assert not _is_acyclic(frozenset({("a", "a")}))
-    assert not _is_acyclic(frozenset())
+    assert _is_acyclic(_binary_successors(path))
+    assert not _is_acyclic(_binary_successors(path | {(10000, 0)}))
+    assert not _is_acyclic(_binary_successors(path | {("a", "b"), ("b", "a")}))
+    assert not _is_acyclic(_binary_successors(frozenset({("a", "a")})))
+    assert not _is_acyclic(_binary_successors(frozenset()))
 
 
 def test_acyclicity_matches_all_three_element_relations():
@@ -385,7 +387,7 @@ def test_acyclicity_matches_all_three_element_relations():
         for middle in range(3):
             reachable |= {(left, right) for left in range(3) for right in range(3)
                           if (left, middle) in reachable and (middle, right) in reachable}
-        assert _is_acyclic(rows) == (bool(rows) and not any((node, node) in reachable for node in range(3)))
+        assert _is_acyclic(_binary_successors(rows)) == (bool(rows) and not any((node, node) in reachable for node in range(3)))
 
 
 def test_static_ast_analysis_and_variable_substitution_handle_deep_terms():

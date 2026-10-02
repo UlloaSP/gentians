@@ -37,17 +37,19 @@ def _get_mode_declarations(
     parts = split_top_level_args(payload)
     combinable_head = name in {"#modeha", "#modehd"}
     if combinable_head and len(parts) == 1:
-        recall, offset = -1, len(name) + 1
+        recall, offset = -1, len(name) + 1 + parts[0][0]
     else:
         if len(parts) < 2 or combinable_head and len(parts) != 2:
             raise ValueError(f"invalid {name} declaration: {source}")
-        recall = _parse_recall(parts[0])
-        offset = source.index(",", len(name) + 1) + 1
+        recall = _parse_recall(payload[slice(*parts[0])])
+        offset = len(name) + 1 + parts[1][0]
     syntax = source[offset:-2]
-    return tuple(
-        ModeDeclaration(recall, literal)
-        for literal in _get_mode_literals(syntax, source, offset=offset, unpool=unpool)
-    )
+    literals = _get_mode_literals(syntax, source, offset=offset, unpool=unpool)
+    line, column = source_position(source, offset)
+    try:
+        return tuple(ModeDeclaration(recall, literal) for literal in literals)
+    except SourceError as error:
+        raise error.with_origin(line, column - 3) from None
 
 
 def _get_body_mode_declaration(s: str, safety: dict[ComparisonLiteral, bool] | None = None) -> ModeDeclaration:
@@ -227,16 +229,17 @@ def _get_combinable_head_declarations(
 
 
 def _get_head_declaration(s: str) -> HeadTemplate:
-    parts = split_top_level_args(_directive_args(s, "#modeh"))
+    payload = _directive_args(s, "#modeh")
+    parts = split_top_level_args(payload)
     if len(parts) < 2:
         raise ValueError(f"invalid #modeh declaration: {s}")
     try:
-        recall = _parse_recall(parts[0])
+        recall = _parse_recall(payload[slice(*parts[0])])
     except ValueError:
         raise ValueError("complete head modes require recall 1") from None
     if recall != 1:
         raise ValueError("complete head modes require recall 1")
-    offset = s.index(",", len("#modeh(")) + 1
+    offset = len("#modeh(") + parts[1][0]
     syntax = s[offset:-2]
     line, column = source_position(s, offset)
     try:
@@ -251,6 +254,13 @@ def _get_head_declaration(s: str) -> HeadTemplate:
             line, column = min((exc.line, exc.column or 1), end)
             raise SourceError(line, message, column=column) from None
         raise ValueError(message) from None
+    try:
+        return _head_from_ast(head, s)
+    except SourceError as error:
+        raise error.with_origin(line, column) from None
+
+
+def _head_from_ast(head: ast.AST, s: str) -> HeadTemplate:
     if head.ast_type in {ast.ASTType.Literal, ast.ASTType.ConditionalLiteral}:
         element = _head_literal(head, s)
         return HeadTemplate.normal(element)
@@ -356,7 +366,10 @@ def _get_mode_literals(
     expanded = rule.unpool() if unpool else (rule,)
     if any(len(rule.body) != 1 for rule in expanded):
         raise ValueError(f"mode declaration requires one literal: {declaration}")
-    return tuple(_literal_from_ast(rule.body[0], declaration) for rule in expanded)
+    try:
+        return tuple(_literal_from_ast(rule.body[0], declaration) for rule in expanded)
+    except SourceError as error:
+        raise error.with_origin(line, column - 3) from None
 
 
 def _literal_from_ast(

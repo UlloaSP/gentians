@@ -3,32 +3,78 @@
 import re
 from collections import OrderedDict
 from collections.abc import Callable, Iterable, Iterator
-from functools import lru_cache
-from itertools import product
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 
 import clingo
 from clingo import ast
 
 from .ast_nodes import BINARY_OPERATORS, LOCATION, UNARY_OPERATORS
+from .grammar import SourceError
 from .ir.term_binding import TermBinding
 
 _BINARY_NAMES = {value: key for key, value in BINARY_OPERATORS.items()}
 _UNARY_NAMES = {value: key for key, value in UNARY_OPERATORS.items()}
 
-# Mode syntax is immutable: substitutions use AST.update(). Retaining each
-# identity-cache key's node prevents Python object IDs from being reused.
-_kinds: OrderedDict[int, tuple[ast.AST, str]] = OrderedDict()
+@dataclass(slots=True)
+class _Metadata:
+    node: ast.AST
+    node_type: ast.ASTType
+    name: str
+    kind: str | None = None
+    arguments: tuple[ast.AST, ...] | None = None
+    binding: TermBinding | None = None
+    bindings: tuple[TermBinding, ...] | None = None
+    constant_types: frozenset[str] | None = None
+
+
+# Native nodes cannot be weakly referenced. One bounded identity cache owns all
+# metadata; parsing uses a temporary cache that releases its nodes on exit.
+_recent: OrderedDict[int, _Metadata] = OrderedDict()
+_active: ContextVar[OrderedDict[int, _Metadata] | None] = ContextVar("term_metadata", default=None)
+_NO_CONSTANTS: frozenset[str] = frozenset()
+
+
+@contextmanager
+def metadata_scope() -> Iterator[None]:
+    if _active.get() is not None:
+        yield
+        return
+    token = _active.set(OrderedDict())
+    try:
+        yield
+    finally:
+        _active.reset(token)
+
+
+def _metadata(term: ast.AST) -> _Metadata:
+    cache = _active.get()
+    limit = 8192 if cache is not None else 1024
+    if cache is None:
+        cache = _recent
+    identity = id(term)
+    if (cached := cache.get(identity)) is not None:
+        return cached
+    if len(cache) == limit:
+        cache.popitem(last=False)
+    cached = _recent.get(identity) if cache is not _recent else None
+    if cached is None:
+        node_type = term.ast_type
+        cached = _Metadata(term, node_type, str(term.name) if node_type == ast.ASTType.Function else "")
+    cache[identity] = cached
+    return cached
 
 
 def kind(term: ast.AST) -> str:
-    identity = id(term)
-    if cached := _kinds.get(identity):
-        return cached[1]
-    match term.ast_type:
+    cached = _metadata(term)
+    if cached.kind is not None:
+        return cached.kind
+    match cached.node_type:
         case ast.ASTType.Function:
-            if term.name in {"var", "const"}:
-                result = "variable" if term.name == "var" else "constant"
-            elif not term.name:
+            if cached.name in {"var", "const"}:
+                result = "variable" if cached.name == "var" else "constant"
+            elif not cached.name:
                 result = "tuple"
             else:
                 result = "function" if term.arguments else "fixed"
@@ -44,9 +90,7 @@ def kind(term: ast.AST) -> str:
             result = "fixed"
         case _:
             raise ValueError(f"unsupported mode term: {term}")
-    if len(_kinds) == 8192:
-        _kinds.popitem(last=False)
-    _kinds[identity] = term, result
+    cached.kind = result
     return result
 
 
@@ -62,22 +106,32 @@ def value(term: ast.AST) -> str:
     return str(term) if kind(term) == "fixed" else ""
 
 
-@lru_cache(maxsize=8192)
 def arguments(term: ast.AST) -> tuple[ast.AST, ...]:
-    if term.ast_type in {ast.ASTType.BinaryOperation, ast.ASTType.Interval}:
-        return term.left, term.right
-    if term.ast_type == ast.ASTType.UnaryOperation:
-        return (term.argument,)
-    if term.ast_type == ast.ASTType.Pool or (
-        term.ast_type == ast.ASTType.Function and term.name not in {"var", "const"}
+    cached = _metadata(term)
+    if cached.arguments is not None:
+        return cached.arguments
+    if cached.node_type in {ast.ASTType.BinaryOperation, ast.ASTType.Interval}:
+        result = term.left, term.right
+    elif cached.node_type == ast.ASTType.UnaryOperation:
+        result = (term.argument,)
+    elif cached.node_type == ast.ASTType.Pool or (
+        cached.node_type == ast.ASTType.Function and cached.name not in {"var", "const"}
     ):
-        return tuple(term.arguments)
-    return ()
+        result = tuple(term.arguments)
+    else:
+        result = ()
+    cached.arguments = result
+    return result
 
 
 def with_arguments(term: ast.AST, children: tuple[ast.AST, ...]) -> ast.AST:
     if children == arguments(term):
         return term
+    return _replace_arguments(term, children)
+
+
+def _replace_arguments(term: ast.AST, children: tuple[ast.AST, ...]) -> ast.AST:
+    """Rebuild a term whose children are already known to have changed."""
     if term.ast_type in {ast.ASTType.BinaryOperation, ast.ASTType.Interval}:
         return term.update(left=children[0], right=children[1])
     if term.ast_type == ast.ASTType.UnaryOperation:
@@ -107,21 +161,32 @@ def fixed(text: str) -> ast.AST:
     return ast.SymbolicTerm(LOCATION, clingo.parse_term(text))
 
 
-@lru_cache(maxsize=8192)
 def binding(term: ast.AST, path: tuple[int, ...] = ()) -> TermBinding:
-    values = tuple(str(item) for item in term.arguments)
-    return TermBinding(
-        path,
-        values[0],
-        values[1] if len(values) > 1 else "",
-        values[2] if len(values) > 2 else "",
-    )
+    cached = _metadata(term)
+    if cached.binding is None:
+        values = tuple(str(item) for item in term.arguments)
+        cached.binding = TermBinding(
+            (), values[0], values[1] if len(values) > 1 else "",
+            values[2] if len(values) > 2 else "",
+        )
+    item = cached.binding
+    return TermBinding(path, item.type, item.direction, item.label) if path else item
 
 
-@lru_cache(maxsize=8192)
 def bindings(term: ast.AST, path: tuple[int, ...] = ()) -> tuple[TermBinding, ...]:
+    cached = _metadata(term)
+    if cached.bindings is None:
+        result = _bindings(term)
+        cached = _metadata(term)  # A large traversal may have evicted its root.
+        cached.bindings = result
+    if not path:
+        return cached.bindings
+    return tuple(TermBinding(path + item.path, item.type, item.direction, item.label) for item in cached.bindings)
+
+
+def _bindings(term: ast.AST) -> tuple[TermBinding, ...]:
     if kind(term) == "variable":
-        return (binding(term, path),)
+        return (binding(term),)
     result: list[TermBinding] = []
     pending = [iter(enumerate(arguments(term)))]
     indices: list[int] = []
@@ -134,7 +199,7 @@ def bindings(term: ast.AST, path: tuple[int, ...] = ()) -> tuple[TermBinding, ..
         else:
             index, node = child
             if kind(node) == "variable":
-                result.append(binding(node, (*path, *indices, index)))
+                result.append(binding(node, (*indices, index)))
             elif children := arguments(node):
                 indices.append(index)
                 pending.append(iter(enumerate(children)))
@@ -149,7 +214,10 @@ def _walk(term: ast.AST) -> Iterator[ast.AST]:
         pending.extend(reversed(arguments(node)))
 
 
-def _postorder(term: ast.AST) -> Iterator[tuple[ast.AST, int]]:
+def _postorder(term: ast.AST, *, prune_fixed: bool = False) -> Iterator[tuple[ast.AST, int]]:
+    if prune_fixed and not constant_types(term):
+        yield term, 0
+        return
     pending = [(term, iter(arguments(term)))]
     while pending:
         child = next(pending[-1][1], None)
@@ -158,18 +226,32 @@ def _postorder(term: ast.AST) -> Iterator[tuple[ast.AST, int]]:
             children = arguments(node)
             yield node, len(children)
         else:
-            children = arguments(child)
+            children = () if prune_fixed and not constant_types(child) else arguments(child)
             if children:
                 pending.append((child, iter(children)))
             else:
                 yield child, 0
 
 
-@lru_cache(maxsize=8192)
 def constant_types(term: ast.AST) -> frozenset[str]:
-    return frozenset(
-        str(node.arguments[0]) for node in _walk(term) if kind(node) == "constant"
-    )
+    cached = _metadata(term)
+    if cached.constant_types is not None:
+        return cached.constant_types
+    result: list[frozenset[str]] = []
+    for node, count in _postorder(term):
+        children = result[-count:] if count else []
+        if count:
+            del result[-count:]
+        types = (
+            frozenset((str(node.arguments[0]),)) if kind(node) == "constant"
+            else children[0] if count == 1
+            else _NO_CONSTANTS.union(*children) if any(children)
+            else _NO_CONSTANTS
+        )
+        _metadata(node).constant_types = types
+        result.append(types)
+    cached.constant_types = result[0]
+    return result[0]
 
 
 def contains_anonymous(term: ast.AST) -> bool:
@@ -245,44 +327,69 @@ def concretize_terms(
     terms: tuple[ast.AST, ...], constants: dict[str, tuple[ast.AST, ...]]
 ) -> Iterator[tuple[ast.AST, ...]]:
     """Expand a term forest over declared constant domains, never subtree pools."""
-    if not any(constant_types(term) for term in terms):
+    has_constants = False
+    for term in terms:
+        has_constants |= bool(constant_types(term))
+    if not has_constants:
         yield terms
         return
-
-    # A postorder recipe retains one current value per node, never the product
-    # of a nested subtree. Dirty paths reuse the previous combination's nodes.
+    # Recipe metadata lives only during preparation, never across a yield.
     values: list[ast.AST] = []
-    changing: list[bool] = []
+    parents: list[int | None] = []
     result: list[int] = []
     leaves: list[int] = []
     choices: list[tuple[ast.AST, ...]] = []
-    updates: list[tuple[int, ast.AST, tuple[int, ...]]] = []
-    for term in terms:
-        for node, count in _postorder(term):
-            indices = tuple(result[-count:]) if count else ()
-            if count:
-                del result[-count:]
-            index = len(values)
-            values.append(node)
-            if kind(node) == "constant":
-                leaves.append(index)
-                choices.append(constants[str(node.arguments[0])])
-                changing.append(True)
-            else:
-                changing.append(any(changing[child] for child in indices))
-                if changing[-1]:
-                    updates.append((index, node, indices))
-            result.append(index)
-    dirty = [False] * len(values)
-    for concrete in product(*choices):
-        for index, replacement in zip(leaves, concrete, strict=True):
-            dirty[index] = values[index] != replacement
+    updates: dict[int, tuple[ast.AST, tuple[int, ...]]] = {}
+    with metadata_scope():
+        for term in terms:
+            for node, count in _postorder(term, prune_fixed=True):
+                indices = tuple(result[-count:]) if count else ()
+                if count:
+                    del result[-count:]
+                index = len(values)
+                values.append(node)
+                parents.append(None)
+                if kind(node) == "constant":
+                    leaves.append(index)
+                    choices.append(constants[str(node.arguments[0])])
+                elif count:
+                    updates[index] = node, indices
+                    for child in indices:
+                        parents[child] = index
+                result.append(index)
+    if not choices:
+        yield terms
+        return
+    if any(not domain for domain in choices):
+        return
+    positions = [0] * len(choices)
+    changed = range(len(choices))
+    while True:
+        dirty: set[int] = set()
+        for position in changed:
+            index = leaves[position]
+            replacement = choices[position][positions[position]]
+            if values[index] == replacement:
+                continue
             values[index] = replacement
-        for index, node, indices in updates:
-            dirty[index] = any(dirty[child] for child in indices)
-            if dirty[index]:
-                values[index] = with_arguments(node, tuple(values[child] for child in indices))
+            ancestor: int | None = index
+            while ancestor is not None and ancestor not in dirty:
+                dirty.add(ancestor)
+                ancestor = parents[ancestor]
+        for index in sorted(dirty):
+            if (recipe := updates.get(index)) is not None:
+                node, indices = recipe
+                values[index] = _replace_arguments(node, tuple(values[child] for child in indices))
         yield tuple(values[index] for index in result)
+        # The rightmost domain advances first, matching itertools.product.
+        for position in range(len(positions) - 1, -1, -1):
+            positions[position] += 1
+            if positions[position] < len(choices[position]):
+                changed = range(position, len(positions))
+                break
+            positions[position] = 0
+        else:
+            return
 
 
 def replace_guard_term(guard: ast.AST | None, terms: Iterator[ast.AST]) -> ast.AST | None:
@@ -340,32 +447,36 @@ def instantiate_guard(guard: ast.AST | None, variables: Iterator[ast.AST]) -> as
 def validate(term: ast.AST, declaration: str) -> ast.AST:
     """Validate learning annotations without constructing a second syntax tree."""
     for node in _walk(term):
+        metadata = _metadata(node)
         term_kind = kind(node)
-        if node.ast_type == ast.ASTType.Variable and node.name != "_":
-            raise ValueError(f"unsupported arithmetic term: {declaration}")
-        if node.ast_type == ast.ASTType.Function:
+        if metadata.node_type == ast.ASTType.Variable and node.name != "_":
+            raise SourceError.at_node(node, f"unsupported arithmetic term: {declaration}")
+        if metadata.node_type == ast.ASTType.Function:
             if node.external:
-                raise ValueError(f"external function terms are unsupported: {declaration}")
-            if node.name in {"var", "const"}:
+                raise SourceError.at_node(node, f"external function terms are unsupported: {declaration}")
+            if metadata.name in {"var", "const"}:
                 count = len(node.arguments)
-                if (node.name == "var" and count not in {1, 2, 3}) or (
-                    node.name == "const" and count != 1
+                if (metadata.name == "var" and count not in {1, 2, 3}) or (
+                    metadata.name == "const" and count != 1
                 ):
-                    raise ValueError(f"invalid arithmetic placeholder: {declaration}")
+                    raise SourceError.at_node(node, f"invalid arithmetic placeholder: {declaration}")
                 type_name = str(node.arguments[0])
-                validate_type(type_name, declaration)
+                try:
+                    validate_type(type_name, declaration)
+                except ValueError as error:
+                    raise SourceError.at_node(node.arguments[0], str(error)) from None
                 if term_kind == "variable":
                     metadata = binding(node)
                     if metadata.direction not in {"", "input", "output", "any"}:
-                        raise ValueError(
+                        raise SourceError.at_node(node.arguments[1],
                             "variables require input, output, or any direction"
                         )
                     if metadata.label and not re.fullmatch(
                         r"[a-z][A-Za-z0-9_]*", metadata.label
                     ):
-                        raise ValueError(f"invalid variable label: {metadata.label}")
-            elif node.name == "not":
-                raise ValueError(f"invalid arithmetic placeholder: {declaration}")
+                        raise SourceError.at_node(node.arguments[2], f"invalid variable label: {metadata.label}")
+            elif metadata.name == "not":
+                raise SourceError.at_node(node, f"invalid arithmetic placeholder: {declaration}")
     return term
 
 
@@ -378,8 +489,11 @@ def validate_labels(terms: Iterable[ast.AST], context: str) -> None:
     """A declaration-local label must retain its nominal type."""
     labels: dict[str, str] = {}
     for term in terms:
-        for item in bindings(term):
+        for node in _walk(term):
+            if kind(node) != "variable":
+                continue
+            item = binding(node)
             if item.label and labels.setdefault(item.label, item.type) != item.type:
-                raise ValueError(
+                raise SourceError.at_node(node.arguments[2],
                     f"{context} variable label {item.label} has incompatible types"
                 )

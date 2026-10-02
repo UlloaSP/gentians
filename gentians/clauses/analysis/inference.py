@@ -25,11 +25,13 @@ from .relation_properties import (
     _collect_disjoint_projections,
     _collect_projection_implications,
     _collect_tuple_mutex,
+    _binary_successors,
     _domain_covers,
     _is_acyclic,
     _is_reflexive,
     _is_total_order,
     _is_transitive,
+    _key_sets_by_predicate,
     _partition_properties,
     _position_values,
     _product_positions,
@@ -116,41 +118,59 @@ def _context_properties(
     keys: set[tuple[Predicate, tuple[int, ...]]] = set()
     transitive: set[Predicate] = set()
     domains: dict[DomainKey, tuple[frozenset, ...]] = {}
-    positions_by_predicate = {predicate: _position_values(predicate[1], tuples) for predicate, tuples in extensions.items()}
-    reversed_by_predicate = {predicate: frozenset((right, left) for left, right in tuples)
-                             for predicate, tuples in extensions.items() if predicate[1] == 2}
-
+    groups: dict[tuple[int, frozenset[GroundTuple]], list[Predicate]] = {}
     for predicate, tuples in extensions.items():
-        _collect_argument_properties(predicate, tuples, arg_equal, arg_distinct)
-        _collect_dependency_properties(predicate, tuples, functional, functional_set, keys)
-        if (positions := _product_positions(positions_by_predicate[predicate], len(tuples))) is not None:
-            universal.add(predicate)
-            domains[("universal", predicate)] = positions
-        if predicate[1] == 2:
-            reversed_tuples = reversed_by_predicate[predicate]
+        groups.setdefault((predicate[1], tuples), []).append(predicate)
+    positions_by_predicate = {}
+    reversed_by_predicate = {}
+    for (arity, tuples), predicates in groups.items():
+        representative = predicates[0]
+        equal_args, distinct_args, dependencies, composite_dependencies, extension_keys = set(), set(), set(), set(), set()
+        _collect_argument_properties(representative, tuples, equal_args, distinct_args)
+        _collect_dependency_properties(representative, tuples, dependencies, composite_dependencies, extension_keys)
+        positions = _position_values(arity, tuples)
+        product = _product_positions(positions, len(tuples))
+        for predicate in predicates:
+            positions_by_predicate[predicate] = positions
+            arg_equal.update((predicate, left, right) for _, left, right in equal_args)
+            arg_distinct.update((predicate, left, right) for _, left, right in distinct_args)
+            functional.update((predicate, source, target) for _, source, target in dependencies)
+            functional_set.update((predicate, sources, target) for _, sources, target in composite_dependencies)
+            keys.update((predicate, args) for _, args in extension_keys)
+            if product is not None:
+                universal.add(predicate)
+                domains[("universal", predicate)] = product
+        if arity == 2:
+            reversed_tuples = frozenset((right, left) for left, right in tuples)
+            for predicate in predicates:
+                reversed_by_predicate[predicate] = reversed_tuples
             if tuples == reversed_tuples:
-                symmetric.add(predicate)
-            if tuples.isdisjoint(reversed_tuples):
-                asymmetric.add(predicate)
-            if all(
+                symmetric.update(predicates)
+            asymmetric_pred = tuples.isdisjoint(reversed_tuples)
+            if asymmetric_pred:
+                asymmetric.update(predicates)
+            antisymmetric_pred = all(
                 left == right or (right, left) not in tuples for left, right in tuples
-            ):
-                antisymmetric.add(predicate)
-            if _is_acyclic(tuples):
-                acyclic.add(predicate)
-            transitive_pred = _is_transitive(tuples)
+            )
+            if antisymmetric_pred:
+                antisymmetric.update(predicates)
+            successors = _binary_successors(tuples)
+            if _is_acyclic(successors):
+                acyclic.update(predicates)
+            transitive_pred = _is_transitive(successors, len(tuples))
             if transitive_pred:
-                transitive.add(predicate)
-            reflexive_pred = _is_reflexive(tuples)
+                transitive.update(predicates)
+            field = positions[0] | positions[1]
+            reflexive_pred = _is_reflexive(tuples, field)
             if reflexive_pred:
-                reflexive.add(predicate)
-            if tuples and tuples.isdisjoint(reversed_tuples) and transitive_pred:
-                strict_order.add(predicate)
-            if _is_total_order(tuples, transitive_pred, reflexive_pred):
-                total_order.add(predicate)
-            if predicate in reflexive or predicate in total_order:
-                field = frozenset().union(*positions_by_predicate[predicate])
-                domains[("field", predicate)] = (field,)
+                reflexive.update(predicates)
+            if tuples and asymmetric_pred and transitive_pred:
+                strict_order.update(predicates)
+            if _is_total_order(len(tuples), len(field), transitive_pred, reflexive_pred, antisymmetric_pred):
+                total_order.update(predicates)
+            if reflexive_pred:
+                for predicate in predicates:
+                    domains[("field", predicate)] = (field,)
 
     for left, right in combinations(sorted(extensions), 2):
         left_tuples = extensions[left]
@@ -398,10 +418,12 @@ def _reduced(properties: ClosedWorldProperties) -> ClosedWorldProperties:
     )
     mutex = _without_partition_subsumed_mutex(mutex, set(properties.partitions))
     keys = set(properties.keys)
-    functional = _without_key_subsumed_functional(set(properties.functional), keys)
+    key_sets = _key_sets_by_predicate(keys)
+    functional = _without_key_subsumed_functional(set(properties.functional), key_sets)
     functional_set = _without_key_subsumed_functional_set(
-        set(properties.functional_set), keys
+        set(properties.functional_set), key_sets
     )
+    del key_sets
     functional_set = _without_subsumed_functional_set(functional_set, functional)
     surviving_domains = (
         {("field", predicate) for predicate in reflexive | total_order}

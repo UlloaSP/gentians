@@ -1,4 +1,6 @@
+from bisect import bisect_left
 from collections.abc import Callable
+from operator import itemgetter
 
 import clingo
 from clingo._internal import _ffi, _lib
@@ -11,6 +13,7 @@ _ValueLiteral = tuple[int, int]
 
 
 _ModeLiteral = tuple[int, tuple[int, ...], int]
+_MODE_ID = itemgetter(0)
 
 
 _ModelSlot = tuple[
@@ -102,9 +105,9 @@ def _clause_from_truth(
             continue
         mode_id = None
         variable_positions: tuple[int, ...] = ()
-        for candidate_mode, candidate_positions, program_literal in mode_choices:
-            if candidate_mode < minimum_mode:
-                continue
+        start = (bisect_left(mode_choices, minimum_mode, key=_MODE_ID)
+                 if mode_choices and minimum_mode > mode_choices[0][0] else 0)
+        for candidate_mode, candidate_positions, program_literal in mode_choices[start:]:
             if is_true(program_literal):
                 mode_id = candidate_mode
                 variable_positions = candidate_positions

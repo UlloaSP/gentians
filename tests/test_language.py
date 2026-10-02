@@ -584,10 +584,10 @@ def test_deep_transform_keeps_preorder_and_skips_replaced_subtrees():
 def test_leaf_constant_expansion_does_not_build_a_cartesian_product(source, monkeypatch):
     term = parse_rule(f":- p({source}).").body[0].atom.symbol.arguments[0]
 
-    def unexpected_product(*args, **kwargs):
-        pytest.fail("a leaf without a constant placeholder has one unchanged variant")
+    def unexpected_expansion(*args, **kwargs):
+        pytest.fail("a leaf without a constant placeholder needs no expansion recipe")
 
-    monkeypatch.setattr(mode_terms, "product", unexpected_product)
+    monkeypatch.setattr(mode_terms, "concretize_terms", unexpected_expansion)
     (concrete,) = tuple(mode_terms.concretizations(term, {}))
     assert concrete is term
 
@@ -1354,14 +1354,14 @@ def test_nested_constant_expansion_is_progressive_and_preserves_cartesian_order(
         "#modeh(1,p(f(g(const(t),const(t)))))."
     )
     term = task.language_bias_head[0].arguments[0]
-    original = mode_terms.with_arguments
+    original = mode_terms._replace_arguments
     calls = []
 
     def record(node, children):
         calls.append(node)
         return original(node, children)
 
-    monkeypatch.setattr(mode_terms, "with_arguments", record)
+    monkeypatch.setattr(mode_terms, "_replace_arguments", record)
     variants = mode_terms.concretizations(term, task.constants)
     first = next(variants)
 
@@ -1375,14 +1375,14 @@ def test_nested_constant_expansion_is_progressive_and_preserves_cartesian_order(
 def test_nested_constant_expansion_reuses_unchanged_branches(monkeypatch):
     task = parse_text("#constant(t,a). #constant(t,b). #modeh(1,p(f(g(const(t)),h(const(t))))).")
     term = task.language_bias_head[0].arguments[0]
-    original = mode_terms.with_arguments
+    original = mode_terms._replace_arguments
     updated = []
 
     def record(node, children):
         updated.append(node.name)
         return original(node, children)
 
-    monkeypatch.setattr(mode_terms, "with_arguments", record)
+    monkeypatch.setattr(mode_terms, "_replace_arguments", record)
     variants = mode_terms.concretizations(term, task.constants)
     assert str(next(variants)) == "f(g(a),h(a))"
     updated.clear()
@@ -1413,7 +1413,8 @@ def test_statement_and_argument_scanners_preserve_nested_and_quoted_commas(value
     statement = f"p({value},f(1,2))."
 
     assert [item.text for item in lex(statement + "q.")] == [statement, "q."]
-    assert split_top_level_args(f"{value},f(1,2)") == [value, "f(1,2)"]
+    arguments = f"{value},f(1,2)"
+    assert [arguments[start:end] for start, end in split_top_level_args(arguments)] == [value, "f(1,2)"]
 
 
 @pytest.mark.parametrize("source", ["p(]", "p(a", '"a,b', "p(a),"])

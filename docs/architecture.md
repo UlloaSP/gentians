@@ -149,8 +149,18 @@ de ellos redefine el language bias de una tarea inductiva.
   Modes, ejemplos y constantes textualmente idénticos ya aceptados se omiten
   antes del parsing del payload; los diccionarios de IR conservan la
   deduplicación semántica posterior. Límites e invenciones conservan errores de
-  duplicados. La inspección de kind usa una caché acotada por identidad que
-  retiene los nodos nativos y evita hashear subárboles en cada consulta.
+  duplicados. Los ejemplos se deduplican por conjuntos de inclusión/exclusión,
+  contexto y polaridad, conservando la primera representación. Los campos
+  exitosos reutilizan sintaxis en una caché local a la tarea; cada contexto
+  conserva su semántica aislada. Kind, argumentos, bindings y tipos de constantes
+  comparten metadatos por identidad nativa. El parsing libera su caché temporal
+  de hasta 8192 entradas al salir; consultas externas usan una caché de hasta
+  1024 entradas. La preparación de expansiones también libera su scope antes
+  de entregar variantes. Las recetas omiten ramas fijas y el producto ordenado
+  revisa solo elecciones cambiadas y sus ancestros. Los spans de argumentos
+  conservan offsets y los errores semánticos de nodos conocidos se remapean
+  hasta la línea y columna UTF-8 originales. Los marcadores de extensiones
+  dentro de strings/comentarios no activan otra inspección del background.
   La seguridad de comparaciones usa una caché local a la lectura de una tarea,
   con la comparación completa como clave y ambos resultados booleanos. No
   conserva controles de Clingo ni comparte estado entre tareas. La inferencia

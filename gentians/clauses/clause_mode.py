@@ -50,6 +50,8 @@ class ClauseMode:
     head_predicates: frozenset[Predicate] = field(init=False, repr=False, compare=False)
     head_dependencies: frozenset[Predicate] = field(init=False, repr=False, compare=False)
     condition_count: int = field(init=False, repr=False, compare=False)
+    arithmetic_steps: tuple[tuple[str, int], ...] = field(init=False, repr=False, compare=False)
+    _hash: int | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.section not in {"head", "body"}:
@@ -101,6 +103,18 @@ class ClauseMode:
         object.__setattr__(self, "head_dependencies", frozenset(head_dependencies))
         object.__setattr__(self, "condition_count", len(self.literal.conditions)
                            if isinstance(self.literal, ConditionalLiteral | HeadAggregateElement) else 0)
+        steps: list[tuple[str, int]] = []
+        if isinstance(self.literal, ArithmeticLiteral):
+            absolute = self.literal.operator == "abs"
+            roots = self.literal.arguments[:-1] if absolute else (self.literal.expression,)
+            for root in roots:
+                for node, count in mode_terms._postorder(root):
+                    kind = mode_terms.kind(node)
+                    operator = "" if kind == "variable" else mode_terms.value(node) if kind == "arithmetic" else "unsupported"
+                    steps.append((operator, count))
+            if absolute:
+                steps.append(("abs", len(roots)))
+        object.__setattr__(self, "arithmetic_steps", tuple(steps))
         comparison = isinstance(self.literal, ComparisonLiteral)
         arithmetic = isinstance(self.literal, ArithmeticLiteral)
         numeric = all(binding.type == "numeric" for binding in self.bindings)
@@ -128,9 +142,12 @@ class ClauseMode:
         object.__setattr__(self, "binding_positions", positions)
 
     def __hash__(self) -> int:
-        # Equal modes share their id. Canonicalization caches key on modes, and
-        # hashing the whole template tree dominated their lookups.
-        return hash(self.id)
+        cached = self._hash
+        if cached is None:
+            cached = hash((self.id, self.recall_group, self.section, self.recall,
+                           self.literal, self.head_form, self.head_position, self.head))
+            object.__setattr__(self, "_hash", cached)
+        return cached
 
     @property
     def arity(self) -> int:

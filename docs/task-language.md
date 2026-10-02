@@ -32,6 +32,16 @@ its first occurrence; distinct recalls, signs, labels and contexts remain
 distinct. Identical successful modes, examples and constants skip repeated
 payload parsing. Constants keep declaration order within their type; duplicate
 limits and inventions still fail.
+For examples, inclusion and exclusion are sets: reordering or repeating an atom
+does not create another example. Gentians keeps the first spelling and native
+locations, while different fields, signs, contexts and polarities stay distinct.
+Repeated successful fields share parsed syntax only within the task; context
+coverage remains isolated. Invalid example terms and variable types, directions
+and labels report their original line and UTF-8 byte column. A missing constant
+domain points to its first type reference, including references inside pools.
+Metadata lookup uses native-node identity without structural hashing. Parsing
+releases its temporary metadata on exit; expansion recipes omit fixed branches
+and update only the paths affected by the next ordered constant combination.
 Missing directive arguments, including a comma before the closing parenthesis,
 are rejected. Commas inside strings and singleton tuples such as `(a,)` remain
 valid.

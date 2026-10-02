@@ -45,6 +45,10 @@ It also prepares head predicates, head dependencies and condition counts once;
 decoded clauses reuse these immutable values. Positive and strongly negated
 predicates retain their distinct signatures, and default-negated heads remain
 dependencies.
+Arithmetic modes retain a postorder instruction tuple, so expression
+normalization substitutes bindings without walking the native template again.
+Each mode lazily caches a hash of its complete identity; modes from different
+tasks with the same local id need not collide in bounded normalization caches.
 Mode-fact compilation memoizes native term shapes for that call, including
 pooled alternatives and conditional variants, without changing fact order.
 It also reuses relative pool-binding alternatives and complete local-comparison
@@ -53,6 +57,9 @@ for comparison safety; those caches retain no controls and end with the
 compilation call. Pool binding counts and invertibility are computed bottom-up;
 arithmetic subtrees are not expanded as pools. A single index of aggregate
 function, conditions and tuple width supplies shorter-mode checks.
+Conditional shorter-mode checks share sorted conditions and original-to-sorted
+position mappings within the compilation call. Deleting a condition uses that
+mapping, preserving repeated conditions and the original fact indexes.
 Complete and combinable head templates are consumed as iterators. Combinable
 heads deduplicate element tuples before constructing their native bounds, in
 the same width, combination and bound order as before.
@@ -101,8 +108,10 @@ One property-analysis call shares immutable rule dependencies across contexts;
 each context propagates open predicates through its own index and worklist.
 Ground relations, bounds and proofs remain isolated. Argument-value sets and tuple
 projections are reused inside that context only. Transitivity checks use a
-successor index, and total-order checks reuse the reflexivity and transitivity
-results. These indexes do not merge example contexts or change which
+successor index shared with cycle detection; reflexivity reuses the positional
+domain. After reflexivity, transitivity and antisymmetry are proven, a total
+order over a domain of at least two values needs exactly `n*(n+1)/2` tuples.
+These indexes do not merge example contexts or change which
 properties are emitted.
 Within that analysis call, a cache of at most eight exact effective ASP programs
 reuses brave and cautious bounds, including unsatisfiable results. Its input
@@ -118,6 +127,9 @@ domains cannot fit the target, then checks inclusion of the complete projected
 tuples. It streams compatible injective mappings without keeping their history.
 Uniform compatible domains use `itertools.permutations` directly because they
 cannot reject any prefix.
+When a mapping has just one compatible target, inclusion streams the source
+rows and stops at the first missing tuple. Multiple targets still share one
+materialized projection.
 Partition enumeration keeps the existing sizes three through six and minimality
 rule; it abandons non-disjoint prefixes and prefixes whose growing domain
 product cannot be completed by the remaining tuple capacity.
@@ -126,8 +138,14 @@ output positions and key detection. A determinant containing a proven key needs
 no further tuple scan, but still emits its dependent-position facts before
 context intersection. Tuple-mutex checks share projections between predicates
 with identical extensions and arity, then emit facts for every original signed
-predicate pair. Context properties are intersected as each
-world is processed, and subsumption runs only after the intersection. Identical
+predicate pair. Intrinsic argument, dependency, product and binary-relation
+properties also run once per identical extension and arity inside each context,
+then retain every original signed predicate. Syntactic proofs remain attached
+to their own predicates and programs. Equality and distinctness select the only
+possible property from the first row and check the remaining rows once.
+Context properties are intersected as each world is processed, and subsumption
+runs only after the intersection. Both functional-dependency filters share one
+key index at that stage. Identical
 violation bodies share one Clingo proof while retaining every associated fact.
 Proof rules use a fresh auxiliary predicate absent from the task and proof
 bodies, including macros and strongly negated names, so they cannot redefine
@@ -146,7 +164,9 @@ enumeration retains the preferred representative per canonical key rather than
 all decoded clauses. Incremental enumeration uses a fresh canonicalizer per
 batch; its model budget still counts models before deduplication and it retains
 no cross-batch history. Decoding reads variable positions from
-`ClauseMode` rather than importing the mode compiler.
+`ClauseMode` rather than importing the mode compiler. Within each section,
+binary search skips the sorted mode-id prefix below the previous selection;
+slot gaps and truth checks retain their existing behavior.
 Arithmetic system reuse is task-local and capped at 8192 contexts, with oldest
 entries evicted first. Representatives are yielded directly to `ClauseSpace`,
 which alone performs final text sorting and deduplication. Compiled argument
@@ -203,6 +223,8 @@ schema and chart contract are unchanged.
 
 These stages concern individual clauses. Dependency closure and coverage of a
 complete candidate hypothesis remain in `hypotheses/` and `evaluation/`.
+Measurements and regression checks for prepared mode and relation analysis are
+recorded in [clause-python-prepared.md](clause-python-prepared.md).
 
 ## ASP metaprogram
 

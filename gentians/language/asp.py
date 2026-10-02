@@ -6,6 +6,7 @@ from clingo import ast
 from clingo.ast import ProgramBuilder
 
 from .grammar import DELIMITERS, SourceError, quoted_end
+from .lexer import has_task_extensions
 
 Predicate = tuple[str, int]
 AspProgram = tuple[ast.AST, ...]
@@ -43,7 +44,7 @@ def validate_task_program(source: str, program: Iterable[ast.AST], line: int = 1
     The introducers only gate inspection; native nodes decide validity, so
     their occurrences inside strings and comments remain ordinary ASP data.
     """
-    if "@" not in source and "&" not in source and "#theory" not in source:
+    if not has_task_extensions(source):
         return
     pending = list(reversed(tuple(program)))
     while pending:
@@ -87,47 +88,56 @@ def parse_example_fields(
     included: tuple[str, int, int],
     excluded: tuple[str, int, int],
     context: tuple[str, int, int],
+    cache: dict[tuple[bool, str], AspProgram],
 ) -> tuple[tuple[ast.AST, ...], tuple[ast.AST, ...], AspProgram]:
     """Parse each non-empty ASP-owned field of one example with Clingo."""
-    included_atoms = _parse_ground_atoms(*included)
-    excluded_atoms = _parse_ground_atoms(*excluded)
-    program = parse_program(*context) if context[0] else ()
-    validate_task_program(context[0], program, context[1], context[2])
-    return (
-        included_atoms,
-        excluded_atoms,
-        program,
-    )
+    result = []
+    for ground, (source, line, column) in ((True, included), (True, excluded), (False, context)):
+        key = ground, source
+        if key not in cache:
+            if ground:
+                parsed = _parse_ground_atoms(source, line, column)
+            else:
+                parsed = parse_program(source, line, column) if source else ()
+                validate_task_program(source, parsed, line, column)
+                for statement in parsed:
+                    if statement.ast_type != ast.ASTType.Rule:
+                        raise SourceError.at_node(statement, "unsupported statement in example context: "
+                                                  f"{statement.ast_type}").with_origin(line, column)
+            cache[key] = parsed
+        result.append(cache[key])
+    return result[0], result[1], result[2]
 
 
 def _parse_ground_atoms(source: str, line: int, column: int) -> tuple[ast.AST, ...]:
     if not source.strip():
         return ()
     atoms = tuple(parse_rule(f":- {source}.", line, column - 3).body)
-    _validate_ground_atoms(atoms, source)
+    _validate_ground_atoms(atoms, source, line, column - 3)
     validate_task_program(source, atoms, line, column - 3)
     return atoms
 
 
-def _validate_ground_atoms(atoms: tuple[ast.AST, ...], source: str) -> None:
-    if any(
-        literal.ast_type != ast.ASTType.Literal
-        or literal.sign != ast.Sign.NoSign
-        or literal.atom.ast_type != ast.ASTType.SymbolicAtom
-        or not _single_ground_term(literal.atom.symbol)
-        for literal in atoms
-    ):
-        raise ValueError(f"examples require ground symbolic atoms: {source}")
+def _validate_ground_atoms(atoms: tuple[ast.AST, ...], source: str, line: int, column: int) -> None:
+    for literal in atoms:
+        invalid = (
+            literal if literal.ast_type != ast.ASTType.Literal
+            or literal.sign != ast.Sign.NoSign
+            or literal.atom.ast_type != ast.ASTType.SymbolicAtom
+            else _invalid_ground_term(literal.atom.symbol)
+        )
+        if invalid is not None:
+            raise SourceError.at_node(invalid, f"examples require ground symbolic atoms: {source}").with_origin(line, column)
 
 
-def _single_ground_term(term: ast.AST) -> bool:
+def _invalid_ground_term(term: ast.AST) -> ast.AST | None:
     pending = [term]
     while pending:
         node = pending.pop()
         if node.ast_type in {ast.ASTType.Variable, ast.ASTType.Pool, ast.ASTType.Interval}:
-            return False
-        pending.extend(_ast_children(node))
-    return True
+            return node
+        pending.extend(reversed(tuple(_ast_children(node))))
+    return None
 
 
 def add_program(control: clingo.Control, statements: Iterable[ast.AST]) -> None:
@@ -174,8 +184,9 @@ def signed_predicate(name: str, arity: int, strong: bool = False) -> Predicate:
     return (f"-{name}" if strong else name), arity
 
 
-def split_top_level_args(args: str) -> list[str]:
-    parts: list[str] = []
+def split_top_level_args(args: str) -> list[tuple[int, int]]:
+    """Return trimmed argument spans without losing their source offsets."""
+    parts: list[tuple[int, int]] = []
     start = 0
     stack: list[str] = []
     index = 0
@@ -191,16 +202,25 @@ def split_top_level_args(args: str) -> list[str]:
                 raise ValueError(f"unmatched {char}")
             stack.pop()
         elif char == "," and not stack:
-            parts.append(args[start:index].strip())
+            left, right = start, index
+            while left < right and args[left].isspace():
+                left += 1
+            while right > left and args[right - 1].isspace():
+                right -= 1
+            parts.append((left, right))
             start = index + 1
         index += 1
     if stack:
         raise ValueError(f"unclosed delimiter, expected {stack[-1]}")
-    tail = args[start:].strip()
-    if parts and not tail:
+    end = len(args)
+    while start < end and args[start].isspace():
+        start += 1
+    while end > start and args[end - 1].isspace():
+        end -= 1
+    if parts and start == end:
         raise ValueError("empty top-level argument")
-    if tail:
-        parts.append(tail)
+    if start < end:
+        parts.append((start, end))
     return parts
 
 

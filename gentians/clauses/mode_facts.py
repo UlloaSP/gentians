@@ -67,6 +67,7 @@ def compile_mode_facts(
     term_shape = lru_cache(maxsize=None)(mode_terms.shape)
     pool_positions = lru_cache(maxsize=None)(_pool_alternative_positions)
     comparison_variants = lru_cache(maxsize=None)(_local_comparison_variants)
+    order_conditions = lru_cache(maxsize=None)(_ordered_conditions)
     condition_variants: dict[tuple[object, ...], int] = {}
     aggregate_shapes: set[tuple[str, tuple[object, ...], int]] = {
         (literal.function, literal.elements[0].conditions, len(literal.elements[0].terms))
@@ -75,7 +76,7 @@ def compile_mode_facts(
         and len(literal.elements) == 1 and mode.output_guard is not None
     }
     conditional_forms = {
-        _conditional_form(mode.section, literal.conclusion, literal.conditions)
+        (mode.section, literal.conclusion, order_conditions(literal.conditions)[0])
         for mode in modes
         if isinstance((literal := mode.literal), ConditionalLiteral)
     }
@@ -99,16 +100,12 @@ def compile_mode_facts(
                     pool_positions, comparison_variants,
                 )
             )
-            conditions = mode.literal.conditions
+            ordered, positions = order_conditions(mode.literal.conditions)
             parts.extend(
                 f"conditional_shorter_mode({mode.id},{index})."
-                for index in range(len(conditions))
-                if _conditional_form(
-                    mode.section,
-                    mode.literal.conclusion,
-                    conditions[:index] + conditions[index + 1 :],
-                )
-                in conditional_forms
+                for index, position in enumerate(positions)
+                if (mode.section, mode.literal.conclusion,
+                    ordered[:position] + ordered[position + 1:]) in conditional_forms
             )
         elif isinstance(mode.literal, ComparisonLiteral):
             parts.extend(_comparison_facts(mode, mode.literal))
@@ -125,11 +122,15 @@ def compile_mode_facts(
     return parts
 
 
-def _conditional_form(
-    section: str, conclusion: object, conditions: tuple[object, ...]
-) -> tuple[object, ...]:
-    """A conditional template up to the order of its conditions."""
-    return section, conclusion, tuple(sorted(conditions, key=repr))
+def _ordered_conditions(
+    conditions: tuple[object, ...],
+) -> tuple[tuple[object, ...], tuple[int, ...]]:
+    """Canonical order and each original condition's position, retaining repeats."""
+    indices = sorted(range(len(conditions)), key=lambda index: repr(conditions[index]))
+    positions = [0] * len(conditions)
+    for position, index in enumerate(indices):
+        positions[index] = position
+    return tuple(conditions[index] for index in indices), tuple(positions)
 
 
 def _effective_recall(mode: ClauseMode, max_head_literals: int, max_body_literals: int) -> int:

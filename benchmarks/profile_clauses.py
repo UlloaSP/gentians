@@ -10,6 +10,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.catalog import DEFAULT_DATASETS, case_names  # noqa: E402
+from benchmarks.clause_python_profile import (  # noqa: E402
+    print_python_profile,
+    profile_clause_python,
+)
 from benchmarks.profile_baseline import profile_arguments  # noqa: E402
 from benchmarks.process_resources import peak_rss_bytes  # noqa: E402
 from gentians import timing  # noqa: E402
@@ -44,6 +48,10 @@ def main() -> None:
         help="Full Arguments JSON object. Used for every listed dataset unless --set overrides it.",
     )
     parser.add_argument("--list-datasets", action="store_true")
+    parser.add_argument(
+        "--cprofile", action="store_true",
+        help="Run a separate Python profiling pass; report function costs and save .prof/.json files.",
+    )
     args = parser.parse_args()
 
     if args.list_datasets:
@@ -97,6 +105,16 @@ def main() -> None:
             peak_memory_bytes=peak_rss_bytes(),
             path=path,
         )
+        if args.cprofile:
+            profile_path = args.out_dir / f"{safe_filename(dataset)}.python-profile.prof"
+            models = sum(
+                row["models"] for row in metrics["clingoMetrics"]
+                if row.get("phase_context") == "clause_generation"
+                and row.get("operation_category") == "solving"
+            )
+            print(f"  Running separate cProfile pass for {dataset}...", flush=True)
+            summary = profile_clause_python(task, arguments, clause_space, int(models), profile_path)
+            print_python_profile(summary, profile_path)
 
 
 def print_profile_report(

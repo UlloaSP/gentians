@@ -1,5 +1,6 @@
 from collections.abc import Iterator, Mapping
 from itertools import combinations, permutations
+from math import prod
 
 from ...language.asp import Predicate
 from .ground_relations import GroundTerm, GroundTuple
@@ -176,6 +177,7 @@ def _collect_disjoint_projections(
 
 def _partition_properties(
     extensions: Mapping[Predicate, frozenset[GroundTuple]],
+    positions: Mapping[Predicate, tuple[frozenset[GroundTerm], ...]],
 ) -> set[tuple[Predicate, ...]]:
     """Minimal groups of pairwise disjoint relations whose union is a product.
 
@@ -189,20 +191,39 @@ def _partition_properties(
             by_arity.setdefault(predicate[1], []).append(predicate)
     partitions: set[tuple[Predicate, ...]] = set()
     for predicates in by_arity.values():
-        disjoint = {
-            (left, right)
-            for left, right in combinations(predicates, 2)
+        following = {left: frozenset(
+            right for right in predicates[index + 1:]
             if extensions[left].isdisjoint(extensions[right])
-        }
+        ) for index, left in enumerate(predicates)}
+        minimal: list[frozenset[Predicate]] = []
         for size in range(3, min(len(predicates), 6) + 1):
-            for group in combinations(predicates, size):
-                if any(pair not in disjoint for pair in combinations(group, 2)):
+            pending: list[tuple[tuple[Predicate, ...], tuple[Predicate, ...], int, tuple[frozenset[GroundTerm], ...]]] = [
+                ((), tuple(predicates), 0, tuple(frozenset() for _ in range(predicates[0][1])))
+            ]
+            while pending:
+                group, candidates, count, domains = pending.pop()
+                remaining = size - len(group)
+                if len(candidates) < remaining or any(other <= frozenset(group) for other in minimal):
                     continue
-                if any(set(other) < set(group) for other in partitions):
+                product_size = prod(map(len, domains))
+                # Domains only grow. Even the largest remaining disjoint
+                # relations cannot complete a product larger than their tuples.
+                capacity = count + sum(sorted((len(extensions[predicate]) for predicate in candidates), reverse=True)[:remaining])
+                if product_size > min(capacity, MAX_PRODUCT_SIZE):
                     continue
-                union = frozenset().union(*(extensions[member] for member in group))
-                if _product_positions(group[0], union) is not None:
-                    partitions.add(group)
+                if not remaining:
+                    if product_size == count:
+                        partitions.add(group)
+                        minimal.append(frozenset(group))
+                    continue
+                for index in reversed(range(len(candidates) - remaining + 1)):
+                    member = candidates[index]
+                    pending.append((
+                        (*group, member),
+                        tuple(candidate for candidate in candidates[index + 1:] if candidate in following[member]),
+                        count + len(extensions[member]),
+                        tuple(left | right for left, right in zip(domains, positions[member], strict=True)),
+                    ))
     return partitions
 
 
@@ -213,29 +234,26 @@ def _position_values(
 
 
 def _product_positions(
-    predicate: Predicate, tuples: frozenset[GroundTuple]
+    positions: tuple[frozenset[GroundTerm], ...], tuple_count: int,
 ) -> tuple[frozenset[GroundTerm], ...] | None:
     """Per-position values when the tuples are exactly their product."""
-    if not tuples:
+    if not tuple_count:
         return None
-    positions = _position_values(predicate[1], tuples)
-    size = 1
-    for values in positions:
-        size *= len(values)
-    if size != len(tuples) or size > MAX_PRODUCT_SIZE:
+    size = prod(map(len, positions))
+    if size != tuple_count or size > MAX_PRODUCT_SIZE:
         return None
     return positions
 
 
 def _domain_covers(
     domains: Mapping[DomainKey, tuple[frozenset[GroundTerm], ...]],
-    extensions: Mapping[Predicate, frozenset[GroundTuple]],
+    positions_by_predicate: Mapping[Predicate, tuple[frozenset[GroundTerm], ...]],
 ) -> Iterator[tuple[DomainKey, int, Predicate, int]]:
     """Arguments whose values all lie inside one position of a domain."""
     arguments = {
-        (predicate, index): frozenset(values[index] for values in tuples)
-        for predicate, tuples in extensions.items()
-        for index in range(predicate[1])
+        (predicate, index): values
+        for predicate, positions in positions_by_predicate.items()
+        for index, values in enumerate(positions)
     }
     for key, positions in domains.items():
         for position, domain in enumerate(positions):
@@ -271,20 +289,53 @@ def _collect_projection_implications(
     sources: Mapping[Predicate, frozenset[GroundTuple]],
     targets: Mapping[Predicate, frozenset[GroundTuple]],
     project_implies: set[tuple[Predicate, Predicate, tuple[int, ...]]],
+    positions: Mapping[Predicate, tuple[frozenset[GroundTerm], ...]],
 ) -> None:
     by_arity: dict[int, list[tuple[Predicate, frozenset[GroundTuple]]]] = {}
     for target, tuples in targets.items():
         if tuples:
             by_arity.setdefault(target[1], []).append((target, tuples))
     for source, tuples in sources.items():
+        source_positions = positions[source]
         for arity, candidates in by_arity.items():
             if source[1] <= arity:
                 continue
-            for projection in permutations(range(source[1]), arity):
+            # Retain tuple inclusion as the proof. Position domains only rule
+            # out impossible mappings before their Cartesian/permutation work.
+            alternatives = tuple(tuple(frozenset(
+                    index for index, values in enumerate(source_positions) if values <= domain
+                ) for domain in positions[target]) for target, _tuples in candidates)
+            for projection, matches in _projection_matches(alternatives, arity):
                 projected = {tuple(values[arg] for arg in projection) for values in tuples}
-                for target, target_tuples in candidates:
+                for index in matches:
+                    target, target_tuples = candidates[index]
                     if projected <= target_tuples:
                         project_implies.add((source, target, projection))
+
+
+def _projection_matches(
+    alternatives: tuple[tuple[frozenset[int], ...], ...], arity: int,
+) -> Iterator[tuple[tuple[int, ...], tuple[int, ...]]]:
+    """Stream injective mappings, retaining only targets compatible with a prefix."""
+    choices = alternatives[0][0] if arity else frozenset()
+    if all(allowed == choices for target in alternatives for allowed in target):
+        # Uniform domains cannot reject a prefix. Let itertools enumerate the
+        # mappings without rebuilding candidate sets at every depth.
+        matches = tuple(range(len(alternatives)))
+        for projection in permutations(sorted(choices), arity):
+            yield projection, matches
+        return
+    pending: list[tuple[tuple[int, ...], tuple[int, ...]]] = [((), tuple(range(len(alternatives))))]
+    while pending:
+        selected, matches = pending.pop()
+        if len(selected) == arity:
+            yield selected, matches
+            continue
+        choices = frozenset().union(*(alternatives[index][len(selected)] for index in matches)) - frozenset(selected)
+        for value in sorted(choices, reverse=True):
+            pending.append(((*selected, value), tuple(
+                index for index in matches if value in alternatives[index][len(selected)]
+            )))
 
 
 def _is_transitive(tuples: frozenset[GroundTuple]) -> bool:

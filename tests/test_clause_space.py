@@ -5130,7 +5130,7 @@ def test_ground_modeha_caps_impossible_repeated_elements_before_grounding(tmp_pa
     )
 
     parsed = parse_file(str(task))
-    templates = _combined_head_templates(parsed, parsed.language_bias_aggregate_head, "choice", _Conditions(parsed))
+    templates = tuple(_combined_head_templates(parsed, parsed.language_bias_aggregate_head, "choice", _Conditions(parsed)))
 
     assert len(templates) == 1
     assert templates[0].width == 1
@@ -5144,7 +5144,7 @@ def test_bodyless_condition_budget_expands_ground_modeha_capacity(tmp_path):
     )
 
     parsed = parse_file(str(task))
-    templates = _combined_head_templates(parsed, parsed.language_bias_aggregate_head, "choice", _Conditions(parsed))
+    templates = tuple(_combined_head_templates(parsed, parsed.language_bias_aggregate_head, "choice", _Conditions(parsed)))
 
     assert len(templates) == 4
     assert {template.width for template in templates} == {1, 2}
@@ -5166,7 +5166,7 @@ def test_modeha_capacity_deduplicates_equal_constant_expansions(tmp_path):
     )
 
     parsed = parse_file(str(task))
-    templates = _combined_head_templates(parsed, parsed.language_bias_aggregate_head, "choice", _Conditions(parsed))
+    templates = tuple(_combined_head_templates(parsed, parsed.language_bias_aggregate_head, "choice", _Conditions(parsed)))
 
     assert len(templates) == 1
     assert templates[0].width == 1

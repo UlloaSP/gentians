@@ -21,6 +21,8 @@ from gentians.clauses.analysis.relation_properties import (
     _is_total_order,
     _is_transitive,
     _is_acyclic,
+    _position_values,
+    _partition_properties,
 )
 from gentians.clauses.canonicalization import arithmetic, expression as expressions
 from gentians.clauses.canonicalization import expression_constraint, expression_normalization
@@ -33,6 +35,7 @@ from gentians.clauses.canonicalization.linear_constraint import LinearConstraint
 from gentians.clauses.canonicalization.linear_normalization import (
     _comparison_linear_template,
     _linear_assignment_expression,
+    _orient_linear_constraints,
 )
 from gentians.clauses.clause_space import ClauseSpace
 from gentians.clauses.reified_clause import ReifiedClause, instantiate_head
@@ -40,6 +43,7 @@ from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.language import parse_text, terms as mode_terms
 from gentians.language.asp import parse_program, parse_rule
 from gentians.language.ir.comparison_literal import ComparisonLiteral
+from gentians import timing
 
 
 @pytest.mark.parametrize("coefficient", [1, -1, 2, -2, 1000, -1000, 2**53 + 1, -(2**53 + 1)])
@@ -251,6 +255,8 @@ def test_indexed_projection_properties_match_tuple_semantics_including_empty_rel
         ("p", 3): frozenset({(1, 2, 3), (2, 3, 4)}),
         ("q", 3): frozenset({(3, 2, 1)}),
         ("r", 2): frozenset({(1, 2), (2, 3)}),
+        ("uniform", 3): frozenset({(1, 1, 1), (2, 2, 2)}),
+        ("uniform_two", 2): frozenset({(1, 1), (2, 2)}),
         ("empty", 3): frozenset(),
         ("one", 1): frozenset({(1,), (2,)}),
         ("true", 0): frozenset({()}),
@@ -258,7 +264,9 @@ def test_indexed_projection_properties_match_tuple_semantics_including_empty_rel
     mutex = set()
     implies = set()
     _collect_tuple_mutex(extensions, mutex)
-    _collect_projection_implications(extensions, extensions, implies)
+    _collect_projection_implications(extensions, extensions, implies, {
+        predicate: _position_values(predicate[1], rows) for predicate, rows in extensions.items()
+    })
     expected_mutex = set()
     expected_implies = set()
     for (left, rows), (right, other) in product(extensions.items(), repeat=2):
@@ -832,3 +840,252 @@ def test_native_arithmetic_system_is_shared_only_within_its_own_lifetime(monkeyp
     assert changed.render() == ("(V2*V2) = V3",)
     assert system.render() == ("(V0*V0) = V1",)
     assert hash(system) == original_hash
+
+
+def test_local_comparison_variants_share_safe_and_unsafe_probes_within_compilation(monkeypatch):
+    task = parse_text("""
+        #maxhl(2). #maxbl(2).
+        #modeh(1,p(var(numeric,any,x));q(var(numeric,any,x))).
+        #modeh(1,r(var(numeric,any,x));s(var(numeric,any,x))).
+        #modeb(1,d(var(numeric,any,x))).
+        #modec(1,var(numeric,input,x)=var(numeric,input,y)+1).
+    """)
+    modes = mode_compiler._clause_modes(task)
+    calls = Counter()
+    results = set()
+    original = mode_facts._comparison_outputs_are_safe
+
+    def inspect(literal):
+        calls[literal] += 1
+        result = original(literal)
+        results.add(result)
+        return result
+
+    monkeypatch.setattr(mode_facts, "_comparison_outputs_are_safe", inspect)
+    first = mode_facts.compile_mode_facts(modes, mode_facts.predicate_ids(modes), 2, 2)
+    assert len(calls) == 3 and set(calls.values()) == {1}
+    assert results == {True, False}
+    assert sum(fact.startswith("local_comparison_variant(") for fact in first) > 2
+    assert mode_facts.compile_mode_facts(modes, mode_facts.predicate_ids(modes), 2, 2) == first
+    assert set(calls.values()) == {2}
+
+
+def test_pool_binding_summaries_do_not_rescan_deep_subtrees(monkeypatch):
+    term = parse_text("#modeb(1,p(" + "f(" * 1200 + "var(node,any)" + ")" * 1200 + ")).").language_bias_body[0].literal.atom.terms[0]
+    monkeypatch.setattr(mode_terms, "bindings", lambda *_: pytest.fail("subtree bindings rescanned"))
+    assert mode_facts._term_alternative_positions(term, 7) == (frozenset({7}),)
+
+
+def test_pool_position_cache_is_local_and_reuses_condition_atoms(monkeypatch):
+    task = parse_text("""
+        #maxhl(2). #maxbl(2).
+        #modeh(1,p(var(node,any,x)):d(f(var(node,any,x);var(node,any,y)))).
+        #modeh(1,q(var(node,any,x)):d(f(var(node,any,x);var(node,any,y)))).
+        #modeb(1,r(var(node,any,x)):d(f(var(node,any,x);var(node,any,y)))).
+    """)
+    modes = mode_compiler._clause_modes(task)
+    calls = Counter()
+    original = mode_facts._pool_alternative_positions
+
+    def inspect(atom):
+        calls[atom] += 1
+        return original(atom)
+
+    monkeypatch.setattr(mode_facts, "_pool_alternative_positions", inspect)
+    facts = mode_facts.compile_mode_facts(modes, mode_facts.predicate_ids(modes), 2, 2)
+    assert calls and set(calls.values()) == {1}
+    assert any(fact.startswith("local_pool_alternative_arg(") for fact in facts)
+    assert mode_facts.compile_mode_facts(modes, mode_facts.predicate_ids(modes), 2, 2) == facts
+    assert set(calls.values()) == {2}
+
+
+@pytest.mark.parametrize("direction,shorter", [("output", True), ("input", False)])
+def test_aggregate_shorter_index_preserves_conditions_functions_and_output_guard(direction, shorter):
+    task = parse_text(f"""
+        #modeb(1,#sum{{var(numeric,any,x):p(var(numeric,any,x),var(numeric,any,y))}}=var(numeric,{direction})).
+        #modeb(1,#sum{{var(numeric,any,x),var(numeric,any,y):p(var(numeric,any,x),var(numeric,any,y))}}=var(numeric,output)).
+        #modeb(1,#sum{{var(numeric,any,x),var(numeric,any,y):q(var(numeric,any,x),var(numeric,any,y))}}=var(numeric,output)).
+        #modeb(1,#count{{var(numeric,any,x),var(numeric,any,y):p(var(numeric,any,x),var(numeric,any,y))}}=var(numeric,output)).
+    """)
+    modes = mode_compiler._clause_modes(task)
+    facts = mode_facts.compile_mode_facts(modes, mode_facts.predicate_ids(modes), 1, 3)
+    assert {fact for fact in facts if fact.startswith("aggregate_has_shorter_mode(")} == (
+        {"aggregate_has_shorter_mode(1)."} if shorter else set()
+    )
+
+
+def test_combined_head_templates_are_consumed_lazily_in_existing_order(monkeypatch):
+    task = parse_text("#maxhl(2). #maxbl(0). #modeha(2,p(var(node,input))).")
+    calls = []
+    original = mode_compiler.HeadTemplate
+
+    def construct(*args):
+        calls.append(args)
+        return original(*args)
+
+    monkeypatch.setattr(mode_compiler, "HeadTemplate", construct)
+    templates = mode_compiler._combined_head_templates(task, task.language_bias_aggregate_head, "choice", mode_compiler._Conditions(task))
+    assert iter(templates) is templates and not calls
+    first = next(templates)
+    assert len(calls) == 1 and first.width == 1
+    rest = list(templates)
+    assert [head.width for head in rest] == [2, 2, 2]
+
+
+def test_partition_prefix_pruning_matches_rectangular_tuple_semantics():
+    rng = Random(91)
+    for arity in (0, 1, 2):
+        universe = tuple(product(range(3), repeat=arity))
+        for _ in range(60):
+            relations = {(f"p{index}", arity): frozenset(row for row in universe if rng.randrange(4) == 0) for index in range(7)}
+            expected = set()
+            predicates = [predicate for predicate, rows in relations.items() if rows]
+            for size in range(3, min(len(predicates), 6) + 1):
+                for group in combinations(predicates, size):
+                    if any(not relations[left].isdisjoint(relations[right]) for left, right in combinations(group, 2)):
+                        continue
+                    if any(set(other) < set(group) for other in expected):
+                        continue
+                    union = frozenset().union(*(relations[predicate] for predicate in group))
+                    columns = tuple({row[index] for row in union} for index in range(arity))
+                    if union == frozenset(product(*columns)):
+                        expected.add(group)
+            assert _partition_properties(relations, {
+                predicate: _position_values(arity, rows) for predicate, rows in relations.items()
+            }) == expected
+
+
+def test_projection_prefixes_only_reach_compatible_complete_mappings(monkeypatch):
+    sources = {("source", 8): frozenset({tuple(range(8))})}
+    targets = {("target", 5): frozenset({(0, 1, 2, 3, 4)}), ("empty", 0): frozenset(), ("true", 0): frozenset({()})}
+    reached = []
+    from gentians.clauses.analysis import relation_properties
+    original = relation_properties._projection_matches
+
+    def inspect(*args):
+        for projection, matches in original(*args):
+            reached.append(projection)
+            yield projection, matches
+
+    monkeypatch.setattr(relation_properties, "_projection_matches", inspect)
+    result = set()
+    _collect_projection_implications(sources, targets, result, {
+        predicate: _position_values(predicate[1], rows) for predicate, rows in {**sources, **targets}.items()
+    })
+    assert result == {(("source", 8), ("target", 5), (0, 1, 2, 3, 4)), (("source", 8), ("true", 0), ())}
+    assert reached == [(0, 1, 2, 3, 4), ()]
+
+
+def test_linear_readiness_matches_original_priority_for_duplicates_cycles_and_nonunit_outputs():
+    def reference(constraints, safe):
+        pending = list(constraints)
+        oriented = []
+        safe = set(safe)
+        while pending:
+            ready = next((constraint for constraint in pending if constraint.variables <= safe), None)
+            if ready is not None:
+                oriented.append(ready)
+                pending.remove(ready)
+                continue
+            assignment = next(((constraint, next(iter(constraint.variables - safe))) for constraint in pending
+                               if constraint.relation == "eq" and len(constraint.variables - safe) == 1
+                               and abs(constraint.coefficients[next(iter(constraint.variables - safe))]) == 1), None)
+            if assignment is None:
+                return None
+            constraint, output = assignment
+            oriented.append(ExpressionConstraint(_linear_assignment_expression(constraint, output), "eq", output, False))
+            safe.add(output)
+            pending.remove(constraint)
+        return tuple(oriented)
+
+    rng = Random(42)
+    for _ in range(400):
+        constraints = tuple(LinearConstraint(tuple(rng.randrange(-2, 3) for _ in range(5)), rng.choice(("eq", "le", "ne"))) for _ in range(rng.randrange(8)))
+        safe = {index for index in range(5) if rng.randrange(2)}
+        assert _orient_linear_constraints(constraints, safe) == reference(constraints, safe)
+    chain = (LinearConstraint((0, 1, -1), "eq"), LinearConstraint((1, -1, 0), "eq"))
+    assert _orient_linear_constraints((*chain, *chain), {0}) == reference((*chain, *chain), {0})
+
+
+def test_linear_readiness_inspects_each_variable_set_once(monkeypatch):
+    calls = []
+    original = LinearConstraint.variables.fget
+
+    def variables(constraint):
+        calls.append(constraint)
+        return original(constraint)
+
+    monkeypatch.setattr(LinearConstraint, "variables", property(variables))
+    constraints = tuple(LinearConstraint(tuple(-1 if variable == index else 1 if variable == index + 1 else 0 for variable in range(101)), "eq") for index in reversed(range(100)))
+    assert _orient_linear_constraints(constraints, {0}) is not None
+    assert len(calls) == len(constraints)
+
+
+def test_context_indexes_are_reused_and_numeric_signs_preserve_empty_relations(monkeypatch):
+    calls = Counter()
+    original = inference._position_values
+
+    def positions(arity, rows):
+        calls[arity, rows] += 1
+        return original(arity, rows)
+
+    monkeypatch.setattr(inference, "_position_values", positions)
+    world = ground_relations.ClosedWorld({
+        ("p", 2): frozenset({(1, 0), (2, 3)}),
+        ("q", 2): frozenset({("a", -1)}),
+        ("empty", 2): frozenset(),
+    }, {}, {}, frozenset(), frozenset(), ())
+    properties = inference._context_properties(world, None, None)
+    assert set(calls.values()) == {1}
+    assert properties.positive_args == frozenset({(("p", 2), 0), (("empty", 2), 0), (("empty", 2), 1)})
+    assert properties.nonnegative_args == properties.positive_args | {(("p", 2), 1)}
+
+
+def test_arithmetic_system_key_is_lazy_shared_and_independent_after_remapping(monkeypatch):
+    calls = []
+    original = LinearConstraint.key.fget
+
+    def key(relation):
+        calls.append(relation)
+        return original(relation)
+
+    monkeypatch.setattr(LinearConstraint, "key", property(key))
+    system = ArithmeticSystem((LinearConstraint((1, -1), "eq"),))
+    before = hash(system)
+    assert not calls
+    assert system.key is system.key
+    assert len(calls) == 1 and hash(system) == before
+    changed = system.remap({0: 1, 1: 0}, 2)
+    assert changed.key == (("eq", (-1, 1)),)
+    assert system.key == (("eq", (1, -1)),) and len(calls) == 2
+
+
+@pytest.mark.parametrize("enabled,metrics", [(False, False), (True, False), (False, True), (True, True)])
+@pytest.mark.parametrize("incremental", [False, True])
+def test_generation_only_reads_its_clock_when_timings_or_clingo_metrics_are_enabled(monkeypatch, enabled, metrics, incremental):
+    ticks = []
+    rows = []
+    timing.reset()
+    monkeypatch.setattr(timing, "_enabled", enabled)
+    monkeypatch.setattr(generator, "metric_enabled", lambda _: metrics)
+    monkeypatch.setattr(generator, "record_metric", lambda _, row: rows.append(row))
+
+    def tick():
+        assert enabled or metrics
+        ticks.append(True)
+        return float(len(ticks))
+
+    monkeypatch.setattr(generator, "net_time", tick)
+    task = parse_text("#maxv(0). #maxbl(0). #modeh(1,p).")
+    try:
+        if incremental:
+            with generator.incremental_clause_batches(task, Arguments(), 1, Random(12)) as batches:
+                clauses = tuple(clause for batch in batches for clause in batch.clauses)
+        else:
+            clauses = generator.generate_clause_space(task, Arguments()).clauses
+        assert clauses == ("p.",)
+        assert bool(ticks) == (enabled or metrics)
+        assert bool(rows) == metrics
+        assert all(row["seconds"] > 0 for row in rows)
+    finally:
+        timing.reset()

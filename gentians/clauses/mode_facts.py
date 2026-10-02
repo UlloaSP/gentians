@@ -21,6 +21,9 @@ from .clause_mode import ClauseMode
 
 _COMPARISON_SYMBOLS = {value: key for key, value in COMPARISON_OPERATORS.items()}
 
+type _PoolPositions = Callable[[AtomTemplate], tuple[frozenset[int], ...]]
+type _ComparisonVariants = Callable[[ComparisonLiteral], tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]]
+
 def predicate_ids(modes: list[ClauseMode]) -> dict[Predicate, int]:
     identifiers: dict[Predicate, int] = {}
     for mode in modes:
@@ -62,12 +65,15 @@ def compile_mode_facts(
 ) -> list[str]:
     shapes: dict[tuple[object, ...], int] = {}
     term_shape = lru_cache(maxsize=None)(mode_terms.shape)
+    pool_positions = lru_cache(maxsize=None)(_pool_alternative_positions)
+    comparison_variants = lru_cache(maxsize=None)(_local_comparison_variants)
     condition_variants: dict[tuple[object, ...], int] = {}
-    aggregates = tuple(
-        (literal, mode.output_guard)
+    aggregate_shapes: set[tuple[str, tuple[object, ...], int]] = {
+        (literal.function, literal.elements[0].conditions, len(literal.elements[0].terms))
         for mode in modes
         if isinstance((literal := mode.literal), AggregateLiteral)
-    )
+        and len(literal.elements) == 1 and mode.output_guard is not None
+    }
     conditional_forms = {
         _conditional_form(mode.section, literal.conclusion, literal.conditions)
         for mode in modes
@@ -83,12 +89,14 @@ def compile_mode_facts(
                 term_shape,
                 max_head_literals,
                 max_body_literals,
+                pool_positions,
             )
         )
         if isinstance(mode.literal, ConditionalLiteral):
             parts.extend(
                 _conditional_facts(
-                    mode, mode.literal, predicate_ids, condition_variants, term_shape
+                    mode, mode.literal, predicate_ids, condition_variants, term_shape,
+                    pool_positions, comparison_variants,
                 )
             )
             conditions = mode.literal.conditions
@@ -107,9 +115,13 @@ def compile_mode_facts(
         elif isinstance(mode.literal, ArithmeticLiteral):
             parts.extend(_arithmetic_facts(mode, mode.literal))
         elif isinstance(mode.literal, AggregateLiteral):
-            parts.extend(_aggregate_facts(mode, mode.literal, aggregates, predicate_ids))
+            parts.extend(_aggregate_facts(
+                mode, mode.literal, aggregate_shapes, predicate_ids, pool_positions, comparison_variants,
+            ))
         elif isinstance(mode.literal, HeadAggregateElement):
-            parts.extend(_head_aggregate_facts(mode, mode.literal, predicate_ids))
+            parts.extend(_head_aggregate_facts(
+                mode, mode.literal, predicate_ids, pool_positions, comparison_variants,
+            ))
     return parts
 
 
@@ -179,6 +191,7 @@ def _common_mode_facts(
     term_shape: Callable[[ast.AST], tuple[object, ...]],
     max_head_literals: int,
     max_body_literals: int,
+    pool_positions: _PoolPositions,
 ) -> list[str]:
     recall = _effective_recall(mode, max_head_literals, max_body_literals)
     parts = [
@@ -239,7 +252,7 @@ def _common_mode_facts(
         )
     parts.append(f"mode_shape({mode.id},{shapes.setdefault(shape, len(shapes))}).")
     if mode.section == "body" and isinstance(mode.literal, AtomLiteral):
-        alternatives = _pool_alternative_positions(mode.literal.atom)
+        alternatives = pool_positions(mode.literal.atom)
         if _binds_partially(alternatives, mode.literal.atom):
             for alternative, positions in enumerate(alternatives):
                 parts.append(f"mode_pool_alternative({mode.id},{alternative}).")
@@ -339,52 +352,51 @@ def _binds_partially(
 _INVERTIBLE_OPERATORS = frozenset({"+", "-", "*", "neg"})
 
 
-def _is_linear(term: ast.AST) -> bool:
-    pending = [term]
-    while pending:
-        node = pending.pop()
-        if mode_terms.kind(node) == "arithmetic":
-            if mode_terms.value(node) not in _INVERTIBLE_OPERATORS:
-                return False
-            pending.extend(mode_terms.arguments(node))
-        elif mode_terms.kind(node) not in {"variable", "constant", "fixed"}:
-            return False
-    return True
-
-
 def _term_alternative_positions(
     term: ast.AST, offset: int
 ) -> tuple[frozenset[int], ...]:
     """Placeholder positions each pool alternative grounds, per Clingo safety."""
-    pending = [(term, offset, False)]
-    result: list[tuple[frozenset[int], ...]] = []
+    # Summarize binding counts and invertibility bottom-up. Arithmetic consumes
+    # its whole subtree as one binding test, so never expand pools inside it.
+    pending = [(term, False, False)]
+    result: list[tuple[int, bool, tuple[frozenset[int], ...]]] = []
     while pending:
-        node, node_offset, visited = pending.pop()
+        node, opaque, visited = pending.pop()
         node_kind = mode_terms.kind(node)
-        if node_kind == "variable":
-            result.append((frozenset((node_offset,)),))
-        elif node_kind in {"arithmetic", "interval"}:
-            binds = len(mode_terms.bindings(node)) == 1 and _is_linear(node)
-            result.append((frozenset((node_offset,)) if binds else frozenset(),))
-        elif visited:
-            count = len(mode_terms.arguments(node))
-            alternatives = result[-count:] if count else []
-            if count:
-                del result[-count:]
-            result.append(
-                tuple(choice for group in alternatives for choice in group)
-                if node_kind == "pool" else tuple(
-                    frozenset().union(*choice) for choice in product(*alternatives)
+        children = mode_terms.arguments(node)
+        if children and not visited:
+            pending.append((node, opaque, True))
+            pending.extend((child, opaque or node_kind in {"arithmetic", "interval"}, False)
+                           for child in reversed(children))
+            continue
+        summaries = result[-len(children):] if children else []
+        if children:
+            del result[-len(children):]
+        count = 1 if node_kind == "variable" else sum(item[0] for item in summaries)
+        linear = node_kind in {"variable", "constant", "fixed"} or (
+            node_kind == "arithmetic" and mode_terms.value(node) in _INVERTIBLE_OPERATORS
+            and all(item[1] for item in summaries)
+        )
+        if opaque:
+            alternatives = ()
+        elif node_kind == "variable" or node_kind in {"arithmetic", "interval"}:
+            alternatives = (frozenset({0}) if count == 1 and linear else frozenset(),)
+        else:
+            groups = []
+            start = 0
+            for child_count, _linear, choices in summaries:
+                groups.append(choices if not start else tuple(
+                    frozenset(position + start for position in choice) for choice in choices
+                ))
+                start += child_count
+            alternatives = (
+                tuple(choice for group in groups for choice in group) if node_kind == "pool"
+                else groups[0] if len(groups) == 1 else tuple(
+                    frozenset().union(*choice) for choice in product(*groups)
                 )
             )
-        else:
-            pending.append((node, node_offset, True))
-            children = []
-            for child in mode_terms.arguments(node):
-                children.append((child, node_offset, False))
-                node_offset += len(mode_terms.bindings(child))
-            pending.extend(reversed(children))
-    return result[0]
+        result.append((count, linear, alternatives))
+    return tuple(frozenset(position + offset for position in choice) for choice in result[0][2])
 
 
 def _conditional_facts(
@@ -393,6 +405,8 @@ def _conditional_facts(
     predicate_ids: dict[Predicate, int],
     condition_variants: dict[tuple[object, ...], int],
     term_shape: Callable[[ast.AST], tuple[object, ...]],
+    pool_positions: _PoolPositions,
+    comparison_variants: _ComparisonVariants,
 ) -> list[str]:
     parts: list[str] = []
     argument_index = len(conditional.conclusion.arguments)
@@ -404,6 +418,7 @@ def _conditional_facts(
             if not condition.default_negated:
                 parts.extend(_local_pool_facts(
                     mode.id, "conditional", -1, index, offset, condition.atom,
+                    pool_positions,
                 ))
             condition_key = (
                 condition.default_negated,
@@ -442,6 +457,7 @@ def _conditional_facts(
         if isinstance(condition, ComparisonLiteral):
             parts.extend(_local_comparison_facts(
                 mode.id, "conditional", -1, index, offset, condition,
+                comparison_variants,
             ))
         parts.extend(
             f"conditional_condition_arg({mode.id},{index},{relative},{argument})."
@@ -522,8 +538,10 @@ def _arithmetic_facts(
 def _aggregate_facts(
     mode: ClauseMode,
     aggregate: AggregateLiteral,
-    aggregates: tuple[tuple[AggregateLiteral, ast.AST | None], ...],
+    aggregate_shapes: set[tuple[str, tuple[object, ...], int]],
     predicate_ids: dict[Predicate, int],
+    pool_positions: _PoolPositions,
+    comparison_variants: _ComparisonVariants,
 ) -> list[str]:
     output_guard = mode.output_guard
     parts: list[str] = []
@@ -554,10 +572,12 @@ def _aggregate_facts(
             if isinstance(literal, AtomLiteral) and not literal.default_negated:
                 parts.extend(_local_pool_facts(
                     mode.id, "aggregate", element_id, condition, offset, literal.atom,
+                    pool_positions,
                 ))
             if isinstance(literal, ComparisonLiteral):
                 parts.extend(_local_comparison_facts(
                     mode.id, "aggregate", element_id, condition, offset, literal,
+                    comparison_variants,
                 ))
             if isinstance(literal, AtomLiteral):
                 atom = literal.atom
@@ -602,14 +622,7 @@ def _aggregate_facts(
     element = aggregate.elements[0]
     tuple_arity = len(element.terms)
     parts.append(f"aggregate_shape({mode.id},{tuple_arity},{len(element.conditions)}).")
-    if any(
-        other.function == aggregate.function
-        and len(other.elements) == 1
-        and other_output_guard is not None
-        and other.elements[0].conditions == element.conditions
-        and len(other.elements[0].terms) == tuple_arity - 1
-        for other, other_output_guard in aggregates
-    ):
+    if (aggregate.function, element.conditions, tuple_arity - 1) in aggregate_shapes:
         parts.append(f"aggregate_has_shorter_mode({mode.id}).")
     if aggregate.function == "count":
         parts.append(f"count_aggregate_mode({mode.id}).")
@@ -662,6 +675,8 @@ def _head_aggregate_facts(
     mode: ClauseMode,
     element: HeadAggregateElement,
     predicate_ids: dict[Predicate, int],
+    pool_positions: _PoolPositions,
+    comparison_variants: _ComparisonVariants,
 ) -> list[str]:
     parts: list[str] = []
     offset = 0
@@ -675,10 +690,12 @@ def _head_aggregate_facts(
         if isinstance(literal, AtomLiteral) and not literal.default_negated:
             parts.extend(_local_pool_facts(
                 mode.id, "head_aggregate", 0, condition, offset, literal.atom,
+                pool_positions,
             ))
         if isinstance(literal, ComparisonLiteral):
             parts.extend(_local_comparison_facts(
                 mode.id, "head_aggregate", 0, condition, offset, literal,
+                comparison_variants,
             ))
         if isinstance(literal, AtomLiteral):
             parts.append(
@@ -704,8 +721,9 @@ def _local_pool_facts(
     condition: int,
     offset: int,
     atom: AtomTemplate,
+    pool_positions: _PoolPositions,
 ) -> list[str]:
-    alternatives = _pool_alternative_positions(atom)
+    alternatives = pool_positions(atom)
     if not _binds_partially(alternatives, atom):
         return []
     parts = [
@@ -730,13 +748,32 @@ def _local_comparison_facts(
     condition: int,
     offset: int,
     literal: ComparisonLiteral,
+    comparison_variants: _ComparisonVariants,
 ) -> list[str]:
+    parts: list[str] = []
+    for variant, (inputs, outputs) in enumerate(comparison_variants(literal)):
+        parts.append(
+            f"local_comparison_variant({mode},{scope},{element},{condition},{variant},{len(inputs)})."
+        )
+        parts.extend(
+            f"local_comparison_input({mode},{scope},{element},{condition},{variant},{offset + index})."
+            for index in inputs
+        )
+        parts.extend(
+            f"local_comparison_output({mode},{scope},{element},{condition},{variant},{offset + index})."
+            for index in outputs
+        )
+    return parts
+
+
+def _local_comparison_variants(
+    literal: ComparisonLiteral,
+) -> tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]:
     if literal.default_negated:
-        return []
+        return ()
     bindings = tuple(binding for term in literal.terms for binding in mode_terms.bindings(term))
     positions = range(len(bindings))
-    parts: list[str] = []
-    variant = 0
+    variants = []
     for size in range(1, len(bindings) + 1):
         for outputs in combinations(positions, size):
             directions = tuple(
@@ -747,19 +784,8 @@ def _local_comparison_facts(
             ):
                 continue
             inputs = tuple(index for index in positions if index not in outputs)
-            parts.append(
-                f"local_comparison_variant({mode},{scope},{element},{condition},{variant},{len(inputs)})."
-            )
-            parts.extend(
-                f"local_comparison_input({mode},{scope},{element},{condition},{variant},{offset + index})."
-                for index in inputs
-            )
-            parts.extend(
-                f"local_comparison_output({mode},{scope},{element},{condition},{variant},{offset + index})."
-                for index in outputs
-            )
-            variant += 1
-    return parts
+            variants.append((inputs, outputs))
+    return tuple(variants)
 
 
 def _operands_are_interchangeable(literal: ArithmeticLiteral) -> bool:

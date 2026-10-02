@@ -21,13 +21,18 @@ SystemRelation = (
 @dataclass(frozen=True, slots=True)
 class ArithmeticSystem:
     relations: tuple[SystemRelation, ...]
+    _key: ArithmeticSystemKey | None = field(default=None, init=False, repr=False, compare=False)
     _literals: tuple[ast.AST, ...] | None = field(
         default=None, init=False, repr=False, compare=False,
     )
 
     @property
     def key(self) -> ArithmeticSystemKey:
-        return tuple(relation.key for relation in self.relations)
+        if self._key is None:
+            key = tuple(relation.key for relation in self.relations)
+            object.__setattr__(self, "_key", key)
+            return key
+        return self._key
 
     @property
     def variables(self) -> frozenset[int]:

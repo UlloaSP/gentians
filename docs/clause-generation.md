@@ -43,6 +43,15 @@ capacity is exhausted. `ClauseMode` owns its derived arithmetic traits without
 an unbounded process-wide traits cache. Other normalization caches remain bounded.
 Mode-fact compilation memoizes native term shapes for that call, including
 pooled alternatives and conditional variants, without changing fact order.
+It also reuses relative pool-binding alternatives and complete local-comparison
+variants, including rejected output combinations. Clingo remains the authority
+for comparison safety; those caches retain no controls and end with the
+compilation call. Pool binding counts and invertibility are computed bottom-up;
+arithmetic subtrees are not expanded as pools. A single index of aggregate
+function, conditions and tuple width supplies shorter-mode checks.
+Complete and combinable head templates are consumed as iterators. Combinable
+heads deduplicate element tuples before constructing their native bounds, in
+the same width, combination and bound order as before.
 
 Predicate argument types and capabilities are diagnostic data. They are computed
 on demand, or during generator preparation when Clingo metrics are enabled.
@@ -91,6 +100,17 @@ projections are reused inside that context only. Transitivity checks use a
 successor index, and total-order checks reuse the reflexivity and transitivity
 results. These indexes do not merge example contexts or change which
 properties are emitted.
+Each context shares positional value sets between product checks, projection
+filtering, domain coverage and numeric signs. Complement and partition domains
+are unions of those positions. Empty relations retain their vacuous sign and
+implication properties. Projection enumeration rejects mappings whose position
+domains cannot fit the target, then checks inclusion of the complete projected
+tuples. It streams compatible injective mappings without keeping their history.
+Uniform compatible domains use `itertools.permutations` directly because they
+cannot reject any prefix.
+Partition enumeration keeps the existing sizes three through six and minimality
+rule; it abandons non-disjoint prefixes and prefixes whose growing domain
+product cannot be completed by the remaining tuple capacity.
 Dependency checks group tuples once per determinant and share that scan across
 output positions and key detection. Context properties are intersected as each
 world is processed, and subsumption runs only after the intersection. Identical
@@ -121,6 +141,8 @@ native literal tuple lazily once and retains it for its own lifetime. Native AST
 membership uses a set while preserving main-literal and guard insertion order.
 Guard ordering is derived once per immutable expression constraint and rebuilt
 on remapping. Shared native nodes are templates: transformations use `AST.update`.
+An arithmetic system also retains its structural key lazily for its own lifetime;
+remapping constructs a new system with independent key and literal caches.
 
 Arithmetic representation modules own keys, variable sets, remapping and
 rendering through Clingo's AST. Reified modes and normalized systems construct
@@ -132,6 +154,10 @@ reimplements that choice. `ClauseSpace` orders and deduplicates the final clause
 Expression assignments index their missing inputs and visit only ready entries.
 The queue preserves the former left-to-right scan order, including repeated
 outputs and divisor guards; unresolved cycles retain the structural fallback.
+Linear orientation indexes missing variables too. It always consumes fully safe
+constraints before assignments, choosing the earliest original constraint in
+either category. Only unit-coefficient equality outputs can make a new variable
+safe; unresolved systems retain their existing fallback.
 
 Expression traversal, structural equality, key construction, substitutions and
 native AST construction use explicit stacks and reuse shared expression nodes
@@ -146,6 +172,10 @@ structural key, so compact formatting does not change representative selection.
 Solving timers exclude decoding and canonicalization inside callbacks or between
 yielded models. Those Python costs stay in `clause_generation`; grounding and
 solving remain separately reported with the existing metric fields.
+Both complete and incremental enumeration read per-model clocks only when
+timings or Clingo metrics are enabled. Clingo metrics alone still measure the
+same durations; incremental consumer time never belongs to solving. The dashboard
+schema and chart contract are unchanged.
 
 These stages concern individual clauses. Dependency closure and coverage of a
 complete candidate hypothesis remain in `hypotheses/` and `evaluation/`.

@@ -1,5 +1,6 @@
 from collections.abc import Set
 from functools import lru_cache
+from heapq import heappop, heappush
 from math import gcd
 
 from clingo import ast
@@ -18,44 +19,47 @@ def _orient_linear_constraints(
     constraints: tuple[LinearConstraint, ...],
     initially_safe: Set[int],
 ) -> tuple[SystemRelation, ...] | None:
-    safe = set(initially_safe)
-    pending = list(constraints)
+    missing = [set(constraint.variables - initially_safe) for constraint in constraints]
+    waiting: dict[int, list[int]] = {}
+    ready: list[int] = []
+    assignments: list[int] = []
+    active = [True] * len(constraints)
     oriented: list[SystemRelation] = []
-    while pending:
-        ready = next(
-            (constraint for constraint in pending if not (constraint.variables - safe)),
-            None,
-        )
-        if ready is not None:
-            oriented.append(ready)
-            pending.remove(ready)
+
+    def enqueue(index: int) -> None:
+        if not missing[index]:
+            heappush(ready, index)
+        elif (len(missing[index]) == 1 and constraints[index].relation == "eq"
+              and abs(constraints[index].coefficients[next(iter(missing[index]))]) == 1):
+            heappush(assignments, index)
+
+    for index, unknown in enumerate(missing):
+        enqueue(index)
+        for variable in unknown:
+            waiting.setdefault(variable, []).append(index)
+    while len(oriented) < len(constraints):
+        while ready and not active[ready[0]]:
+            heappop(ready)
+        if ready:
+            index = heappop(ready)
+            oriented.append(constraints[index])
+            active[index] = False
             continue
-        assignment = next(
-            (
-                (constraint, next(iter(constraint.variables - safe)))
-                for constraint in pending
-                if constraint.relation == "eq"
-                and len(constraint.variables - safe) == 1
-                and abs(
-                    constraint.coefficients[next(iter(constraint.variables - safe))]
-                )
-                == 1
-            ),
-            None,
-        )
-        if assignment is None:
+        while assignments and (not active[assignments[0]] or len(missing[assignments[0]]) != 1):
+            heappop(assignments)
+        if not assignments:
             return None
-        constraint, output = assignment
-        oriented.append(
-            ExpressionConstraint(
-                _linear_assignment_expression(constraint, output),
-                "eq",
-                output,
-                False,
-            )
-        )
-        safe.add(output)
-        pending.remove(constraint)
+        index = heappop(assignments)
+        constraint = constraints[index]
+        output = next(iter(missing[index]))
+        oriented.append(ExpressionConstraint(
+            _linear_assignment_expression(constraint, output), "eq", output, False,
+        ))
+        active[index] = False
+        for consumer in waiting.pop(output, ()):
+            if active[consumer]:
+                missing[consumer].remove(output)
+                enqueue(consumer)
     return tuple(oriented)
 
 

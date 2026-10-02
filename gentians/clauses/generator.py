@@ -19,6 +19,7 @@ from ..language.ir.inductive_task import InductiveTask
 from ..timing import (
     add,
     instrumentation,
+    is_enabled,
     metric_enabled,
     net_time,
     phase,
@@ -239,9 +240,10 @@ class _ClauseGenerator:
         cast(Configuration, ctl.configuration.solve).models = "0"
         add_program(ctl, fact_program)
         add_program(ctl, CLAUSE_METAPROGRAM)
-        start = net_time()
+        measure = is_enabled() or metric_enabled("clingo")
+        start = net_time() if measure else 0.0
         ctl.ground([("base", [])])
-        grounding_seconds = net_time() - start
+        grounding_seconds = net_time() - start if measure else 0.0
         add("clause_generation.grounding", grounding_seconds)
         model_index = _model_literal_index(ctl.symbolic_atoms, self.modes_by_id)
         return ctl, model_index, fact_program, solver_arguments, grounding_seconds
@@ -263,13 +265,14 @@ class _ClauseGenerator:
         for ordinal, assumptions in enumerate(strata):
             seconds = 0.0
             collect_metrics = metric_enabled("clingo")
+            measure = is_enabled() or collect_metrics
             # The handle stays suspended between batches. Never retain a clingo.Model.
             # ponytail: grounding still covers the full bias; partition it if that dominates.
             try:
                 with phase("clause_generation"):
-                    start = net_time()
+                    start = net_time() if measure else 0.0
                     handle = ctl.solve(yield_=True, assumptions=assumptions)
-                    elapsed = net_time() - start
+                    elapsed = net_time() - start if measure else 0.0
                 try:
                     iterator = iter(handle)
                     exhausted = False
@@ -278,9 +281,12 @@ class _ClauseGenerator:
                             canonicalizer = ClauseCanonicalizer(self.modes_by_id, self.max_variables)
                             models = 0
                             while not size or models < size:
-                                start = net_time()
-                                model = next(iterator, None)
-                                elapsed += net_time() - start
+                                if measure:
+                                    start = net_time()
+                                    model = next(iterator, None)
+                                    elapsed += net_time() - start
+                                else:
+                                    model = next(iterator, None)
                                 if model is None:
                                     exhausted = True
                                     break
@@ -297,9 +303,9 @@ class _ClauseGenerator:
                             del batch
                 finally:
                     with phase("clause_generation"):
-                        start = net_time()
+                        start = net_time() if measure else 0.0
                         handle.__exit__(None, None, None)
-                        elapsed = net_time() - start
+                        elapsed = net_time() - start if measure else 0.0
                         seconds += elapsed
                         add("clause_generation.solving", seconds)
             finally:
@@ -319,23 +325,28 @@ class _ClauseGenerator:
         ctl, model_index, fact_program, solver_arguments, grounding_seconds = self._prepare(None)
         canonicalizer = ClauseCanonicalizer(self.modes_by_id, self.max_variables)
         callback_seconds = 0.0
+        collect_metrics = metric_enabled("clingo")
+        measure = is_enabled() or collect_metrics
 
         def decode(model: clingo.Model) -> None:
+            canonicalizer.add(_clause_from_model(model, model_index))
+
+        def measured_decode(model: clingo.Model) -> None:
             nonlocal callback_seconds
             start = net_time()
-            canonicalizer.add(_clause_from_model(model, model_index))
+            decode(model)
             callback_seconds += net_time() - start
 
         seconds = 0.0
         try:
             with phase("clause_generation"):
-                start = net_time()
-                ctl.solve(on_model=decode)
-                seconds = net_time() - start - callback_seconds
+                start = net_time() if measure else 0.0
+                ctl.solve(on_model=measured_decode if measure else decode)
+                seconds = net_time() - start - callback_seconds if measure else 0.0
                 add("clause_generation.solving", seconds)
                 return ClauseSpace(canonicalizer.finish())
         finally:
-            if metric_enabled("clingo"):
+            if collect_metrics:
                 with instrumentation():
                     self._record_solve(
                         ctl, fact_program, solver_arguments, None,

@@ -86,6 +86,10 @@ def set_enabled(enabled: bool) -> None:
     _enabled = enabled
 
 
+def is_enabled() -> bool:
+    return _enabled
+
+
 def merge_timings(rows: list[dict[str, Any]]) -> None:
     global _timings_dirty
     for row in rows:

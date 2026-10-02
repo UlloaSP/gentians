@@ -20,6 +20,18 @@ el overhead de serialización y logging; `net_time()` descuenta instrumentación
 Añade el coste de fitness a la fase que pidió la evaluación. `closure` mide
 trabajo del constructor de hipótesis. No inventes fases para hacer una gráfica
 más cómoda.
+`timing.is_enabled()` refleja también la activación explícita con
+`set_enabled(True)`, sin depender de que exista una ruta de entorno. La generación
+de cláusulas activa sus clocks internos cuando timings o métricas Clingo los
+necesitan; las métricas Clingo sin timings siguen conservando sus duraciones.
+Esto no cambia campos, productor, `DASHBOARD_SCHEMA_VERSION` ni charts.
+
+`benchmarks/profile_clause_python.py` aísla cargas reproducibles de compilación,
+análisis y canonicalización, además de enumeración completa e incremental.
+Reporta medianas y fingerprints deterministas; `--memory` mide las asignaciones
+pico por separado, fuera de las muestras de tiempo. Los resultados son locales,
+no un payload del dashboard. Protocolo y límites del experimento:
+[optimización del Python de cláusulas](clause-python-optimizations.md).
 
 El resultado canónico de tiempo es `total_execution`, cerrado antes de imprimir
 el programa. Wall-clock sirve para timeouts y operación del runner, nunca como

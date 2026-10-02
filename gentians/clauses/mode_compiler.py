@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from dataclasses import replace
+from itertools import chain
 
 from clingo import ast
 
@@ -150,9 +151,9 @@ def _combined_head_templates(
     declarations: list[ModeDeclaration],
     kind: str,
     conditions: _Conditions,
-) -> tuple[HeadTemplate, ...]:
+) -> Iterator[HeadTemplate]:
     if not declarations:
-        return ()
+        return
 
     max_width = task.max_head_literals
     if max_width is None:
@@ -211,14 +212,18 @@ def _combined_head_templates(
         *(max_width if mode.recall < 0 else mode.recall for mode in declarations),
         *(atom_capacities[literal] for literal in literals),
     )
-    templates: list[HeadTemplate] = []
-    seen: set[HeadTemplate] = set()
+    # Bounds are unique within a width. Deduplicate element combinations before
+    # building their forms, retaining shared atoms rather than every native head.
+    seen: set[tuple[AtomLiteral, ...]] = set()
     minimum = max(2 if kind == "disjunction" else 1, task.min_aggregate_head_literals)
     for width in range(minimum, max_width + 1):
         bounds = _aggregate_head_bounds(width) if kind == "choice" else ((None, None),)
         for indices in _bounded_combinations(groups, capacities, width):
             combination = tuple(choices[index] for index in indices)
             elements = tuple(literal for _index, literal in combination)
+            if elements in seen:
+                continue
+            seen.add(elements)
             for lower, upper in bounds:
                 form = (
                     ast.Aggregate(
@@ -234,11 +239,7 @@ def _combined_head_templates(
                     if kind == "choice"
                     else ast.Disjunction(LOCATION, [])
                 )
-                template = HeadTemplate(form, elements)
-                if template not in seen:
-                    seen.add(template)
-                    templates.append(template)
-    return tuple(templates)
+                yield HeadTemplate(form, elements)
 
 
 def _aggregate_head_atom_capacity(
@@ -298,12 +299,12 @@ def _clause_modes(
     conditions = _Conditions(task)
     condition_limit = conditions.limit
     next_head_form = 0
-    head_templates = tuple(
+    head_templates = (
         concrete
-        for template in (
-            *task.language_bias_head,
-            *_combined_head_templates(task, task.language_bias_aggregate_head, "choice", conditions),
-            *_combined_head_templates(task, task.language_bias_disjunctive_head, "disjunction", conditions),
+        for template in chain(
+            task.language_bias_head,
+            _combined_head_templates(task, task.language_bias_aggregate_head, "choice", conditions),
+            _combined_head_templates(task, task.language_bias_disjunctive_head, "disjunction", conditions),
         )
         for concrete in template.concretizations(task.constants)
     )

@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import fields
 from itertools import combinations
 
@@ -111,15 +111,18 @@ def _context_properties(
     keys: set[tuple[Predicate, tuple[int, ...]]] = set()
     transitive: set[Predicate] = set()
     domains: dict[DomainKey, tuple[frozenset, ...]] = {}
+    positions_by_predicate = {predicate: _position_values(predicate[1], tuples) for predicate, tuples in extensions.items()}
+    reversed_by_predicate = {predicate: frozenset((right, left) for left, right in tuples)
+                             for predicate, tuples in extensions.items() if predicate[1] == 2}
 
     for predicate, tuples in extensions.items():
         _collect_argument_properties(predicate, tuples, arg_equal, arg_distinct)
         _collect_dependency_properties(predicate, tuples, functional, functional_set, keys)
-        if (positions := _product_positions(predicate, tuples)) is not None:
+        if (positions := _product_positions(positions_by_predicate[predicate], len(tuples))) is not None:
             universal.add(predicate)
             domains[("universal", predicate)] = positions
         if predicate[1] == 2:
-            reversed_tuples = {(right, left) for left, right in tuples}
+            reversed_tuples = reversed_by_predicate[predicate]
             if tuples == reversed_tuples:
                 symmetric.add(predicate)
             if tuples.isdisjoint(reversed_tuples):
@@ -141,10 +144,9 @@ def _context_properties(
             if _is_total_order(tuples, transitive_pred, reflexive_pred):
                 total_order.add(predicate)
             if predicate in reflexive or predicate in total_order:
-                field = frozenset(value for row in tuples for value in row)
+                field = frozenset().union(*positions_by_predicate[predicate])
                 domains[("field", predicate)] = (field,)
 
-    positions_by_predicate = {predicate: _position_values(predicate[1], tuples) for predicate, tuples in extensions.items()}
     for left, right in combinations(sorted(extensions), 2):
         left_tuples = extensions[left]
         right_tuples = extensions[right]
@@ -161,11 +163,13 @@ def _context_properties(
             if left_tuples.isdisjoint(right_tuples) and (
                 negated is None or {left, right} <= negated
             ):
-                union = left_tuples | right_tuples
-                if (positions := _product_positions(left, union)) is not None:
+                union_positions = tuple(first | second for first, second in zip(
+                    positions_by_predicate[left], positions_by_predicate[right], strict=True,
+                ))
+                if (positions := _product_positions(union_positions, len(left_tuples) + len(right_tuples))) is not None:
                     complement.add((left, right))
                     domains[("complement", left, right)] = positions
-            if left[1] == 2 and left_tuples == {(b, a) for a, b in right_tuples}:
+            if left[1] == 2 and left_tuples == reversed_by_predicate[right]:
                 inverse.add((left, right))
         _collect_disjoint_projections(
             left, positions_by_predicate[left], right, positions_by_predicate[right], disjoint_projection
@@ -181,7 +185,10 @@ def _context_properties(
         for source, tuples in extensions.items():
             if source[1] == target[1] and tuples <= bound:
                 implies.add((source, target))
-    _collect_projection_implications(extensions, {**extensions, **lower_targets}, project_implies)
+    projection_positions = {**positions_by_predicate, **{
+        predicate: _position_values(predicate[1], tuples) for predicate, tuples in lower_targets.items()
+    }}
+    _collect_projection_implications(extensions, {**extensions, **lower_targets}, project_implies, projection_positions)
     _collect_tuple_mutex(extensions, tuple_mutex)
     partitions = _partition_properties(
         extensions
@@ -190,11 +197,13 @@ def _context_properties(
             predicate: tuples
             for predicate, tuples in extensions.items()
             if predicate in negated
-        }
+        },
+        positions_by_predicate,
     )
     for group in partitions:
-        union = frozenset().union(*(extensions[predicate] for predicate in group))
-        domains[("partition", group)] = _position_values(group[0][1], union)
+        domains[("partition", group)] = tuple(frozenset().union(*(
+            positions_by_predicate[predicate][index] for predicate in group
+        )) for index in range(group[0][1]))
     cardinality_upper = _syntactic_properties(
         world, keys, functional, functional_set, project_implies, arg_distinct, symmetric
     )
@@ -207,6 +216,10 @@ def _context_properties(
         },
         **extensions,
     }
+    bounded_positions = {predicate: positions_by_predicate[predicate]
+                         if predicate in positions_by_predicate else _position_values(predicate[1], tuples)
+                         for predicate, tuples in bounded.items()}
+    positive_args, nonnegative_args = _numeric_signs(bounded_positions)
     closed = {
         predicate
         for predicate in world.extensions.keys() | world.unfixed
@@ -250,22 +263,29 @@ def _context_properties(
             item for item in cardinality_upper if item[0] in closed
         ),
         transitive=frozenset(transitive),
-        domain_covers=frozenset(_domain_covers(domains, bounded)),
-        positive_args=frozenset(_numeric_args(bounded, 1)),
-        nonnegative_args=frozenset(_numeric_args(bounded, 0)),
+        domain_covers=frozenset(_domain_covers(domains, bounded_positions)),
+        positive_args=positive_args,
+        nonnegative_args=nonnegative_args,
     )
 
 
-def _numeric_args(
-    relations: dict[Predicate, frozenset[GroundTuple]], minimum: int
-) -> Iterator[tuple[Predicate, int]]:
-    for predicate, tuples in relations.items():
-        for index in range(predicate[1]):
-            if all(
-                isinstance(value := values[index], int) and value >= minimum
-                for values in tuples
-            ):
-                yield predicate, index
+def _numeric_signs(
+    positions: dict[Predicate, tuple[frozenset, ...]],
+) -> tuple[frozenset[tuple[Predicate, int]], frozenset[tuple[Predicate, int]]]:
+    positive: set[tuple[Predicate, int]] = set()
+    nonnegative: set[tuple[Predicate, int]] = set()
+    for predicate, arguments in positions.items():
+        for index, values in enumerate(arguments):
+            strictly_positive = True
+            for value in values:
+                if not isinstance(value, int) or value < 0:
+                    break
+                strictly_positive &= value > 0
+            else:
+                nonnegative.add((predicate, index))
+                if strictly_positive:
+                    positive.add((predicate, index))
+    return frozenset(positive), frozenset(nonnegative)
 
 
 def _syntactic_properties(

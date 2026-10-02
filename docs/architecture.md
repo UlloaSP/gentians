@@ -163,6 +163,20 @@ de ellos redefine el language bias de una tarea inductiva.
   argumentos aplanados.
   La inspección de predicados y valores numéricos también usa pilas explícitas
   en el análisis de background y contextos.
+  La compilación de facts comparte variantes de comparaciones locales y
+  alternativas de pools durante una llamada; sus posiciones siguen siendo
+  relativas al literal y se trasladan al scope al emitir facts. Los counts de
+  bindings de pools se calculan de abajo arriba. Un índice de agregados responde
+  a las consultas de variantes más cortas. Las cabezas se consumen mediante
+  iteradores y deduplican sus elementos antes de construir bounds nativos.
+  El análisis de cada contexto reutiliza columnas para productos, proyecciones,
+  domains y signos numéricos. Los prefijos de proyecciones y particiones solo se
+  descartan mediante condiciones necesarias; las tuplas completas conservan la
+  autoridad de la prueba. La orientación lineal usa colas por índice original,
+  con prioridad para restricciones ya seguras. Cada sistema aritmético conserva
+  su clave inmutable durante su propia vida. La enumeración completa e
+  incremental omiten clocks por modelo cuando timings y métricas Clingo están
+  desactivados, sin cambiar las métricas emitidas al activarlos.
 - `hypotheses/` es la única autoridad sobre legalidad y transiciones de
   `Genome`. Ningún operador ni algoritmo duplica su cierre de dependencias.
 - `algorithms/` contiene solo los algoritmos y sus métricas. Cada archivo de

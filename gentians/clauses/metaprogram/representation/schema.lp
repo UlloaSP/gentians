@@ -110,6 +110,13 @@
 % mode_variable_arg(Mode, Position): Position is a variable placeholder of Mode.
 #defined mode_variable_arg/2.
 
+% first_occurrence_bound(Section, Slot, Position, Bound): number of possible
+% earlier variable-placeholder positions in body-before-head tuple order.
+% Derived by symmetry/variables.lp; representation/arguments.lp draws only
+% ids <= Bound from the unchanged var/1 domain. It overapproximates actual
+% earlier occurrences across all declared modes and head forms.
+#defined first_occurrence_bound/4.
+
 % mode_arg_type(Mode, Position, Type): nominal type required at Position.
 % Positions declared as any deliberately have no fact.
 #defined mode_arg_type/3.

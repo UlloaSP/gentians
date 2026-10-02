@@ -51,6 +51,94 @@ def test_tuple_mutex_projections_keep_predicate_pairs_and_complete_bindings(
     assert control.solve().satisfiable == satisfiable
 
 
+@pytest.mark.parametrize(("property_name", "edges", "extra", "satisfiable"), [
+    ("transitive", [(0, 1, True, (0, 1)), (1, 1, True, (1, 2)), (2, 1, True, (0, 2))], "", False),
+    ("transitive", [(0, 1, True, (0, 1)), (1, 1, True, (1, 2)), (2, 1, True, (0, 2))], "flow_needed(2).", True),
+    ("transitive", [(0, 1, True, (0, 1)), (1, 1, True, (1, 1))], "", True),
+    ("transitive", [(0, 1, True, (0, 1)), (1, 1, True, (1, 2)), (2, 1, False, (0, 2))], "", False),
+    ("transitive", [(0, 1, True, (0, 1)), (1, 1, True, (1, 2)), (2, 1, False, (2, 0))], "", True),
+    ("acyclic", [(0, 1, True, (0, 1)), (1, 1, True, (1, 2)), (2, 1, True, (2, 0))], "", False),
+    ("acyclic", [(0, 1, True, (0, 1)), (1, 1, True, (2, 0)), (2, 1, True, (1, 2))], "", True),
+    ("acyclic", [(0, 1, True, (0, 1)), (1, 1, True, (1, 2)), (2, 1, False, (2, 0))], "", False),
+    ("acyclic", [(0, 1, True, (0, 1)), (1, 1, True, (1, 2)), (2, 1, False, (0, 2))], "", True),
+    ("transitive", [(0, 1, True, (0, 1)), (1, 2, True, (1, 2)), (2, 1, True, (0, 2))], "", True),
+    ("transitive", [(0, 1, True, (0, 1)), (1, 1, True, (1, 2)), (2, 2, False, (0, 2))], "", True),
+    ("transitive", [(0, 1, True, (None, 1)), (1, 1, True, (1, 2)), (2, 1, True, (0, 2))], "", True),
+], ids=["shortcut", "needed-shortcut", "shortcut-is-path-atom", "negative-shortcut",
+        "negative-other-edge", "ordered-triangle", "other-slot-order", "negative-back-edge",
+        "negative-forward-edge", "different-path-predicate", "different-negative-predicate",
+        "constant-source-position"])
+def test_path_pruning_preserves_slot_order_flow_and_binding_conditions(
+    property_name, edges, extra, satisfiable,
+):
+    # Predicate ids stand for signed signatures. These pinned models isolate
+    # the existing constraints, including their deliberately limited slot order.
+    facts = [f"{property_name}_pred(1).", extra]
+    for slot, predicate, positive, variables in edges:
+        polarity = "positive" if positive else "negative"
+        facts.append(f"{polarity}_body_literal({slot},{slot},{predicate},2).")
+        for argument, variable in enumerate(variables):
+            facts.append(f"arg(body,{slot},{argument}).")
+            if variable is not None:
+                facts.append(f"var_at(body,{slot},{argument},{variable}).")
+    control = clingo.Control(["--warn=none"])
+    root = Path(generator.__file__).with_name("metaprogram")
+    control.load(str(root / "representation/tuples.lp"))
+    control.load(str(root / f"pruning/properties/{property_name}.lp"))
+    control.add("base", [], "\n".join(facts))
+    control.ground([("base", [])])
+
+    assert control.solve().satisfiable == satisfiable
+
+
+@pytest.mark.parametrize(("facts", "count", "retained"), [
+    (
+        "var(0..5). body_slot(0..1). mode_section(0,body). mode_section(1,body). "
+        "mode_variable_arg(0,0). mode_variable_arg(0,3). mode_variable_arg(1,0..2). "
+        "mode_variable_arg(2,0..1). head_form_member(0,0,2). "
+        "selected(body,0,0). selected(body,1,1). selected(head,0,2).",
+        876, (0, 1, 2, 3, 4, 5, 0),
+    ),
+    (
+        "var(0..4). body_slot(0..1). mode_section(0,body). "
+        "mode_variable_arg(0,0..2). mode_variable_arg(1,0..1). "
+        "head_form_member(0,0,1). selected(body,1,0). selected(head,0,1).",
+        52, (0, 1, 2, 3, 4),
+    ),
+    (
+        "var(0..2). mode_variable_arg(0,0). mode_variable_arg(0,4). mode_variable_arg(1,7). "
+        "head_form_member(0,0,0). head_form_member(0,1,1). "
+        "selected(head,0,0). selected(head,1,1).",
+        5, (0, 1, 2),
+    ),
+    ("body_slot(0). mode_section(0,body). selected(body,0,0).", 1, ()),
+], ids=["body-before-head-and-sparse-positions", "empty-earlier-slot",
+        "bodyless-compound-head", "no-variable-placeholders"])
+def test_variable_domains_preserve_all_first_occurrence_assignments(facts, count, retained):
+    # Canonical assignments are set partitions, with blocks numbered by their
+    # first occurrence. Seven positions with at most six ids give Bell(7)-1;
+    # five and three positions give Bell(5) and Bell(3). Sparse source positions
+    # and unused earlier slots must not remove any of these representatives.
+    root = Path(generator.__file__).with_name("metaprogram")
+    control = clingo.Control(["0", "--warn=none"])
+    for name in ("representation/arguments.lp", "representation/variables.lp", "symmetry/variables.lp"):
+        control.load(str(root / name))
+    control.add("base", [], facts)
+    control.ground([("base", [])])
+    assignments = set()
+
+    def collect(model):
+        positions = sorted(
+            (symbol.arguments[0].name, *(argument.number for argument in symbol.arguments[1:]))
+            for symbol in model.symbols(shown=True) if symbol.match("var_at", 4)
+        )
+        assignments.add(tuple(variable for _section, _slot, _argument, variable in positions))
+
+    assert control.solve(on_model=collect).exhausted
+    assert len(assignments) == count
+    assert retained in assignments
+
+
 @pytest.mark.parametrize(("context", "rejected", "retained"), [
     (
         "addition(0,0,1,2). positive_value(0..2).",

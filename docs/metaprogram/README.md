@@ -69,6 +69,7 @@ whole metaprogram accepts it.
 | `head_guard_arg(Mode,Position)` | Clause-global guard or cardinality bound position on the first member of a complete head. |
 | `selected(Section,Slot,Mode)` | A mode occurrence in a head or body slot. |
 | `var_at(Section,Slot,Position,Variable)` | A syntactic variable id at a flattened placeholder position. |
+| `first_occurrence_bound(Section,Slot,Position,Bound)` | Conservative variable-id bound derived from the existing dense, first-occurrence symmetry; does not change the task's variable limit. |
 | `same_term_bindings(S0,L0,S1,L1)` | Equal recursive term shapes and equal variable bindings at corresponding positions. Does not itself compare predicates. |
 | `selected_lt(X,Y)`, `selected_leq(X,Y)` | An explicitly selected comparison, oriented left to right. |
 | `known_unequal_values(X,Y)` | A selected strict comparison or disequality entails different values. |
@@ -116,6 +117,22 @@ it retains the original equal-arity and different-slot conditions. The
 mismatch check still requires the target argument position to exist.
 These changes affect the encoding used by both exhaustive and incremental
 generation, without changing the task language or its pruning conditions.
+
+`symmetry/variables.lp` also supplies `first_occurrence_bound` to the variable
+choice in `representation/arguments.lp`. If id `V` occurs at position `P`,
+dense ids and ordered first occurrences require `V` distinct earlier positions
+for ids `0..V-1`. The choice can therefore omit ids greater than the number of
+potential earlier positions. These positions are the union of placeholders
+across all body modes and complete head forms, including unoccupied slots and
+unselected forms. Constants do not contribute positions; sparse placeholder
+indexes are counted as positions, not as numeric distances.
+
+The bound uses the same Clingo tuple order as `first_var_pos`: `body < head`,
+unlike the separate head-first `section_order` used elsewhere. It is a static
+overapproximation, so the original symmetry constraints still reject impossible
+assignments within it. The task's `var/1` domain and all legality and pruning
+conditions stay in place. Exhaustive and incremental generation use this same
+choice.
 
 `mode_facts.py` computes static role mappings once per template;
 `fact_compiler.py` only assembles them with task and property facts.
@@ -367,10 +384,85 @@ exclusive native CPU attribution during parallel solving.
 
 Further module-omission probes identify transitive and acyclic joins as sources
 of many remaining ground rules. Those probes remove semantics and only locate
-cost. Factoring their shared two-step paths is a possible next experiment,
-**not implemented**; it must preserve the existing slot-order, shortcut and
-directed-flow guards. Removing those constraints or replacing them with a
-stronger closure would change the task being solved.
+cost. The subsequent experiments below retain the existing slot-order,
+shortcut and directed-flow guards. Removing those constraints or replacing
+them with a stronger closure would change the task being solved.
+
+### Static variable domains and further experiments
+
+The next pass freezes the 73 ASP modules and property compiler at `f19d970`.
+It keeps the task, compiled facts, decoder, canonicalizer and solver arguments
+fixed, and changes the variable choice to use `first_occurrence_bound` as
+described above. The derived bound removes assignments already rejected by
+the original variable symmetry, before they create downstream joins.
+
+| Encoding | Internal solver variables | Internal constraints | Ground rules |
+| --- | ---: | ---: | ---: |
+| Shared tuple-mutex mappings and pair views | 28,930 | 900,747 | 826,154 |
+| Also bound variable choices by possible first occurrences | 26,158 | 450,849 | 382,907 |
+
+The task's variable limit is unchanged. In particular, the first position can
+only use id 0, but later positions retain every id whose earlier first uses
+could fit. Tests enumerate complete sets of canonical variable assignments,
+including sparse placeholder positions, unoccupied earlier slots, compound
+heads without bodies and modes with no variable placeholders. These sets are
+partitions numbered by first occurrence, so their expected cardinalities do
+not depend on the new helper's implementation.
+
+The integrated production encoding was compared exhaustively with the frozen
+control in ABBA order, with two samples per variant. Python 3.14.6, Clingo
+5.8.2, Windows 11 and the same Intel Core i7-13700H used above; `5,split`,
+`stats=2`, fresh Controls and cold literal caches. Tests and other agent-started
+benchmarks did not overlap these runs. The timed interval has the same stage
+boundaries as the preceding comparison.
+
+| Encoding | Median generation wall s | Median process CPU s | Median grounding s |
+| --- | ---: | ---: | ---: |
+| Frozen control | 73.17 | 193.52 | 1.859 |
+| Static variable domains, integrated production | 62.25 | 126.84 | 0.592 |
+
+Control wall samples are 83.98 and 62.36 s; production samples are 65.40 and
+59.11 s. The approximately 15% median improvement is preliminary: two samples
+with substantial variation do not establish a universal speedup. An earlier
+prototype pair gave 55.01 versus 44.57 s under different load and is reported
+separately, rather than mixed into the integrated comparison. The reproducible
+ground-size reduction is stronger evidence than these timing estimates.
+
+All full Alzheimer runs retain 289,326 models and clauses with the same
+text-and-metadata fingerprint above. Exhaustive control/production checks also
+retain 326 clauses on `grandparent`, 4,797 on `8queens` and 21,005 on
+`subset_sum_double_unbalanced_count`. Generation, pruning, incremental and
+syntax-matrix tests pass all 869 cases; Ruff on the changed Python test and
+`ty check` also pass. Applicable chains are shared clause generation and its
+documentation. This changes neither the task-language contract nor the
+dashboard metrics schema; the additional diagnostics are local experiments.
+
+The path experiments did not enter production. Materializing shared two-step
+paths increases solver variables from 28,930 to 157,255. Sharing only positive
+and negative edge views lowers constraints to 687,807, but exhaustive ABBA
+runs give median wall times of 50.65 s for the control and 53.54 s for that
+variant, with substantial variation. Both preserve the full Alzheimer output;
+smaller constraint counts alone do not establish faster enumeration. Additional
+interning of key, functional-dependency and projection mappings saves only 340
+solver variables on this task and was also left out.
+
+A separate Python diagnostic captures all immutable decoder outputs and
+profiles canonicalization offline. The literal-instantiation cache already has
+1,393,462 hits and only 433 misses. The offline profile records 289,326
+`ast.Rule` constructions, 289,326 renders and 2,034,685 CFFI allocations.
+Rule construction takes 2.12 cumulative profile seconds; the rendering wrapper
+takes 2.52. These diagnose remaining construction and rendering costs, not
+exclusive percentages of a parallel production run. The decode callback's
+profiler enable/disable overhead and colliding generated dataclass function
+keys prevent reliable exclusive attribution from that profile. No private AST
+builder or replacement ASP renderer was added on this evidence.
+
+Raw reports, source/task hashes, frozen controls and reproduction scripts are
+local artifacts under `.benchmarks/experiments/encoding-paths-20261002/`.
+The one-thread and two-thread prefix probes accidentally overlapped, so their
+timing comparison is unusable and does not justify changing thread defaults.
+Neither size-only nor prefix screening establishes complete output parity or
+full enumeration speed.
 
 ### Ground size of pairwise helpers
 

@@ -1,6 +1,44 @@
 % Choose dense variable ids ordered by their first occurrence.
 % These comparisons order syntactic ids, not their object-level values.
 
+% DEFINITION, local helper. potential_var_pos(body, Slot, Arg): a variable
+% placeholder that some declared body mode could place at this slot.
+%   Slot  any available body slot, including an unoccupied one.
+%   Arg   an actual mode_variable_arg position, not a predicate arity index.
+% The union across modes overapproximates actual positions. Constants do not
+% add positions, and gaps in placeholder indexes are not counted as bindings.
+% Used only by first_occurrence_bound below.
+potential_var_pos(body, Slot, Arg) :-
+    body_slot(Slot), mode_section(Mode, body), mode_variable_arg(Mode, Arg).
+
+% DEFINITION, local helper. potential_var_pos(head, Slot, Arg): a variable
+% placeholder of a member of some declared complete head form.
+%   Slot  the member's position within its head form.
+%   Arg   a variable-placeholder position, including variable head guards.
+% All forms contribute possible positions, even when another form or no head
+% is selected. Used only by first_occurrence_bound below.
+potential_var_pos(head, Slot, Arg) :-
+    head_form_member(_, Slot, Mode), mode_variable_arg(Mode, Arg).
+
+% DEFINITION, reusable domain bound. first_occurrence_bound(Section, Slot,
+% Arg, Bound): largest variable id that could occur at this position under
+% the dense, first-occurrence ordering enforced below.
+%   Section, Slot, Arg  a possible placeholder, in Clingo's body-before-head
+%                       tuple order (not section_order's head-before-body).
+%   Bound               number of possible earlier placeholder positions.
+% If id V occurs here, ids 0..V-1 have earlier first occurrences. One position
+% holds one id, so V cannot exceed the number of possible earlier positions.
+% Counting the union of all modes is conservative when slots are empty or
+% the selected mode has fewer placeholders. The existing ordering constraints
+% still reject impossible assignments inside this overapproximation.
+% Consumed by representation/arguments.lp to omit choices that these same
+% symmetry rules would reject. This introduces no task limit or new pruning.
+first_occurrence_bound(Section, Slot, Arg, Bound) :-
+    potential_var_pos(Section, Slot, Arg),
+    Bound = #count {
+        S, L, A : potential_var_pos(S, L, A), (S, L, A) < (Section, Slot, Arg)
+    }.
+
 % CONSTRAINT. Variable ids are used without gaps, starting at 0.
 %   Var1  a used variable id.
 %   Var0  a smaller id of the domain that is not used.

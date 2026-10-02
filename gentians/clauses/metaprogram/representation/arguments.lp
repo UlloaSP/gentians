@@ -20,12 +20,17 @@ arg(Section, Slot, Arg) :-
 % CHOICE. Bind every placeholder to exactly one variable.
 %   Section, Slot, Arg  the placeholder, as in arg/3.
 %   Var                 variable id from var/1 written at that placeholder.
+%   Bound               conservative id bound from symmetry/variables.lp:
+%                       dense ids grow by their first body-before-head use.
 %   allowed: var_at(body,0,0,0), var_at(body,0,1,1)   -> edge(V0,V1)
 %   allowed: var_at(body,0,0,0), var_at(body,0,1,0)   -> edge(V0,V0)
 %   never:   a placeholder with no var_at atom, or with two of them
 % var_at/4 is the second half of the reified clause: nearly every module joins
 % on it, and Python's decoder reads it back to render the variables.
-1 { var_at(Section, Slot, Arg, Var) : var(Var) } 1 :- arg(Section, Slot, Arg).
+% The bound removes only assignments already forbidden by variable symmetry;
+% it retains all ids up to the task's #maxv where their first use is possible.
+1 { var_at(Section, Slot, Arg, Var) : var(Var), Var <= Bound } 1 :-
+    arg(Section, Slot, Arg), first_occurrence_bound(Section, Slot, Arg, Bound).
 
 % DEFINITION, local helper. pooled_body_alternative_var(Slot, Alternative, Var):
 % one binding alternative of a body atom grounds Var.

@@ -111,6 +111,13 @@ def test_incremental_batches_preserve_nonmonotonic_clause_forms(head):
     #modeh(1,p:base).
     #modeb(1,not blocked).
     #modec(1,q).
+""", """
+    father(a,b). father(b,c). mother(c,a). uncle(a,b). aunt(c,a).
+    #maxv(3). #maxbl(2). #maxhl(0).
+    #modeb(2,father(var(t,any),var(t,any))).
+    #modeb(2,mother(var(t,any),var(t,any))).
+    #modeb(2,uncle(var(t,any),var(t,any))).
+    #modeb(2,aunt(var(t,any),var(t,any))).
 """])
 def test_body_size_order_preserves_space_counts_conditions_and_grounds_once(monkeypatch, source):
     task = parse_text(source)
@@ -124,7 +131,8 @@ def test_body_size_order_preserves_space_counts_conditions_and_grounds_once(monk
     clauses = [clause for batch in materialized for clause in batch.entries]
     sizes = [clause.body_literals for clause in clauses]
     assert sizes == sorted(sizes)
-    assert {clause.text for clause in clauses} == set(expected.clauses)
+    # Clause equality includes text, heads, dependencies and body size.
+    assert set(clauses) == set(expected.entries)
     assert all(len(batch) <= 8 for batch in materialized)
     assert sum(row["operation_category"] == "grounding" for row in rows) == 1
     assert sum(row.get("models", 0) for row in rows) >= len(expected)

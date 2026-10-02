@@ -96,6 +96,27 @@ older tuple/condition/result projections apply to the single-element
 equality-output subset used by symmetry and redundancy rules.
 These are representation invariants on which the projections rely.
 
+`representation/tuples.lp` projects the unique selected mode to
+`selected_shape(Section,Slot,Shape)` before comparing argument bindings.
+Several modes may have one shape; the comparison needs that shape and the
+bindings, so it need not repeat the Cartesian product of mode ids.
+Every `var_at` already belongs to a placeholder of that selected mode.
+The equal-shape requirement, complete binding comparison and exclusion of
+slot self-comparisons remain unchanged.
+
+`property_facts.py` assigns one `tuple_mutex_arg` mapping id to each complete
+argument permutation. Predicate pairs with the same permutation share its
+description, while every original signed pair retains its own
+`tuple_mutex_pred(Left,Right,Mapping)` fact. In
+`pruning/properties/disjoint.lp`, `tuple_mutex_pair(Slot0,Slot1,Mapping)`
+checks membership of the selected predicates before comparing bindings.
+Sharing a mapping for `p/q` and `r/s` therefore never relates `p/s`.
+The helper is a deterministic projection, not another choice or pruning rule;
+it retains the original equal-arity and different-slot conditions. The
+mismatch check still requires the target argument position to exist.
+These changes affect the encoding used by both exhaustive and incremental
+generation, without changing the task language or its pruning conditions.
+
 `mode_facts.py` computes static role mappings once per template;
 `fact_compiler.py` only assembles them with task and property facts.
 `representation/arithmetic.lp` and `representation/aggregates.lp` join these
@@ -278,6 +299,78 @@ the derivation. `tests/test_metaprogram_examples.py` checks both outcomes and
 the aggregate role and numeric inference facts.
 
 ## Evidence and limits
+
+### Factored shapes and tuple-mutex mappings
+
+The 2026-10-02 pass preserves the task files, mode choices, legality and pruning
+conditions. It changes only deterministic representation views and the ids of
+identical complete tuple-mutex argument mappings. On `alzheimer_acetyl`, the
+846 predicate-pair mappings require just 6 distinct permutations.
+
+| Encoding | Internal solver variables | Internal constraints | Ground rules |
+| --- | ---: | ---: | ---: |
+| Original pair joins | 462,589 | 3,627,187 | 1,251,053 |
+| Project selected shapes | 240,694 | 2,313,027 | 1,029,314 |
+| Also share mappings and project tuple-mutex pairs | 28,930 | 900,747 | 826,154 |
+
+Internal constraints are the sum of Clingo's generic, binary and ternary
+counts, not its weighted `problem.generator.complexity` estimate. These
+variables are solver representation variables, not the task's `#maxv`.
+
+The control freezes the preceding ASP files and property compiler. Each variant
+uses fresh Controls, the same task and static properties, `5,split`, `stats=2`,
+the production decoder and canonicalizer, and a cold literal-instantiation
+cache. Enumeration is exhaustive, with the order reversed on the second
+paired run. The measured generation interval includes loading, grounding,
+decoder preparation, solving, callbacks and final storage; common task parsing,
+static analysis and fact preparation are outside it. The local prototype's
+fact-id AST rewrite is measured separately. Production shares mappings while
+compiling facts directly and adds no parse.
+
+Python 3.14.6, Clingo 5.8.2, Windows 11, Intel Core i7-13700H; two ABBA samples
+per paired variant gave these medians:
+
+| Encoding | Generation wall seconds | Process CPU seconds |
+| --- | ---: | ---: |
+| Project selected shapes | 157.13 | 556.76 |
+| Also share mappings and project tuple-mutex pairs | 124.75 | 269.01 |
+
+A subsequent direct production verification took 47.40 s with the same output
+and representation counts. This is one sample under different machine load,
+not evidence of another speedup relative to the paired result.
+
+All completed variants emit 289,326 models and clauses with the same ordered
+SHA-256 fingerprint, including text, signed heads, dependencies and body size:
+`44f8cb5181ee57dc45c6aec1947d03aea0dd50321825321489fa6f79d7461836`.
+Generation, pruning, syntax-matrix and incremental tests cover nearby accepted
+and rejected cases, including mappings shared by unrelated predicate pairs.
+An additional incremental case compares the complete clause metadata after
+exhausting batches. The production run passed all 853 tests in these four
+groups, plus Ruff on the touched Python files and `ty check`.
+This is measured equivalence on this task and construct
+coverage, not a proof for every possible inductive task.
+
+Exhaustive control/production comparisons also retain the same ordered text and
+metadata on `grandparent` (326 clauses), `8queens` (4,797) and
+`subset_sum_double_unbalanced_count` (21,005). Shape projection does not shrink
+every solver: internal variables on `8queens` rise from 9,801 to 10,001.
+These additional timings have one sample each and do not establish speed
+estimates.
+
+The raw reports, frozen controls, source/task hashes and reproduction scripts
+are local artifacts under
+`.benchmarks/experiments/encoding-reductions-20261002/`; the original-shape
+comparison is under `encoding-proposal-20261002/`. Another user-started
+`profile_clauses` execution overlapped the later comparison. Wall times are
+therefore preliminary. Solve wall minus callback wall is a residual, not an
+exclusive native CPU attribution during parallel solving.
+
+Further module-omission probes identify transitive and acyclic joins as sources
+of many remaining ground rules. Those probes remove semantics and only locate
+cost. Factoring their shared two-step paths is a possible next experiment,
+**not implemented**; it must preserve the existing slot-order, shortcut and
+directed-flow guards. Removing those constraints or replacing them with a
+stronger closure would change the task being solved.
 
 ### Ground size of pairwise helpers
 

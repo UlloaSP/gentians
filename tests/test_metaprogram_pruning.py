@@ -1,11 +1,54 @@
+from dataclasses import replace
 from pathlib import Path
 
 import clingo
 import pytest
 
 from gentians.arguments import Arguments
-from gentians.clauses import generate_clause_space, generator, mode_facts
+from gentians.clauses import generate_clause_space, generator, mode_facts, property_facts
+from gentians.clauses.analysis.properties import ClosedWorldProperties
 from gentians.language import parse_text
+
+
+@pytest.mark.parametrize(("left", "right", "left_vars", "right_vars", "satisfiable"), [
+    ("p", "q", (0, 1), (0, 1), False),
+    ("p", "q", (0, 1), (1, 0), False),
+    ("p", "q", (0, 1), (0, 2), True),
+    ("p", "q", (0, 1), (1, 2), True),
+    ("r", "s", (0, 1), (0, 1), False),
+    ("r", "s", (0, 1), (0, 2), True),
+    ("r", "s", (0, 1), (1, 0), True),
+    ("p", "s", (0, 1), (0, 1), True),
+    ("r", "q", (0, 1), (0, 1), True),
+    ("-p", "q", (0, 1), (0, 1), True),
+], ids=["identity", "reverse", "partial-identity", "partial-reverse", "second-pair",
+        "second-pair-mismatch", "second-pair-reverse", "unrelated-target", "unrelated-source",
+        "signed-source"])
+def test_tuple_mutex_projections_keep_predicate_pairs_and_complete_bindings(
+    left, right, left_vars, right_vars, satisfiable,
+):
+    # Two pairs share the identity mapping; only p/q also has the reverse.
+    # Sharing mapping descriptions must never export one pair's exclusion to
+    # another pair, or confuse a partial binding match with a complete one.
+    properties = replace(ClosedWorldProperties.none(), tuple_mutex=frozenset({
+        (("p", 2), ("q", 2), (0, 1)),
+        (("p", 2), ("q", 2), (1, 0)),
+        (("r", 2), ("s", 2), (0, 1)),
+    }))
+    identifiers = {(name, 2): index for index, name in enumerate(("p", "q", "r", "s", "-p"))}
+    facts = property_facts.compile_property_facts(properties, identifiers)
+    for slot, (name, variables) in enumerate(((left, left_vars), (right, right_vars))):
+        pred = identifiers[name, 2]
+        facts.append(f"positive_body_literal({slot},{pred},{pred},2).")
+        for argument, variable in enumerate(variables):
+            facts.extend((f"arg(body,{slot},{argument}).", f"var_at(body,{slot},{argument},{variable})."))
+    control = clingo.Control(["--warn=none"])
+    root = Path(generator.__file__).with_name("metaprogram")
+    control.load(str(root / "pruning/properties/disjoint.lp"))
+    control.add("base", [], "\n".join(facts))
+    control.ground([("base", [])])
+
+    assert control.solve().satisfiable == satisfiable
 
 
 @pytest.mark.parametrize(("context", "rejected", "retained"), [

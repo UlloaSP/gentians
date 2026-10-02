@@ -373,11 +373,13 @@
 #defined disjoint_arg/4.
 
 % tuple_mutex_pred(Left, Right, Mapping): Left and Right are mutually exclusive
-% after aligning a projection identified by Mapping.
+% after aligning a projection identified by Mapping. Predicate ids retain
+% their signs; sharing Mapping never creates another predicate pair.
 #defined tuple_mutex_pred/3.
 
 % tuple_mutex_arg(Mapping, RightArg, LeftArg): one argument alignment belonging
-% to a tuple-mutex Mapping.
+% to a tuple-mutex Mapping. Python emits each complete position mapping once;
+% identical mappings may serve several tuple_mutex_pred pairs.
 #defined tuple_mutex_arg/3.
 
 % project_implies_pred(Source, Target, Projection): projecting Source according

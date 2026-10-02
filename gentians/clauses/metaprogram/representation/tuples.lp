@@ -52,7 +52,7 @@ same_term_bindings(Section0, Slot0, Section1, Slot1) :-
     Section0 != Section1,
     not different_variable_binding(Section0, Slot0, Section1, Slot1).
 
-% DEFINITION, reusable. Same predicate and arguments.
+% DEFINITION, reusable. Same arguments; predicate and polarity are not compared.
 % Case 2: both literals are in the same section, at different slots. It holds
 % in both slot orders.
 same_term_bindings(Section, Slot0, Section, Slot1) :-

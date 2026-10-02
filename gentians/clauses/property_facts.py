@@ -70,18 +70,23 @@ def compile_property_facts(
         right_id = pred_id(right)
         if left_id is not None and right_id is not None:
             parts.append(f"disjoint_arg({left_id},{left_arg},{right_id},{right_arg}).")
-    tuple_mutex_id = 0
+    # The mapping describes positions, not predicate membership. Share equal
+    # complete mappings while retaining every signed predicate pair below.
+    tuple_mutex_projections: dict[tuple[int, ...], int] = {}
     for left, right, projection in sorted(properties.tuple_mutex):
         left_id = pred_id(left)
         right_id = pred_id(right)
         if left_id is None or right_id is None:
             continue
+        tuple_mutex_id = tuple_mutex_projections.get(projection)
+        if tuple_mutex_id is None:
+            tuple_mutex_id = len(tuple_mutex_projections)
+            tuple_mutex_projections[projection] = tuple_mutex_id
+            parts.extend(
+                f"tuple_mutex_arg({tuple_mutex_id},{right_arg},{left_arg})."
+                for right_arg, left_arg in enumerate(projection)
+            )
         parts.append(f"tuple_mutex_pred({left_id},{right_id},{tuple_mutex_id}).")
-        parts.extend(
-            f"tuple_mutex_arg({tuple_mutex_id},{right_arg},{left_arg})."
-            for right_arg, left_arg in enumerate(projection)
-        )
-        tuple_mutex_id += 1
     for left, right in sorted(properties.mutex):
         left_id = pred_id(left)
         right_id = pred_id(right)

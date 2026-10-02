@@ -27,6 +27,7 @@ from .modes import (
     _get_combinable_head_declarations,
     _get_condition_mode_declarations,
     _get_head_declaration,
+    _prepare_body_comparison,
 )
 
 
@@ -59,6 +60,7 @@ def parse_text(source: str) -> InductiveTask:
     pe: dict[tuple[frozenset[ast.AST], frozenset[ast.AST], AspProgram, bool], Example] = {}
     ne: dict[tuple[frozenset[ast.AST], frozenset[ast.AST], AspProgram, bool], Example] = {}
     example_fields: dict[tuple[bool, str], AspProgram] = {}
+    mode_payloads: dict[tuple[str, str], tuple[ModeDeclaration, ...]] = {}
     lbh: dict[HeadTemplate, Statement] = {}
     lbha: dict[ModeDeclaration, Statement] = {}
     lbhd: dict[ModeDeclaration, Statement] = {}
@@ -120,15 +122,15 @@ def parse_text(source: str) -> InductiveTask:
                     f"{directive} was removed; use an explicit #modeb literal"
                 )
             elif directive == "#modeha":
-                for mode in _get_combinable_head_declarations(lc, directive):
+                for mode in _get_combinable_head_declarations(lc, directive, mode_payloads):
                     lbha.setdefault(mode, statement)
             elif directive == "#modehd":
-                for mode in _get_combinable_head_declarations(lc, directive):
+                for mode in _get_combinable_head_declarations(lc, directive, mode_payloads):
                     lbhd.setdefault(mode, statement)
             elif directive == "#modeh":
                 lbh.setdefault(_get_head_declaration(lc), statement)
             elif directive == "#modeb":
-                lbb.setdefault(_get_body_mode_declaration(lc, comparison_safety), statement)
+                lbb.setdefault(_get_body_mode_declaration(lc, mode_payloads), statement)
             elif directive == "#pos":
                 res = _get_pos_neg_examples(lc)
                 example = Example.parse(res, True, cache=example_fields)
@@ -138,7 +140,7 @@ def parse_text(source: str) -> InductiveTask:
                 example = Example.parse(res, False, cache=example_fields)
                 ne.setdefault(example.deduplication_key, example)
             elif directive == "#modec":
-                for mode in _get_condition_mode_declarations(lc):
+                for mode in _get_condition_mode_declarations(lc, mode_payloads):
                     lbc.setdefault(mode, statement)
             elif directive == "#invent":
                 recall, atom = _get_invented_declaration(lc)
@@ -217,16 +219,39 @@ def parse_text(source: str) -> InductiveTask:
             (constant_types[name] for name in missing_constants),
             key=lambda item: (item[0].start, item[1].location.begin.line, item[1].location.begin.column),
         )
-        text = declaration.text
-        name = declaration.directive
-        assert name is not None
-        spans = split_top_level_args(_directive_args(text, name))
-        offset = len(name) + 1 + spans[0 if len(spans) == 1 else 1][0]
-        line, column = source_position(text, offset)
         error = SourceError.at_node(node.arguments[0],
                                     f"constant mode types require #constant declarations: {sorted(missing_constants)}")
-        error = error.with_origin(line, column if name == "#modeh" else column - 3)
-        raise declaration.locate_error(error) from None
+        raise _locate_mode_error(declaration, error) from None
+    background_source = _background_source(background_statements)
+    background = parse_program(background_source)
+    validate_task_program(background_source, background)
+    definitions = (
+        tuple(node for node in background if node.ast_type == ast.ASTType.Definition)
+        if "#const" in background_source else ()
+    )
+    constant_domains = {name: tuple(values) for name, values in constants.items()}
+    for head, declaration in lbh.items():
+        try:
+            head.validate_constants(constant_domains, definitions)
+        except SourceError as error:
+            raise _locate_mode_error(declaration, error) from None
+    prepared_body: dict[ModeDeclaration, Statement] = {}
+    prepared_comparisons: dict[int, ModeDeclaration] = {}
+    for mode, declaration in lbb.items():
+        if isinstance(mode.literal, ComparisonLiteral):
+            prepared = prepared_comparisons.get(id(mode.literal))
+            if prepared is None:
+                try:
+                    literal = _prepare_body_comparison(mode.literal, declaration.text, constant_domains, comparison_safety, definitions)
+                except ValueError as error:
+                    if isinstance(error, SourceError) and error.column is not None:
+                        raise _locate_mode_error(declaration, error) from None
+                    raise SourceError(declaration.line, str(error)) from None
+                prepared = mode if literal is mode.literal else ModeDeclaration(mode.recall, literal)
+                prepared_comparisons[id(mode.literal)] = prepared
+            mode = prepared.with_recall(mode.recall)
+        prepared_body.setdefault(mode, declaration)
+    lbb = prepared_body
     max_head_literals = limits["#maxhl"]
     if (
         (lbha or lbhd)
@@ -236,9 +261,6 @@ def parse_text(source: str) -> InductiveTask:
         line = declared_limits.get("#minhl", declared_limits.get("#maxhl", 1))
         maximum_line = declared_limits.get("#maxhl")
         raise SourceError(line, "#minhl cannot exceed #maxhl", maximum_line)
-    background_source = _background_source(background_statements)
-    background = parse_program(background_source)
-    validate_task_program(background_source, background)
     return InductiveTask(
         background=background,
         positive_examples=list(pe.values()),
@@ -247,7 +269,7 @@ def parse_text(source: str) -> InductiveTask:
         language_bias_body=list(lbb),
         language_bias_condition=list(lbc),
         invented_predicates=invented_predicates,
-        constants={name: tuple(values) for name, values in constants.items()},
+        constants=constant_domains,
         max_variables=limits["#maxv"],
         max_body_literals=limits["#maxbl"],
         max_head_literals=max_head_literals,
@@ -256,6 +278,16 @@ def parse_text(source: str) -> InductiveTask:
         language_bias_disjunctive_head=list(lbhd),
         min_aggregate_head_literals=min_head_literals,
     )
+
+
+def _locate_mode_error(declaration: Statement, error: SourceError) -> SourceError:
+    text = declaration.text
+    name = declaration.directive
+    assert name is not None
+    spans = split_top_level_args(_directive_args(text, name))
+    offset = len(name) + 1 + spans[0 if len(spans) == 1 else 1][0]
+    line, column = source_position(text, offset)
+    return declaration.locate_error(error.with_origin(line, column if name == "#modeh" else column - 3))
 
 
 def _background_source(statements: list[Statement]) -> str:

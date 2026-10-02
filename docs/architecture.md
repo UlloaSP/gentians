@@ -65,10 +65,20 @@ de ellos redefine el language bias de una tarea inductiva.
   retenidos, sin helpers de parsing de texto usados solo por los tests. Las
   pruebas de seguridad de outputs construyen reglas AST y las cargan con
   `ProgramBuilder`; Clingo conserva la autoridad del grounding.
+  Los probes incluyen las definiciones `#const` del background y exigen seguridad
+  para todos los valores concretos declarados. El parser prepara las comparaciones
+  después de reunir sus dominios, sin depender del orden de las declaraciones.
+  `HeadTemplate` comprueba límites choice incompatibles antes de enumerar,
+  delegando a Clingo los límites ground aritméticos y las definiciones `#const`.
+  La comprobación consume una sola variante y control cada vez; los errores
+  conservan la posición del guard. Las variables siguen sujetas al grounding.
   El lexer consume completos los marcadores de comentarios anidados y respeta
   comentarios de línea dentro de bloques, también al buscar anotaciones.
   El parser deduplica ejemplos y modes mediante claves de diccionarios ordenados,
   conservando la primera localización; las constantes usan claves por tipo.
+  El payload de cada categoría modeb/modec/modeha/modehd se parsea y valida una
+  vez por tarea, compartido entre recalls distintos. `ModeDeclaration` cambia
+  solo el recall de una declaración validada, manteniendo su guard de capacidad.
   `clauses/arithmetic_literal.py` conserva expresión, resultado y procedencia de
   la familia aditiva compilada; no pertenece al IR de tarea. La instanciación con
   índices de variables vive en `clauses/reified_clause.py`. `language/` no depende
@@ -94,6 +104,12 @@ de ellos redefine el language bias de una tarea inductiva.
   por el formato de Clingo, tanto si proceden de sintaxis como de `#constant`.
   No reconstruye ni reparsea sus nodos; las formas con variables, pools e
   intervalos y las expresiones aritméticas generales siguen siendo estructurales.
+  El formato de las ramas fijas se difiere hasta que su shape final lo necesita.
+  Preparar recipes resume cada subárbol una vez, incluso tras superar la capacidad
+  de metadatos; instanciar omite ramas sin placeholders. Los IR inmutables derivan
+  sus tuplas de argumentos al construirse, también en cada variante cambiada.
+  La inspección de predicados omite términos y comparaciones sin ocurrencias de
+  predicados; el callback nativo descarta comentarios antes de retenerlos.
   La expansión reutiliza las plantillas inmutables de átomos, comparaciones,
   condicionales, agregados y cabezas cuando sus campos no cambian, sin reconstruir
   ni revalidar el mismo valor. Sus guards nativos se conservan al validar y al

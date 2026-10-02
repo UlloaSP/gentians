@@ -1,10 +1,26 @@
 from collections import Counter
+from dataclasses import dataclass
 
 from clingo import ast
 
 from ...language.asp import AspProgram, Predicate
 from .ast_inspection import _children, _integer_value
 from .relation_properties import _key_sets_by_predicate
+
+type _Atom = tuple[str, tuple[ast.AST, ...]]
+type _KeyClause = tuple[_Atom, tuple[_Atom, ...], tuple[tuple[ast.AST, ast.AST], ...]]
+
+
+@dataclass(frozen=True, slots=True)
+class _RuleSyntax:
+    functional: frozenset[tuple[Predicate, int, int]]
+    functional_set: frozenset[tuple[Predicate, tuple[int, ...], int]]
+    keys: frozenset[tuple[Predicate, tuple[int, ...]]]
+    project_implies: frozenset[tuple[Predicate, Predicate, tuple[int, ...]]]
+    cardinality: frozenset[tuple[Predicate, int]]
+    key_clauses: tuple[_KeyClause, ...]
+    arg_distinct: frozenset[tuple[Predicate, int, int]]
+    symmetric: frozenset[Predicate]
 
 
 def _choice_clause_properties(
@@ -166,15 +182,9 @@ def _collect_atom_projection(
     result.add((source, (target[0], len(target[1])), tuple(projection)))
 
 
-def _collect_clause_defined_properties(
-    keys: set[tuple[Predicate, tuple[int, ...]]],
-    functional: set[tuple[Predicate, int, int]],
-    functional_set: set[tuple[Predicate, tuple[int, ...], int]],
-    arg_distinct: set[tuple[Predicate, int, int]],
-    symmetric: set[Predicate],
-    statements: AspProgram,
-) -> None:
-    key_by_predicate = _key_sets_by_predicate(keys)
+def _rule_syntax(statements: AspProgram) -> _RuleSyntax:
+    """Immutable rule-shaped hints, independent of context relation proofs."""
+    functional, functional_set, keys, project_implies, cardinality = _choice_clause_properties(statements)
     clauses_by_head: dict[Predicate, list[ast.AST]] = {}
 
     def collect(node: ast.AST) -> None:
@@ -188,6 +198,7 @@ def _collect_clause_defined_properties(
     for statement in statements:
         collect(statement)
 
+    key_clauses: list[_KeyClause] = []
     for clauses in clauses_by_head.values():
         if len(clauses) != 1:
             continue
@@ -195,24 +206,42 @@ def _collect_clause_defined_properties(
         head = _positive_symbolic_atom(node.head)
         if head is None:
             continue
-        body_atoms = [
+        body_atoms = tuple(
             atom for literal in node.body if (atom := _positive_symbolic_atom(literal))
-        ]
-        equalities = [_square_equality(literal) for literal in node.body]
-        equalities = [equality for equality in equalities if equality is not None]
-        if not equalities:
-            continue
+        )
+        equalities = tuple(equality for literal in node.body if (equality := _square_equality(literal)) is not None)
+        if equalities:
+            key_clauses.append((head, body_atoms, equalities))
+    distinct: set[tuple[Predicate, int, int]] = set()
+    symmetric: set[Predicate] = set()
+    for predicate, clauses in clauses_by_head.items():
+        if predicate[1] == 2 and all(_clause_head_args_distinct(clause) for clause in clauses):
+            distinct.add((predicate, 0, 1))
+        if predicate[1] == 2 and all(_clause_head_args_symmetric(clause) for clause in clauses):
+            symmetric.add(predicate)
+    return _RuleSyntax(frozenset(functional), frozenset(functional_set), frozenset(keys),
+                       frozenset(project_implies), frozenset(cardinality), tuple(key_clauses),
+                       frozenset(distinct), frozenset(symmetric))
+
+
+def _collect_clause_defined_properties(
+    keys: set[tuple[Predicate, tuple[int, ...]]],
+    functional: set[tuple[Predicate, int, int]],
+    functional_set: set[tuple[Predicate, tuple[int, ...], int]],
+    arg_distinct: set[tuple[Predicate, int, int]],
+    symmetric: set[Predicate],
+    syntax: _RuleSyntax,
+) -> None:
+    key_by_predicate = _key_sets_by_predicate(keys)
+    for head, body_atoms, equalities in syntax.key_clauses:
         for body_atom in body_atoms:
             for key in key_by_predicate.get((body_atom[0], len(body_atom[1])), ()):
                 _propagate_key_through_clause(
                     head, body_atom, key, equalities, functional, functional_set, keys
                 )
 
-    for predicate, clauses in clauses_by_head.items():
-        if predicate[1] == 2 and all(_clause_head_args_distinct(clause) for clause in clauses):
-            arg_distinct.add((predicate, 0, 1))
-        if predicate[1] == 2 and all(_clause_head_args_symmetric(clause) for clause in clauses):
-            symmetric.add(predicate)
+    arg_distinct.update(syntax.arg_distinct)
+    symmetric.update(syntax.symmetric)
 
 
 def _clause_head_args_distinct(node: ast.AST) -> bool:
@@ -375,7 +404,7 @@ def _propagate_key_through_clause(
     head: tuple[str, tuple[ast.AST, ...]],
     body_atom: tuple[str, tuple[ast.AST, ...]],
     body_key: set[int],
-    equalities: list[tuple[ast.AST, ast.AST]],
+    equalities: tuple[tuple[ast.AST, ast.AST], ...],
     functional: set[tuple[Predicate, int, int]],
     functional_set: set[tuple[Predicate, tuple[int, ...], int]],
     keys: set[tuple[Predicate, tuple[int, ...]]],

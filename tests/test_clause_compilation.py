@@ -150,7 +150,8 @@ def test_deep_comparison_decoding_preserves_left_to_right_binding_order():
     task = parse_text(f"#modeb(1,({nested},var(numeric,input)) < (1,2)).")
     comparison = task.language_bias_body[0].literal
     assert isinstance(comparison, ComparisonLiteral)
-    relation = _term_comparison(ReifiedLiteral("body", 0, 0, (7, 3)), comparison)
+    mode = mode_compiler._clause_modes(task)[0]
+    relation = _term_comparison(ReifiedLiteral("body", 0, mode.id, (7, 3)), mode)
     assert relation.variables == frozenset({7, 3})
     assert relation.terms[0].render() == "(" + "f(" * 1200 + "V7" + ")" * 1200 + ",V3)"
     assert relation.remap({7: 0, 3: 1}).variables == frozenset({0, 1})

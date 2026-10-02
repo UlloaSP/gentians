@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from clingo import ast
 
@@ -15,18 +15,16 @@ class AggregateElement:
     terms: tuple[ast.AST, ...]
     conditions: tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]
     conclusion: AtomLiteral | BooleanLiteral | ComparisonLiteral | None = None
+    arguments: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.conclusion is not None and self.terms:
             raise ValueError("aggregate element needs a tuple or a set atom")
-
-    @property
-    def arguments(self) -> tuple[ast.AST, ...]:
-        return (
+        object.__setattr__(self, "arguments", (
             *self.terms,
             *(self.conclusion.arguments if self.conclusion is not None else ()),
             *(term for condition in self.conditions for term in condition.arguments),
-        )
+        ))
 
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]

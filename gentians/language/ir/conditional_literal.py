@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from clingo import ast
 
@@ -16,6 +16,7 @@ class ConditionalLiteral:
     conclusion: AtomLiteral | BooleanLiteral | ComparisonLiteral
     conditions: tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]
     condition_groups: tuple[int, ...]
+    arguments: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if not self.conditions:
@@ -37,17 +38,14 @@ class ConditionalLiteral:
             for binding in mode_terms.bindings(term)
         ):
             raise ValueError("conditional comparisons cannot produce output variables")
+        object.__setattr__(self, "arguments", (
+            *self.conclusion.arguments,
+            *(term for condition in self.conditions for term in condition.arguments),
+        ))
 
     @property
     def kind(self) -> str:
         return "conditional"
-
-    @property
-    def arguments(self) -> tuple[ast.AST, ...]:
-        return (
-            *self.conclusion.arguments,
-            *(term for condition in self.conditions for term in condition.arguments),
-        )
 
     @property
     def dependencies(self) -> frozenset[Predicate]:

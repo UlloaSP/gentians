@@ -1,3 +1,4 @@
+from copy import copy
 from dataclasses import dataclass
 
 from .. import terms as mode_terms
@@ -39,3 +40,13 @@ class ModeDeclaration:
         ):
             raise ValueError("default-negated modes cannot produce output variables")
         mode_terms.validate_labels(self.literal.arguments, "mode")
+
+    def with_recall(self, recall: int) -> "ModeDeclaration":
+        """Change only recall; the immutable literal is already validated."""
+        if recall != -1 and recall < 1:
+            raise ValueError("mode recall must be positive or unbounded")
+        if recall == self.recall:
+            return self
+        declaration = copy(self)
+        object.__setattr__(declaration, "recall", recall)
+        return declaration

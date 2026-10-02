@@ -107,7 +107,8 @@ def _clause_from_truth(
         variable_positions: tuple[int, ...] = ()
         start = (bisect_left(mode_choices, minimum_mode, key=_MODE_ID)
                  if mode_choices and minimum_mode > mode_choices[0][0] else 0)
-        for candidate_mode, candidate_positions, program_literal in mode_choices[start:]:
+        for index in range(start, len(mode_choices)):
+            candidate_mode, candidate_positions, program_literal = mode_choices[index]
             if is_true(program_literal):
                 mode_id = candidate_mode
                 variable_positions = candidate_positions

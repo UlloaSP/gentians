@@ -24,6 +24,11 @@ their safety continues to be determined by grounding. Equal full comparison
 queries share safety results only during the same task parse, while modes with
 different recalls remain distinct. Compiled arithmetic-family metadata belongs
 to `clauses/`, rather than the task IR in `language/`.
+Comparison probes use every declared constant value and the background's
+`#const` definitions. Output directions must be safe for all those variants;
+direction inference keeps the original source locations of the learning leaves.
+For bounded choices, incompatible integer bounds fail during parsing, including
+ground arithmetic and constant alternatives. Their original syntax is retained.
 
 Task files accept Clingo's nested `%* ... *%` comments, including adjacent
 markers such as `%*%* ignored *%*%`. A `%` line comment inside a block hides
@@ -32,6 +37,9 @@ its first occurrence; distinct recalls, signs, labels and contexts remain
 distinct. Identical successful modes, examples and constants skip repeated
 payload parsing. Constants keep declaration order within their type; duplicate
 limits and inventions still fail.
+Identical literal payloads within a body, condition or combinable-head category
+share parsing and validation across different recalls; their capacities remain
+independent.
 For examples, inclusion and exclusion are sets: reordering or repeating an atom
 does not create another example. Gentians keeps the first spelling and native
 locations, while different fields, signs, contexts and polarities stay distinct.
@@ -42,6 +50,9 @@ domain points to its first type reference, including references inside pools.
 Metadata lookup uses native-node identity without structural hashing. Parsing
 releases its temporary metadata on exit; expansion recipes omit fixed branches
 and update only the paths affected by the next ordered constant combination.
+Recipe preparation remains linear when a tree exceeds the metadata cache size.
+Immutable IR values derive their flattened arguments once. Instantiation skips
+fixed branches, and shape inspection formats only retained fixed branches.
 Missing directive arguments, including a comma before the closing parenthesis,
 are rejected. Commas inside strings and singleton tuples such as `(a,)` remain
 valid.
@@ -73,6 +84,8 @@ without retaining intermediate variant pools. Nested terms retain
 only their current variants and rebuild changed paths. Fixed guards and
 repeated binding nodes are reused during instantiation. Native predicate
 inspection also supports deeply nested terms in background comparisons.
+It skips arithmetic and function subtrees that cannot contain predicates.
+Native comment nodes are discarded in the parsing callback.
 
 ## Head modes
 

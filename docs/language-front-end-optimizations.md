@@ -202,6 +202,155 @@ ordinario varía un 4.0% en sentido desfavorable. Estas diferencias pequeñas
 se documentan como tales y no justifican una afirmación de mejora general.
 
 
+## Tercera ronda: los diez cambios
+
+Control: paquete `language/` de `c29bc4d74b2604ef4b35ec5c8b711d1bd5d7452b`,
+que ya incluye las dos rondas anteriores. Tratamiento: los cambios de esta ronda.
+
+1. Los probes de seguridad de comparaciones usan cada valor constante declarado,
+   junto con las definiciones nativas `#const` del background. Se aceptan outputs
+   válidos para todos los valores; dominios con una variante insegura se rechazan.
+   Las constantes pueden declararse después del mode.
+2. Los límites choice incompatibles fallan durante parsing con posición del guard,
+   también tras concretar constantes, evaluar aritmética y resolver `#const`.
+   Clingo evalúa cada expresión ground; la comprobación no materializa variantes
+   de cabezas ni un pool de expresiones o controles.
+3. La receta de constantes obtiene sus resúmenes bottom-up sin volver a recorrer
+   subárboles cuando el árbol supera las 8192 entradas de la caché.
+4. La instanciación omite subárboles que no tienen placeholders y conserva el
+   orden y consumo exacto de bindings.
+5. `shape` difiere el formato de Clingo hasta las ramas fijas retenidas; no
+   convierte en texto cada descendiente fijo.
+6. Un payload modeb/modec/modeha/modehd se parsea y valida una vez por categoría
+   y tarea, aunque los recalls difieran. Los recalls mantienen sus capacidades
+   independientes; cambiar solo recall no revalida el literal inmutable.
+7. Cabezas, condicionales y agregados precalculan sus argumentos aplanados al
+   construirse. Cada variante cambiada deriva su propia tupla, excluida de
+   igualdad y hash.
+8. La inspección de predicados omite términos y comparaciones que no pueden
+   contener predicados; conserva signos, condiciones y roles de cabeza/cuerpo.
+9. El callback nativo descarta comentarios inmediatamente, reduciendo el pico
+   Python del parsing de fuentes con muchos comentarios.
+10. Inferir direcciones conserva ubicaciones nativas, tipos y labels originales;
+    los diagnósticos siguen apuntando al fragmento responsable.
+
+### Protocolo y workloads nuevos
+
+Se usa el mismo protocolo pareado de siete muestras, namespace aislado, GC
+previo y orden alternado. Python 3.14.6, Clingo 5.8.2 y
+Windows-11-10.0.26200-SP0. El control temporal contiene solo el paquete
+`language/` sin cambios; no interviene el trabajo concurrente en `clauses/`.
+La máquina es compartida, de modo que los tiempos absolutos entre ejecuciones
+no son comparables. La tabla conserva una ejecución pareada completa del
+tratamiento final; no selecciona el mejor tiempo de distintas ejecuciones.
+
+```powershell
+uv run --no-sync python -B benchmarks/profile_language.py --repeat 7 --baseline-root <snapshot-de-c29bc4d7>
+```
+
+El script permite seleccionar casos con `--workload NOMBRE`, repetido si se
+necesitan varios. A los catorce históricos añade:
+
+- `fixed_instantiations`: 1000 instanciaciones del mismo término fijo de
+  profundidad 300. Su metadato está caliente después del warmup; el AST completo
+  se compara y formatea fuera del tiempo.
+- `fixed_shapes`: 100 shapes del término fijo de profundidad 300, con comparación
+  de la representación completa fuera del tiempo.
+- `shared_mode_recalls`: parsing de 300 modes con el mismo payload y recalls
+  distintos. Se comprueban todos los recalls y términos en orden.
+- `flattened_arguments`: 1000 lecturas de los argumentos de un agregado de
+  100 elementos, construido fuera del tiempo. Se compara la tupla completa.
+- `predicate_inspections`: 1000 inspecciones de una regla con un término
+  de profundidad 300 dentro de una comparación y una dependencia `not -q`.
+- `native_comment_parse`: parsing ASP directo de 6000 comentarios y un hecho,
+  comprobando los AST retenidos. Se llama directamente a `asp.parse_program`
+  porque el framing de la tarea puede omitir comentarios antes de llegar a Clingo.
+
+Los hashes y outputs de los veinte workloads coinciden. La instrumentación
+de profundidad 9000 es aparte: tras primar `constant_types` dentro de
+`metadata_scope`, se cuentan las visitas de `_postorder` preparando la primera
+variante de una cadena de 9000 funciones y una hoja `const(t)`, con dominio
+unitario. El control se corta tras 50001 visitas sin producirla; el tratamiento
+la produce en 9001 visitas. El test permanente limita la preparación a una
+visita por nodo. Es una medida de trabajo efectuado, sin afirmar un cociente
+de velocidad para el caso abortado.
+
+### Resultados de la tercera ronda
+
+Medianas en ms; cociente control/tratamiento; picos Python en bytes.
+
+| Workload | Antes ms | Después ms | Cociente | Pico Python antes | Pico Python después |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `first_nested_variant` | 0.375 | 0.358 | 1.05 | 9093 | 9389 |
+| `deep_kind` | 0.234 | 0.235 | 1.00 | 9032 | 9032 |
+| `shallow_kind` | 0.260 | 0.239 | 1.09 | 9032 | 9032 |
+| `deep_parse` | 13.983 | 16.005 | 0.87 | 349957 | 354709 |
+| `repeated_examples` | 4.191 | 4.533 | 0.92 | 10634 | 10690 |
+| `background_lex` | 16.000 | 16.040 | 1.00 | 573095 | 573095 |
+| `background_parse` | 45.289 | 47.372 | 0.96 | 917785 | 918583 |
+| `deep_arguments` | 0.196 | 0.198 | 0.99 | 176 | 176 |
+| `deep_bindings` | 0.246 | 0.249 | 0.99 | 216 | 216 |
+| `deep_constant_types` | 0.210 | 0.213 | 0.98 | 176 | 176 |
+| `shared_example_fields` | 21.806 | 21.746 | 1.00 | 307758 | 309764 |
+| `first_fixed_forest_variant` | 0.185 | 0.190 | 0.97 | 4148 | 4292 |
+| `sparse_forest_variants` | 239.332 | 238.509 | 1.00 | 149659 | 152850 |
+| `quoted_marker_background` | 55.813 | 55.812 | 1.00 | 918060 | 918247 |
+| `fixed_instantiations` | 320.609 | 0.469 | 683.02 | 41232 | 224 |
+| `fixed_shapes` | 1419.031 | 51.146 | 27.74 | 38547 | 40950 |
+| `shared_mode_recalls` | 51.554 | 6.444 | 8.00 | 332824 | 141050 |
+| `flattened_arguments` | 61.343 | 0.036 | 1699.24 | 8200 | 280 |
+| `predicate_inspections` | 9038.509 | 240.186 | 37.63 | 7387 | 6019 |
+| `native_comment_parse` | 33.259 | 36.921 | 0.90 | 618379 | 86121 |
+
+| Vida útil: veinte tareas descartadas | Control | Tratamiento |
+| --- | ---: | ---: |
+| Bytes Python retenidos tras GC | 3179 | 0 |
+| Pico Python durante parsing | 188797 | 209045 |
+
+Los 300 recalls compartidos bajan de 51.554 a 6.444 ms. Las 100 consultas de
+shape fijo bajan de 1419.031 a 51.146 ms, y la inspección de predicados conserva
+el output completo con un cociente de 37.63. Las ganancias mayores de
+instanciación y lectura de argumentos corresponden a operaciones repetidas
+sobre valores retenidos; no describen una única consulta fría.
+
+También hay costes: `deep_parse` sube un 14.5%, `repeated_examples` un 8.2%
+y `background_parse` un 4.6% en esta ejecución. El filtrado de comentarios
+reduce el pico de 618379 a 86121 bytes (86.1%), pero tarda un 11.0% más.
+El pico de shape sube de 38547 a 40950 bytes y el de veinte tareas descartadas
+de 188797 a 209045 bytes. Los resúmenes adicionales y argumentos precalculados
+ocupan espacio durante la vida de sus valores. Un dominio de comparación con
+muchas variantes también puede necesitar más probes de grounding para demostrar
+seguridad; esa corrección no promete acelerar el parsing. Las pequeñas
+diferencias de consultas ya cacheadas no se presentan como nuevas mejoras.
+No se midió velocidad de búsqueda, grounding de cláusulas ni solving.
+
+### Verificación de la tercera ronda
+
+Se actualizan `docs/language-bias.md`, `docs/task-language.md` y
+`docs/architecture.md`. La cadena aplicable es Lenguaje: parser e IR son los
+productores afectados; generación, decoder/render y matriz de sintaxis con
+ambos algoritmos verifican los consumidores. Cobertura se comprueba para
+preservar la evaluación del programa completo. El metaprograma y `clauses/`
+conservan el trabajo del otro agente. No cambian algoritmos, estrategias ni
+métricas/dashboard.
+
+Las regresiones cubren dominios seguros e inseguros, `#const` y aliases,
+bounds aritméticos, diagnóstico UTF-8, validación compartida entre recalls,
+categorías de modes, consumo streaming y de bindings, ubicaciones nativas,
+inmutabilidad y el árbol mayor que la caché. La revisión independiente contrasta
+además 250 bosques seeded con el control y cierra los hallazgos detectados.
+
+```powershell
+uv run --no-sync python -B -m pytest tests/test_language_round3.py tests/test_language.py tests/test_language_frontend.py tests/test_language_frontend_optimizations.py tests/test_clause_space.py tests/test_clause_compilation.py -q -p no:cacheprovider
+# 1041 passed (538 lenguaje; 503 generación)
+uv run --no-sync python -B -m pytest tests/syntax_matrix tests/test_evaluation.py -q -p no:cacheprovider
+# 448 passed
+uv run --no-sync ruff check gentians/language benchmarks/profile_language.py tests/test_language.py tests/test_language_round3.py
+uv run --no-sync ty check
+```
+
+Total: 1489 pruebas. Ruff y ty pasan; no se ejecuta la suite completa.
+
 ## Límites y verificación
 
 Son workloads sintéticos locales con caches calientes; los cocientes grandes

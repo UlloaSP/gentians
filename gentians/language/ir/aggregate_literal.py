@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from clingo import ast
 
@@ -18,22 +18,20 @@ class AggregateLiteral:
     right_guard: ast.AST | None = None
     default_negated: bool = False
     double_negated: bool = False
+    arguments: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.double_negated and not self.default_negated:
             raise ValueError("double negation requires default negation")
+        object.__setattr__(self, "arguments", (
+            *(term for element in self.elements for term in element.arguments),
+            *((self.left_guard.term,) if self.left_guard else ()),
+            *((self.right_guard.term,) if self.right_guard else ()),
+        ))
 
     @property
     def kind(self) -> str:
         return "aggregate"
-
-    @property
-    def arguments(self) -> tuple[ast.AST, ...]:
-        return (
-            *(term for element in self.elements for term in element.arguments),
-            *((self.left_guard.term,) if self.left_guard else ()),
-            *((self.right_guard.term,) if self.right_guard else ()),
-        )
 
     @property
     def dependencies(self) -> frozenset[Predicate]:

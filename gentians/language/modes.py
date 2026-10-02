@@ -5,7 +5,7 @@ import clingo
 from clingo import ast
 
 from . import terms as mode_terms
-from .asp import add_program, parse_rule, split_top_level_args, validate_task_program
+from .asp import AspProgram, add_program, parse_rule, split_top_level_args, validate_task_program
 from .ast_nodes import (
     AGGREGATE_FUNCTIONS,
     COMPARISON_OPERATORS,
@@ -31,7 +31,8 @@ _AGGREGATE_NAMES = {value: key for key, value in AGGREGATE_FUNCTIONS.items()}
 
 
 def _get_mode_declarations(
-    source: str, name: str, *, unpool: bool = False
+    source: str, name: str, *, unpool: bool = False,
+    cache: dict[tuple[str, str], tuple[ModeDeclaration, ...]] | None = None,
 ) -> tuple[ModeDeclaration, ...]:
     payload = _directive_args(source, name)
     parts = split_top_level_args(payload)
@@ -44,32 +45,48 @@ def _get_mode_declarations(
         recall = _parse_recall(payload[slice(*parts[0])])
         offset = len(name) + 1 + parts[1][0]
     syntax = source[offset:-2]
+    key = name, syntax
+    if cache is not None and key in cache:
+        return tuple(item.with_recall(recall) for item in cache[key])
     literals = _get_mode_literals(syntax, source, offset=offset, unpool=unpool)
     line, column = source_position(source, offset)
     try:
-        return tuple(ModeDeclaration(recall, literal) for literal in literals)
+        declarations = tuple(ModeDeclaration(recall, literal) for literal in literals)
     except SourceError as error:
         raise error.with_origin(line, column - 3) from None
+    if name == "#modec" and any(not isinstance(item.literal, AtomLiteral | ComparisonLiteral) for item in declarations):
+        raise ValueError(f"#modec requires an atom or comparison literal: {source}")
+    if combinable_head:
+        for item in declarations:
+            if not isinstance(item.literal, AtomLiteral):
+                raise ValueError(f"{name} requires an atom literal: {source}")
+            if any(mode_terms.contains_anonymous(term) for term in item.literal.arguments):
+                raise ValueError(f"anonymous variables cannot occur in a head atom: {source}")
+    if cache is not None:
+        cache[key] = declarations
+    return declarations
 
 
-def _get_body_mode_declaration(s: str, safety: dict[ComparisonLiteral, bool] | None = None) -> ModeDeclaration:
-    (declaration,) = _get_mode_declarations(s, "#modeb")
-    if isinstance(declaration.literal, ComparisonLiteral):
-        literal = _prepare_body_comparison(declaration.literal, s, safety)
-        return declaration if literal is declaration.literal else ModeDeclaration(declaration.recall, literal)
+def _get_body_mode_declaration(
+    s: str, cache: dict[tuple[str, str], tuple[ModeDeclaration, ...]] | None = None,
+) -> ModeDeclaration:
+    (declaration,) = _get_mode_declarations(s, "#modeb", cache=cache)
     return declaration
 
 
 def _prepare_body_comparison(
-    literal: ComparisonLiteral, declaration: str, safety: dict[ComparisonLiteral, bool] | None = None
+    literal: ComparisonLiteral, declaration: str,
+    constants: dict[str, tuple[ast.AST, ...]], safety: dict[ComparisonLiteral, bool],
+    definitions: AspProgram = (),
 ) -> ComparisonLiteral:
     def outputs_are_safe(candidate: ComparisonLiteral) -> bool:
-        if safety is None:
-            return _comparison_outputs_are_safe(candidate)
-        result = safety.get(candidate)
-        if result is None:
-            result = safety[candidate] = _comparison_outputs_are_safe(candidate)
-        return result
+        for concrete in candidate.concretizations(constants):
+            result = safety.get(concrete)
+            if result is None:
+                result = safety[concrete] = _comparison_outputs_are_safe(concrete, definitions)
+            if not result:
+                return False
+        return True
 
     bindings = tuple(binding for term in literal.terms for binding in mode_terms.bindings(term))
     if literal.default_negated and any(
@@ -141,12 +158,21 @@ def _with_binding_directions(
             return None
         metadata = mode_terms.binding(term)
         direction = next(direction_iter)
-        return term if direction == metadata.direction else mode_terms.variable(metadata.type, direction, metadata.label)
+        if direction == metadata.direction:
+            return term
+        values = list(term.arguments)
+        location = values[1].location if len(values) > 1 else term.location
+        replacement = mode_terms.fixed(direction).update(location=location)
+        if len(values) > 1:
+            values[1] = replacement
+        else:
+            values.append(replacement)
+        return term.update(arguments=values)
 
     return replace(literal, terms=tuple(mode_terms.transform(term, update) for term in literal.terms))
 
 
-def _comparison_outputs_are_safe(literal: ComparisonLiteral) -> bool:
+def _comparison_outputs_are_safe(literal: ComparisonLiteral, definitions: AspProgram = ()) -> bool:
     bindings = tuple(
         binding for term in literal.terms for binding in mode_terms.bindings(term)
     )
@@ -161,16 +187,7 @@ def _comparison_outputs_are_safe(literal: ComparisonLiteral) -> bool:
         for index, binding in enumerate(bindings)
     )
 
-    def validation_term(term: ast.AST) -> ast.AST | None:
-        return mode_terms.fixed("0") if mode_terms.kind(term) == "constant" else None
-
-    validation_literal = replace(
-        literal,
-        terms=tuple(
-            mode_terms.transform(term, validation_term) for term in literal.terms
-        ),
-    )
-    relation = validation_literal.instantiate(binding_terms(variable_names))
+    relation = literal.instantiate(binding_terms(variable_names))
     inputs = tuple(
         name
         for name, binding in zip(variable_names, bindings, strict=True)
@@ -200,32 +217,23 @@ def _comparison_outputs_are_safe(literal: ComparisonLiteral) -> bool:
     messages: list[str] = []
     control = clingo.Control(logger=lambda _code, message: messages.append(message))
     try:
-        add_program(control, probe)
+        add_program(control, (*definitions, *probe))
         control.ground([("base", [])])
     except RuntimeError:
         return False
     return not any("unsafe" in message.lower() for message in messages)
 
 
-def _get_condition_mode_declarations(source: str) -> tuple[ModeDeclaration, ...]:
-    declarations = _get_mode_declarations(source, "#modec", unpool=True)
-    if any(not isinstance(item.literal, AtomLiteral | ComparisonLiteral) for item in declarations):
-        raise ValueError(f"#modec requires an atom or comparison literal: {source}")
-    return declarations
+def _get_condition_mode_declarations(
+    source: str, cache: dict[tuple[str, str], tuple[ModeDeclaration, ...]] | None = None,
+) -> tuple[ModeDeclaration, ...]:
+    return _get_mode_declarations(source, "#modec", unpool=True, cache=cache)
 
 
 def _get_combinable_head_declarations(
-    source: str, name: str
+    source: str, name: str, cache: dict[tuple[str, str], tuple[ModeDeclaration, ...]] | None = None,
 ) -> tuple[ModeDeclaration, ...]:
-    declarations = _get_mode_declarations(source, name, unpool=True)
-    for item in declarations:
-        if not isinstance(item.literal, AtomLiteral):
-            raise ValueError(f"{name} requires an atom literal: {source}")
-        if any(mode_terms.contains_anonymous(term) for term in item.literal.arguments):
-            raise ValueError(
-                f"anonymous variables cannot occur in a head atom: {source}"
-            )
-    return declarations
+    return _get_mode_declarations(source, name, unpool=True, cache=cache)
 
 
 def _get_head_declaration(s: str) -> HeadTemplate:

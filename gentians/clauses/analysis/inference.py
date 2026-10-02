@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from dataclasses import fields
 from functools import lru_cache
-from itertools import combinations
+from itertools import combinations, product
 
 from clingo import ast
 
@@ -22,7 +22,7 @@ from .properties import ClosedWorldProperties, DomainKey
 from .relation_properties import (
     _collect_argument_properties,
     _collect_dependency_properties,
-    _collect_disjoint_projections,
+    _disjoint_position_pairs,
     _collect_projection_implications,
     _collect_tuple_mutex,
     _binary_successors,
@@ -42,7 +42,8 @@ from .relation_properties import (
     _without_subsumed_functional_set,
 )
 from .rule_properties import (
-    _choice_clause_properties,
+    _RuleSyntax,
+    _rule_syntax,
     _collect_clause_defined_properties,
 )
 
@@ -68,11 +69,12 @@ def _closed_world_properties(
     # Retain only a small window of native bounds, never Clingo controls or
     # worlds. Classification and proofs remain separate for each context.
     consequences = lru_cache(maxsize=8)(_consequences)
+    syntax = lru_cache(maxsize=8)(_rule_syntax)
     for program in contexts:
         world = _closed_world(program, learned, relations, consequences)
         if world is None:
             continue
-        properties = _context_properties(world, relevant, negated)
+        properties = _context_properties(world, relevant, negated, syntax(world.program))
         del world
         common = properties if common is None else ClosedWorldProperties(*(
             getattr(common, field.name) & getattr(properties, field.name)
@@ -87,6 +89,7 @@ def _context_properties(
     world: ClosedWorld,
     relevant: frozenset[Predicate] | None,
     negated: frozenset[Predicate] | None,
+    syntax: _RuleSyntax | None = None,
 ) -> ClosedWorldProperties:
     candidates = relevant if relevant is not None else frozenset(world.extensions)
     extensions: dict[Predicate, frozenset[GroundTuple]] = {
@@ -129,7 +132,7 @@ def _context_properties(
         _collect_argument_properties(representative, tuples, equal_args, distinct_args)
         _collect_dependency_properties(representative, tuples, dependencies, composite_dependencies, extension_keys)
         positions = _position_values(arity, tuples)
-        product = _product_positions(positions, len(tuples))
+        product_positions = _product_positions(positions, len(tuples))
         for predicate in predicates:
             positions_by_predicate[predicate] = positions
             arg_equal.update((predicate, left, right) for _, left, right in equal_args)
@@ -137,9 +140,9 @@ def _context_properties(
             functional.update((predicate, source, target) for _, source, target in dependencies)
             functional_set.update((predicate, sources, target) for _, sources, target in composite_dependencies)
             keys.update((predicate, args) for _, args in extension_keys)
-            if product is not None:
+            if product_positions is not None:
                 universal.add(predicate)
-                domains[("universal", predicate)] = product
+                domains[("universal", predicate)] = product_positions
         if arity == 2:
             reversed_tuples = frozenset((right, left) for left, right in tuples)
             for predicate in predicates:
@@ -172,33 +175,47 @@ def _context_properties(
                 for predicate in predicates:
                     domains[("field", predicate)] = (field,)
 
-    for left, right in combinations(sorted(extensions), 2):
-        left_tuples = extensions[left]
-        right_tuples = extensions[right]
-        if left[1] == right[1]:
-            if left_tuples == right_tuples:
-                equivalent.add((left, right))
-            elif left_tuples <= right_tuples:
-                implies.add((left, right))
-            elif right_tuples <= left_tuples:
-                implies.add((right, left))
-            if left_tuples.isdisjoint(right_tuples):
-                mutex.add((left, right))
-            # Complements and partitions only prune literals that are all negated.
-            if left_tuples.isdisjoint(right_tuples) and (
-                negated is None or {left, right} <= negated
-            ):
+    group_items = tuple(groups.items())
+    for index, ((left_arity, left_tuples), left_predicates) in enumerate(group_items):
+        for offset in range(index, len(group_items)):
+            (right_arity, right_tuples), right_predicates = group_items[offset]
+            if index == offset and len(left_predicates) < 2:
+                continue
+            equal = left_arity == right_arity and left_tuples == right_tuples
+            left_implies = left_arity == right_arity and not equal and left_tuples <= right_tuples
+            right_implies = left_arity == right_arity and not equal and not left_implies and right_tuples <= left_tuples
+            disjoint = left_arity == right_arity and left_tuples.isdisjoint(right_tuples)
+            inverted = left_arity == right_arity == 2 and left_tuples == reversed_by_predicate[right_predicates[0]]
+            complement_positions = None
+            if disjoint and (negated is None or any(p in negated for p in left_predicates)
+                             and any(p in negated for p in right_predicates)):
                 union_positions = tuple(first | second for first, second in zip(
-                    positions_by_predicate[left], positions_by_predicate[right], strict=True,
+                    positions_by_predicate[left_predicates[0]], positions_by_predicate[right_predicates[0]], strict=True,
                 ))
-                if (positions := _product_positions(union_positions, len(left_tuples) + len(right_tuples))) is not None:
-                    complement.add((left, right))
-                    domains[("complement", left, right)] = positions
-            if left[1] == 2 and left_tuples == reversed_by_predicate[right]:
-                inverse.add((left, right))
-        _collect_disjoint_projections(
-            left, positions_by_predicate[left], right, positions_by_predicate[right], disjoint_projection
-        )
+                complement_positions = _product_positions(union_positions, len(left_tuples) + len(right_tuples))
+            disjoint_args = tuple(_disjoint_position_pairs(
+                positions_by_predicate[left_predicates[0]], positions_by_predicate[right_predicates[0]],
+            ))
+            pairs = combinations(left_predicates, 2) if index == offset else product(left_predicates, right_predicates)
+            for left, right in pairs:
+                ordered = (left, right) if left < right else (right, left)
+                if equal:
+                    equivalent.add(ordered)
+                if left_implies:
+                    implies.add((left, right))
+                elif right_implies:
+                    implies.add((right, left))
+                if disjoint:
+                    mutex.add(ordered)
+                if inverted:
+                    inverse.add(ordered)
+                # A domain proof is shared; permission to negate remains per predicate.
+                if complement_positions is not None and (negated is None or {left, right} <= negated):
+                    complement.add(ordered)
+                    domains[("complement", *ordered)] = complement_positions
+                for left_arg, right_arg in disjoint_args:
+                    disjoint_projection.add((left, left_arg, right, right_arg))
+                    disjoint_projection.add((right, right_arg, left, left_arg))
     # A closed relation inside the lower bound of a learned one implies it in
     # every model: learned clauses only add tuples to that bound.
     lower_targets = {
@@ -230,7 +247,7 @@ def _context_properties(
             positions_by_predicate[predicate][index] for predicate in group
         )) for index in range(group[0][1]))
     cardinality_upper = _syntactic_properties(
-        world, keys, functional, functional_set, project_implies, arg_distinct, symmetric
+        world, keys, functional, functional_set, project_implies, arg_distinct, symmetric, syntax
     )
     # Values of an unfixed relation lie inside its brave upper bound.
     bounded = {
@@ -321,6 +338,7 @@ def _syntactic_properties(
     project_implies: set[tuple[Predicate, Predicate, tuple[int, ...]]],
     arg_distinct: set[tuple[Predicate, int, int]],
     symmetric: set[Predicate],
+    syntax: _RuleSyntax | None = None,
 ) -> set[tuple[Predicate, int]]:
     """Add rule-shaped properties that Clingo proves in every stable model.
 
@@ -328,16 +346,11 @@ def _syntactic_properties(
     differs between models. Syntax alone misses other definers, so each
     suggestion is kept only when no stable model violates it.
     """
-    (
-        choice_functional,
-        choice_functional_set,
-        choice_keys,
-        choice_project_implies,
-        choice_cardinality,
-    ) = _choice_clause_properties(world.program)
-    rule_keys = keys | choice_keys
-    rule_functional = functional | choice_functional
-    rule_functional_set = functional_set | choice_functional_set
+    if syntax is None:
+        syntax = _rule_syntax(world.program)
+    rule_keys = keys | syntax.keys
+    rule_functional = functional | syntax.functional
+    rule_functional_set = functional_set | syntax.functional_set
     rule_arg_distinct = set(arg_distinct)
     rule_symmetric = set(symmetric)
     _collect_clause_defined_properties(
@@ -346,7 +359,7 @@ def _syntactic_properties(
         rule_functional_set,
         rule_arg_distinct,
         rule_symmetric,
-        world.program,
+        syntax,
     )
     violations: dict[str, list[Callable[[], None]]] = {}
 
@@ -369,7 +382,7 @@ def _syntactic_properties(
             _dependency_violation(predicate, sources, (target,)),
             lambda item=(predicate, sources, target): functional_set.add(item),
         )
-    for source, target, projection in sorted(choice_project_implies - project_implies):
+    for source, target, projection in sorted(syntax.project_implies - project_implies):
         candidate(
             _project_implies_violation(source, target, projection),
             lambda item=(source, target, projection): project_implies.add(item),
@@ -385,7 +398,7 @@ def _syntactic_properties(
             lambda item=predicate: symmetric.add(item),
         )
     cardinality_upper: set[tuple[Predicate, int]] = set()
-    for predicate, upper in sorted(choice_cardinality):
+    for predicate, upper in sorted(syntax.cardinality):
         candidate(
             _cardinality_violation(predicate, upper),
             lambda item=(predicate, upper): cardinality_upper.add(item),

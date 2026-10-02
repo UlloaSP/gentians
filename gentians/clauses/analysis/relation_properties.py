@@ -1,4 +1,5 @@
 from collections.abc import Iterator, Mapping
+from heapq import nlargest
 from itertools import combinations, permutations
 from math import prod
 
@@ -98,34 +99,20 @@ def _without_subsumed_functional_set(
     for predicate, input_arg, output_arg in functional:
         single_inputs.setdefault((predicate, output_arg), set()).add(input_arg)
 
-    composite_inputs: dict[tuple[Predicate, int], list[set[int]]] = {}
-    for predicate, input_args, output_arg in functional_set:
-        composite_inputs.setdefault((predicate, output_arg), []).append(set(input_args))
-
-    return {
-        (predicate, input_args, output_arg)
-        for predicate, input_args, output_arg in functional_set
-        if not _functional_set_is_subsumed(
-            predicate,
-            set(input_args),
-            output_arg,
-            single_inputs,
-            composite_inputs,
-        )
-    }
-
-
-def _functional_set_is_subsumed(
-    predicate: Predicate,
-    input_args: set[int],
-    output_arg: int,
-    single_inputs: dict[tuple[Predicate, int], set[int]],
-    composite_inputs: dict[tuple[Predicate, int], list[set[int]]],
-) -> bool:
-    key = (predicate, output_arg)
-    if input_args & single_inputs.get(key, set()):
-        return True
-    return any(other < input_args for other in composite_inputs.get(key, ()))
+    groups: dict[tuple[Predicate, int], dict[frozenset[int], list[tuple[Predicate, tuple[int, ...], int]]]] = {}
+    for item in functional_set:
+        predicate, inputs, output = item
+        groups.setdefault((predicate, output), {}).setdefault(frozenset(inputs), []).append(item)
+    result = set()
+    for key, determinants in groups.items():
+        minimal: list[frozenset[int]] = []
+        singles = single_inputs.get(key, set())
+        for inputs in sorted(determinants, key=len):
+            if inputs & singles or any(other < inputs for other in minimal):
+                continue
+            minimal.append(inputs)
+            result.update(determinants[inputs])
+    return result
 
 
 def _without_irreflexive_subsumed_arg_distinct(
@@ -164,24 +151,18 @@ def _key_sets_by_predicate(
     return result
 
 
-def _collect_disjoint_projections(
-    left: Predicate,
+def _disjoint_position_pairs(
     left_positions: tuple[frozenset[GroundTerm], ...],
-    right: Predicate,
     right_positions: tuple[frozenset[GroundTerm], ...],
-    disjoint_projection: set[tuple[Predicate, int, Predicate, int]],
-) -> None:
+) -> Iterator[tuple[int, int]]:
     if not left_positions or not right_positions or not all(left_positions) or not all(right_positions):
         return
-    for left_arg in range(left[1]):
-        left_values = left_positions[left_arg]
-        for right_arg in range(right[1]):
-            right_values = right_positions[right_arg]
+    if len(left_positions) == len(right_positions) == 1:
+        return
+    for left_arg, left_values in enumerate(left_positions):
+        for right_arg, right_values in enumerate(right_positions):
             if left_values.isdisjoint(right_values):
-                if left[1] == right[1] == 1:
-                    continue
-                disjoint_projection.add((left, left_arg, right, right_arg))
-                disjoint_projection.add((right, right_arg, left, left_arg))
+                yield left_arg, right_arg
 
 
 def _partition_properties(
@@ -199,7 +180,10 @@ def _partition_properties(
         if tuples:
             by_arity.setdefault(predicate[1], []).append(predicate)
     partitions: set[tuple[Predicate, ...]] = set()
+    counts = {predicate: len(tuples) for predicate, tuples in extensions.items()}
     for predicates in by_arity.values():
+        uniform_count = counts[predicates[0]]
+        uniform = all(counts[predicate] == uniform_count for predicate in predicates)
         following = {left: frozenset(
             right for right in predicates[index + 1:]
             if extensions[left].isdisjoint(extensions[right])
@@ -215,22 +199,23 @@ def _partition_properties(
                 if len(candidates) < remaining or any(other <= frozenset(group) for other in minimal):
                     continue
                 product_size = prod(map(len, domains))
-                # Domains only grow. Even the largest remaining disjoint
-                # relations cannot complete a product larger than their tuples.
-                capacity = count + sum(sorted((len(extensions[predicate]) for predicate in candidates), reverse=True)[:remaining])
-                if product_size > min(capacity, MAX_PRODUCT_SIZE):
-                    continue
                 if not remaining:
-                    if product_size == count:
+                    if product_size == count and product_size <= MAX_PRODUCT_SIZE:
                         partitions.add(group)
                         minimal.append(frozenset(group))
+                    continue
+                # Domains only grow. Even the largest remaining disjoint
+                # relations cannot complete a product larger than their tuples.
+                capacity = count + (remaining * uniform_count if uniform else
+                    sum(nlargest(remaining, (counts[predicate] for predicate in candidates))))
+                if product_size > min(capacity, MAX_PRODUCT_SIZE):
                     continue
                 for index in reversed(range(len(candidates) - remaining + 1)):
                     member = candidates[index]
                     pending.append((
                         (*group, member),
                         tuple(candidate for candidate in candidates[index + 1:] if candidate in following[member]),
-                        count + len(extensions[member]),
+                        count + counts[member],
                         tuple(left | right for left, right in zip(domains, positions[member], strict=True)),
                     ))
     return partitions
@@ -259,16 +244,26 @@ def _domain_covers(
     positions_by_predicate: Mapping[Predicate, tuple[frozenset[GroundTerm], ...]],
 ) -> Iterator[tuple[DomainKey, int, Predicate, int]]:
     """Arguments whose values all lie inside one position of a domain."""
-    arguments = {
-        (predicate, index): values
+    if not domains:
+        return
+    arguments = tuple(
+        (predicate, index, values)
         for predicate, positions in positions_by_predicate.items()
         for index, values in enumerate(positions)
-    }
+    )
+    columns: dict[frozenset[GroundTerm], list[int]] = {}
+    for index, (_predicate, _argument, values) in enumerate(arguments):
+        columns.setdefault(values, []).append(index)
+    matches: dict[frozenset[GroundTerm], tuple[tuple[Predicate, int], ...]] = {}
     for key, positions in domains.items():
         for position, domain in enumerate(positions):
-            for (predicate, index), values in arguments.items():
-                if values <= domain:
-                    yield key, position, predicate, index
+            compatible = matches.get(domain)
+            if compatible is None:
+                included = sorted(index for column, indexes in columns.items() if column <= domain for index in indexes)
+                compatible = tuple((arguments[index][0], arguments[index][1]) for index in included)
+                matches[domain] = compatible
+            for predicate, index in compatible:
+                yield key, position, predicate, index
 
 
 def _collect_tuple_mutex(
@@ -303,31 +298,37 @@ def _collect_projection_implications(
     project_implies: set[tuple[Predicate, Predicate, tuple[int, ...]]],
     positions: Mapping[Predicate, tuple[frozenset[GroundTerm], ...]],
 ) -> None:
-    by_arity: dict[int, list[tuple[Predicate, frozenset[GroundTuple]]]] = {}
+    target_groups: dict[int, dict[frozenset[GroundTuple], list[Predicate]]] = {}
     for target, tuples in targets.items():
         if tuples:
-            by_arity.setdefault(target[1], []).append((target, tuples))
+            target_groups.setdefault(target[1], {}).setdefault(tuples, []).append(target)
+    by_arity = {arity: tuple(groups.items()) for arity, groups in target_groups.items()}
+    source_groups: dict[tuple[int, frozenset[GroundTuple]], list[Predicate]] = {}
     for source, tuples in sources.items():
-        source_positions = positions[source]
+        source_groups.setdefault((source[1], tuples), []).append(source)
+    for (source_arity, tuples), source_predicates in source_groups.items():
+        source_positions = positions[source_predicates[0]]
         for arity, candidates in by_arity.items():
-            if source[1] <= arity:
+            if source_arity <= arity:
                 continue
             # Retain tuple inclusion as the proof. Position domains only rule
             # out impossible mappings before their Cartesian/permutation work.
             alternatives = tuple(tuple(frozenset(
                     index for index, values in enumerate(source_positions) if values <= domain
-                ) for domain in positions[target]) for target, _tuples in candidates)
+                ) for domain in positions[aliases[0]]) for _tuples, aliases in candidates)
             for projection, matches in _projection_matches(alternatives, arity):
                 if len(matches) == 1:
-                    target, target_tuples = candidates[matches[0]]
+                    target_tuples, target_predicates = candidates[matches[0]]
                     if all(tuple(values[arg] for arg in projection) in target_tuples for values in tuples):
-                        project_implies.add((source, target, projection))
+                        project_implies.update((source, target, projection)
+                                              for source in source_predicates for target in target_predicates)
                     continue
                 projected = {tuple(values[arg] for arg in projection) for values in tuples}
                 for index in matches:
-                    target, target_tuples = candidates[index]
+                    target_tuples, target_predicates = candidates[index]
                     if projected <= target_tuples:
-                        project_implies.add((source, target, projection))
+                        project_implies.update((source, target, projection)
+                                              for source in source_predicates for target in target_predicates)
 
 
 def _projection_matches(

@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from clingo import ast
 
@@ -16,6 +16,7 @@ class HeadAggregateElement:
     terms: tuple[ast.AST, ...]
     conclusion: AtomLiteral | BooleanLiteral | ComparisonLiteral
     conditions: tuple[AtomLiteral | BooleanLiteral | ComparisonLiteral, ...]
+    arguments: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if any(
@@ -25,18 +26,15 @@ class HeadAggregateElement:
             for binding in mode_terms.bindings(term)
         ):
             raise ValueError("aggregate head conditions cannot produce outputs")
+        object.__setattr__(self, "arguments", (
+            *self.terms,
+            *self.conclusion.arguments,
+            *(term for condition in self.conditions for term in condition.arguments),
+        ))
 
     @property
     def kind(self) -> str:
         return "head_aggregate"
-
-    @property
-    def arguments(self) -> tuple[ast.AST, ...]:
-        return (
-            *self.terms,
-            *self.conclusion.arguments,
-            *(term for condition in self.conditions for term in condition.arguments),
-        )
 
     @property
     def dependencies(self) -> frozenset[Predicate]:

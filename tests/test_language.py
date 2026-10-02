@@ -660,7 +660,7 @@ def test_directive_errors_report_the_original_statement_line_once(declaration):
 
 def test_unchanged_comparison_modes_do_not_rebuild_their_declaration(monkeypatch):
     declaration = mode_parsers._get_body_mode_declaration("#modeb(1,var(numeric,input)<2).")
-    monkeypatch.setattr(mode_parsers, "_get_mode_declarations", lambda *args: (declaration,))
+    monkeypatch.setattr(mode_parsers, "_get_mode_declarations", lambda *args, **kwargs: (declaration,))
     assert mode_parsers._get_body_mode_declaration("#modeb(1,var(numeric,input)<2).") is declaration
 
 
@@ -1278,8 +1278,8 @@ def test_comparison_safety_cache_retains_false_results_and_distinct_recalls(monk
     original = mode_parsers._comparison_outputs_are_safe
     results = []
 
-    def record(literal):
-        result = original(literal)
+    def record(literal, definitions=()):
+        result = original(literal, definitions)
         results.append(result)
         return result
 
@@ -1299,9 +1299,9 @@ def test_comparison_safety_cache_keeps_labels_and_operators_distinct(monkeypatch
     original = mode_parsers._comparison_outputs_are_safe
     calls = []
 
-    def record(literal):
+    def record(literal, definitions=()):
         calls.append(literal)
-        return original(literal)
+        return original(literal, definitions)
 
     monkeypatch.setattr(mode_parsers, "_comparison_outputs_are_safe", record)
     task = parse_text(

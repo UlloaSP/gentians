@@ -1,11 +1,14 @@
-from dataclasses import dataclass, replace
-from collections.abc import Iterator
+from dataclasses import dataclass, field, replace
+from collections.abc import Iterable, Iterator
 from typing import TypeAlias
 
+import clingo
 from clingo import ast
 
 from .. import terms as mode_terms
+from ..asp import AspProgram, add_program
 from ..ast_nodes import LOCATION, binding_terms, consume_all, literal
+from ..grammar import SourceError
 from .atom_literal import AtomLiteral
 from .boolean_literal import BooleanLiteral
 from .comparison_literal import ComparisonLiteral
@@ -30,16 +33,48 @@ def _integer_bound(term: ast.AST) -> int | None:
         return None
 
 
+def _integer_bounds(terms: Iterable[ast.AST], definitions: AspProgram) -> Iterator[int]:
+    for term in terms:
+        value = _integer_bound(term)
+        if value is not None:
+            yield value
+            continue
+        if mode_terms.bindings(term):
+            continue
+        # One live variant and control: no Cartesian pool in Python or Clingo.
+        # Clingo evaluates arithmetic and resolves #const; Python does neither.
+        control = clingo.Control(logger=lambda _code, _message: None)
+        fact = ast.Rule(LOCATION, literal(ast.SymbolicAtom(
+            ast.Function(LOCATION, "__gentians_bound", [term], False),
+        )), [])
+        add_program(control, (*definitions, fact))
+        control.ground([("base", [])])
+        for atom in control.symbolic_atoms.by_signature("__gentians_bound", 1):
+            value = atom.symbol.arguments[0]
+            if value.type == clingo.SymbolType.Number:
+                yield value.number
+
+
 @dataclass(frozen=True, slots=True)
 class HeadTemplate:
     # Clingo owns the form, guards and aggregate function. Element syntax is
     # filled at instantiation; each learning element keeps its own conditions.
     form: ast.AST
     elements: tuple[HeadElement, ...]
+    arguments: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
+    guard_terms: tuple[ast.AST, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         kind = self.kind
-        guard_terms = self.guard_terms
+        guard_terms = tuple(
+            guard.term for guard in (self.form.left_guard, self.form.right_guard)
+            if guard is not None and (kind == "aggregate" or _integer_bound(guard.term) is None)
+        ) if kind in {"choice", "aggregate"} else ()
+        object.__setattr__(self, "guard_terms", guard_terms)
+        object.__setattr__(self, "arguments", (
+            *(term for element in self.elements for term in element.arguments),
+            *guard_terms,
+        ))
         if kind == "normal" and len(self.elements) != 1:
             raise ValueError("normal head modes require exactly one literal")
         if kind == "disjunction" and not self.elements:
@@ -80,7 +115,24 @@ class HeadTemplate:
             ):
                 lower, upper = _integer_bound(left.term), _integer_bound(right.term)
                 if lower is not None and upper is not None and lower > upper:
-                    raise ValueError("head lower bound cannot exceed upper bound")
+                    raise SourceError.at_node(left.term, "head lower bound cannot exceed upper bound")
+
+    def validate_constants(self, constants: dict[str, tuple[ast.AST, ...]], definitions: AspProgram = ()) -> None:
+        if self.kind != "choice":
+            return
+        left, right = self.form.left_guard, self.form.right_guard
+        if left is None or right is None or left.comparison != right.comparison or left.comparison != ast.ComparisonOperator.LessEqual:
+            return
+        def values(term: ast.AST) -> Iterator[int]:
+            try:
+                yield from _integer_bounds(mode_terms.concretizations(term, constants), definitions)
+            except RuntimeError as error:
+                raise SourceError.at_node(term, f"invalid head bound: {error}") from None
+
+        lower = max(values(left.term), default=None)
+        upper = min(values(right.term), default=None)
+        if lower is not None and upper is not None and lower > upper:
+            raise SourceError.at_node(left.term, "head lower bound cannot exceed upper bound")
 
     @classmethod
     def normal(
@@ -101,25 +153,6 @@ class HeadTemplate:
             case ast.ASTType.HeadAggregate:
                 return "aggregate"
         raise ValueError(f"unsupported Clingo head form: {self.form.ast_type}")
-
-    @property
-    def guard_terms(self) -> tuple[ast.AST, ...]:
-        kind = self.kind
-        if kind not in {"choice", "aggregate"}:
-            return ()
-        return tuple(
-            guard.term
-            for guard in (self.form.left_guard, self.form.right_guard)
-            if guard is not None
-            and (kind == "aggregate" or _integer_bound(guard.term) is None)
-        )
-
-    @property
-    def arguments(self) -> tuple[ast.AST, ...]:
-        return (
-            *(term for element in self.elements for term in element.arguments),
-            *self.guard_terms,
-        )
 
     @property
     def conclusions(
@@ -150,6 +183,7 @@ class HeadTemplate:
     def concretizations(
         self, constants: dict[str, tuple[ast.AST, ...]]
     ) -> Iterator["HeadTemplate"]:
+        self.validate_constants(constants)
         if not any(mode_terms.constant_types(term) for term in self.arguments):
             yield self
             return

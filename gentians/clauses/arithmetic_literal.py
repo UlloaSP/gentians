@@ -15,6 +15,8 @@ class ArithmeticLiteral:
     implicit_additive_family_member: bool = field(
         default=False, repr=False
     )
+    # A derived non-None result always includes the output coefficient.
+    _coefficients: tuple[int, ...] | None = field(default=(), init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if mode_terms.kind(self.expression) != "arithmetic" or len(self.arguments) != 3:
@@ -44,10 +46,12 @@ class ArithmeticLiteral:
 
     @property
     def coefficients(self) -> tuple[int, ...] | None:
-        coefficients = _linear_coefficients(self.expression, 1)
-        if coefficients is None:
-            return None
-        return (*coefficients, -1)
+        cached = self._coefficients
+        if cached == ():
+            coefficients = _linear_coefficients(self.expression, 1)
+            cached = None if coefficients is None else (*coefficients, -1)
+            object.__setattr__(self, "_coefficients", cached)
+        return cached
 
     @property
     def linear(self) -> bool:

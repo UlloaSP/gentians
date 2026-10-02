@@ -1,9 +1,6 @@
 from collections.abc import Set
 from heapq import heapify, heappop, heappush
 
-from clingo import ast
-
-from ...language import terms as mode_terms
 from ..arithmetic_literal import ArithmeticLiteral
 from ...language.ir.comparison_literal import ComparisonLiteral
 from ..clause_mode import ClauseMode
@@ -23,7 +20,7 @@ def _arithmetic_relation(
     mode = modes[literal.mode_id]
     if isinstance(mode.literal, ComparisonLiteral):
         if not mode.literal.simple or mode.literal.arithmetic:
-            return _term_comparison(literal, mode.literal)
+            return _term_comparison(literal, mode)
         return ComparisonConstraint(
             literal.variables[0], literal.variables[1], mode.literal.operators[0]
         )
@@ -47,37 +44,37 @@ def _arithmetic_relation(
 
 
 def _term_comparison(
-    literal: ReifiedLiteral, comparison: ComparisonLiteral
+    literal: ReifiedLiteral, mode: ClauseMode
 ) -> TermComparisonConstraint:
+    if not isinstance(mode.literal, ComparisonLiteral):
+        raise ValueError("comparison mode has no comparison template")
     variables = iter(literal.variables)
-
-    def instantiate(term: ast.AST) -> ArithmeticExpression:
+    terms: list[ArithmeticExpression] = []
+    for steps in mode.comparison_steps:
         results: list[ArithmeticExpression] = []
-        for node, count in mode_terms._postorder(term):
+        for kind, value, count in steps:
             children = tuple(results[-count:]) if count else ()
             if count:
                 del results[-count:]
-            kind = mode_terms.kind(node)
             if kind == "variable":
                 result = ArithmeticExpression.var(next(variables))
+            elif kind == "number":
+                assert isinstance(value, int)
+                result = ArithmeticExpression.const(value)
             elif kind == "fixed":
-                try:
-                    result = ArithmeticExpression.const(int(mode_terms.value(node)))
-                except ValueError:
-                    result = ArithmeticExpression.fixed(mode_terms.value(node))
+                assert isinstance(value, str)
+                result = ArithmeticExpression.fixed(value)
             elif kind == "constant":
                 raise ValueError("constant placeholder was not concretized")
             else:
-                operator = {"function": f"function:{mode_terms.value(node)}", "tuple": "tuple", "interval": "interval"}.get(kind, mode_terms.value(node))
-                result = ArithmeticExpression(operator, children)
+                assert isinstance(value, str)
+                result = ArithmeticExpression(value, children)
             results.append(result)
-        return results[0]
-
-    terms = tuple(instantiate(term) for term in comparison.terms)
+        terms.append(results[0])
     try:
         next(variables)
     except StopIteration:
-        return TermComparisonConstraint(terms, comparison.operators)
+        return TermComparisonConstraint(tuple(terms), mode.literal.operators)
     raise ValueError("comparison has more assigned variables than bindings")
 
 
@@ -168,16 +165,17 @@ def _expression_system(
         return None
 
     for literal in comparisons:
-        comparison = modes[literal.mode_id].literal
+        mode = modes[literal.mode_id]
+        comparison = mode.literal
         if not isinstance(comparison, ComparisonLiteral):
             return None
         if not comparison.simple or comparison.arithmetic:
-            constraints.append(_term_comparison(literal, comparison))
+            constraints.append(_term_comparison(literal, mode))
             continue
         left, right = literal.variables
         operator = comparison.operators[0]
         if operator == "=":
-            constraints.append(_term_comparison(literal, comparison))
+            constraints.append(_term_comparison(literal, mode))
             continue
         if operator == "!=" and not set(literal.variables) <= numeric_variables:
             constraints.append(_arithmetic_relation(literal, modes, safe))

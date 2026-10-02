@@ -33,6 +33,14 @@ pico por separado, fuera de las muestras de tiempo. Los resultados son locales,
 no un payload del dashboard. Protocolo y límites del experimento:
 [optimización del Python de cláusulas](clause-python-optimizations.md).
 
+`benchmarks/profile_clauses.py --cprofile` añade una segunda pasada independiente
+con cProfile y un desglose por tiempos propios de funciones. Comprueba que el
+`ClauseSpace` coincide y que todos los callbacks aparecen en el perfil. Guarda
+`.prof` y un JSON local con funciones, buckets y entorno; los tiempos detallados
+incluyen el efecto del profiler y no se escalan al total Python de la primera
+pasada. Sus buckets no añaden fases a `timing.py` ni campos al productor,
+schema o preview del dashboard. Límites y uso: [benchmarks.md](benchmarks.md).
+
 El resultado canónico de tiempo es `total_execution`, cerrado antes de imprimir
 el programa. Wall-clock sirve para timeouts y operación del runner, nunca como
 sustituto de esa métrica.
@@ -41,7 +49,7 @@ sustituto de esa métrica.
 
 - Los task files viven en `benchmarks/gentians/`. Cambiarlos modifica el problema, no solo un fixture.
 - `benchmarks/catalog.py` asigna nombres de dataset a `Arguments`.
-- `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada.
+- `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada. Su informe de terminal distingue tiempos, throughput final, modelos posteriores al pruning ASP, retención posterior a la enumeración y pico RSS del proceso; [benchmarks.md](benchmarks.md) define los denominadores y límites. Reutiliza métricas existentes sin cambiar `timing.py`, payload del dashboard, schema ni preview.
 - `benchmarks/profile_baseline.py` ejecuta runs y guarda una sola copia cruda por run en `runs/`: log, recursos, timings, progreso y métricas por evento, todos comprimidos con gzip al terminar el run; solo un `.prof` de cProfile queda sin comprimir. Escribe `runs.csv` como índice y construye `dashboard_data.json` leyendo `runs/` dataset a dataset. No escribe copias concatenadas. Los lectores aceptan cada artefacto sin comprimir o como `.gz`.
 - `benchmarks/run_experiments.py` carga TOML, aplica overrides, fingerprinta configuración y marca resultados stale cuando deja de coincidir.
 - `benchmarks/experiments.toml` reúne todas las matrices. Añade experimentos de investigación con IDs prefijados, como `pool-policy/control`, y una diferencia interpretable frente a su control. Conserva sus parámetros en el mismo archivo; no crees TOML separados.

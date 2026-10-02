@@ -50,6 +50,11 @@ directions, or example contexts remain distinct. Constant values likewise keep
 their first appearance within each type. Identical successful mode, example and
 constant statements skip repeated payload parsing; other equal values are still
 deduplicated after decoding. Limits and inventions retain duplicate errors.
+Within each body, condition or combinable-head category, an identical literal
+payload is parsed and validated once per task even when its recalls differ.
+Changing recall reuses the validated immutable literal; each recall still owns
+its independent declaration and capacity. Category-specific checks run before
+the payload enters the cache.
 Example inclusion and exclusion fields are sets for deduplication: atom order
 and repeated occurrences do not create another example. The first example keeps
 its original atom order, repetitions and native locations. Inclusion and
@@ -74,6 +79,7 @@ conflict. Quoted payloads remain intact. Syntax errors retain Clingo's
 explanation and unexpected token.
 The complete background is parsed in one Clingo call while preserving original
 task line and column locations; comment AST nodes are omitted from the IR.
+The native parse callback discards comments immediately.
 Background and every
 example's included atoms, excluded atoms, and context remain as
 `clingo.ast.AST` nodes inside `InductiveTask`. Each distinct non-empty example
@@ -118,7 +124,11 @@ retaining their subtree Cartesian products. Fixed subtrees are single recipe
 nodes, and the ordered product advances its rightmost domain first. Each step
 visits only changed choices and their ancestor paths. The compiled modes and final clause
 space still retain the entries they need.
+Recipe preparation records subtree summaries bottom-up; exceeding the metadata
+cache capacity does not cause repeated walks of those subtrees.
 Atom, comparison, conditional, aggregate and head templates are immutable values.
+Their flattened argument tuples are derived once when the value is constructed;
+changed variants derive their own tuples.
 When a template has no constant placeholders, expansion returns it directly.
 When constant expansion leaves it unchanged, it reuses the existing template
 and guards instead of constructing and validating a duplicate. Changed variants remain independent, and instantiation
@@ -127,6 +137,8 @@ Instantiation also retains fixed guards and shares native binding nodes within
 one instantiation. That sharing adds no equality between distinct ASP scopes
 and no cache across instantiations. Compiled modes derive their stable argument,
 binding-position and dependency metadata once.
+Instantiation skips branches known to contain neither learning variables nor
+constant placeholders, without consuming a binding for them.
 Head templates keep their Clingo form (including guards and aggregate function)
 and complete learning elements; signs and exact conditions belong to their
 literal rather than parallel lists. Label validation is shared by head and body
@@ -148,6 +160,9 @@ assembled as `ast.Rule` without a text-to-AST round trip. Retained programs ente
 controls through `ProgramBuilder`. Clingo's `str(AST)` owns output formatting,
 including explicit guards, parentheses, and `#false` constraint heads.
 Static analysis traverses retained nodes directly.
+Predicate inspection skips comparison and term subtrees, which cannot contain
+predicate occurrences. Signed symbolic atoms and conditional and aggregate
+containers retain their separate definition and dependency roles.
 Term kind, arguments, bindings and constant-type summaries share an identity
 cache, so hits do not hash complete subtrees. Parsing uses a temporary cache of
 at most 8192 entries, released on success or error. Expansion preparation uses
@@ -156,6 +171,9 @@ these operations use one bounded cache of at most 1024 entries. Entries retain
 their native node to prevent reuse of its identity; these are entry limits,
 not byte limits. Binding paths are cached relative to the term and prefixed
 when requested. Constant-type summaries are computed bottom-up.
+Those summaries also record placeholder presence. Fixed shape branches retain
+their native nodes until their final shape needs Clingo's text formatting,
+instead of formatting every fixed descendant.
 Predicate and numeric-value inspection use explicit stacks too, including
 deep comparison terms in background rules and example contexts.
 Canonical expression inspection, hashing, equality, substitutions and native
@@ -305,6 +323,12 @@ Choice bounds and set aggregate guards retain all six Clingo comparison
 operators. A conditional or pooled element can ground into more elements than
 appear in the declaration, so fixed bounds are not compared with source element
 count.
+For the usual `lower { ... } upper` choice form, incompatible integer bounds
+are rejected while parsing the task, before clause enumeration. This includes
+every declared constant alternative, ground arithmetic and the background's
+native `#const` definitions. The diagnostic points to the lower guard.
+Bounds are checked independently, without materializing whole head variants;
+variable-dependent bounds remain subject to Clingo grounding.
 Choice bounds and function aggregate guards may contain typed variables, provided
 an ordinary positive body literal makes them safe. Local element variables must
 be bound within their own scope by a positive atom or by a comparison that
@@ -758,6 +782,11 @@ results. The key retains operators, terms, nominal types, labels, directions and
 negation; declarations with different recalls remain distinct. This cache does
 not survive the task parse and retains no Clingo control. Direction inference
 builds the input fallback only when the preceding output candidates fail.
+Constant placeholders use their actual declared values in these probes, together
+with the background's `#const` definitions. Explicit or inferred output
+directions must be safe for every concrete constant variant; constant declarations
+may appear after the mode. Inferred leaves keep their original native locations,
+type and label nodes.
 
 After enumeration, every non-negated numeric relation is owned by its connected
 `ArithmeticSystem`. Linear equalities and inequalities whose constant terms

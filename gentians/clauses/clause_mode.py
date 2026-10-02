@@ -51,6 +51,7 @@ class ClauseMode:
     head_dependencies: frozenset[Predicate] = field(init=False, repr=False, compare=False)
     condition_count: int = field(init=False, repr=False, compare=False)
     arithmetic_steps: tuple[tuple[str, int], ...] = field(init=False, repr=False, compare=False)
+    comparison_steps: tuple[tuple[tuple[str, str | int, int], ...], ...] = field(init=False, repr=False, compare=False)
     _hash: int | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -115,6 +116,9 @@ class ClauseMode:
             if absolute:
                 steps.append(("abs", len(roots)))
         object.__setattr__(self, "arithmetic_steps", tuple(steps))
+        object.__setattr__(self, "comparison_steps", tuple(
+            _comparison_steps(term) for term in self.literal.terms
+        ) if isinstance(self.literal, ComparisonLiteral) else ())
         comparison = isinstance(self.literal, ComparisonLiteral)
         arithmetic = isinstance(self.literal, ArithmeticLiteral)
         numeric = all(binding.type == "numeric" for binding in self.bindings)
@@ -156,3 +160,23 @@ class ClauseMode:
     @property
     def literal_binding_count(self) -> int:
         return self.argument_offsets[len(self.arguments) - len(self.guard_terms)]
+
+
+def _comparison_steps(term: ast.AST) -> tuple[tuple[str, str | int, int], ...]:
+    steps: list[tuple[str, str | int, int]] = []
+    for node, count in mode_terms._postorder(term):
+        kind = mode_terms.kind(node)
+        value: str | int = ""
+        if kind == "fixed":
+            value = mode_terms.value(node)
+            try:
+                value = int(value)
+                kind = "number"
+            except ValueError:
+                pass
+        elif kind not in {"variable", "constant"}:
+            value = mode_terms.value(node)
+            value = {"function": f"function:{value}", "tuple": "tuple", "interval": "interval"}.get(kind, value)
+            kind = "expression"
+        steps.append((kind, value, count))
+    return tuple(steps)

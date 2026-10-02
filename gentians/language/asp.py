@@ -10,6 +10,12 @@ from .lexer import has_task_extensions
 
 Predicate = tuple[str, int]
 AspProgram = tuple[ast.AST, ...]
+_PREDICATE_FREE_NODES = frozenset({
+    ast.ASTType.Comparison, ast.ASTType.BooleanConstant,
+    ast.ASTType.Function, ast.ASTType.SymbolicTerm, ast.ASTType.Variable,
+    ast.ASTType.BinaryOperation, ast.ASTType.UnaryOperation,
+    ast.ASTType.Interval, ast.ASTType.Pool, ast.ASTType.Guard,
+})
 
 
 def _diagnostic_detail(message: str) -> str:
@@ -20,10 +26,14 @@ def parse_program(source: str, line: int = 1, column: int = 1) -> AspProgram:
     """Parse ASP with Clingo and discard its implicit ``#program base`` node."""
     statements: list[ast.AST] = []
     diagnostics: list[str] = []
+
+    def retain(statement: ast.AST) -> None:
+        if statement.ast_type != ast.ASTType.Comment:
+            statements.append(statement)
     try:
         ast.parse_string(
             source,
-            statements.append,
+            retain,
             logger=lambda _code, message: diagnostics.append(message),
         )
     except RuntimeError:
@@ -35,7 +45,7 @@ def parse_program(source: str, line: int = 1, column: int = 1) -> AspProgram:
         raise SourceError(error_line, f"invalid ASP program: {detail or source.strip()}", column=error_column) from None
     if statements and _is_implicit_base(statements[0]):
         statements.pop(0)
-    return tuple(statement for statement in statements if statement.ast_type != ast.ASTType.Comment)
+    return tuple(statements)
 
 
 def validate_task_program(source: str, program: Iterable[ast.AST], line: int = 1, column: int = 1) -> None:
@@ -268,6 +278,8 @@ def _collect_head_predicates(
                 _collect_predicates(condition, deps)
         elif node.ast_type == ast.ASTType.TheoryAtom:
             raise ValueError("theory atoms are unsupported")
+        elif node.ast_type in _PREDICATE_FREE_NODES:
+            continue
         else:
             pending.extend(_ast_children(node))
 
@@ -287,6 +299,8 @@ def _collect_predicates(node: ast.AST, result: set[Predicate]) -> None:
         node = pending.pop()
         if node.ast_type == ast.ASTType.TheoryAtom:
             raise ValueError("theory atoms are unsupported")
+        if node.ast_type in _PREDICATE_FREE_NODES:
+            continue
         if node.ast_type == ast.ASTType.SymbolicAtom:
             for name, arguments in symbolic_functions(node.symbol):
                 result.add((name, len(arguments)))

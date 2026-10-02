@@ -27,6 +27,7 @@ class _Metadata:
     binding: TermBinding | None = None
     bindings: tuple[TermBinding, ...] | None = None
     constant_types: frozenset[str] | None = None
+    has_placeholders: bool | None = None
 
 
 # Native nodes cannot be weakly referenced. One bounded identity cache owns all
@@ -91,6 +92,10 @@ def kind(term: ast.AST) -> str:
         case _:
             raise ValueError(f"unsupported mode term: {term}")
     cached.kind = result
+    if result in {"variable", "constant"}:
+        cached.has_placeholders = True
+    elif result in {"fixed", "anonymous"}:
+        cached.has_placeholders = False
     return result
 
 
@@ -215,20 +220,20 @@ def _walk(term: ast.AST) -> Iterator[ast.AST]:
 
 
 def _postorder(term: ast.AST, *, prune_fixed: bool = False) -> Iterator[tuple[ast.AST, int]]:
-    if prune_fixed and not constant_types(term):
+    if prune_fixed and _metadata(term).constant_types == _NO_CONSTANTS:
         yield term, 0
         return
-    pending = [(term, iter(arguments(term)))]
+    children = arguments(term)
+    pending = [(term, iter(children), len(children))]
     while pending:
         child = next(pending[-1][1], None)
         if child is None:
-            node, _children = pending.pop()
-            children = arguments(node)
-            yield node, len(children)
+            node, _children, count = pending.pop()
+            yield node, count
         else:
-            children = () if prune_fixed and not constant_types(child) else arguments(child)
+            children = () if prune_fixed and _metadata(child).constant_types == _NO_CONSTANTS else arguments(child)
             if children:
-                pending.append((child, iter(children)))
+                pending.append((child, iter(children), len(children)))
             else:
                 yield child, 0
 
@@ -238,18 +243,26 @@ def constant_types(term: ast.AST) -> frozenset[str]:
     if cached.constant_types is not None:
         return cached.constant_types
     result: list[frozenset[str]] = []
+    placeholders: list[bool] = []
     for node, count in _postorder(term):
         children = result[-count:] if count else []
         if count:
             del result[-count:]
+        has_placeholders = any(placeholders[-count:]) if count else False
+        if count:
+            del placeholders[-count:]
+        node_kind = kind(node)
         types = (
-            frozenset((str(node.arguments[0]),)) if kind(node) == "constant"
+            frozenset((str(node.arguments[0]),)) if node_kind == "constant"
             else children[0] if count == 1
             else _NO_CONSTANTS.union(*children) if any(children)
             else _NO_CONSTANTS
         )
-        _metadata(node).constant_types = types
+        metadata = _metadata(node)
+        metadata.constant_types = types
+        metadata.has_placeholders = has_placeholders or node_kind in {"variable", "constant"}
         result.append(types)
+        placeholders.append(metadata.has_placeholders)
     cached.constant_types = result[0]
     return result[0]
 
@@ -282,10 +295,14 @@ def shape(term: ast.AST) -> tuple[object, ...]:
             and node.operator_type == ast.UnaryOperator.Minus
         ) and all(child[0] == "fixed" for child in children):
             # Direct syntax and #constant values keep the same ground shape.
-            result.append(("fixed", str(node)))
+            result.append(("fixed", node))
         else:
-            result.append((node_kind, value(node), children))
-    return result[0]
+            result.append((node_kind, value(node), tuple(_format_fixed_shape(child) for child in children)))
+    return _format_fixed_shape(result[0])
+
+
+def _format_fixed_shape(shape: tuple[object, ...]) -> tuple[object, ...]:
+    return ("fixed", str(shape[1])) if shape[0] == "fixed" else shape
 
 
 def transform(term: ast.AST, replace: Callable[[ast.AST], ast.AST | None]) -> ast.AST:
@@ -339,6 +356,7 @@ def concretize_terms(
     result: list[int] = []
     leaves: list[int] = []
     choices: list[tuple[ast.AST, ...]] = []
+    contains_constants: list[bool] = []
     updates: dict[int, tuple[ast.AST, tuple[int, ...]]] = {}
     with metadata_scope():
         for term in terms:
@@ -346,13 +364,22 @@ def concretize_terms(
                 indices = tuple(result[-count:]) if count else ()
                 if count:
                     del result[-count:]
+                node_kind = kind(node)
+                has_constants = node_kind == "constant" or any(contains_constants[child] for child in indices)
+                if count and not has_constants:
+                    # Fixed children have already collapsed to one node each.
+                    del values[-count:]
+                    del parents[-count:]
+                    del contains_constants[-count:]
+                    indices = ()
                 index = len(values)
                 values.append(node)
                 parents.append(None)
-                if kind(node) == "constant":
+                contains_constants.append(has_constants)
+                if node_kind == "constant":
                     leaves.append(index)
                     choices.append(constants[str(node.arguments[0])])
-                elif count:
+                elif indices:
                     updates[index] = node, indices
                     for child in indices:
                         parents[child] = index
@@ -405,6 +432,12 @@ def instantiate(term: ast.AST, variables: Iterator[ast.AST]) -> ast.AST:
         return next(variables)
     if term_kind == "constant":
         raise ValueError("constant placeholder must be concretized before instantiation")
+    metadata = _metadata(term)
+    if metadata.has_placeholders is None:
+        constant_types(term)
+        metadata = _metadata(term)
+    if metadata.has_placeholders is False:
+        return term
     children = arguments(term)
     if not children:
         return term
@@ -412,7 +445,9 @@ def instantiate(term: ast.AST, variables: Iterator[ast.AST]) -> ast.AST:
     node = children[0]
     while True:
         node_kind = kind(node)
-        if node_kind == "variable":
+        if _metadata(node).has_placeholders is False:
+            concrete = node
+        elif node_kind == "variable":
             concrete = next(variables)
         elif node_kind == "constant":
             raise ValueError(

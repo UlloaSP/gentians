@@ -45,8 +45,12 @@ It also prepares head predicates, head dependencies and condition counts once;
 decoded clauses reuse these immutable values. Positive and strongly negated
 predicates retain their distinct signatures, and default-negated heads remain
 dependencies.
-Arithmetic modes retain a postorder instruction tuple, so expression
-normalization substitutes bindings without walking the native template again.
+Arithmetic and comparison modes retain postorder instruction tuples, so
+normalization substitutes bindings without walking the native templates again.
+`ArithmeticLiteral` derives its linear coefficients on first use and retains
+them, including a non-linear result. Derived metadata does not affect identity. Arithmetic
+clause normalization collects external, safe and numeric variables in the same
+body traversal that separates builtins from ordinary literals.
 Each mode lazily caches a hash of its complete identity; modes from different
 tasks with the same local id need not collide in bounded normalization caches.
 Mode-fact compilation memoizes native term shapes for that call, including
@@ -119,6 +123,10 @@ includes the closed statements and lower-bound rules. It retains no Clingo
 controls or worlds; open-predicate classification and property proofs still run
 per context. Consequence extraction uses Clingo's native atom-symbol collection,
 independently of `#show` declarations.
+Another local cache, also limited to eight exact programs, shares syntactic
+inspection of choice bounds, normal-rule definitions and key propagation
+templates. Key propagation uses each context's own proven keys, and Clingo
+checks the suggested properties separately in every context.
 Each context shares positional value sets between product checks, projection
 filtering, domain coverage and numeric signs. Complement and partition domains
 are unions of those positions. Empty relations retain their vacuous sign and
@@ -129,10 +137,15 @@ Uniform compatible domains use `itertools.permutations` directly because they
 cannot reject any prefix.
 When a mapping has just one compatible target, inclusion streams the source
 rows and stops at the first missing tuple. Multiple targets still share one
-materialized projection.
+materialized projection. Source and target predicates with identical extensions
+and arity share that inclusion proof, then receive their individual facts.
+Domain coverage likewise shares subset checks for identical argument-value
+sets and domain positions while preserving original predicate and argument order.
 Partition enumeration keeps the existing sizes three through six and minimality
 rule; it abandons non-disjoint prefixes and prefixes whose growing domain
-product cannot be completed by the remaining tuple capacity.
+product cannot be completed by the remaining tuple capacity. This bound uses
+only the largest remaining counts instead of sorting every candidate count.
+Equal-sized relations use the remaining count directly.
 Dependency checks group tuples once per determinant and share that scan across
 output positions and key detection. A determinant containing a proven key needs
 no further tuple scan, but still emits its dependent-position facts before
@@ -140,12 +153,17 @@ context intersection. Tuple-mutex checks share projections between predicates
 with identical extensions and arity, then emit facts for every original signed
 predicate pair. Intrinsic argument, dependency, product and binary-relation
 properties also run once per identical extension and arity inside each context,
-then retain every original signed predicate. Syntactic proofs remain attached
+then retain every original signed predicate. Pair properties, including
+implication, inverse, mutual exclusion and disjoint argument domains, share
+the same extension groups. Complement permissions still apply to each original
+predicate pair. Syntactic proofs remain attached
 to their own predicates and programs. Equality and distinctness select the only
 possible property from the first row and check the remaining rows once.
 Context properties are intersected as each world is processed, and subsumption
 runs only after the intersection. Both functional-dependency filters share one
-key index at that stage. Identical
+key index at that stage. Composite dependency subsumption compares minimal
+determinants separately for each predicate and output position, retaining all
+original tuple orders for equal determinants. Identical
 violation bodies share one Clingo proof while retaining every associated fact.
 Proof rules use a fresh auxiliary predicate absent from the task and proof
 bodies, including macros and strongly negated names, so they cannot redefine
@@ -166,7 +184,8 @@ batch; its model budget still counts models before deduplication and it retains
 no cross-batch history. Decoding reads variable positions from
 `ClauseMode` rather than importing the mode compiler. Within each section,
 binary search skips the sorted mode-id prefix below the previous selection;
-slot gaps and truth checks retain their existing behavior.
+iteration starts at that index without copying the remaining candidates.
+Slot gaps and truth checks retain their existing behavior.
 Arithmetic system reuse is task-local and capped at 8192 contexts, with oldest
 entries evicted first. Representatives are yielded directly to `ClauseSpace`,
 which alone performs final text sorting and deduplication. Compiled argument

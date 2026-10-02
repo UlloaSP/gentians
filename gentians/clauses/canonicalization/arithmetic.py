@@ -37,46 +37,34 @@ def canonical_arithmetic_clause(
 ) -> CanonicalArithmeticClause | None:
     """Canonicalize one clause, optionally reusing systems within one mode space."""
     body_traits = [modes[literal.mode_id] for literal in clause.body]
-    builtin = tuple(
-        literal
-        for literal, traits in zip(clause.body, body_traits)
-        if traits.builtin
-    )
-    if not builtin:
+    if not any(traits.builtin for traits in body_traits):
         return CanonicalArithmeticClause(clause.head, clause.body, ())
-    non_builtin = tuple(
-        literal
-        for literal, traits in zip(clause.body, body_traits)
-        if not traits.builtin
-    )
-
-    external = {
-        variable
-        for literal in (*clause.head, *non_builtin)
-        for variable in literal.variables
-    }
-    safe = {
-        variable
-        for literal, traits in zip(clause.body, body_traits)
-        if traits.positive_atom
-        for variable in literal.variables
-    }
-    safe.update(
-        literal.variables[-1]
-        for literal, traits in zip(clause.body, body_traits)
-        if traits.output_guard
-    )
+    builtin: list[ReifiedLiteral] = []
+    non_builtin: list[ReifiedLiteral] = []
+    external: set[int] = set()
+    safe: set[int] = set()
     numeric: set[int] = set()
-    for literal, traits in (
-        *((literal, modes[literal.mode_id]) for literal in clause.head),
-        *zip(clause.body, body_traits),
-    ):
+    for literal in clause.head:
+        traits = modes[literal.mode_id]
+        external.update(literal.variables)
         if traits.numeric_builtin:
             numeric.update(literal.variables)
+        elif traits.numeric_positions:
+            numeric.update(literal.variables[position] for position in traits.numeric_positions)
+    for literal, traits in zip(clause.body, body_traits, strict=True):
+        if traits.builtin:
+            builtin.append(literal)
         else:
-            numeric.update(
-                literal.variables[position] for position in traits.numeric_positions
-            )
+            non_builtin.append(literal)
+            external.update(literal.variables)
+        if traits.positive_atom:
+            safe.update(literal.variables)
+        if traits.output_guard:
+            safe.add(literal.variables[-1])
+        if traits.numeric_builtin:
+            numeric.update(literal.variables)
+        elif traits.numeric_positions:
+            numeric.update(literal.variables[position] for position in traits.numeric_positions)
 
     # Non-builtins affect arithmetic only through these variable sets. Their
     # literal identities remain in CanonicalArithmeticClause and its final key.
@@ -90,7 +78,7 @@ def canonical_arithmetic_clause(
         systems = systems_cache[context_key]
     else:
         systems = _canonical_systems(
-            builtin,
+            tuple(builtin),
             modes,
             context_key[1],
             context_key[2],
@@ -103,7 +91,7 @@ def canonical_arithmetic_clause(
             systems_cache[context_key] = systems
     if systems is None:
         return None
-    return CanonicalArithmeticClause(clause.head, non_builtin, systems)
+    return CanonicalArithmeticClause(clause.head, tuple(non_builtin), systems)
 
 
 def _canonical_systems(

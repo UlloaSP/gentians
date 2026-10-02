@@ -6,6 +6,11 @@ modules under `gentians/clauses/`. No `.lp` module, task file, language frontend
 hypothesis operator or coverage rule was edited for this work. Earlier changes
 and measurements are recorded in [clause-python-prepared.md](clause-python-prepared.md).
 
+The decoder described in this historical experiment is now the benchmark-only
+truth-probe reference in `benchmarks/clause_decoder_reference.py`. Its two
+decoder microbenchmarks retain that control; complete and incremental generation
+use the [one-copy production decoder](clause-decoder-research.md).
+
 ## Implemented changes
 
 | Change | Owner under `gentians/clauses/` | Result |

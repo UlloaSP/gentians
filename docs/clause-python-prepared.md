@@ -8,6 +8,11 @@ task, hypothesis operator or evaluation rule. Earlier measurements are in
 [clause-python-optimizations.md](clause-python-optimizations.md) and
 [clause-python-followups.md](clause-python-followups.md).
 
+The decoder described in this historical experiment now lives in
+`benchmarks/clause_decoder_reference.py`. Its scalar microbenchmarks retain that
+control; complete and incremental generation use the
+[one-copy production decoder](clause-decoder-research.md).
+
 ## Implemented changes
 
 | Change | Owner under `gentians/clauses/` | Effect |

@@ -40,7 +40,7 @@ from .analysis.task import (
 )
 from .canonicalization.clauses import ClauseCanonicalizer
 from .clause_space import ClauseSpace
-from .decoder import _clause_from_model, _model_literal_index
+from .decoder import _clause_from_model, _ModelDecoder
 from .fact_compiler import _facts
 from .mode_compiler import (
     _clause_modes,
@@ -63,6 +63,7 @@ CLAUSE_METAPROGRAM_MODULES = (
     "representation/conditionals.lp",
     "representation/literals.lp",
     "representation/operators.lp",
+    "representation/output.lp",
     "representation/slots.lp",
     "representation/tuples.lp",
     "representation/variables.lp",
@@ -245,14 +246,14 @@ class _ClauseGenerator:
         ctl.ground([("base", [])])
         grounding_seconds = net_time() - start if measure else 0.0
         add("clause_generation.grounding", grounding_seconds)
-        model_index = _model_literal_index(ctl.symbolic_atoms, self.modes_by_id)
-        return ctl, model_index, fact_program, solver_arguments, grounding_seconds
+        decoder = _ModelDecoder(ctl.symbolic_atoms, self.modes_by_id)
+        return ctl, decoder, fact_program, solver_arguments, grounding_seconds
 
     def batches(
         self, size: int, seed: int | None, *,
         by_size: bool = False,
     ) -> Generator[ClauseSpace, None, None]:
-        ctl, model_index, fact_program, solver_arguments, grounding_seconds = self._prepare(
+        ctl, decoder, fact_program, solver_arguments, grounding_seconds = self._prepare(
             seed, by_size
         )
         strata = (
@@ -291,7 +292,7 @@ class _ClauseGenerator:
                                     exhausted = True
                                     break
                                 models += 1
-                                canonicalizer.add(_clause_from_model(model, model_index))
+                                canonicalizer.add(_clause_from_model(model, decoder))
                                 del model
                             seconds += elapsed
                             elapsed = 0.0
@@ -322,14 +323,14 @@ class _ClauseGenerator:
         Without batches nothing has to suspend the search, so models are decoded
         in the solver callback instead of crossing threads one at a time.
         """
-        ctl, model_index, fact_program, solver_arguments, grounding_seconds = self._prepare(None)
+        ctl, decoder, fact_program, solver_arguments, grounding_seconds = self._prepare(None)
         canonicalizer = ClauseCanonicalizer(self.modes_by_id, self.max_variables)
         callback_seconds = 0.0
         collect_metrics = metric_enabled("clingo")
         measure = is_enabled() or collect_metrics
 
         def decode(model: clingo.Model) -> None:
-            canonicalizer.add(_clause_from_model(model, model_index))
+            canonicalizer.add(_clause_from_model(model, decoder))
 
         def measured_decode(model: clingo.Model) -> None:
             nonlocal callback_seconds

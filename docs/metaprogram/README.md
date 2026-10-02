@@ -327,8 +327,10 @@ parsing the rendered clauses 9-22%, and grounding 1-7%. It changed three
 things in Python and five in the metaprogram, all of which leave the 34
 clause spaces above text-identical:
 
-- `decoder.py` reads model literals through clingo's C function with one
-  reused result cell instead of `Model.is_true`.
+- At that stage, `decoder.py` read model literals through clingo's C function
+  with one reused result cell instead of `Model.is_true`. The current decoder
+  supersedes it with one shown-symbol copy per model; see
+  [decoder research and integration](../clause-decoder-research.md).
 - Canonicalization renders each distinct head once per mode space.
 - `CoverageSolver` maps shown symbols to example bits through a table keyed by
   the raw symbol id; 0.47 ms became 0.03 ms per evaluation on the 99 shown
@@ -356,7 +358,7 @@ tasks and unchanged within noise on `grandparent`. Decoding relies on clingo's
 private cffi module and the coverage table on `Symbol._rep`; both are pinned by
 the locked clingo version and covered by the generation and evaluation tests.
 
-Prototypes that were measured and dropped: decoding from shown symbols in one
+Prototypes that were measured and dropped in that historical pass: decoding from shown symbols in one
 call (3-7%, less than the direct call), deducing the last candidate variable
 without a probe (no gain), a prefix predicate instead of the two counts in
 `same_mode_tuple_gt` (no gain), adding the static evaluation program as text

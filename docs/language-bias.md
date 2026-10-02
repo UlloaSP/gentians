@@ -136,7 +136,10 @@ constructs native nodes without modifying the retained template.
 Instantiation also retains fixed guards and shares native binding nodes within
 one instantiation. That sharing adds no equality between distinct ASP scopes
 and no cache across instantiations. Compiled modes derive their stable argument,
-binding-position and dependency metadata once.
+binding-position and dependency metadata once. Clause generation prepares a
+lookup after grounding and reads the true `selected/3` and `var_at/4` symbols
+in one native copy per model, preserving those binding positions and the
+deterministic slot order in complete and incremental enumeration.
 Instantiation skips branches known to contain neither learning variables nor
 constant placeholders, without consuming a binding for them.
 Head templates keep their Clingo form (including guards and aggregate function)

@@ -88,7 +88,7 @@ el formato de salida, incluidas las constraints con cabeza `#false`.
 2. Compila declaraciones a `ClauseMode` y facts reificados.
 3. Carga los módulos `.lp` en el orden de `CLAUSE_METAPROGRAM_MODULES`.
 4. Clingo aplica límites, recall, linkedness, typing, ASP safety, flujo dirigido, coherencia, reducción θ y propiedades de pruning durante enumeración.
-5. Python decodifica `selected/3` y `var_at/4` como `ReifiedClause`.
+5. Python copia una vez los símbolos verdaderos `selected/3` y `var_at/4` a un buffer reutilizable y los decodifica como `ReifiedClause` mediante bindings preparados tras grounding. La enumeración completa y los lotes incrementales usan el mismo decoder.
 6. `ArithmeticSystem` normaliza relaciones conectadas y `ClauseCanonicalizer` conserva un representante por clave mientras llegan los modelos. La enumeración completa comparte esa selección; cada batch incremental conserva su propia selección.
 7. `ClauseSpace` ordena y deduplica `Clause`.
 

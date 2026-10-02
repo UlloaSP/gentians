@@ -182,10 +182,13 @@ enumeration retains the preferred representative per canonical key rather than
 all decoded clauses. Incremental enumeration uses a fresh canonicalizer per
 batch; its model budget still counts models before deduplication and it retains
 no cross-batch history. Decoding reads variable positions from
-`ClauseMode` rather than importing the mode compiler. Within each section,
-binary search skips the sorted mode-id prefix below the previous selection;
-iteration starts at that index without copying the remaining candidates.
-Slot gaps and truth checks retain their existing behavior.
+`ClauseMode` rather than importing the mode compiler. `representation/output.lp`
+displays only `selected/3` and `var_at/4`. A decoder prepared after grounding
+maps their raw symbols to slots and binding positions. One native copy per model
+fills a reusable buffer, whose cleared zero suffix marks the end. Decode visits
+the prepared deterministic slot order, preserving complete heads and flattened
+bindings without per-literal truth probes or public `Symbol` wrappers. The same
+decoder is reused across incremental size solves with cleanup disabled.
 Arithmetic system reuse is task-local and capped at 8192 contexts, with oldest
 entries evicted first. Representatives are yielded directly to `ClauseSpace`,
 which alone performs final text sorting and deduplication. Compiled argument

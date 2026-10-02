@@ -33,7 +33,7 @@ from gentians.clauses.canonicalization.linear_constraint import LinearConstraint
 from gentians.clauses.clause import Clause
 from gentians.clauses.clause_mode import ClauseMode
 from gentians.clauses.clause_space import ClauseSpace
-from gentians.clauses.decoder import _clause_from_truth
+from benchmarks.clause_decoder_reference import _clause_from_truth
 from gentians.clauses.generator import (
     _clause_space_args,
     generate_clause_space,
@@ -524,12 +524,12 @@ def test_clause_generator_compiles_aggregate_body_modes_directly():
     assert any(isinstance(mode.literal, AggregateLiteral) for mode in generator.modes)
 
 
-def test_clause_generator_decodes_models_without_shown_symbols(monkeypatch):
+def test_clause_generator_decodes_models_without_public_symbol_wrappers(monkeypatch):
     original = clingo.Model.symbols
 
     def fail_if_called(model, *args, **kwargs):
         if model.type == clingo.ModelType.StableModel:
-            raise AssertionError("clause decoding must not materialize symbols")
+            raise AssertionError("clause decoding must not allocate public Symbol wrappers")
         return original(model, *args, **kwargs)
 
     monkeypatch.setattr(clingo.Model, "symbols", fail_if_called)

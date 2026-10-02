@@ -10,7 +10,7 @@ from gentians.clauses.analysis import inference, relation_properties as relation
 from gentians.clauses.analysis.ground_relations import ClosedWorld
 from gentians.clauses.canonicalization import arithmetic
 from gentians.clauses.canonicalization.expression_normalization import _term_comparison
-from gentians.clauses.decoder import _clause_from_truth
+from benchmarks.clause_decoder_reference import _clause_from_truth
 from gentians.clauses.mode_compiler import _clause_modes
 from gentians.clauses.reified_clause import ReifiedClause
 from gentians.clauses.reified_literal import ReifiedLiteral

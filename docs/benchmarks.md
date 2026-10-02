@@ -81,7 +81,19 @@ To profile clause generation for all four tasks:
 uv run python benchmarks/profile_clauses.py --datasets alzheimer
 ```
 
-For each dataset, the terminal reports final canonical, deduplicated clauses;
+By default, the terminal prints a table with benchmark name, final canonical
+clause count and generation wall-clock seconds. Generation includes preparation,
+grounding, decoding, canonicalization and storage; it excludes task loading.
+Compact mode disables generation instrumentation and writes no snapshots,
+metrics or profiling files. `--out-dir` is used only in debug mode.
+
+Use `--debug` for the detailed report and JSON snapshots:
+
+```powershell
+uv run python benchmarks/profile_clauses.py --datasets alzheimer --debug
+```
+
+In debug mode, the terminal reports final canonical, deduplicated clauses;
 generation time split into grounding, solving and Python; task loading and JSON
 serialization/write time; clauses per second; amortized microseconds per clause;
 Clingo models, choices, conflicts, ground atoms and rules; and peak process RSS.
@@ -105,10 +117,11 @@ Peak RSS is the operating system's high-water mark for the process, including
 JSON serialization and earlier datasets in the same invocation; run one dataset
 per invocation to avoid accumulating earlier peaks.
 
-For a detailed Python profile, add `--cprofile`:
+For a detailed Python profile, add `--debug --cprofile`. `--cprofile` requires
+`--debug` because it prints diagnostics and saves `.prof` and JSON files:
 
 ```powershell
-uv run python benchmarks/profile_clauses.py --datasets alzheimer_acetyl --cprofile
+uv run python benchmarks/profile_clauses.py --datasets alzheimer_acetyl --debug --cprofile
 ```
 
 After the regular report, this runs clause generation a second time with the
@@ -132,8 +145,28 @@ totals, callback counts, arguments and environment. Profiling affects timings
 and second-pass caches may be warm: its seconds do not decompose the first
 pass's Python total and are not rescaled to it. The first report retains the
 regular throughput, JSON format and process-memory measurement. In the current
-decoder, model literals are read directly; Symbol conversions primarily belong
-to preparation of the index rather than each decoded model.
+decoder, true reified symbols are copied once per model into a reused native
+buffer. Symbol argument/name/number conversions belong to preparation of the
+lookup rather than each decoded model.
+
+To investigate decoder alternatives independently of production generation:
+
+```powershell
+uv run python benchmarks/profile_clause_decoder.py --datasets alzheimer_acetyl --limit 32768 --out .benchmarks/experiments/decoder-research/same-models.json
+uv run python benchmarks/profile_clause_decoder.py --datasets alzheimer_acetyl --materialize --repeats 2 --out .benchmarks/experiments/decoder-research/full-pairs.json
+```
+
+The first command alternates five decoders on identical live models and checks
+exact reified equality. The second uses the production canonicalizer and final
+storage in independent exhaustive runs, reversing decoder order on alternating
+pairs. It checks exhaustion, model/clauses counts and a SHA256 of all ordered
+clause text and metadata. Timings separate preparation, grounding, decode,
+canonicalization, callback wall time, solving residual and final storage.
+Task loading, output hashing and report writing are outside its total.
+Production generation uses the one-copy decoder. The other shown-symbol
+variants and frozen truth-probe control remain benchmark-only. The decoder uses
+Clingo's private Python binding. Protocol, primary
+sources and measured limits: [decoder research](clause-decoder-research.md).
 
 The Alzheimer task directories preserve the source facts and examples. Their
 Popper predicate types are translated to Gentians modes with explicit

@@ -17,6 +17,7 @@ def test_profile_clauses_runs_standalone(monkeypatch, tmp_path, capsys, cprofile
         "argv",
         [
             "profile_clauses.py",
+            "--debug",
             "--datasets",
             "grandparent",
             "--out-dir",
@@ -180,7 +181,7 @@ def test_profile_clauses_loads_all_alzheimer_tasks(monkeypatch, tmp_path):
     monkeypatch.setattr(profile_clauses, "build_profiled_clause_space", capture)
     monkeypatch.setattr(
         sys, "argv",
-        ["profile_clauses.py", "--datasets", "alzheimer", "--out-dir", str(tmp_path)],
+        ["profile_clauses.py", "--debug", "--datasets", "alzheimer", "--out-dir", str(tmp_path)],
     )
 
     main()
@@ -194,3 +195,83 @@ def test_profile_clauses_loads_all_alzheimer_tasks(monkeypatch, tmp_path):
     assert {path.stem for path in tmp_path.glob("*.json")} == {
         "alzheimer_acetyl", "alzheimer_amine", "alzheimer_mem", "alzheimer_toxic"
     }
+
+
+def test_default_output_is_only_a_table_and_creates_no_files(monkeypatch, tmp_path, capsys):
+    out_dir = tmp_path / "unused"
+
+    def no_profiling(*args):
+        pytest.fail("compact mode must not run profiling or write metric files")
+
+    monkeypatch.setattr(profile_clauses, "build_profiled_clause_space", no_profiling)
+    monkeypatch.setattr(sys, "argv", ["profile_clauses.py", "--datasets", "grandparent", "subset_sum",
+                                     "--out-dir", str(out_dir)])
+    main()
+
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].split() == ["Benchmark", "Clauses", "Time", "(s)"]
+    assert len(lines) == 4
+    assert lines[2].split()[:2] == ["grandparent", "326"]
+    assert lines[3].split()[:2] == ["subset_sum", "8"]
+    assert all(float(line.split()[-1]) >= 0 for line in lines[2:])
+    assert not out_dir.exists()
+    assert not list(tmp_path.iterdir())
+
+
+def test_compact_time_excludes_task_loading(monkeypatch, capsys):
+    clock = [0.0]
+    monkeypatch.setattr(profile_clauses.time, "perf_counter", lambda: clock[0])
+
+    def load(arguments):
+        clock[0] += 12.0
+        return None
+
+    def generate(task, arguments):
+        clock[0] += 2.5
+        return ClauseSpace(())
+
+    monkeypatch.setattr(profile_clauses, "task_from_arguments", load)
+    monkeypatch.setattr(profile_clauses, "generate_clause_space", generate)
+    monkeypatch.setattr(sys, "argv", ["profile_clauses.py", "--datasets", "grandparent"])
+    main()
+    assert capsys.readouterr().out.splitlines()[-1].split() == ["grandparent", "0", "2.500"]
+
+
+def test_cprofile_requires_debug_before_any_generation(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(sys, "argv", ["profile_clauses.py", "--cprofile", "--datasets", "grandparent",
+                                     "--out-dir", str(tmp_path)])
+    with pytest.raises(SystemExit) as error:
+        main()
+    assert error.value.code == 2
+    assert "--cprofile requires --debug" in capsys.readouterr().err
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_compact_mode_disables_and_restores_ambient_instrumentation(monkeypatch, tmp_path, fail):
+    previous_enabled = timing.is_enabled()
+    path = str(tmp_path / "clingo.jsonl")
+    monkeypatch.setenv("GENTIANS_CLINGO_METRICS_PATH", path)
+    monkeypatch.setattr(sys, "argv", ["profile_clauses.py", "--datasets", "grandparent",
+                                     "--out-dir", str(tmp_path / "unused")])
+
+    def generate(task, arguments):
+        assert not timing.is_enabled()
+        assert not timing.metric_enabled("clingo")
+        if fail:
+            raise RuntimeError("generation failed")
+        return ClauseSpace(())
+
+    monkeypatch.setattr(profile_clauses, "generate_clause_space", generate)
+    try:
+        timing.set_enabled(True)
+        if fail:
+            with pytest.raises(RuntimeError, match="generation failed"):
+                main()
+        else:
+            main()
+        assert timing.is_enabled()
+        assert profile_clauses.os.environ["GENTIANS_CLINGO_METRICS_PATH"] == path
+        assert not list(tmp_path.iterdir())
+    finally:
+        timing.set_enabled(previous_enabled)

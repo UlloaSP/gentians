@@ -33,7 +33,10 @@ def main() -> None:
         "--datasets", nargs="+", default=DEFAULT_DATASETS,
         help="Dataset names, or 'alzheimer' for all four Alzheimer's tasks.",
     )
-    parser.add_argument("--out-dir", type=Path, default=Path(".debug") / "clauses")
+    parser.add_argument("--out-dir", type=Path, default=Path(".debug") / "clauses",
+                        help="Snapshot/profile directory when --debug is enabled.")
+    parser.add_argument("--debug", action="store_true",
+                        help="Print detailed metrics and save clause snapshots/profiling files.")
     parser.add_argument(
         "--set",
         action="append",
@@ -57,10 +60,17 @@ def main() -> None:
     if args.list_datasets:
         print("\n".join(case_names()))
         return
+    if args.cprofile and not args.debug:
+        parser.error("--cprofile requires --debug")
 
     datasets = []
     for name in args.datasets:
         datasets.extend(ALZHEIMER_DATASETS if name == "alzheimer" else (name,))
+
+    name_width = max(len("Benchmark"), *(len(name) for name in datasets))
+    if not args.debug:
+        print(f"{'Benchmark':<{name_width}}  {'Clauses':>12}  {'Time (s)':>10}", flush=True)
+        print(f"{'-' * name_width}  {'-' * 12}  {'-' * 10}", flush=True)
 
     for dataset in datasets:
         try:
@@ -71,6 +81,21 @@ def main() -> None:
         task = task_from_arguments(arguments)
         loading_seconds = time.perf_counter() - started
         generation_started = time.perf_counter()
+        if not args.debug:
+            old_enabled = timing.is_enabled()
+            old_clingo_path = os.environ.pop("GENTIANS_CLINGO_METRICS_PATH", None)
+            try:
+                timing.set_enabled(False)
+                generation_started = time.perf_counter()
+                clause_space = generate_clause_space(task, arguments)
+                generation_seconds = time.perf_counter() - generation_started
+            finally:
+                timing.set_enabled(old_enabled)
+                if old_clingo_path is not None:
+                    os.environ["GENTIANS_CLINGO_METRICS_PATH"] = old_clingo_path
+            print(f"{dataset:<{name_width}}  {len(clause_space):>12,}  {generation_seconds:>10.3f}", flush=True)
+            del clause_space
+            continue
         clause_space, metrics = build_profiled_clause_space(task, arguments)
         generation_wall_seconds = time.perf_counter() - generation_started
         serialization_started = time.perf_counter()

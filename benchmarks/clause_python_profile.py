@@ -15,12 +15,13 @@ from gentians.clauses import generate_clause_space
 from gentians.clauses.canonicalization.arithmetic_system import ArithmeticSystem
 from gentians.clauses.canonicalization.canonical_clause import CanonicalArithmeticClause
 from gentians.clauses.clause import Clause
+from gentians.clauses.decoder import _ModelDecoder
 from gentians.clauses.reified_clause import ReifiedClause
 from gentians.clauses.reified_literal import ReifiedLiteral
 
 
 BUCKET_LABELS = {
-    "decode": "Decode (own code and literal probes)",
+    "decode": "Decode (own code and prepared bindings)",
     "construction": "Clause construction (own code)",
     "canonicalization": "Canonicalization (own code)",
     "hash_dedup": "Keys/hash/dedup (visible calls)",
@@ -43,7 +44,7 @@ def profile_stats(profiler: cProfile.Profile) -> pstats.Stats:
     methods their class names and disambiguate any remaining collisions.
     """
     methods = {}
-    for cls in (Clause, ReifiedClause, ReifiedLiteral, CanonicalArithmeticClause, ArithmeticSystem):
+    for cls in (Clause, ReifiedClause, ReifiedLiteral, CanonicalArithmeticClause, ArithmeticSystem, _ModelDecoder):
         for name in ("__init__", "__hash__", "__eq__"):
             code = getattr(getattr(cls, name, None), "__code__", None)
             if code is not None:
@@ -114,7 +115,7 @@ def function_bucket(filename: str, name: str) -> str:
         "CanonicalArithmeticClause.__init__", "ArithmeticSystem.__init__",
     } or source.endswith("/clingo/ast.py") and name == "Rule":
         return "construction"
-    if source.endswith("/clauses/decoder.py") and name != "_model_literal_index":
+    if source.endswith("/clauses/decoder.py") and name != "_ModelDecoder.__init__":
         return "decode"
     if source.endswith("/clauses/clause_space.py"):
         return "final_storage"

@@ -28,7 +28,7 @@ from gentians.clauses.analysis.ground_relations import ClosedWorld  # noqa: E402
 from gentians.clauses.analysis.inference import _closed_world_properties, _context_properties  # noqa: E402
 from gentians.clauses.canonicalization.arithmetic import canonical_arithmetic_clause  # noqa: E402
 from gentians.clauses.canonicalization.expression_normalization import _term_comparison  # noqa: E402
-from gentians.clauses.decoder import _clause_from_truth  # noqa: E402
+from benchmarks.clause_decoder_reference import _clause_from_truth  # noqa: E402
 from gentians.clauses.generator import generate_clause_space, incremental_clause_batches  # noqa: E402
 from gentians.clauses.mode_compiler import _clause_modes  # noqa: E402
 from gentians.clauses.reified_clause import ReifiedClause  # noqa: E402

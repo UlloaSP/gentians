@@ -4,6 +4,16 @@
 % Pair relations exclude a slot compared with itself.
 
 
+% DEFINITION, local helper. selected_shape(Section, Slot, Shape): recursive
+% argument shape of the unique mode selected at this slot.
+%   Section, Slot  an occupied head or body slot.
+%   Shape          mode_shape of its selected mode, excluding predicate/sign.
+% Project once before comparing slots: many modes share the same shape, so
+% joining selected modes in every comparison would ground their Cartesian
+% product. Used only by the binding comparisons below.
+selected_shape(Section, Slot, Shape) :-
+    selected(Section, Slot, Mode), mode_shape(Mode, Shape).
+
 % DEFINITION, local helper. different_variable_binding(Section0, Slot0,
 % Section1, Slot1): two selected literals of equal term shape disagree at
 % some placeholder.
@@ -15,13 +25,12 @@
 % "the second literal does not hold Var there" says the two ids differ
 % without grounding every pair of ids. Used only, negated, by
 % same_term_bindings below, which asks about exactly these pairs.
+% Every true var_at belongs to a placeholder of the unique selected mode,
+% by representation/arguments.lp, so it already implies mode_variable_arg.
 different_variable_binding(Section0, Slot0, Section1, Slot1) :-
-    selected(Section0, Slot0, Mode0),
-    selected(Section1, Slot1, Mode1),
+    selected_shape(Section0, Slot0, Shape),
+    selected_shape(Section1, Slot1, Shape),
     (Section0, Slot0) != (Section1, Slot1),
-    mode_shape(Mode0, Shape),
-    mode_shape(Mode1, Shape),
-    mode_variable_arg(Mode0, Arg),
     var_at(Section0, Slot0, Arg, Var),
     not var_at(Section1, Slot1, Arg, Var).
 
@@ -38,22 +47,18 @@ different_variable_binding(Section0, Slot0, Section1, Slot1) :-
 % partition.lp and subsumption.lp.
 % Case 1: the literals are in different sections (one head, one body).
 same_term_bindings(Section0, Slot0, Section1, Slot1) :-
-    selected(Section0, Slot0, Mode0),
-    selected(Section1, Slot1, Mode1),
+    selected_shape(Section0, Slot0, Shape),
+    selected_shape(Section1, Slot1, Shape),
     Section0 != Section1,
-    mode_shape(Mode0, Shape),
-    mode_shape(Mode1, Shape),
     not different_variable_binding(Section0, Slot0, Section1, Slot1).
 
 % DEFINITION, reusable. Same predicate and arguments.
 % Case 2: both literals are in the same section, at different slots. It holds
 % in both slot orders.
 same_term_bindings(Section, Slot0, Section, Slot1) :-
-    selected(Section, Slot0, Mode0),
-    selected(Section, Slot1, Mode1),
+    selected_shape(Section, Slot0, Shape),
+    selected_shape(Section, Slot1, Shape),
     Slot0 != Slot1,
-    mode_shape(Mode0, Shape),
-    mode_shape(Mode1, Shape),
     not different_variable_binding(Section, Slot0, Section, Slot1).
 
 % DEFINITION, reusable. var_used_outside_body_slot(Slot, Var): Var occurs

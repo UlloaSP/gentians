@@ -128,6 +128,43 @@ de ellos redefine el language bias de una tarea inductiva.
   por clave durante enumeración completa; cada batch incremental tiene su propia
   instancia y no conserva historial. Su caché de sistemas aritméticos conserva
   como máximo 8192 contextos y expulsa el más antiguo al alcanzar ese límite.
+  El decoder reutiliza hasta 8192 literales reificados inmutables por control,
+  con sección, slot, mode y bindings completos en la clave. Cada materialización
+  final reutiliza hasta 8192 valores de proveedores, dependencias y coste por
+  secuencias completas de modes; esa caché termina con `finish()` y no mezcla
+  tareas ni lotes. Ninguna de ellas conserva modelos de Clingo.
+  Cada literal reificado deriva su clave sin slot y su máscara de variables
+  una vez; igualdad y hash siguen incluyendo sección, slot y bindings. El
+  contexto aritmético acumula external, safe y numeric como máscaras. La ruta
+  lineal conserva esas máscaras también en misses, componentes, auxiliares y
+  orientación; materializa conjuntos sólo al entrar en expresiones o fallback.
+  Cada fila lineal deriva y conserva su máscara de coeficientes no nulos; su
+  propiedad `variables` es una vista de conveniencia. Las máscaras usan enteros
+  de Python sin límite fijo de 64 variables.
+  La partición de literales aritméticos conectados comparte hasta 8192 entradas
+  globales por su secuencia ordenada de máscaras. Sólo conserva índices y
+  enteros, sin modes, contextos ni sistemas normalizados; el orden original de
+  cada componente sigue determinando sus prioridades.
+  Las filas lineales exactas comparten hasta 8192 AST finales en una caché global
+  por coeficientes, relación y anchura. Su sintaxis no depende de tareas, tipos,
+  seguridad ni controles; los consumidores construyen cambios con `AST.update`.
+  Las expresiones comparten también hasta 8192 términos AST por su estructura
+  exacta y ordenada, incluidos operadores, bindings y constantes. Su clave
+  algebraica no decide esa reutilización; cambiar el orden puede cambiar el
+  texto. Guards, outputs y seguridad siguen perteneciendo a cada restricción.
+  Un sistema de una sola fila evita matrices de eliminación, y la orientación
+  devuelve directamente las filas cuyas variables ya son seguras. Una tarea
+  sin builtins de cuerpo omite la preparación aritmética por cláusula.
+  La normalización lineal filtra las filas redundantes directamente hacia el
+  orden final, sin copias de conjuntos intermedias. Un sistema singleton sin
+  guards conserva su AST sin preparar estructuras de deduplicación nativa.
+  La compilación empareja una vez las filas homogéneas proporcionales de igualdad
+  y comparación estricta o distinta. ASP sólo compara bindings ordenados, con
+  coeficientes no nulos, anclaje positivo plano y todos los builtins seleccionados
+  dentro de la ruta lineal. Exige bindings distintos salvo en filas de hasta dos
+  coeficientes cuya suma no sea cero, donde el alias conserva el anclaje.
+  No calcula productos de
+  coeficientes ni elimina las formas retenidas por otros fallbacks.
   `ClauseSpace` posee la deduplicación textual y el único ordenamiento final.
   Las expresiones canónicas usan recorridos, hash y comparación sin recursión
   de Python, reutilizando subexpresiones compartidas por identidad en cada

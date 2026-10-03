@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from clingo import ast
 
@@ -9,21 +10,29 @@ from ...language.ast_nodes import binding_term, comparison, operation
 class LinearConstraint:
     coefficients: tuple[int, ...]
     relation: str
-    _variables: frozenset[int] | None = field(default=None, init=False, repr=False, compare=False)
+    _variable_mask: int | None = field(default=None, init=False, repr=False, compare=False)
+
+    @property
+    def variable_mask(self) -> int:
+        mask = self._variable_mask
+        if mask is None:
+            mask = sum(1 << index for index, coefficient in enumerate(self.coefficients) if coefficient)
+            object.__setattr__(self, "_variable_mask", mask)
+        return mask
 
     @property
     def variables(self) -> frozenset[int]:
-        variables = self._variables
-        if variables is None:
-            variables = frozenset(index for index, coefficient in enumerate(self.coefficients) if coefficient)
-            object.__setattr__(self, "_variables", variables)
-        return variables
+        mask = self.variable_mask
+        return frozenset(index for index in range(mask.bit_length()) if mask & (1 << index))
 
     @property
     def key(self) -> tuple[object, ...]:
         return self.relation, self.coefficients
 
+    @lru_cache(maxsize=8192)
     def instantiate(self) -> ast.AST:
+        # Exact coefficient rows have context-free native syntax. Callers use
+        # AST.update to construct changes without mutating this shared value.
         expression: ast.AST | None = None
         for variable, coefficient in enumerate(self.coefficients):
             if not coefficient:

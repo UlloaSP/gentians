@@ -243,8 +243,31 @@
 % deliberately have no fact.
 #defined comparison_operator/2.
 
+% numeric_equality_mode(Mode): a positive body equality between two numeric
+% placeholders. Only emitted when such an equality exists in the task.
+#defined numeric_equality_mode/1.
+
+% numeric_linear_conflict(EqualityMode, ComparisonMode): exact proportional
+% homogeneous rows, compared with the same ordered variable bindings and the
+% distinctness guard specified by numeric_linear_distinct_mode.
+#defined numeric_linear_conflict/2.
+
+% numeric_linear_distinct_mode(EqualityMode): this paired equality requires
+% distinct bindings to guarantee that its positive anchor cannot cancel.
+#defined numeric_linear_distinct_mode/1.
+
+% nonlinear_builtin_mode(Mode): a selected builtin would prevent the guarded
+% all-linear normalization used by numeric_linear_conflict pruning.
+#defined nonlinear_builtin_mode/1.
+
+% complex_numeric_builtin_mode(Mode): a body builtin handled by Python's
+% ArithmeticSystem that is not a simple comparison of numeric placeholders.
+% Emitted alongside numeric_equality_mode; guards its early contradiction check.
+#defined complex_numeric_builtin_mode/1.
+
 % strict_comparison_args(Mode, LeftPosition, RightPosition): two adjacent plain
-% variable terms of Mode are related by < or > at these flattened positions.
+% variable terms of Mode are related by < or > at these flattened positions,
+% outside a positive simple comparison whose self bindings policy already rejects.
 #defined strict_comparison_args/3.
 
 % Aggregate schema. Condition ids preserve repeated occurrences of the same

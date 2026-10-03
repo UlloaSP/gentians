@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from functools import lru_cache
 
 from clingo import ast
 
@@ -9,6 +10,7 @@ from ..reified_clause import ReifiedClause
 from ..reified_literal import ReifiedLiteral
 from .arithmetic import _ArithmeticSystemsCache, canonical_arithmetic_clause
 from .arithmetic_system import ArithmeticSystemKey
+from .canonical_clause import CanonicalArithmeticClause
 from .linear_constraint import LinearConstraint
 
 
@@ -20,13 +22,14 @@ class ClauseCanonicalizer:
         self.max_variables = max_variables
         self.representatives: dict[ArithmeticSystemKey, tuple[str, ast.AST, ReifiedClause]] = {}
         self.systems_cache = _ArithmeticSystemsCache()
+        self.has_builtins = any(mode.section == "body" and mode.builtin for mode in modes.values())
         # A space has few distinct heads and many bodies per head.
         self.heads: dict[tuple[ReifiedLiteral, ...], ast.AST] = {}
 
     def add(self, clause: ReifiedClause) -> None:
         canonical = canonical_arithmetic_clause(
             clause, self.modes, self.max_variables, self.systems_cache
-        )
+        ) if self.has_builtins else CanonicalArithmeticClause(clause.head, clause.body, ())
         if canonical is None:
             return
         key = canonical.key
@@ -54,32 +57,35 @@ class ClauseCanonicalizer:
 
     def finish(self) -> Iterator[Clause]:
         # ClauseSpace owns final text deduplication and deterministic ordering.
+        modes = self.modes
+
+        @lru_cache(maxsize=8192)
+        def metadata(head: tuple[int, ...], body: tuple[int, ...]):
+            return _clause_metadata(head, body, modes)
+
         for rendered, statement, clause in self.representatives.values():
-            yield _clause_from_reified(rendered, statement, clause, self.modes)
+            yield Clause(rendered, statement, *metadata(
+                tuple(literal.mode_id for literal in clause.head),
+                tuple(literal.mode_id for literal in clause.body),
+            ))
 
 
-def _clause_from_reified(
-    rendered: str,
-    statement: ast.AST,
-    clause: ReifiedClause,
+def _clause_metadata(
+    head: tuple[int, ...],
+    body: tuple[int, ...],
     modes: dict[int, ClauseMode],
-) -> Clause:
+) -> tuple[frozenset[Predicate], frozenset[Predicate], int]:
+    """Providers, dependencies and body cost depend on modes, not bindings."""
     heads: set[Predicate] = set()
     deps: set[Predicate] = set()
-    body_literals = len(clause.body)
-    for literal in clause.head:
-        mode = modes[literal.mode_id]
+    body_literals = len(body)
+    for mode_id in head:
+        mode = modes[mode_id]
         heads.update(mode.head_predicates)
         deps.update(mode.head_dependencies)
         body_literals += mode.condition_count
-    for literal in clause.body:
-        mode = modes[literal.mode_id]
+    for mode_id in body:
+        mode = modes[mode_id]
         deps.update(mode.dependencies)
         body_literals += mode.condition_count
-    return Clause(
-        rendered,
-        statement,
-        frozenset(heads),
-        frozenset(deps),
-        body_literals,
-    )
+    return frozenset(heads), frozenset(deps), body_literals

@@ -102,7 +102,9 @@ class ArithmeticExpression:
 
         return self._transform(replace)
 
+    @lru_cache(maxsize=8192)
     def instantiate(self) -> ast.AST:
+        """Share exact ordered syntax; algebraically equal keys can render differently."""
         results: dict[int, ast.AST] = {}
         for node in _postorder(self):
             arguments = [results[id(child)] for child in node.arguments]

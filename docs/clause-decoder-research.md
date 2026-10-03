@@ -45,6 +45,12 @@ is not a substitute for this binding layout. Compound heads select their
 complete form; constraints have no selected head, and bodyless rules have no
 selected body.
 
+The decoder also reuses immutable reified literals within one Control, and
+final materialization reuses mode-dependent metadata within each finish pass.
+Both LRU caches have 8192 entries. Their keys retain complete bindings or mode
+sequences and their lifetimes preserve task isolation. Measurements and limits:
+[materialization reuse](clause-materialization-reductions.md).
+
 [`ClauseCanonicalizer`](../gentians/clauses/canonicalization/clauses.py)
 reduces arithmetic systems and retains one preferred representative per key
 across complete enumeration. [`ClauseSpace`](../gentians/clauses/clause_space.py)

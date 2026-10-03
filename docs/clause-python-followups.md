@@ -5,6 +5,9 @@ facts and canonical clause output. No `gentians/language/` file, `.lp` module,
 benchmark task, evaluation rule or hypothesis operator is changed by this work.
 The first set of optimizations is recorded in
 [clause-python-optimizations.md](clause-python-optimizations.md).
+These measurements describe that pass. Later [linear mask reductions](arithmetic-linear-reductions.md)
+replace retained variable sets of linear rows with masks; expression sets retain
+their cache. The original benchmark results below remain unchanged.
 
 ## Implemented changes
 

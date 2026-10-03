@@ -38,13 +38,13 @@ strict_mode_for(Mode, Left, Right) :-
 
 % DEFINITION, local helper. comparison_type_conflict(Mode, Position, Var):
 % variable Var cannot be written at that placeholder of comparison Mode.
-%   Mode      id of a simple binary comparison template.
+%   Mode      id of a simple strict comparison template.
 %   Position  one of its placeholders, 0 or 1, with a declared type.
 %   Var       a variable id that occurs somewhere in the clause at a
 %             placeholder of a different declared type.
 % Used only, negated, by strict_mode_for above.
 comparison_type_conflict(Mode, Position, Var) :-
-    comparison_operator(Mode, _),
+    comparison_operator(Mode, (lt; gt)),
     mode_arg_type(Mode, Position, Type),
     var_at(Section, Slot, Arg, Var),
     arg_type(Section, Slot, Arg, Other),
@@ -52,11 +52,11 @@ comparison_type_conflict(Mode, Position, Var) :-
 
 % DEFINITION, local helper. comparison_recall_full(Mode): no further literal
 % of that comparison declaration fits in the clause.
-%   Mode  id of a simple binary comparison template whose recall group
+%   Mode  id of a simple strict comparison template whose recall group
 %         already has as many selected literals as its recall allows.
 % Used only, negated, by strict_mode_for above.
 comparison_recall_full(Mode) :-
-    comparison_operator(Mode, _),
+    comparison_operator(Mode, (lt; gt)),
     recall_group(Mode, Group),
     selected_count(Group, Count),
     group_recall(Group, Recall),

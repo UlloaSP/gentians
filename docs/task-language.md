@@ -24,6 +24,13 @@ their safety continues to be determined by grounding. Equal full comparison
 queries share safety results only during the same task parse, while modes with
 different recalls remain distinct. Compiled arithmetic-family metadata belongs
 to `clauses/`, rather than the task IR in `language/`.
+Numeric equality contradictions, including chains of simple equalities and
+statically paired proportional homogeneous rows, can be
+rejected during enumeration under the guards in [language-bias.md](language-bias.md),
+preserving the clause space that arithmetic normalization would retain.
+Paired rows with at most two nonzero coefficients whose sum is nonzero can
+also reject repeated bindings; other aliasing cases keep their fallback.
+Complex systems keep their fallback.
 Comparison probes use every declared constant value and the background's
 `#const` definitions. Output directions must be safe for all those variants;
 direction inference keeps the original source locations of the learning leaves.

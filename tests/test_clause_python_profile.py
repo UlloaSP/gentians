@@ -61,6 +61,12 @@ def test_function_self_times_partition_without_double_counting_callees():
     assert sum(row["cumulativeSeconds"] for row in summary["functions"]) > 40.5
 
 
+def test_metadata_construction_keeps_its_profile_bucket_after_helper_change():
+    source = "/gentians/clauses/canonicalization/clauses.py"
+    assert clause_python_profile.function_bucket(source, "_clause_metadata") == "construction"
+    assert clause_python_profile.function_bucket(source, "finish") == "canonical_storage"
+
+
 def test_python_profile_preserves_arithmetic_space_and_captures_every_model(tmp_path):
     task = parse_text(
         "d(1..3). #maxv(3). #maxbl(3). #maxhl(1). "

@@ -190,7 +190,11 @@ the prepared deterministic slot order, preserving complete heads and flattened
 bindings without per-literal truth probes or public `Symbol` wrappers. The same
 decoder is reused across incremental size solves with cleanup disabled.
 Arithmetic system reuse is task-local and capped at 8192 contexts, with oldest
-entries evicted first. Representatives are yielded directly to `ClauseSpace`,
+entries evicted first. Connected-component partitions share up to 8192 global
+entries keyed only by ordered variable masks, preserving the original literal
+order. Exact structural expressions share up to 8192 native terms independently
+of their algebraic keys; output and safety wrappers stay with each constraint.
+These caches retain no control or task. Representatives are yielded directly to `ClauseSpace`,
 which alone performs final text sorting and deduplication. Compiled argument
 binding offsets are reused by head instantiation and mode-fact compilation.
 Head-condition products prune over-budget prefixes in the original product order.
@@ -203,13 +207,17 @@ on remapping. Shared native nodes are templates: transformations use `AST.update
 An arithmetic system also retains its structural key lazily for its own lifetime;
 remapping constructs a new system with independent key and literal caches.
 
-Arithmetic representation modules own keys, variable sets, remapping and
+Arithmetic representation modules own keys, variable masks and sets, remapping and
 rendering through Clingo's AST. Reified modes and normalized systems construct
 native nodes; canonicalization assembles and retains `ast.Rule` directly.
 Normalization algorithms own connected components, substitutions,
 linear reduction and contradiction detection. Choosing one representative per
 canonical key remains part of canonicalization; no separate duplicate policy
 reimplements that choice. `ClauseSpace` orders and deduplicates the final clauses.
+The linear path retains masks through component collection, auxiliary elimination
+and orientation, materializing sets only for expressions or structural fallback.
+Static proportional-row pairs permit guarded contradiction pruning in ASP;
+Clingo compares bindings, while Python retains authority over coefficient analysis.
 Expression assignments index their missing inputs and visit only ready entries.
 The queue preserves the former left-to-right scan order, including repeated
 outputs and divisor guards; unresolved cycles retain the structural fallback.

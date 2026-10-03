@@ -18,8 +18,8 @@ class CanonicalArithmeticClause:
     @property
     def key(self) -> "ArithmeticSystemKey":
         return (
-            tuple((literal.mode_id, literal.variables) for literal in self.head),
-            tuple((literal.mode_id, literal.variables) for literal in self.body),
+            tuple(literal.key for literal in self.head),
+            tuple(literal.key for literal in self.body),
             tuple(system.key for system in self.systems),
         )
 

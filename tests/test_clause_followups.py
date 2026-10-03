@@ -10,8 +10,7 @@ from gentians.clauses.analysis import ground_relations, inference
 from gentians.clauses.analysis.relation_properties import _collect_dependency_properties, _collect_tuple_mutex
 from gentians.clauses.analysis.rule_properties import _substitute_variables
 from gentians.clauses.arithmetic_literal import ArithmeticLiteral, _linear_coefficients
-from gentians.clauses.canonicalization.canonical_clause import CanonicalArithmeticClause
-from gentians.clauses.canonicalization.clauses import _clause_from_reified
+from gentians.clauses.canonicalization.clauses import ClauseCanonicalizer, _clause_metadata
 from gentians.clauses.canonicalization.expression import ArithmeticExpression
 from gentians.clauses.canonicalization.expression_normalization import _mode_expression
 from gentians.clauses.canonicalization.linear_constraint import LinearConstraint
@@ -142,10 +141,10 @@ def test_zero_factor_rows_preserve_exact_integer_normalization(relation, pivot_s
     constraints = (LinearConstraint((pivot_sign, -1, 0, 0), "eq"),
                    LinearConstraint((0, 0, 1, -1), relation),
                    LinearConstraint((1, 0, 0, -1), relation))
-    actual = _normalize_component(constraints, frozenset({0}), 4)
+    actual = _normalize_component(constraints, 1, 4)
     reduced = (LinearConstraint((0, 0, 1, -1), relation),
                LinearConstraint((0, pivot_sign, 0, -1), relation))
-    assert actual == _normalize_component(reduced, frozenset(), 4)
+    assert actual == _normalize_component(reduced, 0, 4)
 
 
 def test_variable_caches_preserve_hash_equality_empty_sets_and_remapping():
@@ -153,12 +152,19 @@ def test_variable_caches_preserve_hash_equality_empty_sets_and_remapping():
                   LinearConstraint((0, 0, 1, 0, -2), "eq")):
         prior_hash = hash(value)
         assert value.variables == frozenset({2, 4})
-        assert value.variables is value.variables
+        if isinstance(value, LinearConstraint):
+            assert value.variable_mask == (1 << 2) | (1 << 4)
+        else:
+            assert value.variables is value.variables
         assert hash(value) == prior_hash and value == replace(value)
         remapped = value.remap({2: 1, 4: 0}, 5) if isinstance(value, LinearConstraint) else value.remap({2: 1, 4: 0})
         assert remapped.variables == frozenset({0, 1}) and value.variables == frozenset({2, 4})
     for empty in (ArithmeticExpression.const(0), LinearConstraint((0, 0), "eq")):
-        assert empty.variables == frozenset() and empty.variables is empty.variables
+        assert empty.variables == frozenset()
+        if isinstance(empty, LinearConstraint):
+            assert empty.variable_mask == 0
+        else:
+            assert empty.variables is empty.variables
 
 
 @pytest.mark.parametrize("head,heads,deps,cost", [
@@ -172,9 +178,42 @@ def test_precomputed_head_metadata_preserves_providers_dependencies_and_cost(hea
     lookup = {mode.id: mode for mode in modes}
     reified = ReifiedClause(tuple(ReifiedLiteral("head", slot, mode.id, tuple(range(len(mode.bindings))))
                                  for slot, mode in enumerate(modes) if mode.section == "head"), ())
-    statement = CanonicalArithmeticClause(reified.head, (), ()).instantiate(lookup)
-    clause = _clause_from_reified(str(statement), statement, reified, lookup)
-    assert (clause.heads, clause.deps, clause.body_literals) == (frozenset(heads), frozenset(deps), cost)
+    metadata = _clause_metadata(tuple(literal.mode_id for literal in reified.head), (), lookup)
+    assert metadata == (frozenset(heads), frozenset(deps), cost)
+
+
+def test_clause_metadata_sharing_keeps_bindings_mode_groups_and_tasks_separate():
+    def materialize(head, body):
+        task = parse_text(f"#modeh(1,{head}(var(t,input))). "
+                          f"#modeb(1,not {body}(var(t,input))). "
+                          "#modeb(1,r(var(t,any)):s(var(t,any))).")
+        modes = _clause_modes(task)
+        lookup = {mode.id: mode for mode in modes}
+        head_mode, negative, conditional = modes
+        canonicalizer = ClauseCanonicalizer(lookup, 2)
+        for variable in (0, 1):
+            canonicalizer.add(ReifiedClause(
+                (ReifiedLiteral("head", 0, head_mode.id, (variable,)),),
+                (ReifiedLiteral("body", 0, negative.id, (variable,)),),
+            ))
+        canonicalizer.add(ReifiedClause(
+            (ReifiedLiteral("head", 0, head_mode.id, (0,)),),
+            (ReifiedLiteral("body", 0, conditional.id, (0, 0)),),
+        ))
+        return list(canonicalizer.finish())
+
+    first, second, conditional = materialize("p", "-q")
+    assert first.text != second.text
+    assert first.heads is second.heads and first.deps is second.deps
+    assert (first.heads, first.deps, first.body_literals) == (
+        frozenset({("p", 1)}), frozenset({("-q", 1)}), 1,
+    )
+    assert (conditional.heads, conditional.deps, conditional.body_literals) == (
+        first.heads, frozenset({("r", 1), ("s", 1)}), 2,
+    )
+    other, _, _ = materialize("-p", "q")
+    assert (other.heads, other.deps) == (frozenset({("-p", 1)}), frozenset({("q", 1)}))
+    assert other.heads is not first.heads and other.deps is not first.deps
 
 
 def test_substitution_reuses_unchanged_native_nodes_and_preserves_source():

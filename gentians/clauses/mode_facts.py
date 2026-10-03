@@ -18,6 +18,11 @@ from ..language.ir.conditional_literal import ConditionalLiteral
 from ..language.ir.head_aggregate_element import HeadAggregateElement
 from ..language.modes import _comparison_outputs_are_safe, _with_binding_directions
 from .clause_mode import ClauseMode
+from .canonicalization.linear_normalization import (
+    _comparison_linear_template,
+    _is_linear,
+    _primitive_row,
+)
 
 _COMPARISON_SYMBOLS = {value: key for key, value in COMPARISON_OPERATORS.items()}
 
@@ -119,7 +124,71 @@ def compile_mode_facts(
             parts.extend(_head_aggregate_facts(
                 mode, mode.literal, predicate_ids, pool_positions, comparison_variants,
             ))
+    simple_numeric = {
+        mode.id for mode in modes
+        if mode.section == "body" and isinstance(mode.literal, ComparisonLiteral)
+        and mode.literal.simple and all(binding.type == "numeric" for binding in mode.bindings)
+    }
+    equalities = [mode.id for mode in modes if mode.id in simple_numeric
+                  and isinstance(mode.literal, ComparisonLiteral) and mode.literal.operators == ("=",)]
+    if equalities:
+        parts.extend(f"numeric_equality_mode({mode_id})." for mode_id in equalities)
+        parts.extend(
+            f"complex_numeric_builtin_mode({mode.id})." for mode in modes
+            if mode.section == "body" and mode.builtin and mode.id not in simple_numeric
+        )
+    parts.extend(_linear_conflict_facts(modes))
     return parts
+
+
+def _linear_conflict_facts(modes: list[ClauseMode]) -> list[str]:
+    """Pair exact homogeneous rows statically; ASP only compares bindings."""
+    linear: set[int] = set()
+    equalities: dict[tuple[int, ...], list[ClauseMode]] = {}
+    comparisons: dict[tuple[int, ...], list[ClauseMode]] = {}
+    for mode in modes:
+        if (mode.section != "body" or not mode.builtin
+                or not all(binding.type == "numeric" for binding in mode.bindings)
+                or not _is_linear(mode, True)):
+            continue
+        linear.add(mode.id)
+        if isinstance(mode.literal, ArithmeticLiteral):
+            coefficients = mode.literal.coefficients
+            relation = "="
+        else:
+            assert isinstance(mode.literal, ComparisonLiteral)
+            template = _comparison_linear_template(mode.literal)
+            assert template is not None and template[1] == 0
+            coefficients = template[0]
+            relation = mode.literal.operators[0]
+        if not coefficients or not all(coefficients):
+            continue
+        if relation == "=":
+            target = equalities
+        elif relation in {"<", ">", "!="}:
+            target = comparisons
+        else:
+            continue
+        target.setdefault(_primitive_row(coefficients, True), []).append(mode)
+    pairs = [
+        (equality.id, comparison.id)
+        for row, equality_modes in equalities.items()
+        for equality in equality_modes
+        for comparison in comparisons.get(row, ())
+        if not (isinstance(equality.literal, ComparisonLiteral) and equality.literal.simple
+                and isinstance(comparison.literal, ComparisonLiteral) and comparison.literal.simple)
+    ]
+    if not pairs:
+        return []
+    paired_equalities = {equality for equality, _comparison in pairs}
+    return [*(f"numeric_linear_conflict({eq},{comparison})." for eq, comparison in pairs),
+            # With at most two nonzero columns and nonzero sum, aliasing
+            # cannot erase the anchor. Wider rows may cancel just its column.
+            *(f"numeric_linear_distinct_mode({mode.id})."
+              for row, equality_modes in equalities.items() if len(row) > 2 or sum(row) == 0
+              for mode in equality_modes if mode.id in paired_equalities),
+            *(f"nonlinear_builtin_mode({mode.id})." for mode in modes
+              if mode.section == "body" and mode.builtin and mode.id not in linear)]
 
 
 def _ordered_conditions(
@@ -496,6 +565,9 @@ def _comparison_facts(
         parts.append(f"comparison_operator({mode.id},{operator_name}).")
         if _terms_are_interchangeable(*comparison.terms):
             parts.append(f"interchangeable_operands({mode.id}).")
+        # Every simple positive self comparison is already rejected through
+        # comparison_operator in pruning/policies/comparisons.lp.
+        return parts
     offsets = mode.argument_offsets
     for index, operator in enumerate(comparison.operators):
         if (

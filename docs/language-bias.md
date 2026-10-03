@@ -804,6 +804,32 @@ Nonlinear, bitwise, interval, and other Clingo terms retain an exact structural
 representation. Canonicalization never changes an operator into an
 approximation. Emitted rules contain only the final system representation.
 
+Clingo rejects a strict comparison or disequality whose operands are connected
+by selected simple numeric equalities before decoding when every selected builtin
+is a simple numeric comparison and a positive plain body atom grounds at least
+one variable in that equality component. Equalities are symmetric value relations;
+this check never swaps bindings of directed templates. These are exactly cases
+that linear normalization would reject. Other selected builtins and components
+without that external variable retain their expression or structural fallback.
+Declared but unselected complex relations do not block this check.
+The equality closure uses variable ids without
+coefficient products. Simple self comparisons reuse the existing
+all-operator policy; strict links in comparison chains keep their separate check.
+Exact coefficient rows share bounded native syntax; singleton normalization and
+already-safe orientation preserve the same coefficients and integer semantics.
+
+The compiler also pairs proportional homogeneous numeric rows from an equality
+and a strict comparison or disequality, such as `2*X=Y` and `4*X<2*Y`.
+Clingo rejects the selected pair only with matching ordered variable bindings,
+nonzero coefficients, a positive plain body anchor, and every selected
+builtin eligible for homogeneous numeric linear normalization. Bindings must be
+distinct unless the row has at most two coefficients whose sum is nonzero:
+aliasing then preserves the anchored column. Wider rows or a zero coefficient
+sum retain the distinctness guard, because cancellation may remove that anchor.
+Other cases
+retain their existing fallback. Coefficients are normalized once in Python;
+Clingo compares bindings without coefficient products or variable reorientation.
+
 Readiness is a clause-wide fixed point, not textual body order. A zero-input
 positive mode can seed a constraint, its outputs can make another literal
 ready, and so on. Bundled atom modes use explicit `input`/`output` directions;

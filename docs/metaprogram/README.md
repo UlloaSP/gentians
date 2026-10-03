@@ -54,6 +54,9 @@ whole metaprogram accepts it.
 | `mode_kind(Mode,Kind)` | Explicit template kind: normal, conditional, comparison, arithmetic, Boolean literal, body aggregate, or head aggregate element. |
 | `interchangeable_operands(Mode)`, `interchangeable_condition_args(Mode,Condition,First,Second)`, `interchangeable_tuple_args(Mode,First,Second)` | The two operands of an arithmetic or simple comparison template, the two arguments of a binary atom of plain variables, two arguments of one aggregate condition, or two tuple positions of an aggregate have equal type, direction and label. Every rule that picks one orientation requires it. |
 | `comparison_operator(Mode,Operator)` | Simple binary comparison operator: eq, neq, lt, gt, leq or geq. Complex comparison chains have no such fact. |
+| `numeric_equality_mode(Mode)`, `complex_numeric_builtin_mode(Mode)` | Simple numeric body equality and builtins outside simple numeric comparisons; emitted only for tasks with such an equality. Guard early rejection of models that linear normalization already discards. |
+| `numeric_linear_conflict(EqualityMode,ComparisonMode)`, `nonlinear_builtin_mode(Mode)` | Statically paired proportional homogeneous numeric rows with nonzero coefficients, and builtins outside that linear path. Emitted only when a non-simple pair exists; selected pairs need matching ordered bindings, a positive plain body anchor and every selected builtin on that linear path. |
+| `numeric_linear_distinct_mode(EqualityMode)` | A paired row needs distinct bindings because aliasing may erase its anchor: more than two coefficients or zero coefficient sum. Rows with at most two nonzero coefficients and nonzero sum can also reject matching aliases. |
 | `mode_atom(Mode,Predicate,Arity)` | Predicate signature of a normal atom, atomic conditional conclusion or atomic head aggregate element; absent for operators, body aggregates and non-atomic conclusions. |
 | `pooled_body_mode(Mode)`, `mode_pool_alternative(Mode,Alternative)`, `mode_pool_alternative_arg(Mode,Alternative,Position)` | Alternatives of one pooled body atom and the flattened placeholders present in each alternative. A variable is supplied by the atom only when it occurs in every alternative. |
 | `local_pool_condition_arg(Mode,Scope,Element,Condition,Position)`, `local_pool_alternative(Mode,Scope,Element,Condition,Alternative)`, `local_pool_alternative_arg(Mode,Scope,Element,Condition,Alternative,Position)` | Alternatives of a positive local condition. A conditional or aggregate variable is supplied only when every alternative contains it. |
@@ -87,6 +90,21 @@ whole metaprogram accepts it.
 the integer value two. Consequently, `X != Y` in a rule over variable ids does
 **not** prove that those variables have unequal values in the learned program.
 The name `known_unequal_values` makes that stronger premise explicit.
+
+`pruning/contradictions/comparisons.lp` also rejects strict order or disequality
+between variables connected by selected simple numeric equalities, when all
+selected builtins are simple numeric comparisons and a positive plain body atom
+grounds a variable in that equality component. Its symmetric and transitive
+views concern values, preserving the declared orientation of directed templates.
+Unselected complex modes do not block it. Expression systems and output-only
+components keep their existing fallback. Simple self comparisons use the
+all-operator policy once; `strict_comparison_args` retains the other strict links.
+Measurements and rejected alternatives: [arithmetic reuse](../arithmetic-reuse-reductions.md).
+The subsequent pass removes context sets on cache hits and extends equality
+pruning: [context masks and equality paths](../arithmetic-context-reductions.md).
+The linear path now retains masks through normalization and orientation.
+Proportional template contradictions use coefficients prepared in Python and
+binding checks in ASP: [linear masks and proportional rows](../arithmetic-linear-reductions.md).
 
 The reified program assigns exactly one mode to each occupied slot and one variable
 to each variable-placeholder position. Specialized arithmetic flags identify
@@ -316,6 +334,11 @@ the derivation. `tests/test_metaprogram_examples.py` checks both outcomes and
 the aggregate role and numeric inference facts.
 
 ## Evidence and limits
+
+The subsequent 2026-10-03 pass measured more ASP reductions and integrated
+bounded Python reuse of literals and metadata. The projected transitive encoding
+remains experimental because fewer constraints did not establish faster full
+enumeration. See [measurements and limits](../clause-materialization-reductions.md).
 
 ### Factored shapes and tuple-mutex mappings
 

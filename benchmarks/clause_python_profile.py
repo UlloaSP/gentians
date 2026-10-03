@@ -120,7 +120,7 @@ def function_bucket(filename: str, name: str) -> str:
     if source.endswith("/clauses/clause_space.py"):
         return "final_storage"
     if source.endswith("/clauses/canonicalization/clauses.py"):
-        return "construction" if name == "_clause_from_reified" else "canonical_storage"
+        return "construction" if name == "_clause_metadata" else "canonical_storage"
     if source.endswith("/clauses/reified_clause.py") or (
         "/clauses/canonicalization/" in source and name in {"instantiate", "render"}
     ):

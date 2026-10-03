@@ -110,7 +110,7 @@ def workloads():
         })),
         "projections": lambda: projections(sources, targets),
         "projections_uniform": lambda: projections(uniform_sources, uniform_targets),
-        "linear_readiness": lambda: _orient_linear_constraints(linear, {0}),
+        "linear_readiness": lambda: _orient_linear_constraints(linear, 1),
         "system_keys": keys,
         "context_properties": lambda: _context_properties(world, None, None),
         "complete": complete,

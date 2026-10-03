@@ -42,6 +42,10 @@ class ArithmeticSystem:
         """Share native syntax for this immutable system; callers use AST.update."""
         if self._literals is not None:
             return self._literals
+        if len(self.relations) == 1 and not isinstance(self.relations[0], ExpressionConstraint):
+            result = (self.relations[0].instantiate(),)
+            object.__setattr__(self, "_literals", result)
+            return result
         literals: list[ast.AST] = []
         seen: set[ast.AST] = set()
         guard_keys: set[tuple[object, ...]] = set()

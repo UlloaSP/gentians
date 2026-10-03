@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import clingo
 from clingo._internal import _ffi, _lib
 
@@ -46,6 +48,9 @@ class _ModelDecoder:
         self.buffer = _ffi.new("clingo_symbol_t[]", self.capacity)
         self.buffer_bytes = _ffi.buffer(self.buffer)
         self.zero_bytes = bytes(len(self.buffer_bytes))
+        # Reified values are immutable and contain no Model/native handles.
+        # Keep reuse bounded and owned by this Control, including its batches.
+        self.literal = lru_cache(maxsize=8192)(ReifiedLiteral)
 
 
 def _clause_from_model(model: clingo.Model, decoder: _ModelDecoder) -> ReifiedClause:
@@ -75,6 +80,6 @@ def _clause_from_model(model: clingo.Model, decoder: _ModelDecoder) -> ReifiedCl
             if variable is None:
                 raise RuntimeError("selected literal argument has no variable")
             variables.append(variable)
-        literal = ReifiedLiteral(section, slot, mode, tuple(variables))
+        literal = decoder.literal(section, slot, mode, tuple(variables))
         (head if section == "head" else body).append(literal)
     return ReifiedClause(tuple(head), tuple(body))

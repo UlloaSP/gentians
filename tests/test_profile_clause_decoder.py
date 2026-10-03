@@ -123,6 +123,50 @@ def test_prepared_decoder_survives_incremental_size_solves():
     assert seen and seen == sorted(seen) and len(set(seen)) > 1
 
 
+def test_literal_reuse_preserves_slots_bindings_and_decoder_lifetimes():
+    import clingo
+
+    from gentians.clauses.decoder import _ModelDecoder, _clause_from_model
+    from gentians.clauses.mode_compiler import _clause_modes
+
+    modes = _clause_modes(parse_text("#modeh(1,p(var(t,input))). #modeb(1,q(var(t,any)))."))
+    head, body = modes
+    control = clingo.Control(["0"])
+    control.add("base", [], f"""
+        selected(head,0,{head.id}). selected(body,0,{body.id}). selected(body,1,{body.id}).
+        var_at(head,0,0,0). var_at(body,1,0,1).
+        1 {{ var_at(body,0,0,0); var_at(body,0,0,1) }} 1.
+        #show selected/3. #show var_at/4.
+    """)
+    control.ground([("base", [])])
+    lookup = {mode.id: mode for mode in modes}
+    decoder = _ModelDecoder(control.symbolic_atoms, lookup)
+    other = _ModelDecoder(control.symbolic_atoms, lookup)
+    retained = []
+
+    def collect(model):
+        first = _clause_from_model(model, decoder)
+        again = _clause_from_model(model, decoder)
+        independent = _clause_from_model(model, other)
+        assert first == again == independent
+        for left, right, separate in zip((*first.head, *first.body),
+                                          (*again.head, *again.body),
+                                          (*independent.head, *independent.body), strict=True):
+            assert left is right and left is not separate
+        retained.append(first)
+
+    assert control.solve(on_model=collect).exhausted
+    assert len(retained) == 2
+    assert retained[0].head[0] is retained[1].head[0]
+    assert retained[0].body[1] is retained[1].body[1]
+    assert retained[0].body[0].variables != retained[1].body[0].variables
+    assert {(literal.section, literal.slot, literal.mode_id, literal.variables)
+            for clause in retained for literal in (*clause.head, *clause.body)} == {
+        ("head", 0, head.id, (0,)), ("body", 0, body.id, (0,)),
+        ("body", 0, body.id, (1,)), ("body", 1, body.id, (1,)),
+    }
+
+
 def test_production_decoder_uses_exactly_one_native_copy_per_model(monkeypatch):
     from types import SimpleNamespace
 

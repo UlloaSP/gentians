@@ -1,4 +1,3 @@
-from collections.abc import Set
 from functools import lru_cache
 from heapq import heappop, heappush
 from math import gcd
@@ -17,9 +16,12 @@ from .linear_constraint import LinearConstraint
 
 def _orient_linear_constraints(
     constraints: tuple[LinearConstraint, ...],
-    initially_safe: Set[int],
+    initially_safe: int,
 ) -> tuple[SystemRelation, ...] | None:
-    missing = [set(constraint.variables - initially_safe) for constraint in constraints]
+    variables = tuple(constraint.variable_mask for constraint in constraints)
+    if all(not used & ~initially_safe for used in variables):
+        return constraints
+    missing = [used & ~initially_safe for used in variables]
     waiting: dict[int, list[int]] = {}
     ready: list[int] = []
     assignments: list[int] = []
@@ -29,13 +31,16 @@ def _orient_linear_constraints(
     def enqueue(index: int) -> None:
         if not missing[index]:
             heappush(ready, index)
-        elif (len(missing[index]) == 1 and constraints[index].relation == "eq"
-              and abs(constraints[index].coefficients[next(iter(missing[index]))]) == 1):
+        elif (missing[index].bit_count() == 1 and constraints[index].relation == "eq"
+              and abs(constraints[index].coefficients[missing[index].bit_length() - 1]) == 1):
             heappush(assignments, index)
 
     for index, unknown in enumerate(missing):
         enqueue(index)
-        for variable in unknown:
+        while unknown:
+            bit = unknown & -unknown
+            variable = bit.bit_length() - 1
+            unknown ^= bit
             waiting.setdefault(variable, []).append(index)
     while len(oriented) < len(constraints):
         while ready and not active[ready[0]]:
@@ -45,20 +50,20 @@ def _orient_linear_constraints(
             oriented.append(constraints[index])
             active[index] = False
             continue
-        while assignments and (not active[assignments[0]] or len(missing[assignments[0]]) != 1):
+        while assignments and (not active[assignments[0]] or missing[assignments[0]].bit_count() != 1):
             heappop(assignments)
         if not assignments:
             return None
         index = heappop(assignments)
         constraint = constraints[index]
-        output = next(iter(missing[index]))
+        output = missing[index].bit_length() - 1
         oriented.append(ExpressionConstraint(
             _linear_assignment_expression(constraint, output), "eq", output, False,
         ))
         active[index] = False
         for consumer in waiting.pop(output, ()):
             if active[consumer]:
-                missing[consumer].remove(output)
+                missing[consumer] &= ~(1 << output)
                 enqueue(consumer)
     return tuple(oriented)
 
@@ -235,7 +240,7 @@ def _scale_linear(
 @lru_cache(maxsize=8192)
 def _normalize_component(
     constraints: tuple[LinearConstraint, ...],
-    auxiliary_variables: frozenset[int],
+    auxiliary_variables: int,
     width: int,
 ) -> tuple[LinearConstraint, ...] | None:
     """Normalize a connected system of linear ASP integer relations.
@@ -245,7 +250,22 @@ def _normalize_component(
     coefficients: task arithmetic contains integer terms and constants, and a
     positive cross-product preserves the order of comparisons.
     """
-    auxiliary = set(auxiliary_variables)
+    if len(constraints) == 1:
+        constraint = constraints[0]
+        coefficients = constraint.coefficients
+        if constraint.relation == "eq" and any(
+            abs(coefficient) == 1 and auxiliary_variables & (1 << variable)
+            for variable, coefficient in enumerate(coefficients)
+        ):
+            return ()
+        coefficients = _primitive_row(coefficients, constraint.relation in {"eq", "ne"})
+        if not any(coefficients):
+            return None if constraint.relation in {"lt", "ne"} else ()
+        return (
+            constraint if coefficients == constraint.coefficients
+            else LinearConstraint(coefficients, constraint.relation),
+        )
+    auxiliary = auxiliary_variables
     rows = [
         (list(constraint.coefficients), constraint.relation)
         for constraint in constraints
@@ -254,7 +274,7 @@ def _normalize_component(
         pivot = next(
             (
                 (index, variable)
-                for variable in sorted(auxiliary)
+                for variable in range(width) if auxiliary & (1 << variable)
                 for index, (coefficients, relation) in enumerate(rows)
                 if relation == "eq" and abs(coefficients[variable]) == 1
             ),
@@ -281,7 +301,7 @@ def _normalize_component(
                 )
             )
         rows = reduced
-        auxiliary.remove(variable)
+        auxiliary &= ~(1 << variable)
 
     equations = _integer_rref(
         [tuple(row) for row, relation in rows if relation == "eq"], width
@@ -364,24 +384,19 @@ def _finish_normalization(
         for constraint in normalized
     ):
         return None
-    normalized = {
-        constraint
-        for constraint in normalized
-        if not (constraint.coefficients in equalities and constraint.relation == "le")
-    }
     strict = {
         constraint.coefficients
         for constraint in normalized
         if constraint.relation == "lt"
     }
-    normalized = {
+    return tuple(sorted((
         constraint
         for constraint in normalized
         if not (
-            constraint.coefficients in strict and constraint.relation in {"le", "ne"}
+            constraint.coefficients in equalities and constraint.relation == "le"
+            or constraint.coefficients in strict and constraint.relation in {"le", "ne"}
         )
-    }
-    return tuple(sorted(normalized, key=_constraint_key))
+    ), key=_constraint_key))
 
 
 @lru_cache(maxsize=8192)

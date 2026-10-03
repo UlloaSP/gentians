@@ -9,6 +9,7 @@ from gentians.clauses import arithmetic_literal
 from gentians.clauses.analysis import inference, relation_properties as relations, rule_properties
 from gentians.clauses.analysis.ground_relations import ClosedWorld
 from gentians.clauses.canonicalization import arithmetic
+from gentians.clauses.canonicalization.expression import ArithmeticExpression
 from gentians.clauses.canonicalization.expression_normalization import _term_comparison
 from benchmarks.clause_decoder_reference import _clause_from_truth
 from gentians.clauses.mode_compiler import _clause_modes
@@ -65,6 +66,60 @@ def test_prepared_comparisons_match_native_instantiation_without_rewalking(monke
         _term_comparison(ReifiedLiteral("body", 0, mode.id, (*variables, 99)), mode)
 
 
+def test_arithmetic_components_match_an_independent_variable_graph():
+    rng = Random(81)
+    cases = [(3, 12, 6), (1 << 100, 3, (1 << 100) | 2), (0, 0), ()]
+    cases.extend(tuple(rng.getrandbits(7) for _ in range(rng.randrange(9))) for _ in range(200))
+    for masks in cases:
+        neighbours = {i: {j for j, other in enumerate(masks) if mask & other}
+                      for i, mask in enumerate(masks)}
+        visited, expected = set(), []
+        for first in range(len(masks)):
+            if first in visited:
+                continue
+            component, pending = set(), [first]
+            while pending:
+                index = pending.pop()
+                if index not in component:
+                    component.add(index)
+                    pending.extend(neighbours[index] - component)
+            visited.update(component)
+            expected.append(tuple(sorted(component)))
+        assert arithmetic._component_indices(masks) == tuple(expected)
+
+
+def test_component_cache_owns_only_ordered_masks_and_is_bounded():
+    arithmetic._component_indices.cache_clear()
+    try:
+        first = arithmetic._component_indices((3, 12, 6))
+        assert first == ((0, 1, 2),)
+        assert arithmetic._component_indices((3, 12, 6)) is first
+        assert arithmetic._component_indices((3, 12)) == ((0,), (1,))
+        info = arithmetic._component_indices.cache_info()
+        assert (info.hits, info.misses, info.maxsize) == (1, 2, 8192)
+    finally:
+        arithmetic._component_indices.cache_clear()
+
+
+def test_exact_expressions_share_native_syntax_without_merging_algebraic_keys():
+    ArithmeticExpression.instantiate.cache_clear()
+    try:
+        left = ArithmeticExpression("+", (ArithmeticExpression.var(0), ArithmeticExpression.var(1)))
+        equal = ArithmeticExpression("+", (ArithmeticExpression.var(0), ArithmeticExpression.var(1)))
+        reversed_expression = ArithmeticExpression("+", tuple(reversed(left.arguments)))
+        first = left.instantiate()
+        assert equal.instantiate() is first
+        assert reversed_expression.key == left.key
+        assert str(reversed_expression.instantiate()) == "(V1+V0)"
+        assert str(first) == "(V0+V1)"
+        changed = first.update(left=binding_term("V100"))
+        assert str(changed) == "(V100+V1)" and str(equal.instantiate()) == "(V0+V1)"
+        info = ArithmeticExpression.instantiate.cache_info()
+        assert (info.hits, info.misses, info.maxsize) == (2, 2, 8192)
+    finally:
+        ArithmeticExpression.instantiate.cache_clear()
+
+
 def test_fused_clause_traits_keep_external_safe_numeric_sets_and_literal_order(monkeypatch):
     modes = _clause_modes(parse_text("#modeh(1,p(var(t,input))). "
         "#modeb(1,d(var(numeric,output),var(t,input))). "
@@ -86,7 +141,7 @@ def test_fused_clause_traits_keep_external_safe_numeric_sets_and_literal_order(m
     calls = []
 
     def systems(literals, _modes, ext, bound, numbers, width):
-        calls.append((literals, ext, bound, numbers, width))
+        calls.append((literals, arithmetic._variables(ext), arithmetic._variables(bound), arithmetic._variables(numbers), width))
         return ()
 
     monkeypatch.setattr(arithmetic, "_canonical_systems", systems)
@@ -96,6 +151,53 @@ def test_fused_clause_traits_keep_external_safe_numeric_sets_and_literal_order(m
     calls.clear()
     plain = arithmetic.canonical_arithmetic_clause(ReifiedClause(head, non_builtin), by_id, 8)
     assert plain is not None and plain.body == non_builtin and calls == []
+
+
+@pytest.mark.parametrize("variables", [(), (0, 0, 3), (0, 63, 100, 100)])
+def test_reified_variable_masks_preserve_repetitions_and_unbounded_ids(variables):
+    literal = ReifiedLiteral("body", 0, 1, variables)
+    assert arithmetic._variables(literal.variable_mask) == frozenset(variables)
+    assert literal.key == (1, variables)
+    assert literal == ReifiedLiteral("body", 0, 1, variables)
+    assert literal != ReifiedLiteral("body", 1, 1, variables)
+
+
+def test_arithmetic_cache_hits_do_not_materialize_variable_context_sets(monkeypatch):
+    modes = {mode.id: mode for mode in _clause_modes(parse_text("""
+        #modeb(1,p(var(numeric,any),var(numeric,any))).
+        #modeb(1,var(numeric,input)<var(numeric,input)).
+    """))}
+    clause = ReifiedClause((), (
+        ReifiedLiteral("body", 0, 0, (0, 1)),
+        ReifiedLiteral("body", 1, 1, (0, 1)),
+    ))
+    cache = arithmetic._ArithmeticSystemsCache()
+    expected = arithmetic.canonical_arithmetic_clause(clause, modes, 2, cache)
+
+    def no_sets(_mask):
+        raise AssertionError("a cached arithmetic context must not construct sets again")
+
+    monkeypatch.setattr(arithmetic, "_variables", no_sets)
+    assert arithmetic.canonical_arithmetic_clause(clause, modes, 2, cache) == expected
+
+
+@pytest.mark.parametrize("variables", [(0, 1), (100, 0)])
+def test_linear_arithmetic_misses_do_not_materialize_variable_context_sets(monkeypatch, variables):
+    modes = {mode.id: mode for mode in _clause_modes(parse_text("""
+        #modeb(1,p(var(numeric,any))).
+        #modeb(1,2*var(numeric,input)=var(numeric,output)).
+    """))}
+    clause = ReifiedClause((), (
+        ReifiedLiteral("body", 0, 0, (variables[0],)),
+        ReifiedLiteral("body", 1, 1, variables),
+    ))
+
+    def no_sets(_mask):
+        raise AssertionError("the linear path must retain masks even on a cold context")
+
+    monkeypatch.setattr(arithmetic, "_variables", no_sets)
+    result = arithmetic.canonical_arithmetic_clause(clause, modes, max(variables) + 1)
+    assert result is not None and result.body == clause.body[:1] and not result.systems
 
 
 @pytest.mark.parametrize("negation", [None, frozenset(), frozenset({("-a", 2), ("m", 2), ("z", 2)})])

@@ -8,6 +8,213 @@ from gentians.arguments import Arguments
 from gentians.clauses import generate_clause_space, generator, mode_facts, property_facts
 from gentians.clauses.analysis.properties import ClosedWorldProperties
 from gentians.language import parse_text
+from gentians.language.asp import parse_program
+
+
+@pytest.mark.parametrize("relation,anchor,complex_selected,satisfiable", [
+    ("selected_lt(0,1).", 0, False, False),
+    ("selected_lt(1,0).", 1, False, False),
+    ("selected_neq(0,1).", 0, False, False),
+    ("selected_lt(0,2).", 0, False, True),
+    ("selected_leq(0,1).", 0, False, True),
+    ("selected_lt(0,1).", None, False, True),
+    ("selected_lt(0,1).", 0, True, True),
+])
+def test_early_numeric_equality_pruning_keeps_external_and_simple_system_guards(
+    relation, anchor, complex_selected, satisfiable,
+):
+    facts = ("numeric_equality_mode(0). selected(body,0,0). "
+             "var_at(body,0,0,0). var_at(body,0,1,1). "
+             "complex_numeric_builtin_mode(1). " + relation)
+    if anchor is not None:
+        facts += f" normal_positive_body_var({anchor})."
+    if complex_selected:
+        facts += " selected(body,1,1)."
+    control = clingo.Control(["--warn=none"])
+    root = Path(generator.__file__).with_name("metaprogram")
+    control.load(str(root / "pruning/contradictions/comparisons.lp"))
+    control.add("base", [], facts)
+    control.ground([("base", [])])
+    assert control.solve().satisfiable == satisfiable
+
+
+@pytest.mark.parametrize("equality_recall", [1, 2])
+@pytest.mark.parametrize("extra", [
+    "",
+    "#modeb(1,var(numeric,input)*var(numeric,input)=var(numeric,output)).",
+    "#modeb(1,var(numeric,input)+var(numeric,input)=var(numeric,output)).",
+    "#modeb(1,not var(numeric,input)=var(numeric,input)).",
+])
+def test_early_numeric_equality_pruning_preserves_complete_clause_space(monkeypatch, extra, equality_recall):
+    task = parse_text(f"""
+        d(0..1). {{p(X,Y)}} :- d(X),d(Y).
+        #maxv(3). #maxbl(4). #maxhl(1).
+        #modeh(1,h(var(numeric,input))).
+        #modeb(1,p(var(numeric,any),var(numeric,any))).
+        #modeb({equality_recall},var(numeric,input)=var(numeric,input)).
+        #modeb(1,var(numeric,input)<var(numeric,input)).
+        #modeb(1,var(numeric,input)!=var(numeric,input)).
+    """ + extra)
+    root = Path(generator.__file__).with_name("metaprogram")
+    sources = []
+    for name in generator.CLAUSE_METAPROGRAM_MODULES:
+        source = (root / name).read_text()
+        if name == "pruning/contradictions/comparisons.lp":
+            source = source.split("% DEFINITION, local helper. complex_numeric_builtin_selected:")[0]
+        sources.append(source)
+    with monkeypatch.context() as context:
+        context.setattr(generator, "CLAUSE_METAPROGRAM", parse_program("\n".join(sources)))
+        control = generate_clause_space(task, Arguments())
+    candidate = generate_clause_space(task, Arguments())
+    assert candidate.entries == control.entries
+    assert candidate.entries
+
+
+@pytest.mark.parametrize("relation,anchor,complex_selected,satisfiable", [
+    ("selected_lt(0,2).", 0, False, False),
+    ("selected_lt(2,0).", 2, False, False),
+    ("selected_neq(0,2).", 1, False, False),
+    ("selected_lt(0,3).", 1, False, True),
+    ("selected_leq(0,2).", 1, False, True),
+    ("selected_lt(0,2).", None, False, True),
+    ("selected_lt(0,2).", 3, False, True),
+    ("selected_lt(0,2).", 1, True, True),
+])
+def test_numeric_equality_paths_require_an_anchor_in_the_component(
+    relation, anchor, complex_selected, satisfiable,
+):
+    facts = ("numeric_equality_mode(0). selected(body,0,0). selected(body,1,0). "
+             "var_at(body,0,0,1). var_at(body,0,1,0). "
+             "var_at(body,1,0,1). var_at(body,1,1,2). "
+             "complex_numeric_builtin_mode(1). " + relation)
+    if anchor is not None:
+        facts += f" normal_positive_body_var({anchor})."
+    if complex_selected:
+        facts += " selected(body,2,1)."
+    control = clingo.Control(["--warn=none"])
+    root = Path(generator.__file__).with_name("metaprogram")
+    control.load(str(root / "pruning/contradictions/comparisons.lp"))
+    control.add("base", [], facts)
+    control.ground([("base", [])])
+    assert control.solve().satisfiable == satisfiable
+
+
+def test_output_only_numeric_contradiction_keeps_structural_fallback():
+    task = parse_text("""
+        #maxv(1). #maxbl(2). #maxhl(0).
+        #modeb(1,var(numeric)=0). #modeb(1,var(numeric)!=0).
+    """)
+    assert generate_clause_space(task, Arguments()).clauses == (
+        "#false :- V0 = 0; V0 != 0.",
+    )
+
+
+@pytest.mark.parametrize("anchor,other,repeated,requires_distinct,satisfiable", [
+    (0, "", False, True, False),
+    (1, "", False, True, False),
+    (None, "", False, True, True),
+    (2, "", False, True, True),
+    (0, "selected(body,2,2). nonlinear_builtin_mode(2).", False, True, True),
+    (0, "selected(body,2,3).", False, True, False),
+    (0, "", True, True, True),
+    (0, "", True, False, False),
+    (None, "", True, False, True),
+    (0, "selected(body,2,2). nonlinear_builtin_mode(2).", True, False, True),
+])
+def test_linear_conflict_pruning_requires_safe_aliasing_matching_bindings_and_linear_context(
+    anchor, other, repeated, requires_distinct, satisfiable,
+):
+    right = 0 if repeated else 1
+    facts = (f"numeric_linear_conflict(0,1). selected(body,0,0). selected(body,1,1). "
+             f"var_at(body,0,0,0). var_at(body,0,1,{right}). "
+             f"var_at(body,1,0,0). var_at(body,1,1,{right}). " + other)
+    if requires_distinct:
+        facts += " numeric_linear_distinct_mode(0)."
+    if anchor is not None:
+        facts += f" normal_positive_body_var({anchor})."
+    control = clingo.Control(["--warn=none"])
+    root = Path(generator.__file__).with_name("metaprogram")
+    control.load(str(root / "pruning/contradictions/comparisons.lp"))
+    control.add("base", [], facts)
+    control.ground([("base", [])])
+    assert control.solve().satisfiable == satisfiable
+
+
+@pytest.mark.parametrize("comparison", ["<", ">", "!="])
+@pytest.mark.parametrize("extra", [
+    "", "#modeb(1,var(numeric,input)*var(numeric,input)=var(numeric,output)).",
+    "#modeb(1,var(numeric,input)+1<var(numeric,input)).",
+])
+def test_linear_conflict_pruning_preserves_exact_clause_space(monkeypatch, comparison, extra):
+    task = parse_text(f"""
+        d(0..1). {{p(X)}} :- d(X).
+        #maxv(2). #maxbl(4). #maxhl(1).
+        #modeh(1,h(var(numeric,input))).
+        #modeb(1,p(var(numeric,any))).
+        #modeb(1,2*var(numeric,input)=var(numeric,output)).
+        #modeb(1,4*var(numeric,input){comparison}2*var(numeric,input)).
+    """ + extra)
+    root = Path(generator.__file__).with_name("metaprogram")
+    sources = []
+    for name in generator.CLAUSE_METAPROGRAM_MODULES:
+        source = (root / name).read_text()
+        if name == "pruning/contradictions/comparisons.lp":
+            source = source.split("% DEFINITION, local helper. Selected builtins outside homogeneous numeric")[0]
+        sources.append(source)
+    with monkeypatch.context() as context:
+        context.setattr(generator, "CLAUSE_METAPROGRAM", parse_program("\n".join(sources)))
+        expected = generate_clause_space(task, Arguments())
+    actual = generate_clause_space(task, Arguments())
+    assert actual.entries == expected.entries and actual.entries
+
+
+@pytest.mark.parametrize("equality,comparison,retained", [
+    ("2*var(numeric,input)-2*var(numeric,input)=0",
+     "4*var(numeric,input)-4*var(numeric,input)<0",
+     "h(V0) :- p(V0); ((2*V0)-(2*V0)) = 0; ((4*V0)-(4*V0)) < 0."),
+    ("var(numeric,input)-var(numeric,input)+var(numeric,input)=0",
+     "2*var(numeric,input)-2*var(numeric,input)+2*var(numeric,input)!=0", None),
+    ("var(numeric,input)+var(numeric,input)=0",
+     "2*var(numeric,input)+2*var(numeric,input)<0", None),
+    ("var(numeric,input)-var(numeric,input)=var(numeric,output)",
+     "2*var(numeric,input)-2*var(numeric,input)!=2*var(numeric,input)",
+     "h(V0) :- p(V0); (V0-V0) = V1; ((2*V0)-(2*V0)) != (2*V1)."),
+])
+def test_linear_conflict_pruning_preserves_cancelled_anchor_fallbacks(monkeypatch, equality, comparison, retained):
+    task = parse_text(f"""
+        d(0..1). {{p(X)}} :- d(X).
+        #maxv(3). #maxbl(3). #maxhl(1).
+        #modeh(1,h(var(numeric,input))).
+        #modeb(1,p(var(numeric,any))).
+        #modeb(1,{equality}). #modeb(1,{comparison}).
+    """)
+    root = Path(generator.__file__).with_name("metaprogram")
+    sources = []
+    for name in generator.CLAUSE_METAPROGRAM_MODULES:
+        source = (root / name).read_text()
+        if name == "pruning/contradictions/comparisons.lp":
+            source = source.split("% DEFINITION, local helper. Selected builtins outside homogeneous numeric")[0]
+        sources.append(source)
+    with monkeypatch.context() as context:
+        context.setattr(generator, "CLAUSE_METAPROGRAM", parse_program("\n".join(sources)))
+        expected = generate_clause_space(task, Arguments())
+    actual = generate_clause_space(task, Arguments())
+    assert actual.entries == expected.entries
+    if retained is not None:
+        assert retained in actual.clauses
+
+
+@pytest.mark.parametrize("bindings,satisfiable", [((0, 1), False), ((1, 0), True), ((0, 2), True)])
+def test_linear_conflict_pruning_does_not_swap_or_partially_match_bindings(bindings, satisfiable):
+    facts = ("numeric_linear_conflict(0,1). selected(body,0,0). selected(body,1,1). "
+             "var_at(body,0,0,0). var_at(body,0,1,1). normal_positive_body_var(0). "
+             f"var_at(body,1,0,{bindings[0]}). var_at(body,1,1,{bindings[1]}).")
+    control = clingo.Control(["--warn=none"])
+    root = Path(generator.__file__).with_name("metaprogram")
+    control.load(str(root / "pruning/contradictions/comparisons.lp"))
+    control.add("base", [], facts)
+    control.ground([("base", [])])
+    assert control.solve().satisfiable == satisfiable
 
 
 @pytest.mark.parametrize(("left", "right", "left_vars", "right_vars", "satisfiable"), [
@@ -259,19 +466,51 @@ def test_disequality_is_oriented_only_between_interchangeable_operands():
     assert 'p(V0,V1) :- b(V0); a(V1); V1 != V0.' in clauses
 
 
-def test_strict_replacement_needs_a_strict_mode_for_the_same_type():
+@pytest.mark.parametrize("operator", ["<", ">"])
+def test_strict_replacement_needs_a_strict_mode_for_the_same_type(operator):
     base = (
         "p(1,2).\n#maxv(2).\n#maxbl(3).\n#modeh(1,h(var(t,input))).\n"
         "#modeb(1,p(var(t,output),var(t,output))).\n"
         "#modeb(1,var(t,input)<=var(t,input)).\n"
         "#modeb(1,var(t,input)!=var(t,input)).\n"
     )
-    other_type = _clauses(base + "#modeb(1,var(u,input)<var(u,input)).")
-    same_type = _clauses(base + "#modeb(1,var(t,input)<var(t,input)).")
+    other_type = _clauses(base + f"#modeb(1,var(u,input){operator}var(u,input)).")
+    same_type = _clauses(base + f"#modeb(1,var(t,input){operator}var(t,input)).")
 
     assert 'h(V0) :- p(V0,V1); V0 <= V1; V0 != V1.' in other_type
     assert 'h(V0) :- p(V0,V1); V0 <= V1; V0 != V1.' not in same_type
-    assert 'h(V0) :- p(V0,V1); V0 < V1.' in same_type
+    shorter = 'V0 < V1' if operator == '<' else 'V1 > V0'
+    assert f'h(V0) :- p(V0,V1); {shorter}.' in same_type
+
+
+@pytest.mark.parametrize("operator", ["lt", "gt", "eq", "neq", "leq", "geq"])
+def test_strict_replacement_helpers_exist_only_for_their_consumers(operator):
+    root = Path(generator.__file__).with_name("metaprogram")
+    control = clingo.Control(["--warn=none"])
+    control.load(str(root / "pruning/redundancy/comparisons.lp"))
+    control.add("base", [], f"""
+        comparison_operator(0,{operator}). mode_arg_type(0,0,u).
+        var_at(body,0,0,0). arg_type(body,0,0,t).
+        recall_group(0,0). selected_count(0,1). group_recall(0,1).
+    """)
+    control.ground([("base", [])])
+    models = []
+    control.solve(on_model=lambda model: models.append(set(model.symbols(atoms=True))))
+    for name, arguments in (("comparison_type_conflict", [0, 0, 0]), ("comparison_recall_full", [0])):
+        assert (clingo.Function(name, list(map(clingo.Number, arguments))) in models[0]) == (operator in {"lt", "gt"})
+
+
+@pytest.mark.parametrize("operator", ["lt", "gt"])
+@pytest.mark.parametrize("guard", ["", "comparison_type_conflict(0,0,0).", "comparison_type_conflict(0,1,1).", "comparison_recall_full(0)."])
+def test_strict_replacement_preserves_type_and_recall_guards(operator, guard):
+    root = Path(generator.__file__).with_name("metaprogram")
+    control = clingo.Control(["--warn=none"])
+    control.load(str(root / "pruning/redundancy/comparisons.lp"))
+    if operator == "gt":
+        guard = guard.replace("(0,0,0)", "(0,1,0)").replace("(0,1,1)", "(0,0,1)")
+    control.add("base", [], f"comparison_operator(0,{operator}). selected_leq(0,1). selected_neq(0,1). {guard}")
+    control.ground([("base", [])])
+    assert control.solve().satisfiable == bool(guard)
 
 
 def test_repeated_condition_stays_without_a_shorter_template():

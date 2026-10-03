@@ -28,7 +28,8 @@ from gentians.clauses.analysis.relation_properties import (  # noqa: E402
 )
 from gentians.clauses.analysis.rule_properties import _substitute_variables  # noqa: E402
 from gentians.clauses.canonicalization.canonical_clause import CanonicalArithmeticClause  # noqa: E402
-from gentians.clauses.canonicalization.clauses import _clause_from_reified  # noqa: E402
+from gentians.clauses.canonicalization.clauses import _clause_metadata  # noqa: E402
+from gentians.clauses.clause import Clause  # noqa: E402
 from gentians.clauses.canonicalization.expression import ArithmeticExpression  # noqa: E402
 from gentians.clauses.canonicalization.expression_normalization import _mode_expression  # noqa: E402
 from gentians.clauses.canonicalization.linear_constraint import LinearConstraint  # noqa: E402
@@ -107,7 +108,7 @@ def workloads():
 
     def normalize():
         _normalize_component.cache_clear()
-        return _normalize_component((*equations, *comparisons), frozenset(range(64)), width)
+        return _normalize_component((*equations, *comparisons), (1 << 64) - 1, width)
 
     def variables(value):
         result = None
@@ -118,7 +119,10 @@ def workloads():
     def metadata():
         result = None
         for _ in range(1000):
-            result = _clause_from_reified(rendered, statement, reified, modes_by_id)
+            result = Clause(rendered, statement, *_clause_metadata(
+                tuple(literal.mode_id for literal in reified.head),
+                tuple(literal.mode_id for literal in reified.body), modes_by_id,
+            ))
         return result
 
     def mode_expression():

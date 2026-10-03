@@ -27,6 +27,7 @@ from gentians.clauses.analysis.relation_properties import (
 )
 from gentians.clauses.canonicalization import arithmetic, expression as expressions
 from gentians.clauses.canonicalization import expression_constraint, expression_normalization
+from gentians.clauses.canonicalization import linear_constraint as linear_constraints
 from gentians.clauses.canonicalization.arithmetic_system import ArithmeticSystem
 from gentians.clauses.canonicalization.clauses import ClauseCanonicalizer
 from gentians.clauses.canonicalization.expression import ArithmeticExpression
@@ -37,6 +38,7 @@ from gentians.clauses.canonicalization.linear_normalization import (
     _comparison_linear_template,
     _linear_assignment_expression,
     _orient_linear_constraints,
+    _normalize_component,
 )
 from gentians.clauses.clause_space import ClauseSpace
 from gentians.clauses.reified_clause import ReifiedClause, instantiate_head
@@ -845,6 +847,19 @@ def test_native_arithmetic_system_is_shared_only_within_its_own_lifetime(monkeyp
     assert hash(system) == original_hash
 
 
+def test_singleton_native_system_needs_no_ast_hashing(monkeypatch):
+    relation = LinearConstraint((1, -1), "lt")
+    expected = relation.instantiate()
+
+    def no_hash(_node):
+        raise AssertionError("one unguarded relation needs no native deduplication")
+
+    monkeypatch.setattr(clingo.ast.AST, "__hash__", no_hash)
+    system = ArithmeticSystem((relation,))
+    assert system.instantiate() == (expected,)
+    assert system.instantiate() is system.instantiate()
+
+
 def test_local_comparison_variants_share_safe_and_unsafe_probes_within_compilation(monkeypatch):
     task = parse_text("""
         #maxhl(2). #maxbl(2).
@@ -1005,23 +1020,150 @@ def test_linear_readiness_matches_original_priority_for_duplicates_cycles_and_no
     for _ in range(400):
         constraints = tuple(LinearConstraint(tuple(rng.randrange(-2, 3) for _ in range(5)), rng.choice(("eq", "le", "ne"))) for _ in range(rng.randrange(8)))
         safe = {index for index in range(5) if rng.randrange(2)}
-        assert _orient_linear_constraints(constraints, safe) == reference(constraints, safe)
+        assert _orient_linear_constraints(constraints, sum(1 << variable for variable in safe)) == reference(constraints, safe)
     chain = (LinearConstraint((0, 1, -1), "eq"), LinearConstraint((1, -1, 0), "eq"))
-    assert _orient_linear_constraints((*chain, *chain), {0}) == reference((*chain, *chain), {0})
+    assert _orient_linear_constraints((*chain, *chain), 1) == reference((*chain, *chain), {0})
 
 
-def test_linear_readiness_inspects_each_variable_set_once(monkeypatch):
+def test_linear_readiness_inspects_each_variable_mask_once(monkeypatch):
     calls = []
-    original = LinearConstraint.variables.fget
+    original = LinearConstraint.variable_mask.fget
 
     def variables(constraint):
         calls.append(constraint)
         return original(constraint)
 
-    monkeypatch.setattr(LinearConstraint, "variables", property(variables))
+    monkeypatch.setattr(LinearConstraint, "variable_mask", property(variables))
     constraints = tuple(LinearConstraint(tuple(-1 if variable == index else 1 if variable == index + 1 else 0 for variable in range(101)), "eq") for index in reversed(range(100)))
-    assert _orient_linear_constraints(constraints, {0}) is not None
+    assert _orient_linear_constraints(constraints, 1) is not None
     assert len(calls) == len(constraints)
+
+
+def test_linear_masks_follow_nonzero_coefficients_and_keep_hashes_after_materialization():
+    constraint = LinearConstraint((0,) * 100 + (2, -1), "eq")
+    original_hash = hash(constraint)
+    assert constraint.variable_mask == (1 << 100) | (1 << 101)
+    assert constraint.variables == frozenset({100, 101})
+    assert hash(constraint) == original_hash
+    assert constraint == LinearConstraint(constraint.coefficients, "eq")
+
+
+@pytest.mark.parametrize("comparison", ["<", ">", "!="])
+@pytest.mark.parametrize("scale", [-1, 1])
+def test_linear_conflict_facts_pair_proportional_templates_without_asp_coefficients(comparison, scale):
+    modes = mode_compiler._clause_modes(parse_text(f"""
+        #modeb(1,2*var(numeric,input)=var(numeric,output)).
+        #modeb(1,{4*scale}*var(numeric,input){comparison}{2*scale}*var(numeric,input)).
+        #modeb(1,var(numeric,input)*var(numeric,input)=var(numeric,output)).
+    """))
+    facts = mode_facts.compile_mode_facts(modes, {}, 1, 4)
+    assert [fact for fact in facts if fact.startswith("numeric_linear_conflict(")] == ["numeric_linear_conflict(0,1)."]
+    assert [fact for fact in facts if fact.startswith("nonlinear_builtin_mode(")] == ["nonlinear_builtin_mode(2)."]
+
+
+def test_linear_conflict_pairing_excludes_zero_coefficients_that_cannot_anchor_a_row():
+    modes = mode_compiler._clause_modes(parse_text("""
+        #modeb(1,0*var(numeric,input)+2*var(numeric,input)=var(numeric,output)).
+        #modeb(1,0*var(numeric,input)+4*var(numeric,input)<2*var(numeric,input)).
+    """))
+    assert not mode_facts._linear_conflict_facts(modes)
+
+
+@pytest.mark.parametrize("row,requires_distinct", [
+    ("2*var(numeric,input)-var(numeric,input)", False),
+    ("var(numeric,input)+var(numeric,input)", False),
+    ("2*var(numeric,input)", False),
+    ("2*var(numeric,input)-2*var(numeric,input)", True),
+    ("var(numeric,input)-var(numeric,input)+var(numeric,input)", True),
+])
+def test_linear_conflict_compiler_marks_only_rows_whose_anchor_can_cancel(row, requires_distinct):
+    modes = mode_compiler._clause_modes(parse_text(f"#modeb(1,{row}=0). #modeb(1,{row}<0)."))
+    facts = mode_facts._linear_conflict_facts(modes)
+    assert "numeric_linear_conflict(0,1)." in facts
+    assert ("numeric_linear_distinct_mode(0)." in facts) == requires_distinct
+
+
+@pytest.mark.parametrize("coefficients,relation,auxiliary,expected", [
+    ((2, -4), "eq", (), ((1, -2), "eq")),
+    ((-2, 4), "eq", (), ((1, -2), "eq")),
+    ((-2, 4), "lt", (), ((-1, 2), "lt")),
+    ((-2, 4), "ne", (), ((1, -2), "ne")),
+    ((1, -3), "eq", (0,), ()),
+    ((2, -4), "eq", (0,), ((1, -2), "eq")),
+    ((1, -3), "le", (0,), ((1, -3), "le")),
+    ((0, 0), "eq", (), ()),
+    ((0, 0), "le", (), ()),
+    ((0, 0), "lt", (), None),
+    ((0, 0), "ne", (), None),
+])
+def test_single_linear_row_preserves_signs_and_integer_auxiliary_elimination(
+    coefficients, relation, auxiliary, expected,
+):
+    result = _normalize_component(
+        (LinearConstraint(coefficients, relation),), sum(1 << variable for variable in auxiliary), len(coefficients),
+    )
+    assert result == (None if expected is None else () if not expected
+                      else (LinearConstraint(*expected),))
+
+
+def test_equal_linear_rows_share_native_syntax_without_merging_relations(monkeypatch):
+    calls = []
+    original = linear_constraints.binding_term
+
+    def binding(value):
+        calls.append(value)
+        return original(value)
+
+    LinearConstraint.instantiate.cache_clear()
+    monkeypatch.setattr(linear_constraints, "binding_term", binding)
+    try:
+        first = LinearConstraint((2, -1), "eq").instantiate()
+        count = len(calls)
+        for _ in range(10):
+            assert LinearConstraint((2, -1), "eq").instantiate() is first
+        assert len(calls) == count
+        less = LinearConstraint((2, -1), "lt").instantiate()
+        reversed_row = LinearConstraint((-2, 1), "eq").instantiate()
+        assert str(first) == "((2*V0)-V1) = 0"
+        assert str(less) == "((2*V0)-V1) < 0"
+        assert reversed_row != first
+        changed = first.update(sign=clingo.ast.Sign.Negation)
+        assert str(changed) != str(first)
+        assert str(first) == "((2*V0)-V1) = 0"
+        assert LinearConstraint.instantiate.cache_info().maxsize == 8192
+    finally:
+        LinearConstraint.instantiate.cache_clear()
+
+
+@pytest.mark.parametrize("body_equality", [False, True])
+def test_numeric_equality_facts_exclude_heads_and_keep_directed_outputs(body_equality):
+    task = parse_text("""
+        #modeh(1,var(numeric,input)=var(numeric,input)).
+        #modeb(1,var(numeric,input)<var(numeric,input)).
+        #modeb(1,var(numeric,input)*var(numeric,input)=var(numeric,output)).
+    """ + ("#modeb(1,var(numeric,output)=var(numeric,input))." if body_equality else ""))
+    modes = mode_compiler._clause_modes(task)
+    facts = mode_facts.compile_mode_facts(modes, mode_facts.predicate_ids(modes), 1, 3)
+    equalities = [fact for fact in facts if fact.startswith("numeric_equality_mode(")]
+    complex_modes = [fact for fact in facts if fact.startswith("complex_numeric_builtin_mode(")]
+    if body_equality:
+        assert equalities == [f"numeric_equality_mode({modes[-1].id})."]
+        assert complex_modes == [f"complex_numeric_builtin_mode({modes[-2].id})."]
+    else:
+        assert not equalities and not complex_modes
+
+
+def test_strict_self_comparison_facts_keep_chains_without_duplicating_simple_policy():
+    task = parse_text("""
+        #modeb(1,var(numeric,input)<var(numeric,input)).
+        #modeb(1,var(numeric,input)<var(numeric,input)<3).
+    """)
+    modes = mode_compiler._clause_modes(task)
+    simple = mode_facts._comparison_facts(modes[0], modes[0].literal)
+    chained = mode_facts._comparison_facts(modes[1], modes[1].literal)
+    assert f"comparison_operator({modes[0].id},lt)." in simple
+    assert not any(fact.startswith("strict_comparison_args(") for fact in simple)
+    assert f"strict_comparison_args({modes[1].id},0,1)." in chained
 
 
 def test_context_indexes_are_reused_and_numeric_signs_preserve_empty_relations(monkeypatch):

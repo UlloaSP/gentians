@@ -607,15 +607,7 @@ def test_clause_package_exposes_full_and_sampled_generation():
     assert not hasattr(clause_package, "ClauseGenerator")
 
 
-def test_clause_generator_parses_facts_once_and_constructs_output_ast(monkeypatch):
-    fact_sources: list[str] = []
-    original_facts_parse = clause_generation.parse_program
-
-    def record_facts_parse(source: str):
-        fact_sources.append(source)
-        return original_facts_parse(source)
-
-    monkeypatch.setattr(clause_generation, "parse_program", record_facts_parse)
+def test_clause_generator_loads_facts_directly_and_constructs_output_ast(monkeypatch):
     task = inductive_task(
         ["edge(1,2)."],
         [],
@@ -636,8 +628,7 @@ def test_clause_generator_parses_facts_once_and_constructs_output_ast(monkeypatc
     monkeypatch.setattr(ast, "parse_string", record_parse)
     space = generate_clause_space(task, Arguments())
 
-    assert len(fact_sources) == 1
-    assert parsed_sources == fact_sources
+    assert parsed_sources == []
     assert space.entries
     assert all(entry.statement.ast_type == ast.ASTType.Rule for entry in space.entries)
     assert all(entry.text == str(entry.statement) for entry in space.entries)

@@ -6,15 +6,11 @@ from pathlib import Path
 from typing import cast
 
 import clingo
-from clingo import ast
 from clingo.configuration import Configuration
 
 from ..arguments import Arguments
 from ..clingo_stats import clingo_statistics
-from ..language.asp import (
-    add_program,
-    parse_program,
-)
+from ..language.asp import add_program, parse_program
 from ..language.ir.inductive_task import InductiveTask
 from ..timing import (
     add,
@@ -132,17 +128,12 @@ CLAUSE_METAPROGRAM_MODULES = (
 )
 
 
-# Clingo keeps every comment line as an AST node. They are not program: left in,
-# each one is added to every Control and counted by the program_chars metric.
-CLAUSE_METAPROGRAM = tuple(
-    statement
-    for statement in parse_program(
-        "\n".join(
-            (Path(__file__).with_name("metaprogram") / module).read_text()
-            for module in CLAUSE_METAPROGRAM_MODULES
-        )
+# Reuse the fixed native program; parse_program already discards comments.
+CLAUSE_METAPROGRAM = parse_program(
+    "\n".join(
+        (Path(__file__).with_name("metaprogram") / module).read_text()
+        for module in CLAUSE_METAPROGRAM_MODULES
     )
-    if statement.ast_type != ast.ASTType.Comment
 )
 
 
@@ -225,7 +216,6 @@ class _ClauseGenerator:
             facts += "\nprune_optional_constraints."
         if by_size:
             facts += "\nenumerate_by_size."
-        fact_program = parse_program(facts)
         solver_arguments = ["0", *_clause_space_args(self.args)]
         ctl = clingo.Control(solver_arguments, logger=_raise_on_clingo_error)
         if by_size:
@@ -239,7 +229,7 @@ class _ClauseGenerator:
             solver_config.rand_freq = "1"
             solver_config.sign_def = "rnd"
         cast(Configuration, ctl.configuration.solve).models = "0"
-        add_program(ctl, fact_program)
+        ctl.add("base", [], facts)
         add_program(ctl, CLAUSE_METAPROGRAM)
         measure = is_enabled() or metric_enabled("clingo")
         start = net_time() if measure else 0.0
@@ -247,13 +237,13 @@ class _ClauseGenerator:
         grounding_seconds = net_time() - start if measure else 0.0
         add("clause_generation.grounding", grounding_seconds)
         decoder = _ModelDecoder(ctl.symbolic_atoms, self.modes_by_id)
-        return ctl, decoder, fact_program, solver_arguments, grounding_seconds
+        return ctl, decoder, facts, solver_arguments, grounding_seconds
 
     def batches(
         self, size: int, seed: int | None, *,
         by_size: bool = False,
     ) -> Generator[ClauseSpace, None, None]:
-        ctl, decoder, fact_program, solver_arguments, grounding_seconds = self._prepare(
+        ctl, decoder, facts, solver_arguments, grounding_seconds = self._prepare(
             seed, by_size
         )
         strata = (
@@ -313,7 +303,7 @@ class _ClauseGenerator:
                 if collect_metrics:
                     with instrumentation():
                         self._record_solve(
-                            ctl, fact_program, solver_arguments, seed,
+                            ctl, facts, solver_arguments, seed,
                             grounding_seconds if ordinal == 0 else None, seconds,
                         )
 
@@ -323,7 +313,7 @@ class _ClauseGenerator:
         Without batches nothing has to suspend the search, so models are decoded
         in the solver callback instead of crossing threads one at a time.
         """
-        ctl, decoder, fact_program, solver_arguments, grounding_seconds = self._prepare(None)
+        ctl, decoder, facts, solver_arguments, grounding_seconds = self._prepare(None)
         canonicalizer = ClauseCanonicalizer(self.modes_by_id, self.max_variables)
         callback_seconds = 0.0
         collect_metrics = metric_enabled("clingo")
@@ -350,12 +340,12 @@ class _ClauseGenerator:
             if collect_metrics:
                 with instrumentation():
                     self._record_solve(
-                        ctl, fact_program, solver_arguments, None,
+                        ctl, facts, solver_arguments, None,
                         grounding_seconds, seconds,
                     )
 
     def _record_solve(
-        self, ctl, fact_program, solver_arguments, seed,
+        self, ctl, facts, solver_arguments, seed,
         grounding_seconds, seconds,
     ) -> None:
         stats = clingo_statistics(ctl)
@@ -368,7 +358,9 @@ class _ClauseGenerator:
                     "phase_context": "clause_generation",
                     "seconds": grounding_seconds,
                     "program_size": 1,
-                    "program_chars": sum(map(len, map(str, fact_program)))
+                    # Preserve the canonical character metric only while recording;
+                    # normal generation loads facts directly through Clingo's parser.
+                    "program_chars": sum(map(len, map(str, parse_program(facts))))
                     + sum(map(len, map(str, CLAUSE_METAPROGRAM))),
                     "stats_atoms": stats["atoms"],
                     "stats_rules": stats["rules"],

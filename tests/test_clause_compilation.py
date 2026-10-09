@@ -860,6 +860,45 @@ def test_singleton_native_system_needs_no_ast_hashing(monkeypatch):
     assert system.instantiate() is system.instantiate()
 
 
+@pytest.mark.parametrize("factor", [-6, 6, 6 * (2**53 + 1)])
+@pytest.mark.parametrize("relation", ["lt", "le", "ne"])
+def test_comparison_outside_equality_pivot_preserves_primitive_integer_rows(factor, relation):
+    constraints = (LinearConstraint((2 * factor, -3 * factor, 0), "eq"),
+                   LinearConstraint((0, 4, -8), relation))
+    assert _normalize_component(constraints, 0, 3) == (
+        LinearConstraint((2, -3, 0), "eq"),
+        LinearConstraint((0, 1, -2), relation),
+    )
+
+
+@pytest.mark.parametrize("incremental", [False, True])
+def test_direct_fact_loading_preserves_canonical_metric_and_single_grounding(monkeypatch, incremental):
+    task = parse_text("#maxv(0). #maxbl(2). #modeh(1,p). #modeb(1,q). #modeb(1,r).")
+    rows, parsed = [], []
+    original = generator.parse_program
+
+    def metric_parse(source):
+        parsed.append(source)
+        return original(source)
+
+    monkeypatch.setattr(generator, "parse_program", metric_parse)
+    monkeypatch.setattr(generator, "metric_enabled", lambda kind: kind == "clingo")
+    monkeypatch.setattr(generator, "record_metric", lambda _kind, row: rows.append(row))
+    factory = generator._ClauseGenerator(task, Arguments())
+    if incremental:
+        assert list(factory.batches(1, 31, by_size=True))
+    else:
+        assert factory.clause_space()
+    assert len(parsed) == 1
+    grounding = [row for row in rows if row["operation_category"] == "grounding"]
+    assert len(grounding) == 1
+    expected = sum(len(str(node)) for node in original(parsed[0]))
+    expected += sum(len(str(node)) for node in generator.CLAUSE_METAPROGRAM)
+    assert grounding[0]["program_chars"] == expected
+    solves = [row for row in rows if row["operation_category"] == "solving"]
+    assert len(solves) == (3 if incremental else 1)
+
+
 def test_local_comparison_variants_share_safe_and_unsafe_probes_within_compilation(monkeypatch):
     task = parse_text("""
         #maxhl(2). #maxbl(2).

@@ -449,9 +449,9 @@ def test_theta_offsets_match_saturation_without_disjunction(text, monkeypatch):
     saturated, saturated_disjunctions, saturated_facts = _theta_space(text, 0, monkeypatch)
 
     assert offsets == saturated
-    assert any(str(fact).startswith("theta_sigma(") for fact in offset_facts)
+    assert any(fact.startswith("theta_sigma(") for fact in offset_facts.splitlines())
     assert offset_disjunctions == 0
-    assert any(str(fact).startswith("theta_saturated_section(") for fact in saturated_facts)
+    assert any(fact.startswith("theta_saturated_section(") for fact in saturated_facts.splitlines())
     assert saturated_disjunctions > 0
 
 
@@ -529,7 +529,7 @@ def test_non_interchangeable_addition_keeps_its_arithmetic_view():
     )
     generator_ = generator._ClauseGenerator(task, Arguments())
     _control, _index, facts, *_ = generator_._prepare(None)
-    lines = {str(fact) for fact in facts}
+    lines = set(facts.splitlines())
 
     assert "add_mode(0)." in lines
     assert "interchangeable_operands(0)." not in lines

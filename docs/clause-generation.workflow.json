@@ -2,179 +2,250 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "Generación de cláusulas y ClauseSpace en Gentians",
+    "title": "Generación de cláusulas: de InductiveTask a ClauseSpace",
     "quality_profile": "showcase",
-    "output": "docs/clause-generation.html",
-    "viewBox": [1700, 700]
+    "output": "docs/clause-generation.html"
   },
   "lanes": [
-    { "id": "input", "label": "Task file, lenguaje e IR" },
-    { "id": "compiler", "label": "Compilación de cláusulas" },
-    { "id": "asp", "label": "Solver y salida" },
-    { "id": "post", "label": "Decodificación y forma canónica" }
-  ],
-  "phases": [
-    { "id": "parse", "label": "Lectura", "fromCol": 0, "toCol": 1 },
-    { "id": "represent", "label": "IR y análisis", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
-    { "id": "enumerate", "label": "Compilar y enumerar", "fromCol": 4, "toCol": 5, "variant": "dashed" }
-  ],
-  "groups": [
-    { "id": "typed_ir", "label": "Contrato interno", "lane": "input", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
-    { "id": "asp_pruning", "label": "Compilación y poda declarativa", "lane": "compiler", "fromCol": 3, "toCol": 4, "variant": "security" },
-    { "id": "canonical_output", "label": "Decodificación y normalización", "lane": "post", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+    {
+      "id": "analysis",
+      "label": "Tarea y análisis estático · Python"
+    },
+    {
+      "id": "compile",
+      "label": "Compilación a facts · Python"
+    },
+    {
+      "id": "asp",
+      "label": "Enumeración y poda · Clingo"
+    },
+    {
+      "id": "post",
+      "label": "Decodificación y forma canónica · Python"
+    }
   ],
   "mainPath": [
-    "task_file",
-    "reader",
-    "program_ir",
-    "static_analysis",
+    "task",
     "mode_compiler",
-    "asp_facts",
+    "fact_compiler",
     "clingo",
     "decoder",
-    "arithmetic_system",
+    "canonicalizer",
     "clause_space"
   ],
   "semanticChecks": {
-    "allowedRoots": ["task_file"],
-    "allowedTerminals": ["clause_space"],
+    "allowedRoots": [
+      "task",
+      "metaprogram"
+    ],
+    "allowedTerminals": [
+      "clause_space"
+    ],
     "requiredPaths": [
-      { "from": "task_file", "to": "clingo" },
-      { "from": "clingo", "to": "clause_space" }
+      {
+        "from": "task",
+        "to": "clingo"
+      },
+      {
+        "from": "metaprogram",
+        "to": "clingo"
+      },
+      {
+        "from": "clingo",
+        "to": "clause_space"
+      }
     ]
   },
   "nodes": [
     {
-      "id": "task_file",
-      "lane": "input",
+      "id": "task",
+      "lane": "analysis",
       "col": 0,
       "type": "external",
-      "label": "Task file",
-      "width": 150
-    },
-    {
-      "id": "reader",
-      "lane": "input",
-      "col": 1,
-      "type": "backend",
-      "label": "language front-end",
-      "width": 170
-    },
-    {
-      "id": "program_ir",
-      "lane": "input",
-      "col": 2,
-      "type": "database",
       "label": "InductiveTask",
-      "width": 150
+      "width": 200
     },
     {
-      "id": "head_forms",
-      "lane": "input",
-      "col": 3,
-      "type": "database",
-      "label": "Head modes",
-      "width": 175
+      "id": "task_analysis",
+      "lane": "analysis",
+      "col": 1,
+      "type": "security",
+      "label": "Análisis de la tarea",
+      "width": 190
     },
     {
-      "id": "static_analysis",
-      "lane": "compiler",
+      "id": "closed_world",
+      "lane": "analysis",
       "col": 2,
       "type": "security",
-      "label": "Análisis estático",
-      "width": 165
+      "label": "Propiedades closed-world",
+      "width": 210
     },
     {
       "id": "mode_compiler",
-      "lane": "compiler",
-      "col": 3,
+      "lane": "compile",
+      "col": 0,
       "type": "backend",
-      "label": "ClauseMode compiler",
-      "width": 185
+      "label": "Compilador de modes",
+      "width": 190
     },
     {
-      "id": "asp_facts",
-      "lane": "compiler",
-      "col": 4,
+      "id": "fact_compiler",
+      "lane": "compile",
+      "col": 2,
+      "type": "backend",
+      "label": "Compilador de facts",
+      "width": 190
+    },
+    {
+      "id": "metaprogram",
+      "lane": "asp",
+      "col": 1,
       "type": "messagebus",
-      "label": "Facts + metaprograma ASP",
-      "width": 195
+      "label": "Metaprograma ASP",
+      "width": 200
     },
     {
       "id": "clingo",
       "lane": "asp",
-      "col": 4,
+      "col": 2,
       "type": "cloud",
-      "label": "Clingo ground + solve",
-      "width": 180
+      "label": "clingo.Control",
+      "width": 200
     },
     {
       "id": "decoder",
       "lane": "post",
-      "col": 4,
+      "col": 2,
       "type": "backend",
       "label": "Decoder",
-      "width": 180
+      "width": 170
     },
     {
-      "id": "arithmetic_system",
+      "id": "canonicalizer",
       "lane": "post",
-      "col": 5,
+      "col": 3,
       "type": "backend",
-      "label": "ArithmeticSystem",
-      "width": 190
+      "label": "ClauseCanonicalizer",
+      "width": 200
     },
     {
       "id": "clause_space",
-      "lane": "asp",
-      "col": 5,
+      "lane": "post",
+      "col": 4,
       "type": "database",
       "label": "ClauseSpace",
-      "width": 175
+      "width": 200
     }
   ],
   "edges": [
-    { "id": "read-lines", "from": "task_file", "to": "reader", "label": "Path.read_text UTF-8", "variant": "default", "role": "main" },
-    { "id": "build-program", "from": "reader", "to": "program_ir", "label": "lex + parse + validate", "variant": "emphasis", "role": "main" },
-    { "id": "extract-heads", "from": "program_ir", "to": "head_forms", "label": "#modeh + #modeha", "variant": "default", "role": "branch" },
-    { "id": "inspect-program", "from": "program_ir", "to": "static_analysis", "label": "fragments + declarations", "variant": "security", "role": "main" },
-    { "id": "compile-modes", "from": "static_analysis", "to": "mode_compiler", "label": "capacidades permitidas", "variant": "emphasis", "role": "main" },
-    { "id": "bind-head-forms", "from": "head_forms", "to": "mode_compiler", "label": "miembros y posiciones fijas", "variant": "default", "role": "branch" },
-    { "id": "emit-facts", "from": "mode_compiler", "to": "asp_facts", "label": "facts + módulos .lp", "variant": "security", "role": "main" },
-    { "id": "solve-space", "from": "asp_facts", "to": "clingo", "label": "programa ASP completo", "variant": "emphasis", "role": "main" },
-    { "id": "decode-model", "from": "clingo", "to": "decoder", "label": "modelo θ-reducido", "variant": "default", "role": "main" },
-    { "id": "canonicalize", "from": "decoder", "to": "arithmetic_system", "label": "ReifiedClause", "variant": "emphasis", "role": "main" },
-    { "id": "deduplicate", "from": "arithmetic_system", "to": "clause_space", "label": "canonical.key → representante", "variant": "emphasis", "role": "main" }
+    {
+      "id": "read-bias",
+      "from": "task",
+      "to": "mode_compiler",
+      "label": "#modeh, #modeb, #modec y límites",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "inspect-task",
+      "from": "task",
+      "to": "task_analysis",
+      "label": "background y ejemplos",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "id": "select-contexts",
+      "from": "task_analysis",
+      "to": "closed_world",
+      "label": "un contexto por ejemplo",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "id": "emit-properties",
+      "from": "closed_world",
+      "to": "fact_compiler",
+      "label": "ClosedWorldProperties",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "id": "emit-modes",
+      "from": "mode_compiler",
+      "to": "fact_compiler",
+      "label": "ClauseMode y capacidad de slots",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "load-facts",
+      "from": "fact_compiler",
+      "to": "clingo",
+      "label": "facts del lenguaje",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "load-rules",
+      "from": "metaprogram",
+      "to": "clingo",
+      "label": "reglas fijas",
+      "variant": "default",
+      "role": "branch"
+    },
+    {
+      "id": "decode-model",
+      "from": "clingo",
+      "to": "decoder",
+      "label": "selected/3 y var_at/4",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "canonicalize",
+      "from": "decoder",
+      "to": "canonicalizer",
+      "label": "ReifiedClause",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "deduplicate",
+      "from": "canonicalizer",
+      "to": "clause_space",
+      "label": "un representante por clave",
+      "variant": "emphasis",
+      "role": "main"
+    }
   ],
   "cards": [
     {
-      "dot": "cyan",
-      "title": "Lenguaje, parser y representación",
+      "dot": "rose",
+      "title": "Ida: Python prepara el problema",
       "items": [
-        "parse_file carga UTF-8; lexer separa sentencias; parser construye el IR; Clingo conserva gramática y AST ASP",
-        "#maxv/#maxbl/#minhl/#maxhl/#maxpl fijan dominios finitos; #pos/#neg, constants e inventions se validan y deduplican",
-        "#modeh conserva una cabeza completa; #modeha compila combinaciones cardinalidad; #modeb declara átomos, relaciones y aggregates exactos; #modec declara condiciones",
-        "InductiveTask reúne background, ejemplos, language bias y límites; las piezas de cláusula viven en language.ir"
+        "analysis/ valida la tarea e infiere propiedades por contexto de ejemplo; solo sirven para podar",
+        "mode_compiler.py expande el bias en ClauseMode con IDs deterministas",
+        "fact_compiler.py une facts de modes, de propiedades y de θ-reducción"
       ]
     },
     {
-      "dot": "rose",
-      "title": "Compilación y poda ASP previa al modelo",
+      "dot": "cyan",
+      "title": "Clingo enumera y poda",
       "items": [
-        "analysis/ obtiene evidencia; mode_facts.py y property_facts.py la reifican; fact_compiler.py ensambla el programa",
-        "ClauseMode compila cada template, asigna IDs, recall groups, posiciones y roles, y unifica la familia aditiva implícita compatible",
-        "representation/schema.lp declara el contrato; representation/ deriva vistas; legality/ valida límites, ámbitos y flujo; symmetry/ ordena encodings",
-        "inference/ deriva consecuencias; pruning/ distingue contradicciones, redundancias, propiedades y políticas"
+        "Un grounding por tarea; cada modelo es una cláusula legal",
+        "legality/ aplica seguridad, tipos y recall; symmetry/ y pruning/ descartan variantes y redundancias",
+        "steady_state resuelve todo el espacio; incremental reanuda el solve por lotes de tamaño de cuerpo creciente"
       ]
     },
     {
       "dot": "emerald",
-      "title": "Decodificación, ArithmeticSystem y salida",
+      "title": "Vuelta: Python reconstruye",
       "items": [
-        "Clingo elimina cláusulas θ-reducibles; decoder.py produce ReifiedClause",
-        "canonicalization/ separa representación aritmética y algoritmos de normalización",
-        "Outputs inseguros conservan asignación; div/mod incluyen divisor != 0 sin recall extra",
-        "Clause guarda texto, heads, dependencies y tamaño; ClauseSpace ordena y deduplica"
+        "decoder.py lee selected/3 y var_at/4 sin materializar el modelo",
+        "canonicalization/ solo actúa con builtins: normaliza sistemas lineales y descarta los contradictorios",
+        "ClauseSpace deduplica por texto y ordena"
       ]
     }
   ]

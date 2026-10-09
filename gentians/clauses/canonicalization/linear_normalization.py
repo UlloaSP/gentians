@@ -314,7 +314,7 @@ def _normalize_component(
         pivot_value = equation[pivot]
         comparisons = [
             (
-                tuple(
+                coefficients if not coefficients[pivot] else tuple(
                     value * pivot_value - coefficients[pivot] * equation_value
                     for value, equation_value in zip(coefficients, equation)
                 ),
@@ -340,6 +340,8 @@ def _normalize_component(
 def _integer_rref(
     rows: list[tuple[int, ...]], width: int
 ) -> tuple[tuple[int, ...], ...]:
+    if len(rows) < 2:
+        return (_primitive_row(rows[0], True),) if rows and any(rows[0]) else ()
     matrix = [list(_primitive_row(row, True)) for row in rows if any(row)]
     pivot_row = 0
     for column in range(width):

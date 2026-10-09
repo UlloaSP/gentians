@@ -4,6 +4,7 @@ from clingo import ast
 
 from gentians.clauses.clause import Clause
 from gentians.clauses.clause_space import ClauseSpace
+from gentians.clauses.metadata import ClauseMetadata
 from gentians.language.asp import clause_predicates, parse_program
 from gentians.language.ir.example import Example
 from gentians.language.ir.inductive_task import InductiveTask
@@ -24,5 +25,5 @@ def make_clause_space(sources: list[str]) -> ClauseSpace:
     entries = []
     for source, statement in zip(sources, statements, strict=True):
         heads, dependencies, body_literals = clause_predicates(statement)
-        entries.append(Clause(source, statement, heads, dependencies, body_literals))
+        entries.append(Clause(source, statement, ClauseMetadata.from_predicates(heads, dependencies, body_literals)))
     return ClauseSpace(entries)

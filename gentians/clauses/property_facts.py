@@ -1,15 +1,29 @@
 from ..language.asp import Predicate
 from .analysis.properties import ClosedWorldProperties, DomainKey
+from .clause_mode import ClauseMode
+from .property_consumers import PropertyMaps
 
 
 def compile_property_facts(
     properties: ClosedWorldProperties,
     predicate_ids: dict[Predicate, int],
+    modes: list[ClauseMode] | None = None,
+    maps: PropertyMaps | None = None,
 ) -> list[str]:
     parts: list[str] = []
 
     def pred_id(predicate: Predicate) -> int | None:
         return predicate_ids.get(predicate)
+
+    # Property consumers here join positive plain body atoms. Unknown shapes
+    # retain the map; flattened bindings must not be mistaken for term indexes.
+    if maps is None and modes is not None:
+        maps = PropertyMaps(modes)
+
+    def compatible(left: Predicate, right: Predicate, projection: tuple[tuple[int, int], ...]) -> bool:
+        if maps is None:
+            return True
+        return maps.compatible(left, right, projection)
 
     for predicate in sorted(properties.symmetric):
         if (identifier := pred_id(predicate)) is not None:
@@ -68,7 +82,7 @@ def compile_property_facts(
     for left, left_arg, right, right_arg in sorted(properties.disjoint_projection):
         left_id = pred_id(left)
         right_id = pred_id(right)
-        if left_id is not None and right_id is not None:
+        if left_id is not None and right_id is not None and compatible(left, right, ((left_arg, right_arg),)):
             parts.append(f"disjoint_arg({left_id},{left_arg},{right_id},{right_arg}).")
     # The mapping describes positions, not predicate membership. Share equal
     # complete mappings while retaining every signed predicate pair below.
@@ -77,6 +91,8 @@ def compile_property_facts(
         left_id = pred_id(left)
         right_id = pred_id(right)
         if left_id is None or right_id is None:
+            continue
+        if not compatible(left, right, tuple((source, target) for target, source in enumerate(projection))):
             continue
         tuple_mutex_id = tuple_mutex_projections.get(projection)
         if tuple_mutex_id is None:

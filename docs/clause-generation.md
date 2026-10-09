@@ -4,6 +4,8 @@
 in `gentians/clauses/generator.py`. Both produce canonical `ClauseSpace` values.
 Incremental enumeration changes the visited order and batch boundaries; the
 language and pruning rules are shared.
+The [implementation inventory](clause-generation-optimizations.md) maps all 25
+optimization opportunities to their code, activation scope and remaining limits.
 
 | Responsibility | Location under `gentians/clauses/` |
 | --- | --- |
@@ -19,6 +21,13 @@ language and pruning rules are shared.
 | Declarative legality and redundancy checks during enumeration | `metaprogram/` |
 | Positive-only constraint proof | `pruning.py` |
 | Clingo model decoding | `decoder.py` |
+| Numeric block transport (optional C extension) | `records.py`, `_records.c` |
+| Native AST construction and bounded lazy recipes | `native_syntax.py`, `recipes.py` |
+| Signed predicate masks and mode folding | `predicate_index.py`, `metadata.py`, `mode_metadata.py` |
+| Proven independent unary specialization | `subsets.py` |
+| Exact process partitioning and structural IPC | `partitions.py`, `serialization.py` |
+| Nominal binding domains and property-map consumers | `binding_facts.py`, `property_consumers.py` |
+| Proven strict-comparison component equivalences | `component_facts.py` |
 | Clause normalization and representative selection | `canonicalization/clauses.py`, `canonicalization/arithmetic.py` |
 | Linear and expression normalization algorithms | `canonicalization/linear_normalization.py`, `canonicalization/expression_normalization.py` |
 | Arithmetic systems, expressions and constraint values | The remaining class modules in `canonicalization/` |
@@ -175,7 +184,10 @@ also uses an explicit stack and still rejects unknown theory heads.
 
 Clingo applies theta reduction with the other redundancy checks before returning
 a model. `mode_facts.theta_facts` chooses its encoding: enumerated offsets keep
-the program normal, and saturation takes over only when they would be too many
+the program normal. Feasible contiguous repetition patterns respect shared
+recalls before constructing the offset union; the ASP check still tests all
+coupled groups globally. A bounded preparation falls back to the original small
+offset domain, or to saturation when both domains would be too many
 (see `docs/metaprogram/README.md`). As models arrive, `decoder.py` constructs a
 `ReifiedClause` and the generator passes it to `ClauseCanonicalizer`. Complete
 enumeration retains the preferred representative per canonical key rather than
@@ -189,31 +201,79 @@ fills a reusable buffer, whose cleared zero suffix marks the end. Decode visits
 the prepared deterministic slot order, preserving complete heads and flattened
 bindings without per-literal truth probes or public `Symbol` wrappers. The same
 decoder is reused across incremental size solves with cleanup disabled.
+When the optional extension is available, `records.py` copies a live model into
+an owned numeric row and delivers blocks of 128. Complete enumeration uses a C
+model-event callback and enters Python only for full blocks. A lock protects
+the row buffer in multi-thread Controls; the synchronous handle is closed before
+returning or restoring a delivery exception. Incremental consumes each Model
+through the iterator to preserve resumable raw-model budgets. Lookup, copying
+and block materialization run in C. `callback=python` retains the per-model
+callback as an explicit control with the same owned numeric transport.
+Dense slot/mode layouts also serve the portable decoder. Partial blocks are flushed
+before finalization or an incremental yield. No Model or native pointer is
+retained past its callback. The Python decoder remains an exact fallback.
 Arithmetic system reuse is task-local and capped at 8192 contexts, with oldest
 entries evicted first. Connected-component partitions share up to 8192 global
 entries keyed only by ordered variable masks, preserving the original literal
-order. Exact structural expressions share up to 8192 native terms independently
+order. A task-local table of up to 8192 component recipes includes exact ordered
+bindings and external/safe/numeric interface masks. It shares normalization
+across different complete-clause contexts; raw source literals still determine
+recalls, task budgets and representative preference. This table does not replace
+ASP enumeration with canonical components. The separate opt-in compiler in
+`component_facts.py` recognizes a restricted strict-comparison family and removes
+later copies of equivalent `<`/`>` comparisons before Clingo returns a model.
+It rejects the whole family when other comparison operators, comparison labels,
+output bindings or local scopes could invalidate removal. Atom templates can
+retain pools and nested terms, and the complete head form and its guards remain
+unchanged. Its complete space remains
+the same; incremental model prefixes and batch boundaries may change.
+Component recipes remove exact repeated relations before their key is formed,
+preserving the first occurrence, orientation, expression tree and output safety.
+Source multiplicity and cost remain separate. This avoids keys differing only
+by repetitions that native literal construction would already discard.
+Exact structural expressions share up to 8192 native terms independently
 of their algebraic keys; output and safety wrappers stay with each constraint.
 These caches retain no control or task. Representatives are yielded directly to `ClauseSpace`,
 which alone performs final text sorting and deduplication. Compiled argument
 binding offsets are reused by head instantiation and mode-fact compilation.
 Head-condition products prune over-budget prefixes in the original product order.
-Literal instantiation has a bounded cache keyed by mode and variable bindings;
+Generation recipes own a bounded literal cache keyed by mode id and variable bindings;
 its key omits the reified slot. Each immutable arithmetic system constructs its
-native literal tuple lazily once and retains it for its own lifetime. Native AST
+native literal tuple through an exact, bounded cache of 8192 systems. Native AST
 membership uses a set while preserving main-literal and guard insertion order.
 Guard ordering is derived once per immutable expression constraint and rebuilt
 on remapping. Shared native nodes are templates: transformations use `AST.update`.
 An arithmetic system also retains its structural key lazily for its own lifetime;
-remapping constructs a new system with independent key and literal caches.
+remapping constructs a new system with an independent structural key.
 
 Arithmetic representation modules own keys, variable masks and sets, remapping and
 rendering through Clingo's AST. Reified modes and normalized systems construct
-native nodes; canonicalization assembles and retains `ast.Rule` directly.
+native nodes; canonicalization assembles `ast.Rule` for Clingo formatting and
+retains its reconstructible recipe. The formatter and Rule builder reuse growing
+buffers. The optional extension builds, formats and releases temporary rules
+without a Python AST wrapper; it calls the loaded Clingo instance and retains
+all literal/head owners until the call finishes. Recipe-local caches prepare
+native nodes and their addresses together, and direct generation renders
+bounded blocks of 128 rules. A semantic key alone never permits reuse of nonlinear text: exact
+relations must also preserve orientation, expression trees and output safety.
+`Clause` stores text, canonical recipe and signed provider/dependency masks.
+`storage=packed` retains numeric indexes into its `RuleRecipes` literal pool,
+plus the exact arithmetic systems. Producers pack accepted representatives
+immediately; the direct engine packs each emitted row. Literal identities,
+source metadata and task ownership remain separate. The Clause keeps its pool
+owner alive, and requesting `statement` reconstructs the canonical recipe for
+native AST construction. Rebuilding a ClauseSpace does not switch storage policy.
+`RuleRecipes` materializes native statements through an 8192-entry cache only
+when consumers request them. `HypothesisGenerator` requests selected entries;
+it remains the sole authority over hypothesis construction and dependency closure.
 Normalization algorithms own connected components, substitutions,
 linear reduction and contradiction detection. Choosing one representative per
 canonical key remains part of canonicalization; no separate duplicate policy
 reimplements that choice. `ClauseSpace` orders and deduplicates the final clauses.
+When different canonical keys print identical syntax, final text deduplication
+keeps the minimum legal source body cost. This also applies to process merging.
+The former first-key policy could change that cost with solver enumeration order,
+even when every final text was identical. Equal-cost ties retain insertion order.
 The linear path retains masks through component collection, auxiliary elimination
 and orientation, materializing sets only for expressions or structural fallback.
 Static proportional-row pairs permit guarded contradiction pruning in ASP;
@@ -249,12 +309,47 @@ solving remain separately reported with the existing metric fields.
 Both complete and incremental enumeration read per-model clocks only when
 timings or Clingo metrics are enabled. Clingo metrics alone still measure the
 same durations; incremental consumer time never belongs to solving. The dashboard
-schema and chart contract are unchanged.
+chart contract is unchanged; schema 14 distinguishes overlapping process-work
+metrics from wall-time metrics.
 
 These stages concern individual clauses. Dependency closure and coverage of a
 complete candidate hypothesis remain in `hypotheses/` and `evaluation/`.
 Measurements and regression checks for prepared mode and relation analysis are
 recorded in [clause-python-prepared.md](clause-python-prepared.md).
+
+## Execution alternatives
+
+All options live in `Arguments.clause_generation`, or in benchmark `--set`
+overrides. Task files and their limits are unchanged.
+
+| Key | Default | Alternatives and scope |
+| --- | --- | --- |
+| `engine` | `auto` | Complete generation: `asp`, `direct`, `subsets`. Auto proves independent positive unary output-only bodies, optionally with normal unary input/any heads. Linkedness forces one shared variable even when `#maxv` is larger. Distinct predicates, common types, compatible labels, the property guard and optional-constraint proof remain required. Other tasks use ASP; explicit specializations reject unproved families. Incremental uses ASP. |
+| `transport` | `auto` | `python` or `native`. Auto uses numeric blocks when the extension is built; explicit native raises if unavailable. Complete, incremental and process workers share this transport. |
+| `callback` | `native` | Complete generation: native model events copy records without Python Model wrappers and deliver owned blocks. `python` is a control using the same decoder/transport. Incremental keeps its per-model iterator. |
+| `storage` | `auto` | Auto uses packed recipes only in the proved native direct specialization; ASP, subset enumeration and incremental batches keep canonical recipes. `packed` reduces retained literal tuples through an owned index pool; `recipes` forces complete recipes in every engine. Statements still use Clingo AST construction. |
+| `body` | `slots` | `counts` chooses multiplicities then derives the same ordered occurrences, bindings and recalls. |
+| `bindings` | `standard` | `nominal` chooses compatible global variable types before bindings. Non-flat terms and local aggregate scopes retain the standard encoding. `properties` derives forced equal body arguments and excludes already-used distinct arguments before choosing bindings for flat atoms; original property constraints remain. `connected` uses actual body-before-head occurrence prefixes to reuse a global id of the same type or introduce the next dense id; flat atoms and normal heads qualify. Input/output closure remains in ASP. Variable numbering and `#maxv` remain global syntax limits. |
+| `arithmetic` | `standard` | `components` precompiles equivalent strict-comparison skeletons and excludes repeated selected copies before models return. `projected` also projects equivalent legal witnesses to oriented strict edges plus exact non-comparison source slots/modes/bindings. Each class has the same source cost and signed metadata. Unconditional atom modes, body arithmetic and positive simple numeric input `<`/`>` comparisons without comparison labels qualify. Conditional or aggregate literal scopes and other comparison operators retain the standard path because removal can free recall and activate different pruning. This is not a general nonlinear component generator. |
+| `workers` | `1` | Complete ASP generation: positive CPU-bounded count. Controls use one solver thread each, static first-body-mode shards and deterministic global representative reconciliation. Empty bodies belong to one shard. Incremental rejects multiple workers. |
+| `strata` | `assumptions` | Incremental `ground` compiles smaller Controls for exact total body cost, including attached conditions. Its union preserves the complete space; batches still count raw models and retain no cross-batch canonical history. |
+| `configuration` | absent | Clingo exhaustive presets `auto`, `frumpy`, `jumpy`, `tweety`, `handy`, `crafty`, `trendy`. Explicit Clingo arguments take precedence. Every Control forces unlimited models. |
+| `gc` | `normal` | `defer` temporarily disables cyclic collection during complete generation or a batch, collects inside measured generation and restores the original state in `finally`. This policy is global to the interpreter. |
+| `infer_maps` | `true` | `false` is an experimental control that disables early filtering of incompatible property maps. Property bridges and context proofs always remain. |
+
+Native records are an optional setuptools extension, built into platform wheels
+when a C compiler is available. Source installs without a compiler preserve the
+Python path. Building locally: `uv run --with setuptools python setup.py build_ext --inplace`.
+No new runtime dependency is required. Internal Clingo CFFI access follows the
+project's supported Clingo 5.8 API range and is covered by exact native AST and
+model-copy regressions.
+
+Explicit packing, counts, binding variants, projected components, workers,
+grounded strata, presets and deferred GC remain
+explicit alternatives: smaller domains or fewer allocations alone do not prove
+a wall-time improvement. Process IPC/merging and terminal GC belong in measured
+cost. Worker durations overlap; parent RSS and cProfile exclude worker memory
+and CPU. See [benchmarks.md](benchmarks.md) for these denominators.
 
 ## ASP metaprogram
 

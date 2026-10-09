@@ -87,7 +87,13 @@ field spelling is parsed and validated once per task; successful fields share
 their retained nodes. Ground-atom fields and rule contexts have separate cache
 keys. Failed fields are not cached, and empty fields do not invoke Clingo.
 Sharing syntax does not merge example contexts or their coverage. Candidate `Clause`
-values retain their constructed clause beside their canonical output text.
+values retain a native construction recipe beside their canonical output text.
+Their `statement` property constructs Clingo AST nodes on demand, using a bounded
+cache; generated rule text is never reparsed. Signed predicate masks retain
+providers, dependencies and source body cost independently of that AST.
+If distinct legal source encodings print the same clause, the stored cost is
+the minimum source body cost among them, including attached conditions. Synthetic
+arithmetic guards in the rendered AST do not increase that source cost.
 Included and excluded example fields require single ground symbolic atoms.
 Pools and intervals, including nested occurrences, are rejected rather than
 expanded implicitly. Ground arithmetic, strings, tuples and strong negation

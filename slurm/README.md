@@ -55,14 +55,14 @@ Si `sbatch` responde `Invalid account or account/partition combination`, el
 administrador del clúster debe corregir la asociación de la cuenta en Slurm.
 Cambiar el experimento o la imagen no resuelve ese error.
 
-## Campaña Gentians–ILASP: 29 tareas, 10 runs, 30 minutos
+## Campaña Gentians–ILASP: 29 tareas, 30 minutos por run
 
-`comparison.env` muestra exactamente los tres IDs que se enviarán y los recursos
-de Slurm. Los dos IDs de Gentians están en `benchmarks/experiments.toml`; el de
-ILASP está en `benchmarks/ilasp_experiments.toml`. Gentians ejecuta
-`steady_state` e `incremental` con semillas 1–10; ILASP ejecuta solo las
-versiones 2 y 2i, diez veces por tarea. Los tres experimentos comparten los
-29 datasets y un límite de 1800 segundos **por run**: 1160 runs en total.
+`comparison.env` selecciona `COMPARISON_EXPERIMENT_ID` y los recursos
+de Slurm. La única definición vive en `benchmarks/experiments.toml` y declara
+los métodos por defecto. Gentians ejecuta
+`steady_state` e `incremental` diez veces por tarea; ILASP ejecuta una sola
+vez cada tarea y versión. Por defecto usa 2 y 2i. Todos los métodos comparten
+los 29 datasets y un límite de 1800 segundos **por run**: 638 runs en total.
 
 Después de hacer `git pull` en Shelob, prepara una vez la imagen y el entorno
 del runner de ILASP. El binario ILASP usa Python 3.10 y las bibliotecas del
@@ -84,12 +84,24 @@ Con el entorno preparado, envía toda la campaña desde la raíz con:
 bash slurm/submit-comparison.sh
 ```
 
-El lanzador valida la matriz y envía tres jobs secuenciales: Gentians
-`steady_state`, Gentians `incremental` e ILASP 2/2i. La dependencia `afterany`
+Selecciona herramientas y algoritmos con el mismo flag del runner local:
+
+```bash
+bash slurm/submit-comparison.sh --methods gentians-incremental ilasp-2i
+bash slurm/submit-comparison.sh --methods gentians-steady_state gentians-incremental ilasp-2 ilasp-2i ilasp-3 ilasp-4
+```
+
+Con los dos algoritmos y las cuatro versiones se ejecutan 696 runs. Cada
+job recibe `EXPERIMENT_ID` y `EXPERIMENT_METHOD`, y llama al runner común
+con `--methods` para ejecutar solo su método.
+
+El lanzador valida la matriz y envía un job por método, cuatro por defecto:
+Gentians `steady_state`, Gentians `incremental`, ILASP 2 e ILASP 2i.
+La dependencia `afterany`
 permite que el siguiente arranque incluso si el anterior termina con error;
-comprueba los tres logs. `comparison.env` solicita 7 días para cada job de
-Gentians y 14 para ILASP, porque cada uno agrupa cientos de runs. El timeout
-de 30 minutos por run se define en los TOML, no en este archivo. El lanzador
+comprueba los logs de cada método. `comparison.env` solicita 7 días para cada job de
+Gentians y 3 para cada versión de ILASP. El timeout
+de 30 minutos por run se define en el TOML común. El lanzador
 no usa `--force`: un resultado completo se conserva y se omite. Si un job de
 Gentians acaba a mitad de un experimento, su runner reinicia ese experimento
 al relanzarlo; el runner de ILASP sí conserva los runs terminados.
@@ -99,11 +111,14 @@ Para observar la cola y los nodos:
 ```bash
 squeue -u "$USER" -o '%.18i %.30j %.10T %.10M %.10l %.20R'
 sinfo -p no-gpu -o '%N %t %C %m'
-tail -f slurm/logs/gentians-steady-29x10-<job-id>.out
+tail -f slurm/logs/gentians-steady_state-<job-id>.out
 ```
 
-Los resultados quedan en `.benchmarks/experiments/ilasp-all-1800s-10runs/`
-y `.benchmarks/experiments/ilasp/all-1800s-10runs/`. Las tareas con agregados
+Los resultados quedan en `.benchmarks/experiments/ilasp-all-1800s-10runs/<método>/`.
+Gentians conserva los dashboards para Vite. Cada run guarda su hipótesis y la
+comprobación ASP independiente contra los ejemplos originales. El índice
+conserva el runtime registrado de cada método, por lo que los jobs nativos de
+ILASP pueden actualizarlo sin invalidar resultados del contenedor. Las tareas con agregados
 del cuerpo usan espacios de cláusulas explícitos y versionados para ILASP;
 el tiempo de generarlos queda fuera de su medición. La configuración y los
 límites de esta comparación están en `docs/ilasp-experiments.md`.

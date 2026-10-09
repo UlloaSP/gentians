@@ -30,6 +30,7 @@ from gentians.clauses.analysis.rule_properties import _substitute_variables  # n
 from gentians.clauses.canonicalization.canonical_clause import CanonicalArithmeticClause  # noqa: E402
 from gentians.clauses.canonicalization.clauses import _clause_metadata  # noqa: E402
 from gentians.clauses.clause import Clause  # noqa: E402
+from gentians.clauses.metadata import ClauseMetadata  # noqa: E402
 from gentians.clauses.canonicalization.expression import ArithmeticExpression  # noqa: E402
 from gentians.clauses.canonicalization.expression_normalization import _mode_expression  # noqa: E402
 from gentians.clauses.canonicalization.linear_constraint import LinearConstraint  # noqa: E402
@@ -119,10 +120,11 @@ def workloads():
     def metadata():
         result = None
         for _ in range(1000):
-            result = Clause(rendered, statement, *_clause_metadata(
+            heads, deps, cost = _clause_metadata(
                 tuple(literal.mode_id for literal in reified.head),
                 tuple(literal.mode_id for literal in reified.body), modes_by_id,
-            ))
+            )
+            result = Clause(rendered, statement, ClauseMetadata.from_predicates(heads, deps, cost))
         return result
 
     def mode_expression():

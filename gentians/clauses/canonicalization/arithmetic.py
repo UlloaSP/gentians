@@ -35,37 +35,44 @@ def canonical_arithmetic_clause(
     modes: dict[int, ClauseMode],
     max_variables: int,
     systems_cache: _ArithmeticSystemsCache | None = None,
+    literal_traits=None,
+    components=None,
+    head_context=None,
 ) -> CanonicalArithmeticClause | None:
     """Canonicalize one clause, optionally reusing systems within one mode space."""
-    body_traits = [modes[literal.mode_id] for literal in clause.body]
-    if not any(traits.builtin for traits in body_traits):
-        return CanonicalArithmeticClause(clause.head, clause.body, ())
     builtin: list[ReifiedLiteral] = []
     non_builtin: list[ReifiedLiteral] = []
     external = safe = numeric = 0
-    for literal in clause.head:
-        traits = modes[literal.mode_id]
-        external |= literal.variable_mask
-        if traits.numeric_builtin:
-            numeric |= literal.variable_mask
-        elif traits.numeric_positions:
-            for position in traits.numeric_positions:
-                numeric |= 1 << literal.variables[position]
-    for literal, traits in zip(clause.body, body_traits, strict=True):
-        if traits.builtin:
+    if head_context is not None:
+        external, numeric = head_context(clause.head)
+    else:
+        for literal in clause.head:
+            external |= literal.variable_mask
+            traits = literal_traits(literal) if literal_traits is not None else _literal_traits(literal, modes)
+            numeric |= traits[2]
+    for literal in clause.body:
+        builtin_trait, safe_trait, numeric_trait = (
+            literal_traits(literal)
+            if literal_traits is not None
+            else _literal_traits(literal, modes)
+        )
+        if builtin_trait:
             builtin.append(literal)
         else:
             non_builtin.append(literal)
             external |= literal.variable_mask
-        if traits.positive_atom:
-            safe |= literal.variable_mask
-        if traits.output_guard:
-            safe |= 1 << literal.variables[-1]
-        if traits.numeric_builtin:
-            numeric |= literal.variable_mask
-        elif traits.numeric_positions:
-            for position in traits.numeric_positions:
-                numeric |= 1 << literal.variables[position]
+        safe |= safe_trait
+        numeric |= numeric_trait
+
+    if not builtin:
+        return CanonicalArithmeticClause(clause.head, clause.body, ())
+
+    # Exact templates also retain orientation, guards and output interfaces.
+    # Source cost/recall remain separate from this cache and still count copies.
+    unique = {}
+    for literal in builtin:
+        unique.setdefault(literal.key, literal)
+    builtin = list(unique.values())
 
     # Non-builtins affect arithmetic only through these variable masks. Their
     # literal identities remain in CanonicalArithmeticClause and its final key.
@@ -85,6 +92,7 @@ def canonical_arithmetic_clause(
             safe,
             numeric,
             max_variables,
+            components,
         )
         if systems_cache is not None:
             if len(systems_cache) >= MAX_CACHED_SYSTEMS:
@@ -95,8 +103,24 @@ def canonical_arithmetic_clause(
     return CanonicalArithmeticClause(clause.head, tuple(non_builtin), systems)
 
 
+def _literal_traits(
+    literal: ReifiedLiteral, modes: dict[int, ClauseMode]
+) -> tuple[bool, int, int]:
+    mode = modes[literal.mode_id]
+    safe = literal.variable_mask if mode.positive_atom else 0
+    if mode.output_guard:
+        safe |= 1 << literal.variables[-1]
+    numeric = literal.variable_mask if mode.numeric_builtin else 0
+    if not mode.numeric_builtin:
+        for position in mode.numeric_positions:
+            numeric |= 1 << literal.variables[position]
+    return mode.builtin, safe, numeric
+
+
 def _variables(mask: int) -> frozenset[int]:
-    return frozenset(variable for variable in range(mask.bit_length()) if mask & (1 << variable))
+    return frozenset(
+        variable for variable in range(mask.bit_length()) if mask & (1 << variable)
+    )
 
 
 @lru_cache(maxsize=8192)
@@ -119,7 +143,9 @@ def _component_indices(masks: tuple[int, ...]) -> tuple[tuple[int, ...], ...]:
                     remaining &= ~bit
             if connected == before:
                 break
-        components.append(tuple(index for index in range(len(masks)) if connected & (1 << index)))
+        components.append(
+            tuple(index for index in range(len(masks)) if connected & (1 << index))
+        )
     return tuple(components)
 
 
@@ -130,59 +156,89 @@ def _canonical_systems(
     safe: int,
     numeric_variables: int,
     max_variables: int,
+    components=None,
 ) -> tuple[ArithmeticSystem, ...] | None:
     systems: list[ArithmeticSystem] = []
-    for indices in _component_indices(tuple(literal.variable_mask for literal in builtin)):
-        literals = [builtin[index] for index in indices]
-        numeric_component = any(
-            modes[literal.mode_id].numeric_builtin
-            or literal.variable_mask & numeric_variables == literal.variable_mask
-            for literal in literals
-        )
-        if not numeric_component:
-            systems.append(_structural_system(literals, modes, _variables(safe)))
-            continue
-        if any(
-            not _is_linear(
-                modes[literal.mode_id],
-                literal.variable_mask & numeric_variables == literal.variable_mask,
+    for indices in _component_indices(
+        tuple(literal.variable_mask for literal in builtin)
+    ):
+        literals = tuple(builtin[index] for index in indices)
+        mask = 0
+        for literal in literals:
+            mask |= literal.variable_mask
+        recipe = (
+            components(
+                tuple(literal.key for literal in literals),
+                external & mask,
+                safe & mask,
+                numeric_variables & mask,
             )
-            for literal in literals
-        ):
-            system = _expression_system(
-                literals, modes, _variables(external), _variables(safe), _variables(numeric_variables)
+            if components is not None
+            else _component_recipe(
+                literals, modes, external, safe, numeric_variables, max_variables
             )
-            systems.append(
-                system
-                if system is not None
-                else _structural_system(literals, modes, _variables(safe))
-            )
-            continue
-        constraints = tuple(
-            _constraint(literal.variables, modes[literal.mode_id], max_variables)
-            for literal in literals
         )
-        component_variables = 0
-        for constraint in constraints:
-            component_variables |= constraint.variable_mask
-        if not component_variables & external:
-            systems.append(_structural_system(literals, modes, _variables(safe)))
-            continue
-        normalized = _normalize_component(
-            constraints,
-            component_variables & ~external,
-            max_variables,
-        )
-        if normalized is None:
+        if recipe is None:
             return None
-        oriented = _orient_linear_constraints(normalized, safe)
-        if oriented is None:
-            systems.append(_structural_system(literals, modes, _variables(safe)))
-            continue
-        if oriented:
-            systems.append(ArithmeticSystem(oriented))
-
+        systems.extend(recipe)
     return tuple(sorted(systems, key=lambda system: repr(system.key)))
+
+
+def _component_recipe(
+    literals, modes, external, safe, numeric_variables, max_variables
+):
+    """One normalized component with its exact external/binding interface.
+
+    Source literals stay in ClauseCanonicalizer for recall and body cost. The
+    component recipe never turns a two-literal source into a one-literal bias.
+    Integer elimination, divisor guards and structural fallback are unchanged.
+    """
+    numeric_component = any(
+        modes[literal.mode_id].numeric_builtin
+        or literal.variable_mask & numeric_variables == literal.variable_mask
+        for literal in literals
+    )
+    if not numeric_component:
+        return (_structural_system(literals, modes, _variables(safe)),)
+    if any(
+        not _is_linear(
+            modes[literal.mode_id],
+            literal.variable_mask & numeric_variables == literal.variable_mask,
+        )
+        for literal in literals
+    ):
+        system = _expression_system(
+            literals,
+            modes,
+            _variables(external),
+            _variables(safe),
+            _variables(numeric_variables),
+        )
+        return (
+            system
+            if system is not None
+            else _structural_system(literals, modes, _variables(safe)),
+        )
+    constraints = tuple(
+        _constraint(literal.variables, modes[literal.mode_id], max_variables)
+        for literal in literals
+    )
+    component_variables = 0
+    for constraint in constraints:
+        component_variables |= constraint.variable_mask
+    if not component_variables & external:
+        return (_structural_system(literals, modes, _variables(safe)),)
+    normalized = _normalize_component(
+        constraints,
+        component_variables & ~external,
+        max_variables,
+    )
+    if normalized is None:
+        return None
+    oriented = _orient_linear_constraints(normalized, safe)
+    if oriented is None:
+        return (_structural_system(literals, modes, _variables(safe)),)
+    return (ArithmeticSystem(oriented),) if oriented else ()
 
 
 def _literal_key(literal: ReifiedLiteral) -> tuple[int, tuple[int, ...]]:
@@ -190,7 +246,9 @@ def _literal_key(literal: ReifiedLiteral) -> tuple[int, tuple[int, ...]]:
 
 
 def _structural_system(
-    literals: list[ReifiedLiteral], modes: dict[int, ClauseMode], safe: Set[int],
+    literals: list[ReifiedLiteral],
+    modes: dict[int, ClauseMode],
+    safe: Set[int],
 ) -> ArithmeticSystem:
     return ArithmeticSystem(
         tuple(

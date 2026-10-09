@@ -6,8 +6,10 @@ payloads and charts are in [benchmark-dashboard.md](benchmark-dashboard.md).
 
 ## Experiments
 
-Edit `benchmarks/experiments.toml` to define datasets, run count, timeout,
-common overrides, and named experiments. Results are isolated in
+Edit `benchmarks/experiments.toml` to define datasets, Gentians run count, timeout,
+default methods, tool options and common overrides. Select methods with
+`--methods`; deterministic external learners run once per task/method.
+Results are isolated in
 `.benchmarks/experiments/<id>` and indexed by
 `.benchmarks/experiments/experiments.json` for multi-experiment comparison. The
 entire `.benchmarks/experiments/` directory is ignored by Git and can be deleted
@@ -57,14 +59,26 @@ operator-score charts.
 
 ## Output
 
-Each experiment directory holds `runs.csv`, `dashboard_data.json` and `runs/`,
+Each Gentians experiment directory holds `runs.csv`, `dashboard_data.json` and `runs/`,
 the only raw copy: one log, resource snapshot, timings and progress file per run,
 plus operator, clause, quality, Clingo and epoch events, all gzip-compressed when
-the run ends. ILASP runs store their raw output as `.out.gz` and `.err.gz`. They
-record clause generation, genetic generations, elapsed search time, fitness
+the run ends. Gentians records clause generation, genetic generations, elapsed search time, fitness
 evaluations, operator metrics and Clingo phases. `--summary` and
 `--rebuild-dashboards` read `runs/` directly.
 `benchmarks/profile_baseline.py --cprofile` also writes one `.prof` per run.
+External learners keep `runs.csv` and `runs/`; ILASP stores stdout and stderr
+as `.out.gz` and `.err.gz` and records its own internal timing phases.
+
+Every learner saves `<dataset>_run_<n>_hypothesis.lp.gz` when it has a candidate,
+plus `_validation.json.gz` and a separate ASP program for each example under
+`_validation_programs/`. Validation checks the complete hypothesis against the
+original background and isolated contexts: every positive must extend a stable
+model and no negative may extend one. Its own timeout is configured with
+`validation_timeout_seconds`; validation is outside measured learner time.
+An unavailable candidate is recorded as `missing_hypothesis`, and validation
+timeouts remain unknown. Gentians checkpoints completed improvements so external
+timeouts preserve its best available candidate. Only verified hypotheses count
+as successes; `reported_success` retains Gentians' original result flag.
 
 ## Alzheimer
 
@@ -98,6 +112,12 @@ generation time split into grounding, solving and Python; task loading and JSON
 serialization/write time; clauses per second; amortized microseconds per clause;
 Clingo models, choices, conflicts, ground atoms and rules; and peak process RSS.
 The JSON snapshot keeps its existing entries and raw metrics format.
+Entries are written incrementally, without a second list and a complete JSON
+string in memory. Direct enumeration reports zero grounding/solving and no
+Clingo model statistics. With process partitions, worker durations are summed
+process-work seconds and are reported separately from parent wall time; the
+parent's peak RSS excludes child processes. These runs cannot be compared as
+Python CPU time by subtracting the overlapping worker totals from wall time.
 
 `Final clauses / generation wall-clock` measures the observed generation cost,
 including profiling and metric export. `Final clauses / net generation` uses
@@ -126,7 +146,11 @@ uv run python benchmarks/profile_clauses.py --datasets alzheimer_acetyl --debug 
 
 After the regular report, this runs clause generation a second time with the
 same task and arguments, checks identical `ClauseSpace` entries, and verifies
-that cProfile captured every enumerated model callback. It prints function
+that cProfile captured every enumerated model through either Python model
+decoding or native row materialization. Each numeric row constructs one
+`ReifiedClause`; block calls are never treated as captured models. A direct
+engine has no Clingo callbacks; a partitioned profile covers only the parent
+and cannot validate callback counts inside workers. It prints function
 self-time buckets for decode, clause construction, canonicalization, visible
 key/hash/dedup and append/storage calls, mixed canonicalizer and `ClauseSpace`
 bookkeeping, `clingo.Symbol` access/conversion, AST-to-text conversion, other
@@ -135,6 +159,13 @@ call counts and cumulative time. Self times form a disjoint partition;
 cumulative times overlap and must not be added. Implicit tuple hashing and dict
 assignments cannot be isolated by cProfile and remain in the enclosing
 function's bucket. These are function buckets, not exact stage timers.
+The native `render_rules` self time includes temporary AST construction,
+formatting and release in its format bucket; cProfile cannot split its C body.
+The native `_records.solve` self time mixes Clingo solving and record capture.
+It has its own bucket and stays outside the Python denominator; normal phase
+timers measure capture/delivery separately when instrumented. Missed Python
+profiler coverage of model constructors remains an error, including with parallel
+Clingo, rather than silently assuming that every returned model was profiled.
 Generated clause dataclass methods retain their class names, and remaining
 function-label collisions are disambiguated before export so no function's
 self time is overwritten.
@@ -177,9 +208,32 @@ benchmark, not limits supplied by the source.
 
 ## ILASP comparison
 
-The [Gentians–ILASP comparison](ilasp-experiments.md) configures 29 datasets, 30
-runs and a 120-second timeout for both Gentians algorithms and ILASP 2, 2i, 3
-and 4. Its runner supports native Linux and Windows through WSL; body aggregate
+The [Gentians–ILASP comparison](ilasp-experiments.md) configures 29 datasets and
+a 120-second timeout. Both Gentians algorithms run 30 times per dataset; ILASP
+runs once per dataset and version, selecting 2 and 2i by default. One command
+launches the configured methods sequentially:
+
+```powershell
+uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs
+uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs --methods gentians-incremental ilasp-2i
+```
+
+`benchmarks/experiments.toml` defines datasets, Gentians `runs`, timeout,
+instrumentation and default `methods` once per experiment. `[tools.ilasp]`
+configures its executable, WSL distribution, optional Python runtime and body
+lengths. Include `ilasp-3` or `ilasp-4` in `--methods` to run other versions;
+ILASP always runs once per task/version. Results are separated by method under
+`.benchmarks/experiments/<id>/<method>/`. Changing the selection preserves other
+methods' outputs. Gentians uses full instrumentation in these matrices and
+keeps its Vite dashboard format.
+
+To add a learner such as FastLAS, implement its backend, register methods in
+`METHODS` and its execution function in `RUNNERS` in `run_experiments.py`, and
+add its options under `[tools.<name>]`. The backend must save the hypothesis,
+call `validate_run`, and write `runs.csv` with status, success and artifact paths.
+Include learner task and executable contents in `execution_inputs` and add its
+preflight checks. FastLAS itself is not implemented yet. The runner
+supports native Linux and Windows through WSL; body aggregate
 tasks use complete explicit clause spaces on the ILASP side.
 
 ## Slurm

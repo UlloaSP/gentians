@@ -17,7 +17,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_BASELINE_PATH = Path(__file__).resolve()
 # Keep in sync with DASHBOARD_SCHEMA_VERSION in .benchmarks/src/metrics.js.
-DASHBOARD_SCHEMA_VERSION = 13
+DASHBOARD_SCHEMA_VERSION = 14
 # Progress points kept per run and positions in each precomputed mean series.
 RUN_PROGRESS_POINTS = 300
 MEAN_PROGRESS_POINTS = 300
@@ -36,6 +36,7 @@ from gentians import main as gentians_main  # noqa: E402
 from gentians.evaluation.compiler import compile_coverage_program  # noqa: E402
 from gentians.language import parse_file  # noqa: E402
 from gentians.language.asp import render_program  # noqa: E402
+from benchmarks.check_hypothesis import validate_run  # noqa: E402
 
 
 @dataclass
@@ -52,6 +53,9 @@ class RunResult:
     log_path: str
     success: bool = False
     cprofile_path: str = ""
+    hypothesis_path: str = ""
+    validation_path: str = ""
+    reported_success: bool = False
 
 
 @dataclass
@@ -120,6 +124,7 @@ def parse_profile_args(
         help="Run i of every dataset uses seed seed_base + i, so dataset runs stay matched.",
     )
     parser.add_argument("--instrumentation", choices=("full", "light"), default="full")
+    parser.add_argument("--validation-timeout-seconds", type=int, default=60)
     parser.add_argument(
         "--cprofile",
         action="store_true",
@@ -173,6 +178,8 @@ def run_benchmark_suite(
             log_path = run_file(out_dir, dataset, run, ".log")
             cprofile_path = run_file(out_dir, dataset, run, ".prof")
             incremental_metrics_path = run_file(out_dir, dataset, run, "_incremental_metrics.jsonl")
+            hypothesis_path = run_file(out_dir, dataset, run, "_hypothesis.lp")
+            validation_path = run_file(out_dir, dataset, run, "_validation.json")
             reset_run_outputs(
                 [
                     timings_path,
@@ -185,6 +192,9 @@ def run_benchmark_suite(
                     log_path,
                     cprofile_path,
                     incremental_metrics_path,
+                    hypothesis_path,
+                    hypothesis_path.with_name(hypothesis_path.name + ".tmp"),
+                    validation_path,
                 ]
             )
             cmd, arguments_json = build_command(
@@ -229,13 +239,12 @@ def run_benchmark_suite(
             elapsed = time.perf_counter() - started
             status = "timeout" if timed_out else "ok" if returncode == 0 else "failed"
             parsed = parse_log(log_path)
-            if returncode == 0:
-                write_debug_clingo_program(
-                    REPO_ROOT / ".debug" / "clingo",
-                    dataset,
-                    dataset_arguments,
-                    parsed["best_program"],
-                )
+            if isinstance(parsed["best_program"], list):
+                hypothesis_path.write_text("\n".join(parsed["best_program"]) + "\n", encoding="utf-8")
+            validation = validate_run(
+                Path(dataset_arguments.filename), hypothesis_path, validation_path,
+                timeout_seconds=getattr(args, "validation_timeout_seconds", 60),
+            )
             run_result = RunResult(
                 dataset=dataset,
                 run=run,
@@ -247,8 +256,11 @@ def run_benchmark_suite(
                 command=cmd,
                 arguments_json=arguments_json,
                 log_path=str(log_path),
-                success=parsed["success"],
+                success=validation["valid"] is True,
                 cprofile_path=str(cprofile_path) if args.cprofile else "",
+                hypothesis_path=str(compressed_path(hypothesis_path)) if hypothesis_path.exists() else "",
+                validation_path=str(compressed_path(validation_path)),
+                reported_success=bool(parsed["success"]),
             )
             compress_run_artifacts(out_dir, dataset, run)
             run_result.log_path = str(compressed_path(log_path))
@@ -277,6 +289,8 @@ RUN_COMPRESSED_SUFFIXES = (
     "_quality_metrics.jsonl",
     "_clingo_metrics.jsonl",
     "_incremental_metrics.jsonl",
+    "_hypothesis.lp",
+    "_validation.json",
 )
 
 
@@ -468,6 +482,9 @@ def run_streamed(
     env["GENTIANS_CANDIDATE_METRICS_PATH"] = str(candidate_metrics_path.resolve())
     env["GENTIANS_QUALITY_METRICS_PATH"] = str(quality_metrics_path.resolve())
     env["GENTIANS_CLINGO_METRICS_PATH"] = str(clingo_metrics_path.resolve())
+    env["GENTIANS_HYPOTHESIS_PATH"] = str(
+        log_path.with_name(log_path.name.removesuffix(".log") + "_hypothesis.lp").resolve()
+    )
     if extra_env:
         env.update(extra_env)
     if instrumentation_level == "light":
@@ -542,13 +559,15 @@ def parse_log(path: Path) -> dict[str, object]:
             capturing_program = True
             continue
         if capturing_program:
-            if line == "--------------------------" or line.startswith("Total time:"):
+            if line == "--------------------------":
                 capturing_program = False
+            elif line.startswith("Total time:"):
+                break
             elif best_program is not None:
                 best_program.append(line)
     return {
-        "success": success,
-        "best_program": best_program,
+        "success": success and not capturing_program,
+        "best_program": None if capturing_program else best_program,
     }
 
 
@@ -1331,6 +1350,10 @@ def clingo_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     groups: dict[tuple[str, str, str], list[dict[str, object]]] = {}
     runs_by_dataset: dict[str, set[int]] = {}
     for row in rows:
+        if row.get("operation_category") == "generation_worker":
+            # Overlapping process work cannot enter the wall-time Clingo charts.
+            # Raw records remain available to profile_clauses --debug.
+            continue
         dataset = str(row.get("dataset", ""))
         if row.get("run") not in (None, ""):
             runs_by_dataset.setdefault(dataset, set()).add(int(to_float(row.get("run"))))

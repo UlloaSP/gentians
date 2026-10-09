@@ -81,7 +81,16 @@ selected(head, Slot, Mode) :-
 %   allowed: no selected(body,0,_)              slot 0 left empty
 %   never:   selected(body,0,M) and selected(body,0,N) with M != N
 % Gaps and slot permutations are removed later by symmetry/slots.lp.
-0 { selected(body, Slot, Mode) : mode_section(Mode, body) } 1 :- body_slot(Slot).
+0 { selected(body, Slot, Mode) : mode_section(Mode, body) } 1 :- body_slot(Slot), not body_counts.
+
+% Exact count representation, selected/3 remains the single downstream IR.
+body_mode_capacity(Mode,Recall) :- body_counts, mode_section(Mode,body), mode_recall(Mode,Recall), max_body(Max), Recall<=Max.
+body_mode_capacity(Mode,Max) :- body_counts, mode_section(Mode,body), mode_recall(Mode,Recall), max_body(Max), Max<Recall.
+1 { mode_count(Mode,0..Limit) } 1 :- body_mode_capacity(Mode,Limit).
+:- body_counts, max_body(Max), #sum{Count,Mode:mode_count(Mode,Count)} > Max.
+mode_start(Mode,Start) :- mode_count(Mode,_), Start=#sum{N,M:mode_count(M,N),M<Mode}.
+selected(body,Start+Occurrence,Mode) :-
+    mode_count(Mode,Count), mode_start(Mode,Start), Occurrence=0..Count-1.
 
 % DEFINITION, reusable. selected_slot(Section, Slot): that slot is occupied.
 %   Section  head or body.

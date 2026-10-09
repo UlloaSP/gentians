@@ -23,13 +23,16 @@ singularity exec --cleanenv \
     --bind "$repo_root:$repo_root" --pwd "$repo_root" \
     "$image" python -c '
 import sys
-import tomllib
 from pathlib import Path
-
-config = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-ids = {item["id"] for item in config["experiment"]}
-if sys.argv[2] not in ids:
+sys.path.insert(0, str(Path(sys.argv[1]).parents[1]))
+from benchmarks.run_experiments import load_config, expand_experiments
+_, definitions = load_config(Path(sys.argv[1]))
+methods = expand_experiments(definitions)
+selected = [item for item in methods if sys.argv[2] in (item["id"], item["experiment_id"])]
+if not selected:
     raise SystemExit(f"Unknown experiment: {sys.argv[2]}")
+if any(item["tool"] != "gentians" for item in selected):
+    raise SystemExit("Use submit-comparison.sh for experiments with external tools")
 ' "$repo_root/benchmarks/experiments.toml" "$experiment_id"
 
 mkdir -p -- "$script_dir/logs"
@@ -48,6 +51,6 @@ job_id=$(sbatch --parsable \
     --chdir="$repo_root" \
     --output="$script_dir/logs/%x-%j.out" \
     --error="$script_dir/logs/%x-%j.err" \
-    --export="ALL,GENTIANS_EXPERIMENT_ID=$experiment_id" \
+    --export="ALL,EXPERIMENT_ID=$experiment_id" \
     "$script_dir/job.sh")
 printf 'Submitted %s as Slurm job %s\n' "$experiment_id" "$job_id"

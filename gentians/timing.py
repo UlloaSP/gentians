@@ -102,6 +102,11 @@ def merge_timings(rows: list[dict[str, Any]]) -> None:
 
 
 def add(name: str, seconds: float) -> None:
+    """Record duration in its declared basis.
+
+    Generation worker *_work metrics are overlapping process work, not wall
+    phases. Producers must not subtract them from inclusive elapsed time.
+    """
     if not _enabled:
         return
     if _stack and not _stack[-1]["instrumenting"]:

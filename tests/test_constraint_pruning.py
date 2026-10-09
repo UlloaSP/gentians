@@ -34,15 +34,21 @@ def generate(problem, sampled):
 @pytest.mark.parametrize("sampled", [False, True])
 def test_prunes_inside_enumeration_before_decoder(monkeypatch, sampled):
     decoded = []
-    original = generation._clause_from_model
+    from gentians.clauses import records
+    native = records._records is not None
+    owner = records.ModelRecords if native else generation
+    name = "clauses" if native else "_clause_from_model"
+    original = getattr(owner, name)
 
     def decode(*args):
-        clause = original(*args)
-        assert clause.head, "headless models must never reach the Python decoder"
-        decoded.append(clause)
-        return clause
+        result = original(*args)
+        clauses = result if native else (result,)
+        for clause in clauses:
+            assert clause.head, "headless models must never reach the decoder"
+            decoded.append(clause)
+        return result
 
-    monkeypatch.setattr(generation, "_clause_from_model", decode)
+    monkeypatch.setattr(owner, name, decode)
     space = generate(task(), sampled)
     assert decoded and space
     assert "p." in space.clauses

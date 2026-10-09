@@ -19,18 +19,26 @@ from benchmarks.catalog import arguments_for, arguments_json  # noqa: E402
 from benchmarks.profile_baseline import (  # noqa: E402
     build_dashboard, read_ga_metrics, read_timings, run_file,
 )
+from benchmarks import ilasp  # noqa: E402
 
 PROFILE_BASELINE = Path(__file__).with_name("profile_baseline.py")
 DEFAULT_CONFIG = Path(__file__).with_name("experiments.toml")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*(?:/[a-z0-9][a-z0-9_-]*)*$")
+METHODS = {
+    "gentians-steady_state": ("gentians", "steady_state"),
+    "gentians-incremental": ("gentians", "incremental"),
+    **{f"ilasp-{version}": ("ilasp", version) for version in ("2", "2i", "3", "4")},
+}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run comparable profile_baseline experiments from TOML."
+        description="Run selected ILP tools and algorithms from one experiment TOML."
     )
     parser.add_argument("experiments", nargs="*", help="Experiment IDs; all by default.")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--methods", nargs="+", choices=tuple(METHODS),
+                        help="Methods to run; defaults to the experiment's methods.")
     parser.add_argument(
         "--force", "--rerun", dest="force", action="store_true",
         help="Replace existing output and rerun.",
@@ -63,7 +71,8 @@ def load_config(path: Path) -> tuple[Path, list[dict[str, Any]]]:
         "seed_base": suite.get("seed_base", 42),
         "cprofile": suite.get("cprofile", False),
         "instrumentation": suite.get("instrumentation", "full"),
-        "python": suite.get("python", sys.executable),
+        "python": suite.get("python"),
+        "validation_timeout_seconds": suite.get("validation_timeout_seconds", 60),
     }
     common_overrides = suite.get("overrides", {})
     if not isinstance(common_overrides, dict):
@@ -93,6 +102,21 @@ def load_config(path: Path) -> tuple[Path, list[dict[str, Any]]]:
             raise ValueError(f"{experiment_id}: overrides must be a table")
         overrides = {**common_overrides, **own_overrides}
         experiment["overrides"] = overrides
+        default_method = "gentians-" + overrides.get("algorithm", "steady_state")
+        methods = raw.get("methods", suite.get("methods", [default_method]))
+        if not isinstance(methods, list) or not methods or any(
+            not isinstance(method, str) or method not in METHODS for method in methods
+        ):
+            raise ValueError(f"{experiment_id}: methods must select registered tools/algorithms")
+        experiment["methods"] = list(dict.fromkeys(methods))
+        experiment["method_matrix"] = "methods" in raw or "methods" in suite
+        experiment["tools"] = config.get("tools", {})
+        if not isinstance(experiment["tools"], dict) or any(
+            not isinstance(options, dict) for options in experiment["tools"].values()
+        ):
+            raise ValueError("tools must contain one configuration table per tool")
+        if int(experiment["validation_timeout_seconds"]) < 1:
+            raise ValueError(f"{experiment_id}: validation timeout must be positive")
         if not isinstance(datasets, list) or not datasets or not all(
             isinstance(item, str) for item in datasets
         ):
@@ -107,6 +131,37 @@ def load_config(path: Path) -> tuple[Path, list[dict[str, Any]]]:
     return output_root.resolve(), normalized
 
 
+def expand_experiments(experiments: list[dict], methods: list[str] | None = None) -> list[dict]:
+    expanded = []
+    for experiment in experiments:
+        selected = list(dict.fromkeys(methods or experiment["methods"]))
+        for method in selected:
+            tool, variant = METHODS[method]
+            effective = {key: value for key, value in experiment.items()
+                         if key not in ("methods", "tools", "method_matrix")}
+            method_id = (f"{experiment['id']}/{method}" if experiment["method_matrix"] else
+                         experiment["id"] if method == experiment["methods"][0] else
+                         f"{experiment['id']}-{method}")
+            effective.update(id=method_id,
+                             experiment_id=experiment["id"], method=method, tool=tool, variant=variant)
+            if tool == "gentians":
+                effective["overrides"] = {**experiment["overrides"], "algorithm": variant}
+            else:
+                effective.update(runs=1, overrides={}, instrumentation="external",
+                                 tool_options=experiment["tools"].get(tool, {}))
+            expanded.append(effective)
+    return expanded
+
+
+def run_gentians(experiment: dict, output_dir: Path) -> int:
+    return subprocess.run(experiment_command(experiment, output_dir), cwd=REPO_ROOT, check=False).returncode
+
+
+# New learners register their execution function here and methods above.
+# Every backend saves hypotheses and uses the shared independent checker.
+RUNNERS = {"gentians": run_gentians, "ilasp": ilasp.run_experiment}
+
+
 def experiment_output_path(output_root: Path, experiment_id: str) -> Path:
     """Resolve a namespaced output without traversing links or leaving the root."""
     root = output_root.resolve()
@@ -119,7 +174,7 @@ def experiment_output_path(output_root: Path, experiment_id: str) -> Path:
 
 def experiment_command(experiment: dict[str, Any], out_dir: Path) -> list[str]:
     command = [
-        str(experiment["python"]),
+        str(experiment["python"] or sys.executable),
         str(PROFILE_BASELINE),
         "--datasets",
         *experiment["datasets"],
@@ -133,6 +188,7 @@ def experiment_command(experiment: dict[str, Any], out_dir: Path) -> list[str]:
         str(experiment["seed_base"]),
         "--instrumentation",
         str(experiment.get("instrumentation", "full")),
+        "--validation-timeout-seconds", str(experiment.get("validation_timeout_seconds", 60)),
     ]
     if experiment.get("cprofile"):
         command.append("--cprofile")
@@ -143,12 +199,17 @@ def experiment_command(experiment: dict[str, Any], out_dir: Path) -> list[str]:
     return command
 
 
-def execution_inputs(experiment: dict[str, Any]) -> dict[str, Any]:
+def execution_inputs(experiment: dict[str, Any], *, runtime: dict | None = None) -> dict[str, Any]:
     """Identify code, task contents, effective SDK arguments and worker runtime."""
     paths = [path for path in (REPO_ROOT / "gentians").rglob("*")
              if path.suffix in {".py", ".lp"}]
     paths.extend((REPO_ROOT / "benchmarks").rglob("*.py"))
     paths.extend(REPO_ROOT / name for name in ("pyproject.toml", "uv.lock"))
+    if experiment.get("tool") == "ilasp":
+        paths.extend(ilasp.task_path(experiment, dataset) for dataset in experiment["datasets"])
+        executable = ilasp.repo_path(experiment["tool_options"].get("executable", "tools/ilasp/ILASP"))
+        if executable.is_file():
+            paths.append(executable)
     overrides = [f"{key}={json.dumps(value)}" for key, value in sorted(experiment.get("overrides", {}).items())]
     arguments = {}
     for dataset in experiment["datasets"]:
@@ -160,16 +221,17 @@ def execution_inputs(experiment: dict[str, Any]) -> dict[str, Any]:
             paths.extend(task_path / name for name in ("bk.lp", "exs.lp", "bias.lp"))
         else:
             paths.append(task_path)
-    runtime = subprocess.check_output(
-        [str(experiment.get("python", sys.executable)), "-c",
+    if runtime is None:
+        runtime = json.loads(subprocess.check_output(
+        [str(experiment.get("python") or sys.executable), "-c",
          "import sys,clingo,platform,json; print(json.dumps(dict("
          "python=sys.version,clingo=clingo.__version__,platform=platform.platform(),"
          "machine=platform.machine(),processor=platform.processor())))"],
         cwd=REPO_ROOT, text=True,
-    )
+        ))
     return {
         "arguments": arguments,
-        "runtime": json.loads(runtime),
+        "runtime": runtime,
         "files": {str(path.resolve()): hashlib.sha256(path.read_bytes()).hexdigest()
                   for path in sorted(set(paths))},
     }
@@ -182,6 +244,13 @@ def fingerprint(experiment: dict[str, Any], inputs: dict[str, Any] | None = None
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
+def saved_fingerprint(experiment: dict, manifest: dict) -> str:
+    """Read-only indexing checks current code/config against the saved worker's runtime."""
+    runtime = manifest.get("execution", {}).get("runtime")
+    inputs = execution_inputs(experiment, runtime=runtime) if runtime is not None else execution_inputs(experiment)
+    return fingerprint(experiment, inputs)
+
+
 def summarize_experiment(experiment: dict[str, Any], out_dir: Path) -> list[dict[str, object]]:
     """Keep censored wall-clock costs separate from net times of solved runs."""
     if not (out_dir / "runs.csv").exists():
@@ -190,7 +259,7 @@ def summarize_experiment(experiment: dict[str, Any], out_dir: Path) -> list[dict
     if not manifest_path.exists():
         raise ValueError(f"{experiment['id']}: missing manifest; cannot summarize incomplete results")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("fingerprint") != fingerprint(experiment):
+    if manifest.get("fingerprint") != saved_fingerprint(experiment, manifest):
         raise ValueError(f"{experiment['id']}: stale config; cannot summarize results")
     if manifest.get("status") not in ("complete", "completed_with_failures", "screened_out"):
         raise ValueError(f"{experiment['id']}: incomplete experiment; cannot summarize results")
@@ -209,6 +278,10 @@ def summarize_experiment(experiment: dict[str, Any], out_dir: Path) -> list[dict
     for row in runs:
         key = row["dataset"], row["run"]
         run = int(row["run"])
+        if experiment.get("tool") not in (None, "gentians"):
+            if row.get("total_seconds"):
+                timings[key] = float(row["total_seconds"])
+            continue
         for timing in read_timings(run_file(out_dir, row["dataset"], run, "_timings.json"),
                                    row["dataset"], run):
             if timing.metric == "total_execution":
@@ -261,7 +334,7 @@ def summarize_experiment(experiment: dict[str, Any], out_dir: Path) -> list[dict
         ]
         measured["solved_python_mean"] = mean(python_samples) if python_samples else None
         penalties = [
-            float(row["elapsed_seconds"]) if row in solved else float(experiment["timeout_seconds"])
+            float(row.get("elapsed_seconds", row.get("wall_seconds", 0))) if row in solved else float(experiment["timeout_seconds"])
             for row in selected
         ]
         summaries.append({
@@ -308,6 +381,8 @@ def write_manifest(out_dir: Path, experiment: dict[str, Any], status: str,
         "instrumentation": experiment.get("instrumentation", "full"),
         "stop_on_timeout": experiment.get("stop_on_timeout", False),
         "overrides": experiment["overrides"],
+        "method": experiment.get("method"),
+        "tool": experiment.get("tool", "gentians"),
         "updated_at": datetime.now(UTC).isoformat(),
     }
     (out_dir / "experiment.json").write_text(
@@ -339,10 +414,11 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
                 "overrides": experiment["overrides"],
             }
         )
+        current_fingerprint = saved_fingerprint(experiment, manifest) if manifest_path.exists() else None
         historical = (
             experiment["id"] in historical_ids
             and manifest_path.exists()
-            and manifest.get("fingerprint") != fingerprint(experiment)
+            and manifest.get("fingerprint") != current_fingerprint
             and dashboard_path.exists()
             and manifest.get("status") in (
                 "complete", "completed_with_failures", "screened_out", "stale"
@@ -351,7 +427,7 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
         if historical:
             manifest["original_status"] = manifest["status"]
             manifest["status"] = "historical"
-        elif manifest_path.exists() and manifest.get("fingerprint") != fingerprint(experiment):
+        elif manifest_path.exists() and manifest.get("fingerprint") != current_fingerprint:
             manifest["status"] = "stale"
         if not historical:
             manifest.update(
@@ -398,17 +474,43 @@ def indexed_historical_ids(output_root: Path) -> set[str]:
 
 def main() -> int:
     args = parse_args()
-    output_root, experiments = load_config(args.config)
+    output_root, definitions = load_config(args.config)
+    experiments = expand_experiments(definitions)
+    configured_ids = {item["id"] for item in experiments}
+    # Keep previously run optional methods discoverable after changing --methods.
+    experiments.extend(
+        item for definition in definitions for method in METHODS
+        for item in expand_experiments([definition], [method])
+        if item["id"] not in configured_ids
+        and (experiment_output_path(output_root, item["id"]) / "experiment.json").exists()
+    )
     by_id = {experiment["id"]: experiment for experiment in experiments}
+    definitions_by_id = {experiment["id"]: experiment for experiment in definitions}
     if args.list:
         write_index(output_root, experiments)
-        for experiment in experiments:
-            print(f"{experiment['id']}\t{experiment.get('label', experiment['id'])}")
+        for experiment in definitions:
+            print(f"{experiment['id']}\t{', '.join(experiment['methods'])}")
         return 0
-    unknown = sorted(set(args.experiments) - by_id.keys())
+    unknown = sorted(set(args.experiments) - (by_id.keys() | definitions_by_id.keys()))
     if unknown:
         raise SystemExit(f"Unknown experiments: {', '.join(unknown)}")
-    selected = [by_id[key] for key in args.experiments] if args.experiments else experiments
+    selected = []
+    for key in args.experiments or list(definitions_by_id):
+        if key in definitions_by_id:
+            selected.extend(expand_experiments([definitions_by_id[key]], getattr(args, "methods", None)))
+        else:
+            selected.append(by_id[key])
+    selected_by_id = {experiment["id"]: experiment for experiment in selected}
+    owners = {}
+    for experiment in [*experiments, *selected]:
+        owner = owners.setdefault(experiment["id"], experiment["experiment_id"])
+        if owner != experiment["experiment_id"]:
+            raise SystemExit(f"Method output belongs to another experiment: {experiment['id']}")
+    selected = list(selected_by_id.values())
+    experiments = list({**by_id, **selected_by_id}.values())
+    ids = [experiment["id"] for experiment in experiments]
+    if any(left != right and right.startswith(left + "/") for left in ids for right in ids):
+        raise SystemExit("Method outputs overlap; give the experiments distinct IDs")
     if args.historical_index:
         historical_ids = indexed_historical_ids(output_root)
         historical_ids.update(item["id"] for item in selected)
@@ -416,6 +518,8 @@ def main() -> int:
         return 0
     if args.rebuild_dashboards:
         for experiment in selected:
+            if experiment["tool"] != "gentians":
+                continue
             out_dir = experiment_output_path(output_root, experiment["id"])
             if (out_dir / "runs.csv").exists():
                 print(f"{experiment['id']}: rebuild dashboard")
@@ -435,6 +539,16 @@ def main() -> int:
             writer.writerows(summaries)
         return 0
     output_root.mkdir(parents=True, exist_ok=True)
+    # Validate every selected backend/task before starting any benchmark.
+    for experiment in selected:
+        if experiment["tool"] == "ilasp":
+            lengths = experiment["tool_options"].get("max_body_length", {})
+            missing = [dataset for dataset in experiment["datasets"] if dataset not in lengths]
+            if missing:
+                raise SystemExit(f"{experiment['id']}: missing ILASP max_body_length for {', '.join(missing)}")
+            for dataset in experiment["datasets"]:
+                if not ilasp.task_path(experiment, dataset).is_file():
+                    raise SystemExit(f"ILASP task not found: {ilasp.task_path(experiment, dataset)}")
     for experiment in selected:
         out_dir = experiment_output_path(output_root, experiment["id"])
         manifest_path = out_dir / "experiment.json"
@@ -444,29 +558,30 @@ def main() -> int:
                 raise SystemExit(f"{experiment['id']}: config changed; use --force")
             if (
                 previous.get("status") in ("complete", "screened_out")
-                and (
+                or (experiment["tool"] != "gentians" and previous.get("status") == "completed_with_failures")
+            ) and (
                     experiment.get("instrumentation") == "light"
+                    or experiment["tool"] != "gentians"
                     or (out_dir / "dashboard_data.json").exists()
-                )
             ):
                 print(f"{experiment['id']}: skip (already run)")
                 continue
-        if out_dir.exists():
+        if out_dir.exists() and (args.force or experiment["tool"] == "gentians"):
             shutil.rmtree(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        command = experiment_command(experiment, out_dir)
         inputs = execution_inputs(experiment)
         print(f"{experiment['id']}: run")
-        completed = subprocess.run(command, cwd=REPO_ROOT, check=False)
-        status = result_status(out_dir, completed.returncode,
+        write_manifest(out_dir, experiment, "running", inputs)
+        returncode = RUNNERS[experiment["tool"]](experiment, out_dir)
+        status = result_status(out_dir, returncode,
                                stop_on_timeout=experiment.get("stop_on_timeout", False))
         if inputs != execution_inputs(experiment):
             status = "stale"
         write_manifest(out_dir, experiment, status, inputs)
         write_index(output_root, experiments)
-        if completed.returncode:
-            print(f"{experiment['id']}: runner failed ({completed.returncode})", file=sys.stderr)
-            return completed.returncode
+        if returncode:
+            print(f"{experiment['id']}: runner failed ({returncode})", file=sys.stderr)
+            return returncode
     write_index(output_root, experiments)
     return 0
 

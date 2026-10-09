@@ -1,15 +1,19 @@
-# Comparación Gentians–ILASP: 29 benchmarks, 30 runs, 120 s
+# Comparación Gentians–ILASP: 29 benchmarks, 120 s
 
-La matriz compara Gentians `steady_state`, Gentians `incremental` e ILASP
-`2`, `2i`, `3` y `4`. Cada sistema ejecuta 30 runs por dataset con timeout de
-120 segundos: 5 220 ejecuciones en total. Gentians usa las semillas 1–30;
-las repeticiones de ILASP no reciben una seed. Un timeout no cancela las
-repeticiones restantes.
+La matriz compara Gentians `steady_state`, Gentians `incremental` e ILASP.
+Cada algoritmo de Gentians ejecuta 30 runs por dataset; ILASP ejecuta una sola
+vez cada tarea y versión, porque la búsqueda es determinista. El timeout es
+de 120 segundos. Por defecto se seleccionan ILASP `2` y `2i`: 1 798 ejecuciones
+en total. Añadir `ilasp-3` e `ilasp-4` a `--methods` incluye las cuatro versiones y lleva el total
+a 1 856. Un timeout no cancela las demás tareas o versiones.
 
-Las dos entradas de Gentians viven en `benchmarks/experiments.toml`, con
-instrumentación `light` y los defaults del SDK salvo el algoritmo. La entrada
-`all-120s-30runs` de `benchmarks/ilasp_experiments.toml` contiene las cuatro
-versiones de ILASP. Estas entradas no sustituyen resultados de matrices anteriores.
+Una sola entrada, `ilasp-all-120s-30runs`, vive en
+`benchmarks/experiments.toml`. Define datasets, runs de Gentians, timeout y los
+cuatro métodos por defecto una vez. Gentians usa instrumentación `full` para
+conservar todos los datos del preview Vite y los defaults del SDK salvo el
+algoritmo. `--methods` sustituye la selección de métodos de esa invocación;
+ILASP siempre realiza una ejecución por tarea y versión. La configuración de
+su ejecutable y traducción vive en `[tools.ilasp]` del mismo TOML.
 
 ## Tareas y espacio de cláusulas
 
@@ -73,20 +77,26 @@ Después de sincronizar esta revisión en `~/gentians`:
 cd ~/gentians
 export PATH="$HOME/.local/bin:$PATH"
 uv sync
-uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs/gentians-steady_state ilasp-all-120s-30runs/gentians-incremental
-uv run python benchmarks/run_ilasp_experiments.py --config benchmarks/ilasp_experiments.toml all-120s-30runs
+uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs
 ```
 
-Ejecuta ambos comandos de benchmark secuencialmente en la misma máquina.
-Cada runner es secuencial; evita ejecutar ambos a la vez si vas a comparar
-tiempos. Los comandos anteriores lanzan la matriz completa, no solo una prueba.
+Para elegir herramientas, algoritmos y versiones:
+
+```bash
+uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs --methods gentians-steady_state gentians-incremental ilasp-2 ilasp-2i ilasp-3 ilasp-4
+uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs --methods gentians-incremental ilasp-2i
+```
+
+El runner ejecuta los métodos secuencialmente en la misma máquina. Evita
+invocaciones simultáneas si vas a comparar tiempos. La primera orden lanza
+la matriz completa.
 
 ## Windows con WSL
 
 El runner detecta Windows y usa WSL; desde Linux, incluido un shell dentro de
 WSL, ejecuta directamente. La configuración actual selecciona `kali-linux`
-en Windows. `--distro Ubuntu-22.04` selecciona otra distribución y
-`--distro ""` usa la predeterminada de WSL. Las rutas relativas se resuelven
+en Windows. `distro = "Ubuntu-22.04"` en `[tools.ilasp]` selecciona otra
+distribución y `distro = ""` usa la predeterminada de WSL. Las rutas relativas se resuelven
 desde la raíz del repositorio, independientemente del directorio de trabajo.
 
 En la instalación local de Kali, el Python 3.10 auxiliar sigue estando en
@@ -94,31 +104,49 @@ En la instalación local de Kali, el Python 3.10 auxiliar sigue estando en
 desaparecer al limpiar `/tmp`; una distribución con las dependencias del binario
 instaladas no lo necesita.
 
-```powershell
-uv run python benchmarks/run_ilasp_experiments.py all-120s-30runs --distro kali-linux --python-runtime /tmp/ilasp-python310/root/usr
+Añade este campo a la tabla `[tools.ilasp]` existente si necesitas ese runtime:
+
+```toml
+python_runtime = "/tmp/ilasp-python310/root/usr"
 ```
 
-`--python-runtime` es opcional y establece `PYTHONHOME` y `LD_LIBRARY_PATH`
-solo para ILASP, con una ruta Linux. `--executable` permite usar otro binario
+`python_runtime` es opcional y establece `PYTHONHOME` y `LD_LIBRARY_PATH`
+solo para ILASP, con una ruta Linux. `executable` permite usar otro binario
 mediante una ruta del repositorio o una ruta absoluta. Una ruta absoluta Linux
 en Windows se interpreta dentro de WSL. No hay rutas temporales obligatorias
 en la configuración versionada.
 
 ## Resultados y límites de comparación
 
-Gentians escribe en `.benchmarks/experiments/ilasp-all-120s-30runs/`;
-ILASP, en `.benchmarks/experiments/ilasp/all-120s-30runs/`. ILASP conserva
-stdout y stderr por ejecución, `runs.csv`, `summary.csv` y un manifest con
-configuración, fingerprint y datos del host. El fingerprint incluye las tareas,
-el runner y el binario cuando es accesible desde el proceso Python.
+Todos los métodos escriben en
+`.benchmarks/experiments/ilasp-all-120s-30runs/<método>/`, cada uno con
+`runs.csv`, `runs/` y manifest propio. Gentians conserva su
+`dashboard_data.json` y las métricas que consume Vite. ILASP conserva stdout,
+stderr y sus tiempos internos. El fingerprint incluye las tareas, el runner,
+el runtime y el binario cuando es accesible desde Python.
+
+Cada run guarda su hipótesis en `_hypothesis.lp.gz` si llegó a producir un
+candidato, y su informe en `_validation.json.gz`. El comprobador independiente
+`benchmarks/check_hypothesis.py` usa el background y los ejemplos originales;
+solo reconoce los auxiliares aritméticos auditados de la traducción ILASP.
+Crea un programa ASP nuevo por ejemplo, con contexto aislado, y guarda el
+programa y su modelo testigo. Exige extensión para todos los positivos y
+ausencia de extensión para todos los negativos. La validación tiene un
+timeout propio (`validation_timeout_seconds`) y queda fuera de los tiempos
+del learner. Un candidato ausente o una validación interrumpida no cuentan
+como éxito.
 
 ```bash
-uv run python benchmarks/run_ilasp_experiments.py all-120s-30runs --summary
-uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs/gentians-steady_state ilasp-all-120s-30runs/gentians-incremental --summary
+uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs --summary
 ```
 
-Los runners conservan resultados completos. `--force` reemplaza el directorio
-del experimento seleccionado; úsalo solo para repetirlo deliberadamente.
+El runner conserva resultados completos. `--force` reemplaza el directorio
+de cada método seleccionado; úsalo solo para repetirlo deliberadamente.
+Elegir otros métodos no altera los fingerprints ni las salidas de los demás.
+Los resultados históricos no se reescriben ni se reducen a un run.
+Si cambia el código o la configuración del método, el runner exige `--force`.
+El índice usa el runtime guardado de cada método para no invalidar dashboards
+de Gentians al ejecutarse después un job de ILASP fuera del contenedor.
 
 En los veinte datasets explícitos, la generación del `ClauseSpace` se realiza
 **antes** de medir ILASP. Gentians sí incluye generación de cláusulas dentro
@@ -141,14 +169,19 @@ Esta configuración no contiene resultados de la matriz completa.
 ## Campaña de 30 minutos por run
 
 La nueva matriz `ilasp-all-1800s-10runs` conserva las 29 tareas anteriores.
-Compara Gentians `steady_state` e `incremental` con ILASP 2 y 2i; excluye ILASP
-3 y 4. Cada método realiza diez runs por dataset con un límite de 1800 segundos
-por run, para un total de 1160 runs. Gentians usa semillas 1–10. ILASP repite
-las ejecuciones sin una semilla configurable en este protocolo. Los demás
-parámetros de Gentians son los defaults del SDK; la instrumentación es `light`.
+Compara Gentians `steady_state` e `incremental` con ILASP 2 y 2i por defecto.
+Cada algoritmo de Gentians realiza diez runs por dataset e ILASP realiza uno
+por tarea y versión, con un límite de 1800 segundos por run: 638 runs en total.
+Las cuatro versiones de ILASP llevan el total a 696. Los demás
+parámetros de Gentians son los defaults del SDK; la instrumentación es `full`.
 
-Los dos IDs de Gentians están en `benchmarks/experiments.toml` y el de ILASP
-en `benchmarks/ilasp_experiments.toml`. Los `.las` y los límites `-ml` son los
+La única definición está en `benchmarks/experiments.toml`. Se lanza localmente con:
+
+```powershell
+uv run python benchmarks/run_experiments.py ilasp-all-1800s-10runs
+```
+
+Los `.las` y los límites `-ml` son los
 mismos que en la matriz anterior. En los veinte datasets con agregados de
 cuerpo, ILASP recibe el espacio explícito versionado y el tiempo de generarlo
 queda fuera de sus runs. Por eso la comparación de tiempo completo entre
@@ -156,8 +189,11 @@ ambos sistemas mantiene esa limitación. Un timeout registra un resultado
 censurado; la satisfacibilidad de la tarea no garantiza que cada método halle
 una hipótesis dentro del presupuesto ni dentro de su espacio permitido.
 
-`slurm/comparison.env` selecciona los tres IDs y los recursos. Desde la raíz
+`slurm/comparison.env` selecciona ese ID y los recursos. Desde la raíz
 del checkout en Shelob, después de construir la imagen y sincronizar `uv`,
-`bash slurm/submit-comparison.sh` envía los jobs en orden. El log de cada job
+`bash slurm/submit-comparison.sh` envía los jobs en orden;
+`bash slurm/submit-comparison.sh --methods gentians-steady_state gentians-incremental ilasp-2 ilasp-2i ilasp-3 ilasp-4`
+elige las cuatro versiones junto a ambos algoritmos. Cada método tiene su
+propio job. El log de cada job
 registra nodo, commit y hash del ejecutable o imagen. Los resultados de esta
 campaña todavía no se han medido.

@@ -86,6 +86,16 @@ def compile_mode_facts(
         if isinstance((literal := mode.literal), ConditionalLiteral)
     }
     parts: list[str] = []
+    positive_groups: dict[Predicate, dict[int, int]] = {}
+    for mode in modes:
+        if mode.section == "body" and mode.positive_atom and isinstance(mode.literal, AtomLiteral):
+            positive_groups.setdefault(mode.literal.atom.signature, {})[mode.recall_group] = (
+                _effective_recall(mode, max_head_literals, max_body_literals)
+            )
+    parts.extend(
+        f"positive_body_capacity({predicate_ids[predicate]},{min(max_body_literals, sum(groups.values()))})."
+        for predicate, groups in sorted(positive_groups.items())
+    )
     for mode in modes:
         parts.extend(
             _common_mode_facts(
@@ -226,32 +236,65 @@ THETA_OFFSET_LIMIT = 1024
 def theta_facts(
     modes: list[ClauseMode], max_head_literals: int, max_body_literals: int
 ) -> list[str]:
-    """Select and parameterize the theta-reduction encoding of theta.lp.
+    """Enumerate only substitutions compatible with realizable mode runs.
 
-    Only normal body atoms move. A repeated one maps to Start + Offset inside
-    its contiguous mode group; offsets range below the largest group the body
-    can hold, and every combination over the body slots becomes a theta_sigma.
+    Equal modes occupy contiguous slots. Unrepeated/non-atomic slots fix their
+    variables, so their irrelevant offsets are zero. Shared recalls constrain
+    the runs, but consistency of every movable variable remains global in ASP.
     """
-    group = max(
-        (
-            min(_effective_recall(mode, max_head_literals, max_body_literals), max_body_literals)
-            for mode in modes
-            if mode.section == "body" and isinstance(mode.literal, AtomLiteral)
-        ),
-        default=1,
-    )
-    if group < 2:
+    body = sorted((m for m in modes if m.section == "body"), key=lambda m: m.id)
+    capacities = {m.id: min(_effective_recall(m, max_head_literals, max_body_literals), max_body_literals)
+                  for m in body}
+    if not any(isinstance(m.literal, AtomLiteral) and capacities[m.id] >= 2 for m in body):
         return []
-    if group ** max_body_literals > THETA_OFFSET_LIMIT:
+    if any(isinstance(m.literal, AtomLiteral) and capacities[m.id] ** capacities[m.id] > THETA_OFFSET_LIMIT
+           for m in body):
         return ["theta_saturated_section(body)."]
-    parts = ["theta_sigma_section(body)."]
-    for identifier, offsets in enumerate(product(range(group), repeat=max_body_literals)):
-        parts.append(f"theta_sigma({identifier}).")
-        parts.extend(
-            f"theta_sigma_offset({identifier},body,{slot},{offset})."
-            for slot, offset in enumerate(offsets)
-        )
-    return parts
+    patterns: set[tuple[int, ...]] = set()
+    largest_group = max((capacities[m.id] for m in body if isinstance(m.literal, AtomLiteral)), default=0)
+    last_group_mode = {mode.recall_group: index for index, mode in enumerate(body)}
+
+    def fallback() -> list[str]:
+        if largest_group ** max_body_literals <= THETA_OFFSET_LIMIT:
+            return emit(product(range(largest_group), repeat=max_body_literals))
+        return ["theta_saturated_section(body)."]
+
+    def emit(vectors) -> list[str]:
+        parts = ["theta_sigma_section(body)."]
+        for identifier, offsets in enumerate(vectors):
+            parts.append(f"theta_sigma({identifier}).")
+            parts.extend(f"theta_sigma_offset({identifier},body,{slot},{offset})."
+                         for slot, offset in enumerate(offsets))
+        return parts
+    # Work is bounded independently of emitted vectors. Large languages retain
+    # the exact saturation encoding instead of materializing a count domain.
+    pending: list[tuple[int, tuple[int, ...], dict[int, int]]] = [(0, (), {})]
+    work = 0
+    visited = set()
+    while pending:
+        index, prefix, used = pending.pop()
+        state = index, prefix, tuple(sorted(used.items()))
+        if state in visited:
+            continue
+        visited.add(state)
+        work += 1
+        if work > 100000 or len(patterns) > THETA_OFFSET_LIMIT:
+            return fallback()
+        if index == len(body):
+            patterns.add(prefix + (0,) * (max_body_literals - len(prefix)))
+            continue
+        mode = body[index]
+        maximum = min(capacities[mode.id] - used.get(mode.recall_group, 0),
+                      max_body_literals - len(prefix))
+        for count in range(maximum + 1):
+            moved = isinstance(mode.literal, AtomLiteral) and count >= 2
+            options = product(range(count), repeat=count) if moved else [(0,) * count]
+            for offsets in options:
+                counts = {group: total for group, total in used.items() if last_group_mode[group] > index}
+                if count and last_group_mode[mode.recall_group] > index:
+                    counts[mode.recall_group] = used.get(mode.recall_group, 0) + count
+                pending.append((index + 1, prefix + offsets, counts))
+    return emit(sorted(patterns))
 
 
 def _common_mode_facts(

@@ -22,6 +22,7 @@ seed_base = 42
 timeout_seconds = 30
 cprofile = false
 instrumentation = "full"
+validation_timeout_seconds = 60
 
 [[experiment]]
 id = "test-defaults/steady_state"
@@ -69,8 +70,9 @@ instrumentation = "full"
 algorithm = "incremental"
 
 [[experiment]]
-id = "ilasp-mode-bias-all-30s-3runs/gentians-steady_state"
-description = "Gentians steady-state full pipeline for the ILASP mode-bias comparison."
+id = "ilasp-mode-bias-all-30s-3runs"
+methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+description = "Matched Gentians and ILASP methods on the same tasks and timeout."
 datasets = [
   "4queens",
   "5queens",
@@ -84,33 +86,12 @@ datasets = [
 ]
 runs = 3
 timeout_seconds = 30
-instrumentation = "light"
-[experiment.overrides]
-algorithm = "steady_state"
+instrumentation = "full"
 
 [[experiment]]
-id = "ilasp-mode-bias-all-30s-3runs/gentians-incremental"
-description = "Gentians incremental full pipeline for the ILASP mode-bias comparison."
-datasets = [
-  "4queens",
-  "5queens",
-  "adj2red",
-  "clique",
-  "coin",
-  "coloring",
-  "even_odd",
-  "grandparent",
-  "sudoku",
-]
-runs = 3
-timeout_seconds = 30
-instrumentation = "light"
-[experiment.overrides]
-algorithm = "incremental"
-
-[[experiment]]
-id = "ilasp-mode-bias-all-120s-10runs/gentians-steady_state"
-description = "Gentians steady-state full pipeline on the nine ILASP mode-bias tasks."
+id = "ilasp-mode-bias-all-120s-10runs"
+methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+description = "Matched Gentians and ILASP methods on the same tasks and timeout."
 datasets = [
   "4queens",
   "5queens",
@@ -125,28 +106,15 @@ datasets = [
 runs = 10
 timeout_seconds = 120
 instrumentation = "full"
-[experiment.overrides]
-algorithm = "steady_state"
 
 [[experiment]]
-id = "ilasp-mode-bias-all-120s-10runs/gentians-incremental"
-description = "Gentians incremental full pipeline on the nine ILASP mode-bias tasks."
-datasets = [
-  "4queens",
-  "5queens",
-  "adj2red",
-  "clique",
-  "coin",
-  "coloring",
-  "even_odd",
-  "grandparent",
-  "sudoku",
-]
+id = "ilasp-mode-bias-5queens-20s"
+methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+description = "Matched 5queens methods from mode bias, with one deterministic ILASP run per version."
+datasets = ["5queens"]
 runs = 10
-timeout_seconds = 120
+timeout_seconds = 20
 instrumentation = "full"
-[experiment.overrides]
-algorithm = "incremental"
 
 [[experiment]]
 id = "ilasp-generated-5queens-20s/gentians"
@@ -209,8 +177,9 @@ algorithm = "incremental"
 "mutation.probability" = 0.1
 
 [[experiment]]
-id = "ilasp-all-120s-30runs/gentians-steady_state"
-description = "Gentians steady_state, full pipeline; 29 tasks matched to ILASP. Body aggregate tasks use offline explicit spaces on the ILASP side."
+id = "ilasp-all-120s-30runs"
+methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+description = "Matched Gentians and ILASP methods on the same tasks and timeout."
 datasets = [
   "4queens",
   "5queens",
@@ -244,54 +213,12 @@ datasets = [
 ]
 runs = 30
 timeout_seconds = 120
-instrumentation = "light"
-[experiment.overrides]
-algorithm = "steady_state"
+instrumentation = "full"
 
 [[experiment]]
-id = "ilasp-all-120s-30runs/gentians-incremental"
-description = "Gentians incremental, full pipeline; 29 tasks matched to ILASP. Body aggregate tasks use offline explicit spaces on the ILASP side."
-datasets = [
-  "4queens",
-  "5queens",
-  "adj2red",
-  "clique",
-  "coin",
-  "coloring",
-  "even_odd",
-  "grandparent",
-  "sudoku",
-  "hamming_0",
-  "hamming_0_unbalanced",
-  "hamming_1",
-  "hamming_1_unbalanced",
-  "knapsack",
-  "latin_square",
-  "magic_square_no_diag",
-  "set_partition_sum",
-  "set_partition_sum_and_cardinality",
-  "set_partition_sum_cardinality_and_square",
-  "subset_sum",
-  "subset_sum_double",
-  "subset_sum_double_and_prod",
-  "subset_sum_double_and_prod_unbalanced",
-  "subset_sum_double_and_sum",
-  "subset_sum_double_unbalanced",
-  "subset_sum_double_unbalanced_count",
-  "subset_sum_triple",
-  "subset_sum_unbalanced",
-  "subset_sum_unbalanced_ops",
-]
-runs = 30
-timeout_seconds = 120
-instrumentation = "light"
-[experiment.overrides]
-algorithm = "incremental"
-
-# Comparison on all 29 tasks: ten seeds and a 30-minute limit per run.
-[[experiment]]
-id = "ilasp-all-1800s-10runs/gentians-steady_state"
-description = "Gentians steady_state, full pipeline; 29 tasks matched to ILASP 2 and 2i."
+id = "ilasp-all-1800s-10runs"
+methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+description = "Matched Gentians and ILASP methods on the same tasks and timeout."
 datasets = [
   "4queens",
   "5queens",
@@ -325,46 +252,41 @@ datasets = [
 ]
 runs = 10
 timeout_seconds = 1800
-instrumentation = "light"
-[experiment.overrides]
-algorithm = "steady_state"
+instrumentation = "full"
 
-[[experiment]]
-id = "ilasp-all-1800s-10runs/gentians-incremental"
-description = "Gentians incremental, full pipeline; 29 tasks matched to ILASP 2 and 2i."
-datasets = [
-  "4queens",
-  "5queens",
-  "adj2red",
-  "clique",
-  "coin",
-  "coloring",
-  "even_odd",
-  "grandparent",
-  "sudoku",
-  "hamming_0",
-  "hamming_0_unbalanced",
-  "hamming_1",
-  "hamming_1_unbalanced",
-  "knapsack",
-  "latin_square",
-  "magic_square_no_diag",
-  "set_partition_sum",
-  "set_partition_sum_and_cardinality",
-  "set_partition_sum_cardinality_and_square",
-  "subset_sum",
-  "subset_sum_double",
-  "subset_sum_double_and_prod",
-  "subset_sum_double_and_prod_unbalanced",
-  "subset_sum_double_and_sum",
-  "subset_sum_double_unbalanced",
-  "subset_sum_double_unbalanced_count",
-  "subset_sum_triple",
-  "subset_sum_unbalanced",
-  "subset_sum_unbalanced_ops",
-]
-runs = 10
-timeout_seconds = 1800
-instrumentation = "light"
-[experiment.overrides]
-algorithm = "incremental"
+
+[tools.ilasp]
+executable = "tools/ilasp/ILASP"
+task_dir = "benchmarks/ilasp"
+distro = "kali-linux"
+
+[tools.ilasp.max_body_length]
+4queens = 5
+5queens = 5
+adj2red = 4
+clique = 7
+coin = 3
+coloring = 4
+even_odd = 3
+grandparent = 3
+sudoku = 3
+hamming_0 = 3
+hamming_0_unbalanced = 3
+hamming_1 = 3
+hamming_1_unbalanced = 3
+knapsack = 3
+latin_square = 3
+magic_square_no_diag = 4
+set_partition_sum = 4
+set_partition_sum_and_cardinality = 4
+set_partition_sum_cardinality_and_square = 4
+subset_sum = 3
+subset_sum_double = 4
+subset_sum_double_and_prod = 4
+subset_sum_double_and_prod_unbalanced = 4
+subset_sum_double_and_sum = 4
+subset_sum_double_unbalanced = 4
+subset_sum_double_unbalanced_count = 4
+subset_sum_triple = 4
+subset_sum_unbalanced = 3
+subset_sum_unbalanced_ops = 3

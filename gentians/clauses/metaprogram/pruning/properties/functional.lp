@@ -26,8 +26,8 @@
     var_at(body, Slot0, Input, Same),
     var_at(body, Slot1, Input, Same),
     var_at(body, Slot0, Output, Out0),
-    var_at(body, Slot1, Output, Out1),
-    Out0 != Out1.
+    arg(body, Slot1, Output),
+    not var_at(body, Slot1, Output, Out0).
 
 % A negative tuple with a provably different output is already implied by the positive tuple.
 

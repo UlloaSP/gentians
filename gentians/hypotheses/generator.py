@@ -43,7 +43,6 @@ class HypothesisGenerator:
         self.has_negative_examples = bool(task.negative_examples)
         self.space = prepare_space(task, space)
         self.clauses = self.space.clauses
-        self.statements = self.space.statements
         self.clause_count = len(self.clauses)
         self.all_clauses = (1 << self.clause_count) - 1
         self.available_clauses = self.all_clauses
@@ -54,9 +53,14 @@ class HypothesisGenerator:
 
         providers = task_providers(task)
         predicates = set(providers)
+        used_predicates = {}
         for entry in self.space.entries:
-            predicates.update(entry.heads)
-            predicates.update(entry.deps)
+            metadata = entry.metadata
+            used_predicates[metadata.index] = (
+                used_predicates.get(metadata.index, 0) | metadata.head_mask | metadata.dep_mask
+            )
+        for index, mask in used_predicates.items():
+            predicates.update(index.members(mask))
         self.predicate_ids = {
             predicate: index for index, predicate in enumerate(sorted(predicates))
         }
@@ -68,12 +72,23 @@ class HypothesisGenerator:
             for literal in (*example.included, *example.excluded)
         }
         self.target_mask = self._predicate_mask(target_predicates)
-        self.head_masks = tuple(
-            self._predicate_mask(entry.heads) for entry in self.space.entries
-        )
-        self.dep_masks = tuple(
-            self._predicate_mask(entry.deps) for entry in self.space.entries
-        )
+        masks = []
+        maps = {index: tuple(self._predicate_mask((predicate,)) for predicate in index.predicates)
+                for index in used_predicates}
+        identities = {index for index, mapping in maps.items()
+                      if all(value == 1 << i for i, value in enumerate(mapping))}
+        for entry in self.space.entries:
+            metadata = entry.metadata
+            if metadata.index in identities:
+                masks.append((metadata.head_mask, metadata.dep_mask))
+                continue
+            mapping = maps[metadata.index]
+            masks.append(tuple(
+                sum(mapping[bit.bit_length() - 1] for bit in _bits(mask))
+                for mask in (metadata.head_mask, metadata.dep_mask)
+            ))
+        self.head_masks = tuple(pair[0] for pair in masks)
+        self.dep_masks = tuple(pair[1] for pair in masks)
         self.body_sizes = tuple(entry.body_literals for entry in self.space.entries)
         self.target_clauses = sum(
             1 << clause_id
@@ -117,7 +132,7 @@ class HypothesisGenerator:
         return self._render_cache[genome]
 
     def program(self, genome: Genome) -> AspProgram:
-        return tuple(self.statements[clause_id] for clause_id in self._ids(genome))
+        return tuple(self.space.entries[clause_id].statement for clause_id in self._ids(genome))
 
     def all_subsets_evaluated(self, evaluated_count: int) -> bool:
         """Sufficient exhaustion proof, counting even dependency-invalid subsets.

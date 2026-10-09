@@ -46,9 +46,7 @@ CASES: dict[str, Arguments] = {
     "subset_sum_unbalanced_ops": task("subset_sum_unbalanced_ops"),
     "subset_sum_double": task("subset_sum_double"),
     "subset_sum_double_unbalanced": task("subset_sum_double_unbalanced"),
-    "subset_sum_double_unbalanced_count": task(
-        "subset_sum_double_unbalanced_count"
-    ),
+    "subset_sum_double_unbalanced_count": task("subset_sum_double_unbalanced_count"),
     "subset_sum_double_and_sum": task("subset_sum_double_and_sum"),
     "subset_sum_double_and_prod": task("subset_sum_double_and_prod"),
     "subset_sum_double_and_prod_unbalanced": task(
@@ -56,9 +54,7 @@ CASES: dict[str, Arguments] = {
     ),
     "subset_sum_triple": task("subset_sum_triple"),
     "set_partition_sum": task("set_partition_sum"),
-    "set_partition_sum_and_cardinality": task(
-        "set_partition_sum_and_cardinality"
-    ),
+    "set_partition_sum_and_cardinality": task("set_partition_sum_and_cardinality"),
     "set_partition_sum_cardinality_and_square": task(
         "set_partition_sum_cardinality_and_square"
     ),
@@ -72,6 +68,10 @@ DEFAULT_DATASETS = [
     "4queens",
     "8queens",
     "5queens",
+    "alzheimer_acetyl",
+    "alzheimer_amine",
+    "alzheimer_mem",
+    "alzheimer_toxic",
     "even_odd",
     "grandparent",
     "sudoku",

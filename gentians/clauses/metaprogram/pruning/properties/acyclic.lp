@@ -31,6 +31,7 @@ antisymmetric_pred(Pred) :- acyclic_pred(Pred).
     positive_body_literal(Slot2, _, Pred, 2),
     Slot0 < Slot1,
     Slot1 < Slot2,
+    positive_body_capacity(Pred, Capacity), Capacity >= 3,
     acyclic_pred(Pred),
     var_at(body, Slot0, 0, X),
     var_at(body, Slot0, 1, Y),

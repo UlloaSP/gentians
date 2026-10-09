@@ -101,24 +101,7 @@ def main() -> None:
         serialization_started = time.perf_counter()
         path = args.out_dir / f"{safe_filename(dataset)}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(
-                {
-                    "entries": [
-                        {
-                            "text": entry.text,
-                            "heads": [list(value) for value in sorted(entry.heads)],
-                            "deps": [list(value) for value in sorted(entry.deps)],
-                            "body_literals": entry.body_literals,
-                        }
-                        for entry in clause_space.entries
-                    ],
-                    "metrics": metrics,
-                },
-                separators=(",", ":"),
-            ),
-            encoding="utf-8",
-        )
+        write_clause_snapshot(path, clause_space, metrics)
         serialization_seconds = time.perf_counter() - serialization_started
         elapsed = time.perf_counter() - started
         print_profile_report(
@@ -135,11 +118,31 @@ def main() -> None:
             models = sum(
                 row["models"] for row in metrics["clingoMetrics"]
                 if row.get("phase_context") == "clause_generation"
-                and row.get("operation_category") == "solving"
+                and row.get("operation_category") in {"solving", "generation_worker"}
             )
             print(f"  Running separate cProfile pass for {dataset}...", flush=True)
-            summary = profile_clause_python(task, arguments, clause_space, int(models), profile_path)
+            summary = profile_clause_python(task, arguments, clause_space,
+                                           None if arguments.clause_generation.get("workers", 1) != 1 else int(models),
+                                           profile_path)
             print_python_profile(summary, profile_path)
+
+
+def write_clause_snapshot(path, clause_space, metrics) -> None:
+    """Keep the snapshot schema without a second copy of the entire space."""
+    with path.open("w", encoding="utf-8", newline="") as file:
+        file.write('{"entries":[')
+        for index, entry in enumerate(clause_space.entries):
+            if index:
+                file.write(",")
+            file.write(json.dumps({
+                "text": entry.text,
+                "heads": [list(value) for value in sorted(entry.heads)],
+                "deps": [list(value) for value in sorted(entry.deps)],
+                "body_literals": entry.body_literals,
+            }, separators=(",", ":")))
+        file.write('],"metrics":')
+        json.dump(metrics, file, separators=(",", ":"))
+        file.write("}")
 
 
 def print_profile_report(
@@ -161,7 +164,10 @@ def print_profile_report(
     ]
     grounds = [row for row in clingo_rows if row["operation_category"] == "grounding"]
     solves = [row for row in clingo_rows if row["operation_category"] == "solving"]
-    models = int(sum(row["models"] for row in solves)) if solves else None
+    workers = [row for row in clingo_rows if row["operation_category"] == "generation_worker"]
+    models = int(sum(row["models"] for row in solves + workers)) if solves or workers else None
+    if workers:
+        python = None
 
     def duration(seconds):
         return f"{seconds:.3f}s" if seconds is not None else "N/A"
@@ -177,7 +183,12 @@ def print_profile_report(
         share = f" ({100 * seconds / generation:.1f}%)" if generation and seconds is not None else ""
         print(f"      {label}: {duration(seconds)}{share}")
     print("      Python includes preparation, decoding, canonicalization and deduplication.")
-    print("      Solving excludes Python model callbacks.")
+    print("      Solving excludes model capture and callback delivery.")
+    if workers:
+        print("      Parallel wall-time decomposition: N/A; process work overlaps.")
+        for key, label in (("grounding_work_seconds", "Grounding"), ("solving_work_seconds", "Solving"),
+                           ("python_work_seconds", "Python model delivery/canonicalization")):
+            print(f"      Workers {label} (sum of process work): {sum(row[key] for row in workers):.3f}s")
     print(f"    Generation wall-clock (including profiling/export): {generation_wall_seconds:.3f}s")
     print(f"    JSON serialization + write: {serialization_seconds:.3f}s")
     print(f"    Total wall-clock (load + generation + JSON): {total_seconds:.3f}s")
@@ -202,6 +213,12 @@ def print_profile_report(
     print("      Clingo prunes internally; models do not count rejected combinations.")
     print("  Clingo:")
     print(f"    Ground calls: {len(grounds)}; solve calls: {len(solves)}")
+    if workers:
+        print(f"    Partition ground/solve pairs: {len(workers)}")
+        print(f"    Ground atoms (largest partition): {int(max(row['stats_atoms'] for row in workers)):,}")
+        print(f"    Ground rules (largest partition): {int(max(row['stats_rules'] for row in workers)):,}")
+        print(f"    Choices: {int(sum(row['stats_choices'] for row in workers)):,}")
+        print(f"    Conflicts: {int(sum(row['stats_conflicts'] for row in workers)):,}")
     if grounds:
         print(f"    Ground atoms: {int(max(row['stats_atoms'] for row in grounds)):,}")
         print(f"    Ground rules: {int(max(row['stats_rules'] for row in grounds)):,}")

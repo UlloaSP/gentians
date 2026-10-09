@@ -29,8 +29,58 @@ arg(Section, Slot, Arg) :-
 % on it, and Python's decoder reads it back to render the variables.
 % The bound removes only assignments already forbidden by variable symmetry;
 % it retains all ids up to the task's #maxv where their first use is possible.
-1 { var_at(Section, Slot, Arg, Var) : var(Var), Var <= Bound } 1 :-
+1 { var_at(Section, Slot, Arg, Var) : var(Var), Var <= Bound,
+    not blocked_binding(Section, Slot, Arg, Var) } 1 :-
+    not nominal_bindings,
+    not connected_bindings,
+    not alias_binding(Section, Slot, Arg),
     arg(Section, Slot, Arg), first_occurrence_bound(Section, Slot, Arg, Bound).
+
+% Optional exact representation for flat modes without local scopes. Type is
+% chosen per syntactic id, never a disjoint id namespace per nominal type.
+0 { nominal_variable_type(Var, Type): binding_type(Type) } 1 :-
+    nominal_bindings, var(Var).
+1 { var_at(Section, Slot, Arg, Var): var(Var), Var <= Bound,
+    nominal_variable_type(Var, Type) } 1 :-
+    nominal_bindings, arg(Section, Slot, Arg), arg_type(Section, Slot, Arg, Type),
+    first_occurrence_bound(Section, Slot, Arg, Bound).
+:- nominal_variable_type(Var, _), not used_var(Var).
+
+% Optional typed-prefix representation. Body-before-head order is the same
+% tuple order as symmetry/variables.lp, including selected rather than merely
+% potential positions. An id may be reused with its already-declared type or
+% introduced as exactly the next dense id. Legal input/output execution order
+% is still proved by legality/flow, independently of the order of mode ids.
+binding_prefix_next(Section,Slot,Arg,Next) :-
+    connected_bindings, arg(Section,Slot,Arg),
+    Last = #max {-1; Var : var_at(S,L,A,Var), (S,L,A)<(Section,Slot,Arg)}, Next = Last + 1.
+binding_prefix_candidate(Section,Slot,Arg,Var) :-
+    connected_bindings, arg_type(Section,Slot,Arg,Type),
+    var_at(S,L,A,Var), arg_type(S,L,A,Type), (S,L,A)<(Section,Slot,Arg).
+binding_prefix_candidate(Section,Slot,Arg,Next) :-
+    binding_prefix_next(Section,Slot,Arg,Next), var(Next).
+1 {var_at(Section,Slot,Arg,Var): binding_prefix_candidate(Section,Slot,Arg,Var)} 1 :-
+    connected_bindings, arg(Section,Slot,Arg).
+
+% DEFINITION, local helper. alias_binding(Section,Slot,Arg): this selected
+% placeholder is forced equal to an earlier root by an existing body property.
+alias_binding(Section,Slot,Arg) :- selected(Section,Slot,Mode), binding_alias(Mode,Arg,_).
+
+% DEFINITION, reusable. var_at/4, alias case: no decision for a forced copy.
+% Root is earlier, so its first-occurrence bound also satisfies Arg's bound.
+var_at(Section,Slot,Arg,Var) :-
+    selected(Section,Slot,Mode), binding_alias(Mode,Arg,Root), var_at(Section,Slot,Root,Var).
+
+% DEFINITION, local helper. distinct_binding(Mode,Earlier,Arg): a flat
+% placeholder cannot use the variable already chosen for Earlier. Bridges such
+% as irreflexive_pred -> arg_distinct_pred remain owned by their property files.
+distinct_binding(Mode,A,B) :- binding_flat_mode(Mode), mode_atom(Mode,Pred,_), arg_distinct_pred(Pred,A,B), A<B.
+distinct_binding(Mode,B,A) :- binding_flat_mode(Mode), mode_atom(Mode,Pred,_), arg_distinct_pred(Pred,A,B), B<A.
+
+% DEFINITION, local helper. blocked_binding(Section,Slot,Arg,Var): remove
+% that id before choosing Arg. Dependence is strictly on an earlier argument.
+blocked_binding(Section,Slot,Arg,Var) :-
+    selected(Section,Slot,Mode), distinct_binding(Mode,Earlier,Arg), var_at(Section,Slot,Earlier,Var).
 
 % DEFINITION, local helper. pooled_body_alternative_var(Slot, Alternative, Var):
 % one binding alternative of a body atom grounds Var.

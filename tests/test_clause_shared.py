@@ -140,7 +140,7 @@ def test_fused_clause_traits_keep_external_safe_numeric_sets_and_literal_order(m
                         if by_id[literal.mode_id].numeric_builtin or index in by_id[literal.mode_id].numeric_positions)
     calls = []
 
-    def systems(literals, _modes, ext, bound, numbers, width):
+    def systems(literals, _modes, ext, bound, numbers, width, _components):
         calls.append((literals, arithmetic._variables(ext), arithmetic._variables(bound), arithmetic._variables(numbers), width))
         return ()
 

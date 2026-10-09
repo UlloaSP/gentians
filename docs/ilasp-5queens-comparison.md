@@ -29,9 +29,9 @@ activo. Tampoco hay `#modeh`: el espacio contiene únicamente constraints.
 
 Se ejecutó ILASP 4.4.1 desde WSL Kali Linux, secuencialmente para evitar
 competencia entre variantes. El runner actual se configura mediante
-`benchmarks/ilasp_experiments.toml` y se invoca con
-`benchmarks/run_ilasp_experiments.py`. Aplica a cada variante el comando
-equivalente a:
+`benchmarks/experiments.toml` y se invoca con
+`benchmarks/run_experiments.py <id> --methods ilasp-2 ilasp-2i`.
+El comando utilizado en el protocolo histórico fue equivalente a:
 
 ```bash
 timeout --signal=INT --kill-after=5s 180s \
@@ -40,8 +40,9 @@ timeout --signal=INT --kill-after=5s 180s \
 ```
 
 El binario necesitó las bibliotecas de Python 3.10 extraídas localmente en
-`/tmp/ilasp-python310/root/usr`. El runner permite cambiar binario, runtime,
-timeout, entrada y salida mediante variables de entorno.
+`/tmp/ilasp-python310/root/usr`. El runner actual permite cambiar binario y
+runtime en `[tools.ilasp]`, timeout y datasets en `[[experiment]]`, y salida
+en `[suite]` del TOML común.
 
 ## Resultados con mode bias
 

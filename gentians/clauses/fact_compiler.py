@@ -5,6 +5,7 @@ from .analysis.properties import ClosedWorldProperties
 from .clause_mode import ClauseMode
 from .mode_facts import compile_mode_facts, predicate_ids, theta_facts
 from .property_facts import compile_property_facts
+from .property_consumers import PropertyMaps
 
 
 def _facts(
@@ -14,6 +15,7 @@ def _facts(
     max_variables: int,
     max_head_literals: int,
     max_body_literals: int,
+    maps: PropertyMaps | None = None,
 ) -> str:
     identifiers = predicate_ids(modes)
     structured_predicates = {
@@ -38,6 +40,8 @@ def _facts(
                 for predicate, identifier in identifiers.items()
                 if predicate not in structured_predicates
             },
+            modes,
+            maps,
         )
     )
     for predicate, predicate_id in identifiers.items():

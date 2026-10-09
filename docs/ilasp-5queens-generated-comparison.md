@@ -45,14 +45,18 @@ periodo de cierre no se usa como tiempo del solver.
 ## Reproducción
 
 ```powershell
-uv run python benchmarks/run_ilasp_experiments.py --list
-uv run python benchmarks/run_ilasp_experiments.py mode-bias/5queens-20s
-uv run python benchmarks/run_ilasp_experiments.py mode-bias/5queens-20s --summary
+uv run python benchmarks/run_experiments.py --list
+uv run python benchmarks/run_experiments.py ilasp-mode-bias-5queens-20s --methods ilasp-2 ilasp-2i ilasp-3 ilasp-4
+uv run python benchmarks/run_experiments.py ilasp-mode-bias-5queens-20s --summary --methods ilasp-2 ilasp-2i ilasp-3 ilasp-4
 ```
 
-La matriz se define en `benchmarks/ilasp_experiments.toml`; las tareas `.las`
+El runner actual ejecuta una sola vez cada tarea y versión. Los diez runs por
+versión de los resultados históricos corresponden a la revisión indicada abajo;
+para reproducir ese protocolo hay que usar aquella revisión.
+
+La matriz se define en `benchmarks/experiments.toml`; las tareas `.las`
 versionadas viven en `benchmarks/ilasp/`. El runner escribe nuevas ejecuciones
-en `.benchmarks/ilasp-experiments/`.
+en `.benchmarks/experiments/ilasp-mode-bias-5queens-20s/<método>/`.
 
 Entorno: revisión `8b6bd7c`, Python 3.14.6, Clingo 5.8.0, ILASP 4.4.1 en
 WSL Kali Linux e Intel Core i7-13700H. Los resultados crudos y el resumen viven

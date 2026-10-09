@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from clingo import ast
 
@@ -22,9 +23,16 @@ SystemRelation = (
 class ArithmeticSystem:
     relations: tuple[SystemRelation, ...]
     _key: ArithmeticSystemKey | None = field(default=None, init=False, repr=False, compare=False)
-    _literals: tuple[ast.AST, ...] | None = field(
-        default=None, init=False, repr=False, compare=False,
-    )
+    linear: bool = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        # Repeating an exact comparison in a conjunction adds no ASP meaning.
+        # The formatter already removes duplicate native literals; normalize
+        # the component recipe before its key instead of storing several keys
+        # for that same repetition. Equality includes orientation and safety.
+        if len(self.relations) > 1:
+            object.__setattr__(self, "relations", tuple(dict.fromkeys(self.relations)))
+        object.__setattr__(self, "linear", all(isinstance(relation, LinearConstraint) for relation in self.relations))
 
     @property
     def key(self) -> ArithmeticSystemKey:
@@ -38,13 +46,11 @@ class ArithmeticSystem:
     def variables(self) -> frozenset[int]:
         return frozenset().union(*(relation.variables for relation in self.relations))
 
+    @lru_cache(maxsize=8192)
     def instantiate(self) -> tuple[ast.AST, ...]:
-        """Share native syntax for this immutable system; callers use AST.update."""
-        if self._literals is not None:
-            return self._literals
+        """Bound native syntax retention independently of stored rule recipes."""
         if len(self.relations) == 1 and not isinstance(self.relations[0], ExpressionConstraint):
             result = (self.relations[0].instantiate(),)
-            object.__setattr__(self, "_literals", result)
             return result
         literals: list[ast.AST] = []
         seen: set[ast.AST] = set()
@@ -62,7 +68,6 @@ class ArithmeticSystem:
                     seen.add(guard)
                     literals.append(guard)
         result = tuple(literals)
-        object.__setattr__(self, "_literals", result)
         return result
 
     def render(self) -> tuple[str, ...]:

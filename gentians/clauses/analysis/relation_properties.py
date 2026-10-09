@@ -1,4 +1,4 @@
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from heapq import nlargest
 from itertools import combinations, permutations
 from math import prod
@@ -269,6 +269,7 @@ def _domain_covers(
 def _collect_tuple_mutex(
     extensions: Mapping[Predicate, frozenset[GroundTuple]],
     tuple_mutex: set[tuple[Predicate, Predicate, tuple[int, ...]]],
+    compatible: Callable[[Predicate, Predicate, tuple[int, ...]], bool] | None = None,
 ) -> None:
     by_arity: dict[int, dict[frozenset[GroundTuple], list[Predicate]]] = {}
     for predicate, tuples in extensions.items():
@@ -280,9 +281,18 @@ def _collect_tuple_mutex(
             for projection in permutations(identity):
                 if projection == identity:
                     continue
+                if compatible is not None and not any(
+                    compatible(left, right, projection) for left in left_predicates
+                    for right_predicates in groups.values() for right in right_predicates
+                ):
+                    continue
                 projected = {tuple(values[arg] for arg in projection) for values in left_tuples}
                 for right_tuples, right_predicates in groups.items():
                     if projected.isdisjoint(right_tuples):
+                        if compatible is not None:
+                            tuple_mutex.update((left, right, projection) for left in left_predicates
+                                               for right in right_predicates if compatible(left, right, projection))
+                            continue
                         if len(left_predicates) == len(right_predicates) == 1:
                             tuple_mutex.add((left_predicates[0], right_predicates[0], projection))
                         else:

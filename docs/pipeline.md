@@ -24,6 +24,13 @@ instrumentación -> artefactos de benchmark -> preview Vite
 
 Clingo cumple dos papeles distintos: enumera cláusulas legales a partir del
 language bias y evalúa la semántica del programa candidato completo.
+La generación completa puede usar combinaciones directas cuando una prueba sobre
+el IR establece modos unarios positivos independientes, recall 1, una variable
+output y ausencia de propiedades adicionales que podan el espacio. El resto usa
+el metaprograma ASP. Ambas rutas producen las mismas recetas nativas, máscaras
+firmadas y orden canónico; el AST se materializa solo al consumir la cláusula.
+Las alternativas de ejecución y sus precondiciones están en
+[clause-generation.md](clause-generation.md).
 
 La distinción entre cláusulas e hipótesis es obligatoria:
 

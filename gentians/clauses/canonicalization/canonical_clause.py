@@ -4,6 +4,7 @@ from clingo import ast
 
 from ...language.ast_nodes import LOCATION
 from ..clause_mode import ClauseMode
+from ..native_syntax import RuleBuilder
 from ..reified_clause import _instantiate_literal, instantiate_head
 from ..reified_literal import ReifiedLiteral
 from .arithmetic_system import ArithmeticSystem, ArithmeticSystemKey
@@ -27,8 +28,10 @@ class CanonicalArithmeticClause:
         self,
         modes: dict[int, ClauseMode],
         heads: dict[tuple[ReifiedLiteral, ...], ast.AST] | None = None,
+        builder: RuleBuilder | None = None,
+        literals=None,
     ) -> ast.AST:
-        """Build the rule once; the evaluator consumes this same AST."""
+        """Construct native syntax from the recipe, without reparsing text."""
         if not self.head and not self.body and not self.systems:
             raise ValueError("a learned clause cannot have an empty head and body")
         if heads is None:
@@ -39,12 +42,13 @@ class CanonicalArithmeticClause:
                 cached = heads[self.head] = instantiate_head(self.head, modes)
             head = cached
         body = [
-            _instantiate_literal(modes[literal.mode_id], literal.variables)
+            (_instantiate_literal(modes[literal.mode_id], literal.variables)
+             if literals is None else literals(literal.mode_id, literal.variables))
             for literal in self.body
         ]
         for system in self.systems:
             body.extend(system.instantiate())
-        return ast.Rule(LOCATION, head, body)
+        return builder.rule(head, body) if builder is not None else ast.Rule(LOCATION, head, body)
 
     def render(self, modes: dict[int, ClauseMode]) -> str:
         return str(self.instantiate(modes))

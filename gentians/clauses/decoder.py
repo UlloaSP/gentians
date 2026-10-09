@@ -45,6 +45,21 @@ class _ModelDecoder:
         if 0 in self.lookup:
             raise ValueError("The decoder output contains the reserved zero handle")
         self.capacity = offset
+        self.state: list[int | None] = [None] * offset
+        self.touched: list[int] = []
+        self.head: list[ReifiedLiteral] = []
+        self.body: list[ReifiedLiteral] = []
+        self.binding_offsets = {
+            (index, mode): tuple(start + position for position in self.bindings[mode])
+            for index, (section, slot, start) in enumerate(self.slots)
+            for mode, _handle in selected[section, slot]
+        }
+        # Dense per-slot mode plans avoid a tuple key and dict lookup for every
+        # selected literal, including the portable decoder.
+        self.plans = tuple(
+            tuple(self.binding_offsets.get((index, mode)) for mode in range(max(modes, default=-1) + 1))
+            for index in range(len(self.slots))
+        )
         self.buffer = _ffi.new("clingo_symbol_t[]", self.capacity)
         self.buffer_bytes = _ffi.buffer(self.buffer)
         self.zero_bytes = bytes(len(self.buffer_bytes))
@@ -62,21 +77,29 @@ def _clause_from_model(model: clingo.Model, decoder: _ModelDecoder) -> ReifiedCl
         model._rep, _lib.clingo_show_type_shown, decoder.buffer, decoder.capacity,
     ):
         raise RuntimeError("clingo could not read shown clause symbols")
-    state: list[int | None] = [None] * decoder.capacity
+    state = decoder.state
+    for offset in decoder.touched:
+        state[offset] = None
+    decoder.touched.clear()
     for handle in decoder.buffer:
         if handle == 0:
             break
         offset, value = decoder.lookup[handle]
         state[offset] = value
-    head: list[ReifiedLiteral] = []
-    body: list[ReifiedLiteral] = []
+        decoder.touched.append(offset)
+    head, body = decoder.head, decoder.body
+    head.clear()
+    body.clear()
     for index, (section, slot, offset) in enumerate(decoder.slots):
         mode = state[index]
         if mode is None:
             continue
         variables: list[int] = []
-        for position in decoder.bindings[mode]:
-            variable = state[offset + position]
+        plan = decoder.plans[index][mode]
+        if plan is None:
+            raise RuntimeError("unknown selected literal mode")
+        for position in plan:
+            variable = state[position]
             if variable is None:
                 raise RuntimeError("selected literal argument has no variable")
             variables.append(variable)

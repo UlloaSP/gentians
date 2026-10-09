@@ -44,12 +44,17 @@ def _prune_uncloseable_clauses(
     kept = list(entries)
     while True:
         providers = set(task_defined)
+        head_masks = {}
         for entry in kept:
-            providers.update(entry.heads)
+            metadata = entry.metadata
+            head_masks[metadata.index] = head_masks.get(metadata.index, 0) | metadata.head_mask
+        for index, mask in head_masks.items():
+            providers.update(index.members(mask))
+        provider_masks = {index: index.mask(providers) for index in head_masks}
         filtered = [
             entry
             for entry in kept
-            if entry.deps <= providers
+            if not entry.metadata.dep_mask & ~provider_masks[entry.metadata.index]
         ]
         if len(filtered) == len(kept):
             return kept

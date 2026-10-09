@@ -245,6 +245,26 @@ de ellos redefine el language bias de una tarea inductiva.
   su clave inmutable durante su propia vida. La enumeración completa e
   incremental omiten clocks por modelo cuando timings y métricas Clingo están
   desactivados, sin cambiar las métricas emitidas al activarlos.
+  `Clause` retiene texto, receta nativa y máscaras firmadas; `RuleRecipes` posee
+  una caché acotada de AST y los consumidores materializan solo los statements
+  que necesitan. `ModeMetadata` prepara y pliega traits con prefijos acotados.
+  `ClauseCanonicalizer` conserva un representante por clave y libera ese índice
+  al transferirlo a `ClauseSpace`. Al aceptar un representante guarda tamaño y
+  metadata de la fuente, sin retener sus bindings aritméticos ya descartados.
+  El transporte C opcional copia modelos a registros propios y materializa sus
+  bloques; el callback C completo entrega bloques a Python y el iterador
+  incremental conserva su presupuesto por modelo. El decoder Python permanece
+  disponible como control. `PackedRecipe` comparte literales mediante índices
+  locales a su propietario y conserva sistemas aritméticos exactos; `Clause`
+  mantiene vivo ese propietario hasta construir los AST que necesita.
+  Las recetas poseen cachés
+  locales de literales y direcciones nativas, con owners durante cada llamada.
+  El renderer opcional construye, formatea y libera reglas con la API de Clingo,
+  sin wrapper Python por regla ni renderer textual manual. Las particiones
+  optativas usan Controls de un hilo y serialización estructural iterativa;
+  el proceso padre reconcilia la preferencia canónica global. No se comparten
+  punteros de AST o Model entre procesos. El motor directo requiere una prueba
+  de independencia sobre el IR y las propiedades, sin excepciones por dataset.
 - `hypotheses/` es la única autoridad sobre legalidad y transiciones de
   `Genome`. Ningún operador ni algoritmo duplica su cierre de dependencias.
 - `algorithms/` contiene solo los algoritmos y sus métricas. Cada archivo de
@@ -272,6 +292,15 @@ de ellos redefine el language bias de una tarea inductiva.
   preventivamente.
 - `benchmarks/` produce las métricas y `.benchmarks/` las consume. El contrato
   del payload se cambia en productor, schema, preview y tests a la vez.
+  `run_experiments.py` posee la selección de métodos, configuración común,
+  manifests, caché e índice. `profile_baseline.py` ejecuta Gentians y produce
+  su dashboard; `ilasp.py` ejecuta ILASP y extrae su hipótesis. Los backends
+  nuevos se registran en `METHODS` y `RUNNERS`, conservando los artefactos por run.
+  `check_hypothesis.py` verifica programas completos con controles Clingo nuevos,
+  fuera de la medición del learner. El background y los ejemplos originales
+  son la autoridad; los auxiliares aritméticos auditados de ILASP solo traducen
+  sus builtins. `evaluation/metrics.py` conserva checkpoints de mejoras completas,
+  incluso antes de que termine la inicialización de cualquiera de los algoritmos.
 
 Esta estructura expresa propiedad del concepto, no una obligación de crear
 paquetes. Una frontera física nueva necesita lógica propia y menos acoplamiento

@@ -49,6 +49,11 @@
 % total number of selected body literals and attached conditions.
 #defined enumerate_by_size/0.
 
+% Optional exact domains: complete flat mode, alias placeholder and its earlier
+% root. Argument equality/distinctness still keeps its original constraints.
+#defined binding_flat_mode/1.
+#defined binding_alias/3.
+
 % prune_optional_constraints: static task analysis proved that a perfect
 % hypothesis for this positive-only task needs a learned headed clause.
 #defined prune_optional_constraints/0.
@@ -422,6 +427,9 @@
 
 % Properties of argument positions.
 
+% Conservative positive occurrences by signed predicate and shared recall groups.
+#defined positive_body_capacity/2.
+
 % arg_equal_pred(Predicate, LeftArg, RightArg): the two positions are always
 % equal in the analyzed relation.
 #defined arg_equal_pred/3.
@@ -452,3 +460,10 @@
 % cardinality_upper_pred(Predicate, Upper): proved upper bound on the number of
 % tuples in Predicate over the analyzed task domain.
 #defined cardinality_upper_pred/2.
+
+#defined nominal_bindings/0.
+#defined connected_bindings/0.
+#defined binding_type/1.
+#defined body_counts/0.
+#defined canonical_components/0.
+#defined canonical_strict_mode/2.

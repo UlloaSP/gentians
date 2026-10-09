@@ -43,8 +43,8 @@ fd_inputs_differ(Slot0, Slot1, Fd) :-
     functional_set_pred(Pred, Fd, Output),
     not fd_inputs_differ(Slot0, Slot1, Fd),
     var_at(body, Slot0, Output, Out0),
-    var_at(body, Slot1, Output, Out1),
-    Out0 != Out1.
+    arg(body, Slot1, Output),
+    not var_at(body, Slot1, Output, Out0).
 
 % A negative tuple with a provably different output is already implied by the positive tuple.
 

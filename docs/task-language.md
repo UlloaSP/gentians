@@ -9,6 +9,9 @@ example, `:- p,q.` is printed as `#false :- p; q.` and a choice can print its
 guards explicitly. Mode templates retain the learning metadata (types,
 directions, labels and recalls); they construct AST nodes directly. These
 format changes preserve the ASP meaning.
+Generated clauses retain native recipes and signed predicate masks. Their AST
+is constructed when consumed; this storage choice changes neither the task's
+language nor the semantics of candidate hypotheses.
 Native term traversals use explicit stacks, preserving binding order without a
 Python recursion limit on nested functions and tuples. Unchanged comparisons,
 conditionals and aggregates reuse their immutable templates during expansion,

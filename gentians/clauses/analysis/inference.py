@@ -19,6 +19,7 @@ from .ground_relations import (
     _symmetric_violation,
 )
 from .properties import ClosedWorldProperties, DomainKey
+from ..property_consumers import PropertyMaps
 from .relation_properties import (
     _collect_argument_properties,
     _collect_dependency_properties,
@@ -57,6 +58,7 @@ def _closed_world_properties(
     learned: frozenset[Predicate] = frozenset(),
     relevant: frozenset[Predicate] | None = None,
     negated: frozenset[Predicate] | None = None,
+    maps: PropertyMaps | None = None,
 ) -> ClosedWorldProperties:
     """Properties that hold in every evaluation context.
 
@@ -74,7 +76,7 @@ def _closed_world_properties(
         world = _closed_world(program, learned, relations, consequences)
         if world is None:
             continue
-        properties = _context_properties(world, relevant, negated, syntax(world.program))
+        properties = _context_properties(world, relevant, negated, syntax(world.program), maps)
         del world
         common = properties if common is None else ClosedWorldProperties(*(
             getattr(common, field.name) & getattr(properties, field.name)
@@ -90,6 +92,7 @@ def _context_properties(
     relevant: frozenset[Predicate] | None,
     negated: frozenset[Predicate] | None,
     syntax: _RuleSyntax | None = None,
+    maps: PropertyMaps | None = None,
 ) -> ClosedWorldProperties:
     candidates = relevant if relevant is not None else frozenset(world.extensions)
     extensions: dict[Predicate, frozenset[GroundTuple]] = {
@@ -214,6 +217,8 @@ def _context_properties(
                     complement.add(ordered)
                     domains[("complement", *ordered)] = complement_positions
                 for left_arg, right_arg in disjoint_args:
+                    if maps is not None and not maps.compatible(left, right, ((left_arg, right_arg),)):
+                        continue
                     disjoint_projection.add((left, left_arg, right, right_arg))
                     disjoint_projection.add((right, right_arg, left, left_arg))
     # A closed relation inside the lower bound of a learned one implies it in
@@ -231,7 +236,7 @@ def _context_properties(
         predicate: _position_values(predicate[1], tuples) for predicate, tuples in lower_targets.items()
     }}
     _collect_projection_implications(extensions, {**extensions, **lower_targets}, project_implies, projection_positions)
-    _collect_tuple_mutex(extensions, tuple_mutex)
+    _collect_tuple_mutex(extensions, tuple_mutex, None if maps is None else maps.tuple_mutex)
     partitions = _partition_properties(
         extensions
         if negated is None

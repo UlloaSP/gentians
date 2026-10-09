@@ -14,6 +14,7 @@ La instrumentación se activa mediante rutas de entorno:
 - `GENTIANS_OPERATOR_METRICS_PATH`: resultados de selección, crossover, mutation y replacement. El hijo del crossover solo tiene score si alguna evaluación ya lo cubrió, normalmente la clasificación de mutation.
 - `GENTIANS_QUALITY_METRICS_PATH`: score, cobertura y tamaño del candidato.
 - `GENTIANS_CLINGO_METRICS_PATH`: grounding, solving y estadísticas de Clingo.
+- `GENTIANS_HYPOTHESIS_PATH`: checkpoint atómico de la mejor hipótesis evaluada, también durante inicialización. El tiempo de escritura se atribuye a instrumentación.
 
 `timing.phase()` registra total inclusivo y `.self`; `instrumentation()` excluye
 el overhead de serialización y logging; `net_time()` descuenta instrumentación.
@@ -47,13 +48,25 @@ El resultado canónico de tiempo es `total_execution`, cerrado antes de imprimir
 el programa. Wall-clock sirve para timeouts y operación del runner, nunca como
 sustituto de esa métrica.
 
+Desde schema 14, `generation_worker` conserva por partición modelos, atoms,
+rules, choices, conflicts y segundos de trabajo de grounding, solving y callback.
+Los procesos se solapan: el productor excluye esas filas de `clingoSummary` y
+los charts de tiempos de pared. `clause_generation.worker_*_work` tampoco se
+resta del elapsed. Con particiones, el residual del padre incluye orquestación,
+IPC y espera; no mide CPU Python de los hijos. `profile_clauses.py --debug`
+muestra explícitamente la descomposición de pared como N/A y el trabajo agregado
+por separado. cProfile con workers solo observa el padre, y comprueba el espacio
+final sin afirmar que observa los callbacks de los hijos.
+
 ## Benchmarks
 
 - Los task files viven en `benchmarks/gentians/`. Cambiarlos modifica el problema, no solo un fixture.
 - `benchmarks/catalog.py` asigna nombres de dataset a `Arguments`.
-- `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada. Con `--debug`, su informe distingue tiempos, throughput final, modelos posteriores al pruning ASP, retención posterior a la enumeración y pico RSS del proceso; [benchmarks.md](benchmarks.md) define los denominadores y límites. Reutiliza métricas existentes sin cambiar `timing.py`, payload del dashboard, schema ni preview.
+- `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada. Con `--debug`, su informe distingue tiempos, throughput final, modelos posteriores al pruning ASP, retención posterior a la enumeración y pico RSS del proceso; [benchmarks.md](benchmarks.md) define los denominadores y límites. Schema 14 distingue el trabajo de los procesos de los tiempos de pared, conservando el contrato de los charts.
 - `benchmarks/profile_baseline.py` ejecuta runs y guarda una sola copia cruda por run en `runs/`: log, recursos, timings, progreso y métricas por evento, todos comprimidos con gzip al terminar el run; solo un `.prof` de cProfile queda sin comprimir. Escribe `runs.csv` como índice y construye `dashboard_data.json` leyendo `runs/` dataset a dataset. No escribe copias concatenadas. Los lectores aceptan cada artefacto sin comprimir o como `.gz`.
-- `benchmarks/run_experiments.py` carga TOML, aplica overrides, fingerprinta configuración y marca resultados stale cuando deja de coincidir.
+- `benchmarks/run_experiments.py` carga el único TOML, selecciona herramientas y algoritmos con `--methods`, aplica overrides y controla fingerprints. Cada método guarda su manifest; el índice comprueba código y configuración usando el runtime registrado de ese método, aunque otro job se ejecute fuera de su contenedor.
+- Gentians conserva sus métricas, `dashboard_data.json` y contrato de schema 14. Los métodos externos guardan tiempos propios y no fabrican fases de Gentians ni dashboards.
+- Cada run guarda `_hypothesis.lp.gz` si produjo un candidato y `_validation.json.gz`. `benchmarks/check_hypothesis.py` crea un programa ASP independiente por ejemplo y comprueba la hipótesis completa con el background original y su contexto aislado. Guarda esos programas y los modelos testigo; un timeout del comprobador queda como desconocido. Esta validación tiene presupuesto propio y ocurre después de cerrar los tiempos del learner. `success` solo es verdadero si la comprobación pasa; `reported_success` conserva la declaración original de Gentians.
 - `benchmarks/experiments.toml` reúne todas las matrices. Añade experimentos de investigación con IDs prefijados, como `pool-policy/control`, y una diferencia interpretable frente a su control. Conserva sus parámetros en el mismo archivo; no crees TOML separados.
 - Resultados generados viven bajo `.benchmarks/experiments/<experimento>/` y están ignorados. No edites JSON o CSV generados a mano.
 - Para comparar algoritmos, fija datasets, seeds, runs, timeout y todos los parámetros salvo la variable estudiada. Registra versión de Python, Clingo, hardware y revisión del código cuando publiques conclusiones.
@@ -69,6 +82,8 @@ uv run python benchmarks/profile_clauses.py --datasets <dataset>
 
 Usa `--force` solo cuando se pretende reemplazar el resultado del experimento.
 El runner borra el directorio exacto de salida antes de repetirlo.
+En matrices de métodos borra solo `.benchmarks/experiments/<id>/<método>/`
+para los métodos seleccionados; conserva los demás resultados.
 
 ## Preview de benchmarks
 

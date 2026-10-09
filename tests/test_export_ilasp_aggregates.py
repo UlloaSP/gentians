@@ -11,8 +11,8 @@ from benchmarks.export_ilasp_aggregates import (
     has_body_aggregates,
     render_task,
 )
-from benchmarks.run_experiments import load_config
-from benchmarks.run_ilasp_experiments import load_experiments
+from benchmarks.run_experiments import expand_experiments, load_config
+from benchmarks.ilasp import task_path
 from gentians.clauses import generate_clause_space
 from gentians.clauses.canonicalization.expression import ArithmeticExpression
 from gentians.clauses.canonicalization.expression_constraint import ExpressionConstraint
@@ -164,23 +164,27 @@ def test_export_preserves_included_excluded_and_context(tmp_path: Path) -> None:
     assert render_task(task, space, source) == exported
 
 
-def test_comparison_matrix_matches_all_six_algorithms() -> None:
-    ilasp = next(experiment for experiment in load_experiments(ROOT / "benchmarks/ilasp_experiments.toml")
-                 if experiment.id == "all-120s-30runs")
+@pytest.mark.parametrize("experiment_id,runs,timeout", [
+    ("all-120s-30runs", 30, 120), ("all-1800s-10runs", 10, 1800),
+])
+def test_comparison_matrix_matches_datasets_and_timeout(experiment_id, runs, timeout) -> None:
     _, experiments = load_config(ROOT / "benchmarks/experiments.toml")
-    gentians = [experiment for experiment in experiments
-                if experiment["id"].startswith("ilasp-all-120s-30runs/")]
+    paired = next(experiment for experiment in experiments if experiment["id"] == f"ilasp-{experiment_id}")
+    methods = expand_experiments([paired])
+    gentians = [experiment for experiment in methods if experiment["tool"] == "gentians"]
+    ilasp = [experiment for experiment in methods if experiment["tool"] == "ilasp"]
     assert len(AGGREGATES) == 20
-    assert len(ilasp.datasets) == len(set(ilasp.datasets)) == 29
-    assert set(AGGREGATES) <= set(ilasp.datasets)
-    assert ilasp.versions == ("2", "2i", "3", "4")
-    assert ilasp.runs == 30 and ilasp.timeout_seconds == 120
+    assert len(paired["datasets"]) == len(set(paired["datasets"])) == 29
+    assert set(AGGREGATES) <= set(paired["datasets"])
+    assert [experiment["variant"] for experiment in ilasp] == ["2", "2i"]
+    assert all(experiment["runs"] == 1 and experiment["timeout_seconds"] == timeout for experiment in ilasp)
     assert {experiment["overrides"]["algorithm"] for experiment in gentians} == {"steady_state", "incremental"}
     for experiment in gentians:
-        assert experiment["datasets"] == list(ilasp.datasets)
-        assert experiment["runs"] == 30 and experiment["timeout_seconds"] == 120
+        assert experiment["datasets"] == paired["datasets"]
+        assert experiment["runs"] == runs and experiment["timeout_seconds"] == timeout
         assert experiment["seed_base"] == 42
         assert not experiment.get("stop_on_timeout", False)
-    for dataset in ilasp.datasets:
-        content = (ilasp.task_dir / f"{dataset}.las").read_text(encoding="utf-8")
+        assert experiment["instrumentation"] == "full"
+    for dataset in paired["datasets"]:
+        content = task_path(ilasp[0], dataset).read_text(encoding="utf-8")
         assert (" ~ " in content) == (dataset in AGGREGATES)

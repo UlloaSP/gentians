@@ -113,5 +113,7 @@ class Arguments:
         default_factory=lambda: {
             # Extra Clingo CLI arguments used to enumerate generated clauses.
             "clingo_arguments": ["--parallel-mode=5,split"],
+            # Auto specializes only a proved independent unary family.
+            "engine": "auto",
         }
     )

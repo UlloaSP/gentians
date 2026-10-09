@@ -588,8 +588,9 @@ def test_clause_encoding_prunes_duplicates_without_output_atoms():
 
 
 def test_clause_space_constructor_enforces_order_and_uniqueness():
-    first = Clause("b.", parse_rule("b."), frozenset({("b", 0)}), frozenset(), 0)
-    second = Clause("a.", parse_rule("a."), frozenset({("a", 0)}), frozenset(), 0)
+    from gentians.clauses.metadata import ClauseMetadata
+    first = Clause("b.", parse_rule("b."), ClauseMetadata.from_predicates({("b", 0)}, (), 0))
+    second = Clause("a.", parse_rule("a."), ClauseMetadata.from_predicates({("a", 0)}, (), 0))
 
     space = ClauseSpace((first, second, first))
 

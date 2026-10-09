@@ -2,7 +2,7 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "Generación de cláusulas: de InductiveTask a ClauseSpace",
+    "title": "Generación ASP: de InductiveTask a ClauseSpace",
     "quality_profile": "showcase",
     "output": "docs/clause-generation.html"
   },
@@ -21,7 +21,7 @@
     },
     {
       "id": "post",
-      "label": "Decodificación y forma canónica · Python"
+      "label": "Decodificación y forma canónica · C / Python"
     }
   ],
   "mainPath": [
@@ -118,7 +118,7 @@
       "lane": "post",
       "col": 2,
       "type": "backend",
-      "label": "Decoder",
+      "label": "Captura + decoder",
       "width": 170
     },
     {
@@ -234,18 +234,18 @@
       "dot": "cyan",
       "title": "Clingo enumera y poda",
       "items": [
-        "Un grounding por tarea; cada modelo es una cláusula legal",
+        "El camino ASP general comparte legality, symmetry y pruning; el motor directo requiere una prueba de independencia sobre el IR",
         "legality/ aplica seguridad, tipos y recall; symmetry/ y pruning/ descartan variantes y redundancias",
-        "steady_state resuelve todo el espacio; incremental reanuda el solve por lotes de tamaño de cuerpo creciente"
+        "Encodings optativos: prefijos tipados y proyección de componentes estrictos. El testigo fuente satisface todos los guards ASP"
       ]
     },
     {
       "dot": "emerald",
-      "title": "Vuelta: Python reconstruye",
+      "title": "Vuelta: bloques y forma canónica",
       "items": [
-        "decoder.py lee selected/3 y var_at/4 sin materializar el modelo",
-        "canonicalization/ solo actúa con builtins: normaliza sistemas lineales y descarta los contradictorios",
-        "ClauseSpace deduplica por texto y ordena"
+        "Callback C copia modelos y entrega bloques propios; el iterador incremental conserva el presupuesto por modelo",
+        "ClauseCanonicalizer elige fuentes legales; PackedRecipe comparte índices de literales con su propietario",
+        "RuleRecipes construye y formatea con Clingo; ClauseSpace ordena el texto y conserva metadata firmada"
       ]
     }
   ]

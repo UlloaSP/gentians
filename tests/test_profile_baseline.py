@@ -98,6 +98,27 @@ def test_profile_worker_applies_seed_to_arguments(monkeypatch, tmp_path):
     assert captured["arguments"].random_seed == 17
 
 
+@pytest.mark.parametrize("algorithm", ["steady_state", "incremental"])
+def test_profile_saves_and_validates_the_winner_for_both_algorithms(tmp_path, algorithm):
+    args = SimpleNamespace(list_datasets=False, out_dir=tmp_path, datasets=["coin"], runs=1,
+                           arguments_json=None, set=[f'algorithm="{algorithm}"'], python=sys.executable,
+                           cprofile=False, seed_base=42, timeout_seconds=10, instrumentation="full",
+                           stop_on_timeout=False, validation_timeout_seconds=10)
+    profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
+    import csv
+    import gzip
+    with (tmp_path / "runs.csv").open(newline="") as file:
+        row = next(csv.DictReader(file))
+    assert row["success"] == "True"
+    with gzip.open(row["hypothesis_path"], "rt") as file:
+        assert file.read().strip()
+    with gzip.open(row["validation_path"], "rt") as file:
+        validation = json.load(file)
+    assert validation["valid"] is True and all(example["passed"] for example in validation["examples"])
+    dashboard = json.loads((tmp_path / "dashboard_data.json").read_text())
+    assert dashboard["schemaVersion"] == profile.DASHBOARD_SCHEMA_VERSION
+
+
 def test_parse_log_marks_only_found_best_as_success(tmp_path):
     log = tmp_path / "run.log"
     log.write_text(
@@ -128,6 +149,57 @@ def test_parse_log_keeps_best_candidate_as_not_success(tmp_path):
 
     assert parsed["success"] is False
     assert parsed["best_program"] == ["rule."]
+
+
+def test_truncated_final_log_preserves_complete_checkpoint(tmp_path, monkeypatch):
+    import gzip
+
+    def interrupted(cmd, arguments_json, log_path, timeout, *args, **kwargs):
+        log_path.write_text("--- Found best program with score 1.0 ---\np.\n")
+        profile.run_file(tmp_path, "coin", 1, "_hypothesis.lp").write_text("p.\nq.\n")
+        return -1, True
+
+    monkeypatch.setattr(profile, "run_streamed", interrupted)
+    monkeypatch.setattr(profile, "validate_run", lambda *args, **kwargs: {"valid": False})
+    args = SimpleNamespace(list_datasets=False, out_dir=tmp_path, datasets=["coin"], runs=1,
+                           arguments_json=None, set=[], python=sys.executable, cprofile=False,
+                           seed_base=42, timeout_seconds=1, instrumentation="light", stop_on_timeout=False)
+    profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
+    with gzip.open(profile.run_file(tmp_path, "coin", 1, "_hypothesis.lp.gz"), "rt") as file:
+        assert file.read() == "p.\nq.\n"
+
+
+def test_final_log_requires_program_closing_delimiter(tmp_path):
+    log = tmp_path / "run.log"
+    log.write_text("--- Found best program with score 1.0 ---\np.\nTotal time: 0.1\n")
+    assert parse_log(log) == {"success": False, "best_program": None}
+
+
+@pytest.mark.parametrize("algorithm", ["steady_state", "incremental"])
+def test_initialization_interruption_keeps_evaluated_hypothesis(tmp_path, monkeypatch, algorithm):
+    from gentians.evaluation.evaluator import CandidateEvaluator
+
+    checkpoint = tmp_path / "hypothesis.lp"
+    monkeypatch.setenv("GENTIANS_HYPOTHESIS_PATH", str(checkpoint))
+    evaluate = CandidateEvaluator.__call__
+    completed = []
+
+    def interrupt_after_first(self, candidate):
+        if completed:
+            raise RuntimeError("interrupted initialization")
+        result = evaluate(self, candidate)
+        completed.append(candidate)
+        return result
+
+    monkeypatch.setattr(CandidateEvaluator, "__call__", interrupt_after_first)
+    from benchmarks.catalog import arguments_for
+    from gentians.gentians import task_from_arguments
+    arguments = arguments_for("5queens", [f'algorithm="{algorithm}"', 'random_seed=43'])
+    with pytest.raises(RuntimeError, match="interrupted initialization"):
+        solve(task_from_arguments(arguments), arguments)
+    assert checkpoint.read_text().strip()
+    from gentians.language.asp import parse_program
+    assert parse_program(checkpoint.read_text()) == completed[0]
 
 
 def test_profile_baseline_writes_debug_clingo_program(tmp_path):
@@ -660,6 +732,13 @@ def test_frontend_phase_order_matches_dashboard_phases():
     assert set(frontend_phases) == set(backend_phases)
 
 
+def test_clingo_summary_keeps_overlapping_process_work_out_of_wall_charts():
+    rows = [{"dataset": "d", "run": 1, "operation_category": "generation_worker",
+             "phase_context": "clause_generation", "seconds": 30, "models": 100,
+             "grounding_work_seconds": 1, "solving_work_seconds": 10}]
+    assert clingo_summary(rows) == []
+
+
 def test_clingo_summary_uses_run_means():
     [summary] = clingo_summary(
         [
@@ -888,7 +967,8 @@ def test_light_instrumentation_removes_inherited_detailed_logging(tmp_path, monk
     )
     assert result == (0, False)
     assert json.loads(log.read_text()) == [
-        "GENTIANS_GA_METRICS_PATH", "GENTIANS_INCREMENTAL_METRICS_PATH", "GENTIANS_TIMINGS_PATH",
+        "GENTIANS_GA_METRICS_PATH", "GENTIANS_HYPOTHESIS_PATH",
+        "GENTIANS_INCREMENTAL_METRICS_PATH", "GENTIANS_TIMINGS_PATH",
     ]
 
 
@@ -1027,7 +1107,7 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 13
+    assert payload["schemaVersion"] == 14
     assert benchmark["total"] == 3.0
     assert benchmark["instrumentedRuns"] == 1
     assert "wall" not in benchmark
@@ -1320,7 +1400,7 @@ def test_build_dashboard_reads_saved_run_artifacts(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     [bench] = payload["benchmarks"]
-    assert payload["schemaVersion"] == 13
+    assert payload["schemaVersion"] == 14
     assert bench["algorithm"] == "incremental"
     assert bench["total"] == 1.25
     assert bench["bestFoundRuns"] == 1

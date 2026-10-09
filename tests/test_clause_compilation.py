@@ -811,7 +811,8 @@ def test_expression_guards_are_sorted_once_and_remapped_independently(monkeypatc
     assert relation.guards == guards
 
 
-def test_native_arithmetic_system_is_shared_only_within_its_own_lifetime(monkeypatch):
+def test_native_arithmetic_system_cache_is_bounded_and_shared_by_exact_recipe(monkeypatch):
+    ArithmeticSystem.instantiate.cache_clear()
     task = parse_text("#modeh(1,target(var(numeric,input))). " + " ".join(
         f"#modeb(1,q{index}(var(numeric,any)))." for index in range(20)
     ) + " #modeb(1,var(numeric,input)*var(numeric,input)=var(numeric,output)).")
@@ -835,7 +836,8 @@ def test_native_arithmetic_system_is_shared_only_within_its_own_lifetime(monkeyp
         entries = list(canonicalizer.finish())
         assert len(entries) == 20
         outputs.append([entry.text for entry in entries])
-    assert len(calls) == 2
+    assert len(calls) == 1
+    assert ArithmeticSystem.instantiate.cache_info().maxsize == 8192
     assert outputs[0] == outputs[1]
     system = ArithmeticSystem((calls[0],))
     original_hash = hash(system)
@@ -845,6 +847,7 @@ def test_native_arithmetic_system_is_shared_only_within_its_own_lifetime(monkeyp
     assert changed.render() == ("(V2*V2) = V3",)
     assert system.render() == ("(V0*V0) = V1",)
     assert hash(system) == original_hash
+    assert not hasattr(system, "_literals")
 
 
 def test_singleton_native_system_needs_no_ast_hashing(monkeypatch):

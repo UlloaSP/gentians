@@ -29,6 +29,7 @@
     positive_body_literal(Slot2, _, Pred, 2),
     Slot2 != Slot0,
     Slot2 != Slot1,
+    positive_body_capacity(Pred, Capacity), Capacity >= 2,
     transitive_pred(Pred),
     var_at(body, Slot0, 0, X),
     var_at(body, Slot0, 1, Y),

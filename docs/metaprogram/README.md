@@ -54,6 +54,7 @@ whole metaprogram accepts it.
 | `mode_kind(Mode,Kind)` | Explicit template kind: normal, conditional, comparison, arithmetic, Boolean literal, body aggregate, or head aggregate element. |
 | `interchangeable_operands(Mode)`, `interchangeable_condition_args(Mode,Condition,First,Second)`, `interchangeable_tuple_args(Mode,First,Second)` | The two operands of an arithmetic or simple comparison template, the two arguments of a binary atom of plain variables, two arguments of one aggregate condition, or two tuple positions of an aggregate have equal type, direction and label. Every rule that picks one orientation requires it. |
 | `comparison_operator(Mode,Operator)` | Simple binary comparison operator: eq, neq, lt, gt, leq or geq. Complex comparison chains have no such fact. |
+| `canonical_components`, `canonical_strict_mode(Mode,Swap)` | Optional strict-comparison specialization proved over the whole mode family. Swap is 0 for `<` and 1 for `>`; the normalized pair identifies equivalent copies. |
 | `numeric_equality_mode(Mode)`, `complex_numeric_builtin_mode(Mode)` | Simple numeric body equality and builtins outside simple numeric comparisons; emitted only for tasks with such an equality. Guard early rejection of models that linear normalization already discards. |
 | `numeric_linear_conflict(EqualityMode,ComparisonMode)`, `nonlinear_builtin_mode(Mode)` | Statically paired proportional homogeneous numeric rows with nonzero coefficients, and builtins outside that linear path. Emitted only when a non-simple pair exists; selected pairs need matching ordered bindings, a positive plain body anchor and every selected builtin on that linear path. |
 | `numeric_linear_distinct_mode(EqualityMode)` | A paired row needs distinct bindings because aliasing may erase its anchor: more than two coefficients or zero coefficient sum. Rows with at most two nonzero coefficients and nonzero sum can also reject matching aliases. |
@@ -242,13 +243,31 @@ atoms of the same mode; every other literal, including the whole head, maps to
 itself and fixes its variables. Dropping a head literal is never considered: a
 shorter head can leave the language, as under `#minhl`. Because equal modes are
 contiguous, a moved atom can only land on `Start + Offset` inside its mode
-group. Python enumerates every offset combination as facts, so "some
-combination is a consistent substitution" is stratified negation: the program
-stays normal. Only when those combinations exceed `THETA_OFFSET_LIMIT` does
-Python select the disjunctive saturation encoding instead; both are exact and
-prune the same clauses. `mode_recall` keeps the check out of the grounding
+group. Python first enumerates feasible contiguous repetition patterns under
+shared recalls, then unions their offsets. The ASP check still verifies all
+coupled groups, so "some combination is a consistent substitution" remains
+stratified negation and the program stays normal. Preparation is bounded by
+work and pattern counts. If that preparation exceeds its bound, the original
+small offset domain remains the fallback; otherwise Python selects the
+disjunctive saturation encoding. All paths are exact and prune the same clauses.
+`mode_recall` keeps the check out of the grounding
 when no body mode can repeat. It does not infer global equivalence from
 example coverage.
+
+With `arithmetic=components`, the compiler may prove a family containing only
+unconditional atom modes, body arithmetic and positive simple numeric input
+`<`/`>` comparisons without comparison labels. Atom templates can retain pools
+and nested terms; complete head forms and their guards remain unchanged.
+Conditional or aggregate literal scopes are excluded. The redundancy module then rejects
+a later occurrence of the same normalized strict comparison, including `X<Y`
+beside `Y>X`. Keeping the earlier occurrence preserves first appearances, safety,
+theta-fixed variables and order consequences. Every single-copy alternative
+remains legal. Any other comparison operator disables the whole specialization:
+removing a copy could free recall for a strict mode and activate replacement
+pruning of `<=` plus `!=`. This is a restricted skeleton compilation, not a
+general selection of normalized arithmetic systems. Complete `ClauseSpace`
+contents and minimum source costs stay unchanged; incremental model prefixes
+and batch boundaries may differ.
 
 Property-specific checks live together under `pruning/properties/` because
 their assumptions belong to static predicate analysis. Their filenames name
@@ -646,3 +665,50 @@ ordered AST fingerprint is
 The ground-rule reduction is observable for `4queens`; the timing changes are
 mixed, including slower grounding for `subset_sum`. This supports a readability
 cleanup with preserved tested behavior, not a general speedup claim.
+
+### Optional property binding domains
+
+`clause_generation.bindings=properties` moves two existing property rejection
+conditions into binding domains in `representation/arguments.lp`. Python emits
+`binding_flat_mode` only for atoms whose arguments are plain variable terms and
+whose guards do not introduce other scopes. For positive body atoms,
+`binding_alias` joins equal positions only when their types and labels permit
+sharing the same variable. Alias roots always precede their dependent positions.
+The metaprogram derives those bindings instead of opening another choice.
+
+For flat atoms with a proved `arg_distinct_pred` property, `blocked_binding`
+excludes variables selected at an earlier distinct argument position. Signed
+property bridges and the original equality/distinctness constraints remain the
+authority for rejection. Pools, constants, nested terms and guarded forms keep
+the standard binding choices. This optional encoding preserves complete clause
+spaces; its model order and incremental prefixes can differ. The standard
+encoding remains the default. See [the second optimization inventory](../clause-generation-round2.md).
+
+### Optional typed occurrence prefixes
+
+`clause_generation.bindings=connected` replaces the rectangular variable choice
+domain only when every mode is a flat atom and heads are normal, with no pools,
+conditions or nested argument terms. The occurrence order is the existing
+body-before-head `(section, slot, argument)` order. An occurrence can reuse an
+earlier id of its declared type or introduce `max(previous ids) + 1`. This
+constructs the same dense, typed partitions already required by typing and
+first-occurrence symmetry. It does not impose input/output execution order:
+the existing flow closure, safety, labels, recalls and property constraints
+still decide legality. Unsupported families use the original domains.
+
+### Optional projection of strict comparison witnesses
+
+`clause_generation.arithmetic=projected` uses the proof guard of `components`:
+positive simple numeric input `<`/`>` comparisons, without comparison labels
+or attached conditions, among unconditional atom modes and body arithmetic.
+Other operators and scoped forms keep standard enumeration. For the admitted
+family, each model still satisfies all original legality and pruning checks.
+The projection key retains oriented strict edges and the exact slots, modes
+and bindings of every other source literal. Repeated edges were already
+excluded, so equivalent keys have the same comparison source multiplicity,
+minimum source cost and signed predicate metadata. Clingo returns one legal
+witness per key before Python decoding. Projection does not replace general
+nonlinear arithmetic canonicalization or assert equivalence from example
+coverage. Its activation uses the structural guard, never a substring in user
+facts. These remain optional encodings; exhaustive equality does not promise
+unchanged incremental prefixes.

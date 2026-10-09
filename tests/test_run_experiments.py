@@ -8,6 +8,7 @@ import pytest
 from benchmarks import run_experiments as runner
 
 from benchmarks.run_experiments import (
+    expand_experiments,
     experiment_command,
     experiment_output_path,
     fingerprint,
@@ -16,6 +17,145 @@ from benchmarks.run_experiments import (
     write_index,
     write_manifest,
 )
+
+
+def paired_config(tmp_path, methods=None):
+    path = tmp_path / "paired.toml"
+    path.write_text('[suite]\noutput_root=' + json.dumps((tmp_path / "results").as_posix())
+                    + '\ndatasets=["coin"]\nruns=3\ntimeout_seconds=20\n[[experiment]]\nid="paired"\n'
+                    + 'methods=' + json.dumps(methods or ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"])
+                    + '\n[tools.ilasp]\ntask_dir="benchmarks/ilasp"\n[tools.ilasp.max_body_length]\ncoin=3\n')
+    return path
+
+
+def test_expands_one_experiment_with_shared_tasks_and_budget(tmp_path):
+    _, definitions = load_config(paired_config(tmp_path))
+    expanded = expand_experiments(definitions)
+    assert [item["id"] for item in expanded] == [f"paired/{method}" for method in definitions[0]["methods"]]
+    assert [item["runs"] for item in expanded] == [3, 3, 1, 1]
+    assert all(item["datasets"] == ["coin"] and item["timeout_seconds"] == 20 for item in expanded)
+    assert expanded[1]["overrides"]["algorithm"] == "incremental"
+
+
+@pytest.mark.parametrize("methods", [None, ["gentians-incremental", "ilasp-2i"], ["ilasp-4"], ["ilasp-2", "ilasp-2"]])
+def test_unified_cli_dispatches_selected_methods_only(tmp_path, monkeypatch, methods):
+    path = paired_config(tmp_path)
+    monkeypatch.setattr(runner.sys, "argv", ["run_experiments.py", "paired", "--config", str(path),
+                                            *(["--methods", *methods] if methods else [])])
+    calls = []
+
+    def execute(experiment, output):
+        calls.append(experiment)
+        assert output.name == experiment["method"]
+        (output / "runs.csv").write_text("dataset,run,status,success\ncoin,1,ok,True\n")
+        return 0
+
+    monkeypatch.setitem(runner.RUNNERS, "gentians", execute)
+    monkeypatch.setitem(runner.RUNNERS, "ilasp", execute)
+    monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
+    assert runner.main() == 0
+    expected = methods or ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+    assert [item["method"] for item in calls] == list(dict.fromkeys(expected))
+    index = json.loads((tmp_path / "results/experiments.json").read_text())["experiments"]
+    assert {item["id"] for item in index} >= {item["id"] for item in calls}
+
+
+def test_method_selection_keeps_other_methods_fingerprint_and_output_path(tmp_path):
+    _, definitions = load_config(paired_config(tmp_path))
+    all_methods = expand_experiments(definitions)
+    selected = expand_experiments(definitions, ["ilasp-2"])[0]
+    assert selected == all_methods[2]
+    assert fingerprint(selected) == fingerprint(all_methods[2])
+
+
+def test_legacy_method_paths_do_not_depend_on_other_selected_methods(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text('[suite]\ndatasets=["coin"]\n[[experiment]]\nid="legacy"\n')
+    _, definitions = load_config(path)
+    default = expand_experiments(definitions)[0]
+    assert expand_experiments(definitions, ["gentians-steady_state", "ilasp-2"])[0] == default
+
+
+def test_optional_methods_stay_indexed_when_selection_changes(tmp_path, monkeypatch):
+    path = paired_config(tmp_path)
+    root, definitions = load_config(path)
+    optional = expand_experiments(definitions, ["ilasp-4"])[0]
+    output = root / optional["id"]
+    output.mkdir(parents=True)
+    monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
+    write_manifest(output, optional, "complete", {})
+    monkeypatch.setattr(runner.sys, "argv", ["run_experiments.py", "--list", "--config", str(path)])
+    assert runner.main() == 0
+    indexed = json.loads((root / "experiments.json").read_text())["experiments"]
+    assert any(item["id"] == optional["id"] and item["status"] == "complete" for item in indexed)
+
+
+def test_index_keeps_saved_worker_runtime_but_detects_changed_code(tmp_path, monkeypatch):
+    path = paired_config(tmp_path)
+    root, definitions = load_config(path)
+    experiment = expand_experiments(definitions)[0]
+    output = root / experiment["id"]
+    output.mkdir(parents=True)
+    (output / "dashboard_data.json").write_text("{}")
+    current_files = {"source.py": "original"}
+
+    def inputs(experiment, *, runtime=None):
+        return {"files": dict(current_files), "runtime": runtime or {"python": "host"}}
+
+    monkeypatch.setattr(runner, "execution_inputs", inputs)
+    write_manifest(output, experiment, "complete", {"files": dict(current_files), "runtime": {"python": "container"}})
+    write_index(root, expand_experiments(definitions))
+    saved = json.loads((root / "experiments.json").read_text())["experiments"][0]
+    assert saved["status"] == "complete" and saved["has_dashboard"] is True
+    assert saved["execution"]["runtime"]["python"] == "container"
+    current_files["source.py"] = "changed"
+    write_index(root, expand_experiments(definitions))
+    saved = json.loads((root / "experiments.json").read_text())["experiments"][0]
+    assert saved["status"] == "stale" and saved["has_dashboard"] is False
+
+
+def test_method_output_collision_cannot_replace_another_experiment(tmp_path, monkeypatch):
+    path = tmp_path / "config.toml"
+    root = tmp_path / "results"
+    path.write_text('[suite]\ndatasets=["coin"]\noutput_root=' + json.dumps(root.as_posix())
+                    + '\n[[experiment]]\nid="comparison"\n[[experiment]]\nid="comparison-ilasp-2"\n')
+    other = root / "comparison-ilasp-2"
+    other.mkdir(parents=True)
+    saved = other / "keep.txt"
+    saved.write_text("original")
+    monkeypatch.setattr(runner.sys, "argv", ["run_experiments.py", "comparison", "--config", str(path),
+                                            "--methods", "ilasp-2", "--force"])
+    with pytest.raises(SystemExit, match="belongs to another experiment"):
+        runner.main()
+    assert saved.read_text() == "original"
+
+
+def test_new_backend_registers_without_changing_the_dispatch_loop(tmp_path, monkeypatch):
+    monkeypatch.setitem(runner.METHODS, "fastlas", ("fastlas", ""))
+    calls = []
+    monkeypatch.setitem(runner.RUNNERS, "fastlas", lambda experiment, output: calls.append(experiment) or 0)
+    path = paired_config(tmp_path, ["fastlas"])
+    monkeypatch.setattr(runner, "parse_args", lambda: Namespace(
+        config=path, experiments=["paired"], methods=None, force=False, list=False,
+        summary=False, historical_index=False, rebuild_dashboards=False))
+    monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
+    assert runner.main() == 0
+    assert len(calls) == 1 and calls[0]["runs"] == 1 and calls[0]["tool"] == "fastlas"
+
+
+def test_external_validation_failure_is_not_counted_as_success(tmp_path, monkeypatch):
+    path = paired_config(tmp_path, ["ilasp-2"])
+    _, definitions = load_config(path)
+    effective = expand_experiments(definitions)[0]
+    out = tmp_path / "results/paired/ilasp-2"
+    out.mkdir(parents=True)
+    monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
+    write_manifest(out, effective, "complete", {})
+    (out / "runs.csv").write_text("dataset,run,status,success,total_seconds,wall_seconds\n"
+                                  "coin,1,ok,False,0.5,0.7\n")
+    row = summarize_experiment(effective, out)[0]
+    assert row["successes"] == 0 and row["solved_total_execution_mean"] is None
+    assert row["par1_wall_seconds"] == 20
 
 
 def test_instrumentation_is_inherited_forwarded_and_fingerprinted(tmp_path):
@@ -410,7 +550,7 @@ def test_rerun_with_current_config_is_no_longer_historical(tmp_path):
     out_dir = tmp_path / "saved"
     out_dir.mkdir()
     write_manifest(out_dir, experiment, "complete")
-    (out_dir / "dashboard_data.json").write_text('{"schemaVersion":13}')
+    (out_dir / "dashboard_data.json").write_text('{"schemaVersion":14}')
     (tmp_path / "experiments.json").write_text(
         json.dumps({"experiments": [{"id": "saved", "status": "historical"}]})
     )

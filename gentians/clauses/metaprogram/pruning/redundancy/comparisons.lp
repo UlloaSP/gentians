@@ -1,4 +1,18 @@
 % Reject comparisons entailed by other selected comparisons.
+% Optional canonical strict components. Python proves the restricted family:
+% plain heads/atoms, bare strict numeric input comparisons and arithmetic, no
+% conditions or <=/!=/= templates whose recall-dependent pruning could change
+% after removal. These skeletons equate X<Y with Y>X before full models return.
+% Only repeated selected occurrences are excluded: either single mode remains.
+canonical_strict_literal(Slot, Left, Right) :-
+    canonical_components, selected(body, Slot, Mode), canonical_strict_mode(Mode, 0),
+    var_at(body, Slot, 0, Left), var_at(body, Slot, 1, Right).
+canonical_strict_literal(Slot, Right, Left) :-
+    canonical_components, selected(body, Slot, Mode), canonical_strict_mode(Mode, 1),
+    var_at(body, Slot, 0, Left), var_at(body, Slot, 1, Right).
+:- canonical_strict_literal(Slot0, Left, Right),
+    canonical_strict_literal(Slot1, Left, Right), Slot0 < Slot1.
+
 % Transitive shortcuts use selected edges; inferred closure must not masquerade
 % as selected literals.
 %

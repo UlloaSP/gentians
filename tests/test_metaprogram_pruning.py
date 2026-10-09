@@ -281,6 +281,10 @@ def test_path_pruning_preserves_slot_order_flow_and_binding_conditions(
     # Predicate ids stand for signed signatures. These pinned models isolate
     # the existing constraints, including their deliberately limited slot order.
     facts = [f"{property_name}_pred(1).", extra]
+    facts.extend(
+        f"positive_body_capacity({predicate},{sum(p == predicate and positive for _, p, positive, _ in edges)})."
+        for predicate in sorted({p for _, p, _, _ in edges})
+    )
     for slot, predicate, positive, variables in edges:
         polarity = "positive" if positive else "negative"
         facts.append(f"{polarity}_body_literal({slot},{slot},{predicate},2).")

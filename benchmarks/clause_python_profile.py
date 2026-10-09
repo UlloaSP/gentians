@@ -18,6 +18,7 @@ from gentians.clauses.clause import Clause
 from gentians.clauses.decoder import _ModelDecoder
 from gentians.clauses.reified_clause import ReifiedClause
 from gentians.clauses.reified_literal import ReifiedLiteral
+from gentians.clauses.packed_recipe import PackedRecipe
 
 
 BUCKET_LABELS = {
@@ -34,6 +35,7 @@ BUCKET_LABELS = {
     "other": "Preparation/orchestration/other",
     "grounding": "Native Clingo grounding",
     "solving": "Native Clingo solving",
+    "native_solve": "Native solving and record capture (mixed self time)",
 }
 
 
@@ -44,7 +46,7 @@ def profile_stats(profiler: cProfile.Profile) -> pstats.Stats:
     methods their class names and disambiguate any remaining collisions.
     """
     methods = {}
-    for cls in (Clause, ReifiedClause, ReifiedLiteral, CanonicalArithmeticClause, ArithmeticSystem, _ModelDecoder):
+    for cls in (Clause, ReifiedClause, ReifiedLiteral, CanonicalArithmeticClause, ArithmeticSystem, PackedRecipe, _ModelDecoder):
         for name in ("__init__", "__hash__", "__eq__"):
             code = getattr(getattr(cls, name, None), "__code__", None)
             if code is not None:
@@ -88,11 +90,14 @@ def function_bucket(filename: str, name: str) -> str:
         return "grounding"
     if "clingo_control_solve" in name:
         return "solving"
+    if "gentians.clauses._records.solve" in name:
+        return "native_solve"
     if source.endswith("/clingo/symbol.py") or "_clingo.clingo_symbol_" in name:
         return "symbol"
     if (
         source.endswith("/clingo/ast.py") and name in {"__str__", "__repr__"}
         or "_clingo.clingo_ast_to_string" in name
+        or "gentians.clauses._records.render_rules" in name
     ):
         return "ast_text"
     if method in {"__hash__", "__eq__"} or name == "<built-in method builtins.hash>" or (
@@ -113,9 +118,12 @@ def function_bucket(filename: str, name: str) -> str:
     if name in {
         "Clause.__init__", "ReifiedClause.__init__", "ReifiedLiteral.__init__",
         "CanonicalArithmeticClause.__init__", "ArithmeticSystem.__init__",
+        "PackedRecipe.__init__",
     } or source.endswith("/clingo/ast.py") and name == "Rule":
         return "construction"
-    if source.endswith("/clauses/decoder.py") and name != "_ModelDecoder.__init__":
+    if ((source.endswith(("/clauses/decoder.py", "/clauses/records.py")) and name != "_ModelDecoder.__init__")
+            or "gentians.clauses._records" in name
+            or source.endswith("/clauses/subsets.py") and name == "_subset_from_model"):
         return "decode"
     if source.endswith("/clauses/clause_space.py"):
         return "final_storage"
@@ -124,6 +132,8 @@ def function_bucket(filename: str, name: str) -> str:
     if source.endswith("/clauses/reified_clause.py") or (
         "/clauses/canonicalization/" in source and name in {"instantiate", "render"}
     ):
+        return "construction"
+    if source.endswith("/clauses/recipes.py") or source.endswith("/clauses/native_syntax.py"):
         return "construction"
     if "/clauses/canonicalization/" in source:
         return "canonicalization"
@@ -139,6 +149,9 @@ def summarize_profile(stats: pstats.Stats) -> dict:
     }
     functions = []
     decode_calls = 0
+    native_models = 0
+    legacy_records = 0
+    materialized_models = 0
     for (filename, line, name), (primitive, calls, own, cumulative, _callers) in stats.stats.items():
         bucket = function_bucket(filename, name)
         buckets[bucket]["selfSeconds"] += own
@@ -150,13 +163,25 @@ def summarize_profile(stats: pstats.Stats) -> dict:
         })
         if filename.replace("\\", "/").endswith("/clauses/decoder.py") and name == "_clause_from_model":
             decode_calls += calls
+        if name == "ReifiedClause.__init__":
+            materialized_models += calls
+        if filename.replace("\\", "/").endswith("/clauses/records.py"):
+            if name == "push":
+                native_models += calls
+            elif name == "_clause_from_record":
+                legacy_records += calls
+        if filename.replace("\\", "/").endswith("/clauses/subsets.py") and name == "_subset_from_model":
+            decode_calls += calls
     total = sum(row["selfSeconds"] for row in buckets.values())
-    python = total - buckets["grounding"]["selfSeconds"] - buckets["solving"]["selfSeconds"]
+    python = total - buckets["grounding"]["selfSeconds"] - buckets["solving"]["selfSeconds"] - buckets["native_solve"]["selfSeconds"]
     return {
         "schemaVersion": 1,
         "functionSelfSeconds": total,
         "pythonAndBindingsSelfSeconds": python,
-        "decodeCalls": decode_calls,
+        # Native callbacks have no Python call per model. Every materialized
+        # numeric row still constructs one ReifiedClause. The count also
+        # detects missed profiler coverage when callbacks run on other threads.
+        "decodeCalls": max(materialized_models, decode_calls + (native_models or legacy_records)),
         "buckets": list(buckets.values()),
         "functions": sorted(functions, key=lambda row: (
             -row["selfSeconds"], row["file"], row["line"], row["function"],
@@ -210,9 +235,10 @@ def print_python_profile(summary: dict, path: Path) -> None:
     for row in summary["buckets"]:
         if row["bucket"] in {"grounding", "solving"}:
             continue
-        share = f" ({100 * row['selfSeconds'] / python:.1f}%)" if python else ""
+        share = f" ({100 * row['selfSeconds'] / python:.1f}%)" if python and row["bucket"] != "native_solve" else ""
         print(f"      {row['label']}: {row['selfSeconds']:.3f}s{share}; {row['calls']:,} calls")
     print("    Implicit hashing/assignment stays in the enclosing function's bucket.")
+    print("    Native solve self time mixes solving/copying and is outside the Python denominator.")
     print("    These times do not decompose or rescale the first pass's Python seconds.")
     print("    Hot functions (self seconds | cumulative seconds | calls):")
     hotspots = [row for row in summary["functions"] if row["bucket"] not in {"grounding", "solving"}]

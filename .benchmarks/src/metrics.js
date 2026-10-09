@@ -36,7 +36,7 @@ export const progressAxes = [
 ];
 export const progressAxisLabel = (axis) =>
   (progressAxes.find(([key]) => key === axis) || progressAxes[0])[1];
-export const DASHBOARD_SCHEMA_VERSION = 13;
+export const DASHBOARD_SCHEMA_VERSION = 14;
 
 // Phase contexts in which the algorithms request Clingo, in pipeline order.
 const clingoPhases = [

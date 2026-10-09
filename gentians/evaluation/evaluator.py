@@ -3,7 +3,7 @@ from collections.abc import Callable
 from ..language.asp import AspProgram
 from ..language.ir.inductive_task import InductiveTask
 from .coverage import Coverage
-from .metrics import record_evaluation_metric
+from .metrics import HypothesisCheckpoint, record_evaluation_metric
 from .result import EvaluationResult
 from .solver import CoverageSolver
 
@@ -18,6 +18,7 @@ class CandidateEvaluator:
         self.task = task
         self.solver = solver
         self.score = score
+        self.checkpoint = HypothesisCheckpoint()
 
     def __call__(self, candidate: AspProgram) -> EvaluationResult:
         coverage = self.solver.extract_coverage(candidate)
@@ -27,6 +28,7 @@ class CandidateEvaluator:
         )
         is_consistent = coverage.neg_mask == 0
         is_solution = is_complete and is_consistent
+        self.checkpoint.record(candidate, score, is_solution)
         record_evaluation_metric(
             self.task,
             candidate,

@@ -70,8 +70,57 @@ instrumentation = "full"
 algorithm = "incremental"
 
 [[experiment]]
+id = "alzheimer/population-10"
+label = "Alzheimer · 10 individuos"
+description = "Four Alzheimer tasks with population 10, one run per method and a 1000-second timeout."
+methods = [
+  "gentians-steady_state",
+  "gentians-incremental",
+  "ilasp-2",
+  "ilasp-2i",
+]
+datasets = [
+  "alzheimer_acetyl",
+  "alzheimer_amine",
+  "alzheimer_mem",
+  "alzheimer_toxic",
+]
+runs = 30
+timeout_seconds = 3600
+instrumentation = "full"
+[experiment.overrides]
+"population.size" = 10
+
+[[experiment]]
+id = "alzheimer/population-100"
+label = "Alzheimer · 100 individuos"
+description = "Four Alzheimer tasks with population 100, one run per method and a 1000-second timeout."
+methods = [
+  "gentians-steady_state",
+  "gentians-incremental",
+  "ilasp-2",
+  "ilasp-2i",
+]
+datasets = [
+  "alzheimer_acetyl",
+  "alzheimer_amine",
+  "alzheimer_mem",
+  "alzheimer_toxic",
+]
+runs = 30
+timeout_seconds = 3600
+instrumentation = "full"
+[experiment.overrides]
+"population.size" = 100
+
+[[experiment]]
 id = "ilasp-mode-bias-all-30s-3runs"
-methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+methods = [
+  "gentians-steady_state",
+  "gentians-incremental",
+  "ilasp-2",
+  "ilasp-2i",
+]
 description = "Matched Gentians and ILASP methods on the same tasks and timeout."
 datasets = [
   "4queens",
@@ -90,7 +139,12 @@ instrumentation = "full"
 
 [[experiment]]
 id = "ilasp-mode-bias-all-120s-10runs"
-methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+methods = [
+  "gentians-steady_state",
+  "gentians-incremental",
+  "ilasp-2",
+  "ilasp-2i",
+]
 description = "Matched Gentians and ILASP methods on the same tasks and timeout."
 datasets = [
   "4queens",
@@ -109,7 +163,12 @@ instrumentation = "full"
 
 [[experiment]]
 id = "ilasp-mode-bias-5queens-20s"
-methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+methods = [
+  "gentians-steady_state",
+  "gentians-incremental",
+  "ilasp-2",
+  "ilasp-2i",
+]
 description = "Matched 5queens methods from mode bias, with one deterministic ILASP run per version."
 datasets = ["5queens"]
 runs = 10
@@ -178,7 +237,12 @@ algorithm = "incremental"
 
 [[experiment]]
 id = "ilasp-all-120s-30runs"
-methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+methods = [
+  "gentians-steady_state",
+  "gentians-incremental",
+  "ilasp-2",
+  "ilasp-2i",
+]
 description = "Matched Gentians and ILASP methods on the same tasks and timeout."
 datasets = [
   "4queens",
@@ -217,7 +281,12 @@ instrumentation = "full"
 
 [[experiment]]
 id = "ilasp-all-1800s-10runs"
-methods = ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
+methods = [
+  "gentians-steady_state",
+  "gentians-incremental",
+  "ilasp-2",
+  "ilasp-2i",
+]
 description = "Matched Gentians and ILASP methods on the same tasks and timeout."
 datasets = [
   "4queens",
@@ -261,6 +330,10 @@ task_dir = "benchmarks/ilasp"
 distro = "kali-linux"
 
 [tools.ilasp.max_body_length]
+alzheimer_acetyl = 5
+alzheimer_amine = 5
+alzheimer_mem = 5
+alzheimer_toxic = 5
 4queens = 5
 5queens = 5
 adj2red = 4

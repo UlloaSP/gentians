@@ -15,6 +15,10 @@ El flujo es:
 4. `job.sh` monta el checkout en la misma ruta dentro del contenedor y ejecuta
    `benchmarks/run_experiments.py` con Singularity.
 
+Slurm copia el batch script a su spool. Dentro del job, los scripts resuelven
+la raíz del checkout mediante el directorio fijado por `--chdir`, en lugar de
+tomar la ruta de esa copia.
+
 Desde la raíz del repositorio en Shelob, construye la imagen:
 
 ```bash

@@ -1,0 +1,2 @@
+% Keep p/2 open so fixed background properties do not prune the clause space.
+{p(1..4,1..4)}.

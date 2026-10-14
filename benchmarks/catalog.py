@@ -35,6 +35,7 @@ CASES: dict[str, Arguments] = {
     "knapsack": task("knapsack"),
     "latin_square": task("latin_square"),
     "magic_square_no_diag": task("magic_square_no_diag"),
+    "pedro": task("pedro"),
     "penguin": task("penguin"),
     "sudoku": task("sudoku"),
     "subset_sum": task("subset_sum"),

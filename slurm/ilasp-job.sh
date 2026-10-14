@@ -3,8 +3,13 @@ set -euo pipefail
 
 : "${EXPERIMENT_ID:?Missing experiment ID}"
 : "${EXPERIMENT_METHOD:?Missing experiment method}"
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
-repo_root=$(dirname -- "$script_dir")
+if [[ -n ${SLURM_JOB_ID:-} ]]; then
+    # Slurm copia el script al spool; --chdir conserva la raíz del checkout.
+    repo_root=$(pwd -P)
+else
+    script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+    repo_root=$(dirname -- "$script_dir")
+fi
 cd -- "$repo_root"
 
 # El runner usa Python 3.14 preparado con uv. El binario ILASP usa las

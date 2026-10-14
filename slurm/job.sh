@@ -3,8 +3,14 @@ set -euo pipefail
 
 # submit.sh pasa el ID por el entorno de Slurm; sin él no hay experimento que ejecutar.
 : "${EXPERIMENT_ID:?Missing experiment ID}"
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
-repo_root=$(dirname -- "$script_dir")
+if [[ -n ${SLURM_JOB_ID:-} ]]; then
+    # Slurm copia el script al spool; --chdir conserva la raíz del checkout.
+    repo_root=$(pwd -P)
+else
+    script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+    repo_root=$(dirname -- "$script_dir")
+fi
+script_dir="$repo_root/slurm"
 image="$script_dir/images/gentians.sif"
 
 cd -- "$repo_root"

@@ -103,6 +103,25 @@ def test_fused_native_build_and_format_keeps_entire_clingo_syntax(source):
     assert str(node) == str(parse_rule(source))
 
 
+def test_portable_rule_builder_passes_location_by_pointer(monkeypatch):
+    from types import SimpleNamespace
+    from clingo._internal import _ffi
+    from gentians.clauses import native_syntax
+
+    node = parse_rule("p(X) :- q(X), not r(X).")
+    builder = native_syntax.RuleBuilder()
+    library = native_syntax._lib
+
+    def checked_build(kind, result, location, *parts):
+        assert _ffi.typeof(location) == _ffi.typeof("clingo_location_t *")
+        return library.clingo_ast_build(kind, result, location, *parts)
+
+    monkeypatch.setattr(native_syntax, "_lib", SimpleNamespace(
+        clingo_ast_build=checked_build, clingo_ast_type_rule=library.clingo_ast_type_rule,
+    ))
+    assert str(builder.rule(node.head, node.body)) == str(node)
+
+
 def test_prepared_native_addresses_keep_owners_after_cache_eviction_and_portable_fallback(monkeypatch):
     from gentians.clauses import native_syntax
     modes = {m.id: m for m in _clause_modes(parse_text("#modeb(*,p(var(x,output))). #maxbl(9000)."))}

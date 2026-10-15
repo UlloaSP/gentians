@@ -50,8 +50,10 @@ el runner escribe los artefactos en `.benchmarks/experiments/<id>`. El
 `timeout_seconds` del TOML limita **cada run**, mientras que el tiempo de Slurm
 debe cubrir el experimento completo. El launcher no añade `--force`.
 
-No envíes jobs simultáneos contra el mismo checkout: el runner escribe un índice
-compartido. Mantén estable la ruta del checkout si quieres reutilizar resultados,
+Los métodos con directorios de salida distintos pueden ejecutarse en paralelo:
+el runner publica los manifests de forma atómica y serializa la actualización
+del índice compartido. No envíes dos jobs al mismo directorio de resultados.
+Mantén estable la ruta del checkout si quieres reutilizar resultados,
 porque sus fingerprints incluyen rutas absolutas. El log del job registra el
 commit y el SHA-256 de la imagen usada.
 
@@ -101,9 +103,10 @@ con `--methods` para ejecutar solo su método.
 
 El lanzador valida la matriz y envía un job por método, cuatro por defecto:
 Gentians `steady_state`, Gentians `incremental`, ILASP 2 e ILASP 2i.
-La dependencia `afterany`
-permite que el siguiente arranque incluso si el anterior termina con error;
-comprueba los logs de cada método. `comparison.env` solicita 7 días para cada job de
+Los jobs se envían sin dependencias y arrancan en paralelo según los recursos
+disponibles. Un crash detiene el método y conserva sus diagnósticos; los timeouts
+por run se registran como tales y permiten continuar. Comprueba los logs de cada
+método. `comparison.env` solicita 7 días para cada job de
 Gentians y 3 para cada versión de ILASP. El timeout
 de 30 minutos por run se define en el TOML común. El lanzador
 no usa `--force`: un resultado completo se conserva y se omite. Si un job de

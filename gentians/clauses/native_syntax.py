@@ -48,7 +48,7 @@ class RuleBuilder:
         for index, node in enumerate(body):
             self.body[index] = node._rep
         _handle_error(_lib.clingo_ast_build(
-            _lib.clingo_ast_type_rule, self.result, self.location[0], head._rep,
+            _lib.clingo_ast_type_rule, self.result, self.location, head._rep,
             self.body, _ffi.cast("size_t", len(body)),
         ))
         return ast.AST(self.result[0])

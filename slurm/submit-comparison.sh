@@ -40,7 +40,6 @@ if [[ " $selection " == *" ilasp-"* ]]; then
     [[ -x "$repo_root/tools/ilasp/ILASP" ]] || { echo 'ILASP binary is not executable' >&2; exit 1; }
 fi
 mkdir -p -- "$script_dir/logs"
-previous_job=''
 for method in "${methods[@]}"; do
     if [[ $method == gentians-* ]]; then
         job_script="$script_dir/job.sh"
@@ -49,16 +48,11 @@ for method in "${methods[@]}"; do
         job_script="$script_dir/ilasp-job.sh"
         job_time="$ILASP_SLURM_TIME"
     fi
-    dependency=()
-    if [[ -n $previous_job ]]; then
-        dependency=(--dependency="afterany:$previous_job")
-    fi
-    job=$(sbatch --parsable "${dependency[@]}" \
+    job=$(sbatch --parsable \
         --job-name="$method" --partition="$GENTIANS_SLURM_PARTITION" \
         --nodes=1 --ntasks=1 --cpus-per-task="$GENTIANS_SLURM_CPUS" \
         --mem="$GENTIANS_SLURM_MEM" --time="$job_time" --chdir="$repo_root" \
         --output="$script_dir/logs/%x-%j.out" --error="$script_dir/logs/%x-%j.err" \
         --export="ALL,EXPERIMENT_ID=$COMPARISON_EXPERIMENT_ID,EXPERIMENT_METHOD=$method" "$job_script")
     printf '%s: %s\n' "$method" "$job"
-    previous_job="$job"
 done

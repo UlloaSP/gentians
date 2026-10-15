@@ -269,6 +269,10 @@ def run_benchmark_suite(
                 f"[{completed}/{total}] {dataset} run {run} {status} {elapsed:.2f}s\n",
                 flush=True,
             )
+            if status == "failed":
+                write_outputs(out_dir, results, getattr(args, "instrumentation", "full"))
+                print(f"Stopping configuration after worker failure ({returncode}).", file=sys.stderr)
+                raise SystemExit(1)
             if timed_out and getattr(args, "stop_on_timeout", False):
                 print("Stopping configuration after first timeout.", flush=True)
                 break
@@ -464,7 +468,7 @@ def run_streamed(
     extra_env: dict[str, str] | None = None,
     instrumentation_level: str = "full",
 ) -> tuple[int | None, bool]:
-    env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONFAULTHANDLER": "1"}
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
     env["GENTIANS_PROFILE_WORKER"] = "1"
     env["GENTIANS_ARGUMENTS_JSON"] = arguments_json

@@ -94,6 +94,44 @@ def test_runs_once_per_task_saves_hypothesis_and_resumes(tmp_path, monkeypatch, 
     assert len(calls) == 2
 
 
+def test_crashed_learner_stops_after_saving_diagnostics(tmp_path, monkeypatch):
+    configured = experiment(tmp_path)
+    calls = []
+
+    def execute(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, -11, "", "native crash")
+
+    monkeypatch.setattr(ilasp.subprocess, "run", execute)
+    assert ilasp.run_experiment(configured, tmp_path / "output") == 1
+    assert len(calls) == 1
+    with (tmp_path / "output/runs.csv").open(newline="") as file:
+        row = next(csv.DictReader(file))
+    assert row["status"] == "failed" and row["returncode"] == "-11"
+    with gzip.open(tmp_path / "output" / row["stderr_path"], "rt") as file:
+        assert file.read() == "native crash"
+    assert row["validation_path"]
+
+
+@pytest.mark.parametrize("returncode,elapsed,budget,expected", [
+    (-9, 25, 20, "timeout"), (137, 25, 20, "timeout"),
+    (-9, 1, 20, "failed"), (137, 1, 20, "failed"), (-9, 25, 0, "failed"),
+])
+def test_sigkill_is_timeout_only_after_the_deadline(tmp_path, monkeypatch, returncode, elapsed, budget, expected):
+    from types import SimpleNamespace
+
+    configured = experiment(tmp_path)
+    configured["timeout_seconds"] = budget
+    configured["datasets"] = ["coin"]
+    clocks = iter((0, elapsed, elapsed))
+    monkeypatch.setattr(ilasp, "time", SimpleNamespace(perf_counter=lambda: next(clocks)))
+    monkeypatch.setattr(ilasp.subprocess, "run", lambda command, **kwargs:
+                        subprocess.CompletedProcess(command, returncode, "", ""))
+    assert ilasp.run_experiment(configured, tmp_path / "output") == (0 if expected == "timeout" else 1)
+    with (tmp_path / "output/runs.csv").open(newline="") as file:
+        assert next(csv.DictReader(file))["status"] == expected
+
+
 def test_shared_config_selects_ilasp_versions_and_fixed_run_count(tmp_path):
     config = tmp_path / "config.toml"
     config.write_text('[suite]\ndatasets=["coin"]\nruns=30\n[[experiment]]\nid="paired"\n'

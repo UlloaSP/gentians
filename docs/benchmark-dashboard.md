@@ -48,6 +48,15 @@ El resultado canónico de tiempo es `total_execution`, cerrado antes de imprimir
 el programa. Wall-clock sirve para timeouts y operación del runner, nunca como
 sustituto de esa métrica.
 
+Un crash del worker detiene el método, conserva el run fallido y sus artefactos,
+y devuelve un código de error a Slurm. Los workers activan `faulthandler` para
+conservar la traza de un fallo nativo. Los timeouts siguen el protocolo del
+experimento; un `SIGKILL` anterior al plazo se registra como fallo, no como
+timeout. La condición de éxito depende de la comprobación independiente de la
+hipótesis guardada, también cuando se recupera de un checkpoint.
+Los fingerprints incluyen el código C y las extensiones nativas disponibles,
+además del código Python, los metaprogramas y las tareas.
+
 Desde schema 14, `generation_worker` conserva por partición modelos, atoms,
 rules, choices, conflicts y segundos de trabajo de grounding, solving y callback.
 Los procesos se solapan: el productor excluye esas filas de `clingoSummary` y

@@ -68,6 +68,17 @@ def test_method_selection_keeps_other_methods_fingerprint_and_output_path(tmp_pa
     assert fingerprint(selected) == fingerprint(all_methods[2])
 
 
+def test_execution_fingerprint_includes_native_source_and_available_extensions(tmp_path):
+    _, definitions = load_config(paired_config(tmp_path))
+    experiment = expand_experiments(definitions)[0]
+    files = runner.execution_inputs(experiment, runtime={})["files"]
+    native = runner.REPO_ROOT / "gentians/clauses"
+    assert str(native / "_records.c") in files
+    for extension in native.glob("_records.*"):
+        if extension.suffix in (".so", ".pyd"):
+            assert str(extension.resolve()) in files
+
+
 def test_legacy_method_paths_do_not_depend_on_other_selected_methods(tmp_path):
     path = tmp_path / "config.toml"
     path.write_text('[suite]\ndatasets=["coin"]\n[[experiment]]\nid="legacy"\n')
@@ -112,6 +123,40 @@ def test_index_keeps_saved_worker_runtime_but_detects_changed_code(tmp_path, mon
     write_index(root, expand_experiments(definitions))
     saved = json.loads((root / "experiments.json").read_text())["experiments"][0]
     assert saved["status"] == "stale" and saved["has_dashboard"] is False
+
+
+def test_parallel_methods_publish_readable_manifests_and_current_index(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    root, definitions = load_config(paired_config(tmp_path))
+    experiments = expand_experiments(definitions)
+    monkeypatch.setattr(runner, "execution_inputs", lambda experiment, **kwargs: {})
+    for experiment in experiments:
+        output = root / experiment["id"]
+        output.mkdir(parents=True)
+        write_manifest(output, experiment, "running", {})
+    write_index(root, experiments)
+
+    def finish(experiment):
+        output = root / experiment["id"]
+        for _ in range(3):
+            write_manifest(output, experiment, "running", {})
+            write_index(root, experiments)
+        write_manifest(output, experiment, "complete", {})
+        write_index(root, experiments)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(finish, experiment) for experiment in experiments]
+        while not all(future.done() for future in futures):
+            assert len(runner.read_json(root / "experiments.json")["experiments"]) == 4
+            for experiment in experiments:
+                assert runner.read_json(root / experiment["id"] / "experiment.json")["status"] in (
+                    "running", "complete",
+                )
+        for future in futures:
+            future.result()
+    assert {item["status"] for item in json.loads((root / "experiments.json").read_text())["experiments"]} == {"complete"}
+    assert not list(root.rglob("*.tmp"))
 
 
 def test_method_output_collision_cannot_replace_another_experiment(tmp_path, monkeypatch):

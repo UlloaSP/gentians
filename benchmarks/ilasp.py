@@ -106,7 +106,12 @@ def run_experiment(experiment: dict, output_dir: Path) -> int:
                                     timeout=experiment["timeout_seconds"] + 10 if experiment["timeout_seconds"] else None,
                                     check=False)
             returncode, stdout, stderr = result.returncode, result.stdout, result.stderr
-            status = "ok" if returncode == 0 else "timeout" if returncode in (9, 124, 137) else "failed"
+            elapsed = time.perf_counter() - started
+            killed_at_deadline = (
+                returncode in (-9, 9, 137) and experiment["timeout_seconds"] > 0
+                and elapsed >= experiment["timeout_seconds"]
+            )
+            status = "ok" if returncode == 0 else "timeout" if returncode == 124 or killed_at_deadline else "failed"
         except subprocess.TimeoutExpired as error:
             returncode, status = None, "timeout"
             stdout = decode_output(error.stdout)
@@ -142,6 +147,9 @@ def run_experiment(experiment: dict, output_dir: Path) -> int:
             if not exists:
                 writer.writeheader()
             writer.writerow(row)
+        if status == "failed":
+            print(f"{experiment['id']}: stopping after learner failure ({returncode})", flush=True)
+            return 1
     return 0
 
 

@@ -403,7 +403,7 @@ static PyObject *render_one(renderer *r, PyObject *parts) {
         if (!r->body[i]) { PyErr_SetString(PyExc_ValueError, "missing native body literal"); return NULL; }
     }
     void *rule = NULL;
-    if (!r->build(r->rule_type, &rule, r->loc, (void *)(uintptr_t)head, r->body, (size_t)count)) {
+    if (!r->build(r->rule_type, &rule, &r->loc, (void *)(uintptr_t)head, r->body, (size_t)count)) {
         PyErr_SetString(PyExc_RuntimeError, "Clingo could not build native clause"); return NULL;
     }
     if (!r->string(rule, r->text, r->text_capacity)) {

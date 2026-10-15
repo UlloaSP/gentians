@@ -72,7 +72,7 @@ algorithm = "incremental"
 [[experiment]]
 id = "alzheimer/population-10"
 label = "Alzheimer · 10 individuos"
-description = "Four Alzheimer tasks with population 10, one run per method and a 1000-second timeout."
+description = "Four Alzheimer tasks with population 10, 30 Gentians runs, one ILASP run per version and a 3600-second timeout."
 methods = [
   "gentians-steady_state",
   "gentians-incremental",
@@ -94,7 +94,7 @@ instrumentation = "full"
 [[experiment]]
 id = "alzheimer/population-100"
 label = "Alzheimer · 100 individuos"
-description = "Four Alzheimer tasks with population 100, one run per method and a 1000-second timeout."
+description = "Four Alzheimer tasks with population 100, 30 Gentians runs, one ILASP run per version and a 3600-second timeout."
 methods = [
   "gentians-steady_state",
   "gentians-incremental",

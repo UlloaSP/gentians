@@ -2,10 +2,13 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 import tomllib
 from statistics import mean
 from datetime import UTC, datetime
@@ -202,7 +205,7 @@ def experiment_command(experiment: dict[str, Any], out_dir: Path) -> list[str]:
 def execution_inputs(experiment: dict[str, Any], *, runtime: dict | None = None) -> dict[str, Any]:
     """Identify code, task contents, effective SDK arguments and worker runtime."""
     paths = [path for path in (REPO_ROOT / "gentians").rglob("*")
-             if path.suffix in {".py", ".lp"}]
+             if path.suffix in {".py", ".lp", ".c", ".so", ".pyd"}]
     paths.extend((REPO_ROOT / "benchmarks").rglob("*.py"))
     paths.extend(REPO_ROOT / name for name in ("pyproject.toml", "uv.lock"))
     if experiment.get("tool") == "ilasp":
@@ -251,6 +254,17 @@ def saved_fingerprint(experiment: dict, manifest: dict) -> str:
     return fingerprint(experiment, inputs)
 
 
+def read_json(path: Path) -> dict:
+    for attempt in range(20):
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.05)
+    raise AssertionError("unreachable")
+
+
 def summarize_experiment(experiment: dict[str, Any], out_dir: Path) -> list[dict[str, object]]:
     """Keep censored wall-clock costs separate from net times of solved runs."""
     if not (out_dir / "runs.csv").exists():
@@ -258,7 +272,7 @@ def summarize_experiment(experiment: dict[str, Any], out_dir: Path) -> list[dict
     manifest_path = out_dir / "experiment.json"
     if not manifest_path.exists():
         raise ValueError(f"{experiment['id']}: missing manifest; cannot summarize incomplete results")
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = read_json(manifest_path)
     if manifest.get("fingerprint") != saved_fingerprint(experiment, manifest):
         raise ValueError(f"{experiment['id']}: stale config; cannot summarize results")
     if manifest.get("status") not in ("complete", "completed_with_failures", "screened_out"):
@@ -385,13 +399,55 @@ def write_manifest(out_dir: Path, experiment: dict[str, Any], status: str,
         "tool": experiment.get("tool", "gentians"),
         "updated_at": datetime.now(UTC).isoformat(),
     }
-    (out_dir / "experiment.json").write_text(
-        json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
-    )
+    write_json_atomic(out_dir / "experiment.json", payload)
+
+
+def write_json_atomic(path: Path, payload: dict) -> None:
+    file = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                      prefix=path.name + ".", suffix=".tmp", delete=False)
+    temporary = Path(file.name)
+    try:
+        with file:
+            json.dump(payload, file, indent=2, sort_keys=True)
+        for attempt in range(20):
+            try:
+                temporary.replace(path)
+                return
+            except PermissionError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.05)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
                 historical_ids: set[str] | None = None) -> None:
+    """Serialize snapshots so a slower parallel job cannot publish an older index."""
+    output_root.mkdir(parents=True, exist_ok=True)
+    with (output_root / ".index.lock").open("a+b") as lock:
+        if os.name == "nt":
+            import msvcrt
+            if lock.tell() == 0:
+                lock.write(b"\0")
+                lock.flush()
+            lock.seek(0)
+            msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            _write_index(output_root, experiments, historical_ids=historical_ids)
+        finally:
+            if os.name == "nt":
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+def _write_index(output_root: Path, experiments: list[dict[str, Any]], *,
+                 historical_ids: set[str] | None) -> None:
     """Index every experiment; historical results stay historical until rerun."""
     if historical_ids is None:
         historical_ids = indexed_historical_ids(output_root)
@@ -401,7 +457,7 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
         manifest_path = out_dir / "experiment.json"
         dashboard_path = out_dir / "dashboard_data.json"
         manifest = (
-            json.loads(manifest_path.read_text(encoding="utf-8"))
+            read_json(manifest_path)
             if manifest_path.exists()
             else {
                 "id": experiment["id"],
@@ -446,25 +502,18 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
         manifest["has_dashboard"] = dashboard_path.exists() and manifest["status"] != "stale"
         rows.append(manifest)
     output_root.mkdir(parents=True, exist_ok=True)
-    (output_root / "experiments.json").write_text(
-        json.dumps(
-            {
-                "schemaVersion": 1,
-                "generated_at": datetime.now(UTC).isoformat(),
-                "experiments": rows,
-            },
-            indent=2,
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
+    write_json_atomic(output_root / "experiments.json", {
+        "schemaVersion": 1,
+        "generated_at": datetime.now(UTC).isoformat(),
+        "experiments": rows,
+    })
 
 
 def indexed_historical_ids(output_root: Path) -> set[str]:
     index_path = output_root / "experiments.json"
     if not index_path.exists():
         return set()
-    payload = json.loads(index_path.read_text(encoding="utf-8"))
+    payload = read_json(index_path)
     return {
         item["id"]
         for item in payload.get("experiments", [])
@@ -553,7 +602,7 @@ def main() -> int:
         out_dir = experiment_output_path(output_root, experiment["id"])
         manifest_path = out_dir / "experiment.json"
         if manifest_path.exists() and not args.force:
-            previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+            previous = read_json(manifest_path)
             if previous.get("fingerprint") != fingerprint(experiment):
                 raise SystemExit(f"{experiment['id']}: config changed; use --force")
             if (

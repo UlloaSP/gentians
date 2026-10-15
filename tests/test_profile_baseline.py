@@ -59,6 +59,34 @@ def test_suite_stops_configuration_after_timeout_and_keeps_results(tmp_path, mon
         "screened_out" if stop else "completed_with_failures")
 
 
+def test_suite_stops_on_crash_and_keeps_diagnostics(tmp_path, monkeypatch):
+    import csv
+    import gzip
+
+    calls = []
+
+    def crash(*args, **kwargs):
+        calls.append(args)
+        args[2].write_text("Fatal Python error: Segmentation fault\n", encoding="utf-8")
+        return -11, False
+
+    monkeypatch.setattr(profile, "run_streamed", crash)
+    args = SimpleNamespace(list_datasets=False, out_dir=tmp_path,
+                           datasets=["coin", "grandparent"], runs=30,
+                           arguments_json=None, set=[], python=sys.executable,
+                           cprofile=False, seed_base=42, timeout_seconds=3600,
+                           instrumentation="full", stop_on_timeout=False)
+    with pytest.raises(SystemExit) as error:
+        profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
+    assert error.value.code == 1 and len(calls) == 1
+    with (tmp_path / "runs.csv").open(newline="") as file:
+        row = next(csv.DictReader(file))
+    assert row["status"] == "failed" and row["returncode"] == "-11"
+    with gzip.open(row["log_path"], "rt") as file:
+        assert "Segmentation fault" in file.read()
+    assert (tmp_path / "dashboard_data.json").is_file()
+
+
 def test_run_i_of_every_dataset_uses_seed_base_plus_i(tmp_path, monkeypatch):
     seeds = []
 

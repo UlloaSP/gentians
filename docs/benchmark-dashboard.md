@@ -48,6 +48,25 @@ El resultado canónico de tiempo es `total_execution`, cerrado antes de imprimir
 el programa. Wall-clock sirve para timeouts y operación del runner, nunca como
 sustituto de esa métrica.
 
+La instrumentación guarda el primer checkpoint y el primer registro GA sin
+esperar al siguiente evento. Después guarda durante la ejecución: eventos JSONL por
+lotes de hasta 1024 filas y al llegar al siguiente evento tras un segundo;
+timings también cada segundo y el historial GA cada diez segundos. Los snapshots
+de timings incluyen las fases abiertas sin cerrar ni modificar sus acumuladores.
+La escritura se atribuye a instrumentación. El cierre normal exporta las filas
+pendientes y los totales definitivos. No cambia el formato de los artefactos,
+el payload del productor, schema 14 ni el contrato de los charts del preview.
+
+El timeout de Gentians permite que steady-state e incremental terminen la
+operación en curso y devuelvan la mejor evaluación completa, incluso durante
+inicialización. El runner da hasta cinco segundos adicionales para cerrar las
+métricas y los recursos; conserva el estado `timeout` y el código 124. Si el
+worker no responde, lo mata y conserva el último checkpoint: los eventos o
+generaciones posteriores a ese guardado pueden faltar y el snapshot de recursos
+queda censurado. Si no llegó a evaluar ningún candidato, no inventa una hipótesis.
+El checkpoint de la mejor hipótesis tiene prioridad sobre el programa impreso
+al final. Los datos perdidos por timeouts anteriores no se pueden reconstruir.
+
 Un crash del worker detiene el método, conserva el run fallido y sus artefactos,
 y devuelve un código de error a Slurm. Los workers activan `faulthandler` para
 conservar la traza de un fallo nativo. Los timeouts siguen el protocolo del

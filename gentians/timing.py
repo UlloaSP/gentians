@@ -17,6 +17,11 @@ _instrumentation_total = 0.0
 _timings_dirty = False
 _ga_dirty = False
 _jsonl_rows: dict[str, list[dict[str, Any]]] = {}
+_last_checkpoint: float | None = None
+_last_ga_checkpoint: float | None = None
+_CHECKPOINT_SECONDS = 1.0
+_GA_CHECKPOINT_SECONDS = 10.0
+_JSONL_BATCH_SIZE = 1024
 _F = TypeVar("_F", bound=Callable)
 _METRIC_ENV_PATHS = {
     "candidate": "GENTIANS_CANDIDATE_METRICS_PATH",
@@ -54,7 +59,11 @@ def _append_jsonl_direct(path: str, rows: list[dict[str, Any]]) -> None:
 def _append_jsonl(path: str | None, row: dict[str, Any]) -> None:
     if not path:
         return
-    _jsonl_rows.setdefault(path, []).append(row)
+    rows = _jsonl_rows.setdefault(path, [])
+    rows.append(row)
+    if len(rows) >= _JSONL_BATCH_SIZE:
+        _append_jsonl_direct(path, rows)
+        rows.clear()
 
 
 def _flush_jsonl() -> None:
@@ -71,6 +80,7 @@ def append_jsonl(path: str | None, rows: list[dict[str, object]]) -> None:
 
 def reset() -> None:
     global _instrumentation_total, _timings_dirty, _ga_dirty
+    global _last_checkpoint, _last_ga_checkpoint
     _flush_jsonl()
     _totals.clear()
     _counts.clear()
@@ -79,6 +89,7 @@ def reset() -> None:
     _instrumentation_total = 0.0
     _timings_dirty = False
     _ga_dirty = False
+    _last_checkpoint = _last_ga_checkpoint = None
 
 
 def set_enabled(enabled: bool) -> None:
@@ -159,6 +170,7 @@ def phase(name: str):
     }
     _stack.append(event)
     start = time.perf_counter()
+    event["started"] = start
     if parent:
         _exclude(parent, time.perf_counter() - setup_start)
     try:
@@ -220,10 +232,12 @@ def instrumentation():
         return
     event["instrumenting"] = True
     start = time.perf_counter()
+    event["instrumentation_started"] = start
     try:
         yield
     finally:
         _exclude(event, time.perf_counter() - start)
+        event.pop("instrumentation_started", None)
         event["instrumenting"] = False
 
 
@@ -237,6 +251,7 @@ def record_metric(kind: str, row: dict[str, Any]) -> None:
         return
     with instrumentation():
         _append_jsonl(path, row)
+        _checkpoint()
 
 
 def record_ga_generation(
@@ -287,6 +302,7 @@ def record_ga_generation(
             }
         )
         _ga_dirty = True
+        _checkpoint()
 
 
 def last_search_progress() -> dict[str, float] | None:
@@ -307,14 +323,51 @@ def export() -> None:
     _flush_jsonl()
 
 
+def _checkpoint() -> None:
+    global _last_checkpoint, _last_ga_checkpoint, _ga_dirty
+    now = time.perf_counter()
+    ga_due = _ga_dirty and (
+        _last_ga_checkpoint is None or now - _last_ga_checkpoint >= _GA_CHECKPOINT_SECONDS
+    )
+    if (_last_checkpoint is not None and now - _last_checkpoint < _CHECKPOINT_SECONDS
+            and not ga_due):
+        return
+    _flush_timings()
+    _flush_jsonl()
+    ga_path = os.environ.get("GENTIANS_GA_METRICS_PATH")
+    # JSONL appends are bounded; avoid rewriting the entire GA history each second.
+    if ga_path and ga_due:
+        _write_json_atomic(ga_path, _ga_rows)
+        _ga_dirty = False
+        _last_ga_checkpoint = now
+    _last_checkpoint = time.perf_counter()
+
+
 def _flush_timings() -> None:
     global _timings_dirty
     path = os.environ.get("GENTIANS_TIMINGS_PATH")
-    if not path or not _timings_dirty:
+    if not path or (not _timings_dirty and not _stack):
         return
+    totals, counts = _totals.copy(), _counts.copy()
+    if _stack:
+        # Include open phases without closing them or counting them twice at exit.
+        now = _stack[-1].get("instrumentation_started")
+        if now is None:
+            now = time.perf_counter()
+        child_seconds = pending_instrumentation = 0.0
+        for event in reversed(_stack):
+            pending_instrumentation += event["instrumentation_seconds"]
+            seconds = max(now - event["started"] - pending_instrumentation, 0.0)
+            for name, value in (
+                (event["phase"], seconds),
+                (f"{event['phase']}.self", max(seconds - event["child_seconds"] - child_seconds, 0.0)),
+            ):
+                totals[name] = totals.get(name, 0.0) + value
+                counts[name] = counts.get(name, 0) + 1
+            child_seconds = seconds
     rows = [
-        {"metric": name, "seconds": seconds, "calls": _counts.get(name, 0)}
-        for name, seconds in sorted(_totals.items())
+        {"metric": name, "seconds": seconds, "calls": counts.get(name, 0)}
+        for name, seconds in sorted(totals.items())
     ]
     _write_json_atomic(path, rows)
     _timings_dirty = False

@@ -101,7 +101,10 @@ def parse_profile_args(
     parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
     parser.add_argument("--runs", type=int, default=10)
     parser.add_argument("--out-dir", type=Path, default=default_out_dir)
-    parser.add_argument("--timeout-seconds", type=int, default=100, help="Process timeout; 0 disables it.")
+    parser.add_argument(
+        "--timeout-seconds", type=int, default=100,
+        help="Wall timeout; return the best candidate and metrics, with up to 5s to close. 0 disables it.",
+    )
     parser.add_argument(
         "--stop-on-timeout", action="store_true",
         help="Stop this configuration after its first timed-out run; retain completed results.",
@@ -239,7 +242,7 @@ def run_benchmark_suite(
             elapsed = time.perf_counter() - started
             status = "timeout" if timed_out else "ok" if returncode == 0 else "failed"
             parsed = parse_log(log_path)
-            if isinstance(parsed["best_program"], list):
+            if isinstance(parsed["best_program"], list) and not hypothesis_path.exists():
                 hypothesis_path.write_text("\n".join(parsed["best_program"]) + "\n", encoding="utf-8")
             validation = validate_run(
                 Path(dataset_arguments.filename), hypothesis_path, validation_path,
@@ -443,12 +446,19 @@ def run_profile_worker() -> None:
     if seed is not None:
         arguments.random_seed = int(seed)
     from benchmarks.process_resources import record_process_resources
+    from gentians.search.budget import SearchBudget
 
     path = Path(os.environ["GENTIANS_TIMINGS_PATH"]).with_name(
         Path(os.environ["GENTIANS_TIMINGS_PATH"]).name.replace("_timings.json", "_resources.json")
     )
     with record_process_resources(path):
-        gentians_main(arguments)
+        try:
+            gentians_main(arguments)
+        except SearchBudget.Expired:
+            raise SystemExit(124) from None
+    deadline = os.environ.get("GENTIANS_RUN_DEADLINE")
+    if deadline is not None and time.monotonic() >= float(deadline):
+        raise SystemExit(124)
 
 
 def run_streamed(
@@ -494,6 +504,10 @@ def run_streamed(
     if instrumentation_level == "light":
         for category in ("OPERATOR", "CANDIDATE", "QUALITY", "CLINGO"):
             env.pop(f"GENTIANS_{category}_METRICS_PATH", None)
+    deadline = time.monotonic() + timeout_seconds if timeout_seconds > 0 else None
+    env.pop("GENTIANS_RUN_DEADLINE", None)
+    if deadline is not None:
+        env["GENTIANS_RUN_DEADLINE"] = str(deadline)
     with log_path.open("w", encoding="utf-8") as log:
         process = subprocess.Popen(
             cmd,
@@ -516,7 +530,6 @@ def run_streamed(
 
         thread = threading.Thread(target=reader, daemon=True)
         thread.start()
-        deadline = time.monotonic() + timeout_seconds if timeout_seconds > 0 else None
         done = False
         while True:
             try:
@@ -530,8 +543,11 @@ def run_streamed(
             except queue.Empty:
                 pass
             if process.poll() is not None and done:
-                return process.wait(), False
-            if deadline is not None and time.monotonic() > deadline:
+                returncode = process.wait()
+                return returncode, returncode == 124
+            # Give the search a bounded chance to finish an evaluation and export.
+            if (deadline is not None and time.monotonic() > deadline + 5
+                    and process.poll() is None):
                 kill_tree(process)
                 thread.join(timeout=2)
                 return process.wait(), True

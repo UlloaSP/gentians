@@ -197,6 +197,24 @@ def test_truncated_final_log_preserves_complete_checkpoint(tmp_path, monkeypatch
         assert file.read() == "p.\nq.\n"
 
 
+def test_final_log_does_not_overwrite_best_evaluated_checkpoint(tmp_path, monkeypatch):
+    import gzip
+
+    def finished(cmd, arguments_json, log_path, timeout, *args, **kwargs):
+        log_path.write_text("--- Best candidate program with score 1.0 ---\np.\n--------------------------\n")
+        profile.run_file(tmp_path, "coin", 1, "_hypothesis.lp").write_text("better.\n")
+        return 0, False
+
+    monkeypatch.setattr(profile, "run_streamed", finished)
+    monkeypatch.setattr(profile, "validate_run", lambda *args, **kwargs: {"valid": False})
+    args = SimpleNamespace(list_datasets=False, out_dir=tmp_path, datasets=["coin"], runs=1,
+                           arguments_json=None, set=[], python=sys.executable, cprofile=False,
+                           seed_base=42, timeout_seconds=1, instrumentation="light", stop_on_timeout=False)
+    profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
+    with gzip.open(profile.run_file(tmp_path, "coin", 1, "_hypothesis.lp.gz"), "rt") as file:
+        assert file.read() == "better.\n"
+
+
 def test_final_log_requires_program_closing_delimiter(tmp_path):
     log = tmp_path / "run.log"
     log.write_text("--- Found best program with score 1.0 ---\np.\nTotal time: 0.1\n")
@@ -656,9 +674,9 @@ def test_phase_subtracts_instrumentation_time(monkeypatch):
     timing.reset()
 
 
-def test_ga_metrics_have_one_generation_coordinate(monkeypatch):
+def test_ga_metrics_have_one_generation_coordinate(monkeypatch, tmp_path):
     timing.reset()
-    monkeypatch.setenv("GENTIANS_GA_METRICS_PATH", "metrics.json")
+    monkeypatch.setenv("GENTIANS_GA_METRICS_PATH", str(tmp_path / "metrics.json"))
 
     timing.record_ga_generation(
         0,

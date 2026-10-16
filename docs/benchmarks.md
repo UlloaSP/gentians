@@ -77,8 +77,12 @@ model and no negative may extend one. Its own timeout is configured with
 `validation_timeout_seconds`; validation is outside measured learner time.
 An unavailable candidate is recorded as `missing_hypothesis`, and validation
 timeouts remain unknown. Gentians checkpoints completed improvements so external
-timeouts preserve its best available candidate. Only verified hypotheses count
-as successes; `reported_success` retains Gentians' original result flag.
+timeouts preserve its best available candidate. Both Gentians algorithms stop at
+an operation boundary and export accumulated metrics, with up to five extra
+seconds to close. Periodic metric checkpoints remain available if a stuck worker
+requires a forced kill; their unfinished tail may be missing. Only verified
+hypotheses count as successes; `reported_success` retains Gentians' original
+result flag.
 
 ## Alzheimer
 
@@ -91,13 +95,13 @@ uv run python benchmarks/run_experiments.py alzheimer/incremental
 
 `alzheimer/population-10` and `alzheimer/population-100` compare Gentians
 steady-state and incremental with populations of 10 and 100 respectively,
-plus ILASP 2 and 2i. Each contains only the four Alzheimer datasets, one run
-per dataset/method and a 1000-second timeout, with full Gentians metrics.
+plus ILASP 2 and 2i. Each contains only the four Alzheimer datasets, 30 Gentians
+runs per dataset/algorithm, one ILASP run per dataset/version and a 7200-second
+timeout per run, with full Gentians metrics.
 Both definitions live in the common TOML. ILASP inputs under `benchmarks/ilasp/`
 preserve the original background and examples, typed modes, recalls and positive
 polarity; they use six variables and `-ml=5`. Gentians' direction pruning and
 three-clause program bound are not imposed by this ILASP mode-bias translation.
-These configurations have been prepared without running the experiments.
 
 To profile clause generation for all four tasks:
 

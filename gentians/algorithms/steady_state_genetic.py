@@ -15,6 +15,7 @@ from ..evolution.restarts import create_restart
 from ..evolution.selections import create_selection
 from ..hypotheses import HypothesisGenerator
 from ..language.ir.inductive_task import InductiveTask
+from ..search.budget import SearchBudget
 from ..search.candidates import Candidates
 from ..search.offspring import create_offspring
 from ..search.population import Population
@@ -39,50 +40,56 @@ def steady_state_genetic_search(
     operator_names = (str(args.selection["name"]), str(args.crossover["name"]), str(args.mutation["name"]))
     generations = count() if args.iterations_genetic == 0 else range(args.iterations_genetic)
 
-    space = supplied_space if supplied_space is not None else generate_clause_space(task, args)
-    record_clause_space(task, space)
-    if not space:
-        raise ValueError("No clauses found")
-    max_program_clauses = len(space) if task.max_program_clauses is None else task.max_program_clauses
-    hypotheses = HypothesisGenerator(task, space, max_program_clauses)
-    if not hypotheses.space:
-        raise ValueError("No clauses satisfy the hypothesis generator")
-    with phase("initialization"):
-        evaluator = create_evaluator(task, args.evaluation, space=hypotheses.space)
-    candidates = Candidates(hypotheses, evaluator, rng)
-    population = Population(candidates, initializer, replacement, str(args.replacement["name"]), 0)
-    metrics = GenerationMetrics()
+    budget = SearchBudget(None)
+    try:
+        budget.check()
+        space = supplied_space if supplied_space is not None else generate_clause_space(task, args)
+        record_clause_space(task, space)
+        if not space:
+            raise ValueError("No clauses found")
+        max_program_clauses = len(space) if task.max_program_clauses is None else task.max_program_clauses
+        hypotheses = HypothesisGenerator(task, space, max_program_clauses)
+        if not hypotheses.space:
+            raise ValueError("No clauses satisfy the hypothesis generator")
+        with phase("initialization"):
+            evaluator = create_evaluator(task, args.evaluation, space=hypotheses.space)
+        candidates = Candidates(hypotheses, evaluator, rng, budget)
+        population = Population(candidates, initializer, replacement, str(args.replacement["name"]), 0)
+        metrics = GenerationMetrics()
 
-    with phase("initialization"):
-        mutation = create_mutation(args.mutation)
-        population.seed(initializer(candidates.context))
-    population.rank()
-    # Restarts refill to the size that initialization reached.
-    population.size = len(population.members)
-    if population.winner is not None:
-        return _solution(population, metrics, 0)
-    metrics.record(0, population)
+        with phase("initialization"):
+            mutation = create_mutation(args.mutation)
+            population.seed(initializer(candidates.context))
+        population.rank()
+        # Restarts refill to the size that initialization reached.
+        population.size = len(population.members)
+        if population.winner is not None:
+            return _solution(population, metrics, 0)
+        metrics.record(0, population)
 
-    for generation in generations:
-        if hypotheses.all_subsets_evaluated(len(candidates.evaluated)):
-            break
-        survivors = restart(generation, population.members, population.best, candidates.context, True)
-        if survivors is not None:
-            with phase("replacement"):
-                population.restart(survivors, keep_members=True)
-            metrics.mark_restart()
-            if population.winner is not None:
-                return _solution(population, metrics, generation)
+        for generation in generations:
+            budget.check()
+            if hypotheses.all_subsets_evaluated(len(candidates.evaluated)):
+                break
+            survivors = restart(generation, population.members, population.best, candidates.context, True)
+            if survivors is not None:
+                with phase("replacement"):
+                    population.restart(survivors, keep_members=True)
+                metrics.mark_restart()
+                if population.winner is not None:
+                    return _solution(population, metrics, generation)
 
-        child, _ = create_offspring(population, selection, crossover, mutation, operator_names)
-        if child is not None:
-            population.admit_child(child)
-            if child.is_solution:
-                return _solution(population, metrics, generation + 1)
-        population.update_best()
-        metrics.record(generation + 1, population)
+            child, _ = create_offspring(population, selection, crossover, mutation, operator_names)
+            if child is not None:
+                population.admit_child(child)
+                if child.is_solution:
+                    return _solution(population, metrics, generation + 1)
+            population.update_best()
+            metrics.record(generation + 1, population)
 
-    return population.result()
+        return population.result()
+    except SearchBudget.Expired:
+        return budget.result()
 
 
 def _solution(population: Population, metrics: GenerationMetrics, generation: int) -> SearchResult:

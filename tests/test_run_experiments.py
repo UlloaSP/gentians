@@ -518,6 +518,26 @@ def test_historical_index_preserves_saved_runs_and_provenance(tmp_path, original
     assert manifest_path.read_bytes() == original
 
 
+def test_historical_index_accepts_external_results_without_a_dashboard(tmp_path):
+    output_root, definitions = load_config(paired_config(tmp_path, ["ilasp-2"]))
+    [experiment] = expand_experiments(definitions)
+    out_dir = output_root / experiment["id"]
+    out_dir.mkdir(parents=True)
+    write_manifest(out_dir, experiment, "completed_with_failures")
+    original = (out_dir / "experiment.json").read_bytes()
+    (out_dir / "runs.csv").write_text("dataset,status\ncoin,timeout\n")
+    experiment["timeout_seconds"] += 1
+
+    write_index(output_root, [experiment], historical_ids={experiment["id"]})
+
+    [indexed] = json.loads((output_root / "experiments.json").read_text())["experiments"]
+    assert indexed["status"] == "historical"
+    assert indexed["original_status"] == "completed_with_failures"
+    assert indexed["has_dashboard"] is False
+    assert (out_dir / "experiment.json").read_bytes() == original
+    assert not (out_dir / "dashboard_data.json").exists()
+
+
 def test_historical_index_keeps_experiments_already_marked_historical(
     tmp_path, monkeypatch,
 ):

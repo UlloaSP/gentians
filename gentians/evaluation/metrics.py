@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 
 from ..language.asp import AspProgram, render_program
@@ -24,7 +25,14 @@ class HypothesisCheckpoint:
             path = Path(self.path)
             temporary = path.with_name(path.name + ".tmp")
             temporary.write_text("\n".join(render_program(candidate)) + "\n", encoding="utf-8")
-            temporary.replace(path)
+            for attempt in range(20):
+                try:
+                    temporary.replace(path)
+                    break
+                except PermissionError:
+                    if attempt == 19:
+                        raise
+                    time.sleep(0.05)
             self.best = rank
 
 

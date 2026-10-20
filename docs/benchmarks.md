@@ -19,15 +19,18 @@ to recreate the index without running benchmarks.
 
 ```powershell
 uv run python benchmarks/run_experiments.py --list
-uv run python benchmarks/run_experiments.py sdk-defaults/steady_state sdk-defaults/incremental
+uv run python benchmarks/run_experiments.py
 uv run python benchmarks/run_experiments.py --summary
 ```
 
-The `sdk-defaults` experiments compare steady-state and incremental search on
-5queens and grandparent, with ten runs and a 30-second timeout. See
-[the current comparison](sdk-defaults-comparison.md). Other named experiments,
-including Alzheimer, keep their own dataset lists and limits in the same TOML
-file.
+The active local suite compares positive:negative score weights **1:1 and 10:1**
+with steady state and populations **10 and 100**. Each configuration has five
+matched seeds and a **300-second timeout per run**, on three synthetic coloring
+tasks plus unchanged `coloring` and `set_partition_sum` controls. See the
+[protocol, known solutions, and calibration](score-experiments.md).
+The previous SDK, Alzheimer, and ILASP matrices have been removed from the active
+TOML; their saved results remain on disk. Historical comparison documents record
+the earlier protocols rather than current experiment IDs.
 
 Run *i* of every dataset uses seed `seed_base + i`, with runs numbered from 1 and
 `seed_base = 42`. Run 1 of any dataset or experiment therefore uses seed 43, so
@@ -45,6 +48,8 @@ configuration changes. They stay historical until the experiment runs again with
 the current configuration; `--list` and new runs keep that status. The index
 retains the manifest's original status, including `stale` when source changed
 during execution, so historical results can still be distinguished by provenance.
+Saved external results with `runs.csv` can also be historical; this does not
+create a Gentians dashboard or mark unmeasured metrics as available.
 
 When the dashboard schema changes, rebuild saved dashboards from their raw run
 artifacts instead of rerunning:
@@ -86,19 +91,16 @@ result flag.
 
 ## Alzheimer
 
-The `alzheimer/incremental` experiment runs the four Alzheimer's drug-design
-tasks from [Cropper's ILP datasets](https://huggingface.co/datasets/andrewcropper/ilp-datasets/blob/main/alzheimer/README.md):
-
-```powershell
-uv run python benchmarks/run_experiments.py alzheimer/incremental
-```
-
-`alzheimer/population-10` and `alzheimer/population-100` compare Gentians
+The four Alzheimer's drug-design tasks from
+[Cropper's ILP datasets](https://huggingface.co/datasets/andrewcropper/ilp-datasets/blob/main/alzheimer/README.md)
+remain in the catalog. Their earlier experiment definitions are no longer in
+the active local TOML. The historical `alzheimer/population-10` and
+`alzheimer/population-100` campaigns compared Gentians
 steady-state and incremental with populations of 10 and 100 respectively,
-plus ILASP 2 and 2i. Each contains only the four Alzheimer datasets, 30 Gentians
+plus ILASP 2 and 2i. Each used only the four Alzheimer datasets, 30 Gentians
 runs per dataset/algorithm, one ILASP run per dataset/version and a 7200-second
 timeout per run, with full Gentians metrics.
-Both definitions live in the common TOML. ILASP inputs under `benchmarks/ilasp/`
+ILASP inputs under `benchmarks/ilasp/`
 preserve the original background and examples, typed modes, recalls and positive
 polarity; they use six variables and `-ml=5`. Gentians' direction pruning and
 three-clause program bound are not imposed by this ILASP mode-bias translation.
@@ -222,14 +224,15 @@ benchmark, not limits supplied by the source.
 
 ## ILASP comparison
 
-The [Gentians–ILASP comparison](ilasp-experiments.md) configures 29 datasets and
-a 120-second timeout. Both Gentians algorithms run 30 times per dataset; ILASP
-runs once per dataset and version, selecting 2 and 2i by default. One command
-launches the configured methods sequentially:
+The historical [Gentiansâ€“ILASP comparison](ilasp-experiments.md) used 29 datasets and
+a 120-second timeout. Both Gentians algorithms ran 30 times per dataset; ILASP
+ran once per dataset and version, selecting 2 and 2i by default. One command
+launches methods configured in the active TOML sequentially. Those historical
+matrix IDs are no longer configured; to run an external learner, first define
+its task selection and `[tools.ilasp]` settings in the common TOML:
 
 ```powershell
-uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs
-uv run python benchmarks/run_experiments.py ilasp-all-120s-30runs --methods gentians-incremental ilasp-2i
+uv run python benchmarks/run_experiments.py <experiment-id> --methods ilasp-2 ilasp-2i
 ```
 
 `benchmarks/experiments.toml` defines datasets, Gentians `runs`, timeout,

@@ -1,365 +1,55 @@
-# SDK baseline and matched mutation-probability experiments.
+# Local comparison of positive:negative score weights, with matched seeds.
 [suite]
 output_root = ".benchmarks/experiments"
+methods = ["gentians-steady_state"]
 datasets = [
-  "coin",
-  "adj2red",
-  "clique",
-  "4queens",
-  "8queens",
-  "5queens",
-  "even_odd",
-  "grandparent",
-  "sudoku",
+  "score_coloring_balanced",
+  "score_coloring_positive_heavy",
+  "score_coloring_negative_heavy",
   "coloring",
-  "knapsack",
-  "latin_square",
-  "magic_square_no_diag",
-  "penguin",
+  "set_partition_sum",
 ]
-runs = 10
+runs = 5
 seed_base = 42
-timeout_seconds = 30
-cprofile = false
-instrumentation = "full"
+timeout_seconds = 300
 validation_timeout_seconds = 60
-
-[[experiment]]
-id = "test-defaults/steady_state"
-datasets = ["5queens"]
-description = "Steady-state with current SDK defaults."
-runs = 30
-[experiment.overrides]
-algorithm = "steady_state"
-
-[[experiment]]
-id = "test-defaults/incremental"
-datasets = ["5queens"]
-description = "Incremental with current SDK defaults."
-runs = 30
-[experiment.overrides]
-algorithm = "incremental"
-
-[[experiment]]
-id = "sdk-defaults/steady_state"
-description = "Steady-state with current SDK defaults."
-runs = 30
-[experiment.overrides]
-algorithm = "steady_state"
-
-[[experiment]]
-id = "sdk-defaults/incremental"
-description = "Incremental with current SDK defaults."
-runs = 30
-[experiment.overrides]
-algorithm = "incremental"
-
-[[experiment]]
-id = "alzheimer/incremental"
-description = "Four Alzheimer's drug-design tasks from the ILP datasets collection."
-datasets = [
-  "alzheimer_acetyl",
-  "alzheimer_amine",
-  "alzheimer_mem",
-  "alzheimer_toxic",
-]
-runs = 1
-timeout_seconds = 1200
 instrumentation = "full"
-[experiment.overrides]
-algorithm = "incremental"
+cprofile = false
+
+[suite.overrides]
+algorithm = "steady_state"
+"selection.name" = "tournament"
+"selection.tournament_percentage" = 0.5
+"evaluation.positive_weight" = 1.0
+"evaluation.negative_weight" = 1.0
+"clause_generation.clingo_arguments" = []
 
 [[experiment]]
-id = "alzheimer/population-10"
-label = "Alzheimer · 10 individuos"
-description = "Four Alzheimer tasks with population 10, 30 Gentians runs, one ILASP run per version and a 7200-second timeout."
-methods = [
-  "gentians-steady_state",
-  "gentians-incremental",
-  "ilasp-2",
-  "ilasp-2i",
-]
-datasets = [
-  "alzheimer_acetyl",
-  "alzheimer_amine",
-  "alzheimer_mem",
-  "alzheimer_toxic",
-]
-runs = 30
-timeout_seconds = 7200
-instrumentation = "full"
+id = "score-weights/population-10-ratio-1-1"
+label = "Score 1:1 · 10 individuos"
+description = "Equal positive and negative rate weights; steady state, 5 matched seeds, 300 seconds per run."
 [experiment.overrides]
 "population.size" = 10
 
 [[experiment]]
-id = "alzheimer/population-100"
-label = "Alzheimer · 100 individuos"
-description = "Four Alzheimer tasks with population 100, 30 Gentians runs, one ILASP run per version and a 7200-second timeout."
-methods = [
-  "gentians-steady_state",
-  "gentians-incremental",
-  "ilasp-2",
-  "ilasp-2i",
-]
-datasets = [
-  "alzheimer_acetyl",
-  "alzheimer_amine",
-  "alzheimer_mem",
-  "alzheimer_toxic",
-]
-runs = 30
-timeout_seconds = 7200
-instrumentation = "full"
+id = "score-weights/population-10-ratio-10-1"
+label = "Score 10:1 · 10 individuos"
+description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 10.0
+
+[[experiment]]
+id = "score-weights/population-100-ratio-1-1"
+label = "Score 1:1 · 100 individuos"
+description = "Equal positive and negative rate weights; steady state, 5 matched seeds, 300 seconds per run."
 [experiment.overrides]
 "population.size" = 100
 
 [[experiment]]
-id = "ilasp-mode-bias-all-30s-3runs"
-methods = [
-  "gentians-steady_state",
-  "gentians-incremental",
-  "ilasp-2",
-  "ilasp-2i",
-]
-description = "Matched Gentians and ILASP methods on the same tasks and timeout."
-datasets = [
-  "4queens",
-  "5queens",
-  "adj2red",
-  "clique",
-  "coin",
-  "coloring",
-  "even_odd",
-  "grandparent",
-  "sudoku",
-]
-runs = 3
-timeout_seconds = 30
-instrumentation = "full"
-
-[[experiment]]
-id = "ilasp-mode-bias-all-120s-10runs"
-methods = [
-  "gentians-steady_state",
-  "gentians-incremental",
-  "ilasp-2",
-  "ilasp-2i",
-]
-description = "Matched Gentians and ILASP methods on the same tasks and timeout."
-datasets = [
-  "4queens",
-  "5queens",
-  "adj2red",
-  "clique",
-  "coin",
-  "coloring",
-  "even_odd",
-  "grandparent",
-  "sudoku",
-]
-runs = 10
-timeout_seconds = 120
-instrumentation = "full"
-
-[[experiment]]
-id = "ilasp-mode-bias-5queens-20s"
-methods = [
-  "gentians-steady_state",
-  "gentians-incremental",
-  "ilasp-2",
-  "ilasp-2i",
-]
-description = "Matched 5queens methods from mode bias, with one deterministic ILASP run per version."
-datasets = ["5queens"]
-runs = 10
-timeout_seconds = 20
-instrumentation = "full"
-
-[[experiment]]
-id = "ilasp-generated-5queens-20s/gentians"
-label = "5queens · Gentians desde bias"
-description = "Full metrics for the ten steady-state runs used in the ILASP comparison."
-datasets = ["5queens"]
-runs = 10
-timeout_seconds = 60
-instrumentation = "full"
+id = "score-weights/population-100-ratio-10-1"
+label = "Score 10:1 · 100 individuos"
+description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
 [experiment.overrides]
-algorithm = "steady_state"
-
-# Thirty matched seeds per task. Within each algorithm only mutation probability changes.
-[[experiment]]
-id = "mutation-rate/steady-control"
-description = "Steady-state control with mutation probability 0.9."
-runs = 30
-[experiment.overrides]
-algorithm = "steady_state"
-"mutation.probability" = 0.9
-
-[[experiment]]
-id = "mutation-rate/steady-050"
-description = "Steady-state with mutation probability 0.5."
-runs = 30
-[experiment.overrides]
-algorithm = "steady_state"
-"mutation.probability" = 0.5
-
-[[experiment]]
-id = "mutation-rate/steady-010"
-description = "Steady-state with mutation probability 0.1."
-runs = 30
-[experiment.overrides]
-algorithm = "steady_state"
-"mutation.probability" = 0.1
-
-[[experiment]]
-id = "mutation-rate/incremental-control"
-description = "Incremental control with mutation probability 0.9."
-runs = 30
-[experiment.overrides]
-algorithm = "incremental"
-"mutation.probability" = 0.9
-
-[[experiment]]
-id = "mutation-rate/incremental-050"
-description = "Incremental with mutation probability 0.5."
-runs = 30
-[experiment.overrides]
-algorithm = "incremental"
-"mutation.probability" = 0.5
-
-[[experiment]]
-id = "mutation-rate/incremental-010"
-description = "Incremental with mutation probability 0.1."
-runs = 30
-[experiment.overrides]
-algorithm = "incremental"
-"mutation.probability" = 0.1
-
-[[experiment]]
-id = "ilasp-all-120s-30runs"
-methods = [
-  "gentians-steady_state",
-  "gentians-incremental",
-  "ilasp-2",
-  "ilasp-2i",
-]
-description = "Matched Gentians and ILASP methods on the same tasks and timeout."
-datasets = [
-  "4queens",
-  "5queens",
-  "adj2red",
-  "clique",
-  "coin",
-  "coloring",
-  "even_odd",
-  "grandparent",
-  "sudoku",
-  "hamming_0",
-  "hamming_0_unbalanced",
-  "hamming_1",
-  "hamming_1_unbalanced",
-  "knapsack",
-  "latin_square",
-  "magic_square_no_diag",
-  "set_partition_sum",
-  "set_partition_sum_and_cardinality",
-  "set_partition_sum_cardinality_and_square",
-  "subset_sum",
-  "subset_sum_double",
-  "subset_sum_double_and_prod",
-  "subset_sum_double_and_prod_unbalanced",
-  "subset_sum_double_and_sum",
-  "subset_sum_double_unbalanced",
-  "subset_sum_double_unbalanced_count",
-  "subset_sum_triple",
-  "subset_sum_unbalanced",
-  "subset_sum_unbalanced_ops",
-]
-runs = 30
-timeout_seconds = 120
-instrumentation = "full"
-
-[[experiment]]
-id = "ilasp-all-1800s-10runs"
-methods = [
-  "gentians-steady_state",
-  "gentians-incremental",
-  "ilasp-2",
-  "ilasp-2i",
-]
-description = "Matched Gentians and ILASP methods on the same tasks and timeout."
-datasets = [
-  "4queens",
-  "5queens",
-  "adj2red",
-  "clique",
-  "coin",
-  "coloring",
-  "even_odd",
-  "grandparent",
-  "sudoku",
-  "hamming_0",
-  "hamming_0_unbalanced",
-  "hamming_1",
-  "hamming_1_unbalanced",
-  "knapsack",
-  "latin_square",
-  "magic_square_no_diag",
-  "set_partition_sum",
-  "set_partition_sum_and_cardinality",
-  "set_partition_sum_cardinality_and_square",
-  "subset_sum",
-  "subset_sum_double",
-  "subset_sum_double_and_prod",
-  "subset_sum_double_and_prod_unbalanced",
-  "subset_sum_double_and_sum",
-  "subset_sum_double_unbalanced",
-  "subset_sum_double_unbalanced_count",
-  "subset_sum_triple",
-  "subset_sum_unbalanced",
-  "subset_sum_unbalanced_ops",
-]
-runs = 10
-timeout_seconds = 1800
-instrumentation = "full"
-
-
-[tools.ilasp]
-executable = "tools/ilasp/ILASP"
-task_dir = "benchmarks/ilasp"
-distro = "kali-linux"
-
-[tools.ilasp.max_body_length]
-alzheimer_acetyl = 5
-alzheimer_amine = 5
-alzheimer_mem = 5
-alzheimer_toxic = 5
-4queens = 5
-5queens = 5
-adj2red = 4
-clique = 7
-coin = 3
-coloring = 4
-even_odd = 3
-grandparent = 3
-sudoku = 3
-hamming_0 = 3
-hamming_0_unbalanced = 3
-hamming_1 = 3
-hamming_1_unbalanced = 3
-knapsack = 3
-latin_square = 3
-magic_square_no_diag = 4
-set_partition_sum = 4
-set_partition_sum_and_cardinality = 4
-set_partition_sum_cardinality_and_square = 4
-subset_sum = 3
-subset_sum_double = 4
-subset_sum_double_and_prod = 4
-subset_sum_double_and_prod_unbalanced = 4
-subset_sum_double_and_sum = 4
-subset_sum_double_unbalanced = 4
-subset_sum_double_unbalanced_count = 4
-subset_sum_triple = 4
-subset_sum_unbalanced = 3
-subset_sum_unbalanced_ops = 3
+"population.size" = 100
+"evaluation.positive_weight" = 10.0

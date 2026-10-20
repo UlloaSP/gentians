@@ -1,5 +1,9 @@
 # ILASP executable
 
+For candidate-rule generation without this executable, use the
+[standalone Python/Clingo generator](standalone/README.md):
+`uv run python -m tools.ilasp.standalone task.las`.
+
 `ILASP` is the existing Linux x86_64 binary moved from `C:\tmp\ILASP`.
 It reports version **4.4.1**, built on **2024-11-11**, and supports algorithms
 `--version=2`, `2i`, `3`, and `4`.

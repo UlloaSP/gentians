@@ -475,7 +475,7 @@ def _write_index(output_root: Path, experiments: list[dict[str, Any]], *,
             experiment["id"] in historical_ids
             and manifest_path.exists()
             and manifest.get("fingerprint") != current_fingerprint
-            and dashboard_path.exists()
+            and (dashboard_path.exists() or (out_dir / "runs.csv").is_file())
             and manifest.get("status") in (
                 "complete", "completed_with_failures", "screened_out", "stale"
             )

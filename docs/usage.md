@@ -84,6 +84,14 @@ reuse it.
 ## Evaluation
 
 `evaluation.scoring` is `cov_program`, which scores whole-program coverage.
+`evaluation.positive_weight` and `evaluation.negative_weight` are finite positive
+numbers, both `1.0` by default. With both example classes present, the score is
+`exp(10 * (2 * (w_pos * TPR + w_neg * TNR) / (w_pos + w_neg) - 1))`.
+Equal weights preserve `exp(10 * (TPR - FPR))`. Weights apply to class rates,
+not raw example counts; scaling both weights has no effect. A perfect hypothesis
+always scores `exp(10)`, and its success condition still requires every positive
+and no negative. When a class is absent, its weight has no effect and the original
+one-class score is retained. See [score experiments](score-experiments.md).
 Whole-program evaluation uses brave consequences. Evolutionary individuals
 record whether they cover every positive example and avoid every negative
 example. Replacement has no behavior-specific tie-break. The benchmark dashboard
@@ -244,6 +252,8 @@ Structural limits belong to the task, not to `Arguments`:
 - `population.name`: `random`, which samples valid programs through
   `HypothesisGenerator`.
 - `evaluation.scoring`: `cov_program`.
+- `evaluation.positive_weight`, `evaluation.negative_weight`: relative weights
+  of positive coverage and negative rejection rates. Defaults `1.0`, `1.0`.
 - `evaluation.constraint_inheritance`: exact coverage reuse for pure
   integrity-constraint changes, using the normal solver. Default `true`.
   Unresolved examples still use a fresh Clingo control. See

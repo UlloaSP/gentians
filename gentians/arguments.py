@@ -23,6 +23,8 @@ class Arguments:
         default_factory=lambda: {
             # Whole-program coverage score.
             "scoring": "cov_program",
+            "positive_weight": 101.0,
+            "negative_weight": 1.0,
             # Clingo CLI arguments used to obtain candidate coverage.
             "clingo_arguments": [],
             # Reuse exact coverage bounds under pure integrity-constraint edits.

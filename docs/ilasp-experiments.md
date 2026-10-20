@@ -1,5 +1,11 @@
 # Comparación Gentians–ILASP: 29 benchmarks, 120 s
 
+**Protocolo histórico.** La configuración local activa se ha sustituido por los
+[experimentos de pesos del score](score-experiments.md). Las entradas
+`ilasp-all-120s-30runs` e `ilasp-all-1800s-10runs` descritas abajo ya no están en
+el TOML activo; sus comandos requieren restaurar o definir esa matriz y sus
+opciones de ILASP. Los resultados guardados no se han eliminado.
+
 La matriz compara Gentians `steady_state`, Gentians `incremental` e ILASP.
 Cada algoritmo de Gentians ejecuta 30 runs por dataset; ILASP ejecuta una sola
 vez cada tarea y versión, porque la búsqueda es determinista. El timeout es

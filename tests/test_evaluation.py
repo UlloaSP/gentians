@@ -129,6 +129,55 @@ def test_coverage_scores_preserve_mathematically_equal_scores_exactly():
     assert first == second
 
 
+def test_positive_weight_changes_ranking_without_changing_coverage_or_success():
+    task = inductive_task(
+        [], [example((f"p({i})", ""), True) for i in range(10)],
+        [example((f"n({i})", ""), False) for i in range(10)], [], [],
+    )
+    candidates = (
+        _asp(*(f"p({i})." for i in range(7))),
+        _asp(*(f"p({i})." for i in range(10)), *(f"n({i})." for i in range(8))),
+    )
+    balanced = create_evaluator(task, {"scoring": "cov_program"})
+    positive = create_evaluator(task, {"scoring": "cov_program", "positive_weight": 10})
+    first, second = (balanced(candidate) for candidate in candidates)
+    weighted_first, weighted_second = (positive(candidate) for candidate in candidates)
+    assert first.score > second.score
+    assert weighted_first.score < weighted_second.score
+    assert first.behavior == weighted_first.behavior
+    assert second.behavior == weighted_second.behavior
+    assert not any(result.is_solution for result in (first, second, weighted_first, weighted_second))
+    perfect = positive(_asp(*(f"p({i})." for i in range(10))))
+    assert perfect.is_solution and perfect.score == math.exp(10)
+
+
+@pytest.mark.parametrize("key", ["positive_weight", "negative_weight"])
+@pytest.mark.parametrize("value", [0, -1, True, "10", float("nan"), float("inf")])
+def test_evaluation_rejects_invalid_coverage_weights(key, value):
+    with pytest.raises(ValueError, match=key):
+        create_evaluator(_program(), {"scoring": "cov_program", key: value})
+
+
+@pytest.mark.parametrize("counts", [(3, 0), (0, 3), (0, 0)])
+def test_weights_preserve_scores_when_one_example_class_is_absent(counts):
+    positive, negative = counts
+    task = inductive_task(
+        [], [example((f"p({i})", ""), True) for i in range(positive)],
+        [example((f"n({i})", ""), False) for i in range(negative)], [], [],
+    )
+    coverage = Coverage(int(bool(positive)), int(bool(negative)))
+    assert coverage_score(task, coverage, positive_weight=10) == coverage_score(task, coverage)
+
+
+def test_coverage_weight_ratios_are_scale_invariant_and_numerically_bounded():
+    task = _program()
+    candidate = _asp("target(p).", "target(n).")
+    scores = [create_evaluator(task, {
+        "scoring": "cov_program", "positive_weight": positive, "negative_weight": negative,
+    })(candidate).score for positive, negative in ((10, 1), (20, 2), (1e308, 1e307))]
+    assert scores[0] == scores[1] == scores[2]
+
+
 def test_normal_solver_grounds_each_evaluation(monkeypatch):
     evaluate = _evaluator("cov_program")
     solver = evaluate.solver

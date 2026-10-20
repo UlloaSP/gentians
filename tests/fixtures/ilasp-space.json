@@ -1,0 +1,351 @@
+{
+  "oracle": "ILASP 4.4.1",
+  "binary_sha256": "816edec521b48f88bd078960e6b4a1c99723e1f64ea20a502eebd496d89dc6c5",
+  "cases": [
+    {
+      "name": "all_modes",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeha(q(var(t))). #modeb(1,r(var(t))). #modec(1,s(var(t))). #modeo(1,w(var(t))). #weight(1).",
+      "options": {},
+      "output": "1 ~  :- r(V1).\n1 ~ :~ w(V1).[1@1, V1]\n1 ~ :~ w(V1).[1@2, V1]\n2 ~ 1 {q(V1) } 1 :- r(V1).\n2 ~ 1 {q(V1) : s(V1) } 1.\n2 ~  :- r(V1) : s(V1).\n2 ~ p(V1) :- r(V1).\n2 ~  :- not r(V1) : s(V1).\n3 ~  :- r(V1) : s(V1), s(V2).\n3 ~  :- r(V1) : not s(V1), s(V1).\n3 ~ 0 {q(V1) } 1 :- r(V1).\n3 ~  :- not r(V2) : s(V1), s(V2).\n3 ~ 1 {q(V2) : s(V1), s(V2) } 1.\n3 ~ 1 {q(V1) : not s(V1), s(V1) } 1.\n3 ~ 2 {q(V1) } 2 :- r(V1).\n3 ~  :- r(V2) : s(V1), s(V2).\n3 ~ 1 {q(V1) : not s(V1) } 1 :- r(V1).\n3 ~ 0 {q(V1) : s(V1) } 1.\n3 ~ 2 {q(V1) : s(V1) } 2.\n3 ~  :- not r(V1) : not s(V1), s(V1).\n3 ~ 1 {q(V1) : s(V1), s(V2) } 1.\n3 ~  :- not r(V1) : s(V1), s(V2).\n3 ~ 1 {q(V1) : s(V1) } 1 :- r(V1).\n4 ~ 1 {q(V2) : s(V2) } 1 :- r(V1) : s(V1).\n4 ~ 0 {q(V1) : not s(V1) } 1 :- r(V1).\n4 ~ 1 {q(V2) : s(V2) } 1 :- not r(V1) : s(V1).\n4 ~ 2 {q(V1) : not s(V1) } 2 :- r(V1).\n4 ~ 1 {q(V2) : not s(V1), s(V1), s(V2) } 1.\n4 ~ 1 {q(V2) : not s(V2), s(V1), s(V2) } 1.\n4 ~ 1 {q(V1) : s(V1) } 1 :- not r(V2) : s(V2).\n4 ~ 1 {q(V2) : not s(V1), s(V2) } 1 :- r(V1).\n4 ~ 2 {q(V1) : s(V1) } 2 :- r(V1).\n4 ~ 2 {q(V2) : s(V1), s(V2) } 2.\n4 ~ 1 {q(V2) : s(V1), s(V2) } 1 :- r(V1).\n4 ~ 2 {q(V1) : s(V1);q(V2) : s(V2) } 2.\n4 ~ 1 {q(V1) : not s(V2), s(V1), s(V2) } 1.\n4 ~ 0 {q(V1) : not s(V1), s(V1) } 1.\n4 ~ 1 {q(V1) : not s(V1), s(V2) } 1 :- r(V1).\n4 ~ 0 {q(V1) : s(V1) } 1 :- r(V1).\n4 ~ 1 {q(V1) : not s(V1), s(V1) } 1 :- r(V1).\n4 ~ 1 {q(V1) : s(V1) } 1 :- r(V2) : s(V2).\n4 ~ 1 {q(V1) : not s(V1), s(V1), s(V2) } 1.\n4 ~ 1 {q(V1) : s(V1), s(V2) } 1 :- r(V1).\n4 ~ 2 {q(V1) : s(V1), s(V2) } 2.\n4 ~ 1 {q(V1) } 2 :- r(V1).\n4 ~ 2 {q(V1) : not s(V1), s(V1) } 2.\n4 ~ 1 {q(V1) : s(V1) } 2.\n4 ~ 0 {q(V1) : s(V1), s(V2) } 1.\n4 ~ 0 {q(V2) : s(V1), s(V2) } 1.\n5 ~ 0 {q(V1) : s(V1) } 1 :- not r(V2) : s(V2).\n5 ~ 1 {q(V2) : not s(V2), s(V2) } 1 :- not r(V1) : s(V1).\n5 ~ 1 {q(V1) : not s(V1), not s(V2), s(V2) } 1 :- r(V1).\n5 ~ 1 {q(V1) : not s(V2), s(V1), s(V2) } 1 :- r(V1).\n5 ~ 0 {q(V2) : s(V1), s(V2) } 1 :- r(V1).\n5 ~ 1 {q(V2) : s(V2) } 1 :- not r(V1) : not s(V1), s(V1).\n5 ~ 0 {q(V2) : not s(V1), s(V2) } 1 :- r(V1).\n5 ~ 1 {q(V2) : s(V2) } 1 :- r(V1) : not s(V1), s(V1).\n5 ~ 2 {q(V1) : not s(V1), s(V1);q(V2) : s(V2) } 2.\n5 ~ 1 {q(V1) : not s(V1), s(V1), s(V2) } 1 :- r(V1).\n5 ~ 2 {q(V2) : s(V2) } 2 :- not r(V1) : s(V1).\n5 ~ 0 {q(V2) : s(V2) } 1 :- r(V1) : s(V1).\n5 ~ 2 {q(V1) : s(V1), s(V2) } 2 :- r(V1).\n5 ~ 1 {q(V1) : not s(V1), s(V1) } 1 :- not r(V2) : s(V2).\n5 ~ 0 {q(V1) } 2 :- r(V1).\n5 ~ 1 {q(V1) : s(V1) } 1 :- not r(V2) : not s(V2), s(V2).\n5 ~ 1 {q(V1) : not s(V1) } 2 :- r(V1).\n5 ~ 1 {q(V1) : s(V1) } 2 :- r(V1).\n5 ~ 2 {q(V1) : not s(V1), s(V2) } 2 :- r(V1).\n5 ~ 2 {q(V1) : s(V1) } 2 :- not r(V2) : s(V2).\n5 ~ 2 {q(V1) : not s(V1), s(V1) } 2 :- r(V1).\n5 ~ 0 {q(V1) : not s(V1), s(V1) } 1 :- r(V1).\n5 ~ 0 {q(V1) : s(V1), s(V2) } 1 :- r(V1).\n5 ~ 0 {q(V1) : not s(V1), s(V2) } 1 :- r(V1).\n5 ~ 1 {q(V1) : not s(V1), s(V1) } 1 :- r(V2) : s(V2).\n5 ~ 2 {q(V1) : s(V1);q(V2) : s(V2) } 2 :- r(V1).\n5 ~ 2 {q(V2) : s(V2) } 2 :- r(V1) : s(V1).\n5 ~ 1 {q(V2) : not s(V2), s(V2) } 1 :- r(V1) : s(V1).\n5 ~ 2 {q(V1);q(V2) : not s(V1), s(V2) } 2 :- r(V1).\n5 ~ 2 {q(V2) : s(V1), s(V2) } 2 :- r(V1).\n5 ~ 2 {q(V1);q(V2) : s(V1), s(V2) } 2 :- r(V1).\n5 ~ 0 {q(V2) : not s(V2), s(V1), s(V2) } 1.\n5 ~ 0 {q(V2) : not s(V1), s(V1), s(V2) } 1.\n5 ~ 0 {q(V1) : s(V1) } 1 :- r(V2) : s(V2).\n5 ~ 2 {q(V1) : not s(V1), s(V1), s(V2) } 2.\n5 ~ 2 {q(V2) : not s(V1), s(V2) } 2 :- r(V1).\n5 ~ 1 {q(V1) : not s(V1), s(V1) } 2.\n5 ~ 1 {q(V1) : not s(V1), not s(V2), s(V1), s(V2) } 1.\n5 ~ 1 {q(V1) : s(V1) } 1 :- r(V2) : not s(V2), s(V2).\n5 ~ 0 {q(V1) : not s(V1), s(V1), s(V2) } 1.\n5 ~ 2 {q(V1) : not s(V2), s(V1), s(V2) } 2.\n5 ~ 2 {q(V1) : s(V1) } 2 :- r(V2) : s(V2).\n5 ~ 0 {q(V1) : not s(V2), s(V1), s(V2) } 1.\n5 ~ 1 {q(V1) : s(V1), s(V2) } 2.\n5 ~ 0 {q(V1) : s(V1) } 2.\n5 ~ 2 {q(V1) : not s(V1);q(V2) : s(V2) } 2 :- r(V1).\n5 ~ 0 {q(V2) : s(V2) } 1 :- not r(V1) : s(V1).\n5 ~ 2 {q(V2) : not s(V2), s(V1), s(V2) } 2.\n5 ~ 2 {q(V1) : s(V1);q(V2) : not s(V2), s(V2) } 2.\n5 ~ 2 {q(V2) : not s(V1), s(V1), s(V2) } 2.\n5 ~ 1 {q(V2) : not s(V1), s(V1), s(V2) } 1 :- r(V1).\n5 ~ 1 {q(V2) : not s(V2), s(V1), s(V2) } 1 :- r(V1).\n5 ~ 1 {q(V2) : not s(V1), not s(V2), s(V2) } 1 :- r(V1).\n5 ~ 1 {q(V2) : s(V1), s(V2) } 2.\n5 ~ 1 {q(V2) : not s(V1), not s(V2), s(V1), s(V2) } 1.\n6 ~ 2 {q(V2) : not s(V2), s(V2) } 2 :- r(V1) : s(V1).\n6 ~ 0 {q(V2) : not s(V2), s(V1), s(V2) } 1 :- r(V1).\n6 ~ 0 {q(V2) : not s(V1), s(V1), s(V2) } 1 :- r(V1).\n6 ~ 2 {q(V1) : not s(V1), not s(V2), s(V2) } 2 :- r(V1).\n6 ~ 2 {q(V1) : s(V1) } 2 :- r(V2) : not s(V2), s(V2).\n6 ~ 2 {q(V1) : not s(V1), s(V1) } 2 :- r(V2) : s(V2).\n6 ~ 2 {q(V2) : s(V2) } 2 :- r(V1) : not s(V1), s(V1).\n6 ~ 0 {q(V2) : not s(V1), not s(V2), s(V2) } 1 :- r(V1).\n6 ~ 1 {q(V1) : s(V1) } 2 :- r(V2) : s(V2).\n6 ~ 2 {q(V1) : not s(V1), s(V1), s(V2) } 2 :- r(V1).\n6 ~ 1 {q(V1) : not s(V1), s(V1) } 2 :- r(V1).\n6 ~ 1 {q(V1) : not s(V1), s(V2) } 2 :- r(V1).\n6 ~ 2 {q(V1) : not s(V2), s(V1), s(V2) } 2 :- r(V1).\n6 ~ 1 {q(V1) : s(V1), s(V2) } 2 :- r(V1).\n6 ~ 0 {q(V2) : not s(V2), s(V2) } 1 :- r(V1) : s(V1).\n6 ~ 0 {q(V1) : s(V1) } 1 :- r(V2) : not s(V2), s(V2).\n6 ~ 1 {q(V2) : s(V1), s(V2) } 2 :- r(V1).\n6 ~ 1 {q(V2) : not s(V1), s(V2) } 2 :- r(V1).\n6 ~ 0 {q(V1) : not s(V1), s(V1) } 1 :- r(V2) : s(V2).\n6 ~ 2 {q(V2) : not s(V1), not s(V2), s(V2) } 2 :- r(V1).\n6 ~ 0 {q(V2) : s(V2) } 1 :- r(V1) : not s(V1), s(V1).\n6 ~ 1 {q(V2) : s(V2) } 2 :- r(V1) : s(V1).\n6 ~ 2 {q(V2) : not s(V2), s(V1), s(V2) } 2 :- r(V1).\n6 ~ 2 {q(V2) : not s(V1), s(V1), s(V2) } 2 :- r(V1).\n6 ~ 2 {q(V1) : not s(V1), s(V1) } 2 :- not r(V2) : s(V2).\n6 ~ 1 {q(V2) : s(V2) } 2 :- not r(V1) : s(V1).\n6 ~ 1 {q(V1) : s(V1);q(V2) : s(V2) } 1.\n6 ~ 1 {q(V2) : not s(V2), s(V1), s(V2) } 2.\n6 ~ 2 {q(V2) : not s(V2), s(V2) } 2 :- not r(V1) : s(V1).\n6 ~ 2 {q(V2) : s(V2) } 2 :- not r(V1) : not s(V1), s(V1).\n6 ~ 0 {q(V1) : s(V1) } 1 :- not r(V2) : not s(V2), s(V2).\n6 ~ 1 {q(V2) : not s(V1), s(V1), s(V2) } 2.\n6 ~ 0 {q(V2) : s(V1), s(V2) } 2.\n6 ~ 0 {q(V1) : not s(V1), s(V1) } 1 :- not r(V2) : s(V2).\n6 ~ 0 {q(V2) : not s(V1), not s(V2), s(V1), s(V2) } 1.\n6 ~ 2 {q(V1) : not s(V1), not s(V2), s(V1), s(V2) } 2.\n6 ~ 1 {q(V1) : s(V1) } 2 :- not r(V2) : s(V2).\n6 ~ 1 {q(V1) : not s(V1), s(V1), s(V2) } 2.\n6 ~ 0 {q(V2) : not s(V2), s(V2) } 1 :- not r(V1) : s(V1).\n6 ~ 0 {q(V1) : s(V1), s(V2) } 2.\n6 ~ 0 {q(V1) : s(V1) } 2 :- r(V1).\n6 ~ 1 {q(V1) : not s(V2), s(V1), s(V2) } 2.\n6 ~ 0 {q(V2) : s(V2) } 1 :- not r(V1) : not s(V1), s(V1).\n6 ~ 0 {q(V1) : not s(V1), not s(V2), s(V1), s(V2) } 1.\n6 ~ 0 {q(V1) : not s(V1), s(V1) } 2.\n6 ~ 0 {q(V1) : not s(V1) } 2 :- r(V1).\n6 ~ 2 {q(V1) : s(V1) } 2 :- not r(V2) : not s(V2), s(V2).\n6 ~ 2 {q(V2) : not s(V1), not s(V2), s(V1), s(V2) } 2.\n6 ~ 0 {q(V1) : not s(V2), s(V1), s(V2) } 1 :- r(V1).\n6 ~ 0 {q(V1) : not s(V1), not s(V2), s(V2) } 1 :- r(V1).\n6 ~ 0 {q(V1) : not s(V1), s(V1), s(V2) } 1 :- r(V1).\n7 ~ 1 {q(V2) : s(V2) } 2 :- r(V1) : not s(V1), s(V1).\n7 ~ 1 {q(V2) : not s(V2), s(V2) } 2 :- r(V1) : s(V1).\n7 ~ 1 {q(V1) : s(V1);q(V2) : s(V2) } 1 :- r(V1).\n7 ~ 1 {q(V1) : not s(V1), s(V1);q(V2) : s(V2) } 1.\n7 ~ 1 {q(V2) : not s(V1), not s(V2), s(V1), s(V2) } 2.\n7 ~ 1 {q(V1);q(V2) : s(V1), s(V2) } 1 :- r(V1).\n7 ~ 1 {q(V1);q(V2) : not s(V1), s(V2) } 1 :- r(V1).\n7 ~ 0 {q(V2) : s(V2) } 2 :- not r(V1) : s(V1).\n7 ~ 1 {q(V1) : not s(V1), s(V1), s(V2) } 2 :- r(V1).\n7 ~ 1 {q(V2) : not s(V1), s(V1), s(V2) } 2 :- r(V1).\n7 ~ 1 {q(V2) : not s(V2), s(V1), s(V2) } 2 :- r(V1).\n7 ~ 1 {q(V2) : not s(V1), not s(V2), s(V2) } 2 :- r(V1).\n7 ~ 1 {q(V1) : s(V1);q(V2) : not s(V2), s(V2) } 1.\n7 ~ 0 {q(V2) : not s(V1), s(V1), s(V2) } 2.\n7 ~ 0 {q(V2) : not s(V2), s(V1), s(V2) } 2.\n7 ~ 1 {q(V1) : not s(V1), not s(V2), s(V1), s(V2) } 2.\n7 ~ 0 {q(V1) : s(V1) } 2 :- r(V2) : s(V2).\n7 ~ 0 {q(V1) : not s(V1), s(V1), s(V2) } 2.\n7 ~ 1 {q(V1) : not s(V1), s(V1) } 2 :- r(V2) : s(V2).\n7 ~ 1 {q(V1) : s(V1) } 2 :- r(V2) : not s(V2), s(V2).\n7 ~ 0 {q(V1) : not s(V2), s(V1), s(V2) } 2.\n7 ~ 1 {q(V1) : not s(V1);q(V2) : s(V2) } 1 :- r(V1).\n7 ~ 1 {q(V2) : s(V2) } 2 :- not r(V1) : not s(V1), s(V1).\n7 ~ 1 {q(V2) : not s(V2), s(V2) } 2 :- not r(V1) : s(V1).\n7 ~ 0 {q(V1) : s(V1) } 2 :- not r(V2) : s(V2).\n7 ~ 1 {q(V1) : not s(V1), s(V1) } 2 :- not r(V2) : s(V2).\n7 ~ 1 {q(V1) : s(V1) } 2 :- not r(V2) : not s(V2), s(V2).\n7 ~ 0 {q(V2) : s(V2) } 2 :- r(V1) : s(V1).\n7 ~ 0 {q(V1) : not s(V1), s(V1) } 2 :- r(V1).\n7 ~ 0 {q(V2) : not s(V1), s(V2) } 2 :- r(V1).\n7 ~ 1 {q(V1) : not s(V2), s(V1), s(V2) } 2 :- r(V1).\n7 ~ 0 {q(V2) : s(V1), s(V2) } 2 :- r(V1).\n7 ~ 0 {q(V1) : not s(V1), s(V2) } 2 :- r(V1).\n7 ~ 1 {q(V1) : not s(V1), not s(V2), s(V2) } 2 :- r(V1).\n7 ~ 0 {q(V1) : s(V1), s(V2) } 2 :- r(V1).\n8 ~ 0 {q(V1) : not s(V1), s(V1), s(V2) } 2 :- r(V1).\n8 ~ 0 {q(V1) : not s(V1), not s(V2), s(V1), s(V2) } 2.\n8 ~ 0 {q(V1) : not s(V1), not s(V2), s(V2) } 2 :- r(V1).\n8 ~ 0 {q(V1) : s(V1) } 2 :- r(V2) : not s(V2), s(V2).\n8 ~ 0 {q(V1) : not s(V1), s(V1) } 2 :- r(V2) : s(V2).\n8 ~ 0 {q(V1) : s(V1) } 2 :- not r(V2) : not s(V2), s(V2).\n8 ~ 0 {q(V1) : s(V1);q(V2) : s(V2) } 1.\n8 ~ 0 {q(V1) : not s(V1), s(V1) } 2 :- not r(V2) : s(V2).\n8 ~ 0 {q(V1) : not s(V2), s(V1), s(V2) } 2 :- r(V1).\n8 ~ 0 {q(V2) : not s(V1), not s(V2), s(V1), s(V2) } 2.\n8 ~ 0 {q(V2) : not s(V2), s(V2) } 2 :- not r(V1) : s(V1).\n8 ~ 0 {q(V2) : not s(V1), not s(V2), s(V2) } 2 :- r(V1).\n8 ~ 0 {q(V2) : not s(V2), s(V1), s(V2) } 2 :- r(V1).\n8 ~ 0 {q(V2) : not s(V1), s(V1), s(V2) } 2 :- r(V1).\n8 ~ 0 {q(V2) : not s(V2), s(V2) } 2 :- r(V1) : s(V1).\n8 ~ 0 {q(V2) : s(V2) } 2 :- not r(V1) : not s(V1), s(V1).\n8 ~ 0 {q(V2) : s(V2) } 2 :- r(V1) : not s(V1), s(V1).\n8 ~ 1 {q(V1) : s(V1);q(V2) : s(V2) } 2.\n9 ~ 1 {q(V1);q(V2) : not s(V1), s(V2) } 2 :- r(V1).\n9 ~ 1 {q(V1) : not s(V1), s(V1);q(V2) : s(V2) } 2.\n9 ~ 1 {q(V1) : not s(V1);q(V2) : s(V2) } 2 :- r(V1).\n9 ~ 1 {q(V1) : s(V1);q(V2) : s(V2) } 2 :- r(V1).\n9 ~ 1 {q(V1) : s(V1);q(V2) : not s(V2), s(V2) } 2.\n9 ~ 1 {q(V1);q(V2) : s(V1), s(V2) } 2 :- r(V1).\n9 ~ 0 {q(V1) : s(V1);q(V2) : not s(V2), s(V2) } 1.\n9 ~ 0 {q(V1) : not s(V1), s(V1);q(V2) : s(V2) } 1.\n9 ~ 0 {q(V1) : not s(V1);q(V2) : s(V2) } 1 :- r(V1).\n9 ~ 0 {q(V1) : s(V1);q(V2) : s(V2) } 1 :- r(V1).\n9 ~ 0 {q(V1);q(V2) : not s(V1), s(V2) } 1 :- r(V1).\n9 ~ 0 {q(V1);q(V2) : s(V1), s(V2) } 1 :- r(V1).\n10 ~ 0 {q(V1) : s(V1);q(V2) : s(V2) } 2.\n11 ~ 0 {q(V1) : s(V1);q(V2) : s(V2) } 2 :- r(V1).\n11 ~ 0 {q(V1) : not s(V1), s(V1);q(V2) : s(V2) } 2.\n11 ~ 0 {q(V1) : not s(V1);q(V2) : s(V2) } 2 :- r(V1).\n11 ~ 0 {q(V1) : s(V1);q(V2) : not s(V2), s(V2) } 2.\n11 ~ 0 {q(V1);q(V2) : not s(V1), s(V2) } 2 :- r(V1).\n11 ~ 0 {q(V1);q(V2) : s(V1), s(V2) } 2 :- r(V1).\n"
+    },
+    {
+      "name": "arithmetic",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(1,q(var(t)),(positive)). #modeb(1,var(t)=var(t)+1).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ p(V1) :- q(V1).\n"
+    },
+    {
+      "name": "arithmetic_nested",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(2,q(var(t)),(positive)). #modeb(1,var(t)=var(t)+(var(t)*2)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ p(V1) :- q(V1).\n2 ~  :- q(V1); V1 = V1+V1*2.\n3 ~  :- q(V1); q(V2); V1 = V1+V2*2.\n3 ~  :- q(V1); q(V2); V1 = V2+V1*2.\n3 ~  :- q(V1); q(V2); V1 = V2+V2*2.\n3 ~ p(V1) :- q(V1); V1 = V1+V1*2.\n4 ~ p(V1) :- q(V1); q(V2); V1 = V1+V2*2.\n4 ~ p(V1) :- q(V1); q(V2); V1 = V2+V1*2.\n4 ~ p(V1) :- q(V1); q(V2); V1 = V2+V2*2.\n4 ~ p(V1) :- q(V1); q(V2); V2 = V1+V1*2.\n4 ~ p(V1) :- q(V1); q(V2); V2 = V1+V2*2.\n4 ~ p(V1) :- q(V1); q(V2); V2 = V2+V1*2.\n"
+    },
+    {
+      "name": "bias",
+      "source": "#maxv(1). #modeh(p(var(t))). #modeb(1,q(var(t)),(positive)). #bias(\":- not head(_).\").",
+      "options": {},
+      "output": "2 ~ p(V1) :- q(V1).\n"
+    },
+    {
+      "name": "choice",
+      "source": "#maxv(1). #maxhl(2). #modeha(p(var(t))). #modeha(q(var(t))). #modeb(1,d(var(t)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- d(V1).\n2 ~ 1 {p(V1) } 1 :- d(V1).\n2 ~ 1 {q(V1) } 1 :- d(V1).\n3 ~ 0 {p(V1) } 1 :- d(V1).\n3 ~ 0 {q(V1) } 1 :- d(V1).\n3 ~ 2 {p(V1) } 2 :- d(V1).\n3 ~ 2 {q(V1) } 2 :- d(V1).\n3 ~ 2 {p(V1);q(V1) } 2 :- d(V1).\n4 ~ 1 {p(V1) } 2 :- d(V1).\n4 ~ 1 {q(V1) } 2 :- d(V1).\n5 ~ 0 {p(V1) } 2 :- d(V1).\n5 ~ 0 {q(V1) } 2 :- d(V1).\n5 ~ 1 {p(V1);q(V1) } 1 :- d(V1).\n7 ~ 1 {p(V1);q(V1) } 2 :- d(V1).\n7 ~ 0 {p(V1);q(V1) } 1 :- d(V1).\n9 ~ 0 {p(V1);q(V1) } 2 :- d(V1).\n"
+    },
+    {
+      "name": "choice3",
+      "source": "#maxv(0). #maxhl(3). #modeha(p). #modeha(q). #modeha(r).",
+      "options": {},
+      "output": "1 ~ 1 {r } 1.\n1 ~ 1 {p } 1.\n1 ~ 1 {q } 1.\n2 ~ 2 {r } 2.\n2 ~ 0 {q } 1.\n2 ~ 0 {p } 1.\n2 ~ 3 {p } 3.\n2 ~ 2 {q;r } 2.\n2 ~ 2 {p;r } 2.\n2 ~ 2 {p;q } 2.\n2 ~ 2 {q } 2.\n2 ~ 2 {p } 2.\n2 ~ 3 {q } 3.\n2 ~ 3 {r } 3.\n2 ~ 0 {r } 1.\n3 ~ 3 {p;q;r } 3.\n3 ~ 1 {r } 2.\n3 ~ 1 {q } 2.\n3 ~ 1 {p } 2.\n4 ~ 2 {r } 3.\n4 ~ 0 {p } 2.\n4 ~ 0 {q } 2.\n4 ~ 2 {q } 3.\n4 ~ 2 {p } 3.\n4 ~ 1 {p;q } 1.\n4 ~ 0 {r } 2.\n4 ~ 1 {p;r } 1.\n4 ~ 1 {q;r } 1.\n5 ~ 1 {q } 3.\n5 ~ 1 {r } 3.\n5 ~ 1 {p } 3.\n6 ~ 0 {p;r } 1.\n6 ~ 0 {r } 3.\n6 ~ 1 {p;q } 2.\n6 ~ 0 {p;q } 1.\n6 ~ 0 {p } 3.\n6 ~ 1 {p;r } 2.\n6 ~ 1 {q;r } 2.\n6 ~ 0 {q } 3.\n6 ~ 0 {q;r } 1.\n8 ~ 0 {q;r } 2.\n8 ~ 3 {q;r } 3.\n8 ~ 3 {p;r } 3.\n8 ~ 3 {p;q } 3.\n8 ~ 0 {p;q } 2.\n8 ~ 0 {p;r } 2.\n9 ~ 1 {p;q;r } 1.\n9 ~ 2 {p;q;r } 2.\n10 ~ 2 {p;q } 3.\n10 ~ 2 {q;r } 3.\n10 ~ 2 {p;r } 3.\n12 ~ 0 {p;q;r } 1.\n12 ~ 2 {p;q;r } 3.\n14 ~ 1 {p;q } 3.\n14 ~ 1 {q;r } 3.\n14 ~ 1 {p;r } 3.\n16 ~ 0 {q;r } 3.\n16 ~ 0 {p;r } 3.\n16 ~ 0 {p;q } 3.\n18 ~ 1 {p;q;r } 2.\n21 ~ 0 {p;q;r } 2.\n21 ~ 1 {p;q;r } 3.\n24 ~ 0 {p;q;r } 3.\n"
+    },
+    {
+      "name": "choice_const",
+      "source": "#maxv(0). #modeha(p). #modeha(q).",
+      "options": {},
+      "output": "1 ~ 1 {p } 1.\n1 ~ 1 {q } 1.\n2 ~ 0 {p } 1.\n2 ~ 2 {p } 2.\n2 ~ 0 {q } 1.\n2 ~ 2 {q } 2.\n2 ~ 2 {p;q } 2.\n3 ~ 1 {p } 2.\n3 ~ 1 {q } 2.\n4 ~ 0 {p } 2.\n4 ~ 1 {p;q } 1.\n4 ~ 0 {q } 2.\n6 ~ 1 {p;q } 2.\n6 ~ 0 {p;q } 1.\n8 ~ 0 {p;q } 2.\n"
+    },
+    {
+      "name": "choice_off",
+      "source": "#maxv(0). #modeha(p). #modeb(1,q,(positive)).",
+      "options": {
+        "no_aggregates": true
+      },
+      "output": "1 ~  :- q.\n"
+    },
+    {
+      "name": "comparison",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(q(var(t)),(positive)). #modeb(var(t)<var(t)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ p(V1) :- q(V1).\n3 ~  :- q(V1); q(V2); V1 < V2.\n4 ~ p(V1) :- q(V1); q(V2); V1 < V2.\n4 ~ p(V1) :- q(V1); q(V2); V2 < V1.\n"
+    },
+    {
+      "name": "conditional",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(1,q(var(t)),(positive)). #modec(1,r(var(t)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ p(V1) :- q(V1).\n2 ~  :- q(V1) : r(V1).\n3 ~  :- q(V2) : r(V1), r(V2).\n3 ~  :- q(V1) : r(V1), r(V2).\n"
+    },
+    {
+      "name": "const_interval",
+      "source": "#maxv(0). #constant(t,1..3). #modeh(p(const(t))).",
+      "options": {},
+      "output": "1 ~ p(3).\n1 ~ p(2).\n1 ~ p(1).\n"
+    },
+    {
+      "name": "const_negative",
+      "source": "#maxv(0). #constant(t,-2). #modeh(p(const(t))).",
+      "options": {},
+      "output": "1 ~ p(-2).\n"
+    },
+    {
+      "name": "constants",
+      "source": "#maxv(1). #constant(c,red). #constant(c,blue). #modeh(p(var(t),const(c))). #modeb(1,q(var(t),const(c)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- q(V1,red).\n1 ~  :- q(V1,blue).\n2 ~ p(V1,red) :- q(V1,red).\n2 ~ p(V1,blue) :- q(V1,red).\n2 ~ p(V1,red) :- q(V1,blue).\n2 ~ p(V1,blue) :- q(V1,blue).\n"
+    },
+    {
+      "name": "constraints_off",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(2,q(var(t)),(positive)). ",
+      "options": {
+        "no_constraints": true
+      },
+      "output": "2 ~ p(V1) :- q(V1).\n"
+    },
+    {
+      "name": "custom_cost",
+      "source": "#maxv(0). #modeh(p). #bias(\"cost(2,a). cost(3,b). attribute(tag).\").",
+      "options": {},
+      "output": "5 ~ p.\n"
+    },
+    {
+      "name": "disjunction",
+      "source": "#maxv(0). #modeh(p). #modeh(q). #bias(\"allow_disjunction.\").",
+      "options": {},
+      "output": "1 ~ p.\n1 ~ q.\n2 ~ p; q.\n"
+    },
+    {
+      "name": "dmhv",
+      "source": "#maxv(2). #modeha(p(var(t))). #modeha(q(var(t))). #modeb(1,r(var(t)),(positive)). #disallow_multiple_head_variables.",
+      "options": {},
+      "output": "1 ~  :- r(V1).\n2 ~ 1 {p(V1) } 1 :- r(V1).\n2 ~ 1 {q(V1) } 1 :- r(V1).\n3 ~ 2 {p(V1) } 2 :- r(V1).\n3 ~ 0 {p(V1) } 1 :- r(V1).\n3 ~ 2 {p(V1);q(V1) } 2 :- r(V1).\n3 ~ 2 {q(V1) } 2 :- r(V1).\n3 ~ 0 {q(V1) } 1 :- r(V1).\n4 ~ 1 {p(V1) } 2 :- r(V1).\n4 ~ 1 {q(V1) } 2 :- r(V1).\n5 ~ 0 {p(V1) } 2 :- r(V1).\n5 ~ 0 {q(V1) } 2 :- r(V1).\n5 ~ 1 {p(V1);q(V1) } 1 :- r(V1).\n7 ~ 1 {p(V1);q(V1) } 2 :- r(V1).\n7 ~ 0 {p(V1);q(V1) } 1 :- r(V1).\n9 ~ 0 {p(V1);q(V1) } 2 :- r(V1).\n"
+    },
+    {
+      "name": "duplicate",
+      "source": "#maxv(1). #modeh(p(var(t))). #modeh(p(var(t))). #modeb(1,q(var(t)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ p(V1) :- q(V1).\n"
+    },
+    {
+      "name": "explicit",
+      "source": "1 ~ p. 2 ~ q(X) :- r(X). 3 ~ :~ s(X). [1@2,X]",
+      "options": {},
+      "output": "1 ~ p.\n2 ~ q(X) :- r(X).\n3 ~ :~ s(X).[1@2, X]\n"
+    },
+    {
+      "name": "fixed",
+      "source": "#maxv(1). #modeh(p(a,var(t))). #modeb(1,q(var(t)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ p(a,V1) :- q(V1).\n"
+    },
+    {
+      "name": "head_bodies",
+      "source": "#maxv(1). #modeh(2,p(var(t))). #modeha(2,q(var(t))). #modeb(2,r(var(t))).",
+      "options": {},
+      "output": "1 ~  :- r(V1).\n2 ~ p(V1) :- r(V1).\n2 ~ 1 {q(V1) } 1 :- r(V1).\n3 ~ 2 {q(V1) } 2 :- r(V1).\n3 ~ 0 {q(V1) } 1 :- r(V1).\n4 ~ 1 {q(V1) } 2 :- r(V1).\n5 ~ 0 {q(V1) } 2 :- r(V1).\n"
+    },
+    {
+      "name": "head_cond",
+      "source": "#maxv(0). #modeh(p). #modeb(q,(positive)). #modec(r,(positive)).",
+      "options": {},
+      "output": "1 ~  :- q.\n1 ~ p.\n2 ~  :- q : r.\n2 ~ p :- q.\n3 ~ p :- q : r.\n"
+    },
+    {
+      "name": "head_cond_choice",
+      "source": "#maxv(1). #modeha(p(var(t))). #modeb(q(var(t)),(positive)). #modec(r(var(t)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ 1 {p(V1) : r(V1) } 1.\n2 ~  :- q(V1) : r(V1).\n2 ~ 1 {p(V1) } 1 :- q(V1).\n3 ~ 1 {p(V1) : r(V1) } 1 :- q(V1).\n3 ~ 0 {p(V1) : r(V1) } 1.\n3 ~ 2 {p(V1) : r(V1) } 2.\n3 ~ 0 {p(V1) } 1 :- q(V1).\n3 ~ 2 {p(V1) } 2 :- q(V1).\n4 ~ 2 {p(V1) : r(V1) } 2 :- q(V1).\n4 ~ 0 {p(V1) : r(V1) } 1 :- q(V1).\n4 ~ 1 {p(V1) : r(V1) } 2.\n4 ~ 1 {p(V1) } 2 :- q(V1).\n5 ~ 0 {p(V1) : r(V1) } 2.\n5 ~ 0 {p(V1) } 2 :- q(V1).\n5 ~ 1 {p(V1) : r(V1) } 2 :- q(V1).\n6 ~ 0 {p(V1) : r(V1) } 2 :- q(V1).\n"
+    },
+    {
+      "name": "injection",
+      "source": "#maxv(0). #modeh(p). #inject(\":- not p.\").",
+      "options": {},
+      "output": "1 ~ p.\n"
+    },
+    {
+      "name": "lengths",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(2,q(var(t)),(positive)). #modeb(1,r(var(t)),(positive)).",
+      "options": {
+        "max_body_literals": 1,
+        "max_rule_length": 2
+      },
+      "output": "1 ~  :- r(V1).\n1 ~  :- q(V1).\n2 ~ p(V1) :- r(V1).\n2 ~ p(V1) :- q(V1).\n"
+    },
+    {
+      "name": "limits",
+      "source": "#maxv(1). #maxhl(1). #minhl(0). #maxp(3). #max_penalty(4). #modeh(p(var(t))). #modeb(1,q(var(t))).",
+      "options": {},
+      "output": "0 ~ .\n0 ~ .\n1 ~  :- q(V1).\n1 ~  :- q(V1).\n1 ~  :- q(V1).\n2 ~ p(V1) :- q(V1).\n"
+    },
+    {
+      "name": "meta_bundle",
+      "source": "P(X,Y) :- Q(X,Y), closure(P,Q). P(X,Z) :- P(X,Y), Q(Y,Z), closure(P,Q). #predicate(base,edge/2). #predicate(invented,p1/2). #modem(5,closure(invented/2,base/2)).",
+      "options": {},
+      "output": "5 ~ closure(p1,edge).\n"
+    },
+    {
+      "name": "meta_choice",
+      "source": "0 { P(X,Y) } 1 :- Q(X,Y), subset(P,Q). #predicate(base,edge/2). #predicate(invented,p1/2). #modem(3,subset(invented/2,base/2)).",
+      "options": {},
+      "output": "3 ~ subset(p1,edge).\n"
+    },
+    {
+      "name": "meta_nomatch",
+      "source": "#predicate(base,edge/2). #modem(2,inverse(base/2,base/2)).",
+      "options": {},
+      "output": "2 ~ inverse(edge,edge).\n"
+    },
+    {
+      "name": "meta_valid",
+      "source": "P(A,B) :- Q(B,A), inverse(P,Q). #predicate(base,edge/2). #predicate(invented,p1/2). #modem(2,inverse(invented/2,base/2)).",
+      "options": {},
+      "output": "2 ~ inverse(p1,edge).\n"
+    },
+    {
+      "name": "meta_weak",
+      "source": ":~ Q(X,Y), order(Q). [1@1,X,Y] #predicate(base,edge/2). #modem(4,order(base/2)).",
+      "options": {},
+      "output": "4 ~ order(edge).\n"
+    },
+    {
+      "name": "mode_interval",
+      "source": "#maxv(1). #modeh(p(1..2,var(t))). #modeb(q(var(t)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ p(1,V1) :- q(V1).\n2 ~ p(2,V1) :- q(V1).\n"
+    },
+    {
+      "name": "mode_zero",
+      "source": "#maxv(0). #modeh(p). #modeb(0,q). #modeb(0,r).",
+      "options": {},
+      "output": "1 ~  :- q.\n1 ~  :- r.\n1 ~  :- not q.\n1 ~  :- not r.\n1 ~ p.\n2 ~ p :- not r.\n2 ~  :- not q; not r.\n2 ~  :- r; not q.\n2 ~ p :- not q.\n2 ~  :- q; not r.\n2 ~  :- q; r.\n2 ~ p :- r.\n2 ~ p :- q.\n3 ~ p :- q; not r.\n3 ~ p :- q; r.\n3 ~ p :- r; not q.\n3 ~ p :- not q; not r.\n"
+    },
+    {
+      "name": "negative",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(2,q(var(t)),(positive)). #modeb(1,r(var(t)),(negative)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~  :- q(V1); not r(V1).\n2 ~ p(V1) :- q(V1).\n3 ~ p(V1) :- q(V1); not r(V1).\n"
+    },
+    {
+      "name": "nested",
+      "source": "#maxv(2). #modeh(p(f(var(t)),const(c))). #modeb(1,q(var(t),const(c))). #constant(c,box(a)).",
+      "options": {},
+      "output": "1 ~  :- q(V1,box(a)).\n2 ~ p(f(V1),box(a)) :- q(V1,box(a)).\n"
+    },
+    {
+      "name": "normal",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(2,q(var(t))).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ p(V1) :- q(V1).\n"
+    },
+    {
+      "name": "options",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(2,e(var(t),var(t)),(positive,symmetric,anti_reflexive)).",
+      "options": {},
+      "output": "1 ~  :- e(V1,V2).\n2 ~ p(V1) :- e(V1,V2).\n2 ~ p(V1) :- e(V2,V1).\n"
+    },
+    {
+      "name": "override",
+      "source": "#modeh(p). #bias(\"head(q). cost(2,a). cost(3,b). attribute(tag).\").",
+      "options": {
+        "override_default_sm": true
+      },
+      "output": "5 ~ q.\n"
+    },
+    {
+      "name": "recall3",
+      "source": "#maxv(3). #modeh(p(var(t))). #modeb(3,q(var(t)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~ p(V1) :- q(V1).\n"
+    },
+    {
+      "name": "recalls",
+      "source": "#maxv(1). #modeh(2,p(var(t))). #modeb(q(var(t))). #modec(r(var(t))).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n2 ~  :- not q(V1) : r(V1).\n2 ~ p(V1) :- q(V1).\n2 ~  :- q(V1) : r(V1).\n3 ~  :- not q(V1) : not r(V1), r(V1).\n3 ~  :- q(V1) : not r(V1), r(V1).\n"
+    },
+    {
+      "name": "script_lf",
+      "source": "#maxv(0). #modeh(p).\n#ilasp_script\nprint(\"HELLO\")\n#end.\n",
+      "options": {},
+      "output": "1 ~ p.\n"
+    },
+    {
+      "name": "strict",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(1,q(var(t))).",
+      "options": {
+        "strict_types": true
+      },
+      "output": "1 ~ p(V1) :- t(V1).\n1 ~  :- not q(V1); t(V1).\n1 ~  :- q(V1); t(V1).\n2 ~ p(V1) :- not q(V1); t(V1).\n2 ~ p(V1) :- not q(V2); t(V2); t(V1).\n2 ~ p(V1) :- q(V1); t(V1).\n2 ~ p(V1) :- q(V2); t(V2); t(V1).\n"
+    },
+    {
+      "name": "symmetric",
+      "source": "#maxv(2). #modeh(p(var(t))). #modeb(2,e(var(t),var(t)),(positive,symmetric)).",
+      "options": {},
+      "output": "1 ~  :- e(V1,V2).\n1 ~  :- e(V1,V1).\n2 ~ p(V1) :- e(V1,V2).\n2 ~ p(V1) :- e(V1,V1).\n2 ~ p(V1) :- e(V2,V1).\n"
+    },
+    {
+      "name": "typed",
+      "source": "#maxv(2). #modeh(p(var(a),var(b))). #modeb(1,q(var(a)),(positive)). #modeb(1,r(var(b)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- q(V1).\n1 ~  :- r(V1).\n2 ~  :- q(V2); r(V1).\n3 ~ p(V1,V2) :- q(V1); r(V2).\n"
+    },
+    {
+      "name": "weak2",
+      "source": "#maxv(1). #maxp(2). #modeo(1,p(var(t)),(positive)). #weight(1). #weight(t).",
+      "options": {},
+      "output": "1 ~ :~ p(V1).[-V1@2, V1]\n1 ~ :~ p(V1).[-V1@1, V1]\n1 ~ :~ p(V1).[V1@1, V1]\n1 ~ :~ p(V1).[V1@2, V1]\n1 ~ :~ p(V1).[1@1, V1]\n1 ~ :~ p(V1).[1@2, V1]\n"
+    },
+    {
+      "name": "weak_limits",
+      "source": "#maxv(2). #modeo(2,p(var(t)),(positive)). #modeo(1,q(var(t)),(negative)). #weight(-2).",
+      "options": {
+        "max_wc_length": 1
+      },
+      "output": "1 ~ :~ p(V1).[-2@1, V1]\n1 ~ :~ p(V1).[-2@2, V1]\n"
+    },
+    {
+      "name": "zero",
+      "source": "#maxv(0). #modeh(p). #modeb(1,q,(positive)).",
+      "options": {},
+      "output": "1 ~  :- q.\n1 ~ p.\n2 ~ p :- q.\n"
+    },
+    {
+      "name": "any",
+      "source": "#maxv(1). #modeh(p(var(any))). #modeb(1,q(var(any)),(positive)).",
+      "options": {},
+      "output": ""
+    },
+    {
+      "name": "const_macro",
+      "source": "#const n=2. #constant(c,1..n). #modeh(p(const(c))).",
+      "options": {},
+      "output": ""
+    },
+    {
+      "name": "no_modes_bias",
+      "source": "#bias(\"head(p).\").",
+      "options": {},
+      "output": ""
+    },
+    {
+      "name": "coin",
+      "source": "% ILASP mode-bias translation of coin.txt.\n% No learned or Gentians-generated rules are included.\n\n% Source: https://doc.ilasp.com/specification/cdpis.html\n% Task: Choose heads or tails for each coin.\n\ncoin(c1).\ncoin(c2).\ncoin(c3).\n\n#pos({heads(c1), tails(c2), heads(c3)}, {tails(c1), heads(c2), tails(c3)}).\n#pos({heads(c1), heads(c2), tails(c3)}, {tails(c1), tails(c2), heads(c3)}).\n\n\n% ILASP generates its hypothesis space from this bias.\n#maxv(3).\n#modeh(1,heads(var(coin))).\n#modeh(1,tails(var(coin))).\n#modeb(1,coin(var(coin)),(positive)).\n#modeb(1,heads(var(coin))).\n#modeb(1,tails(var(coin))).\n",
+      "options": {},
+      "output": "1 ~  :- coin(V1).\n1 ~  :- tails(V1).\n1 ~  :- heads(V1).\n2 ~ tails(V1) :- coin(V1).\n2 ~  :- tails(V1); not heads(V1).\n2 ~  :- heads(V1); tails(V1).\n2 ~ heads(V1) :- tails(V1).\n2 ~  :- coin(V1); tails(V1).\n2 ~  :- coin(V2); tails(V1).\n2 ~  :- coin(V1); not heads(V1).\n2 ~  :- heads(V2); tails(V1).\n2 ~ heads(V1) :- coin(V1).\n2 ~  :- coin(V1); not tails(V1).\n2 ~  :- heads(V1); not tails(V1).\n2 ~  :- coin(V1); heads(V1).\n2 ~  :- coin(V2); heads(V1).\n2 ~ tails(V1) :- heads(V1).\n3 ~ heads(V1) :- coin(V2); tails(V1).\n3 ~  :- coin(V1); tails(V1); not heads(V1).\n3 ~ heads(V1) :- coin(V1); tails(V2).\n3 ~ tails(V1) :- coin(V1); tails(V2).\n3 ~  :- coin(V1); heads(V1); tails(V1).\n3 ~  :- coin(V2); tails(V1); not heads(V1).\n3 ~  :- coin(V2); heads(V1); tails(V1).\n3 ~  :- coin(V2); tails(V1); not heads(V2).\n3 ~ tails(V1) :- heads(V1); tails(V2).\n3 ~  :- coin(V1); heads(V2); tails(V1).\n3 ~ heads(V1) :- heads(V2); tails(V1).\n3 ~  :- coin(V3); heads(V2); tails(V1).\n3 ~  :- coin(V2); heads(V2); tails(V1).\n3 ~  :- coin(V2); heads(V1); not tails(V2).\n3 ~ tails(V1) :- coin(V1); heads(V1).\n3 ~  :- coin(V1); heads(V1); not tails(V1).\n3 ~ heads(V1) :- coin(V1); not tails(V1).\n3 ~ tails(V1) :- coin(V2); heads(V1).\n3 ~  :- coin(V2); heads(V1); not tails(V1).\n3 ~ tails(V1) :- coin(V1); not heads(V1).\n3 ~  :- coin(V1); not heads(V1); not tails(V1).\n3 ~ tails(V1) :- coin(V1); heads(V2).\n3 ~ heads(V1) :- coin(V1); heads(V2).\n3 ~ heads(V1) :- coin(V1); tails(V1).\n4 ~ heads(V1) :- coin(V1); heads(V2); tails(V2).\n4 ~ tails(V1) :- coin(V1); heads(V3); tails(V2).\n4 ~ tails(V1) :- coin(V1); heads(V2); tails(V2).\n4 ~ heads(V1) :- coin(V1); tails(V2); not heads(V2).\n4 ~ tails(V1) :- coin(V1); tails(V2); not heads(V2).\n4 ~ tails(V1) :- coin(V2); heads(V1); tails(V2).\n4 ~ heads(V1) :- coin(V1); heads(V3); tails(V2).\n4 ~ tails(V1) :- coin(V1); tails(V2); not heads(V1).\n4 ~ tails(V1) :- coin(V3); heads(V1); tails(V2).\n4 ~ tails(V1) :- coin(V1); heads(V1); tails(V2).\n4 ~ heads(V1) :- coin(V2); heads(V2); tails(V1).\n4 ~ heads(V1) :- coin(V3); heads(V2); tails(V1).\n4 ~ heads(V1) :- coin(V1); heads(V2); tails(V1).\n4 ~ tails(V1) :- coin(V2); heads(V1); not tails(V2).\n4 ~ heads(V1) :- coin(V2); tails(V1); not heads(V2).\n4 ~ heads(V1) :- coin(V1); heads(V2); not tails(V1).\n4 ~ heads(V1) :- coin(V1); heads(V2); not tails(V2).\n4 ~ tails(V1) :- coin(V1); heads(V2); not tails(V2).\n"
+    },
+    {
+      "name": "quoted_mapping",
+      "source": "#maxv(1). #modeh(p(\"V0\",var(t))). #modeb(q(\"V0\",var(t)),(positive)).",
+      "options": {},
+      "output": "1 ~  :- q(\"V0\",V1).\n2 ~ p(\"V0\",V1) :- q(\"V0\",V1).\n"
+    },
+    {
+      "name": "bias_no_modes_override",
+      "source": "#bias(\"head(p). cost(7,p).\").",
+      "options": {
+        "override_default_sm": true
+      },
+      "output": "7 ~ p.\n"
+    },
+    {
+      "name": "meta_duplicate_guard",
+      "source": "P(X) :- Q(X), choose(P,Q), choose(P,Q). #predicate(base,edge/1). #predicate(invented,p1/1). #modem(2,choose(invented/1,base/1)).",
+      "options": {},
+      "output": "2 ~ choose(p1,edge).\n"
+    },
+    {
+      "name": "meta_anonymous",
+      "source": "P(X) :- Q(X), choose(_,P,Q,_). #predicate(base,edge/1). #predicate(base,node/1). #predicate(invented,p1/1). #modem(2,choose(base/1,invented/1,base/1,base/1)).",
+      "options": {},
+      "output": "2 ~ choose(edge,p1,node,edge).\n2 ~ choose(node,p1,node,node).\n2 ~ choose(edge,p1,edge,node).\n2 ~ choose(node,p1,edge,node).\n2 ~ choose(edge,p1,node,node).\n2 ~ choose(node,p1,node,edge).\n2 ~ choose(node,p1,edge,edge).\n2 ~ choose(edge,p1,edge,edge).\n"
+    }
+  ]
+}

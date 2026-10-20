@@ -9,7 +9,52 @@ import pytest
 
 from benchmarks import profile_baseline as profile
 from gentians import Arguments, timing
+from gentians.evaluation.metrics import HypothesisCheckpoint
+from gentians.language.asp import parse_program
 
+
+def test_hypothesis_checkpoint_retries_reader_locks_without_losing_the_previous_best(tmp_path, monkeypatch):
+    path = tmp_path / "best.lp"
+    monkeypatch.setenv("GENTIANS_HYPOTHESIS_PATH", str(path))
+    checkpoint = HypothesisCheckpoint()
+    checkpoint.record(parse_program("old."), 1.0, False)
+    replace = Path.replace
+    attempts = 0
+
+    def locked_then_replace(temporary, target):
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            assert path.read_text().strip() == "old."
+            assert checkpoint.best == (False, 1.0)
+            raise PermissionError("temporary reader lock")
+        return replace(temporary, target)
+
+    monkeypatch.setattr(Path, "replace", locked_then_replace)
+    checkpoint.record(parse_program("new."), 2.0, False)
+    assert attempts == 3
+    assert path.read_text().strip() == "new."
+    assert checkpoint.best == (False, 2.0)
+
+
+def test_hypothesis_checkpoint_reports_persistent_permission_errors(tmp_path, monkeypatch):
+    path = tmp_path / "best.lp"
+    monkeypatch.setenv("GENTIANS_HYPOTHESIS_PATH", str(path))
+    checkpoint = HypothesisCheckpoint()
+    checkpoint.record(parse_program("old."), 1.0, False)
+    attempts = 0
+
+    def locked(temporary, target):
+        nonlocal attempts
+        attempts += 1
+        raise PermissionError("persistent lock")
+
+    monkeypatch.setattr(Path, "replace", locked)
+    with pytest.raises(PermissionError, match="persistent"):
+        checkpoint.record(parse_program("new."), 2.0, False)
+    assert attempts == 20
+    assert path.read_text().strip() == "old."
+    assert checkpoint.best == (False, 1.0)
 
 def run_worker(tmp_path: Path, code: str, timeout: int):
     return profile.run_streamed(

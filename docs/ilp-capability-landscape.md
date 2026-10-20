@@ -372,7 +372,7 @@ otros sistemas.
 | CDILP | No | Los bucles implementados son GA steady-state e incremental; [`algorithms/`](../gentians/algorithms/) |
 | LFF/Popper | No | No existe bucle generate-test-constrain que derive restricciones de generalización/especialización desde fallos |
 | Noise penalties | No | Ejemplos no tienen ID/peso; [`Example`](../gentians/language/ir/example.py) |
-| Score | Uno, heurístico | `cov_program = exp(10·(TPR−FPR))` cuando hay ambas clases; [`scoring.py`](../gentians/evaluation/scoring.py) |
+| Score | Cobertura con pesos configurables | `cov_program = exp(10·(TPR−FPR))` por defecto; pesos positivos/negativos sobre tasas de clase; [configuración](usage.md#evaluation) |
 | Solución perfecta | Sí | Todos los positivos cubiertos y ningún negativo cubierto; [`evaluator.py`](../gentians/evaluation/evaluator.py) |
 | Garantía de óptimo global | No | El GA devuelve mejor encontrado al hallar solución, agotar generaciones o presupuesto; no certifica mínima longitud |
 

@@ -66,6 +66,9 @@ generaciones posteriores a ese guardado pueden faltar y el snapshot de recursos
 queda censurado. Si no llegó a evaluar ningún candidato, no inventa una hipótesis.
 El checkpoint de la mejor hipótesis tiene prioridad sobre el programa impreso
 al final. Los datos perdidos por timeouts anteriores no se pueden reconstruir.
+Su sustitución atómica reintenta hasta veinte veces los bloqueos temporales de
+lectores, con pausas de 50 ms atribuidas a instrumentación. Un error persistente
+se propaga conservando el checkpoint anterior; no se ignora ni cambia permisos.
 
 Un crash del worker detiene el método, conserva el run fallido y sus artefactos,
 y devuelve un código de error a Slurm. Los workers activan `faulthandler` para

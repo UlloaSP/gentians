@@ -1,3 +1,6 @@
+import math
+from functools import partial
+
 from ..clauses import ClauseSpace
 from ..language.ir.inductive_task import InductiveTask
 from .evaluator import CandidateEvaluator
@@ -33,6 +36,16 @@ def _evaluation_config(config: dict[str, object]):
     name = str(config["scoring"])
     if name != "cov_program":
         raise ValueError(f"Unknown scoring strategy: {name}")
+    weights = []
+    for key in ("positive_weight", "negative_weight"):
+        value = config.get(key, 1.0)
+        if (isinstance(value, bool) or not isinstance(value, (int, float))
+                or not math.isfinite(value) or value <= 0):
+            raise ValueError(f"evaluation.{key} must be a finite positive number")
+        weights.append(float(value))
+    scale = max(weights)
+    score = partial(coverage_score, positive_weight=weights[0] / scale,
+                    negative_weight=weights[1] / scale)
     configured_arguments = config.get("clingo_arguments", [])
     if not isinstance(configured_arguments, list):
         raise ValueError("evaluation.clingo_arguments must be a list")
@@ -43,4 +56,4 @@ def _evaluation_config(config: dict[str, object]):
             next(values, None)
         elif not value.startswith("--enum-mode="):
             clingo_arguments.append(value)
-    return coverage_score, ["0", "--enum-mode=brave", *clingo_arguments]
+    return score, ["0", "--enum-mode=brave", *clingo_arguments]

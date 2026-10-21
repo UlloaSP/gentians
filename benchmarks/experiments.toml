@@ -2,54 +2,52 @@
 [suite]
 output_root = ".benchmarks/experiments"
 methods = ["gentians-steady_state"]
-datasets = [
-  "score_coloring_balanced",
-  "score_coloring_positive_heavy",
-  "score_coloring_negative_heavy",
-  "coloring",
-  "set_partition_sum",
-]
-runs = 5
+datasets = ["sudoku"]
+runs = 30
 seed_base = 42
-timeout_seconds = 300
+timeout_seconds = 3600
 validation_timeout_seconds = 60
 instrumentation = "full"
 cprofile = false
 
 [suite.overrides]
 algorithm = "steady_state"
-"selection.name" = "tournament"
-"selection.tournament_percentage" = 0.5
 "evaluation.positive_weight" = 1.0
 "evaluation.negative_weight" = 1.0
-"clause_generation.clingo_arguments" = []
 
 [[experiment]]
-id = "score-weights/population-10-ratio-1-1"
-label = "Score 1:1 · 10 individuos"
-description = "Equal positive and negative rate weights; steady state, 5 matched seeds, 300 seconds per run."
-[experiment.overrides]
-"population.size" = 10
-
-[[experiment]]
-id = "score-weights/population-10-ratio-10-1"
-label = "Score 10:1 · 10 individuos"
+id = "score/tournament-10-100"
+label = "Tournament 10I · Score 100:1"
 description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
 [experiment.overrides]
 "population.size" = 10
-"evaluation.positive_weight" = 10.0
+"evaluation.positive_weight" = 100.0
+"selection.tournament_percentage" = 0.3
 
 [[experiment]]
-id = "score-weights/population-100-ratio-1-1"
-label = "Score 1:1 · 100 individuos"
-description = "Equal positive and negative rate weights; steady state, 5 matched seeds, 300 seconds per run."
-[experiment.overrides]
-"population.size" = 100
-
-[[experiment]]
-id = "score-weights/population-100-ratio-10-1"
-label = "Score 10:1 · 100 individuos"
+id = "score/tournament-10-1"
+label = "Tournament 10I · Score 1:1"
 description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
 [experiment.overrides]
-"population.size" = 100
-"evaluation.positive_weight" = 10.0
+"population.size" = 10
+"evaluation.positive_weight" = 100
+"selection.tournament_percentage" = 0.3
+
+
+[[experiment]]
+id = "score/tournament-10-100-600"
+label = "Tournament 10I · Score 100:1"
+description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 100.0
+"selection.tournament_percentage" = 0.3
+
+[[experiment]]
+id = "score/tournament-10-1-600"
+label = "Tournament 10I · Score 1:1"
+description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 100
+"selection.tournament_percentage" = 0.3

@@ -1,8 +1,12 @@
-#maxv(3).
+#maxv(5).
 #maxbl(3).
 #maxhl(1).
 #maxpl(6).
-#modeb(2,value(var(cell,output),var(numeric,output))).
-#modeb(1,same_row(var(cell,input),var(cell,input))).
-#modeb(1,same_col(var(cell,input),var(cell,input))).
-#modeb(1,same_block(var(cell,input),var(cell,input))).
+#modeh(1,{x(var(index,input),var(index,input),var(value,any,v)):value(var(value,any,v))}).
+#modeh(1,1{x(var(index,input),var(index,input),var(value,any,v)):value(var(value,any,v))}).
+#modeh(1,{x(var(index,input),var(index,input),var(value,any,v)):value(var(value,any,v))}1).
+#modeh(1,1{x(var(index,input),var(index,input),var(value,any,v)):value(var(value,any,v))}1).
+#modeb(2,index(var(index,output))).
+#modeb(2,x(var(index,output),var(index,output),var(value,output))).
+#modeb(1,same_block(var(index,input),var(index,input),var(index,input),var(index,input))).
+#modeb(1,var(index)!=var(index)).

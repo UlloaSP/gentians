@@ -1,11 +1,11 @@
-# Local comparison of positive:negative score weights, with matched seeds.
+# Score weights, selection and replacement compared with matched seeds.
 [suite]
 output_root = ".benchmarks/experiments"
 methods = ["gentians-steady_state"]
-datasets = ["sudoku"]
+datasets = ["5queens", "sudoku"]
 runs = 30
 seed_base = 42
-timeout_seconds = 3600
+timeout_seconds = 120
 validation_timeout_seconds = 60
 instrumentation = "full"
 cprofile = false
@@ -16,38 +16,81 @@ algorithm = "steady_state"
 "evaluation.negative_weight" = 1.0
 
 [[experiment]]
-id = "score/tournament-10-100"
-label = "Tournament 10I · Score 100:1"
-description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
+id = "score/lexicase-10-100"
+label = "Lexicase 10I · Score 100:1 · Dominated"
+description = "Steady state, population 10, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement."
 [experiment.overrides]
 "population.size" = 10
 "evaluation.positive_weight" = 100.0
+"replacement.name" = "dominated_or_worst"
+
+[[experiment]]
+id = "score/lexicase-10-1"
+label = "Lexicase 10I · Score 1:1 · Dominated"
+description = "Steady state, population 10, lexicase selection, positive:negative score weights 1:1, dominated-or-worst replacement."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 1.0
+"replacement.name" = "dominated_or_worst"
+
+[[experiment]]
+id = "score/tournament-10-100"
+label = "Tournament 10I · Score 100:1 · Dominated"
+description = "Steady state, population 10, tournaments sampling 30% of the population, positive:negative score weights 100:1, dominated-or-worst replacement."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 100.0
+"selection.name" = "tournament"
 "selection.tournament_percentage" = 0.3
+"replacement.name" = "dominated_or_worst"
 
 [[experiment]]
 id = "score/tournament-10-1"
-label = "Tournament 10I · Score 1:1"
-description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
+label = "Tournament 10I · Score 1:1 · Dominated"
+description = "Steady state, population 10, tournaments sampling 30% of the population, positive:negative score weights 1:1, dominated-or-worst replacement."
 [experiment.overrides]
 "population.size" = 10
-"evaluation.positive_weight" = 100
+"evaluation.positive_weight" = 1.0
+"selection.name" = "tournament"
 "selection.tournament_percentage" = 0.3
-
+"replacement.name" = "dominated_or_worst"
 
 [[experiment]]
-id = "score/tournament-10-100-600"
-label = "Tournament 10I · Score 100:1"
-description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
+id = "score/lexicase-10-100-oldest"
+label = "Lexicase 10I · Score 100:1 · Oldest"
+description = "Steady state, population 10, lexicase selection, positive:negative score weights 100:1, oldest-or-worst replacement."
 [experiment.overrides]
 "population.size" = 10
 "evaluation.positive_weight" = 100.0
-"selection.tournament_percentage" = 0.3
+"replacement.name" = "oldest_or_worst"
 
 [[experiment]]
-id = "score/tournament-10-1-600"
-label = "Tournament 10I · Score 1:1"
-description = "Positive coverage rate weighted ten times negative rejection rate; other parameters match 1:1."
+id = "score/lexicase-10-1-oldest"
+label = "Lexicase 10I · Score 1:1 · Oldest"
+description = "Steady state, population 10, lexicase selection, positive:negative score weights 1:1, oldest-or-worst replacement."
 [experiment.overrides]
 "population.size" = 10
-"evaluation.positive_weight" = 100
+"evaluation.positive_weight" = 1.0
+"replacement.name" = "oldest_or_worst"
+
+[[experiment]]
+id = "score/tournament-10-100-oldest"
+label = "Tournament 10I · Score 100:1 · Oldest"
+description = "Steady state, population 10, tournaments sampling 30% of the population, positive:negative score weights 100:1, oldest-or-worst replacement."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 100.0
+"selection.name" = "tournament"
 "selection.tournament_percentage" = 0.3
+"replacement.name" = "oldest_or_worst"
+
+[[experiment]]
+id = "score/tournament-10-1-oldest"
+label = "Tournament 10I · Score 1:1 · Oldest"
+description = "Steady state, population 10, tournaments sampling 30% of the population, positive:negative score weights 1:1, oldest-or-worst replacement."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 1.0
+"selection.name" = "tournament"
+"selection.tournament_percentage" = 0.3
+"replacement.name" = "oldest_or_worst"

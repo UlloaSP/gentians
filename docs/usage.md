@@ -94,7 +94,7 @@ and no negative. When a class is absent, its weight has no effect and the origin
 one-class score is retained. See [score experiments](score-experiments.md).
 Whole-program evaluation uses brave consequences. Evolutionary individuals
 record whether they cover every positive example and avoid every negative
-example. Replacement has no behavior-specific tie-break. The benchmark dashboard
+example. The benchmark dashboard
 reports complete, incomplete, consistent, inconsistent, and perfect candidate
 rates.
 
@@ -222,6 +222,32 @@ probability gate. Selection and variation still run once per generation.
 
 See [variation policy](variation-policy.md) for guarantees and exceptions, and
 [the mutation guide](mutation-guide.md) for diagrams.
+
+## Replacement
+
+Each offspring that is not a solution goes through the replacement strategy.
+Duplicate programs and non-finite scores are always rejected. A solution always
+joins the population.
+
+- `dominated_or_worst`, the default, replaces an individual whose coverage the
+  candidate subsumes: it covers every positive that individual covers and no
+  negative that individual avoids. Behaviors come from whole-program evaluation, so
+  dominance compares observed coverage, not clause contributions. Among dominated
+  individuals, strict dominance beats equal behavior, then lower score, then
+  the most similar program, then the oldest. A dominated victim never removes
+  the population's best result on any example, which keeps the specialists that
+  lexicase selects. If the candidate dominates no one, it falls back to
+  replacing the worst individual if the candidate scores at least as high.
+- `oldest_or_worst` replaces the worst individual, or the oldest one with
+  probability `prob_replacing_oldest` if it is not fitter than the candidate.
+  The candidate must score at least as high as the worst individual.
+
+```python
+replacement={"name": "oldest_or_worst", "prob_replacing_oldest": 0.1}
+```
+
+Operator metrics record `dominated_victim` for every accepted replacement, under
+either strategy.
 
 ## Clause pruning
 

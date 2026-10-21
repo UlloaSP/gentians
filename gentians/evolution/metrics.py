@@ -1,5 +1,5 @@
 from ..hypotheses import Genome
-from ..evaluation.result import EvaluationResult
+from ..evaluation.result import EvaluationResult, dominates
 from ..timing import instrumentation, metric_enabled, record_metric
 from .individual import Individual
 from .operator_types import MutationProposal
@@ -200,6 +200,11 @@ def record_replacement(
                     accepted
                     and victim is not None
                     and candidate.score > victim.score
+                ),
+                "dominated_victim": (
+                    accepted
+                    and victim is not None
+                    and dominates(candidate.behavior, victim.behavior)
                 ),
                 "population_size": len(after),
             },

@@ -2,10 +2,46 @@
 [suite]
 output_root = ".benchmarks/experiments"
 methods = ["gentians-steady_state"]
-datasets = ["5queens", "sudoku"]
+datasets = [
+    "4queens",
+    "5queens",
+    "8queens",
+    "animals_bird",
+    "clique",
+    "coin",
+    "coloring",
+    "constant_colour",
+    "euclid",
+    "even_odd",
+    "grandparent",
+    "hamming_0",
+    "hamming_0_unbalanced",
+    "hamming_1",
+    "hamming_1_unbalanced",
+    "knapsack",
+    "latin_square",
+    "magic_square_no_diag",
+    "pedro",
+    "penguin",
+    "set_partition_sum",
+    "set_partition_sum_and_cardinality",
+    "set_partition_sum_cardinality_and_square",
+    "subset_sum",
+    "subset_sum_double",
+    "subset_sum_double_and_prod",
+    "subset_sum_double_and_prod_unbalanced",
+    "subset_sum_double_and_sum",
+    "subset_sum_double_unbalanced",
+    "subset_sum_double_unbalanced_count",
+    "subset_sum_triple",
+    "subset_sum_unbalanced",
+    "subset_sum_unbalanced_ops",
+    "synthetic_million",
+    "sudoku",
+]
 runs = 30
 seed_base = 42
-timeout_seconds = 120
+timeout_seconds = 300
 validation_timeout_seconds = 60
 instrumentation = "full"
 cprofile = false

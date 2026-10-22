@@ -25,7 +25,8 @@ sha256sum -- "$image"
 # Conservamos la misma ruta absoluta dentro del contenedor: el runner la incluye
 # en los fingerprints. --cleanenv evita heredar Python o paquetes del nodo.
 # exec hace que la salida y el código de retorno del runner sean los del job.
-runner_args=("$EXPERIMENT_ID")
+# Una unidad por CPU reservada; sin --jobs el runner usaría la mitad de esas CPU.
+runner_args=("$EXPERIMENT_ID" --jobs "${SLURM_CPUS_PER_TASK:-1}")
 if [[ -n ${EXPERIMENT_METHOD:-} ]]; then
     runner_args+=(--methods "$EXPERIMENT_METHOD")
 fi

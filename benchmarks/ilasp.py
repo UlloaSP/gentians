@@ -79,10 +79,11 @@ def extract_hypothesis(stdout: str, returncode: int | None) -> str | None:
     return "\n".join(map(str, statements)) + "\n"
 
 
-def run_experiment(experiment: dict, output_dir: Path) -> int:
+def run_experiment(experiment: dict, output_dir: Path, runs_path: Path) -> int:
+    """Run each dataset once; rows already in `runs_path` are cached."""
     runs_dir = output_dir / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
-    runs_path = output_dir / "runs.csv"
+    runs_path.parent.mkdir(parents=True, exist_ok=True)
     if runs_path.exists():
         with runs_path.open(encoding="utf-8", newline="") as file:
             completed = {row["dataset"] for row in csv.DictReader(file)}

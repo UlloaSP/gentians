@@ -1027,6 +1027,18 @@ def test_light_outputs_do_not_publish_unmeasured_dashboard_fields(tmp_path):
     assert metadata["unmeasured"] == ["operator", "candidate", "quality", "clingo"]
 
 
+@pytest.mark.parametrize("level", ["full", "light"])
+def test_part_index_leaves_the_experiment_summary_to_the_caller(tmp_path, level):
+    from benchmarks.profile_baseline import write_outputs
+
+    part = tmp_path / ".parts" / "d.csv"
+    write_outputs(tmp_path, [RunResult("d", 1, 43, "d_seed_43", "ok", 0, 1.0, [], "{}", "")],
+                  level, part_index=part)
+    assert part.read_text().splitlines()[1].startswith("{}")
+    assert not any((tmp_path / name).exists()
+                   for name in ("runs.csv", "dashboard_data.json", "measurement.json"))
+
+
 def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
     results = [
         RunResult("d", 1, 1, "run1", "ok", 0, 1.0, [], "{}", ""),

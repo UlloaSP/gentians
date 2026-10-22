@@ -1,7 +1,6 @@
 import json
 from argparse import Namespace
 from pathlib import Path
-from subprocess import CompletedProcess
 
 
 import pytest
@@ -44,18 +43,21 @@ def test_unified_cli_dispatches_selected_methods_only(tmp_path, monkeypatch, met
                                             *(["--methods", *methods] if methods else [])])
     calls = []
 
-    def execute(experiment, output):
+    def execute(experiment, output, runs_path):
         calls.append(experiment)
         assert output.name == experiment["method"]
-        (output / "runs.csv").write_text("dataset,run,status,success\ncoin,1,ok,True\n")
+        runs_path.parent.mkdir(parents=True, exist_ok=True)
+        runs_path.write_text("dataset,run,status,success\ncoin,1,ok,True\n")
         return 0
 
     monkeypatch.setitem(runner.RUNNERS, "gentians", execute)
     monkeypatch.setitem(runner.RUNNERS, "ilasp", execute)
     monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
+    monkeypatch.setattr(runner, "write_summary", lambda out_dir, instrumentation: None)
     assert runner.main() == 0
     expected = methods or ["gentians-steady_state", "gentians-incremental", "ilasp-2", "ilasp-2i"]
-    assert [item["method"] for item in calls] == list(dict.fromkeys(expected))
+    # Units run concurrently, so only the set of dispatched methods is fixed.
+    assert sorted(item["method"] for item in calls) == sorted(dict.fromkeys(expected))
     index = json.loads((tmp_path / "results/experiments.json").read_text())["experiments"]
     assert {item["id"] for item in index} >= {item["id"] for item in calls}
 
@@ -178,7 +180,8 @@ def test_method_output_collision_cannot_replace_another_experiment(tmp_path, mon
 def test_new_backend_registers_without_changing_the_dispatch_loop(tmp_path, monkeypatch):
     monkeypatch.setitem(runner.METHODS, "fastlas", ("fastlas", ""))
     calls = []
-    monkeypatch.setitem(runner.RUNNERS, "fastlas", lambda experiment, output: calls.append(experiment) or 0)
+    monkeypatch.setitem(runner.RUNNERS, "fastlas",
+                        lambda experiment, output, runs_path: calls.append(experiment) or 0)
     path = paired_config(tmp_path, ["fastlas"])
     monkeypatch.setattr(runner, "parse_args", lambda: Namespace(
         config=path, experiments=["paired"], methods=None, force=False, list=False,
@@ -411,10 +414,21 @@ def test_force_replaces_only_selected_namespaced_output(tmp_path, monkeypatch):
         config=config, experiments=["group/control"], force=True, list=False,
         summary=False, historical_index=False, rebuild_dashboards=False))
     commands = []
-    def run(command, **kwargs):
-        commands.append(command)
-        return CompletedProcess(command, 0)
-    monkeypatch.setattr(runner.subprocess, "run", run)
+
+    class Process:
+        returncode = 0
+
+        def __init__(self, command, **kwargs):
+            commands.append(command)
+            self.stdout = iter(["[1/1] coin run 1 ok\n"])
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(runner.subprocess, "Popen", Process)
     monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
     assert runner.main() == 0
     assert not (chosen / "old").exists()
@@ -624,3 +638,112 @@ def test_rerun_with_current_config_is_no_longer_historical(tmp_path):
 
     [indexed] = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
     assert indexed["status"] == "complete"
+
+
+def two_by_two_config(tmp_path, *, stop_on_timeout=False):
+    path = tmp_path / "grid.toml"
+    path.write_text(
+        '[suite]\noutput_root=' + json.dumps((tmp_path / "results").as_posix())
+        + '\ndatasets=["coin", "grandparent"]\nruns=1\n'
+        + "".join(f'[[experiment]]\nid="{name}"\n' + ("stop_on_timeout=true\n" if stop_on_timeout else "")
+                  for name in ("first", "second")),
+        encoding="utf-8",
+    )
+    return path
+
+
+def grid_args(path, *, jobs, force=False, experiments=()):
+    return lambda: Namespace(
+        config=path, experiments=list(experiments), methods=None, force=force, list=False,
+        summary=False, historical_index=False, rebuild_dashboards=False, jobs=jobs,
+    )
+
+
+def test_each_experiment_method_and_dataset_runs_as_a_concurrent_unit(tmp_path, monkeypatch):
+    import threading
+
+    path = two_by_two_config(tmp_path)
+    started = threading.Barrier(4, timeout=10)
+    calls = []
+
+    def execute(experiment, output, runs_path):
+        calls.append((experiment["experiment_id"], tuple(experiment["datasets"])))
+        started.wait()  # Fails unless all four units run at the same time.
+        (dataset,) = experiment["datasets"]
+        runs_path.parent.mkdir(parents=True, exist_ok=True)
+        runs_path.write_text(f"dataset,run,status,success\n{dataset},1,ok,True\n")
+        return 0
+
+    summaries = []
+    monkeypatch.setitem(runner.RUNNERS, "gentians", execute)
+    monkeypatch.setattr(runner, "write_summary", lambda out_dir, level: summaries.append(out_dir))
+    monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
+    monkeypatch.setattr(runner, "parse_args", grid_args(path, jobs=4))
+    assert runner.main() == 0
+    assert sorted(calls) == [(experiment, (dataset,)) for experiment in ("first", "second")
+                             for dataset in ("coin", "grandparent")]
+    for experiment in ("first", "second"):
+        out = tmp_path / "results" / experiment
+        with (out / "runs.csv").open(newline="") as file:
+            assert [row["dataset"] for row in runner.csv.DictReader(file)] == ["coin", "grandparent"]
+        assert not (out / ".parts").exists()
+        manifest = json.loads((out / "experiment.json").read_text())
+        assert manifest["status"] == "complete" and manifest["jobs"] == 4
+    assert sorted(path.name for path in summaries) == ["first", "second"]
+
+
+def test_stop_on_timeout_keeps_one_configuration_in_one_unit(tmp_path):
+    _, experiments = load_config(two_by_two_config(tmp_path, stop_on_timeout=True))
+    assert runner.dataset_groups(experiments[0]) == [["coin", "grandparent"]]
+    _, experiments = load_config(two_by_two_config(tmp_path))
+    assert runner.dataset_groups(experiments[0]) == [["coin"], ["grandparent"]]
+
+
+def test_failure_stops_new_units_and_keeps_unstarted_results(tmp_path, monkeypatch):
+    path = two_by_two_config(tmp_path)
+    saved = tmp_path / "results" / "second"
+    saved.mkdir(parents=True)
+    (saved / "keep.txt").write_text("original")
+    calls = []
+
+    def execute(experiment, output, runs_path):
+        calls.append(experiment["experiment_id"])
+        return 7
+
+    monkeypatch.setitem(runner.RUNNERS, "gentians", execute)
+    monkeypatch.setattr(runner, "write_summary", lambda out_dir, level: None)
+    monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
+    monkeypatch.setattr(runner, "parse_args", grid_args(path, jobs=1, force=True))
+    assert runner.main() == 7
+    assert calls == ["first"]
+    manifest = json.loads((tmp_path / "results/first/experiment.json").read_text())
+    assert manifest["status"] == "failed"
+    assert (saved / "keep.txt").read_text() == "original"
+
+
+def test_kept_run_index_is_split_into_parts_and_merged_back(tmp_path):
+    out = tmp_path / "ilasp-2"
+    out.mkdir()
+    (out / "runs.csv").write_text("dataset,run,status\ncoin,1,ok\ngrandparent,1,failed\n")
+    groups = [["coin"], ["grandparent"], ["new"]]
+    runner.seed_parts(out, groups)
+    assert runner.read_csv_rows(runner.part_path(out, ["coin"]))[1] == [
+        {"dataset": "coin", "run": "1", "status": "ok"},
+    ]
+    assert not runner.part_path(out, ["new"]).exists()
+    runner.part_path(out, ["new"]).write_text("dataset,run,status\nnew,1,ok\n")
+    runner.merge_parts(out, groups)
+    assert (out / "runs.csv").read_text().splitlines() == [
+        "dataset,run,status", "coin,1,ok", "grandparent,1,failed", "new,1,ok",
+    ]
+    assert not (out / ".parts").exists()
+
+
+def test_unit_command_writes_only_its_part_index(tmp_path):
+    _, experiments = load_config(two_by_two_config(tmp_path))
+    unit = {**experiments[0], "datasets": ["coin"]}
+    part = runner.part_path(tmp_path, ["coin"])
+    command = experiment_command(unit, tmp_path, part)
+    assert command[command.index("--datasets") + 1:command.index("--runs")] == ["coin"]
+    assert Path(command[command.index("--part-index") + 1]) == part
+    assert "--part-index" not in experiment_command(unit, tmp_path)

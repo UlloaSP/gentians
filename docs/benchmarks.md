@@ -36,6 +36,26 @@ Run *i* of every dataset uses seed `seed_base + i`, with runs numbered from 1 an
 `seed_base = 42`. Run 1 of any dataset or experiment therefore uses seed 43, so
 datasets and experiments are matched run by run.
 
+### Parallel execution
+
+Each experiment, method and dataset is one unit, and up to `--jobs` units run at
+once. The default is half the CPUs available to the process, which under Slurm
+means the CPUs of the job, not of the node; `--jobs 1` runs the units in
+sequence. The Slurm jobs pass `--jobs` equal to their CPU allocation. Units write their run artifacts to the shared `runs/` directory and
+their run index to `.parts/`. When the last unit of an experiment ends, the parts
+are merged into `runs.csv` in configured dataset order and the dashboard is built
+once. An experiment with `stop_on_timeout` keeps its datasets in a single unit,
+because its first timeout screens out the whole configuration.
+
+Concurrent units share CPU and memory. Wall-clock times, and therefore which
+runs reach the timeout, depend on the load. The manifest records `jobs`; compare
+times only between experiments run with the same value. Seeds and the result
+fingerprint do not depend on `jobs`, so a result is reused regardless of it.
+
+Each experiment is reset only when its first unit starts. After a unit fails, no
+new unit starts: experiments already started keep their completed runs with
+status `failed`, and the others keep their saved results.
+
 Matching results may be reused. The fingerprint includes source and metaprogram
 contents, task contents, effective arguments and the worker's Python and Clingo
 versions. A change requires `--force` to replace the selected result. A source
@@ -81,7 +101,9 @@ original background and isolated contexts: every positive must extend a stable
 model and no negative may extend one. Its own timeout is configured with
 `validation_timeout_seconds`; validation is outside measured learner time.
 An unavailable candidate is recorded as `missing_hypothesis`, and validation
-timeouts remain unknown. Gentians checkpoints completed improvements so external
+timeouts remain unknown. A checker that exits abnormally, or leaves an unfinished
+report, is recorded as `error` with its exit code and its own error message.
+Gentians checkpoints completed improvements so external
 timeouts preserve its best available candidate. Both Gentians algorithms stop at
 an operation boundary and export accumulated metrics, with up to five extra
 seconds to close. Periodic metric checkpoints remain available if a stuck worker
@@ -227,7 +249,7 @@ benchmark, not limits supplied by the source.
 The historical [Gentiansâ€“ILASP comparison](ilasp-experiments.md) used 29 datasets and
 a 120-second timeout. Both Gentians algorithms ran 30 times per dataset; ILASP
 ran once per dataset and version, selecting 2 and 2i by default. One command
-launches methods configured in the active TOML sequentially. Those historical
+launches the methods configured in the active TOML, in parallel per dataset. Those historical
 matrix IDs are no longer configured; to run an external learner, first define
 its task selection and `[tools.ilasp]` settings in the common TOML:
 
@@ -246,8 +268,10 @@ keeps its Vite dashboard format.
 
 To add a learner such as FastLAS, implement its backend, register methods in
 `METHODS` and its execution function in `RUNNERS` in `run_experiments.py`, and
-add its options under `[tools.<name>]`. The backend must save the hypothesis,
-call `validate_run`, and write `runs.csv` with status, success and artifact paths.
+add its options under `[tools.<name>]`. The execution function receives the
+experiment restricted to one unit's datasets, its output directory and a run
+index path. The backend must save the hypothesis, call `validate_run`, and write
+that index with status, success and artifact paths.
 Include learner task and executable contents in `execution_inputs` and add its
 preflight checks. FastLAS itself is not implemented yet. The runner
 supports native Linux and Windows through WSL; body aggregate

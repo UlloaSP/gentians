@@ -95,3 +95,59 @@ def test_validation_timeout_preserves_completed_examples(tmp_path, monkeypatch):
     report = checker.validate_run(tmp_path / "task", hypothesis, output, timeout_seconds=1)
     assert report["status"] == "timeout" and report["valid"] is None
     assert report["examples"] == [{"passed": True}]
+
+
+def test_report_replace_retries_while_windows_locks_the_target(tmp_path, monkeypatch):
+    output = tmp_path / "check.json"
+    replace = type(output).replace
+    failures = iter((True, True))
+
+    def locked_replace(self, target):
+        if next(failures, False):
+            raise PermissionError("[WinError 5] Access is denied")
+        return replace(self, target)
+
+    monkeypatch.setattr(type(output), "replace", locked_replace)
+    monkeypatch.setattr(checker.time, "sleep", lambda seconds: None)
+    checker.write_report(output, {"status": "complete"})
+    assert json.loads(output.read_text())["status"] == "complete"
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+@pytest.mark.parametrize("returncode,written,stderr,expected_error", [
+    (2, {"status": "error", "error": "PermissionError: denied", "examples": []}, "", "PermissionError: denied"),
+    (1, {"status": "running", "examples": [{"passed": True}]}, "Traceback: boom", "Traceback: boom"),
+    (3221225477, None, "", None),
+])
+def test_failed_checker_keeps_its_message_and_exit_code(
+    tmp_path, monkeypatch, returncode, written, stderr, expected_error,
+):
+    hypothesis = tmp_path / "h.lp"
+    hypothesis.write_text("p.")
+    output = tmp_path / "check.json"
+
+    def run(command, **kwargs):
+        if written is not None:
+            output.write_text(json.dumps(written))
+        return subprocess.CompletedProcess(command, returncode, "", stderr)
+
+    monkeypatch.setattr(checker.subprocess, "run", run)
+    report = checker.validate_run(tmp_path / "task", hypothesis, output)
+    assert report["status"] == "error" and report["valid"] is None
+    assert report["returncode"] == returncode
+    assert report.get("error") == expected_error
+    assert json.loads(output.read_text()) == report
+
+
+def test_invalid_hypothesis_exit_code_is_not_an_error(tmp_path, monkeypatch):
+    hypothesis = tmp_path / "h.lp"
+    hypothesis.write_text("p.")
+    output = tmp_path / "check.json"
+
+    def run(command, **kwargs):
+        output.write_text(json.dumps({"status": "complete", "valid": False, "examples": []}))
+        return subprocess.CompletedProcess(command, 1, "", "")
+
+    monkeypatch.setattr(checker.subprocess, "run", run)
+    report = checker.validate_run(tmp_path / "task", hypothesis, output)
+    assert report["status"] == "complete" and report["valid"] is False and "returncode" not in report

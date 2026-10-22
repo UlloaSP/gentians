@@ -45,6 +45,13 @@ GENTIANS_SLURM_MEM=16G GENTIANS_SLURM_TIME=2-00:00:00 \
   bash slurm/submit.sh ilasp-all-120s-30runs/gentians-steady_state
 ```
 
+El job pasa al runner `--jobs` igual a `GENTIANS_SLURM_CPUS`: cada CPU reservada
+ejecuta una unidad de experimento, método y dataset. Con la CPU por defecto, las
+unidades van en secuencia. Si subes las CPU, sube también `GENTIANS_SLURM_MEM`,
+porque la memoria se reparte entre todas las unidades simultáneas del job. Las
+unidades simultáneas compiten por CPU y caché, así que solo conviene comparar
+tiempos entre ejecuciones con el mismo número de CPU.
+
 `submit.sh` imprime el ID del job. Slurm escribe stdout y stderr en `slurm/logs/`;
 el runner escribe los artefactos en `.benchmarks/experiments/<id>`. El
 `timeout_seconds` del TOML limita **cada run**, mientras que el tiempo de Slurm
@@ -99,7 +106,9 @@ bash slurm/submit-comparison.sh --methods gentians-steady_state gentians-increme
 
 Con los dos algoritmos y las cuatro versiones se ejecutan 696 runs. Cada
 job recibe `EXPERIMENT_ID` y `EXPERIMENT_METHOD`, y llama al runner común
-con `--methods` para ejecutar solo su método.
+con `--methods` para ejecutar solo su método. Dentro de cada job, los datasets
+se ejecutan de uno en uno con `GENTIANS_SLURM_CPUS=1`, o tantos a la vez como
+CPU tenga el job.
 
 El lanzador valida la matriz y envía un job por método, cuatro por defecto:
 Gentians `steady_state`, Gentians `incremental`, ILASP 2 e ILASP 2i.

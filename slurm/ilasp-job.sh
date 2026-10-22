@@ -21,5 +21,7 @@ git -c "safe.directory=$repo_root" rev-parse HEAD || true
 "$repo_root/.venv/bin/python" --version
 sha256sum -- "$repo_root/tools/ilasp/ILASP"
 
+# Una unidad por CPU reservada; cada dataset de ILASP es una unidad.
 exec "$repo_root/.venv/bin/python" \
-    benchmarks/run_experiments.py "$EXPERIMENT_ID" --methods "$EXPERIMENT_METHOD"
+    benchmarks/run_experiments.py "$EXPERIMENT_ID" --methods "$EXPERIMENT_METHOD" \
+    --jobs "${SLURM_CPUS_PER_TASK:-1}"

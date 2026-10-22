@@ -129,6 +129,10 @@ def parse_profile_args(
     parser.add_argument("--instrumentation", choices=("full", "light"), default="full")
     parser.add_argument("--validation-timeout-seconds", type=int, default=60)
     parser.add_argument(
+        "--part-index", type=Path,
+        help="Write the run index here and skip the summary; the caller merges parts into OUT_DIR.",
+    )
+    parser.add_argument(
         "--cprofile",
         action="store_true",
         help="Write one Python .prof file per run.",
@@ -273,7 +277,8 @@ def run_benchmark_suite(
                 flush=True,
             )
             if status == "failed":
-                write_outputs(out_dir, results, getattr(args, "instrumentation", "full"))
+                write_outputs(out_dir, results, getattr(args, "instrumentation", "full"),
+                              part_index=getattr(args, "part_index", None))
                 print(f"Stopping configuration after worker failure ({returncode}).", file=sys.stderr)
                 raise SystemExit(1)
             if timed_out and getattr(args, "stop_on_timeout", False):
@@ -281,7 +286,8 @@ def run_benchmark_suite(
                 break
         if results and results[-1].status == "timeout" and getattr(args, "stop_on_timeout", False):
             break
-    write_outputs(out_dir, results, getattr(args, "instrumentation", "full"))
+    write_outputs(out_dir, results, getattr(args, "instrumentation", "full"),
+                  part_index=getattr(args, "part_index", None))
 
 
 # Artifacts each run writes; stored gzip-compressed once the run ends. A
@@ -702,9 +708,25 @@ def read_jsonl_rows(
     ]
 
 
-def write_outputs(out_dir: Path, results: list[RunResult], instrumentation_level: str) -> None:
-    """Index the runs and summarize them; per-run artifacts in runs/ stay the only raw copy."""
+def write_outputs(
+    out_dir: Path, results: list[RunResult], instrumentation_level: str,
+    *, part_index: Path | None = None,
+) -> None:
+    """Index the runs and summarize them; per-run artifacts in runs/ stay the only raw copy.
+
+    With `part_index`, only that index is written. The caller merges the parts
+    of one experiment into `runs.csv` and then calls `write_summary`.
+    """
+    if part_index is not None:
+        part_index.parent.mkdir(parents=True, exist_ok=True)
+        write_csv(part_index, [asdict(r) for r in results])
+        return
     write_csv(out_dir / "runs.csv", [asdict(r) for r in results])
+    write_summary(out_dir, instrumentation_level)
+
+
+def write_summary(out_dir: Path, instrumentation_level: str) -> None:
+    """Summarize `runs.csv` and the raw artifacts in runs/."""
     if instrumentation_level == "light":
         (out_dir / "dashboard_data.json").unlink(missing_ok=True)
         (out_dir / "measurement.json").write_text(

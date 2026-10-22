@@ -80,7 +80,7 @@ def test_runs_once_per_task_saves_hypothesis_and_resumes(tmp_path, monkeypatch, 
 
     monkeypatch.setattr(ilasp.subprocess, "run", execute)
     monkeypatch.setattr(ilasp, "validate_run", validate)
-    assert ilasp.run_experiment(configured, tmp_path / "output") == 0
+    assert ilasp.run_experiment(configured, tmp_path / "output", tmp_path / "output/runs.csv") == 0
     assert len(calls) == 2
     with (tmp_path / "output/runs.csv").open(newline="") as file:
         rows = list(csv.DictReader(file))
@@ -90,7 +90,7 @@ def test_runs_once_per_task_saves_hypothesis_and_resumes(tmp_path, monkeypatch, 
         with gzip.open(tmp_path / "output" / row["hypothesis_path"], "rt") as file:
             assert file.read() == "p.\n"
         assert row["success"] == "True" and row["validation_path"].endswith(".gz")
-    ilasp.run_experiment(configured, tmp_path / "output")
+    ilasp.run_experiment(configured, tmp_path / "output", tmp_path / "output/runs.csv")
     assert len(calls) == 2
 
 
@@ -103,7 +103,7 @@ def test_crashed_learner_stops_after_saving_diagnostics(tmp_path, monkeypatch):
         return subprocess.CompletedProcess(command, -11, "", "native crash")
 
     monkeypatch.setattr(ilasp.subprocess, "run", execute)
-    assert ilasp.run_experiment(configured, tmp_path / "output") == 1
+    assert ilasp.run_experiment(configured, tmp_path / "output", tmp_path / "output/runs.csv") == 1
     assert len(calls) == 1
     with (tmp_path / "output/runs.csv").open(newline="") as file:
         row = next(csv.DictReader(file))
@@ -127,7 +127,7 @@ def test_sigkill_is_timeout_only_after_the_deadline(tmp_path, monkeypatch, retur
     monkeypatch.setattr(ilasp, "time", SimpleNamespace(perf_counter=lambda: next(clocks)))
     monkeypatch.setattr(ilasp.subprocess, "run", lambda command, **kwargs:
                         subprocess.CompletedProcess(command, returncode, "", ""))
-    assert ilasp.run_experiment(configured, tmp_path / "output") == (0 if expected == "timeout" else 1)
+    assert ilasp.run_experiment(configured, tmp_path / "output", tmp_path / "output/runs.csv") == (0 if expected == "timeout" else 1)
     with (tmp_path / "output/runs.csv").open(newline="") as file:
         assert next(csv.DictReader(file))["status"] == expected
 

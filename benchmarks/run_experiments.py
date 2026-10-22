@@ -8,8 +8,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import tomllib
+import traceback
+from collections import deque
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from statistics import mean
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,7 +24,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.catalog import arguments_for, arguments_json  # noqa: E402
 from benchmarks.profile_baseline import (  # noqa: E402
-    build_dashboard, read_ga_metrics, read_timings, run_file,
+    build_dashboard, read_ga_metrics, read_timings, run_file, write_summary,
 )
 from benchmarks import ilasp  # noqa: E402
 
@@ -46,6 +50,14 @@ def parse_args() -> argparse.Namespace:
         "--force", "--rerun", dest="force", action="store_true",
         help="Replace existing output and rerun.",
     )
+    parser.add_argument(
+        # process_cpu_count honours the CPU affinity a scheduler such as Slurm
+        # assigns; cpu_count would report every CPU of the node.
+        "--jobs", type=positive_int, default=max(1, (os.process_cpu_count() or 1) // 2),
+        help="Experiment, method and dataset units run at once; 1 runs them in sequence. "
+             "Defaults to half the CPUs available to this process. Concurrent units share CPU and memory, "
+             "so wall-clock times and timeouts depend on this value.",
+    )
     parser.add_argument("--list", action="store_true", help="List experiments and exit.")
     parser.add_argument("--historical-index", action="store_true",
                         help="Index saved results with their original metadata; do not run experiments.")
@@ -55,6 +67,13 @@ def parse_args() -> argparse.Namespace:
         help="Rewrite dashboard_data.json from saved run artifacts with the current schema; do not run experiments.",
     )
     return parser.parse_args()
+
+
+def positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return number
 
 
 def load_config(path: Path) -> tuple[Path, list[dict[str, Any]]]:
@@ -156,13 +175,88 @@ def expand_experiments(experiments: list[dict], methods: list[str] | None = None
     return expanded
 
 
-def run_gentians(experiment: dict, output_dir: Path) -> int:
-    return subprocess.run(experiment_command(experiment, output_dir), cwd=REPO_ROOT, check=False).returncode
+_print_lock = threading.Lock()
+
+
+def emit(line: str) -> None:
+    with _print_lock:
+        print(line, flush=True)
+
+
+def run_gentians(experiment: dict, output_dir: Path, runs_path: Path) -> int:
+    label = f"{experiment['id']} {'+'.join(experiment['datasets'])}"
+    with subprocess.Popen(
+        experiment_command(experiment, output_dir, runs_path), cwd=REPO_ROOT,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+    ) as process:
+        assert process.stdout is not None
+        # Concurrent units share the console; each line names its unit.
+        for line in process.stdout:
+            if line.strip():
+                emit(f"[{label}] {line.rstrip()}")
+    return process.returncode
 
 
 # New learners register their execution function here and methods above.
-# Every backend saves hypotheses and uses the shared independent checker.
+# Every backend saves hypotheses and uses the shared independent checker. A
+# runner receives the experiment restricted to the datasets of one unit and
+# writes that unit's run index to `runs_path`; artifacts go to the experiment
+# directory. Rows already in `runs_path` may be treated as cached.
 RUNNERS = {"gentians": run_gentians, "ilasp": ilasp.run_experiment}
+
+
+def dataset_groups(experiment: dict[str, Any]) -> list[list[str]]:
+    """Datasets that one unit runs together; units of an experiment run in parallel.
+
+    Stopping on timeout screens out the whole configuration after its first
+    timeout, so those datasets keep running in sequence within one unit.
+    """
+    datasets = list(experiment["datasets"])
+    return [datasets] if experiment.get("stop_on_timeout") else [[dataset] for dataset in datasets]
+
+
+def part_path(out_dir: Path, group: list[str]) -> Path:
+    return out_dir / ".parts" / f"{'+'.join(group)}.csv"
+
+
+def read_csv_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    if not path.exists():
+        return [], []
+    with path.open(encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file)
+        return list(reader.fieldnames or []), list(reader)
+
+
+def write_csv_rows(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames, restval="")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def seed_parts(out_dir: Path, groups: list[list[str]]) -> None:
+    """Split a kept run index into unit parts, so units can reuse cached rows."""
+    if (out_dir / ".parts").exists():
+        return
+    fieldnames, rows = read_csv_rows(out_dir / "runs.csv")
+    for group in groups:
+        selected = [row for row in rows if row["dataset"] in group]
+        if selected:
+            write_csv_rows(part_path(out_dir, group), fieldnames, selected)
+
+
+def merge_parts(out_dir: Path, groups: list[list[str]]) -> None:
+    """Write the unit parts to runs.csv in configured dataset order, then drop them."""
+    fieldnames: list[str] = []
+    rows: list[dict[str, str]] = []
+    for group in groups:
+        names, part = read_csv_rows(part_path(out_dir, group))
+        fieldnames.extend(name for name in names if name not in fieldnames)
+        rows.extend(part)
+    if fieldnames:
+        write_csv_rows(out_dir / "runs.csv", fieldnames, rows)
+    shutil.rmtree(out_dir / ".parts", ignore_errors=True)
 
 
 def experiment_output_path(output_root: Path, experiment_id: str) -> Path:
@@ -175,7 +269,9 @@ def experiment_output_path(output_root: Path, experiment_id: str) -> Path:
     return resolved
 
 
-def experiment_command(experiment: dict[str, Any], out_dir: Path) -> list[str]:
+def experiment_command(
+    experiment: dict[str, Any], out_dir: Path, part_index: Path | None = None,
+) -> list[str]:
     command = [
         str(experiment["python"] or sys.executable),
         str(PROFILE_BASELINE),
@@ -193,6 +289,8 @@ def experiment_command(experiment: dict[str, Any], out_dir: Path) -> list[str]:
         str(experiment.get("instrumentation", "full")),
         "--validation-timeout-seconds", str(experiment.get("validation_timeout_seconds", 60)),
     ]
+    if part_index is not None:
+        command.extend(("--part-index", str(part_index)))
     if experiment.get("cprofile"):
         command.append("--cprofile")
     if experiment.get("stop_on_timeout"):
@@ -380,7 +478,7 @@ def result_status(out_dir: Path, returncode: int = 0, *, stop_on_timeout: bool =
 
 
 def write_manifest(out_dir: Path, experiment: dict[str, Any], status: str,
-                   inputs: dict[str, Any] | None = None) -> None:
+                   inputs: dict[str, Any] | None = None, *, jobs: int | None = None) -> None:
     inputs = execution_inputs(experiment) if inputs is None else inputs
     payload = {
         "schema_version": 1,
@@ -399,6 +497,9 @@ def write_manifest(out_dir: Path, experiment: dict[str, Any], status: str,
         "tool": experiment.get("tool", "gentians"),
         "updated_at": datetime.now(UTC).isoformat(),
     }
+    if jobs is not None:
+        # Concurrency belongs to the measurement environment, not to the result identity.
+        payload["jobs"] = jobs
     write_json_atomic(out_dir / "experiment.json", payload)
 
 
@@ -598,6 +699,7 @@ def main() -> int:
             for dataset in experiment["datasets"]:
                 if not ilasp.task_path(experiment, dataset).is_file():
                     raise SystemExit(f"ILASP task not found: {ilasp.task_path(experiment, dataset)}")
+    plans = []
     for experiment in selected:
         out_dir = experiment_output_path(output_root, experiment["id"])
         manifest_path = out_dir / "experiment.json"
@@ -615,24 +717,93 @@ def main() -> int:
             ):
                 print(f"{experiment['id']}: skip (already run)")
                 continue
-        if out_dir.exists() and (args.force or experiment["tool"] == "gentians"):
-            shutil.rmtree(out_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        inputs = execution_inputs(experiment)
-        print(f"{experiment['id']}: run")
-        write_manifest(out_dir, experiment, "running", inputs)
-        returncode = RUNNERS[experiment["tool"]](experiment, out_dir)
-        status = result_status(out_dir, returncode,
-                               stop_on_timeout=experiment.get("stop_on_timeout", False))
-        if inputs != execution_inputs(experiment):
-            status = "stale"
-        write_manifest(out_dir, experiment, status, inputs)
-        write_index(output_root, experiments)
-        if returncode:
-            print(f"{experiment['id']}: runner failed ({returncode})", file=sys.stderr)
-            return returncode
+        plans.append((experiment, out_dir))
+    return run_plans(plans, output_root, experiments, force=args.force, jobs=getattr(args, "jobs", 1))
+
+
+def run_plans(
+    plans: list[tuple[dict[str, Any], Path]], output_root: Path, experiments: list[dict[str, Any]],
+    *, force: bool, jobs: int,
+) -> int:
+    """Run every experiment, method and dataset unit, at most `jobs` at once.
+
+    An experiment is reset when its first unit starts and finalized when its
+    last unit ends. After a failure no new unit starts: started experiments are
+    finalized with the runs they completed, the others keep their saved results.
+    """
+    units = deque(
+        (experiment, out_dir, group) for experiment, out_dir in plans for group in dataset_groups(experiment)
+    )
+    remaining = {experiment["id"]: len(dataset_groups(experiment)) for experiment, _ in plans}
+    inputs: dict[str, dict[str, Any]] = {}
+    returncodes: dict[str, int] = {}
+    running: dict[Future[int], tuple[dict[str, Any], Path]] = {}
+    failure = 0
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        while units or running:
+            while units and len(running) < jobs and not failure:
+                experiment, out_dir, group = units.popleft()
+                if experiment["id"] not in inputs:
+                    inputs[experiment["id"]] = start_experiment(experiment, out_dir, force=force, jobs=jobs)
+                unit = {**experiment, "datasets": group}
+                running[pool.submit(run_unit, unit, out_dir, part_path(out_dir, group))] = experiment, out_dir
+            if not running:
+                break
+            done, _ = wait(running, return_when=FIRST_COMPLETED)
+            for future in done:
+                experiment, out_dir = running.pop(future)
+                returncode = future.result()
+                if returncode:
+                    emit(f"{experiment['id']}: runner failed ({returncode})")
+                    returncodes.setdefault(experiment["id"], returncode)
+                    failure = failure or returncode
+                remaining[experiment["id"]] -= 1
+                if not remaining[experiment["id"]]:
+                    finish_experiment(experiment, out_dir, inputs[experiment["id"]],
+                                      returncodes.get(experiment["id"], 0), jobs=jobs)
+                    write_index(output_root, experiments)
+    # Units that never started after a failure leave their experiment incomplete.
+    for experiment, out_dir in plans:
+        if experiment["id"] in inputs and remaining[experiment["id"]]:
+            finish_experiment(experiment, out_dir, inputs[experiment["id"]],
+                              returncodes.get(experiment["id"], failure), jobs=jobs)
     write_index(output_root, experiments)
-    return 0
+    return failure
+
+
+def start_experiment(experiment: dict[str, Any], out_dir: Path, *, force: bool, jobs: int) -> dict[str, Any]:
+    if out_dir.exists() and (force or experiment["tool"] == "gentians"):
+        shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    seed_parts(out_dir, dataset_groups(experiment))
+    inputs = execution_inputs(experiment)
+    emit(f"{experiment['id']}: run")
+    write_manifest(out_dir, experiment, "running", inputs, jobs=jobs)
+    return inputs
+
+
+def run_unit(unit: dict[str, Any], out_dir: Path, runs_path: Path) -> int:
+    try:
+        return RUNNERS[unit["tool"]](unit, out_dir, runs_path)
+    except Exception:
+        emit(traceback.format_exc())
+        return 1
+
+
+def finish_experiment(
+    experiment: dict[str, Any], out_dir: Path, inputs: dict[str, Any], returncode: int, *, jobs: int,
+) -> None:
+    merge_parts(out_dir, dataset_groups(experiment))
+    if experiment["tool"] == "gentians" and (out_dir / "runs.csv").exists():
+        try:
+            write_summary(out_dir, experiment.get("instrumentation", "full"))
+        except Exception:
+            emit(traceback.format_exc())
+            returncode = returncode or 1
+    status = result_status(out_dir, returncode, stop_on_timeout=experiment.get("stop_on_timeout", False))
+    if inputs != execution_inputs(experiment):
+        status = "stale"
+    write_manifest(out_dir, experiment, status, inputs, jobs=jobs)
 
 
 if __name__ == "__main__":

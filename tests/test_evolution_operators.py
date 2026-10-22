@@ -14,6 +14,8 @@ from gentians.evolution.mutations import create_mutation
 from gentians.evolution.operator_types import MutationProposal
 from gentians.evolution.populations import create_population
 from gentians.hypotheses import HypothesisGenerator
+from gentians.evolution.replacements import create_replacement
+from gentians.evolution.replacements.dominated_or_worst import DominatedOrWorstReplacement
 from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.evolution.restarts import create_restart
 from gentians.evolution.selections import create_selection
@@ -64,6 +66,9 @@ def _context(rules, *, max_clauses=3):
         (create_restart, {"name": "stagnation", "generations": 0}),
         (create_restart, {"name": "stagnation", "generations": True}),
         (create_restart, {"name": "unknown", "generations": 100}),
+        (create_replacement, {"name": "unknown"}),
+        (create_replacement, {"name": "oldest_or_worst", "prob_replacing_oldest": True}),
+        (create_replacement, {"name": "oldest_or_worst", "prob_replacing_oldest": 1.5}),
     ],
 )
 def test_operator_factories_reject_invalid_configuration(factory, config):
@@ -1165,6 +1170,128 @@ def test_equal_novel_candidate_replaces_an_existing_individual():
 
     assert candidate in result
     assert len(result) == len(population)
+
+
+def test_dominated_or_worst_factory_needs_no_age_probability():
+    assert isinstance(
+        create_replacement({"name": "dominated_or_worst"}), DominatedOrWorstReplacement,
+    )
+
+
+def _replace_dominated(population, candidate):
+    return DominatedOrWorstReplacement()(population, candidate, random.Random(1))
+
+
+def test_dominated_replacement_spares_a_worse_specialist():
+    specialist = Individual(1, 1.0, False, (0b100, 0), birth_order=1)
+    covered = Individual(2, 2.0, False, (0b001, 0), birth_order=2)
+    best = Individual(4, 3.0, False, (0b011, 0), birth_order=3)
+    candidate = Individual(8, 2.5, False, (0b011, 0), birth_order=4)
+
+    result = _replace_dominated([best, covered, specialist], candidate)
+
+    assert result == [best, candidate, specialist]
+
+
+def test_dominated_replacement_prefers_strict_lowest_similar_then_oldest():
+    twin = Individual(0b0001, 1.0, False, (0b01, 0), birth_order=1)
+    low_far = Individual(0b0010, 0.5, False, (0, 0), birth_order=2)
+    low_near = Individual(0b0100 | 0b1000, 0.5, False, (0, 0), birth_order=3)
+    candidate = Individual(0b1000 | 0b10000, 1.0, False, (0b01, 0), birth_order=4)
+
+    assert low_near not in _replace_dominated([twin, low_far, low_near], candidate)
+    old = Individual(0b0010, 0.5, False, (0, 0), birth_order=0)
+    young = Individual(0b0100, 0.5, False, (0, 0), birth_order=5)
+    assert old not in _replace_dominated([twin, young, old], candidate)
+    assert twin not in _replace_dominated([twin], candidate)
+
+
+def test_dominance_requires_avoiding_the_victims_avoided_negatives():
+    # Positive side empty: only negative coverage decides dominance.
+    clean = Individual(1, 1.0, False, (0, 0b01), birth_order=1)
+    worst = Individual(2, 0.0, False, (0, 0b11), birth_order=2)
+    candidate = Individual(4, 1.0, False, (0, 0b10), birth_order=3)
+
+    assert _replace_dominated([clean, worst], candidate) == [clean, candidate]
+
+
+def test_undominated_candidate_falls_back_to_worst_or_is_rejected():
+    first = Individual(1, 2.0, False, (0b01, 0), birth_order=1)
+    second = Individual(2, 1.0, False, (0b10, 0), birth_order=2)
+    fit = Individual(4, 1.0, False, (0, 0b1), birth_order=3)
+    unfit = Individual(8, 0.5, False, (0, 0b1), birth_order=4)
+    population = [first, second]
+
+    assert _replace_dominated(population, fit) == [first, fit]
+    assert _replace_dominated(population, unfit) is population
+
+
+def test_dominated_replacement_rejects_duplicate_and_non_finite_candidates():
+    population = [Individual(1, 1.0, False, (0, 0)), Individual(2, 0.0, False, (0, 0))]
+    duplicate = Individual(1, 5.0, False, (0b1, 0))
+    infinite = Individual(4, float("inf"), False, (0b1, 0))
+
+    assert _replace_dominated(population, duplicate) is population
+    assert _replace_dominated(population, infinite) is population
+
+
+def test_dominated_replacement_never_loses_a_case_without_fallback():
+    rng = random.Random(5)
+
+    def case_results(population):
+        positives = negatives_avoided = 0
+        for item in population:
+            positives |= item.behavior[0]
+            negatives_avoided |= ~item.behavior[1] & 0b1111
+        return positives, negatives_avoided
+
+    def individual(genome):
+        positive, negative = rng.getrandbits(4), rng.getrandbits(4)
+        score = positive.bit_count() - negative.bit_count()
+        return Individual(genome, float(score), False, (positive, negative), birth_order=genome)
+
+    population = sorted((individual(genome) for genome in range(1, 9)),
+                        key=lambda item: item.score, reverse=True)
+    replacement = DominatedOrWorstReplacement()
+    for genome in range(9, 400):
+        candidate = individual(genome)
+        dominated = any(
+            candidate.behavior[0] | item.behavior[0] == candidate.behavior[0]
+            and candidate.behavior[1] & item.behavior[1] == candidate.behavior[1]
+            for item in population
+        )
+        before = case_results(population)
+        population = replacement(population, candidate, rng)
+        assert len(population) == 8
+        assert [item.score for item in population] == sorted(
+            (item.score for item in population), reverse=True,
+        )
+        if dominated:
+            positives, avoided = case_results(population)
+            assert positives | before[0] == positives
+            assert avoided | before[1] == avoided
+
+
+@pytest.mark.parametrize("algorithm", ["steady_state_genetic", "incremental_clause_genetic"])
+def test_dominated_or_worst_replacement_runs_in_both_algorithms(algorithm):
+    import importlib
+
+    module = importlib.import_module(f"gentians.algorithms.{algorithm}")
+    args = Arguments(
+        random_seed=3, iterations_genetic=200,
+        population={"name": "random", "size": 3},
+        replacement={"name": "dominated_or_worst"},
+        incremental={"batch_size": 3, "epoch_generations": 5, "elite_count": 1},
+    )
+    task = inductive_task(
+        [], [example(("target(a)", ""), True), example(("target(b)", ""), True)],
+        [example(("target(c)", ""), False)], [], [], max_program_clauses=2,
+    )
+    result = getattr(module, f"{algorithm}_search")(
+        args, task, make_clause_space(["target(a).", "target(b).", "target(c)."]),
+    )
+    assert result.is_solution
+    assert set(result.hypothesis) == {"target(a).", "target(b)."}
 
 
 def test_semantic_effect_logging_uses_whole_program_masks(monkeypatch):

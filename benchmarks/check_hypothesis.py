@@ -87,7 +87,12 @@ def check_hypothesis(
                 "passed": extends == (kind == "positive") if extends is not None else None,
                 "program_path": str(program_path.relative_to(output.parent)), "witness": witness,
             })
-            write_report(output, report)
+            # Progress lets a timeout keep completed examples. Losing one
+            # snapshot is harmless; the final report below must be written.
+            try:
+                write_report(output, report)
+            except OSError:
+                pass
     unknown = any(item["passed"] is None for item in report["examples"])
     report.update(status="unknown" if unknown else "complete",
                   valid=None if unknown else all(item["passed"] is True for item in report["examples"]),
@@ -100,7 +105,16 @@ def write_report(path: Path, report: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
     temporary.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
-    temporary.replace(path)
+    # Windows refuses the replace while another process, such as a virus
+    # scanner or indexer, holds the target open.
+    for attempt in range(20):
+        try:
+            temporary.replace(path)
+            return
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.05)
 
 
 def validate_run(
@@ -122,8 +136,12 @@ def validate_run(
             report = json.loads(output.read_text(encoding="utf-8"))
         else:
             report = {"status": "error", "valid": None, "examples": []}
-        if completed.returncode not in (0, 1):
-            report.update(status="error", valid=None, error=completed.stderr)
+        # Exit codes 0 and 1 mean a final report; anything else, or a report
+        # left unfinished, is an error. Keep the checker's own message.
+        if completed.returncode not in (0, 1) or report.get("status") not in ("complete", "unknown"):
+            report.update(status="error", valid=None, returncode=completed.returncode)
+            if completed.stderr.strip():
+                report["error"] = "\n".join(filter(None, (report.get("error"), completed.stderr.strip())))
     except subprocess.TimeoutExpired:
         report = json.loads(output.read_text(encoding="utf-8")) if output.exists() else {"examples": []}
         report.update(status="timeout", valid=None)
@@ -145,7 +163,8 @@ def main() -> int:
                                   helpers=external_helpers(args.learner_task) if args.learner_task else "")
         return 0 if report["valid"] else 1
     except (ValueError, RuntimeError, OSError) as error:
-        write_report(args.output, {"status": "error", "valid": None, "error": str(error), "examples": []})
+        write_report(args.output, {"status": "error", "valid": None,
+                                   "error": f"{type(error).__name__}: {error}", "examples": []})
         return 2
 
 

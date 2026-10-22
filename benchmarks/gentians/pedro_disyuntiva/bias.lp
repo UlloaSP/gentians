@@ -1,0 +1,16 @@
+#maxv(4).
+#maxbl(2).
+#maxhl(2).
+#maxpl(6).
+#modeh(1,p(var(node,any),var(node,any))).
+#modeh(1,q(var(node,any),var(node,any))).
+#modeh(1,r(var(node,any),var(node,any))).
+#modeh(1,t(var(node,any),var(node,any))).
+#modehd(p(var(node,any),var(node,any))).
+#modehd(q(var(node,any),var(node,any))).
+#modehd(r(var(node,any),var(node,any))).
+#modehd(t(var(node,any),var(node,any))).
+#modeb(1,p(var(node,any),var(node,any))).
+#modeb(1,q(var(node,any),var(node,any))).
+#modeb(1,r(var(node,any),var(node,any))).
+#modeb(1,t(var(node,any),var(node,any))).

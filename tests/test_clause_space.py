@@ -602,6 +602,7 @@ def test_clause_package_exposes_full_and_sampled_generation():
     assert clause_package.__all__ == [
         "Clause",
         "ClauseSpace",
+        "clause_generation_program",
         "generate_clause_space",
         "incremental_clause_batches",
     ]

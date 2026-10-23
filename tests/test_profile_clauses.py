@@ -2,6 +2,7 @@ import json
 import sys
 from pathlib import Path
 
+import clingo
 import pytest
 
 from benchmarks import profile_clauses
@@ -39,6 +40,18 @@ def test_profile_clauses_runs_standalone(monkeypatch, tmp_path, capsys, cprofile
     assert "JSON serialization + write:" in output
     assert "Peak RSS (process so far, including JSON):" in output
     assert str(tmp_path / "grandparent.json") in output
+    program_path = tmp_path / "grandparent.lp"
+    assert str(program_path) in output
+    # The exported program alone enumerates the models that produced the snapshot.
+    control = clingo.Control(["0"])
+    control.load(str(program_path))
+    control.ground([("base", [])])
+    with control.solve(yield_=True) as handle:
+        exported_models = sum(1 for _ in handle)
+    assert exported_models == sum(
+        row["models"] for row in payload["metrics"]["clingoMetrics"]
+        if row["operation_category"] == "solving"
+    )
     profile_path = tmp_path / "grandparent.python-profile.prof"
     if cprofile:
         assert profile_path.exists()

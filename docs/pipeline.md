@@ -131,7 +131,8 @@ Invariantes del candidato:
 - Una transición destructiva no puede reintroducir la regla marcada como forbidden para reparar su propia eliminación.
 
 Las factories de estrategias se conservan en todas las categorías aunque alguna
-registre una sola implementación. `random_group` reúne los reemplazos por firma
+registre una sola implementación. `per_clause` aplica una edición de
+`random_group` a cada cláusula sorteada con `probability`. `random_group` reúne los reemplazos por firma
 de cabeza y las operaciones por bloques. `random_jump_probability=0.1` permite
 cambiar de firma en un intento de reemplazo. En candidatos completos con
 positivos y constraints disponibles, las reglas con cabeza solo pueden eliminarse

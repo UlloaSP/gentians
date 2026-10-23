@@ -51,7 +51,8 @@ including providers and removed consumers. An invalid alternative is skipped.
 
 ## Unified mutation
 
-Configure the sole strategy through `create_mutation`:
+Configure the strategy through `create_mutation`. `per_clause` accepts the same
+options and draws `probability` per clause; see the usage guide.
 
 ```python
 mutation = {

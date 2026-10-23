@@ -167,9 +167,8 @@ for incremental. The steps live in `gentians/search/`:
 
 ## Variation
 
-Mutation has one implementation, `random_group`, selected through the existing
-mutation factory. It adds, replaces or removes a root clause and its dependency
-block. Replacement normally preserves the set of signed head predicate
+Mutation is selected through the mutation factory. `random_group` adds,
+replaces or removes a root clause and its dependency block. Replacement normally preserves the set of signed head predicate
 signatures, not the exact head expression or body:
 
 ```python
@@ -186,6 +185,14 @@ attempts. It does not override complete-candidate protection.
 `complete_generator_removal_probability` reserves a separate 10% chance to try
 deleting a headed dependency block. Its offspring still requires evaluation;
 deletion is not proof of redundancy. Both defaults are configurable.
+
+`per_clause` takes the same options but draws `probability` once per clause of
+the offspring instead of once per offspring. Each drawn clause receives one
+`random_group` edit targeted at it, in random order, under the same permissions.
+With `probability=0.9` about 90% of the clauses change, a deliberately
+destructive setting. The guards use the offspring's evaluation; intermediate
+programs are not evaluated. A forced mutation with no drawn clause applies one
+ordinary edit. The operator metrics record the edits joined by `+`.
 
 Complete programs keep their headed clauses unchanged, except for that
 removal attempt. If a complete candidate has no legal constraint edit or allowed

@@ -17,7 +17,7 @@ from benchmarks.clause_python_profile import (  # noqa: E402
 from benchmarks.profile_baseline import profile_arguments  # noqa: E402
 from benchmarks.process_resources import peak_rss_bytes  # noqa: E402
 from gentians import timing  # noqa: E402
-from gentians.clauses import generate_clause_space  # noqa: E402
+from gentians.clauses import clause_generation_program, generate_clause_space  # noqa: E402
 from gentians.gentians import task_from_arguments  # noqa: E402
 
 ALZHEIMER_DATASETS = tuple(
@@ -36,7 +36,8 @@ def main() -> None:
     parser.add_argument("--out-dir", type=Path, default=Path(".debug") / "clauses",
                         help="Snapshot/profile directory when --debug is enabled.")
     parser.add_argument("--debug", action="store_true",
-                        help="Print detailed metrics and save clause snapshots/profiling files.")
+                        help="Print detailed metrics and save clause snapshots, the generation "
+                             "ASP program and profiling files.")
     parser.add_argument(
         "--set",
         action="append",
@@ -104,6 +105,10 @@ def main() -> None:
         write_clause_snapshot(path, clause_space, metrics)
         serialization_seconds = time.perf_counter() - serialization_started
         elapsed = time.perf_counter() - started
+        # Written outside the measured times: running it with Clingo enumerates
+        # the raw clauses of this snapshot.
+        program_path = path.with_suffix(".lp")
+        program_path.write_text(clause_generation_program(task, arguments), encoding="utf-8")
         print_profile_report(
             dataset, len(clause_space), metrics,
             loading_seconds=loading_seconds,
@@ -112,6 +117,7 @@ def main() -> None:
             total_seconds=elapsed,
             peak_memory_bytes=peak_rss_bytes(),
             path=path,
+            program_path=program_path,
         )
         if args.cprofile:
             profile_path = args.out_dir / f"{safe_filename(dataset)}.python-profile.prof"
@@ -147,7 +153,7 @@ def write_clause_snapshot(path, clause_space, metrics) -> None:
 
 def print_profile_report(
     dataset, clauses, metrics, *, loading_seconds, generation_wall_seconds,
-    serialization_seconds, total_seconds, peak_memory_bytes, path,
+    serialization_seconds, total_seconds, peak_memory_bytes, path, program_path=None,
 ) -> None:
     timings = {row["metric"]: row["seconds"] for row in metrics["timings"]}
     generation = timings.get("clause_generation")
@@ -227,6 +233,8 @@ def print_profile_report(
         print(f"    Conflicts: {int(sum(row['stats_conflicts'] for row in solves)):,}")
     print(f"  Peak RSS (process so far, including JSON): {peak_memory_bytes / 2**20:,.2f} MiB")
     print(f"  Output: {path} ({path.stat().st_size / 2**20:,.2f} MiB)")
+    if program_path is not None:
+        print(f"  Generation program: {program_path}")
 
 
 def build_profiled_clause_space(program, arguments):

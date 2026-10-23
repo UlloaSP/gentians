@@ -52,6 +52,102 @@ algorithm = "steady_state"
 "evaluation.negative_weight" = 1.0
 
 [[experiment]]
+id = "score/mut-100-pc-p09"
+datasets = ["5queens"]
+label = "Lexicase 100I · Score 100:1 · Dominated · Per-clause 0.9"
+description = "Steady state, population 100, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.9 per rule."
+[experiment.overrides]
+"population.size" = 100
+"evaluation.positive_weight" = 100.0
+"replacement.name" = "dominated_or_worst"
+"mutation.name" = "per_clause"
+"mutation.probability" = 0.9
+
+[[experiment]]
+id = "score/mut-100-rg-p09"
+datasets = ["5queens"]
+label = "Lexicase 100I · Score 100:1 · Dominated · Random-group 0.9"
+description = "Steady state, population 100, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
+[experiment.overrides]
+"population.size" = 100
+"evaluation.positive_weight" = 100.0
+"replacement.name" = "dominated_or_worst"
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+
+[[experiment]]
+id = "score/mut-10-pc-p09"
+datasets = ["5queens"]
+label = "Lexicase 10I · Score 100:1 · Dominated · Per-clause 0.9"
+description = "Steady state, population 10, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.9 per rule."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 100.0
+"replacement.name" = "dominated_or_worst"
+"mutation.name" = "per_clause"
+"mutation.probability" = 0.9
+
+[[experiment]]
+id = "score/mut-10-rg-p09"
+datasets = ["5queens"]
+label = "Lexicase 10I · Score 100:1 · Dominated · Random-group 0.9"
+description = "Steady state, population 10, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 100.0
+"replacement.name" = "dominated_or_worst"
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+
+[[experiment]]
+id = "score/mut-100-pc-p01"
+datasets = ["5queens"]
+label = "Lexicase 100I · Score 100:1 · Dominated · Per-clause 0.1"
+description = "Steady state, population 100, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.1 per rule."
+[experiment.overrides]
+"population.size" = 100
+"evaluation.positive_weight" = 100.0
+"replacement.name" = "dominated_or_worst"
+"mutation.name" = "per_clause"
+"mutation.probability" = 0.1
+
+[[experiment]]
+id = "score/mut-100-rg-p01"
+datasets = ["5queens"]
+label = "Lexicase 100I · Score 100:1 · Dominated · Random-group 0.1"
+description = "Steady state, population 100, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.1 per offspring."
+[experiment.overrides]
+"population.size" = 100
+"evaluation.positive_weight" = 100.0
+"replacement.name" = "dominated_or_worst"
+"mutation.name" = "random_group"
+"mutation.probability" = 0.1
+
+[[experiment]]
+id = "score/mut-10-pc-p01"
+datasets = ["5queens"]
+label = "Lexicase 10I · Score 100:1 · Dominated · Per-clause 0.1"
+description = "Steady state, population 10, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.1 per rule."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 100.0
+"replacement.name" = "dominated_or_worst"
+"mutation.name" = "per_clause"
+"mutation.probability" = 0.1
+
+[[experiment]]
+id = "score/mut-10-rg-p01"
+datasets = ["5queens"]
+label = "Lexicase 10I · Score 100:1 · Dominated · Random-group 0.1"
+description = "Steady state, population 10, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.1 per offspring."
+[experiment.overrides]
+"population.size" = 10
+"evaluation.positive_weight" = 100.0
+"replacement.name" = "dominated_or_worst"
+"mutation.name" = "random_group"
+"mutation.probability" = 0.1
+
+[[experiment]]
 id = "score/lexicase-10-100"
 label = "Lexicase 10I · Score 100:1 · Dominated"
 description = "Steady state, population 10, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement."

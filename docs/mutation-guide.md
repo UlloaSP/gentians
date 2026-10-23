@@ -26,7 +26,7 @@ el contenido escrito del diagrama está en español.
 
 | Opción | SDK `Arguments()` | Efecto |
 | --- | --- | --- |
-| `mutation.name` | ★ `random_group` | Única estrategia registrada; la factory se conserva. |
+| `mutation.name` | ★ `random_group` | `per_clause` aplica estas mismas ediciones a cada cláusula sorteada; esta guía describe `random_group`. |
 | `probability` | ★ `0.9` | Intentar mutar cuando no se fuerza por crossover duplicado. |
 | `random_jump_probability` | ★ `0.1` | En reemplazos ordinarios, permitir otra firma de cabeza. |
 | `complete_generator_removal_probability` | ★ `0.1` | Intento especial de eliminar una raíz encabezada de un candidato completo cuando hay constraints disponibles. |

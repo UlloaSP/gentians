@@ -57,9 +57,10 @@ class Arguments:
     # Mutation operator config.
     mutation: dict[str, object] = field(
         default_factory=lambda: {
-            # Unified dependency-block mutation; factory remains the entry point.
+            # random_group edits one dependency block; per_clause edits each
+            # clause drawn with `probability`.
             "name": "random_group",
-            # Probability of mutating an offspring.
+            # Probability of mutating an offspring; per clause in per_clause.
             "probability": 0.9,
             # Per replacement attempt: allow a different signed head signature.
             "random_jump_probability": 0.1,

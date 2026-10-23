@@ -33,28 +33,38 @@ class RandomGroupMutation:
         # forces mutation in that case; otherwise the configured gate applies.
         if not force and context.rng.random() >= self.probability:
             return MutationProposal(genome, skipped=True)
-        h = context.hypotheses
-        headed = h.available_clauses & ~h.constraint_clauses
-        random_constraints = not headed
-        if random_constraints:
-            result = context.results.get(genome) if context.results is not None else None
-        else:
-            result = _result(genome, context, classify=True)
-        if result is not None and result.is_solution:
+        result, solved = self._classify(genome, context)
+        if solved:
             return MutationProposal(genome, skipped=True)
-        if random_constraints:
-            result = None
-        remove_headed = bool(
+        return self._propose(genome, context, result, self._remove_headed(genome, context, result))
+
+    @staticmethod
+    def _classify(genome: Genome, context: EvolutionContext) -> tuple[EvaluationResult | None, bool]:
+        """Return the result that guides the edit and whether it is a solution."""
+        h = context.hypotheses
+        if not h.available_clauses & ~h.constraint_clauses:
+            # Constraint-only spaces mutate at random: a cached result only
+            # detects a solution, and an unknown genome is not evaluated.
+            cached = context.results.get(genome) if context.results is not None else None
+            return None, cached is not None and cached.is_solution
+        result = _result(genome, context, classify=True)
+        return result, result is not None and result.is_solution
+
+    def _remove_headed(
+        self, genome: Genome, context: EvolutionContext, result: EvaluationResult | None,
+    ) -> bool:
+        h = context.hypotheses
+        return bool(
             result is not None and result.is_complete and h.has_positive_examples
             and genome & h.available_clauses & ~h.constraint_clauses
             and context.rng.random() < self.complete_generator_removal_probability
         )
-        return self._propose(genome, context, result, remove_headed)
 
     def _propose(
         self, genome: Genome, context: EvolutionContext,
-        result: EvaluationResult | None, remove_headed: bool,
+        result: EvaluationResult | None, remove_headed: bool, sources: Genome | None = None,
     ) -> MutationProposal:
+        """Propose one edit; `sources` restricts removals and replacements to those roots."""
         h, rng = context.hypotheses, context.rng
         headed = h.available_clauses & ~h.constraint_clauses
         # Search policy, not semantic pruning: constraint additions may
@@ -69,7 +79,7 @@ class RandomGroupMutation:
             # One draw per mutation decision, not per failed clause proposal.
             # This is an attempt at simplification, never proof of redundancy.
             if remove_headed:
-                candidate = h.remove(genome, rng, sources=headed)
+                candidate = h.remove(genome, rng, sources=headed if sources is None else headed & sources)
                 if candidate is not None and candidate != genome:
                     return MutationProposal(candidate, operation="remove")
             mutable = h.constraint_clauses
@@ -89,11 +99,11 @@ class RandomGroupMutation:
                 additions = mutable & (headed | genome) if incomplete else mutable
                 candidate = h.append(genome, rng, mutable=additions)
             elif operation == "remove":
-                candidate = h.remove(genome, rng, mutable=mutable)
+                candidate = h.remove(genome, rng, mutable=mutable, sources=sources)
             else:
                 local = not random_constraints and rng.random() >= self.random_jump_probability
                 candidate = h.replace(genome, rng, same_head=local, mutable=mutable,
-                                      same_kind=incomplete and h.has_negative_examples)
+                                      same_kind=incomplete and h.has_negative_examples, sources=sources)
             if candidate is not None and candidate != genome:
                 return MutationProposal(candidate, operation=operation, local=local)
         # In mixed spaces, complete generators remain protected if edits fail.

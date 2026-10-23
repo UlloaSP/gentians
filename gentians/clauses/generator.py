@@ -279,6 +279,23 @@ class _ClauseGenerator:
         decoder = _ModelDecoder(ctl.symbolic_atoms, self.modes_by_id)
         return ctl, decoder, facts, solver_arguments, grounding_seconds
 
+    def program_text(self) -> str:
+        """Return the exhaustive enumeration program as one runnable ASP file.
+
+        It holds the same task facts and metaprogram that `_prepare` loads. Clingo
+        configuration is not part of ASP, so a leading comment states the command
+        line. The engines that enumerate without Clingo produce the same space.
+        """
+        command = ["clingo", "<file>", "0", *self.solver_arguments(),
+                   *(["--project=project"] if self.projected_components else [])]
+        return "\n".join((
+            f"% {' '.join(command)}",
+            "% Each model is one reified clause before decoding and canonicalization.",
+            self._fact_text(),
+            *map(str, CLAUSE_METAPROGRAM),
+            "",
+        ))
+
     def solver_arguments(self) -> list[str]:
         configuration = self.args.clause_generation.get("configuration")
         arguments = _clause_space_args(self.args)
@@ -557,6 +574,11 @@ def generate_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSp
         with phase("clause_generation"):
             generator = _ClauseGenerator(task, arguments)
         return generator.clause_space()
+
+
+def clause_generation_program(task: InductiveTask, arguments: Arguments) -> str:
+    """Return the ASP program whose models are the task's raw clause space."""
+    return _ClauseGenerator(task, arguments).program_text()
 
 
 @contextmanager

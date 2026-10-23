@@ -150,6 +150,12 @@ generation time split into grounding, solving and Python; task loading and JSON
 serialization/write time; clauses per second; amortized microseconds per clause;
 Clingo models, choices, conflicts, ground atoms and rules; and peak process RSS.
 The JSON snapshot keeps its existing entries and raw metrics format.
+Beside it, `<dataset>.lp` holds the complete clause-generation program: the
+task facts and the metaprogram that Clingo receives. Its first line gives the
+command, for example `clingo <file> 0 --parallel-mode=5,split`. Each model is
+one reified clause, `selected/3` and `var_at/4` over mode ids, before Python
+decoding and canonicalization. Tasks enumerated by the direct engine get the
+equivalent program too. The file is written outside the reported times.
 Entries are written incrementally, without a second list and a complete JSON
 string in memory. Direct enumeration reports zero grounding/solving and no
 Clingo model statistics. With process partitions, worker durations are summed

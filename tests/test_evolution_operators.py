@@ -251,6 +251,43 @@ def test_random_group_random_jump_can_change_head():
     assert result.local is False
 
 
+def test_per_clause_mutation_edits_every_drawn_clause(monkeypatch):
+    first, second = "a(X) :- parent(X).", "b(X) :- parent(X)."
+    context = _context([first, "a(X) :- child(X).", second, "b(X) :- child(X)."], max_clauses=2)
+    monkeypatch.setattr(context.hypotheses, "operations", lambda genome: ["replace"])
+    mutation = create_mutation({"name": "per_clause", "probability": 1.0, "random_jump_probability": 0.0})
+
+    result = mutation(_encode(context, first, second), context)
+
+    # random_group would replace only one of the two rules.
+    assert set(_render(context, result.genome)) == {"a(X) :- child(X).", "b(X) :- child(X)."}
+    assert result.operation == "replace+replace"
+
+
+def test_per_clause_mutation_skips_clauses_removed_with_a_block(monkeypatch):
+    context = _context(["p :- q.", "q :- a.", "r :- a."])
+    monkeypatch.setattr(context.hypotheses, "operations", lambda genome: ["remove"])
+    mutation = create_mutation({"name": "per_clause", "probability": 1.0})
+
+    result = mutation(_encode(context, "p :- q.", "q :- a.", "r :- a."), context)
+
+    # Removing q also removes p; the last clause can never be removed.
+    assert len(_render(context, result.genome)) == 1
+    assert set(result.operation.split("+")) == {"remove"}
+
+
+def test_per_clause_mutation_draws_per_clause_and_honours_force():
+    first = "target(X) :- parent(X)."
+    context = _context([first, "target(X) :- parent(Y)."], max_clauses=1)
+    genome = _encode(context, first)
+    mutation = create_mutation({"name": "per_clause", "probability": 0.0})
+
+    assert mutation(genome, context) == MutationProposal(genome, skipped=True)
+    forced = mutation(genome, context, force=True)
+    assert forced.skipped is False
+    assert forced.genome != genome
+
+
 def test_mutation_metrics_include_local_and_program_distance(monkeypatch):
     rows = []
     monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")

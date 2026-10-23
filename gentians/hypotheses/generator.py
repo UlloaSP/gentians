@@ -286,12 +286,15 @@ class HypothesisGenerator:
     @_record_closure_time
     def replace(
         self, genome: Genome, rng: random.Random, *, same_head: bool = False,
-        mutable: Genome | None = None, same_kind: bool = False,
+        mutable: Genome | None = None, same_kind: bool = False, sources: Genome | None = None,
     ) -> Genome | None:
         mutable, forbidden = self._mutation_space(genome, mutable)
         if not mutable & ~genome:
             return None
-        for source_id in self._random_ids(genome & mutable, rng):
+        roots = genome & mutable
+        if sources is not None:
+            roots &= sources
+        for source_id in self._random_ids(roots, rng):
             source_bit = 1 << source_id
             base = genome & ~source_bit
             choices = mutable

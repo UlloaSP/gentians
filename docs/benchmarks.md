@@ -41,7 +41,7 @@ datasets and experiments are matched run by run.
 Each experiment, method and dataset is one unit, and up to `--jobs` units run at
 once. The default is half the CPUs available to the process, which under Slurm
 means the CPUs of the job, not of the node; `--jobs 1` runs the units in
-sequence. The Slurm jobs pass `--jobs` equal to their CPU allocation. Units write their run artifacts to the shared `runs/` directory and
+sequence. The Slurm jobs always pass `--jobs 1`. Units write their run artifacts to the shared `runs/` directory and
 their run index to `.parts/`. When the last unit of an experiment ends, the parts
 are merged into `runs.csv` in configured dataset order and the dashboard is built
 once. An experiment with `stop_on_timeout` keeps its datasets in a single unit,
@@ -60,6 +60,12 @@ Matching results may be reused. The fingerprint includes source and metaprogram
 contents, task contents, effective arguments and the worker's Python and Clingo
 versions. A change requires `--force` to replace the selected result. A source
 change during a run marks its result stale. The manifest retains these inputs.
+
+`--set PATH=JSON` overrides an `Arguments` field in every Gentians experiment,
+after the TOML overrides. Its value is part of the saved config and the
+fingerprint, so every run that indexes a result directory must pass the same
+`--set`. The Slurm jobs pass `--set clause_generation.clingo_arguments=[]`:
+clause generation runs on one Clingo thread instead of `--parallel-mode=5,split`.
 
 ## Historical results
 

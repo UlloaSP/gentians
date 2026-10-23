@@ -692,6 +692,30 @@ def test_each_experiment_method_and_dataset_runs_as_a_concurrent_unit(tmp_path, 
     assert sorted(path.name for path in summaries) == ["first", "second"]
 
 
+def test_cli_overrides_reach_every_gentians_experiment_after_the_toml(tmp_path, monkeypatch):
+    path = two_by_two_config(tmp_path)
+    seen = []
+
+    def execute(experiment, output, runs_path):
+        seen.append(experiment["overrides"])
+        (dataset,) = experiment["datasets"]
+        runs_path.parent.mkdir(parents=True, exist_ok=True)
+        runs_path.write_text(f"dataset,run,status,success\n{dataset},1,ok,True\n")
+        return 0
+
+    monkeypatch.setitem(runner.RUNNERS, "gentians", execute)
+    monkeypatch.setattr(runner, "write_summary", lambda out_dir, level: None)
+    monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
+    args = grid_args(path, jobs=1)()
+    args.set = ["clause_generation.clingo_arguments=[]"]
+    monkeypatch.setattr(runner, "parse_args", lambda: args)
+    assert runner.main() == 0
+    assert len(seen) == 4
+    assert all(overrides["clause_generation.clingo_arguments"] == [] for overrides in seen)
+    manifest = json.loads((tmp_path / "results/first/experiment.json").read_text())
+    assert manifest["overrides"]["clause_generation.clingo_arguments"] == []
+
+
 def test_stop_on_timeout_keeps_one_configuration_in_one_unit(tmp_path):
     _, experiments = load_config(two_by_two_config(tmp_path, stop_on_timeout=True))
     assert runner.dataset_groups(experiments[0]) == [["coin", "grandparent"]]

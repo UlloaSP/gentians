@@ -25,8 +25,12 @@ sha256sum -- "$image"
 # Conservamos la misma ruta absoluta dentro del contenedor: el runner la incluye
 # en los fingerprints. --cleanenv evita heredar Python o paquetes del nodo.
 # exec hace que la salida y el código de retorno del runner sean los del job.
-# Una unidad por CPU reservada; sin --jobs el runner usaría la mitad de esas CPU.
-runner_args=("$EXPERIMENT_ID" --jobs "${SLURM_CPUS_PER_TASK:-1}")
+# Las unidades van en secuencia y Clingo genera las cláusulas en un solo hilo:
+# los tiempos no dependen de cuántos procesos compartan el nodo. --force deja que
+# un job reencolado por Slurm repita el experimento aunque cambie su config; el
+# runner de Gentians reinicia el experimento igualmente. El mismo --set en
+# ilasp-job.sh mantiene coherente el índice compartido.
+runner_args=("$EXPERIMENT_ID" --force --set 'clause_generation.clingo_arguments=[]')
 if [[ -n ${EXPERIMENT_METHOD:-} ]]; then
     runner_args+=(--methods "$EXPERIMENT_METHOD")
 fi

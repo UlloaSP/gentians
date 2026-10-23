@@ -22,7 +22,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.catalog import arguments_for, arguments_json  # noqa: E402
+from benchmarks.catalog import arguments_for, arguments_json, parse_override  # noqa: E402
 from benchmarks.profile_baseline import (  # noqa: E402
     build_dashboard, read_ga_metrics, read_timings, run_file, write_summary,
 )
@@ -57,6 +57,11 @@ def parse_args() -> argparse.Namespace:
         help="Experiment, method and dataset units run at once; 1 runs them in sequence. "
              "Defaults to half the CPUs available to this process. Concurrent units share CPU and memory, "
              "so wall-clock times and timeouts depend on this value.",
+    )
+    parser.add_argument(
+        "--set", action="append", default=[], metavar="PATH=JSON",
+        help="Override an Arguments field in every Gentians experiment after the TOML overrides, "
+             "e.g. --set clause_generation.clingo_arguments=[]. Saved configs and fingerprints include it.",
     )
     parser.add_argument("--list", action="store_true", help="List experiments and exit.")
     parser.add_argument("--historical-index", action="store_true",
@@ -625,6 +630,9 @@ def indexed_historical_ids(output_root: Path) -> set[str]:
 def main() -> int:
     args = parse_args()
     output_root, definitions = load_config(args.config)
+    cli_overrides = dict(parse_override(raw) for raw in getattr(args, "set", []))
+    for definition in definitions:
+        definition["overrides"] = {**definition["overrides"], **cli_overrides}
     experiments = expand_experiments(definitions)
     configured_ids = {item["id"] for item in experiments}
     # Keep previously run optional methods discoverable after changing --methods.

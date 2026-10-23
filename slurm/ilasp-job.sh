@@ -21,7 +21,9 @@ git -c "safe.directory=$repo_root" rev-parse HEAD || true
 "$repo_root/.venv/bin/python" --version
 sha256sum -- "$repo_root/tools/ilasp/ILASP"
 
-# Una unidad por CPU reservada; cada dataset de ILASP es una unidad.
+# Los datasets de ILASP van en secuencia. --force repite el método completo si
+# Slurm reencola el job. ILASP no usa --set, pero el runner reindexa los
+# resultados de Gentians con él; sin el mismo valor que job.sh saldrían stale.
 exec "$repo_root/.venv/bin/python" \
     benchmarks/run_experiments.py "$EXPERIMENT_ID" --methods "$EXPERIMENT_METHOD" \
-    --jobs "${SLURM_CPUS_PER_TASK:-1}"
+     --force --set 'clause_generation.clingo_arguments=[]'

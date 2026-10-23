@@ -45,17 +45,21 @@ GENTIANS_SLURM_MEM=16G GENTIANS_SLURM_TIME=2-00:00:00 \
   bash slurm/submit.sh ilasp-all-120s-30runs/gentians-steady_state
 ```
 
-El job pasa al runner `--jobs` igual a `GENTIANS_SLURM_CPUS`: cada CPU reservada
-ejecuta una unidad de experimento, método y dataset. Con la CPU por defecto, las
-unidades van en secuencia. Si subes las CPU, sube también `GENTIANS_SLURM_MEM`,
-porque la memoria se reparte entre todas las unidades simultáneas del job. Las
-unidades simultáneas compiten por CPU y caché, así que solo conviene comparar
-tiempos entre ejecuciones con el mismo número de CPU.
+El job pasa siempre al runner `--jobs 1`: las unidades de experimento, método y
+dataset van en secuencia aunque subas `GENTIANS_SLURM_CPUS`. También pasa
+`--set clause_generation.clingo_arguments=[]`, así que Clingo genera las
+cláusulas en un hilo, sin `--parallel-mode=5,split`; así una CPU por job basta y
+los tiempos no dependen de hilos ni unidades simultáneas. Ese `--set` forma parte del
+fingerprint: si ejecutas el runner a mano sobre los resultados de Shelob, pásalo
+también o los resultados de Slurm aparecerán como stale.
 
 `submit.sh` imprime el ID del job. Slurm escribe stdout y stderr en `slurm/logs/`;
 el runner escribe los artefactos en `.benchmarks/experiments/<id>`. El
 `timeout_seconds` del TOML limita **cada run**, mientras que el tiempo de Slurm
-debe cubrir el experimento completo. El launcher no añade `--force`.
+debe cubrir el experimento completo. El job añade `--force` para que un job
+reencolado por Slurm vuelva a ejecutarse aunque haya cambiado la configuración
+o el código. `--force` borra antes el directorio del experimento: reenviar un
+experimento completo lo repite desde cero, en vez de omitirlo.
 
 Los métodos con directorios de salida distintos pueden ejecutarse en paralelo:
 el runner publica los manifests de forma atómica y serializa la actualización
@@ -107,8 +111,7 @@ bash slurm/submit-comparison.sh --methods gentians-steady_state gentians-increme
 Con los dos algoritmos y las cuatro versiones se ejecutan 696 runs. Cada
 job recibe `EXPERIMENT_ID` y `EXPERIMENT_METHOD`, y llama al runner común
 con `--methods` para ejecutar solo su método. Dentro de cada job, los datasets
-se ejecutan de uno en uno con `GENTIANS_SLURM_CPUS=1`, o tantos a la vez como
-CPU tenga el job.
+se ejecutan de uno en uno.
 
 El lanzador valida la matriz y envía un job por método, cuatro por defecto:
 Gentians `steady_state`, Gentians `incremental`, ILASP 2 e ILASP 2i.
@@ -117,10 +120,9 @@ disponibles. Un crash detiene el método y conserva sus diagnósticos; los timeo
 por run se registran como tales y permiten continuar. Comprueba los logs de cada
 método. `comparison.env` solicita 7 días para cada job de
 Gentians y 3 para cada versión de ILASP. El timeout
-de 30 minutos por run se define en el TOML común. El lanzador
-no usa `--force`: un resultado completo se conserva y se omite. Si un job de
-Gentians acaba a mitad de un experimento, su runner reinicia ese experimento
-al relanzarlo; el runner de ILASP sí conserva los runs terminados.
+de 30 minutos por run se define en el TOML común. Los jobs usan `--force`: un
+reenvío o un reencolado repite el método desde cero, también los runs de ILASP
+ya terminados y los resultados completos.
 
 Para observar la cola y los nodos:
 

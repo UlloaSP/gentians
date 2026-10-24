@@ -58,6 +58,9 @@ def record_evaluation_metric(
                 "consistent": is_consistent,
                 "covered_positive": coverage.pos_mask.bit_count(),
                 "covered_negative": coverage.neg_mask.bit_count(),
+                # Bit i is example i in task order; hex keeps large tasks compact.
+                "positive_mask": format(coverage.pos_mask, "x"),
+                "negative_mask": format(coverage.neg_mask, "x"),
                 "total_positive": len(task.positive_examples),
                 "total_negative": len(task.negative_examples),
             },

@@ -56,7 +56,7 @@ timings también cada segundo y el historial GA cada diez segundos. Los snapshot
 de timings incluyen las fases abiertas sin cerrar ni modificar sus acumuladores.
 La escritura se atribuye a instrumentación. El cierre normal exporta las filas
 pendientes y los totales definitivos. No cambia el formato de los artefactos,
-el payload del productor, schema 14 ni el contrato de los charts del preview.
+el payload del productor, su schema ni el contrato de los charts del preview.
 
 El timeout de Gentians permite que steady-state e incremental terminen la
 operación en curso y devuelvan la mejor evaluación completa, incluso durante
@@ -97,7 +97,7 @@ final sin afirmar que observa los callbacks de los hijos.
 - `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada. Con `--debug`, su informe distingue tiempos, throughput final, modelos posteriores al pruning ASP, retención posterior a la enumeración y pico RSS del proceso; [benchmarks.md](benchmarks.md) define los denominadores y límites. Schema 14 distingue el trabajo de los procesos de los tiempos de pared, conservando el contrato de los charts.
 - `benchmarks/profile_baseline.py` ejecuta runs y guarda una sola copia cruda por run en `runs/`: log, recursos, timings, progreso y métricas por evento, todos comprimidos con gzip al terminar el run; solo un `.prof` de cProfile queda sin comprimir. Escribe `runs.csv` como índice y construye `dashboard_data.json` leyendo `runs/` dataset a dataset. No escribe copias concatenadas. Los lectores aceptan cada artefacto sin comprimir o como `.gz`.
 - `benchmarks/run_experiments.py` carga el único TOML, selecciona herramientas y algoritmos con `--methods`, aplica overrides y controla fingerprints. Cada método guarda su manifest; el índice comprueba código y configuración usando el runtime registrado de ese método, aunque otro job se ejecute fuera de su contenedor.
-- Gentians conserva sus métricas, `dashboard_data.json` y contrato de schema 14. Los métodos externos guardan tiempos propios y no fabrican fases de Gentians ni dashboards.
+- Gentians conserva sus métricas, `dashboard_data.json` y contrato de schema 19. Los métodos externos guardan tiempos propios y no fabrican fases de Gentians ni dashboards.
 - Cada run guarda `_hypothesis.lp.gz` si produjo un candidato y `_validation.json.gz`. `benchmarks/check_hypothesis.py` crea un programa ASP independiente por ejemplo y comprueba la hipótesis completa con el background original y su contexto aislado. Guarda esos programas y los modelos testigo; un timeout del comprobador queda como desconocido. Esta validación tiene presupuesto propio y ocurre después de cerrar los tiempos del learner. `success` solo es verdadero si la comprobación pasa; `reported_success` conserva la declaración original de Gentians.
 - `benchmarks/experiments.toml` reúne todas las matrices. Añade experimentos de investigación con IDs prefijados, como `pool-policy/control`, y una diferencia interpretable frente a su control. Conserva sus parámetros en el mismo archivo; no crees TOML separados.
 - Resultados generados viven bajo `.benchmarks/experiments/<experimento>/` y están ignorados. No edites JSON o CSV generados a mano.
@@ -136,7 +136,7 @@ vp test
 
 `src/metrics.js` define schema, orden de fases, tipos y agregaciones
 compartidas. `main.jsx` muestra un experimento con todas sus gráficas.
-`ExperimentCompare.jsx` compara varios solo con la tabla y el gráfico Pareto. Si cambia el payload, actualiza
+`ExperimentCompare.jsx` compara varios con la tabla, el gráfico Pareto y la curva de runs resueltas. Si cambia el payload, actualiza
 productor, `DASHBOARD_SCHEMA_VERSION`, consumidores y tests juntos. Un dashboard
 viejo debe fallar como stale, no reinterpretarse silenciosamente: se regenera con
 `run_experiments.py --rebuild-dashboards`, que vuelve a agregar los artefactos
@@ -146,6 +146,26 @@ Las agregaciones las calcula el productor. `dashboard_data.json` lleva solo lo
 que dibuja la UI: la media del progreso por eje ya calculada y, por run, hasta
 300 puntos que conservan mejoras y reinicios. Los artefactos crudos por run son
 la fuente para regenerarlo y no se cargan en el navegador.
+
+Cada fila de `_quality_metrics` describe un candidato evaluado, en orden de
+evaluación, e incluye desde schema 15 `positive_mask` y `negative_mask`: el bit
+`i` en hexadecimal es el ejemplo `i` del orden de la tarea. El productor asigna
+cada fila a su generación con las evaluaciones acumuladas del historial GA y
+divide las generaciones del dataset en hasta 20 rangos iguales, compartidos por
+todas sus runs. Para que la UI filtre por run y rango sin recalcular, `quality`
+guarda por run las celdas `[positivos, negativos, rango, evaluados, best]`.
+Desde schema 18 cada registro del historial GA describe la cobertura de la
+población viva: `positive_coverage`, `negative_avoidance`,
+`champion_negative_avoidance` y `behavior_diversity`; desde schema 19 el
+dashboard añade la diversidad de programas, el tamaño medio y los reinicios de
+cada run, `runCosts` con el coste en que terminó cada run y
+`quality.finalCoverage` con la cobertura del mejor candidato de cada run
+(máscaras de cobertura distintas / tamaño). `quality.populationCoverage`
+conserva hasta 300 generaciones por run y la media, generación a generación,
+de las runs que siguen buscando.
+La dificultad por ejemplo usa las máscaras y los textos de los ejemplos, que
+el productor lee de la tarea; las runs anteriores a schema 15 no tienen máscaras
+y esa gráfica queda vacía.
 
 ## Contrato de charts
 
@@ -158,8 +178,14 @@ No cambies estas gráficas salvo petición explícita:
 - Tipos horizontales de tiempo: exactamente `python`, `grounding`, `solving` y `closure`.
 - Tabla solver y gráficas Clingo: una fila o categoría por cada fase que realmente pidió Clingo; ninguna fase se omite ni se agrupa.
 - Épocas incrementales: épocas medias por run según su motivo de cierre. Steady-state no tiene épocas y lo indica en vez de mostrar ceros.
+- Facilidad de satisfacer criterios de cobertura: tres barras apiladas al 100%. Positivos separa complete de incomplete, negativos separa consistent de inconsistent y combinado reparte los mismos candidatos en complete + consistent, solo complete, solo consistent y ninguno. Cada tramo lleva su nombre y porcentaje; el criterio cumplido usa el tono saturado y su complemento el mismo tono apagado.
+- Candidatos evaluados por cobertura: positivos en X y negativos en Y invertido. Muestra la media de las runs o una ejecución, hasta un rango de generaciones; por defecto el último, con todas las evaluaciones. El color va de claro (inicio) a oscuro (final) según el rango medio de las evaluaciones; marca el frente no dominado y el punto ideal.
+- Runs resueltas según coste: curva de éxito acumulado por generaciones, evaluaciones o segundos; el final es la tasa de éxito.
+- Mejor individuo de cada run: cobertura del mejor candidato de cada run, resueltas y sin resolver por separado.
+- Evolución de la cobertura: un punto por generación de la población viva, con los reinicios marcados en una ejecución: positivos cubiertos y negativos evitados de media, negativos evitados por el mejor individuo comportamientos de cobertura distintos, programas distintos y tamaño medio en el eje derecho; media de las runs que siguen buscando o una ejecución.
+- Dificultad por ejemplo: porcentaje medio por run de evaluados que cumple cada ejemplo, de más difícil a más fácil dentro de positivos y negativos.
 - Resultado: muestra el algoritmo, `candidatas` como el mayor `ClauseSpace` preparado por run y los reinicios medios por run.
 - Modelos solve por etapa: usa fases reales; `clause_generation` se muestra como `clauses`. No agrupa fases conocidas como `search setup`, `fitness search` ni `other`.
 - Los títulos de charts identifican la métrica y son funcionales. No añadas títulos de página, hero copy ni texto ornamental.
-- Comparación muestra solo la tabla y el gráfico Pareto de tiempo frente a best encontrados. Las gráficas detalladas viven en la vista de cada experimento. En ambos elementos el color identifica siempre al experimento.
+- Comparación muestra la tabla, el gráfico Pareto de tiempo frente a best encontrados y la curva de runs resueltas según coste de cada experimento. Las gráficas detalladas viven en la vista de cada experimento. En todos ellos el color identifica siempre al experimento.
 - Tabla de comparación: no muestra wall-clock. Usa `total_execution` y su delta; `grounding`, `solving` y `python` con sus deltas; `ground calls` y `solve calls`.

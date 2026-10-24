@@ -1,4 +1,5 @@
 import argparse
+import bisect
 import csv
 import gzip
 import json
@@ -17,7 +18,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_BASELINE_PATH = Path(__file__).resolve()
 # Keep in sync with DASHBOARD_SCHEMA_VERSION in .benchmarks/src/metrics.js.
-DASHBOARD_SCHEMA_VERSION = 14
+DASHBOARD_SCHEMA_VERSION = 19
 # Progress points kept per run and positions in each precomputed mean series.
 RUN_PROGRESS_POINTS = 300
 MEAN_PROGRESS_POINTS = 300
@@ -84,6 +85,12 @@ class GAMetric:
     elapsed_seconds: float = 0.0
     fitness_evaluations: int = 0
     restarted: bool = False
+    # Coverage of the living population as fractions; absent before schema 18,
+    # and the example shares also in tasks without examples of that kind.
+    positive_coverage: float | None = None
+    negative_avoidance: float | None = None
+    champion_negative_avoidance: float | None = None
+    behavior_diversity: float | None = None
 
 
 # Reasons recorded by incremental search when an epoch ends, in display order.
@@ -671,6 +678,10 @@ def read_ga_metrics(path: Path, dataset: str, run: int) -> list[GAMetric]:
             to_float(row.get("elapsed_seconds")),
             int(to_float(row.get("fitness_evaluations"))),
             bool(row.get("restarted", False)),
+            *(
+                None if row.get(key) is None else to_float(row.get(key))
+                for key in POPULATION_FIELDS
+            ),
         )
         for row in rows
     ]
@@ -833,8 +844,9 @@ def dashboard_benchmark(
         "phases": phases,
         "fitnessRuns": dashboard_fitness_runs(metrics.ga),
         "fitnessMean": dashboard_fitness_mean(metrics.ga),
+        "runCosts": dashboard_run_costs(results, metrics.ga),
         "operatorSummary": operator_summary(metrics.operator),
-        "quality": dashboard_quality(metrics.quality),
+        "quality": dashboard_quality(metrics.quality, metrics.ga, example_labels(results)),
         "clingoSummary": clingo_summary(metrics.clingo),
     }
 
@@ -1059,59 +1071,137 @@ def dashboard_epochs(rows: list[dict[str, object]]) -> dict[str, object] | None:
     }
 
 
-def dashboard_quality(rows: list[dict[str, object]]) -> dict[str, object]:
-    run_ids = {int(to_float(row.get("run"))) for row in rows}
-    run_count = len(run_ids)
+# Population coverage recorded per generation, in payload column order.
+POPULATION_FIELDS = (
+    "positive_coverage",
+    "negative_avoidance",
+    "champion_negative_avoidance",
+    "behavior_diversity",
+)
+# Generation ranges shared by every run of a dataset, so a range means the same
+# generations in the aggregate view and in one run.
+QUALITY_GENERATION_BINS = 20
+CRITERIA_KEYS = (
+    "complete", "incomplete", "consistent", "inconsistent", "both",
+    "complete_only", "consistent_only", "neither",
+)
+EXAMPLE_LABEL_LENGTH = 80
+
+
+def dashboard_quality(
+    rows: list[dict[str, object]],
+    ga: Sequence[GAMetric] = (),
+    labels: tuple[list[str], list[str]] | None = None,
+) -> dict[str, object]:
+    """Aggregate evaluated candidates by coverage, run, generation range and example.
+
+    Quality rows follow evaluation order and each run's GA records count the
+    same evaluations, so the k-th row belongs to the first generation whose
+    cumulative evaluations reach k. Evaluations after the last recorded
+    generation, as in a timed-out run, join that last generation.
+    """
+    rows_by_run: dict[int, list[dict[str, object]]] = {}
+    for row in rows:
+        rows_by_run.setdefault(int(to_float(row.get("run"))), []).append(row)
+    run_count = len(rows_by_run)
+    progress = {points[0].run: points for points in _progress_by_run(list(ga)) if points}
+    last_generation = max((points[-1].generation for points in progress.values()), default=0)
+    bin_count = min(QUALITY_GENERATION_BINS, last_generation + 1)
+    upper_bounds = [
+        math.ceil((index + 1) * (last_generation + 1) / bin_count) - 1 for index in range(bin_count)
+    ]
+
     coverage: dict[tuple[float, float], dict[str, object]] = {}
     criteria_by_run: dict[int, dict[str, int]] = {}
     evaluated_sizes: dict[float, int] = {}
     winner_sizes: dict[int, float] = {}
     extent = {"positive": 0.0, "negative": 0.0}
+    coverage_runs = []
+    final_coverage: list[dict[str, object]] = []
+    example_rates: dict[int, tuple[list[float], list[float]]] = {}
 
-    for row in rows:
-        run = int(to_float(row.get("run")))
-        positive = to_float(row.get("covered_positive"))
-        negative = to_float(row.get("covered_negative"))
-        total_positive = to_float(row.get("total_positive"))
-        total_negative = to_float(row.get("total_negative"))
-        score = to_float(row.get("score"))
-        best = bool(to_float(row.get("best_found")))
-        size = to_float(row.get("program_size"))
-
-        extent["positive"] = max(extent["positive"], total_positive, positive)
-        extent["negative"] = max(extent["negative"], total_negative, negative)
-
-        point = coverage.setdefault(
-            (positive, negative),
-            {"count": 0, "score_total": 0.0, "best": False},
+    for run, run_rows in sorted(rows_by_run.items()):
+        generations = _evaluation_generations(progress.get(run, []), len(run_rows))
+        cells: dict[tuple[float, float, int], list[int]] = {}
+        counts = criteria_by_run.setdefault(run, dict.fromkeys(("total", *CRITERIA_KEYS), 0))
+        positive_passed = [0] * len(labels[0]) if labels else []
+        negative_covered = [0] * len(labels[1]) if labels else []
+        masked = 0
+        # A perfect candidate ranks first; otherwise the highest score, the first one on ties.
+        champion = max(
+            run_rows,
+            key=lambda row: (bool(to_float(row.get("best_found"))), to_float(row.get("score"))),
         )
-        point["count"] = int(point["count"]) + 1
-        point["score_total"] = float(point["score_total"]) + score
-        point["best"] = bool(point["best"]) or best
+        final_coverage.append({
+            "run": run,
+            "solved": bool(to_float(champion.get("best_found"))),
+            "positive": to_float(champion.get("covered_positive")),
+            "negative": to_float(champion.get("covered_negative")),
+            "totalPositive": to_float(champion.get("total_positive")),
+            "totalNegative": to_float(champion.get("total_negative")),
+        })
+        for index, row in enumerate(run_rows):
+            positive = to_float(row.get("covered_positive"))
+            negative = to_float(row.get("covered_negative"))
+            total_positive = to_float(row.get("total_positive"))
+            total_negative = to_float(row.get("total_negative"))
+            score = to_float(row.get("score"))
+            best = bool(to_float(row.get("best_found")))
+            size = to_float(row.get("program_size"))
+            complete = bool(row["complete"])
+            consistent = bool(row["consistent"])
+            bin_index = bisect.bisect_left(upper_bounds, generations[index])
 
-        counts = criteria_by_run.setdefault(
-            run,
-            {
-                "total": 0,
-                "complete": 0,
-                "incomplete": 0,
-                "consistent": 0,
-                "inconsistent": 0,
-                "both": 0,
-            },
-        )
-        complete = bool(row["complete"])
-        consistent = bool(row["consistent"])
-        counts["total"] += 1
-        counts["complete"] += int(complete)
-        counts["incomplete"] += int(not complete)
-        counts["consistent"] += int(consistent)
-        counts["inconsistent"] += int(not consistent)
-        counts["both"] += int(complete and consistent)
+            extent["positive"] = max(extent["positive"], total_positive, positive)
+            extent["negative"] = max(extent["negative"], total_negative, negative)
+            point = coverage.setdefault(
+                (positive, negative),
+                {"count": 0, "score_total": 0.0, "best": False},
+            )
+            point["count"] = int(point["count"]) + 1
+            point["score_total"] = float(point["score_total"]) + score
+            point["best"] = bool(point["best"]) or best
 
-        evaluated_sizes[size] = evaluated_sizes.get(size, 0) + 1
-        if best:
-            winner_sizes[run] = size
+            counts["total"] += 1
+            for key, satisfied in (
+                ("complete", complete),
+                ("incomplete", not complete),
+                ("consistent", consistent),
+                ("inconsistent", not consistent),
+                ("both", complete and consistent),
+                ("complete_only", complete and not consistent),
+                ("consistent_only", consistent and not complete),
+                ("neither", not complete and not consistent),
+            ):
+                counts[key] += int(satisfied)
+
+            cell = cells.setdefault((positive, negative, bin_index), [0, 0])
+            cell[0] += 1
+            cell[1] += int(best)
+
+            if labels and "positive_mask" in row and "negative_mask" in row:
+                masked += 1
+                _count_bits(positive_passed, int(str(row["positive_mask"]), 16))
+                _count_bits(negative_covered, int(str(row["negative_mask"]), 16))
+
+            evaluated_sizes[size] = evaluated_sizes.get(size, 0) + 1
+            if best:
+                winner_sizes[run] = size
+
+        coverage_runs.append({
+            "run": run,
+            "evaluations": len(run_rows),
+            "points": [
+                [positive, negative, bin_index, count, best_count]
+                for (positive, negative, bin_index), (count, best_count) in sorted(cells.items())
+            ],
+        })
+        if masked:
+            # A negative example passes when the candidate does not cover it.
+            example_rates[run] = (
+                [100 * passed / masked for passed in positive_passed],
+                [100 * (masked - covered) / masked for covered in negative_covered],
+            )
 
     best_sizes: dict[float, int] = {}
     for size in winner_sizes.values():
@@ -1134,13 +1224,7 @@ def dashboard_quality(rows: list[dict[str, object]]) -> dict[str, object]:
 
     criteria = []
     if run_count:
-        for key in (
-            "complete",
-            "incomplete",
-            "consistent",
-            "inconsistent",
-            "both",
-        ):
+        for key in CRITERIA_KEYS:
             counts = [values[key] for values in criteria_by_run.values()]
             criteria.append(
                 {
@@ -1167,6 +1251,161 @@ def dashboard_quality(rows: list[dict[str, object]]) -> dict[str, object]:
             }
             for size, count in sorted(evaluated_sizes.items())
         ],
+        "generationBins": upper_bounds if rows_by_run else [],
+        "coverageRuns": coverage_runs,
+        "populationCoverage": dashboard_population_coverage(ga),
+        "finalCoverage": final_coverage,
+        "examples": _example_difficulty(example_rates, labels),
+    }
+
+
+def example_labels(results: list[RunResult]) -> tuple[list[str], list[str]] | None:
+    """Short text of each example in task order, which is the coverage mask order."""
+    for result in results:
+        filename = json.loads(result.arguments_json or "{}").get("filename")
+        if not filename:
+            continue
+        try:
+            task = parse_file(filename)
+        except (OSError, ValueError):
+            return None
+        return (
+            [_example_label(example) for example in task.positive_examples],
+            [_example_label(example) for example in task.negative_examples],
+        )
+    return None
+
+
+def _example_label(example) -> str:
+    parts = [f"incl {{{example.included_text}}}"]
+    if example.excluded:
+        parts.append(f"excl {{{example.excluded_text}}}")
+    label = " ".join(parts)
+    return label if len(label) <= EXAMPLE_LABEL_LENGTH else label[: EXAMPLE_LABEL_LENGTH - 1] + "…"
+
+
+def _evaluation_generations(points: Sequence[GAMetric], evaluations: int) -> list[int]:
+    """Generation of each evaluation, from cumulative counts in evaluation order."""
+    generations = []
+    position = 0
+    for index in range(evaluations):
+        while position < len(points) - 1 and points[position].fitness_evaluations < index + 1:
+            position += 1
+        generations.append(points[position].generation if points else 0)
+    return generations
+
+
+def _count_bits(counts: list[int], mask: int) -> None:
+    while mask:
+        bit = mask & -mask
+        index = bit.bit_length() - 1
+        if index < len(counts):
+            counts[index] += 1
+        mask ^= bit
+
+
+def dashboard_run_costs(results: list[RunResult], ga: Sequence[GAMetric]) -> list[dict[str, object]]:
+    """Where each run stopped on every progress axis, and whether it solved the task.
+
+    The last GA record of a run is the generation that found the solution, or
+    the last one reached before the run ended without it. Runs without GA
+    records are left out. `solved` is the validated success of the run.
+    """
+    last = {points[-1].run: points[-1] for points in _progress_by_run(list(ga)) if points}
+    return [
+        {
+            "run": result.run,
+            "solved": result.success,
+            "generation": last[result.run].generation,
+            "evaluations": last[result.run].fitness_evaluations,
+            "seconds": last[result.run].elapsed_seconds,
+        }
+        for result in sorted(results, key=lambda result: result.run)
+        if result.run in last
+    ]
+
+
+def dashboard_population_coverage(ga: Sequence[GAMetric]) -> dict[str, object]:
+    """Coverage of the living population, generation by generation.
+
+    Each run keeps up to RUN_PROGRESS_POINTS generations, first and last
+    included. The mean uses up to MEAN_PROGRESS_POINTS generations and, at each
+    one, only the runs still searching: a run counts from its first recorded
+    generation to its last, with its latest record at or before the position.
+    Rows are [generation, POPULATION_FIELDS as percentages, program diversity
+    as a percentage, mean program size in clauses]. A value the run did not
+    record, such as population coverage before schema 18 or a share without
+    examples of its kind, is null. Mean rows add the number of runs. Each run
+    also lists the generations that restarted the population.
+    """
+    runs = [points for points in _progress_by_run(list(ga)) if points]
+
+    def row(point: GAMetric) -> list[float | None]:
+        values = [getattr(point, field) for field in POPULATION_FIELDS]
+        return [
+            point.generation,
+            *(None if value is None else 100 * value for value in values),
+            100 * point.diversity,
+            point.mean_program_size,
+        ]
+
+    run_rows = []
+    for points in runs:
+        restarts = [point.generation for point in points if point.restarted]
+        if len(points) > RUN_PROGRESS_POINTS:
+            step = (len(points) - 1) / (RUN_PROGRESS_POINTS - 1)
+            points = [points[round(slot * step)] for slot in range(RUN_PROGRESS_POINTS)]
+        run_rows.append({
+            "run": points[0].run,
+            "points": [row(point) for point in points],
+            "restarts": restarts,
+        })
+
+    generations = sorted({point.generation for points in runs for point in points})
+    if len(generations) > MEAN_PROGRESS_POINTS:
+        low, high = generations[0], generations[-1]
+        step = (high - low) / (MEAN_PROGRESS_POINTS - 1)
+        generations = sorted({round(low + step * slot) for slot in range(MEAN_PROGRESS_POINTS)})
+    mean_rows = []
+    cursors = [0] * len(runs)
+    for generation in generations:
+        current = []
+        for index, points in enumerate(runs):
+            while cursors[index] < len(points) and points[cursors[index]].generation <= generation:
+                cursors[index] += 1
+            if cursors[index] and generation <= points[-1].generation:
+                current.append(row(points[cursors[index] - 1]))
+        if current:
+            columns = [
+                [values[column] for values in current if values[column] is not None]
+                for column in range(1, len(POPULATION_FIELDS) + 3)
+            ]
+            mean_rows.append([
+                generation,
+                *(mean(column) if column else None for column in columns),
+                len(current),
+            ])
+    return {"mean": mean_rows, "runs": run_rows}
+
+
+def _example_difficulty(
+    example_rates: dict[int, tuple[list[float], list[float]]],
+    labels: tuple[list[str], list[str]] | None,
+) -> dict[str, object]:
+    """Mean per-run share of evaluated candidates that pass each example."""
+    if not example_rates or labels is None:
+        return {"positive": [], "negative": [], "runs": 0}
+    runs = list(example_rates.values())
+    return {
+        "positive": [
+            {"index": index, "label": label, "rate": mean(run[0][index] for run in runs)}
+            for index, label in enumerate(labels[0])
+        ],
+        "negative": [
+            {"index": index, "label": label, "rate": mean(run[1][index] for run in runs)}
+            for index, label in enumerate(labels[1])
+        ],
+        "runs": len(runs),
     }
 
 

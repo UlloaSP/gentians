@@ -10,8 +10,6 @@ datasets = [
     "clique",
     "coin",
     "coloring",
-    "constant_colour",
-    "euclid",
     "even_odd",
     "grandparent",
     "hamming_0",
@@ -21,7 +19,6 @@ datasets = [
     "knapsack",
     "latin_square",
     "magic_square_no_diag",
-    "pedro",
     "penguin",
     "set_partition_sum",
     "set_partition_sum_and_cardinality",
@@ -37,11 +34,10 @@ datasets = [
     "subset_sum_unbalanced",
     "subset_sum_unbalanced_ops",
     "synthetic_million",
-    "sudoku",
 ]
 runs = 30
 seed_base = 42
-timeout_seconds = 300
+timeout_seconds = 30
 validation_timeout_seconds = 60
 instrumentation = "full"
 cprofile = false
@@ -52,8 +48,22 @@ algorithm = "steady_state"
 "evaluation.negative_weight" = 1.0
 
 [[experiment]]
+id = "score/tour-25-100-oldest"
+datasets = ["grandparent"]
+label = "Tournament 25I · Score 100:1 · Oldest"
+description = "Steady state, population 25, tournaments sampling 30% of the population, positive:negative score weights 100:1, oldest-or-worst replacement."
+[experiment.overrides]
+"population.size" = 25
+"evaluation.positive_weight" = 100.0
+"selection.name" = "tournament"
+"selection.tournament_percentage" = 0.3
+"replacement.name" = "oldest_or_worst"
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
+
+[[experiment]]
 id = "score/comp-mut-25-dg"
-datasets = ["5queens"]
+datasets = ["grandparent"]
 label = "Complementary Lexicase 25I · Score 100:1 · Dominated · Duplicate-group"
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, duplicate-group mutation with probability 1.0 per offspring."
 [experiment.overrides]
@@ -65,7 +75,7 @@ description = "Steady state, population 25, complementary lexicase selection, po
 
 [[experiment]]
 id = "score/comp-mut-25-rg-p1"
-datasets = ["5queens"]
+datasets = ["alzheimer_acetyl"]
 label = "Complementary Lexicase 25I · Score 100:1 · Dominated · Random-group 1.0"
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 1.0 per offspring."
 [experiment.overrides]
@@ -78,7 +88,7 @@ description = "Steady state, population 25, complementary lexicase selection, po
 
 [[experiment]]
 id = "score/comp-mut-25-rg-p09"
-datasets = ["5queens"]
+datasets = ["alzheimer_acetyl"]
 label = "Complementary Lexicase 25I · Score 100:1 · Dominated · Random-group 0.9"
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]

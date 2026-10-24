@@ -516,6 +516,9 @@ def test_dashboard_quality_preaggregates_without_changing_metrics():
             "runs": 2,
         },
         {"key": "both", "rate": 75, "meanCount": 1, "count": 2, "runs": 2},
+        {"key": "complete_only", "rate": 0, "meanCount": 0, "count": 0, "runs": 2},
+        {"key": "consistent_only", "rate": 0, "meanCount": 0, "count": 0, "runs": 2},
+        {"key": "neither", "rate": 25, "meanCount": 0.5, "count": 1, "runs": 2},
     ]
     assert quality["programSizes"] == [
         {"size": 2, "evaluated": 1, "best": 0},
@@ -529,6 +532,10 @@ def test_dashboard_quality_has_no_criteria_without_measured_runs():
     assert quality["coveragePoints"] == []
     assert quality["criteria"] == []
     assert quality["programSizes"] == []
+    assert quality["generationBins"] == []
+    assert quality["coverageRuns"] == []
+    assert quality["populationCoverage"] == {"mean": [], "runs": []}
+    assert quality["examples"] == {"positive": [], "negative": [], "runs": 0}
 
 
 def test_dashboard_quality_uses_evaluation_status_flags():
@@ -553,7 +560,230 @@ def test_dashboard_quality_uses_evaluation_status_flags():
         "consistent": 0,
         "inconsistent": 100,
         "both": 0,
+        "complete_only": 0,
+        "consistent_only": 0,
+        "neither": 100,
     }
+
+
+def _quality_row(run, complete, consistent, **extra):
+    return {
+        "run": run,
+        "covered_positive": int(complete),
+        "covered_negative": int(not consistent),
+        "total_positive": 1,
+        "total_negative": 1,
+        "complete": complete,
+        "consistent": consistent,
+        **extra,
+    }
+
+
+def test_dashboard_quality_splits_candidates_into_exclusive_categories():
+    quality = dashboard_quality([
+        _quality_row(1, True, True),
+        _quality_row(1, True, False),
+        _quality_row(1, False, True),
+        _quality_row(1, False, False),
+    ])
+
+    rates = {criterion["key"]: criterion["rate"] for criterion in quality["criteria"]}
+    exclusive = ("both", "complete_only", "consistent_only", "neither")
+    assert [rates[key] for key in exclusive] == [25, 25, 25, 25]
+    assert sum(rates[key] for key in exclusive) == 100
+
+
+def test_dashboard_quality_places_evaluations_in_generation_ranges():
+    # Generation 0 evaluates two candidates, generation 1 one more and
+    # generation 3 the fourth; the fifth row arrived after the last record.
+    ga = [
+        GAMetric("d", 1, generation, 0.0, 0.0, 0.0, fitness_evaluations=evaluations)
+        for generation, evaluations in ((0, 2), (1, 3), (2, 3), (3, 4))
+    ]
+    rows = [
+        _quality_row(1, False, False),
+        _quality_row(1, False, False),
+        _quality_row(1, True, False),
+        _quality_row(1, True, True),
+        _quality_row(1, True, True),
+    ]
+
+    quality = dashboard_quality(rows, ga)
+
+    assert quality["generationBins"] == [0, 1, 2, 3]
+    assert quality["coverageRuns"] == [{
+        "run": 1,
+        "evaluations": 5,
+        "points": [[0.0, 1.0, 0, 2, 0], [1.0, 0.0, 3, 2, 0], [1.0, 1.0, 1, 1, 0]],
+    }]
+
+
+def test_dashboard_quality_groups_long_runs_into_equal_generation_ranges():
+    ga = [GAMetric("d", 1, generation, 0.0, 0.0, 0.0, fitness_evaluations=generation + 1)
+          for generation in range(100)]
+    rows = [_quality_row(1, False, False) for _ in range(100)]
+
+    quality = dashboard_quality(rows, ga)
+
+    assert quality["generationBins"] == [4 + 5 * index for index in range(20)]
+    assert sorted({bin_index for _, _, bin_index, _, _ in quality["coverageRuns"][0]["points"]}) == list(range(20))
+
+
+def _population(run, generation, value, negative=0.5, restarted=False):
+    """Every coverage field is `value`, except negative avoidance; 80% distinct programs of 3 clauses."""
+    return GAMetric(
+        "d", run, generation, 0.0, 0.0, 0.0, diversity=0.8, mean_program_size=3.0,
+        restarted=restarted, positive_coverage=value, negative_avoidance=negative,
+        champion_negative_avoidance=value, behavior_diversity=value,
+    )
+
+
+def test_population_coverage_follows_each_generation_of_each_run():
+    ga = [
+        _population(1, 0, 0.2),
+        _population(1, 1, 0.6),
+        _population(1, 2, 1.0),
+        # Run 2 stops at generation 1.
+        _population(2, 0, 0.0),
+        _population(2, 1, 0.4),
+    ]
+
+    coverage = dashboard_quality([], ga)["populationCoverage"]
+
+    assert coverage["runs"] == [
+        {"run": 1, "restarts": [], "points": [[generation, value, 50, value, value, 80, 3]
+                                              for generation, value in ((0, 20), (1, 60), (2, 100))]},
+        {"run": 2, "restarts": [], "points": [[generation, value, 50, value, value, 80, 3]
+                                              for generation, value in ((0, 0), (1, 40))]},
+    ]
+    # Only runs still searching enter the mean of a generation.
+    assert coverage["mean"] == [
+        [generation, value, 50, value, value, 80, 3, runs]
+        for generation, value, runs in ((0, 10, 2), (1, 50, 2), (2, 100, 1))
+    ]
+
+
+def test_population_coverage_lists_every_restart_even_when_thinned():
+    ga = [_population(1, generation, 0.0, restarted=generation in (7, 501)) for generation in range(1000)]
+
+    run = dashboard_quality([], ga)["populationCoverage"]["runs"][0]
+
+    assert run["restarts"] == [7, 501]
+
+
+def test_population_coverage_keeps_shares_absent_for_tasks_without_examples():
+    ga = [_population(1, 0, 0.5, negative=None), _population(2, 0, 0.5, negative=0.3)]
+
+    coverage = dashboard_quality([], ga)["populationCoverage"]
+
+    assert coverage["runs"][0]["points"] == [[0, 50, None, 50, 50, 80, 3]]
+    # The mean skips absent values instead of counting them as zero.
+    assert coverage["mean"] == [[0, 50, 30, 50, 50, 80, 3, 2]]
+
+
+def test_population_coverage_keeps_program_diversity_and_size_of_older_records():
+    # Before schema 18 a record had program diversity and size but no coverage.
+    ga = [GAMetric("d", 1, 0, 0.0, 0.0, 0.0, diversity=0.5, mean_program_size=2.0), _population(1, 1, 0.5)]
+
+    coverage = dashboard_quality([], ga)["populationCoverage"]
+
+    assert coverage == {
+        "mean": [[0, None, None, None, None, 50, 2, 1], [1, 50, 50, 50, 50, 80, 3, 1]],
+        "runs": [{"run": 1, "restarts": [], "points": [
+            [0, None, None, None, None, 50, 2], [1, 50, 50, 50, 50, 80, 3],
+        ]}],
+    }
+
+
+def _result(run, success):
+    return RunResult(
+        dataset="d", run=run, seed=run, experiment_id="x", status="ok", returncode=0,
+        elapsed_seconds=0.0, command=[], arguments_json="{}", log_path="", success=success,
+    )
+
+
+def test_run_costs_take_the_last_record_of_each_run():
+    ga = [
+        GAMetric("d", 1, 0, 0.0, 0.0, 0.0, elapsed_seconds=0.1, fitness_evaluations=25),
+        GAMetric("d", 1, 9, 0.0, 0.0, 0.0, elapsed_seconds=2.0, fitness_evaluations=34),
+        GAMetric("d", 2, 0, 0.0, 0.0, 0.0, elapsed_seconds=0.1, fitness_evaluations=25),
+    ]
+
+    costs = profile.dashboard_run_costs([_result(2, False), _result(1, True), _result(3, True)], ga)
+
+    # Run 3 recorded no search, so it has no cost.
+    assert costs == [
+        {"run": 1, "solved": True, "generation": 9, "evaluations": 34, "seconds": 2.0},
+        {"run": 2, "solved": False, "generation": 0, "evaluations": 25, "seconds": 0.1},
+    ]
+
+
+def test_final_coverage_is_the_best_candidate_of_each_run():
+    rows = [
+        _quality_row(1, False, False, score=1.0),
+        _quality_row(1, True, False, score=5.0),
+        _quality_row(1, False, True, score=2.0),
+        _quality_row(2, True, True, score=0.5, best_found=True),
+        _quality_row(2, True, False, score=9.0),
+    ]
+
+    final = dashboard_quality(rows)["finalCoverage"]
+
+    # A perfect candidate ranks first even with a lower score.
+    assert final == [
+        {"run": 1, "solved": False, "positive": 1, "negative": 1, "totalPositive": 1, "totalNegative": 1},
+        {"run": 2, "solved": True, "positive": 1, "negative": 0, "totalPositive": 1, "totalNegative": 1},
+    ]
+
+
+def test_population_coverage_thins_long_runs_and_keeps_both_ends():
+    ga = [_population(1, generation, 0.0) for generation in range(1000)]
+
+    coverage = dashboard_quality([], ga)["populationCoverage"]
+
+    generations = [row[0] for row in coverage["runs"][0]["points"]]
+    assert len(generations) == profile.RUN_PROGRESS_POINTS
+    assert (generations[0], generations[-1]) == (0, 999)
+    assert len(coverage["mean"]) <= profile.MEAN_PROGRESS_POINTS
+
+
+def test_dashboard_quality_rates_each_example_per_run():
+    labels = (["p1", "p2"], ["n1"])
+    rows = [
+        # Run 1: both candidates cover p1; one covers p2 and the negative.
+        _quality_row(1, False, True, positive_mask="1", negative_mask="0"),
+        _quality_row(1, True, False, positive_mask="3", negative_mask="1"),
+        # Run 2: its only candidate covers nothing.
+        _quality_row(2, False, True, positive_mask="0", negative_mask="0"),
+    ]
+
+    examples = dashboard_quality(rows, labels=labels)["examples"]
+
+    assert examples["runs"] == 2
+    assert [(row["label"], row["rate"]) for row in examples["positive"]] == [("p1", 50), ("p2", 25)]
+    # A negative passes when it is not covered.
+    assert [(row["label"], row["rate"]) for row in examples["negative"]] == [("n1", 75)]
+
+
+def test_dashboard_quality_omits_example_rates_for_rows_without_masks():
+    examples = dashboard_quality([_quality_row(1, True, True)], labels=(["p1"], ["n1"]))["examples"]
+
+    assert examples == {"positive": [], "negative": [], "runs": 0}
+
+
+def test_example_labels_follow_task_order(tmp_path):
+    task = tmp_path / "task.lp"
+    task.write_text(
+        "#pos({a}, {b}).\n#pos({c}, {}).\n#neg({d}, {}).\n#modeh(1,a).\n",
+        encoding="utf-8",
+    )
+    result = RunResult(
+        dataset="d", run=1, seed=1, experiment_id="x", status="ok", returncode=0,
+        elapsed_seconds=0.0, command=[], arguments_json=json.dumps({"filename": str(task)}),
+        log_path="", success=True,
+    )
+
+    assert profile.example_labels([result]) == (["incl {a} excl {b}", "incl {c}"], ["incl {d}"])
 
 
 def test_solve_exports_total_execution_after_phase_closes(monkeypatch):
@@ -687,6 +917,48 @@ def test_ga_metrics_have_one_generation_coordinate(monkeypatch, tmp_path):
     assert timing._ga_rows[0]["generation"] == 0
     assert "epoch" not in timing._ga_rows[0]
     assert "global_generation" not in timing._ga_rows[0]
+    timing.reset()
+
+
+def test_ga_metrics_record_the_coverage_status_of_the_population(monkeypatch, tmp_path):
+    timing.reset()
+    monkeypatch.setenv("GENTIANS_GA_METRICS_PATH", str(tmp_path / "metrics.json"))
+    from gentians.evolution.individual import Individual
+
+    # Two positives and four negatives; behaviors are (positive mask, negative mask).
+    timing.record_ga_generation(
+        0,
+        3.0,
+        [
+            Individual(1, 3.0, False, behavior=(0b11, 0b0001), is_complete=True),
+            Individual(2, 1.0, False, behavior=(0b11, 0b0011), is_complete=True),
+            Individual(3, 2.0, False, behavior=(0b01, 0b0000), is_consistent=True),
+            Individual(4, 0.0, False, behavior=(0b01, 0b0000), is_consistent=True),
+        ],
+        example_totals=(2, 4),
+    )
+
+    row = timing._ga_rows[0]
+    assert "complete_rate" not in row and "consistent_rate" not in row
+    # Positives covered: 2 + 2 + 1 + 1 of 4 × 2; negatives covered: 1 + 2 of 4 × 4.
+    assert row["positive_coverage"] == 0.75
+    assert row["negative_avoidance"] == 1 - 3 / 16
+    # The highest score covers one negative of four.
+    assert row["champion_negative_avoidance"] == 0.75
+    assert row["behavior_diversity"] == 0.75
+    timing.reset()
+
+
+def test_ga_metrics_leave_example_shares_absent_without_examples(monkeypatch, tmp_path):
+    timing.reset()
+    monkeypatch.setenv("GENTIANS_GA_METRICS_PATH", str(tmp_path / "metrics.json"))
+    from gentians.evolution.individual import Individual
+
+    timing.record_ga_generation(0, 1.0, [Individual(1, 1.0, False, behavior=(0b1, 0))], example_totals=(1, 0))
+
+    row = timing._ga_rows[0]
+    assert row["positive_coverage"] == 1
+    assert row["negative_avoidance"] is None and row["champion_negative_avoidance"] is None
     timing.reset()
 
 
@@ -1165,7 +1437,7 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 14
+    assert payload["schemaVersion"] == 19
     assert benchmark["total"] == 3.0
     assert benchmark["instrumentedRuns"] == 1
     assert "wall" not in benchmark
@@ -1458,7 +1730,7 @@ def test_build_dashboard_reads_saved_run_artifacts(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     [bench] = payload["benchmarks"]
-    assert payload["schemaVersion"] == 14
+    assert payload["schemaVersion"] == 19
     assert bench["algorithm"] == "incremental"
     assert bench["total"] == 1.25
     assert bench["bestFoundRuns"] == 1

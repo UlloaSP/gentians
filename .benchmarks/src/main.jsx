@@ -16,6 +16,7 @@ import { OperatorsChart } from "./charts/OperatorsChart";
 import { PhaseTypeChart } from "./charts/PhaseTypeChart";
 import { QualityProgramChart } from "./charts/QualityProgramChart";
 import { QualityChart } from "./charts/QualityChart";
+import { SolvedCurveChart } from "./charts/SolvedCurveChart";
 import { SolverStatsChart } from "./charts/SolverStatsChart";
 import { TypeSplitChart } from "./charts/TypeSplitChart";
 import { ThemeMenu } from "./components/ThemeMenu";
@@ -255,6 +256,7 @@ function Detail({ benchmark }) {
       </ChartGroup>
       <ChartGroup title="Búsqueda y comportamiento">
         <FitnessChart benchmark={benchmark} />
+        <SolvedCurveChart benchmark={benchmark} />
         <QualityChart benchmark={benchmark} />
         <QualityProgramChart benchmark={benchmark} />
         <EpochChart benchmark={benchmark} />

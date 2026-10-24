@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { chartTw } from "./chartTw";
 import { ParetoChart } from "./charts/ParetoChart";
+import { SolvedCurveCompareChart } from "./charts/SolvedCurveCompareChart";
 import {
   assertDashboardSchema,
   bestRunRatio,
@@ -207,6 +208,7 @@ export function ExperimentCompare() {
         </section>
         <ComparisonTable rows={rows} baseline={baseline} view={view} />
         <ParetoChart rows={rows} baselineId={baselineId} />
+        <SolvedCurveCompareChart rows={rows} />
       </div>
     </main>
   );

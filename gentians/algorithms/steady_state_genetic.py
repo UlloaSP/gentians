@@ -55,7 +55,7 @@ def steady_state_genetic_search(
             evaluator = create_evaluator(task, args.evaluation, space=hypotheses.space)
         candidates = Candidates(hypotheses, evaluator, rng, budget)
         population = Population(candidates, initializer, replacement, str(args.replacement["name"]), 0)
-        metrics = GenerationMetrics()
+        metrics = GenerationMetrics(task)
 
         with phase("initialization"):
             mutation = create_mutation(args.mutation)

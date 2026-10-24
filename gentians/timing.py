@@ -12,7 +12,7 @@ _enabled = bool(os.environ.get("GENTIANS_TIMINGS_PATH"))
 _totals: dict[str, float] = {}
 _counts: dict[str, int] = {}
 _stack: list[dict[str, Any]] = []
-_ga_rows: list[dict[str, float]] = []
+_ga_rows: list[dict[str, float | None]] = []
 _instrumentation_total = 0.0
 _timings_dirty = False
 _ga_dirty = False
@@ -262,6 +262,7 @@ def record_ga_generation(
     elapsed_seconds: float = 0.0,
     fitness_evaluations: int = 0,
     restarted: bool = False,
+    example_totals: tuple[int, int] | None = None,
 ) -> None:
     path = os.environ.get("GENTIANS_GA_METRICS_PATH")
     if not path or not population:
@@ -273,17 +274,35 @@ def record_ga_generation(
         signatures = set()
         invalid = 0
         size_total = 0
+        behaviors = set()
+        covered_positive = covered_negative = 0
+        champion_negative = 0
         for element in population:
             score = float(getattr(element, "score", 0.0))
             score_total += score
-            max_fitness = max(max_fitness, score)
             genome = element.genome
             signatures.add(genome)
             size_total += genome.bit_count()
             if score == float("-inf"):
                 invalid += 1
+            behavior = tuple(getattr(element, "behavior", (0, 0)))
+            behaviors.add(behavior)
+            covered_positive += behavior[0].bit_count()
+            covered_negative += behavior[1].bit_count()
+            if score > max_fitness:
+                max_fitness = score
+                champion_negative = behavior[1].bit_count()
         population_size = len(population)
         unique_signatures = len(signatures)
+        positives, negatives = example_totals or (0, 0)
+        # Graded coverage of the living population; shares are absent without examples of that kind.
+        coverage = {
+            "positive_coverage": covered_positive / population_size / positives if positives else None,
+            "negative_avoidance": 1 - covered_negative / population_size / negatives if negatives else None,
+            "champion_negative_avoidance": 1 - champion_negative / negatives if negatives else None,
+            # Distinct (positives, negatives) coverage masks: what lexicase can tell apart.
+            "behavior_diversity": len(behaviors) / population_size,
+        }
         _ga_rows.append(
             {
                 "generation": generation,
@@ -298,6 +317,8 @@ def record_ga_generation(
                 "invalid_count": invalid,
                 "invalid_rate": invalid / population_size,
                 "mean_program_size": size_total / population_size,
+                # Coverage of the living population, not of this generation's evaluations.
+                **coverage,
                 "restarted": restarted,
             }
         )
@@ -305,7 +326,7 @@ def record_ga_generation(
         _checkpoint()
 
 
-def last_search_progress() -> dict[str, float] | None:
+def last_search_progress() -> dict[str, float | None] | None:
     """Copy the last completed GA record, without flushing metric buffers."""
     try:
         return dict(_ga_rows[-1])

@@ -36,7 +36,7 @@ export const progressAxes = [
 ];
 export const progressAxisLabel = (axis) =>
   (progressAxes.find(([key]) => key === axis) || progressAxes[0])[1];
-export const DASHBOARD_SCHEMA_VERSION = 14;
+export const DASHBOARD_SCHEMA_VERSION = 19;
 
 // Phase contexts in which the algorithms request Clingo, in pipeline order.
 const clingoPhases = [
@@ -111,6 +111,9 @@ const CRITERIA = {
   consistent: ["consistent", "no cubre negativos; ignora positivos"],
   inconsistent: ["inconsistent", "cubre al menos un negativo; ignora positivos"],
   both: ["complete + consistent", "cubre todos los positivos y ningún negativo"],
+  complete_only: ["solo complete", "cubre todos los positivos y algún negativo"],
+  consistent_only: ["solo consistent", "no cubre negativos ni todos los positivos"],
+  neither: ["ninguno", "no cubre todos los positivos y cubre algún negativo"],
 };
 
 export const coverageCriteria = (quality) =>
@@ -120,7 +123,147 @@ export const coverageCriteria = (quality) =>
     detail: CRITERIA[criterion.key][1],
   }));
 
+// Each bar splits the same evaluated candidates into parts that sum to 100%.
+const CRITERIA_BARS = [
+  ["positivos", ["complete", "incomplete"]],
+  ["negativos", ["consistent", "inconsistent"]],
+  ["combinado", ["both", "complete_only", "consistent_only", "neither"]],
+];
+
+export function coverageCriteriaBars(quality) {
+  const byKey = Object.fromEntries(coverageCriteria(quality).map((criterion) => [criterion.key, criterion]));
+  return CRITERIA_BARS.map(([label, keys]) => ({
+    label,
+    parts: keys.filter((key) => byKey[key]).map((key) => byKey[key]),
+  })).filter((bar) => bar.parts.length);
+}
+
 export const coverageExtent = (quality) => quality?.extent || { positive: 0, negative: 0 };
+
+export const generationBins = (quality) => quality?.generationBins || [];
+export const coverageRunNumbers = (quality) => (quality?.coverageRuns || []).map((run) => run.run);
+
+export function generationRangeLabel(quality, bin) {
+  const bins = generationBins(quality);
+  if (!bins.length) return "";
+  const index = Math.min(Math.max(bin, 0), bins.length - 1);
+  const first = index ? bins[index - 1] + 1 : 0;
+  return first === bins[index] ? `gen ${first}` : `gen ${first}–${bins[index]}`;
+}
+
+/**
+ * Evaluated candidates by coverage up to a generation range, for one run or
+ * the mean of all runs. progress is the mean range of the candidates, from 0
+ * (first range) to 1 (last range).
+ */
+export function coverageSelection(quality, runIndex = null, lastBin = Infinity) {
+  const runs = quality?.coverageRuns || [];
+  const selected = runIndex === null ? runs : runs[runIndex] ? [runs[runIndex]] : [];
+  const lastRange = Math.max(1, generationBins(quality).length - 1);
+  const points = new Map();
+  for (const run of selected) {
+    for (const [positive, negative, bin, count, best] of run.points) {
+      if (bin > lastBin) continue;
+      const key = `${positive}:${negative}`;
+      const point = points.get(key) || { positive, negative, count: 0, best: false, binTotal: 0 };
+      point.count += count;
+      point.best ||= best > 0;
+      point.binTotal += bin * count;
+      points.set(key, point);
+    }
+  }
+  return [...points.values()]
+    .map(({ binTotal, ...point }) => ({
+      ...point,
+      meanCount: selected.length ? point.count / selected.length : 0,
+      runs: selected.length,
+      progress: binTotal / point.count / lastRange,
+    }))
+    .sort((left, right) => left.positive - right.positive || left.negative - right.negative);
+}
+
+/** Points no other point beats: more positives covered and fewer negatives. */
+export function coverageFront(points) {
+  return points
+    .filter(
+      (point) =>
+        !points.some(
+          (other) =>
+            other.positive >= point.positive &&
+            other.negative <= point.negative &&
+            (other.positive > point.positive || other.negative < point.negative),
+        ),
+    )
+    .sort((left, right) => left.positive - right.positive);
+}
+
+export const populationRunNumbers = (quality) =>
+  (quality?.populationCoverage?.runs || []).map((run) => run.run);
+
+// Payload columns after the generation: the producer's POPULATION_FIELDS, then
+// program diversity (%) and mean program size (clauses).
+const POPULATION_COLUMNS = ["positive", "negative", "championNegative", "behaviors", "programs", "size"];
+
+/** Coverage of the living population, generation by generation, as percentages. */
+export function populationCoverageRows(quality, runNumber = null) {
+  const coverage = quality?.populationCoverage;
+  const rows =
+    runNumber === null
+      ? coverage?.mean || []
+      : (coverage?.runs || []).find((item) => item.run === runNumber)?.points || [];
+  return rows.map(([generation, ...values]) => ({
+    generation,
+    ...Object.fromEntries(POPULATION_COLUMNS.map((key, index) => [key, values[index]])),
+    ...(runNumber === null ? { runs: values[POPULATION_COLUMNS.length] } : {}),
+  }));
+}
+
+export const populationRestarts = (quality, runNumber) =>
+  (quality?.populationCoverage?.runs || []).find((item) => item.run === runNumber)?.restarts || [];
+
+/**
+ * Cumulative share of runs solved by the cost on one progress axis. Points are
+ * [cost, % of all runs solved at or below it], starting at [0, 0]; runs that
+ * did not solve never raise the curve, so its end is the final success rate.
+ */
+export function solvedCurve(benchmark, axis = "evaluations") {
+  // runCosts keys match the progress axes: generation, evaluations and seconds.
+  const runs = benchmark?.runCosts || [];
+  const costs = runs
+    .filter((run) => run.solved)
+    .map((run) => Number(run[axis]))
+    .filter(Number.isFinite)
+    .sort((left, right) => left - right);
+  const points = [[0, 0]];
+  costs.forEach((cost, index) => points.push([cost, (100 * (index + 1)) / runs.length]));
+  // Extend the final rate to the longest run, so unsolved budget stays visible.
+  const longest = Math.max(0, ...runs.map((run) => Number(run[axis]) || 0));
+  const [lastCost, lastRate] = points[points.length - 1];
+  if (longest > lastCost) points.push([longest, lastRate]);
+  return { runs: runs.length, solved: costs.length, points };
+}
+
+/** Best candidate of every run, grouped by its coverage; unsolved and solved apart. */
+export function finalCoverageGroups(quality) {
+  const groups = new Map();
+  for (const run of quality?.finalCoverage || []) {
+    const key = `${run.positive}:${run.negative}:${run.solved}`;
+    const group = groups.get(key) || { ...run, runs: [] };
+    group.runs.push(run.run);
+    groups.set(key, group);
+  }
+  return [...groups.values()].map(({ run, ...group }) => group);
+}
+
+/** Examples ordered from hardest to easiest within positives and within negatives. */
+export function exampleDifficulty(quality) {
+  const examples = quality?.examples || {};
+  const rows = (kind, prefix) =>
+    (examples[kind] || [])
+      .map((example) => ({ ...example, kind, name: `${prefix}${example.index + 1}` }))
+      .sort((left, right) => left.rate - right.rate || left.index - right.index);
+  return { runs: num(examples.runs), positive: rows("positive", "p"), negative: rows("negative", "n") };
+}
 
 export const phaseTypeTotal = (benchmark, phase, type) => num(benchmark.phases?.[phase]?.[type]);
 export const phaseTotal = (benchmark, phase) =>

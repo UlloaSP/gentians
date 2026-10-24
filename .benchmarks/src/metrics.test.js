@@ -7,8 +7,17 @@ import {
   crossoverGainLabel,
   crossoverGainRows,
   coverageCriteria,
+  coverageCriteriaBars,
   coverageExtent,
+  coverageFront,
   coveragePoints,
+  coverageSelection,
+  exampleDifficulty,
+  finalCoverageGroups,
+  generationRangeLabel,
+  populationCoverageRows,
+  populationRestarts,
+  solvedCurve,
   epochReasonCount,
   generationPoints,
   meanSeries,
@@ -39,9 +48,9 @@ describe("solver calls", () => {
 });
 
 describe("dashboard schema", () => {
-  it("accepts v14 and rejects stale dashboards", () => {
-    expect(() => assertDashboardSchema({ schemaVersion: 14 })).not.toThrow();
-    expect(() => assertDashboardSchema({ schemaVersion: 13 })).toThrow();
+  it("accepts v19 and rejects stale dashboards", () => {
+    expect(() => assertDashboardSchema({ schemaVersion: 19 })).not.toThrow();
+    expect(() => assertDashboardSchema({ schemaVersion: 18 })).toThrow();
     expect(() => assertDashboardSchema({ schemaVersion: 11 }, "old")).toThrow(
       "old: schema 11; vuelve a ejecutar el experimento",
     );
@@ -184,6 +193,162 @@ describe("quality metrics", () => {
         count: 2,
         runs: 2,
       },
+    ]);
+  });
+});
+
+describe("coverage views", () => {
+  const coverage = {
+    criteria: [
+      { key: "complete", rate: 30 },
+      { key: "incomplete", rate: 70 },
+      { key: "consistent", rate: 20 },
+      { key: "inconsistent", rate: 80 },
+      { key: "both", rate: 5 },
+      { key: "complete_only", rate: 25 },
+      { key: "consistent_only", rate: 15 },
+      { key: "neither", rate: 55 },
+    ],
+    generationBins: [4, 9, 14],
+    coverageRuns: [
+      { run: 1, points: [[0, 2, 0, 3, 0], [1, 0, 2, 1, 1], [0, 2, 1, 1, 0]] },
+      { run: 2, points: [[0, 2, 0, 1, 0]] },
+    ],
+    populationCoverage: {
+      mean: [[0, 30, 40, 50, 60, 70, 2.5, 2]],
+      runs: [{ run: 7, points: [[0, 75, null, 80, 90, 95, 3]], restarts: [4] }],
+    },
+    examples: {
+      runs: 2,
+      positive: [
+        { index: 0, label: "a", rate: 80 },
+        { index: 1, label: "b", rate: 20 },
+      ],
+      negative: [{ index: 0, label: "c", rate: 50 }],
+    },
+  };
+
+  it("splits each bar into a criterion and its complement summing to 100%", () => {
+    const bars = coverageCriteriaBars(coverage);
+
+    expect(bars.map((bar) => [bar.label, bar.parts.map((part) => part.key)])).toEqual([
+      ["positivos", ["complete", "incomplete"]],
+      ["negativos", ["consistent", "inconsistent"]],
+      ["combinado", ["both", "complete_only", "consistent_only", "neither"]],
+    ]);
+    for (const bar of bars) expect(bar.parts.reduce((total, part) => total + part.rate, 0)).toBe(100);
+  });
+
+  it("averages every run up to the last range by default", () => {
+    expect(coverageSelection(coverage)).toEqual([
+      { positive: 0, negative: 2, count: 5, best: false, meanCount: 2.5, runs: 2, progress: 0.1 },
+      { positive: 1, negative: 0, count: 1, best: true, meanCount: 0.5, runs: 2, progress: 1 },
+    ]);
+  });
+
+  it("limits one run to the evaluations up to a range", () => {
+    expect(coverageSelection(coverage, 0, 0)).toEqual([
+      { positive: 0, negative: 2, count: 3, best: false, meanCount: 3, runs: 1, progress: 0 },
+    ]);
+  });
+
+  it("keeps only the points no other point beats", () => {
+    const points = [
+      { positive: 0, negative: 0 },
+      { positive: 2, negative: 3 },
+      { positive: 1, negative: 1 },
+      { positive: 2, negative: 1 },
+    ];
+
+    expect(coverageFront(points)).toEqual([
+      { positive: 0, negative: 0 },
+      { positive: 2, negative: 1 },
+    ]);
+  });
+
+  it("labels generation ranges by their first and last generation", () => {
+    expect(generationRangeLabel(coverage, 0)).toBe("gen 0–4");
+    expect(generationRangeLabel(coverage, 2)).toBe("gen 10–14");
+  });
+
+  it("reads the population shares of the mean or of one run by its number", () => {
+    expect(populationCoverageRows(coverage)).toEqual([
+      {
+        generation: 0,
+        positive: 30,
+        negative: 40,
+        championNegative: 50,
+        behaviors: 60,
+        programs: 70,
+        size: 2.5,
+        runs: 2,
+      },
+    ]);
+    expect(populationCoverageRows(coverage, 7)).toEqual([
+      {
+        generation: 0,
+        positive: 75,
+        negative: null,
+        championNegative: 80,
+        behaviors: 90,
+        programs: 95,
+        size: 3,
+      },
+    ]);
+    expect(populationRestarts(coverage, 7)).toEqual([4]);
+    expect(populationRestarts(coverage, 1)).toEqual([]);
+    expect(populationCoverageRows(coverage, 1)).toEqual([]);
+  });
+
+  it("orders examples from hardest to easiest within each kind", () => {
+    const difficulty = exampleDifficulty(coverage);
+
+    expect(difficulty.runs).toBe(2);
+    expect(difficulty.positive.map((row) => row.name)).toEqual(["p2", "p1"]);
+    expect(difficulty.negative.map((row) => [row.name, row.kind])).toEqual([["n1", "negative"]]);
+  });
+});
+
+describe("solved runs", () => {
+  const benchmark = {
+    runCosts: [
+      { run: 1, solved: true, generation: 4, evaluations: 40, seconds: 1 },
+      { run: 2, solved: false, generation: 9, evaluations: 90, seconds: 3 },
+      { run: 3, solved: true, generation: 2, evaluations: 20, seconds: 0.5 },
+      { run: 4, solved: true, generation: 2, evaluations: 20, seconds: 0.7 },
+    ],
+  };
+
+  it("climbs at each solved run and ends at the final success rate", () => {
+    expect(solvedCurve(benchmark, "evaluations")).toEqual({
+      runs: 4,
+      solved: 3,
+      points: [
+        [0, 0],
+        [20, 25],
+        [20, 50],
+        [40, 75],
+        [90, 75],
+      ],
+    });
+  });
+
+  it("reads the same runs on any progress axis", () => {
+    expect(solvedCurve(benchmark, "generation").points.at(-1)).toEqual([9, 75]);
+  });
+
+  it("groups the best candidates of runs that share coverage and outcome", () => {
+    const quality = {
+      finalCoverage: [
+        { run: 1, solved: false, positive: 2, negative: 1, totalPositive: 2, totalNegative: 3 },
+        { run: 2, solved: false, positive: 2, negative: 1, totalPositive: 2, totalNegative: 3 },
+        { run: 3, solved: true, positive: 2, negative: 0, totalPositive: 2, totalNegative: 3 },
+      ],
+    };
+
+    expect(finalCoverageGroups(quality)).toEqual([
+      { solved: false, positive: 2, negative: 1, totalPositive: 2, totalNegative: 3, runs: [1, 2] },
+      { solved: true, positive: 2, negative: 0, totalPositive: 2, totalNegative: 3, runs: [3] },
     ]);
   });
 });

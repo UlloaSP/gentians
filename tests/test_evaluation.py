@@ -1,3 +1,4 @@
+import json
 import math
 from dataclasses import FrozenInstanceError
 
@@ -85,6 +86,26 @@ def test_evaluation_reports_completeness_and_consistency(
     assert result.is_complete is is_complete
     assert result.is_consistent is is_consistent
     assert result.is_solution is (is_complete and is_consistent)
+
+
+def test_quality_metric_records_which_examples_the_candidate_covers(tmp_path, monkeypatch):
+    path = tmp_path / "quality.jsonl"
+    monkeypatch.setenv("GENTIANS_QUALITY_METRICS_PATH", str(path))
+    task = inductive_task(
+        [],
+        [example(("target(p1)", ""), True), example(("target(p2)", ""), True)],
+        [example(("target(n1)", ""), False), example(("target(n2)", ""), False)],
+        [],
+        [],
+    )
+    evaluator = create_evaluator(task, {"scoring": "cov_program", "clingo_arguments": []})
+
+    evaluator(_asp("target(p2).", "target(n1)."))
+
+    row = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
+    # Bit i is example i of each kind: p2 is bit 1, n1 is bit 0.
+    assert (row["positive_mask"], row["negative_mask"]) == ("2", "1")
+    assert (row["covered_positive"], row["covered_negative"]) == (1, 1)
 
 
 def test_whole_program_normalizes_positive_and_negative_examples_separately():

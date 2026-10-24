@@ -69,11 +69,14 @@ clause generation runs on one Clingo thread instead of `--parallel-mode=5,split`
 
 ## Historical results
 
-`--historical-index <ids>` keeps saved results viewable after their
-configuration changes. They stay historical until the experiment runs again with
-the current configuration; `--list` and new runs keep that status. The index
-retains the manifest's original status, including `stale` when source changed
-during execution, so historical results can still be distinguished by provenance.
+Every index write (`--list`, a run or a dashboard rebuild) marks a saved result
+historical once its fingerprint no longer matches the current code and
+configuration, and keeps it viewable with its original metadata. It stays
+historical until the experiment runs again with the current configuration. The
+index retains the manifest's original status, including `stale` when source
+changed during execution, so historical results can still be distinguished by
+provenance. Only finished results with a dashboard or `runs.csv` qualify;
+partial runs and directories saved under another experiment ID stay `stale`.
 Saved external results with `runs.csv` can also be historical; this does not
 create a Gentians dashboard or mark unmeasured metrics as available.
 

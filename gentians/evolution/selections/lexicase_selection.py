@@ -33,9 +33,9 @@ class LexicaseSelection:
         # Remove every winner before the next draw. Lexicase still decides each
         # parent independently, but one mating event cannot receive the same
         # individual twice.
-        selected = []
+        selected: list[Individual] = []
         for _ in range(count):
-            winner = self._select_one(remaining, cases, rng)
+            winner = self._select_one(remaining, self._order(cases, selected, rng), rng)
             selected.append(winner)
             remaining.remove(winner)
         return selected
@@ -63,18 +63,25 @@ class LexicaseSelection:
         )
 
     @staticmethod
+    def _order(
+        cases: tuple[tuple[int, bool], ...],
+        selected: list[Individual],
+        rng: random.Random,
+    ) -> list[tuple[int, bool]]:
+        # Lexicase requires a new random case order for every parent selection.
+        shuffled_cases = list(cases)
+        rng.shuffle(shuffled_cases)
+        return shuffled_cases
+
+    @staticmethod
     def _select_one(
         population: list[Individual],
-        cases: tuple[tuple[int, bool], ...],
+        ordered_cases: list[tuple[int, bool]],
         rng: random.Random,
     ) -> Individual:
         candidates = population
 
-        # Lexicase requires a new random case order for every parent selection.
-        shuffled_cases = list(cases)
-        rng.shuffle(shuffled_cases)
-
-        for bit, should_cover in shuffled_cases:
+        for bit, should_cover in ordered_cases:
             # Positive cases inspect behavior[0], while negative cases inspect
             # behavior[1].
             behavior_index = 0 if should_cover else 1

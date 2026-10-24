@@ -35,7 +35,7 @@ class Arguments:
     # Parent selection operator config.
     selection: dict[str, object] = field(
         default_factory=lambda: {
-            # tournament or lexicase.
+            # tournament, lexicase or complementary_lexicase.
             "name": "lexicase",
             # Population percentage sampled per tournament, expressed in (0, 1].
             "tournament_percentage": 0.1,
@@ -57,10 +57,12 @@ class Arguments:
     # Mutation operator config.
     mutation: dict[str, object] = field(
         default_factory=lambda: {
-            # random_group edits one dependency block; per_clause edits each
-            # clause of a duplicate crossover drawn with `probability`.
+            # random_group edits one dependency block; duplicate_group does so
+            # only for a duplicate crossover; per_clause edits each clause of a
+            # duplicate crossover drawn with `probability`.
             "name": "random_group",
-            # Probability of mutating an offspring; per clause of a duplicate in per_clause.
+            # Probability of mutating an offspring; per clause of a duplicate in
+            # per_clause; ignored by duplicate_group.
             "probability": 0.9,
             # Per replacement attempt: allow a different signed head signature.
             "random_jump_probability": 0.1,

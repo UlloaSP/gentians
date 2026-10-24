@@ -19,6 +19,7 @@ from gentians.evolution.replacements.dominated_or_worst import DominatedOrWorstR
 from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.evolution.restarts import create_restart
 from gentians.evolution.selections import create_selection
+from gentians.evolution.selections.complementary_lexicase_selection import ComplementaryLexicaseSelection
 from gentians.evolution.selections.lexicase_selection import LexicaseSelection
 from gentians.evolution.selections.tournament_selection import TournamentSelection
 from gentians.evaluation.result import EvaluationResult
@@ -160,6 +161,20 @@ def test_forced_mutation_bypasses_probability_gate():
 
     assert proposal.skipped is False
     assert proposal.genome != genome
+
+
+def test_duplicate_group_mutates_every_forced_call_and_nothing_else():
+    first = "target(X) :- parent(X)."
+    context = _context([first, "target(X) :- parent(Y)."], max_clauses=1)
+    genome = _encode(context, first)
+    always = create_mutation({"name": "duplicate_group", "probability": 1.0})
+    never = create_mutation({"name": "duplicate_group", "probability": 0.0})
+
+    assert always(genome, context) == MutationProposal(genome, skipped=True)
+    forced = never(genome, context, force=True)
+    assert forced.skipped is False
+    assert forced.operation == "replace"
+    assert _render(context, forced.genome) == ("target(X) :- parent(Y).",)
 
 
 def test_random_group_replaces_with_same_head():
@@ -439,6 +454,52 @@ def test_lexicase_rejects_more_parents_than_distinct_individuals():
 
     with pytest.raises(ValueError, match="distinct individuals"):
         LexicaseSelection()([individual, individual], 2, random.Random(1))
+
+
+class _OrderedRandom(random.Random):
+    def shuffle(self, items):
+        pass
+
+    def choice(self, items):
+        return items[0]
+
+
+def test_complementary_lexicase_second_parent_covers_missed_positive():
+    first = Individual(1, 1.0, False, behavior=(0b01, 0))
+    same = Individual(2, 1.0, False, behavior=(0b01, 0))
+    complement = Individual(3, 1.0, False, behavior=(0b10, 0))
+    population = [first, same, complement]
+
+    assert LexicaseSelection()(population, 2, _OrderedRandom(1)) == [first, same]
+    assert ComplementaryLexicaseSelection()(population, 2, _OrderedRandom(1)) == [first, complement]
+
+
+def test_complementary_lexicase_second_parent_avoids_covered_negative():
+    first = Individual(1, 1.0, False, behavior=(0b1, 0b01))
+    same = Individual(2, 1.0, False, behavior=(0b1, 0b01))
+    complement = Individual(3, 1.0, False, behavior=(0, 0b10))
+    population = [first, same, complement]
+
+    assert LexicaseSelection()(population, 2, _OrderedRandom(1)) == [first, same]
+    assert ComplementaryLexicaseSelection()(population, 2, _OrderedRandom(1)) == [first, complement]
+
+
+def test_complementary_lexicase_consumes_the_same_draws_as_lexicase():
+    population = [
+        Individual(index, float(index), False, behavior=(index % 4, index % 3)) for index in range(1, 9)
+    ]
+    plain, complementary = random.Random(7), random.Random(7)
+
+    LexicaseSelection()(population, 2, plain)
+    ComplementaryLexicaseSelection()(population, 2, complementary)
+
+    assert plain.random() == complementary.random()
+
+
+def test_complementary_lexicase_factory_creates_strategy():
+    assert isinstance(
+        create_selection({"name": "complementary_lexicase"}), ComplementaryLexicaseSelection
+    )
 
 
 def test_lexicase_factory_creates_strategy():

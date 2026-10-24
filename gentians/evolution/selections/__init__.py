@@ -1,6 +1,7 @@
 from typing import Any
 
 from ..operator_types import SelectionFn
+from .complementary_lexicase_selection import ComplementaryLexicaseSelection
 from .lexicase_selection import LexicaseSelection
 from .tournament_selection import TournamentSelection
 
@@ -25,4 +26,6 @@ def create_selection(
         )
     if name == "lexicase":
         return LexicaseSelection()
+    if name == "complementary_lexicase":
+        return ComplementaryLexicaseSelection()
     raise ValueError(f"Unknown selection strategy: {name}")

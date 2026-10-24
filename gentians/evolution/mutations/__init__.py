@@ -1,10 +1,15 @@
 from typing import Any
 
 from ..operator_types import MutationFn
+from .duplicate_group import DuplicateGroupMutation
 from .per_clause import PerClauseMutation
 from .random_group import RandomGroupMutation
 
-MUTATIONS = {"random_group": RandomGroupMutation, "per_clause": PerClauseMutation}
+MUTATIONS = {
+    "random_group": RandomGroupMutation,
+    "per_clause": PerClauseMutation,
+    "duplicate_group": DuplicateGroupMutation,
+}
 
 
 def create_mutation(config: dict[str, Any]) -> MutationFn:

@@ -197,6 +197,11 @@ destructive setting. The guards use the offspring's evaluation; intermediate
 programs are not evaluated. With no drawn clause the mutation is skipped and
 the duplicate is discarded, so `probability=0` never mutates. The operator metrics record the edits joined by `+`.
 
+`duplicate_group` takes the same options and applies one `random_group` edit,
+but only to a crossover child that was already evaluated; a new crossover child
+is kept as is. Every duplicate mutates, exactly as in `random_group`;
+`probability` is ignored.
+
 Complete programs keep their headed clauses unchanged, except for that
 removal attempt. If a complete candidate has no legal constraint edit or allowed
 deletion, mutation leaves it unchanged. This restriction can block candidates
@@ -232,6 +237,26 @@ probability gate. Selection and variation still run once per generation.
 
 See [variation policy](variation-policy.md) for guarantees and exceptions, and
 [the mutation guide](mutation-guide.md) for diagrams.
+
+## Selection
+
+Selection picks the two parents of each mating event and never returns the same
+individual twice.
+
+- `lexicase`, the default, filters the population through the positive and
+  negative examples in a new random order for each parent: covering a positive
+  or avoiding a negative passes a case.
+- `complementary_lexicase` chooses the first parent the same way. The second
+  parent first faces, in random order, the cases the first one fails: the
+  positives it misses and the negatives it covers. The other cases follow. It
+  prefers complementary parents for crossover; whole-program semantics still
+  decide what the child covers.
+- `tournament` samples `tournament_percentage` of the population and picks the
+  fittest with probability `prob_selecting_fittest`.
+
+```python
+selection={"name": "complementary_lexicase"}
+```
 
 ## Replacement
 

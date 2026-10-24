@@ -124,7 +124,8 @@ def test_index_keeps_saved_worker_runtime_but_detects_changed_code(tmp_path, mon
     current_files["source.py"] = "changed"
     write_index(root, expand_experiments(definitions))
     saved = json.loads((root / "experiments.json").read_text())["experiments"][0]
-    assert saved["status"] == "stale" and saved["has_dashboard"] is False
+    assert saved["status"] == "historical" and saved["has_dashboard"] is True
+    assert saved["original_status"] == "complete"
 
 
 def test_parallel_methods_publish_readable_manifests_and_current_index(tmp_path, monkeypatch):
@@ -185,7 +186,7 @@ def test_new_backend_registers_without_changing_the_dispatch_loop(tmp_path, monk
     path = paired_config(tmp_path, ["fastlas"])
     monkeypatch.setattr(runner, "parse_args", lambda: Namespace(
         config=path, experiments=["paired"], methods=None, force=False, list=False,
-        summary=False, historical_index=False, rebuild_dashboards=False))
+        summary=False, rebuild_dashboards=False))
     monkeypatch.setattr(runner, "execution_inputs", lambda experiment: {})
     assert runner.main() == 0
     assert len(calls) == 1 and calls[0]["runs"] == 1 and calls[0]["tool"] == "fastlas"
@@ -412,7 +413,7 @@ def test_force_replaces_only_selected_namespaced_output(tmp_path, monkeypatch):
                       encoding="utf-8")
     monkeypatch.setattr(runner, "parse_args", lambda: Namespace(
         config=config, experiments=["group/control"], force=True, list=False,
-        summary=False, historical_index=False, rebuild_dashboards=False))
+        summary=False, rebuild_dashboards=False))
     commands = []
 
     class Process:
@@ -462,7 +463,7 @@ def test_index_points_to_each_dashboard_for_comparison(tmp_path):
     assert indexed["fingerprint"] == fingerprint(experiment)
 
 
-def test_index_marks_results_stale_when_config_changed(tmp_path):
+def test_index_marks_finished_results_historical_when_config_changed(tmp_path):
     experiment = {
         "id": "whole_program",
         "datasets": ["coin"],
@@ -478,8 +479,24 @@ def test_index_marks_results_stale_when_config_changed(tmp_path):
     write_index(tmp_path, [experiment])
 
     [indexed] = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
+    assert indexed["status"] == "historical"
+    assert indexed["original_status"] == "complete"
+    assert indexed["runs"] == 2
+    assert indexed["has_dashboard"] is True
+
+
+def test_index_keeps_partial_results_stale_when_config_changed(tmp_path):
+    experiment = {"id": "partial", "datasets": ["coin"], "runs": 2, "overrides": {}}
+    out_dir = tmp_path / experiment["id"]
+    out_dir.mkdir()
+    write_manifest(out_dir, experiment, "running")
+    (out_dir / "dashboard_data.json").write_text("{}", encoding="utf-8")
+    experiment["runs"] = 3
+
+    write_index(tmp_path, [experiment])
+
+    [indexed] = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
     assert indexed["status"] == "stale"
-    assert indexed["runs"] == 3
     assert indexed["has_dashboard"] is False
 
 
@@ -521,7 +538,7 @@ def test_historical_index_preserves_saved_runs_and_provenance(tmp_path, original
     (out_dir / "dashboard_data.json").write_text('{"schemaVersion":10}')
     experiment["runs"] = 30
 
-    write_index(tmp_path, [experiment], historical_ids={"saved"})
+    write_index(tmp_path, [experiment])
 
     [indexed] = json.loads((tmp_path / "experiments.json").read_text())["experiments"]
     assert indexed["runs"] == 300
@@ -542,7 +559,7 @@ def test_historical_index_accepts_external_results_without_a_dashboard(tmp_path)
     (out_dir / "runs.csv").write_text("dataset,status\ncoin,timeout\n")
     experiment["timeout_seconds"] += 1
 
-    write_index(output_root, [experiment], historical_ids={experiment["id"]})
+    write_index(output_root, [experiment])
 
     [indexed] = json.loads((output_root / "experiments.json").read_text())["experiments"]
     assert indexed["status"] == "historical"
@@ -552,7 +569,7 @@ def test_historical_index_accepts_external_results_without_a_dashboard(tmp_path)
     assert not (out_dir / "dashboard_data.json").exists()
 
 
-def test_historical_index_keeps_experiments_already_marked_historical(
+def test_list_marks_every_saved_result_of_an_older_config_historical(
     tmp_path, monkeypatch,
 ):
     experiment_ids = (
@@ -585,20 +602,7 @@ def test_historical_index_keeps_experiments_already_marked_historical(
         (out_dir / "dashboard_data.json").write_text(
             '{"schemaVersion": 10}', encoding="utf-8",
         )
-    (tmp_path / "experiments.json").write_text(json.dumps({
-        "experiments": [
-            {"id": experiment_id, "status": "historical"}
-            for experiment_id in experiment_ids[:2]
-        ],
-    }), encoding="utf-8")
-    monkeypatch.setattr(runner, "parse_args", lambda: Namespace(
-        config=config,
-        experiments=list(experiment_ids[2:]),
-        force=False,
-        list=False,
-        summary=False,
-        historical_index=True, rebuild_dashboards=False,
-    ))
+    monkeypatch.setattr(runner.sys, "argv", ["run_experiments.py", "--list", "--config", str(config)])
 
     assert runner.main() == 0
 
@@ -615,7 +619,7 @@ def test_rerun_or_list_keeps_other_historical_results(tmp_path):
     write_manifest(out_dir, saved, "complete")
     (out_dir / "dashboard_data.json").write_text('{"schemaVersion":10}')
     saved["runs"] = 30  # The configuration changed after the saved run.
-    write_index(tmp_path, [saved], historical_ids={"saved"})
+    write_index(tmp_path, [saved])
 
     write_index(tmp_path, [saved])
 
@@ -655,7 +659,7 @@ def two_by_two_config(tmp_path, *, stop_on_timeout=False):
 def grid_args(path, *, jobs, force=False, experiments=()):
     return lambda: Namespace(
         config=path, experiments=list(experiments), methods=None, force=force, list=False,
-        summary=False, historical_index=False, rebuild_dashboards=False, jobs=jobs,
+        summary=False, rebuild_dashboards=False, jobs=jobs,
     )
 
 

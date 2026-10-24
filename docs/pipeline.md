@@ -132,7 +132,9 @@ Invariantes del candidato:
 
 Las factories de estrategias se conservan en todas las categorías aunque alguna
 registre una sola implementación. `per_clause` solo muta un cruce duplicado y aplica una edición de
-`random_group` a cada cláusula sorteada con `probability`. `random_group` reúne los reemplazos por firma
+`random_group` a cada cláusula sorteada con `probability`. `duplicate_group`
+aplica una sola edición de `random_group` a todo cruce duplicado y a nada más;
+ignora `probability`. `random_group` reúne los reemplazos por firma
 de cabeza y las operaciones por bloques. `random_jump_probability=0.1` permite
 cambiar de firma en un intento de reemplazo. En candidatos completos con
 positivos y constraints disponibles, las reglas con cabeza solo pueden eliminarse

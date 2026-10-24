@@ -52,8 +52,9 @@ including providers and removed consumers. An invalid alternative is skipped.
 ## Unified mutation
 
 Configure the strategy through `create_mutation`. `per_clause` accepts the same
-options, mutates only duplicate crossovers and draws `probability` per clause;
-see the usage guide.
+options, mutates only duplicate crossovers and draws `probability` per clause.
+`duplicate_group` applies one `random_group` edit to every duplicate crossover
+and to nothing else, ignoring `probability`; see the usage guide.
 
 ```python
 mutation = {
@@ -175,12 +176,13 @@ or impose mutation's stricter protection on crossover.
 
 ### Parent uniqueness and duplicate offspring
 
-Lexicase draws without replacement inside one selection call, so its two returned
-parents are distinct. Selection, crossover and mutation run at most once per
+Lexicase and complementary lexicase draw without replacement inside one
+selection call, so their two returned parents are distinct. Selection, crossover and mutation run at most once per
 generation; neither a duplicate crossover nor a duplicate final proposal triggers
 selection again. A crossover already present in the evaluation cache forces its
 single mutation call past the configured probability gate of `random_group`.
-`per_clause` mutates only under that force, and keeps its per-clause draw. The
+`per_clause` mutates only under that force, and keeps its per-clause draw.
+`duplicate_group` mutates only under that force, always. The
 evaluation cache
 still prevents solving or admitting a final proposal already processed.
 Steady-state and incremental clause search share these rules.

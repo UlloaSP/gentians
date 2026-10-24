@@ -64,8 +64,6 @@ def parse_args() -> argparse.Namespace:
              "e.g. --set clause_generation.clingo_arguments=[]. Saved configs and fingerprints include it.",
     )
     parser.add_argument("--list", action="store_true", help="List experiments and exit.")
-    parser.add_argument("--historical-index", action="store_true",
-                        help="Index saved results with their original metadata; do not run experiments.")
     parser.add_argument("--summary", action="store_true", help="Print measured run summaries as CSV without executing.")
     parser.add_argument(
         "--rebuild-dashboards", action="store_true",
@@ -527,8 +525,7 @@ def write_json_atomic(path: Path, payload: dict) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
-                historical_ids: set[str] | None = None) -> None:
+def write_index(output_root: Path, experiments: list[dict[str, Any]]) -> None:
     """Serialize snapshots so a slower parallel job cannot publish an older index."""
     output_root.mkdir(parents=True, exist_ok=True)
     with (output_root / ".index.lock").open("a+b") as lock:
@@ -543,7 +540,7 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
             import fcntl
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         try:
-            _write_index(output_root, experiments, historical_ids=historical_ids)
+            _write_index(output_root, experiments)
         finally:
             if os.name == "nt":
                 lock.seek(0)
@@ -552,11 +549,8 @@ def write_index(output_root: Path, experiments: list[dict[str, Any]], *,
                 fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
-def _write_index(output_root: Path, experiments: list[dict[str, Any]], *,
-                 historical_ids: set[str] | None) -> None:
-    """Index every experiment; historical results stay historical until rerun."""
-    if historical_ids is None:
-        historical_ids = indexed_historical_ids(output_root)
+def _write_index(output_root: Path, experiments: list[dict[str, Any]]) -> None:
+    """Index every experiment; saved results of an older config become historical."""
     rows = []
     for experiment in experiments:
         out_dir = experiment_output_path(output_root, experiment["id"])
@@ -577,9 +571,10 @@ def _write_index(output_root: Path, experiments: list[dict[str, Any]], *,
             }
         )
         current_fingerprint = saved_fingerprint(experiment, manifest) if manifest_path.exists() else None
+        # A finished result keeps its own metadata; partial or foreign results stay stale.
         historical = (
-            experiment["id"] in historical_ids
-            and manifest_path.exists()
+            manifest_path.exists()
+            and manifest.get("id") == experiment["id"]
             and manifest.get("fingerprint") != current_fingerprint
             and (dashboard_path.exists() or (out_dir / "runs.csv").is_file())
             and manifest.get("status") in (
@@ -613,18 +608,6 @@ def _write_index(output_root: Path, experiments: list[dict[str, Any]], *,
         "generated_at": datetime.now(UTC).isoformat(),
         "experiments": rows,
     })
-
-
-def indexed_historical_ids(output_root: Path) -> set[str]:
-    index_path = output_root / "experiments.json"
-    if not index_path.exists():
-        return set()
-    payload = read_json(index_path)
-    return {
-        item["id"]
-        for item in payload.get("experiments", [])
-        if item.get("status") == "historical" and isinstance(item.get("id"), str)
-    }
 
 
 def main() -> int:
@@ -669,11 +652,6 @@ def main() -> int:
     ids = [experiment["id"] for experiment in experiments]
     if any(left != right and right.startswith(left + "/") for left in ids for right in ids):
         raise SystemExit("Method outputs overlap; give the experiments distinct IDs")
-    if args.historical_index:
-        historical_ids = indexed_historical_ids(output_root)
-        historical_ids.update(item["id"] for item in selected)
-        write_index(output_root, experiments, historical_ids=historical_ids)
-        return 0
     if args.rebuild_dashboards:
         for experiment in selected:
             if experiment["tool"] != "gentians":

@@ -257,7 +257,7 @@ def test_per_clause_mutation_edits_every_drawn_clause(monkeypatch):
     monkeypatch.setattr(context.hypotheses, "operations", lambda genome: ["replace"])
     mutation = create_mutation({"name": "per_clause", "probability": 1.0, "random_jump_probability": 0.0})
 
-    result = mutation(_encode(context, first, second), context)
+    result = mutation(_encode(context, first, second), context, force=True)
 
     # random_group would replace only one of the two rules.
     assert set(_render(context, result.genome)) == {"a(X) :- child(X).", "b(X) :- child(X)."}
@@ -269,21 +269,23 @@ def test_per_clause_mutation_skips_clauses_removed_with_a_block(monkeypatch):
     monkeypatch.setattr(context.hypotheses, "operations", lambda genome: ["remove"])
     mutation = create_mutation({"name": "per_clause", "probability": 1.0})
 
-    result = mutation(_encode(context, "p :- q.", "q :- a.", "r :- a."), context)
+    result = mutation(_encode(context, "p :- q.", "q :- a.", "r :- a."), context, force=True)
 
     # Removing q also removes p; the last clause can never be removed.
     assert len(_render(context, result.genome)) == 1
     assert set(result.operation.split("+")) == {"remove"}
 
 
-def test_per_clause_mutation_draws_per_clause_and_honours_force():
+def test_per_clause_mutation_only_mutates_forced_calls_with_its_per_clause_gate():
     first = "target(X) :- parent(X)."
     context = _context([first, "target(X) :- parent(Y)."], max_clauses=1)
     genome = _encode(context, first)
-    mutation = create_mutation({"name": "per_clause", "probability": 0.0})
+    never = create_mutation({"name": "per_clause", "probability": 0.0})
+    always = create_mutation({"name": "per_clause", "probability": 1.0})
 
-    assert mutation(genome, context) == MutationProposal(genome, skipped=True)
-    forced = mutation(genome, context, force=True)
+    assert always(genome, context) == MutationProposal(genome, skipped=True)
+    assert never(genome, context, force=True) == MutationProposal(genome, skipped=True)
+    forced = always(genome, context, force=True)
     assert forced.skipped is False
     assert forced.genome != genome
 

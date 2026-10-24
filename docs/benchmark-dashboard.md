@@ -35,7 +35,8 @@ no un payload del dashboard. Protocolo y límites del experimento:
 [optimización del Python de cláusulas](clause-python-optimizations.md).
 
 `benchmarks/profile_clauses.py` imprime por defecto una tabla con benchmark,
-número de cláusulas y segundos de generación, sin guardar archivos. `--debug`
+número de cláusulas, segundos de generación, cláusulas por segundo, microsegundos
+medios por cláusula y pico RSS de esa generación, sin guardar archivos. `--debug`
 activa el informe detallado y los JSON. `--debug --cprofile` añade una segunda pasada independiente
 con cProfile y un desglose por tiempos propios de funciones. Comprueba que el
 `ClauseSpace` coincide y que todos los callbacks aparecen en el perfil. Guarda

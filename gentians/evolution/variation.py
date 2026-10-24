@@ -8,8 +8,9 @@ from ..hypotheses import Genome
 def _result(
     genome: Genome, context: EvolutionContext, *, classify: bool = False,
 ) -> EvaluationResult | None:
-    if context.results is not None and genome in context.results:
-        return context.results[genome]
+    cached = context.results.get(genome) if context.results is not None else None
+    if cached is not None:
+        return cached
     h = context.hypotheses
     # Mutation needs the actual child's state even in homogeneous spaces.
     # Crossover retains its mixed-space classification policy.

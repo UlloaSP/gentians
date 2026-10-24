@@ -5,12 +5,14 @@ from .random_group import RandomGroupMutation
 
 
 class PerClauseMutation(RandomGroupMutation):
-    """Give each clause of the offspring its own `random_group` edit.
+    """Give each clause of a duplicate crossover its own `random_group` edit.
 
-    `probability` is drawn once per clause, not once per offspring. Each drawn
-    clause receives one append, remove or replace targeted at it, with the same
-    permissions as `random_group`. The offspring's evaluation guides every edit:
-    the intermediate programs are not evaluated, so the guards are a heuristic
+    Only a forced call mutates: a crossover child not yet evaluated is kept as
+    is. A forced call draws `probability` once per clause, not once per
+    offspring; with no drawn clause it is skipped. Each drawn clause receives
+    one append, remove or replace targeted at it, with the same permissions as
+    `random_group`. The offspring's evaluation guides every edit: the
+    intermediate programs are not evaluated, so the guards are a heuristic
     after the first edit.
     """
 
@@ -20,17 +22,16 @@ class PerClauseMutation(RandomGroupMutation):
         context: EvolutionContext,
         force: bool = False,
     ) -> MutationProposal:
+        if not force:
+            return MutationProposal(genome, skipped=True)
         rng = context.rng
         drawn = [clause_id for clause_id in range(genome.bit_length())
                  if genome >> clause_id & 1 and rng.random() < self.probability]
-        if not drawn and not force:
+        if not drawn:
             return MutationProposal(genome, skipped=True)
         result, solved = self._classify(genome, context)
         if solved:
             return MutationProposal(genome, skipped=True)
-        if not drawn:
-            # A duplicate crossover still needs new material: one ordinary edit.
-            return self._propose(genome, context, result, self._remove_headed(genome, context, result))
         rng.shuffle(drawn)
         candidate, operations = genome, []
         for clause_id in drawn:

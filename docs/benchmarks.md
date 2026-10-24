@@ -140,8 +140,13 @@ uv run python benchmarks/profile_clauses.py --datasets alzheimer
 ```
 
 By default, the terminal prints a table with benchmark name, final canonical
-clause count and generation wall-clock seconds. Generation includes preparation,
+clause count, generation wall-clock seconds, final clauses per second, mean
+microseconds per final clause and peak RSS in MiB. Generation includes preparation,
 grounding, decoding, canonicalization and storage; it excludes task loading.
+The peak belongs to each benchmark's generation, not to the whole process: it is
+the OS high-water mark when that generation raises it, and otherwise the largest
+resident size sampled every 20 ms, which can miss shorter spikes. It excludes
+generation worker processes.
 Compact mode disables generation instrumentation and writes no snapshots,
 metrics or profiling files. `--out-dir` is used only in debug mode.
 

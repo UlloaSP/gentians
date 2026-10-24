@@ -2,6 +2,7 @@ import random
 import tracemalloc
 
 from gentians.hypotheses import HypothesisGenerator
+from gentians.hypotheses.types import release_int_blocks
 from tests.task_helpers import inductive_task, make_clause_space
 
 
@@ -40,3 +41,20 @@ def test_clauses_remain_independent_and_dependency_closure_is_preserved():
     assert generator._build(target, provider, rng) is None
     generator.set_available_clauses(provider)
     assert generator.create(rng) == provider
+
+
+def test_small_ints_created_after_release_do_not_keep_genome_sized_blocks():
+    genome = (1 << 300_000) | 1
+    kept = []
+    tracemalloc.start()
+    try:
+        before, _ = tracemalloc.get_traced_memory()
+        for index in range(200):
+            assert not genome & ~genome
+            release_int_blocks()
+            kept.append(-(index + 5000))
+        retained, _ = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    # Without the release, each kept int would reuse a block of about 39 KiB.
+    assert (retained - before) / len(kept) < 1024

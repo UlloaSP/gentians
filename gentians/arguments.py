@@ -58,9 +58,9 @@ class Arguments:
     mutation: dict[str, object] = field(
         default_factory=lambda: {
             # random_group edits one dependency block; per_clause edits each
-            # clause drawn with `probability`.
+            # clause of a duplicate crossover drawn with `probability`.
             "name": "random_group",
-            # Probability of mutating an offspring; per clause in per_clause.
+            # Probability of mutating an offspring; per clause of a duplicate in per_clause.
             "probability": 0.9,
             # Per replacement attempt: allow a different signed head signature.
             "random_jump_probability": 0.1,

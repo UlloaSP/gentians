@@ -15,7 +15,7 @@ from benchmarks.clause_python_profile import (  # noqa: E402
     profile_clause_python,
 )
 from benchmarks.profile_baseline import profile_arguments  # noqa: E402
-from benchmarks.process_resources import peak_rss_bytes  # noqa: E402
+from benchmarks.process_resources import PeakRssSampler, peak_rss_bytes  # noqa: E402
 from gentians import timing  # noqa: E402
 from gentians.clauses import clause_generation_program, generate_clause_space  # noqa: E402
 from gentians.gentians import task_from_arguments  # noqa: E402
@@ -70,8 +70,10 @@ def main() -> None:
 
     name_width = max(len("Benchmark"), *(len(name) for name in datasets))
     if not args.debug:
-        print(f"{'Benchmark':<{name_width}}  {'Clauses':>12}  {'Time (s)':>10}", flush=True)
-        print(f"{'-' * name_width}  {'-' * 12}  {'-' * 10}", flush=True)
+        print(compact_row(name_width, "Benchmark", "Clauses", "Time (s)", "Clauses/s",
+                          "us/clause", "Peak RSS (MiB)"), flush=True)
+        print(compact_row(name_width, *("-" * width for width in (name_width, *COMPACT_WIDTHS))),
+              flush=True)
 
     for dataset in datasets:
         try:
@@ -87,14 +89,21 @@ def main() -> None:
             old_clingo_path = os.environ.pop("GENTIANS_CLINGO_METRICS_PATH", None)
             try:
                 timing.set_enabled(False)
-                generation_started = time.perf_counter()
-                clause_space = generate_clause_space(task, arguments)
-                generation_seconds = time.perf_counter() - generation_started
+                with PeakRssSampler() as memory:
+                    generation_started = time.perf_counter()
+                    clause_space = generate_clause_space(task, arguments)
+                    generation_seconds = time.perf_counter() - generation_started
             finally:
                 timing.set_enabled(old_enabled)
                 if old_clingo_path is not None:
                     os.environ["GENTIANS_CLINGO_METRICS_PATH"] = old_clingo_path
-            print(f"{dataset:<{name_width}}  {len(clause_space):>12,}  {generation_seconds:>10.3f}", flush=True)
+            clauses = len(clause_space)
+            print(compact_row(
+                name_width, dataset, f"{clauses:,}", f"{generation_seconds:.3f}",
+                f"{clauses / generation_seconds:,.0f}" if generation_seconds else "N/A",
+                f"{1e6 * generation_seconds / clauses:,.2f}" if clauses else "N/A",
+                f"{memory.peak_bytes / 2**20:,.1f}",
+            ), flush=True)
             del clause_space
             continue
         clause_space, metrics = build_profiled_clause_space(task, arguments)
@@ -131,6 +140,15 @@ def main() -> None:
                                            None if arguments.clause_generation.get("workers", 1) != 1 else int(models),
                                            profile_path)
             print_python_profile(summary, profile_path)
+
+
+# Clauses, time, throughput, mean time per clause and peak RSS.
+COMPACT_WIDTHS = (12, 10, 12, 10, 14)
+
+
+def compact_row(name_width, name, *columns) -> str:
+    cells = (f"{value:>{width}}" for value, width in zip(columns, COMPACT_WIDTHS, strict=True))
+    return "  ".join((f"{name:<{name_width}}", *cells))
 
 
 def write_clause_snapshot(path, clause_space, metrics) -> None:

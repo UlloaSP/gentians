@@ -32,7 +32,8 @@ def test_renewal_preserves_programs_and_metadata_when_bit_positions_change(const
         pytest.fail("renewal must not evaluate retained candidates")
 
     candidates = Candidates(source, evaluate, rng, SearchBudget(None))
-    candidates.results.update(old_results)
+    for genome, result in old_results.items():
+        candidates.results[genome] = result
     new_retained, new_champion, additions = candidates.renew(target, retained, champion)
 
     for original, renewed in zip(retained, new_retained, strict=True):
@@ -40,16 +41,14 @@ def test_renewal_preserves_programs_and_metadata_when_bit_positions_change(const
         assert target.render(renewed.genome) == source.render(original.genome)
         assert renewed.birth_order == original.birth_order
         assert candidates.results[renewed.genome] == old_results[original.genome]
-        assert candidates.evaluated[renewed.genome] is renewed
+        assert candidates.evaluated[renewed.genome] == renewed.birth_order
     assert new_champion is new_retained[1]
     assert candidates.context.hypotheses is target
     assert candidates.context.results is candidates.results
     assert candidates.context.evaluate == candidates.evaluate
     assert candidates.context.rng is rng
     assert rng.getstate() == before_rng
-    assert set(candidates.results) == set(candidates.evaluated) == {
-        item.genome for item in new_retained
-    }
+    assert len(candidates.results) == len(candidates.evaluated) == len(new_retained)
     assert additions == (target.encode((clauses[0],)) if constraints_only else 0)
     assert old_results == before_results
     assert retained == [other, champion]
@@ -62,19 +61,19 @@ def test_failed_renewal_leaves_previous_population_usable():
     champion = Individual(source.encode(("m.",)), 0.8, False)
     missing = Individual(source.encode(("z.",)), 0.4, False)
     result = EvaluationResult(0.8, False, (1, 0), False, True)
-    results = {champion.genome: result}
     candidates = Candidates(source, lambda _: result, random.Random(17), SearchBudget(None))
-    candidates.results.update(results)
+    candidates.results[champion.genome] = result
 
     with pytest.raises(KeyError):
         candidates.renew(target, [champion, missing], champion)
 
     assert candidates.hypotheses.render(champion.genome) == ("m.",)
     assert candidates.hypotheses.render(missing.genome) == ("z.",)
-    assert candidates.results == {champion.genome: result}
+    assert len(candidates.results) == 1
+    assert candidates.results[champion.genome] == result
 
 
-def test_context_uses_current_space_and_restart_preserves_evaluation_count():
+def test_context_uses_current_space_and_restart_keeps_evaluations():
     task = inductive_task([], [], [], [], [])
     source = HypothesisGenerator(task, make_clause_space(["m.", "z."]), 1)
     target = HypothesisGenerator(task, make_clause_space(["a.", "m.", "z."]), 1)
@@ -100,5 +99,8 @@ def test_context_uses_current_space_and_restart_preserves_evaluation_count():
     candidates.restart([champion])
     assert candidates.context.results is candidates.results
     assert candidates.context.evaluate(champion.genome).score == 0.4
-    assert candidates.admit(new_genome).birth_order == 4
-    assert calls == [("m.",), ("z.",), ("a.",), ("a.",)]
+    assert candidates.admit(champion.genome) is None
+    # The restart forgets the admission, not the complete-program result.
+    readmitted = candidates.admit(new_genome)
+    assert (readmitted.score, readmitted.birth_order) == (0.9, 3)
+    assert calls == [("m.",), ("z.",), ("a.",)]

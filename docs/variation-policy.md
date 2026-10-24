@@ -52,7 +52,8 @@ including providers and removed consumers. An invalid alternative is skipped.
 ## Unified mutation
 
 Configure the strategy through `create_mutation`. `per_clause` accepts the same
-options and draws `probability` per clause; see the usage guide.
+options, mutates only duplicate crossovers and draws `probability` per clause;
+see the usage guide.
 
 ```python
 mutation = {
@@ -178,7 +179,9 @@ Lexicase draws without replacement inside one selection call, so its two returne
 parents are distinct. Selection, crossover and mutation run at most once per
 generation; neither a duplicate crossover nor a duplicate final proposal triggers
 selection again. A crossover already present in the evaluation cache forces its
-single mutation call past the configured probability gate. The evaluation cache
+single mutation call past the configured probability gate of `random_group`.
+`per_clause` mutates only under that force, and keeps its per-clause draw. The
+evaluation cache
 still prevents solving or admitting a final proposal already processed.
 Steady-state and incremental clause search share these rules.
 
@@ -288,7 +291,9 @@ global individual and evaluation caches survive the restart, so previously seen
 programs are not solved again and still count toward finite-space exhaustion.
 If sampling cannot find enough novel programs, the remaining slots keep current
 members. Incremental search restarts only after the clause space is exhausted
-and clears every evaluation except the survivors'.
+and forgets every admission except the survivors'. A forgotten program can
+rejoin the population, but its evaluation result is reused instead of solved
+again.
 
 This is population renewal in the search loop, not a mutation retry. Mutation
 still makes one proposal per offspring and retains the permissions above. The

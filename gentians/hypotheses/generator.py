@@ -8,7 +8,7 @@ from ..language.ir.inductive_task import InductiveTask
 from ..clauses import ClauseSpace
 from ..timing import add, current_phase
 from .space import prepare_space, task_providers
-from .types import Genome, ProgramText
+from .types import Genome, ProgramText, genome_key, release_int_blocks
 
 _CACHE_SIZE = 65536
 
@@ -31,6 +31,17 @@ def _bits(mask: int):
         mask ^= bit
 
 
+def _mask(clause_ids) -> int:
+    """Build a space-wide mask in linear time; summing growing ints is quadratic."""
+    bits = bytearray()
+    for clause_id in clause_ids:
+        byte = clause_id >> 3
+        if byte >= len(bits):
+            bits.extend(bytes(byte + 1 - len(bits)))
+        bits[byte] |= 1 << (clause_id & 7)
+    return int.from_bytes(bits, "little")
+
+
 class HypothesisGenerator:
     def __init__(
         self,
@@ -46,6 +57,7 @@ class HypothesisGenerator:
         self.clause_count = len(self.clauses)
         self.all_clauses = (1 << self.clause_count) - 1
         self.available_clauses = self.all_clauses
+        self._available_key = genome_key(self.available_clauses)
         self._available_ids: tuple[int, ...] = ()
         self.clause_ids = {
             clause: index for index, clause in enumerate(self.clauses)
@@ -90,28 +102,31 @@ class HypothesisGenerator:
         self.head_masks = tuple(pair[0] for pair in masks)
         self.dep_masks = tuple(pair[1] for pair in masks)
         self.body_sizes = tuple(entry.body_literals for entry in self.space.entries)
-        self.target_clauses = sum(
-            1 << clause_id
+        self.target_clauses = _mask(
+            clause_id
             for clause_id, heads in enumerate(self.head_masks)
             if heads & self.target_mask
         )
-        self.clauses_by_head: dict[int, int] = {}
+        providers_by_head: dict[int, list[int]] = {}
         for clause_id, heads in enumerate(self.head_masks):
-            clause_bit = 1 << clause_id
             for predicate_bit in _bits(heads):
-                self.clauses_by_head[predicate_bit] = (
-                    self.clauses_by_head.get(predicate_bit, 0) | clause_bit
-                )
-        self._render_cache: dict[Genome, ProgramText] = {}
-        self._summary_cache: dict[Genome, tuple[int, int]] = {}
+                providers_by_head.setdefault(predicate_bit, []).append(clause_id)
+        self.clauses_by_head: dict[int, int] = {
+            predicate_bit: _mask(clause_ids) for predicate_bit, clause_ids in providers_by_head.items()
+        }
+        # Genome-keyed caches hold digests: a genome spans the whole space.
+        self._render_cache: dict[bytes, ProgramText] = {}
+        self._summary_cache: dict[bytes, tuple[int, int]] = {}
         self._signature_cache: dict[int, tuple[tuple[int, int, int, Genome], ...]] = {}
-        self._build_cache: dict[tuple[Genome, Genome, Genome], Genome | None] = {}
+        # A built genome is stored as the clause ids closure toggled in the proposal.
+        self._build_cache: dict[tuple[bytes, bytes, bytes], tuple[int, ...] | None] = {}
 
     def set_available_clauses(self, clauses: Genome) -> None:
         """Restrict subsequent construction to a frozen subset of the space."""
         if not clauses or clauses & ~self.all_clauses:
             raise ValueError("clause pool must be a non-empty subset of the space")
         self.available_clauses = clauses
+        self._available_key = genome_key(clauses)
         self._available_ids = (
             () if clauses == self.all_clauses else tuple(self._ids(clauses))
         )
@@ -123,13 +138,14 @@ class HypothesisGenerator:
         return genome
 
     def render(self, genome: Genome) -> ProgramText:
-        if genome not in self._render_cache:
+        key = genome_key(genome)
+        if key not in self._render_cache:
             self._remember(
                 self._render_cache,
-                genome,
+                key,
                 tuple(self.clauses[clause_id] for clause_id in self._ids(genome)),
             )
-        return self._render_cache[genome]
+        return self._render_cache[key]
 
     def program(self, genome: Genome) -> AspProgram:
         return tuple(self.space.entries[clause_id].statement for clause_id in self._ids(genome))
@@ -223,7 +239,7 @@ class HypothesisGenerator:
     @cached_property
     def constraint_clauses(self) -> Genome:
         """Clauses with no defined head predicate."""
-        return sum(1 << i for i, entry in enumerate(self.space.entries) if not entry.heads)
+        return _mask(i for i, entry in enumerate(self.space.entries) if not entry.heads)
 
     def _mutation_space(self, genome: Genome, mutable: Genome | None) -> tuple[Genome, Genome]:
         mutable = self.available_clauses if mutable is None else mutable & self.available_clauses
@@ -384,9 +400,10 @@ class HypothesisGenerator:
     def _build(
         self, proposal: Genome, forbidden: Genome, rng: random.Random
     ) -> Genome | None:
-        key = self.available_clauses, proposal, forbidden
+        key = self._available_key, genome_key(proposal), genome_key(forbidden)
         if key in self._build_cache:
-            return self._build_cache[key]
+            toggled = self._build_cache[key]
+            return None if toggled is None else proposal ^ sum(1 << clause_id for clause_id in toggled)
         invalid = (
             not proposal
             or proposal.bit_count() > self.max_clauses
@@ -398,7 +415,8 @@ class HypothesisGenerator:
         else:
             result = self._complete(proposal, forbidden, rng)
         if result is not None or invalid:
-            self._remember(self._build_cache, key, result)
+            toggled = None if result is None else tuple(self._ids(result ^ proposal))
+            self._remember(self._build_cache, key, toggled)
         return result
 
     def _complete(
@@ -478,14 +496,15 @@ class HypothesisGenerator:
         return self._signature_cache[head_bit]
 
     def _summary(self, genome: Genome) -> tuple[int, int]:
-        if genome not in self._summary_cache:
+        key = genome_key(genome)
+        if key not in self._summary_cache:
             heads = 0
             deps = 0
             for clause_id in self._ids(genome):
                 heads |= self.head_masks[clause_id]
                 deps |= self.dep_masks[clause_id]
-            self._remember(self._summary_cache, genome, (heads, deps))
-        return self._summary_cache[genome]
+            self._remember(self._summary_cache, key, (heads, deps))
+        return self._summary_cache[key]
 
     def _random_clause(self, mask: int, rng: random.Random) -> int:
         return 1 << rng.choice(tuple(self._ids(mask)))
@@ -543,6 +562,11 @@ class HypothesisGenerator:
     def _remember(cache: dict, key, value) -> None:
         if len(cache) >= _CACHE_SIZE:
             cache.pop(next(iter(cache)))
+        if isinstance(value, tuple) and value and isinstance(value[0], int):
+            # Cached ids and masks were computed beside genome operations;
+            # copy them into blocks of their own size.
+            release_int_blocks()
+            value = tuple(item + 0 for item in value)
         cache[key] = value
 
     def _predicate_mask(self, predicates) -> int:

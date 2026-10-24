@@ -9,6 +9,7 @@ from gentians.evolution.context import EvolutionContext
 from gentians.evolution.mutations import create_mutation
 from gentians.evolution.mutations.random_group import RandomGroupMutation
 from gentians.hypotheses import HypothesisGenerator
+from gentians.hypotheses.types import genome_key
 from tests.task_helpers import example, inductive_task, make_clause_space
 
 
@@ -285,4 +286,4 @@ def test_removal_cache_forbids_removed_block_not_the_entire_space():
     before = h.encode(["a.", "b."])
     h.remove(before, random.Random(1), sources=h.encode(["a."]))
     assert h._build_cache
-    assert all(forbidden == h.encode(["a."]) for _, _, forbidden in h._build_cache)
+    assert all(forbidden == genome_key(h.encode(["a."])) for _, _, forbidden in h._build_cache)

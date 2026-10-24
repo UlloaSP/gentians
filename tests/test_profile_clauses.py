@@ -222,11 +222,20 @@ def test_default_output_is_only_a_table_and_creates_no_files(monkeypatch, tmp_pa
     main()
 
     lines = capsys.readouterr().out.splitlines()
-    assert lines[0].split() == ["Benchmark", "Clauses", "Time", "(s)"]
+    assert lines[0].split() == [
+        "Benchmark", "Clauses", "Time", "(s)", "Clauses/s", "us/clause", "Peak", "RSS", "(MiB)",
+    ]
     assert len(lines) == 4
     assert lines[2].split()[:2] == ["grandparent", "326"]
     assert lines[3].split()[:2] == ["subset_sum", "8"]
-    assert all(float(line.split()[-1]) >= 0 for line in lines[2:])
+    for line in lines[2:]:
+        clauses, seconds, throughput, per_clause, peak = (
+            float(value.replace(",", "")) for value in line.split()[1:]
+        )
+        assert seconds > 0 and peak > 0
+        # Printed values are rounded; both derived columns must recover the time.
+        assert clauses / throughput == pytest.approx(seconds, rel=0.01, abs=1e-3)
+        assert per_clause * clauses / 1e6 == pytest.approx(seconds, rel=0.01, abs=1e-3)
     assert not out_dir.exists()
     assert not list(tmp_path.iterdir())
 
@@ -247,7 +256,9 @@ def test_compact_time_excludes_task_loading(monkeypatch, capsys):
     monkeypatch.setattr(profile_clauses, "generate_clause_space", generate)
     monkeypatch.setattr(sys, "argv", ["profile_clauses.py", "--datasets", "grandparent"])
     main()
-    assert capsys.readouterr().out.splitlines()[-1].split() == ["grandparent", "0", "2.500"]
+    assert capsys.readouterr().out.splitlines()[-1].split()[:5] == [
+        "grandparent", "0", "2.500", "0", "N/A",
+    ]
 
 
 def test_cprofile_requires_debug_before_any_generation(monkeypatch, tmp_path, capsys):
@@ -288,3 +299,25 @@ def test_compact_mode_disables_and_restores_ambient_instrumentation(monkeypatch,
         assert not list(tmp_path.iterdir())
     finally:
         timing.set_enabled(previous_enabled)
+
+
+def test_peak_sampler_reports_the_region_peak_below_an_earlier_process_peak():
+    from benchmarks.process_resources import PeakRssSampler
+
+    from benchmarks.process_resources import peak_rss_bytes
+
+    earlier = b"" * (160 * 2**20)  # touched pages raise the process peak
+    del earlier
+    process_peak = peak_rss_bytes()
+    with PeakRssSampler(interval=0.005) as quiet:
+        pass
+    with PeakRssSampler(interval=0.005) as busy:
+        block = bytearray(64 * 2**20)
+        for offset in range(0, len(block), 4096):
+            block[offset] = 1
+        profile_clauses.time.sleep(0.05)
+        del block
+    # The process peak stays at the earlier allocation; each region keeps its own.
+    assert peak_rss_bytes() == process_peak
+    assert busy.peak_bytes >= quiet.peak_bytes + 48 * 2**20
+    assert busy.peak_bytes < process_peak

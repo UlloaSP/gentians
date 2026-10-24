@@ -12,38 +12,85 @@ from pathlib import Path
 from gentians.timing import current_phase, last_search_progress
 
 
+def _windows_memory_counters():
+    from ctypes import wintypes
+
+    class Counters(ctypes.Structure):
+        _fields_ = [
+            ("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+            *[(name, ctypes.c_size_t) for name in (
+                "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
+                "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage",
+                "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage",
+            )],
+        ]
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.GetCurrentProcess.restype = wintypes.HANDLE
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    psapi.GetProcessMemoryInfo.argtypes = [
+        wintypes.HANDLE, ctypes.POINTER(Counters), wintypes.DWORD,
+    ]
+    counters = Counters()
+    counters.cb = ctypes.sizeof(counters)
+    if not psapi.GetProcessMemoryInfo(
+        kernel.GetCurrentProcess(), ctypes.byref(counters), counters.cb,
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+    return counters
+
+
 def peak_rss_bytes() -> int:
     """OS high-water resident memory for this worker, excluding its launcher."""
     if os.name == "nt":
-        from ctypes import wintypes
-
-        class Counters(ctypes.Structure):
-            _fields_ = [
-                ("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
-                *[(name, ctypes.c_size_t) for name in (
-                    "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
-                    "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage",
-                    "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage",
-                )],
-            ]
-
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel.GetCurrentProcess.restype = wintypes.HANDLE
-        psapi = ctypes.WinDLL("psapi", use_last_error=True)
-        psapi.GetProcessMemoryInfo.argtypes = [
-            wintypes.HANDLE, ctypes.POINTER(Counters), wintypes.DWORD,
-        ]
-        counters = Counters()
-        counters.cb = ctypes.sizeof(counters)
-        if not psapi.GetProcessMemoryInfo(
-            kernel.GetCurrentProcess(), ctypes.byref(counters), counters.cb,
-        ):
-            raise ctypes.WinError(ctypes.get_last_error())
-        return counters.PeakWorkingSetSize
+        return _windows_memory_counters().PeakWorkingSetSize
     import resource
 
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return int(peak if sys.platform == "darwin" else peak * 1024)
+
+
+def current_rss_bytes() -> int:
+    """Resident memory now; the peak where the OS exposes no current value."""
+    if os.name == "nt":
+        return _windows_memory_counters().WorkingSetSize
+    try:
+        with open("/proc/self/statm", encoding="ascii") as file:
+            return int(file.read().split()[1]) * os.sysconf("SC_PAGE_SIZE")
+    except OSError:
+        return peak_rss_bytes()
+
+
+class PeakRssSampler:
+    """Peak RSS of one code region in a process that may already have a higher peak.
+
+    The OS high-water mark is exact when the region raises it. Otherwise the
+    region's peak is the largest current RSS sampled every `interval` seconds,
+    a lower bound that can miss shorter spikes. Child processes are excluded.
+    """
+
+    def __init__(self, interval: float = 0.02) -> None:
+        self.interval = interval
+        self.peak_bytes = 0
+
+    def __enter__(self) -> "PeakRssSampler":
+        self._before = peak_rss_bytes()
+        self._sampled = current_rss_bytes()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._sample, daemon=True)
+        self._thread.start()
+        return self
+
+    def _sample(self) -> None:
+        while not self._stop.wait(self.interval):
+            self._sampled = max(self._sampled, current_rss_bytes())
+
+    def __exit__(self, *exc) -> None:
+        self._stop.set()
+        self._thread.join()
+        self._sampled = max(self._sampled, current_rss_bytes())
+        after = peak_rss_bytes()
+        self.peak_bytes = after if after > self._before else self._sampled
 
 
 @contextmanager

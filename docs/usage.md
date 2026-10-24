@@ -125,8 +125,9 @@ that complete space without rebuilding indices or clearing caches each epoch.
 
 After exhaustion, a space containing learned clauses with heads can restart a
 stalled population after `restart.generations` generations without a better
-champion score. The champion and its evaluation survive, the other evaluation caches are cleared,
-and the existing population strategy fills the remaining slots with closed
+champion score. The champion survives and the other programs leave the population; their
+evaluation results stay cached, so a program sampled again is not solved again. The
+existing population strategy fills the remaining slots with closed
 hypotheses. Every improvement resets the stagnation counter. Constraint-only
 spaces do not restart. Normal, choice and disjunctive heads use the same rule;
 whole-program ASP evaluation is unchanged.
@@ -186,13 +187,15 @@ attempts. It does not override complete-candidate protection.
 deleting a headed dependency block. Its offspring still requires evaluation;
 deletion is not proof of redundancy. Both defaults are configurable.
 
-`per_clause` takes the same options but draws `probability` once per clause of
-the offspring instead of once per offspring. Each drawn clause receives one
+`per_clause` takes the same options but mutates only a crossover child that
+was already evaluated; a new crossover child is kept as is. For that duplicate
+it draws `probability` once per clause instead of once per offspring. Each drawn
+clause receives one
 `random_group` edit targeted at it, in random order, under the same permissions.
 With `probability=0.9` about 90% of the clauses change, a deliberately
 destructive setting. The guards use the offspring's evaluation; intermediate
-programs are not evaluated. A forced mutation with no drawn clause applies one
-ordinary edit. The operator metrics record the edits joined by `+`.
+programs are not evaluated. With no drawn clause the mutation is skipped and
+the duplicate is discarded, so `probability=0` never mutates. The operator metrics record the edits joined by `+`.
 
 Complete programs keep their headed clauses unchanged, except for that
 removal attempt. If a complete candidate has no legal constraint edit or allowed

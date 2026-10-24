@@ -267,6 +267,11 @@ de ellos redefine el language bias de una tarea inductiva.
   de independencia sobre el IR y las propiedades, sin excepciones por dataset.
 - `hypotheses/` es la única autoridad sobre legalidad y transiciones de
   `Genome`. Ningún operador ni algoritmo duplica su cierre de dependencias.
+  Un genoma ocupa hasta su cláusula de mayor id, así que las cachés que duran
+  toda la búsqueda (`GenomeTable`, cachés del generador) usan su digest como
+  clave y no retienen genomas. Los enteros pequeños que duran se crean tras
+  `release_int_blocks()`: CPython 3.14 reutiliza para ellos bloques del tamaño
+  de un genoma que dejan operaciones como `genome & mask` con resultado pequeño.
 - `algorithms/` contiene solo los algoritmos y sus métricas. Cada archivo de
   algoritmo es wiring: crea estrategias y runtime, y muestra el orden de los
   pasos de un vistazo. La lógica de cada paso vive en `search/`; lo que un

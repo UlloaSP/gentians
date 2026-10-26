@@ -49,7 +49,9 @@ algorithm = "steady_state"
 
 [[experiment]]
 id = "score/tour-25-100-oldest"
-datasets = ["grandparent"]
+datasets = ["alzheimer_acetyl", "alzheimer_amine", "alzheimer_mem", "alzheimer_toxic"]
+timeout_seconds = 120
+instrumentation = "full"
 label = "Tournament 25I · Score 100:1 · Oldest"
 description = "Steady state, population 25, tournaments sampling 30% of the population, positive:negative score weights 100:1, oldest-or-worst replacement."
 [experiment.overrides]
@@ -63,7 +65,9 @@ description = "Steady state, population 25, tournaments sampling 30% of the popu
 
 [[experiment]]
 id = "score/comp-mut-25-dg"
-datasets = ["grandparent"]
+datasets = ["alzheimer_acetyl", "alzheimer_amine", "alzheimer_mem", "alzheimer_toxic"]
+timeout_seconds = 120
+instrumentation = "full"
 label = "Complementary Lexicase 25I · Score 100:1 · Dominated · Duplicate-group"
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, duplicate-group mutation with probability 1.0 per offspring."
 [experiment.overrides]
@@ -75,7 +79,9 @@ description = "Steady state, population 25, complementary lexicase selection, po
 
 [[experiment]]
 id = "score/comp-mut-25-rg-p1"
-datasets = ["alzheimer_acetyl"]
+datasets = ["alzheimer_acetyl", "alzheimer_amine", "alzheimer_mem", "alzheimer_toxic"]
+timeout_seconds = 120
+instrumentation = "full"
 label = "Complementary Lexicase 25I · Score 100:1 · Dominated · Random-group 1.0"
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 1.0 per offspring."
 [experiment.overrides]
@@ -88,7 +94,9 @@ description = "Steady state, population 25, complementary lexicase selection, po
 
 [[experiment]]
 id = "score/comp-mut-25-rg-p09"
-datasets = ["alzheimer_acetyl"]
+datasets = ["alzheimer_acetyl", "alzheimer_amine", "alzheimer_mem", "alzheimer_toxic"]
+timeout_seconds = 120
+instrumentation = "full"
 label = "Complementary Lexicase 25I · Score 100:1 · Dominated · Random-group 0.9"
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]

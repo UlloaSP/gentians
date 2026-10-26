@@ -39,6 +39,7 @@ mkdir -p -- "$script_dir/logs"
 # Slurm usa el nombre y el ID del job para producir logs distintos por envío.
 job_name="gentians-${experiment_id//\//-}"
 # Los valores GENTIANS_SLURM_* permiten ajustar recursos sin editar el script.
+# GENTIANS_SLURM_NODELIST fija los nodos admitidos; vacío deja elegir a Slurm.
 # El límite --time cubre el experimento entero, no el timeout de cada run.
 # El runner recibe el ID; sus resultados quedan en .benchmarks/experiments/.
 job_id=$(sbatch --parsable \
@@ -48,6 +49,7 @@ job_id=$(sbatch --parsable \
     --cpus-per-task="${GENTIANS_SLURM_CPUS:-1}" \
     --mem="${GENTIANS_SLURM_MEM:-8G}" \
     --time="${GENTIANS_SLURM_TIME:-1-12:00:00}" \
+    ${GENTIANS_SLURM_NODELIST:+--nodelist="$GENTIANS_SLURM_NODELIST"} \
     --chdir="$repo_root" \
     --output="$script_dir/logs/%x-%j.out" \
     --error="$script_dir/logs/%x-%j.err" \

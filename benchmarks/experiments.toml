@@ -49,7 +49,7 @@ algorithm = "steady_state"
 
 [[experiment]]
 id = "score/tour-25-100-oldest"
-datasets = ["alzheimer_acetyl", "alzheimer_amine", "alzheimer_mem", "alzheimer_toxic"]
+datasets = ["5queens"]
 timeout_seconds = 120
 instrumentation = "full"
 label = "Tournament 25I · Score 100:1 · Oldest"
@@ -65,7 +65,7 @@ description = "Steady state, population 25, tournaments sampling 30% of the popu
 
 [[experiment]]
 id = "score/comp-mut-25-dg"
-datasets = ["alzheimer_acetyl", "alzheimer_amine", "alzheimer_mem", "alzheimer_toxic"]
+datasets = ["5queens"]
 timeout_seconds = 120
 instrumentation = "full"
 label = "Complementary Lexicase 25I · Score 100:1 · Dominated · Duplicate-group"
@@ -79,7 +79,7 @@ description = "Steady state, population 25, complementary lexicase selection, po
 
 [[experiment]]
 id = "score/comp-mut-25-rg-p1"
-datasets = ["alzheimer_acetyl", "alzheimer_amine", "alzheimer_mem", "alzheimer_toxic"]
+datasets = ["5queens"]
 timeout_seconds = 120
 instrumentation = "full"
 label = "Complementary Lexicase 25I · Score 100:1 · Dominated · Random-group 1.0"
@@ -94,7 +94,7 @@ description = "Steady state, population 25, complementary lexicase selection, po
 
 [[experiment]]
 id = "score/comp-mut-25-rg-p09"
-datasets = ["alzheimer_acetyl", "alzheimer_amine", "alzheimer_mem", "alzheimer_toxic"]
+datasets = ["5queens"]
 timeout_seconds = 120
 instrumentation = "full"
 label = "Complementary Lexicase 25I · Score 100:1 · Dominated · Random-group 0.9"
@@ -108,16 +108,32 @@ description = "Steady state, population 25, complementary lexicase selection, po
 "mutation.probability" = 0.9
 
 [[experiment]]
-id = "score/lexi-mut-25-pc-p015"
+id = "score/prueba"
 datasets = ["5queens"]
-label = "Lexicase 25I · Score 100:1 · Dominated · Per-Clause 0.15"
+label = "Prueba1"
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 25
+"selection.name" = "complementary_lexicase"
 "evaluation.positive_weight" = 100.0
-"replacement.name" = "dominated_or_worst"
-"mutation.name" = "per_clause"
-"mutation.probability" = 0.15
+"replacement.name" = "genotypic_crowding"
+"replacement.crowding_factor" = 25
+"mutation.name" = "random_group"
+"mutation.probability" = 0.1
+
+[[experiment]]
+id = "score/prueba2"
+datasets = ["5queens"]
+label = "Prueba2"
+description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
+[experiment.overrides]
+"population.size" = 25
+"selection.name" = "complementary_lexicase"
+"evaluation.positive_weight" = 100.0
+"replacement.name" = "genotypic_crowding"
+"replacement.crowding_factor" = 3
+"mutation.name" = "random_group"
+"mutation.probability" = 0.9
 
 [[experiment]]
 id = "score/comp-mut-25-pc-p015"

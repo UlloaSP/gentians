@@ -15,6 +15,8 @@ from gentians.evolution.operator_types import MutationProposal
 from gentians.evolution.populations import create_population
 from gentians.hypotheses import HypothesisGenerator
 from gentians.evolution.replacements import create_replacement
+from gentians.evolution.replacements.genotypic_crowding import GenotypicCrowdingReplacement
+from gentians.evolution.replacements.phenotypic_crowding import PhenotypicCrowdingReplacement
 from gentians.evolution.replacements.dominated_or_worst import DominatedOrWorstReplacement
 from gentians.evolution.replacements.oldest_or_worst import OldestOrWorstReplacement
 from gentians.evolution.restarts import create_restart
@@ -70,6 +72,12 @@ def _context(rules, *, max_clauses=3):
         (create_replacement, {"name": "unknown"}),
         (create_replacement, {"name": "oldest_or_worst", "prob_replacing_oldest": True}),
         (create_replacement, {"name": "oldest_or_worst", "prob_replacing_oldest": 1.5}),
+        (create_replacement, {"name": "genotypic_crowding", "crowding_factor": 0}),
+        (create_replacement, {"name": "genotypic_crowding", "crowding_factor": 2.0}),
+        (create_replacement, {"name": "genotypic_crowding", "crowding_factor": True}),
+        (create_replacement, {"name": "phenotypic_crowding", "crowding_factor": 0}),
+        (create_replacement, {"name": "phenotypic_crowding", "crowding_factor": 2.0}),
+        (create_replacement, {"name": "phenotypic_crowding", "crowding_factor": True}),
     ],
 )
 def test_operator_factories_reject_invalid_configuration(factory, config):
@@ -338,7 +346,7 @@ def test_disabled_operator_metrics_skip_payload_work(monkeypatch):
     monkeypatch.delenv("GENTIANS_OPERATOR_METRICS_PATH", raising=False)
     monkeypatch.setattr(
         evolution_metrics,
-        "_program_distance",
+        "program_distance",
         lambda *_args: pytest.fail("disabled metrics built a payload"),
     )
 
@@ -1372,15 +1380,124 @@ def test_dominated_replacement_never_loses_a_case_without_fallback():
             assert avoided | before[1] == avoided
 
 
+@pytest.mark.parametrize("name, kind", [
+    ("genotypic_crowding", GenotypicCrowdingReplacement),
+    ("phenotypic_crowding", PhenotypicCrowdingReplacement),
+])
+def test_crowding_factories_read_the_crowding_factor(name, kind):
+    replacement = create_replacement({"name": name, "crowding_factor": 2})
+
+    assert isinstance(replacement, kind)
+    assert replacement.crowding_factor == 2
+
+
+def test_genotypic_crowding_replaces_the_member_with_the_nearest_clauses():
+    # Jaccard distances to the candidate {0, 1, 2}: 1/3, 1/2 and 1.
+    near = Individual(0b0011, 3.0, False, (0b1, 0), birth_order=1)
+    middle = Individual(0b1110, 2.0, False, (0b1, 0), birth_order=2)
+    far = Individual(0b110000, 1.0, False, (0b1, 0), birth_order=3)
+    population = [near, middle, far]
+
+    # A factor of at least the population size compares with everyone.
+    for factor in (3, 10):
+        replacement = GenotypicCrowdingReplacement(factor)
+        better = Individual(0b0111, 4.0, False, (0b11, 0), birth_order=4)
+        assert replacement(population, better, random.Random(1)) == [better, middle, far]
+        # The nearest member is fitter, so a worse candidate does not enter,
+        # even though it would beat the farther members.
+        worse = Individual(0b0111, 2.5, False, (0b11, 0), birth_order=4)
+        assert replacement(population, worse, random.Random(1)) is population
+
+
+def test_genotypic_distance_is_normalized_by_program_size():
+    # Both members are at Hamming distance 2 from the candidate, but the long
+    # one shares nine of its ten clauses with it.
+    short = Individual(0b1 << 20, 1.0, False, birth_order=1)
+    long = Individual(0b1111111110, 0.0, False, birth_order=2)
+    candidate = Individual(0b0111111111, 5.0, False, birth_order=3)
+
+    result = GenotypicCrowdingReplacement(2)([short, long], candidate, random.Random(1))
+
+    assert result == [candidate, short]
+
+
+def test_phenotypic_crowding_replaces_the_member_with_the_nearest_coverage():
+    # Coverage distances to the candidate: 1, 3 and 2 examples. The genome
+    # of `near` shares nothing with the candidate's.
+    near = Individual(0b1000, 1.0, False, (0b011, 0b0), birth_order=1)
+    far = Individual(0b0011, 2.0, False, (0b100, 0b1), birth_order=2)
+    middle = Individual(0b0010, 0.5, False, (0b010, 0b0), birth_order=3)
+    candidate = Individual(0b0001, 1.5, False, (0b001, 0b0), birth_order=4)
+
+    result = PhenotypicCrowdingReplacement(3)([far, near, middle], candidate, random.Random(1))
+
+    assert result == [far, candidate, middle]
+
+
+def test_phenotypic_crowding_never_displaces_a_member_with_the_same_coverage():
+    member = Individual(0b01, 1.0, False, (0b1, 0b0), birth_order=1)
+    other = Individual(0b10, 0.0, False, (0b0, 0b1), birth_order=2)
+    # Different clauses, same coverage and therefore same score.
+    twin = Individual(0b100, 1.0, False, (0b1, 0b0), birth_order=3)
+
+    replacement = PhenotypicCrowdingReplacement(2)
+    assert replacement([member, other], twin, random.Random(1)) == [member, other]
+
+
+@pytest.mark.parametrize("kind", [GenotypicCrowdingReplacement, PhenotypicCrowdingReplacement])
+def test_crowding_victim_comes_from_the_random_crowd(kind):
+    population = [
+        Individual(1 << index, float(-index), False, (1 << index, 0), birth_order=index)
+        for index in range(6)
+    ]
+    # Equally far from every member in clauses and coverage, so the tie goes
+    # to the first member of the random crowd.
+    candidate = Individual(1 << 10, 10.0, False, (1 << 10, 0), birth_order=6)
+
+    for seed in range(20):
+        crowd = random.Random(seed).sample(population, 2)
+        result = kind(2)(population, candidate, random.Random(seed))
+        assert [item for item in population if item not in result] == [crowd[0]]
+
+
+@pytest.mark.parametrize("kind", [GenotypicCrowdingReplacement, PhenotypicCrowdingReplacement])
+def test_crowding_keeps_size_order_best_score_and_rejects_invalid_candidates(kind):
+    rng = random.Random(7)
+
+    def individual(genome, score):
+        return Individual(genome, score, False, (rng.getrandbits(4), rng.getrandbits(4)))
+
+    population = sorted(
+        (individual(1 << index, float(index)) for index in range(5)),
+        key=lambda item: item.score, reverse=True,
+    )
+    replacement = kind(3)
+
+    assert replacement(population, individual(1, 9.0), rng) is population
+    assert replacement(population, individual(1 << 9, float("nan")), rng) is population
+    for genome in range(32, 200):
+        best = population[0].score
+        population = replacement(population, individual(genome, rng.uniform(-5.0, 10.0)), rng)
+        assert len(population) == 5
+        assert len({item.genome for item in population}) == 5
+        assert population[0].score >= best
+        assert [item.score for item in population] == sorted(
+            (item.score for item in population), reverse=True,
+        )
+
+
+@pytest.mark.parametrize(
+    "replacement", ["dominated_or_worst", "genotypic_crowding", "phenotypic_crowding"],
+)
 @pytest.mark.parametrize("algorithm", ["steady_state_genetic", "incremental_clause_genetic"])
-def test_dominated_or_worst_replacement_runs_in_both_algorithms(algorithm):
+def test_replacement_runs_in_both_algorithms(algorithm, replacement):
     import importlib
 
     module = importlib.import_module(f"gentians.algorithms.{algorithm}")
     args = Arguments(
         random_seed=3, iterations_genetic=200,
         population={"name": "random", "size": 3},
-        replacement={"name": "dominated_or_worst"},
+        replacement={"name": replacement, "crowding_factor": 2},
         incremental={"batch_size": 3, "epoch_generations": 5, "elite_count": 1},
     )
     task = inductive_task(

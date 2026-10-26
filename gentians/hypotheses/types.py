@@ -26,6 +26,12 @@ def release_int_blocks() -> None:
     del fresh, stale
 
 
+def program_distance(first: Genome, second: Genome) -> float:
+    """Jaccard distance between two programs' clause sets, in [0, 1]."""
+    union = (first | second).bit_count()
+    return 0.0 if not union else 1.0 - (first & second).bit_count() / union
+
+
 def genome_key(genome: Genome) -> bytes:
     """Return a 128-bit digest that identifies a genome without retaining its bits."""
     return hashlib.sha256(genome.to_bytes((genome.bit_length() + 7) // 8, "little")).digest()[:16]

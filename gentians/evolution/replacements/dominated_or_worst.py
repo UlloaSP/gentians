@@ -2,6 +2,7 @@ import math
 import random
 
 from ...evaluation.result import dominates
+from ...hypotheses import program_distance
 from ..individual import Individual
 
 
@@ -49,7 +50,7 @@ class DominatedOrWorstReplacement:
             victim = min(dominated, key=lambda item: (
                 dominates(item.behavior, candidate.behavior),
                 item.score,
-                -_similarity(item, candidate),
+                program_distance(item.genome, candidate.genome),
                 item.birth_order,
             ))
         elif candidate.score >= ranked[-1].score:
@@ -61,7 +62,3 @@ class DominatedOrWorstReplacement:
         ranked.append(candidate)
         return sorted(ranked, key=lambda item: item.score, reverse=True)
 
-
-def _similarity(first: Individual, second: Individual) -> float:
-    union = (first.genome | second.genome).bit_count()
-    return (first.genome & second.genome).bit_count() / union if union else 1.0

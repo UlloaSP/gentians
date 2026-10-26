@@ -2,7 +2,9 @@ from typing import Any
 
 from ..operator_types import ReplacementFn
 from .dominated_or_worst import DominatedOrWorstReplacement
+from .genotypic_crowding import GenotypicCrowdingReplacement
 from .oldest_or_worst import OldestOrWorstReplacement
+from .phenotypic_crowding import PhenotypicCrowdingReplacement
 
 
 def create_replacement(config: dict[str, Any]) -> ReplacementFn:
@@ -14,4 +16,10 @@ def create_replacement(config: dict[str, Any]) -> ReplacementFn:
         return OldestOrWorstReplacement(float(probability))
     if name == "dominated_or_worst":
         return DominatedOrWorstReplacement()
+    # The crowding classes validate the factor; a float such as 2.0 is
+    # rejected rather than truncated, because the factor counts individuals.
+    if name == "genotypic_crowding":
+        return GenotypicCrowdingReplacement(config["crowding_factor"])
+    if name == "phenotypic_crowding":
+        return PhenotypicCrowdingReplacement(config["crowding_factor"])
     raise ValueError(f"Unknown replacement strategy: {name}")

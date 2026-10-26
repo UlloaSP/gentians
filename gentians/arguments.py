@@ -84,11 +84,15 @@ class Arguments:
     # Population replacement operator config.
     replacement: dict[str, object] = field(
         default_factory=lambda: {
-            # dominated_or_worst or oldest_or_worst.
+            # dominated_or_worst, oldest_or_worst, genotypic_crowding or
+            # phenotypic_crowding.
             "name": "dominated_or_worst",
             # Probability of replacing the oldest individual instead of the
             # worst; oldest_or_worst only.
             "prob_replacing_oldest": 0.1,
+            # Members drawn at random; the offspring replaces the nearest one
+            # if it scores higher. De Jong's classical value; crowdings only.
+            "crowding_factor": 3,
         }
     )
 

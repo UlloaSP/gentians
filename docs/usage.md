@@ -281,8 +281,29 @@ joins the population.
 replacement={"name": "oldest_or_worst", "prob_replacing_oldest": 0.1}
 ```
 
+- `genotypic_crowding` and `phenotypic_crowding` are crowding, the classical
+  niching replacement (De Jong, 1975). Each draws `crowding_factor` members at
+  random without repetition and finds the one nearest to the candidate. The
+  candidate replaces it only if it scores strictly higher; De Jong's original
+  replaced unconditionally, and this fitness test is Harik's restricted
+  tournament selection. A new program therefore competes with programs of its
+  own region of the search space, and dissimilar programs survive. The best
+  score in the population never decreases. A factor of 1 compares the candidate
+  with a random member; a factor at least the population size always finds the
+  nearest member.
+  - `genotypic_crowding` compares clauses: the Jaccard distance between the two
+    programs' clause sets, so it does not depend on program length. Clauses are
+    compared by identity.
+  - `phenotypic_crowding` compares coverage: the number of examples, positive
+    or negative, that one program covers and the other does not. Programs with
+    the same coverage have the same score, so neither displaces the other.
+
+```python
+replacement={"name": "genotypic_crowding", "crowding_factor": 3}
+```
+
 Operator metrics record `dominated_victim` for every accepted replacement, under
-either strategy.
+every strategy.
 
 ## Clause pruning
 

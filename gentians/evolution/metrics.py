@@ -1,4 +1,4 @@
-from ..hypotheses import Genome
+from ..hypotheses import Genome, program_distance
 from ..evaluation.result import EvaluationResult, dominates
 from ..timing import instrumentation, metric_enabled, record_metric
 from .individual import Individual
@@ -143,7 +143,7 @@ def record_mutation(
                 "strategy": strategy,
                 "operation": proposal.operation or "",
                 "local": proposal.local if proposal.local is not None else "",
-                "program_distance": _program_distance(
+                "program_distance": program_distance(
                     parent_genome, proposal.genome
                 ),
                 "changed_rules": (parent_genome ^ proposal.genome).bit_count(),
@@ -210,7 +210,3 @@ def record_replacement(
             },
         )
 
-
-def _program_distance(first: Genome, second: Genome) -> float:
-    union = (first | second).bit_count()
-    return 0.0 if not union else 1.0 - (first & second).bit_count() / union

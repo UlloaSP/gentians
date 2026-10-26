@@ -35,7 +35,7 @@ datasets = [
     "subset_sum_unbalanced_ops",
     "synthetic_million",
 ]
-runs = 30
+runs = 100
 seed_base = 42
 timeout_seconds = 30
 validation_timeout_seconds = 60
@@ -111,20 +111,22 @@ description = "Steady state, population 25, complementary lexicase selection, po
 id = "score/prueba"
 datasets = ["5queens"]
 label = "Prueba1"
+seed_base = 879
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 25
 "selection.name" = "complementary_lexicase"
 "evaluation.positive_weight" = 100.0
 "replacement.name" = "genotypic_crowding"
-"replacement.crowding_factor" = 25
+"replacement.crowding_factor" = 3
 "mutation.name" = "random_group"
-"mutation.probability" = 0.1
+"mutation.probability" = 0.9
 
 [[experiment]]
 id = "score/prueba2"
 datasets = ["5queens"]
 label = "Prueba2"
+seed_base = 213
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 25

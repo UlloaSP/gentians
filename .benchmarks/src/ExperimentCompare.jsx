@@ -15,6 +15,7 @@ import {
   runCount,
   solvingSeconds,
   totalSeconds,
+  totalStdSeconds,
 } from "./metrics";
 
 const COLORS = [
@@ -29,7 +30,8 @@ const COLORS = [
   "#ea580c",
 ];
 const METRICS = [
-  ["total_execution", totalSeconds],
+  // The optional third entry is the spread shown next to the mean.
+  ["total_execution", totalSeconds, totalStdSeconds],
   ["clauses", (benchmark) => phaseTotal(benchmark, "clauseGeneration")],
   ["tiempo evolutivo", evolutionarySeconds],
   ["grounding", groundingSeconds],
@@ -246,10 +248,11 @@ function ComparisonTable({ rows, baseline, view }) {
                       ? formatRatio(benchmark.instrumentedRuns, runCount(benchmark))
                       : `${fmtInt(benchmark.instrumentedRuns)}/${fmtInt(runCount(benchmark))}`}
                   </td>
-                  {METRICS.map(([label, value]) => (
+                  {METRICS.map(([label, value, spread]) => (
                     <MetricCell
                       key={label}
                       value={value(benchmark)}
+                      spread={spread ? spread(benchmark) : null}
                       baseline={baseline ? value(baseline) : 0}
                       measured={measured}
                       comparable={comparable}
@@ -297,7 +300,7 @@ function ComparisonTable({ rows, baseline, view }) {
   );
 }
 
-function MetricCell({ value, baseline, measured, comparable, view }) {
+function MetricCell({ value, spread, baseline, measured, comparable, view }) {
   const deltas = view === "deltas";
   return (
     <td className={deltas && comparable ? deltaClass(value, baseline) : ""}>
@@ -306,7 +309,9 @@ function MetricCell({ value, baseline, measured, comparable, view }) {
           ? formatDelta(value, baseline)
           : "—"
         : measured
-          ? `${fmt(value, 3)}s`
+          ? spread === null
+            ? `${fmt(value, 3)}s`
+            : `${fmt(value, 3)} ± ${fmt(spread, 3)}s`
           : "—"}
     </td>
   );

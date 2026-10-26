@@ -1,6 +1,6 @@
 import { Chart } from "../components/Chart";
 import { ChartHeader } from "../components/Layout";
-import { bestRunCount, fmt, runCount, totalSeconds } from "../metrics";
+import { bestRunCount, fmt, runCount, totalSeconds, totalStdSeconds } from "../metrics";
 import { paretoFrontier } from "./pareto";
 
 export function ParetoChart({ rows, baselineId }) {
@@ -17,6 +17,7 @@ export function ParetoChart({ rows, baselineId }) {
         measured,
         total,
         best: bestRunCount(benchmark),
+        std: totalStdSeconds(benchmark),
         value: [
           totalSeconds(benchmark),
           (bestRunCount(benchmark) / measured) * 100,
@@ -58,7 +59,7 @@ function chartOption(points, baseline) {
       formatter: ({ data, seriesName }) =>
         seriesName === "frontera Pareto"
           ? "frontera Pareto"
-          : `<strong>${data.name}</strong><br/>total_execution: ${fmt(data.value[0], 3)}s<br/>best medidos: ${fmt(data.value[1], 1)}% (${data.best}/${data.measured})<br/>runs medidos: ${fmt(data.value[2], 1)}% (${data.measured}/${data.total})`,
+          : `<strong>${data.name}</strong><br/>total_execution: ${fmt(data.value[0], 3)}s${data.std === null ? "" : ` ± ${fmt(data.std, 3)}s (σ)`}<br/>best medidos: ${fmt(data.value[1], 1)}% (${data.best}/${data.measured})<br/>runs medidos: ${fmt(data.value[2], 1)}% (${data.measured}/${data.total})`,
     },
     grid: { left: 75, right: 45, top: 35, bottom: 65 },
     xAxis: {

@@ -14,6 +14,7 @@ import {
   coverageSelection,
   exampleDifficulty,
   finalCoverageGroups,
+  fmtTotalSeconds,
   generationRangeLabel,
   populationCoverageRows,
   populationRestarts,
@@ -48,12 +49,17 @@ describe("solver calls", () => {
 });
 
 describe("dashboard schema", () => {
-  it("accepts v19 and rejects stale dashboards", () => {
-    expect(() => assertDashboardSchema({ schemaVersion: 19 })).not.toThrow();
-    expect(() => assertDashboardSchema({ schemaVersion: 18 })).toThrow();
+  it("accepts v20 and rejects stale dashboards", () => {
+    expect(() => assertDashboardSchema({ schemaVersion: 20 })).not.toThrow();
+    expect(() => assertDashboardSchema({ schemaVersion: 19 })).toThrow();
     expect(() => assertDashboardSchema({ schemaVersion: 11 }, "old")).toThrow(
       "old: schema 11; vuelve a ejecutar el experimento",
     );
+  });
+
+  it("shows the total time spread only when there is one", () => {
+    expect(fmtTotalSeconds({ total: 5.145, totalStd: 1.2 })).toBe("5,15 ± 1,20s");
+    expect(fmtTotalSeconds({ total: 3, totalStd: null })).toBe("3,00s");
   });
 
   it("lists only the phases the algorithms record", () => {

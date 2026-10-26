@@ -36,7 +36,7 @@ export const progressAxes = [
 ];
 export const progressAxisLabel = (axis) =>
   (progressAxes.find(([key]) => key === axis) || progressAxes[0])[1];
-export const DASHBOARD_SCHEMA_VERSION = 19;
+export const DASHBOARD_SCHEMA_VERSION = 20;
 
 // Phase contexts in which the algorithms request Clingo, in pipeline order.
 const clingoPhases = [
@@ -271,6 +271,14 @@ export const phaseTotal = (benchmark, phase) =>
 export const measuredTotal = (benchmark) =>
   sum(phaseOrder.map(([phase]) => phaseTotal(benchmark, phase)));
 export const totalSeconds = (benchmark) => num(benchmark.total);
+// Sample standard deviation of total_execution across measured runs; null below two.
+export const totalStdSeconds = (benchmark) => maybeNum(benchmark.totalStd);
+/** Mean total_execution with its standard deviation when there is one. */
+export const fmtTotalSeconds = (benchmark, digits = 2) => {
+  const std = totalStdSeconds(benchmark);
+  const mean = fmt(totalSeconds(benchmark), digits);
+  return std === null ? `${mean}s` : `${mean} ± ${fmt(std, digits)}s`;
+};
 export const groundingSeconds = (benchmark) =>
   sum(phaseOrder.map(([phase]) => benchmark.phases?.[phase]?.grounding));
 export const solvingSeconds = (benchmark) =>

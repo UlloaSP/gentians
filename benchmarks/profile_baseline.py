@@ -7,6 +7,7 @@ import math
 import os
 import queue
 import shutil
+import statistics
 import subprocess
 import sys
 import threading
@@ -18,7 +19,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_BASELINE_PATH = Path(__file__).resolve()
 # Keep in sync with DASHBOARD_SCHEMA_VERSION in .benchmarks/src/metrics.js.
-DASHBOARD_SCHEMA_VERSION = 19
+DASHBOARD_SCHEMA_VERSION = 20
 # Progress points kept per run and positions in each precomputed mean series.
 RUN_PROGRESS_POINTS = 300
 MEAN_PROGRESS_POINTS = 300
@@ -830,6 +831,7 @@ def dashboard_benchmark(
         "restarts": mean(sum(point.restarted for point in points) for points in progress),
         "epochs": dashboard_epochs(metrics.epochs),
         "total": mean(timing.seconds for timing in totals),
+        "totalStd": sample_std(timing.seconds for timing in totals),
         "instrumentedRuns": len({timing.run for timing in totals}),
         "runCount": len(results),
         "bestFoundRuns": sum(1 for result in results if result.success),
@@ -1712,6 +1714,12 @@ def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
 def mean(values: Iterable[float]) -> float:
     values = list(values)
     return sum(values) / len(values) if values else 0.0
+
+
+def sample_std(values: Iterable[float]) -> float | None:
+    """Sample standard deviation (n - 1); None below two values."""
+    values = list(values)
+    return statistics.stdev(values) if len(values) >= 2 else None
 
 
 def mean_optional(values: Iterable[float | None]) -> float | None:

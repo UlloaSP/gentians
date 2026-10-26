@@ -97,7 +97,7 @@ final sin afirmar que observa los callbacks de los hijos.
 - `benchmarks/profile_clauses.py` mide generación de `ClauseSpace` aislada. Con `--debug`, su informe distingue tiempos, throughput final, modelos posteriores al pruning ASP, retención posterior a la enumeración y pico RSS del proceso; [benchmarks.md](benchmarks.md) define los denominadores y límites. Schema 14 distingue el trabajo de los procesos de los tiempos de pared, conservando el contrato de los charts.
 - `benchmarks/profile_baseline.py` ejecuta runs y guarda una sola copia cruda por run en `runs/`: log, recursos, timings, progreso y métricas por evento, todos comprimidos con gzip al terminar el run; solo un `.prof` de cProfile queda sin comprimir. Escribe `runs.csv` como índice y construye `dashboard_data.json` leyendo `runs/` dataset a dataset. No escribe copias concatenadas. Los lectores aceptan cada artefacto sin comprimir o como `.gz`.
 - `benchmarks/run_experiments.py` carga el único TOML, selecciona herramientas y algoritmos con `--methods`, aplica overrides y controla fingerprints. Cada método guarda su manifest; el índice comprueba código y configuración usando el runtime registrado de ese método, aunque otro job se ejecute fuera de su contenedor.
-- Gentians conserva sus métricas, `dashboard_data.json` y contrato de schema 19. Los métodos externos guardan tiempos propios y no fabrican fases de Gentians ni dashboards.
+- Gentians conserva sus métricas, `dashboard_data.json` y contrato de schema 20. Los métodos externos guardan tiempos propios y no fabrican fases de Gentians ni dashboards.
 - Cada run guarda `_hypothesis.lp.gz` si produjo un candidato y `_validation.json.gz`. `benchmarks/check_hypothesis.py` crea un programa ASP independiente por ejemplo y comprueba la hipótesis completa con el background original y su contexto aislado. Guarda esos programas y los modelos testigo; un timeout del comprobador queda como desconocido. Esta validación tiene presupuesto propio y ocurre después de cerrar los tiempos del learner. `success` solo es verdadero si la comprobación pasa; `reported_success` conserva la declaración original de Gentians.
 - `benchmarks/experiments.toml` reúne todas las matrices. Añade experimentos de investigación con IDs prefijados, como `pool-policy/control`, y una diferencia interpretable frente a su control. Conserva sus parámetros en el mismo archivo; no crees TOML separados.
 - Resultados generados viven bajo `.benchmarks/experiments/<experimento>/` y están ignorados. No edites JSON o CSV generados a mano.
@@ -162,7 +162,9 @@ cada run, `runCosts` con el coste en que terminó cada run y
 `quality.finalCoverage` con la cobertura del mejor candidato de cada run
 (máscaras de cobertura distintas / tamaño). `quality.populationCoverage`
 conserva hasta 300 generaciones por run y la media, generación a generación,
-de las runs que siguen buscando.
+de las runs que siguen buscando. Desde schema 20, `totalStd` es la desviación
+típica muestral (n − 1) del `total_execution` de las runs medidas, o `null` con
+menos de dos.
 La dificultad por ejemplo usa las máscaras y los textos de los ejemplos, que
 el productor lee de la tarea; las runs anteriores a schema 15 no tienen máscaras
 y esa gráfica queda vacía.
@@ -173,7 +175,7 @@ No cambies estas gráficas salvo petición explícita:
 
 - Progreso de búsqueda: `max`, `best` y `avg`; eje inicial `generación`, empezando en generación `0`. Alterna a evaluaciones de fitness o segundos, los ejes que comparan steady-state e incremental con el mismo coste. En una ejecución, líneas discontinuas marcan los reinicios de población.
 - Resultado de operadores: una sola categoría por pareja `operador:estrategia`. `duplicate` significa resultado repetido tras normalizar/cerrar, no una categoría duplicada.
-- Cards de tiempos: deben mostrar `total`, `clauses`, `clingo` y `python`; `total` es la media de `total_execution`, nunca wall-clock. `clauses` y `tiempo evolutivo` van juntas.
+- Cards de tiempos: deben mostrar `total`, `clauses`, `clingo` y `python`; `total` es la media de `total_execution` ± su desviación típica, nunca wall-clock. `clauses` y `tiempo evolutivo` van juntas.
 - Fases: `clause generation`, `initialization`, `selection`, `crossover`, `mutation`, `replacement`, `renewal` y `search orchestration`. No existe fase separada `fitness evaluation`: su coste pertenece a la fase que solicitó la evaluación. `renewal` solo aparece en incremental: cambio de lote, relleno de la población y sondas de constraints tras el cambio. Los reinicios por estancamiento siguen en `replacement` en ambos algoritmos. Las ejecuciones anteriores al schema 13 cuentan la renovación dentro de `replacement`.
 - Tipos horizontales de tiempo: exactamente `python`, `grounding`, `solving` y `closure`.
 - Tabla solver y gráficas Clingo: una fila o categoría por cada fase que realmente pidió Clingo; ninguna fase se omite ni se agrupa.
@@ -187,5 +189,5 @@ No cambies estas gráficas salvo petición explícita:
 - Resultado: muestra el algoritmo, `candidatas` como el mayor `ClauseSpace` preparado por run y los reinicios medios por run.
 - Modelos solve por etapa: usa fases reales; `clause_generation` se muestra como `clauses`. No agrupa fases conocidas como `search setup`, `fitness search` ni `other`.
 - Los títulos de charts identifican la métrica y son funcionales. No añadas títulos de página, hero copy ni texto ornamental.
-- Comparación muestra la tabla, el gráfico Pareto de tiempo frente a best encontrados y la curva de runs resueltas según coste de cada experimento. Las gráficas detalladas viven en la vista de cada experimento. En todos ellos el color identifica siempre al experimento.
-- Tabla de comparación: no muestra wall-clock. Usa `total_execution` y su delta; `grounding`, `solving` y `python` con sus deltas; `ground calls` y `solve calls`.
+- Comparación muestra la tabla, el gráfico Pareto de tiempo frente a best encontrados, cuyo tooltip incluye la desviación típica del tiempo, y la curva de runs resueltas según coste de cada experimento. Las gráficas detalladas viven en la vista de cada experimento. En todos ellos el color identifica siempre al experimento.
+- Tabla de comparación: no muestra wall-clock. Usa `total_execution` ± su desviación típica y su delta; `grounding`, `solving` y `python` con sus deltas; `ground calls` y `solve calls`.

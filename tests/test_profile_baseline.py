@@ -1437,8 +1437,10 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     benchmark = payload["benchmarks"][0]
-    assert payload["schemaVersion"] == 19
+    assert payload["schemaVersion"] == 20
     assert benchmark["total"] == 3.0
+    # One measured run has no spread.
+    assert benchmark["totalStd"] is None
     assert benchmark["instrumentedRuns"] == 1
     assert "wall" not in benchmark
     assert "timeouts" not in benchmark
@@ -1690,6 +1692,24 @@ def test_progress_mean_uses_a_bounded_grid(monkeypatch):
     assert [row[0] for row in rows] == [0.0, 25.0, 50.0, 75.0, 100.0]
 
 
+def test_dashboard_total_std_is_the_sample_deviation_of_measured_runs(tmp_path):
+    write_dashboard_data(
+        tmp_path,
+        [RunResult("d", run, run, "run", "ok", 0, 1.0, [], "{}", "") for run in (1, 2, 3)],
+        [TimingMetric("d", run, "total_execution", seconds, 1)
+         for run, seconds in ((1, 2.0), (2, 4.0), (3, 6.0))],
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
+
+    benchmark = json.loads((tmp_path / "dashboard_data.json").read_text())["benchmarks"][0]
+    assert benchmark["total"] == 4.0
+    assert benchmark["totalStd"] == pytest.approx(2.0)
+
+
 def test_thin_progress_keeps_improvements_restarts_and_the_last_point():
     points = [
         GAMetric("d", 1, generation, 1.0, 1.0, float(generation // 100),
@@ -1730,7 +1750,7 @@ def test_build_dashboard_reads_saved_run_artifacts(tmp_path):
 
     payload = json.loads((tmp_path / "dashboard_data.json").read_text())
     [bench] = payload["benchmarks"]
-    assert payload["schemaVersion"] == 19
+    assert payload["schemaVersion"] == 20
     assert bench["algorithm"] == "incremental"
     assert bench["total"] == 1.25
     assert bench["bestFoundRuns"] == 1

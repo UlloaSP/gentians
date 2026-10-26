@@ -32,11 +32,11 @@ import {
   evolutionarySeconds,
   fmt,
   fmtInt,
+  fmtTotalSeconds,
   phaseTotal,
   pythonSeconds,
   runCount,
   topPhase,
-  totalSeconds,
 } from "./metrics";
 import { ThemeContext, useThemeChoice } from "./theme";
 import "./styles.css";
@@ -240,7 +240,7 @@ function Detail({ benchmark }) {
           <Stat label="bottleneck" value={benchmark.dominant || topPhase(benchmark).label} />
         </MetricGroup>
         <MetricGroup title="tiempo" className="metric-group-time">
-          <Stat label="total" value={`${fmt(totalSeconds(benchmark), 2)}s`} />
+          <Stat label="total" value={fmtTotalSeconds(benchmark, 2)} />
           <Stat label="clauses" value={`${fmt(phaseTotal(benchmark, "clauseGeneration"), 2)}s`} />
           <Stat label="evolución" value={`${fmt(evolutionarySeconds(benchmark), 2)}s`} />
           <Stat label="clingo" value={`${fmt(clingoSeconds(benchmark), 2)}s`} />

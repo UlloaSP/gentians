@@ -339,7 +339,8 @@ overrides. Task files and their limits are unchanged.
 
 Native records are an optional setuptools extension, built into platform wheels
 when a C compiler is available. Source installs without a compiler preserve the
-Python path. Building locally: `uv run --with setuptools python setup.py build_ext --inplace`.
+Python path. The extension is declared in `pyproject.toml`
+(`[[tool.setuptools.ext-modules]]`). Building locally: `uv sync --reinstall-package gentians`.
 No new runtime dependency is required. Internal Clingo CFFI access follows the
 project's supported Clingo 5.8 API range and is covered by exact native AST and
 model-copy regressions.

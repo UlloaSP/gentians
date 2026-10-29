@@ -221,24 +221,16 @@ CHECK_TIMEOUT_SECONDS = 2.0
 
 
 def _fresh_violation_name(program: AspProgram) -> str:
-    """Avoid predicates, fixed terms and macros in the task and proof bodies."""
-    names: set[str] = set()
-    pending = list(program)
-    while pending:
-        node = pending.pop()
-        if "name" in node.keys():
-            names.add(str(node.name))
-        if node.ast_type == ast.ASTType.SymbolicTerm:
-            symbols = [node.symbol]
-            while symbols:
-                symbol = symbols.pop()
-                if symbol.type == clingo.SymbolType.Function:
-                    names.add(symbol.name)
-                    symbols.extend(symbol.arguments)
-        pending.extend(_children(node))
+    """Avoid predicates, fixed terms and macros in the task and proof bodies.
+
+    A name absent from every statement's Clingo text names nothing there. A
+    substring match only moves on to the next suffix; one rendering per
+    statement replaces a walk over every AST node.
+    """
+    text = "\n".join(map(str, program))
     name = "gentians_violation"
     suffix = 0
-    while name in names:
+    while name in text:
         suffix += 1
         name = f"gentians_violation_{suffix}"
     return name

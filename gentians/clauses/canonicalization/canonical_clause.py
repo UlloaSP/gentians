@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from operator import attrgetter
 
 from clingo import ast
 
@@ -10,6 +11,9 @@ from ..reified_literal import ReifiedLiteral
 from .arithmetic_system import ArithmeticSystem, ArithmeticSystemKey
 
 
+_key = attrgetter("key")
+
+
 @dataclass(frozen=True, slots=True)
 class CanonicalArithmeticClause:
     head: tuple[ReifiedLiteral, ...]
@@ -19,9 +23,9 @@ class CanonicalArithmeticClause:
     @property
     def key(self) -> "ArithmeticSystemKey":
         return (
-            tuple(literal.key for literal in self.head),
-            tuple(literal.key for literal in self.body),
-            tuple(system.key for system in self.systems),
+            tuple(map(_key, self.head)),
+            tuple(map(_key, self.body)),
+            tuple(map(_key, self.systems)),
         )
 
     def instantiate(

@@ -7,28 +7,22 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <pthread.h>
 #include <time.h>
 #endif
 
-typedef bool (*symbols_fn)(const void *, unsigned, uint64_t *, size_t);
-typedef struct { uint64_t handle; size_t offset; int64_t value; } entry;
+typedef bool (*truth_fn)(const void *, int32_t, bool *);
+typedef struct { int32_t literal; size_t offset; int64_t value; } entry;
 typedef struct {
-    symbols_fn symbols;
-    size_t width, table_size, count, batch;
-    entry *table;
-    uint64_t *shown;
+    truth_fn is_true;
+    size_t width, size, count, batch;
+    entry *entries;
     int64_t *records;
 } decoder;
 
-static size_t hash_handle(uint64_t key) {
-    key ^= key >> 30; key *= UINT64_C(0xbf58476d1ce4e5b9);
-    key ^= key >> 27; key *= UINT64_C(0x94d049bb133111eb);
-    return (size_t)(key ^ (key >> 31));
-}
-
 static void destroy(PyObject *capsule) {
     decoder *d = PyCapsule_GetPointer(capsule, "gentians.records");
-    if (d) { free(d->table); free(d->shown); free(d->records); free(d); }
+    if (d) { free(d->entries); free(d->records); free(d); }
 }
 
 static PyObject *create(PyObject *self, PyObject *args) {
@@ -43,29 +37,25 @@ static PyObject *create(PyObject *self, PyObject *args) {
     if (!items) return NULL;
     decoder *d = calloc(1, sizeof(decoder));
     if (!d) { Py_DECREF(items); return PyErr_NoMemory(); }
-    d->symbols = (symbols_fn)(uintptr_t)address; d->width = (size_t)width; d->batch = (size_t)batch;
-    d->table_size = 2;
-    while (d->table_size < 2 * (size_t)PySequence_Fast_GET_SIZE(items)) d->table_size *= 2;
-    d->table = calloc(d->table_size, sizeof(entry));
-    d->shown = calloc(d->width ? d->width : 1, sizeof(uint64_t));
+    d->is_true = (truth_fn)(uintptr_t)address; d->width = (size_t)width; d->batch = (size_t)batch;
+    d->size = (size_t)PySequence_Fast_GET_SIZE(items);
+    d->entries = malloc((d->size ? d->size : 1) * sizeof(entry));
     d->records = malloc((d->width ? d->width : 1) * d->batch * sizeof(int64_t));
-    if (!d->table || !d->shown || !d->records) {
-        free(d->table); free(d->shown); free(d->records); free(d); Py_DECREF(items); return PyErr_NoMemory();
+    if (!d->entries || !d->records) {
+        free(d->entries); free(d->records); free(d); Py_DECREF(items); return PyErr_NoMemory();
     }
-    for (Py_ssize_t i = 0; i < PySequence_Fast_GET_SIZE(items); ++i) {
-        unsigned long long key; Py_ssize_t offset; long long value;
-        if (!PyArg_ParseTuple(PySequence_Fast_GET_ITEM(items, i), "KnL", &key, &offset, &value)
-                || !key || offset < 0 || (size_t)offset >= d->width || value < 0) {
+    for (size_t i = 0; i < d->size; ++i) {
+        int literal; Py_ssize_t offset; long long value;
+        if (!PyArg_ParseTuple(PySequence_Fast_GET_ITEM(items, (Py_ssize_t)i), "inL", &literal, &offset, &value)
+                || offset < 0 || (size_t)offset >= d->width || value < 0) {
             if (!PyErr_Occurred()) PyErr_SetString(PyExc_ValueError, "invalid numeric record lookup");
-            free(d->table); free(d->shown); free(d->records); free(d); Py_DECREF(items); return NULL;
+            free(d->entries); free(d->records); free(d); Py_DECREF(items); return NULL;
         }
-        size_t index = hash_handle(key) & (d->table_size - 1);
-        while (d->table[index].handle) index = (index + 1) & (d->table_size - 1);
-        d->table[index] = (entry){key, (size_t)offset, (int64_t)value};
+        d->entries[i] = (entry){(int32_t)literal, (size_t)offset, (int64_t)value};
     }
     Py_DECREF(items);
     PyObject *capsule = PyCapsule_New(d, "gentians.records", destroy);
-    if (!capsule) { free(d->table); free(d->shown); free(d->records); free(d); }
+    if (!capsule) { free(d->entries); free(d->records); free(d); }
     return capsule;
 }
 
@@ -77,19 +67,14 @@ static PyObject *take(decoder *d) {
     return result;
 }
 
-static const char *copy_row(decoder *d, const void *model) {
-    memset(d->shown, 0, d->width * sizeof(uint64_t));
-    // clingo_show_type_shown = 2. Model pointers live only during this call.
-    if (!d->symbols(model, 2, d->shown, d->width)) return "clingo could not copy numeric clause record";
-    int64_t *row = d->records + d->count * d->width;
+static const char *copy_row(decoder *d, const void *model, int64_t *row) {
+    // Truth of each prepared displayed atom; the model lives only during this call.
     for (size_t i = 0; i < d->width; ++i) row[i] = -1;
-    for (size_t i = 0; i < d->width && d->shown[i]; ++i) {
-        size_t index = hash_handle(d->shown[i]) & (d->table_size - 1);
-        while (d->table[index].handle && d->table[index].handle != d->shown[i]) index = (index + 1) & (d->table_size - 1);
-        if (!d->table[index].handle) return "unknown clause symbol in native record";
-        row[d->table[index].offset] = d->table[index].value;
+    for (size_t i = 0; i < d->size; ++i) {
+        bool value;
+        if (!d->is_true(model, d->entries[i].literal, &value)) return "clingo could not read a clause atom";
+        if (value) row[d->entries[i].offset] = d->entries[i].value;
     }
-    d->count++;
     return NULL;
 }
 
@@ -98,24 +83,76 @@ static PyObject *push(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "OK", &capsule, &model)) return NULL;
     decoder *d = PyCapsule_GetPointer(capsule, "gentians.records");
     if (!d) return NULL;
-    const char *error = copy_row(d, (const void *)(uintptr_t)model);
+    const char *error = copy_row(d, (const void *)(uintptr_t)model, d->records + d->count * d->width);
     if (error) { PyErr_SetString(PyExc_RuntimeError, error); return NULL; }
-    if (d->count == d->batch) return take(d);
+    if (++d->count == d->batch) return take(d);
     Py_RETURN_NONE;
 }
 
-/* Model events copy into owned rows without Python or a retained Model. Only
-   full blocks acquire the GIL. The lock also protects multi-thread Controls. */
+/* One lock with two condition variables, from the platform thread library. */
+typedef struct {
+#ifdef _WIN32
+    SRWLOCK lock; CONDITION_VARIABLE ready, space;
+#else
+    pthread_mutex_t lock; pthread_cond_t ready, space;
+#endif
+} sync_t;
+
+static void sync_init(sync_t *s) {
+#ifdef _WIN32
+    InitializeSRWLock(&s->lock); InitializeConditionVariable(&s->ready); InitializeConditionVariable(&s->space);
+#else
+    pthread_mutex_init(&s->lock, NULL); pthread_cond_init(&s->ready, NULL); pthread_cond_init(&s->space, NULL);
+#endif
+}
+
+static void sync_destroy(sync_t *s) {
+#ifdef _WIN32
+    (void)s;
+#else
+    pthread_mutex_destroy(&s->lock); pthread_cond_destroy(&s->ready); pthread_cond_destroy(&s->space);
+#endif
+}
+
+#ifdef _WIN32
+#define SYNC_LOCK(s) AcquireSRWLockExclusive(&(s)->lock)
+#define SYNC_UNLOCK(s) ReleaseSRWLockExclusive(&(s)->lock)
+#define SYNC_WAKE(c) WakeAllConditionVariable(&(c))
+#define SYNC_WAIT(s, c) SleepConditionVariableSRW(&(c), &(s)->lock, INFINITE, 0)
+#define SYNC_WAIT_MS(s, c, ms) SleepConditionVariableSRW(&(c), &(s)->lock, (ms), 0)
+#else
+#define SYNC_LOCK(s) pthread_mutex_lock(&(s)->lock)
+#define SYNC_UNLOCK(s) pthread_mutex_unlock(&(s)->lock)
+#define SYNC_WAKE(c) pthread_cond_broadcast(&(c))
+#define SYNC_WAIT(s, c) pthread_cond_wait(&(c), &(s)->lock)
+static void sync_wait_ms(pthread_mutex_t *lock, pthread_cond_t *cond, long ms) {
+    struct timespec until;
+    clock_gettime(CLOCK_REALTIME, &until);
+    until.tv_sec += ms / 1000; until.tv_nsec += (ms % 1000) * 1000000L;
+    if (until.tv_nsec >= 1000000000L) { until.tv_sec++; until.tv_nsec -= 1000000000L; }
+    pthread_cond_timedwait(cond, lock, &until);
+}
+#define SYNC_WAIT_MS(s, c, ms) sync_wait_ms(&(s)->lock, &(c), (ms))
+#endif
+
+/* Solver threads copy models into a fixed pool of owned blocks and never take
+   the GIL; the calling thread turns full blocks into Python values while the
+   search continues. A full pool makes producers wait, bounding memory. */
+#define POOL_BLOCKS 16
 typedef bool (*event_fn)(unsigned, void *, void *, bool *);
 typedef bool (*solve_fn)(void *, unsigned, const int32_t *, size_t, event_fn, void *, void **);
 typedef bool (*get_fn)(void *, unsigned *);
 typedef bool (*close_fn)(void *);
+typedef bool (*cancel_fn)(void *);
 typedef const char *(*error_message_fn)(void);
 typedef void (*set_error_fn)(int, const char *);
 typedef struct {
-    decoder *decoder; PyObject *consume, *error_type, *error_value, *error_traceback;
-    PyThread_type_lock lock; set_error_fn set_error;
-    size_t models; double seconds; int measure; bool api_error;
+    decoder *decoder; set_error_fn set_error; sync_t sync;
+    int64_t *blocks; size_t counts[POOL_BLOCKS];
+    int free_list[POOL_BLOCKS]; size_t free_count;
+    int ready[POOL_BLOCKS]; size_t ready_head, ready_count;
+    int current; size_t models; double seconds; int measure;
+    bool finished, discard;
 } solve_context;
 
 static double monotonic_seconds(void) {
@@ -130,41 +167,46 @@ static double monotonic_seconds(void) {
 #endif
 }
 
+static int64_t *block_rows(solve_context *c, int index) {
+    return c->blocks + (size_t)index * c->decoder->batch * c->decoder->width;
+}
+
 static bool model_event(unsigned type, void *event, void *data, bool *goon) {
+    solve_context *c = data;
+    if (type == 3) {  // clingo_solve_event_type_finish
+        SYNC_LOCK(&c->sync); c->finished = true; SYNC_WAKE(c->sync.ready); SYNC_UNLOCK(&c->sync);
+        return true;
+    }
     if (type != 0 || !event) return true;
-    solve_context *context = data;
-    PyThread_acquire_lock(context->lock, WAIT_LOCK);
-    double started = context->measure ? monotonic_seconds() : 0;
-    bool ok = context->error_type == NULL;
-    const char *error = ok ? copy_row(context->decoder, event) : NULL;
-    if (error) context->api_error = true;
-    if (ok && !error) context->models++;
-    if (error || (ok && context->decoder->count == context->decoder->batch)) {
-        PyGILState_STATE gil = PyGILState_Ensure();
-        if (error) PyErr_SetString(PyExc_RuntimeError, error);
-        else {
-            PyObject *block = take(context->decoder);
-            PyObject *result = block ? PyObject_CallOneArg(context->consume, block) : NULL;
-            Py_XDECREF(block); Py_XDECREF(result);
-        }
-        if (PyErr_Occurred()) {
-            PyErr_Fetch(&context->error_type, &context->error_value, &context->error_traceback);
-            ok = false;
-        }
-        PyGILState_Release(gil);
-    }
-    if (context->measure) context->seconds += monotonic_seconds() - started;
-    if (!ok) {
+    SYNC_LOCK(&c->sync);
+    while (!c->discard && c->current < 0 && c->free_count == 0) SYNC_WAIT(&c->sync, c->sync.space);
+    if (c->discard) { *goon = false; SYNC_UNLOCK(&c->sync); return true; }
+    if (c->current < 0) { c->current = c->free_list[--c->free_count]; c->counts[c->current] = 0; }
+    double started = c->measure ? monotonic_seconds() : 0;
+    const char *error = copy_row(c->decoder, event,
+        block_rows(c, c->current) + c->counts[c->current] * c->decoder->width);
+    if (c->measure) c->seconds += monotonic_seconds() - started;
+    if (error) {
+        // Real native/API failures obey Clingo's error contract; its error
+        // state is thread-local, so every failing callback sets it.
         *goon = false;
-        // A Python delivery exception is restored after normal termination and
-        // handle closure. Turning it into a solver error can poison a parallel
-        // Control. Real native/API failures still obey Clingo's error contract;
-        // its error state is thread-local, so every failing callback sets it.
-        if (context->api_error) context->set_error(4, "native clause record capture failed");
+        c->set_error(4, "native clause record capture failed");
+        SYNC_UNLOCK(&c->sync);
+        return false;
     }
-    bool success = !context->api_error;
-    PyThread_release_lock(context->lock);
-    return success;
+    c->models++;
+    if (++c->counts[c->current] == c->decoder->batch) {
+        c->ready[(c->ready_head + c->ready_count++) % POOL_BLOCKS] = c->current;
+        c->current = -1;
+        SYNC_WAKE(c->sync.ready);
+    }
+    SYNC_UNLOCK(&c->sync);
+    return true;
+}
+
+static void copy_message(char *message, size_t size, error_message_fn error_message) {
+    const char *error = error_message();
+    if (error) { strncpy(message, error, size - 1); message[size - 1] = 0; }
 }
 
 static PyObject *solve_records(PyObject *self, PyObject *args) {
@@ -173,39 +215,89 @@ static PyObject *solve_records(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "OKOOp", &capsule, &control, &addresses, &consume, &measure)) return NULL;
     decoder *d = PyCapsule_GetPointer(capsule, "gentians.records");
     if (!d) return NULL;
-    unsigned long long solve_address, get_address, close_address, error_address, set_address;
-    if (!PyArg_ParseTuple(addresses, "KKKKK", &solve_address, &get_address, &close_address, &error_address, &set_address)) return NULL;
+    unsigned long long solve_address, get_address, close_address, error_address, set_address, cancel_address;
+    if (!PyArg_ParseTuple(addresses, "KKKKKK", &solve_address, &get_address, &close_address, &error_address,
+                          &set_address, &cancel_address)) return NULL;
     if (!control || !solve_address || !get_address || !close_address || !error_address || !set_address
-            || !PyCallable_Check(consume) || d->count) {
+            || !cancel_address || !PyCallable_Check(consume) || d->count) {
         PyErr_SetString(PyExc_ValueError, "invalid native clause solve"); return NULL;
     }
-    solve_context context = {0}; context.decoder = d; context.consume = consume;
-    context.measure = measure; context.set_error = (set_error_fn)(uintptr_t)set_address;
-    context.lock = PyThread_allocate_lock();
-    if (!context.lock) return PyErr_NoMemory();
+    error_message_fn error_message = (error_message_fn)(uintptr_t)error_address;
+    solve_context c = {0}; c.decoder = d; c.measure = measure; c.current = -1;
+    c.set_error = (set_error_fn)(uintptr_t)set_address;
+    size_t block = (d->width ? d->width : 1) * d->batch;
+    c.blocks = malloc(POOL_BLOCKS * block * sizeof(int64_t));
+    if (!c.blocks) return PyErr_NoMemory();
+    for (int i = POOL_BLOCKS - 1; i >= 0; --i) c.free_list[c.free_count++] = i;
+    sync_init(&c.sync);
+    PyObject *error_type = NULL, *error_value = NULL, *error_traceback = NULL;
     void *handle = NULL; unsigned result = 0; bool ok;
     char message[2048] = "native Clingo solve failed";
     Py_BEGIN_ALLOW_THREADS
-    ok = ((solve_fn)(uintptr_t)solve_address)((void *)(uintptr_t)control, 0, NULL, 0, model_event, &context, &handle);
-    if (ok) ok = ((get_fn)(uintptr_t)get_address)(handle, &result);
-    if (!ok) {
-        const char *error = ((error_message_fn)(uintptr_t)error_address)();
-        if (error) { strncpy(message, error, sizeof(message)-1); message[sizeof(message)-1] = 0; }
+    // clingo_solve_mode_async: the search runs in Clingo's own threads.
+    ok = ((solve_fn)(uintptr_t)solve_address)((void *)(uintptr_t)control, 1, NULL, 0, model_event, &c, &handle);
+    if (!ok) copy_message(message, sizeof(message), error_message);
+    Py_END_ALLOW_THREADS
+    while (ok) {
+        int index = -1; bool done = false;
+        Py_BEGIN_ALLOW_THREADS
+        SYNC_LOCK(&c.sync);
+        if (!c.ready_count && !c.finished) SYNC_WAIT_MS(&c.sync, c.sync.ready, 100);
+        if (c.ready_count) {
+            index = c.ready[c.ready_head];
+            c.ready_head = (c.ready_head + 1) % POOL_BLOCKS; c.ready_count--;
+        } else {
+            done = c.finished;
+        }
+        SYNC_UNLOCK(&c.sync);
+        Py_END_ALLOW_THREADS
+        if (done) break;
+        PyObject *value = NULL;
+        if (index >= 0 && !error_type)
+            value = PyBytes_FromStringAndSize((const char *)block_rows(&c, index),
+                                              (Py_ssize_t)(c.counts[index] * d->width * sizeof(int64_t)));
+        if (index >= 0) {
+            SYNC_LOCK(&c.sync); c.free_list[c.free_count++] = index; SYNC_WAKE(c.sync.space); SYNC_UNLOCK(&c.sync);
+        }
+        if (!error_type) {
+            // Delivery errors and pending signals stop the search; remaining
+            // blocks are then drained without delivery.
+            if (value) { PyObject *delivered = PyObject_CallOneArg(consume, value); Py_XDECREF(delivered); }
+            else if (index < 0) PyErr_CheckSignals();
+            if (PyErr_Occurred()) {
+                PyErr_Fetch(&error_type, &error_value, &error_traceback);
+                SYNC_LOCK(&c.sync); c.discard = true; SYNC_WAKE(c.sync.space); SYNC_UNLOCK(&c.sync);
+                Py_BEGIN_ALLOW_THREADS
+                ((cancel_fn)(uintptr_t)cancel_address)(handle);
+                Py_END_ALLOW_THREADS
+            }
+        }
+        Py_XDECREF(value);
+    }
+    Py_BEGIN_ALLOW_THREADS
+    if (ok) {
+        ok = ((get_fn)(uintptr_t)get_address)(handle, &result);
+        if (!ok) copy_message(message, sizeof(message), error_message);
     }
     if (handle && !((close_fn)(uintptr_t)close_address)(handle) && ok) {
         ok = false;
-        const char *error = ((error_message_fn)(uintptr_t)error_address)();
-        if (error) { strncpy(message, error, sizeof(message)-1); message[sizeof(message)-1] = 0; }
+        copy_message(message, sizeof(message), error_message);
     }
     Py_END_ALLOW_THREADS
-    PyThread_free_lock(context.lock);
-    if (context.error_type) {
+    // The final partial block stays with the decoder for flush().
+    if (ok && !error_type && c.current >= 0 && c.counts[c.current]) {
+        memcpy(d->records, block_rows(&c, c.current), c.counts[c.current] * d->width * sizeof(int64_t));
+        d->count = c.counts[c.current];
+    }
+    sync_destroy(&c.sync);
+    free(c.blocks);
+    if (error_type) {
         d->count = 0;
-        PyErr_Restore(context.error_type, context.error_value, context.error_traceback);
+        PyErr_Restore(error_type, error_value, error_traceback);
         return NULL;
     }
     if (!ok) { d->count = 0; PyErr_SetString(PyExc_RuntimeError, message); return NULL; }
-    return Py_BuildValue("Kd", (unsigned long long)context.models, context.seconds);
+    return Py_BuildValue("Kd", (unsigned long long)c.models, c.seconds);
 }
 
 static PyObject *flush(PyObject *self, PyObject *capsule) {

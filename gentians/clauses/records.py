@@ -18,9 +18,8 @@ class ModelRecords:
             raise RuntimeError("native clause records are unavailable in this installation")
         self.decoder = decoder
         self.native = _records
-        address = int(_ffi.cast("uintptr_t", _ffi.addressof(_lib, "clingo_model_symbols")))
-        self.state = _records.create(address, decoder.capacity, 128,
-                                     [(handle, offset, value) for handle, (offset, value) in decoder.lookup.items()])
+        address = int(_ffi.cast("uintptr_t", _ffi.addressof(_lib, "clingo_model_is_true")))
+        self.state = _records.create(address, decoder.capacity, 128, decoder.truth)
         self.plan = _records.prepare_decode(decoder.capacity, tuple(
             (section, slot, decoder.plans[index])
             for index, (section, slot, _offset) in enumerate(decoder.slots)
@@ -35,7 +34,7 @@ class ModelRecords:
     def solve(self, control, consume, measure=False):
         addresses = tuple(int(_ffi.cast("uintptr_t", _ffi.addressof(_lib, name))) for name in (
             "clingo_control_solve", "clingo_solve_handle_get", "clingo_solve_handle_close",
-            "clingo_error_message", "clingo_set_error",
+            "clingo_error_message", "clingo_set_error", "clingo_solve_handle_cancel",
         ))
         return self.native.solve(self.state, int(_ffi.cast("uintptr_t", control._rep)), addresses, consume, measure)
 

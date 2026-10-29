@@ -253,9 +253,11 @@ de ellos redefine el language bias de una tarea inductiva.
   `ClauseCanonicalizer` conserva un representante por clave y libera ese índice
   al transferirlo a `ClauseSpace`. Al aceptar un representante guarda tamaño y
   metadata de la fuente, sin retener sus bindings aritméticos ya descartados.
-  El transporte C opcional copia modelos a registros propios y materializa sus
-  bloques; el callback C completo entrega bloques a Python y el iterador
-  incremental conserva su presupuesto por modelo. El decoder Python permanece
+  El transporte C opcional copia modelos a registros propios leyendo la verdad
+  de literales preparados y materializa sus bloques; en la enumeración completa
+  los hilos de Clingo llenan un pool acotado de bloques sin GIL mientras el hilo
+  llamante los canonicaliza, y el iterador incremental conserva su presupuesto
+  por modelo. El decoder Python permanece
   disponible como control. `PackedRecipe` comparte literales mediante índices
   locales a su propietario y conserva sistemas aritméticos exactos; `Clause`
   mantiene vivo ese propietario hasta construir los AST que necesita.

@@ -18,22 +18,26 @@ class _ModelDecoder:
     """
 
     def __init__(self, atoms: clingo.SymbolicAtoms, modes: dict[int, ClauseMode]) -> None:
-        selected: dict[tuple[str, int], list[tuple[int, int]]] = {}
+        selected: dict[tuple[str, int], list[tuple[int, int, int]]] = {}
         for atom in atoms.by_signature("selected", 3):
             symbol = atom.symbol
             section, slot, mode = symbol.arguments
-            selected.setdefault((section.name, slot.number), []).append((mode.number, symbol._rep))
+            selected.setdefault((section.name, slot.number), []).append((mode.number, symbol._rep, atom.literal))
         self.bindings = {mode_id: mode.binding_positions for mode_id, mode in modes.items()}
         slot_ids = {slot: index for index, slot in enumerate(sorted(selected))}
         slots = []
         self.lookup: dict[int, tuple[int, int]] = {}
+        # Program literal, offset and value of every displayed atom, for the
+        # native decoder: a model's truth values replace its symbol copy.
+        self.truth: list[tuple[int, int, int]] = []
         offset = len(slot_ids)
         for (section, slot), index in slot_ids.items():
             choices = selected[section, slot]
             slots.append((section, slot, offset))
-            for mode, handle in choices:
+            for mode, handle, literal in choices:
                 self.lookup[handle] = index, mode
-            offset += max(max(self.bindings[mode], default=-1) + 1 for mode, _ in choices)
+                self.truth.append((literal, index, mode))
+            offset += max(max(self.bindings[mode], default=-1) + 1 for mode, _, _ in choices)
         self.slots = tuple(slots)
         for atom in atoms.by_signature("var_at", 4):
             symbol = atom.symbol
@@ -42,6 +46,7 @@ class _ModelDecoder:
                 self.slots[slot_ids[section.name, slot.number]][2] + argument.number,
                 variable.number,
             )
+            self.truth.append((atom.literal, *self.lookup[symbol._rep]))
         if 0 in self.lookup:
             raise ValueError("The decoder output contains the reserved zero handle")
         self.capacity = offset
@@ -52,7 +57,7 @@ class _ModelDecoder:
         self.binding_offsets = {
             (index, mode): tuple(start + position for position in self.bindings[mode])
             for index, (section, slot, start) in enumerate(self.slots)
-            for mode, _handle in selected[section, slot]
+            for mode, _handle, _literal in selected[section, slot]
         }
         # Dense per-slot mode plans avoid a tuple key and dict lookup for every
         # selected literal, including the portable decoder.

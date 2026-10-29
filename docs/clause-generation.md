@@ -202,12 +202,18 @@ the prepared deterministic slot order, preserving complete heads and flattened
 bindings without per-literal truth probes or public `Symbol` wrappers. The same
 decoder is reused across incremental size solves with cleanup disabled.
 When the optional extension is available, `records.py` copies a live model into
-an owned numeric row and delivers blocks of 128. Complete enumeration uses a C
-model-event callback and enters Python only for full blocks. A lock protects
-the row buffer in multi-thread Controls; the synchronous handle is closed before
-returning or restoring a delivery exception. Incremental consumes each Model
-through the iterator to preserve resumable raw-model budgets. Lookup, copying
-and block materialization run in C. `callback=python` retains the per-model
+an owned numeric row and delivers blocks of 128. The extension reads the truth
+of the prepared program literals of `selected/3` and `var_at/4` with
+`clingo_model_is_true`, instead of copying the displayed symbols and hashing
+them. Complete enumeration solves asynchronously: Clingo's solver threads copy
+models into a fixed pool of 16 owned blocks without the GIL, while the calling
+thread decodes and canonicalizes full blocks as the search continues. A full
+pool makes solver threads wait, bounding memory. A delivery exception or a
+pending signal, checked at least every 100 ms, cancels the search; remaining
+blocks are drained without delivery, and the handle is closed before the
+exception is restored. Incremental consumes each Model through the iterator to
+preserve resumable raw-model budgets. Lookup, copying and block materialization
+run in C. `callback=python` retains the per-model
 callback as an explicit control with the same owned numeric transport.
 Dense slot/mode layouts also serve the portable decoder. Partial blocks are flushed
 before finalization or an incremental yield. No Model or native pointer is
@@ -305,7 +311,10 @@ recursion-depth limit.
 
 Solving timers exclude decoding and canonicalization inside callbacks or between
 yielded models. Those Python costs stay in `clause_generation`; grounding and
-solving remain separately reported with the existing metric fields.
+solving remain separately reported with the existing metric fields. With the
+native callback, Python canonicalization overlaps the search: only the record
+copy inside model events is excluded from solving, and solving covers the
+wall time until the last block has been delivered.
 Both complete and incremental enumeration read per-model clocks only when
 timings or Clingo metrics are enabled. Clingo metrics alone still measure the
 same durations; incremental consumer time never belongs to solving. The dashboard

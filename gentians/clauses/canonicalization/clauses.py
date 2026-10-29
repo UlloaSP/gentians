@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from functools import lru_cache
+from operator import attrgetter
 
 from ...language.asp import Predicate
 from ..clause import Clause
@@ -13,6 +14,10 @@ from ..reified_literal import ReifiedLiteral
 from .arithmetic import _ArithmeticSystemsCache, _component_recipe, _literal_traits, canonical_arithmetic_clause
 from .arithmetic_system import ArithmeticSystemKey
 from .canonical_clause import CanonicalArithmeticClause
+
+
+_literal_key = attrgetter("key")
+_mode_id = attrgetter("mode_id")
 
 
 class ClauseCanonicalizer:
@@ -51,27 +56,23 @@ class ClauseCanonicalizer:
         )
 
     def add(self, clause: ReifiedClause) -> None:
-        if self.has_builtins:
-            canonical = canonical_arithmetic_clause(
-                clause, self.modes, self.max_variables, self.systems_cache, self.literal_traits, self.components,
-                self.head_context,
-            )
-            if canonical is None:
-                return
-            key = canonical.key
-        else:
-            key = (tuple(literal.key for literal in clause.head),
-                   tuple(literal.key for literal in clause.body), ())
-            canonical = None
+        if not self.has_builtins:
+            self._add_plain(clause)
+            return
+        canonical = canonical_arithmetic_clause(
+            clause, self.modes, self.max_variables, self.systems_cache, self.literal_traits, self.components,
+            self.head_context,
+        )
+        if canonical is None:
+            return
+        key = canonical.key
         current = self.representatives.get(key)
         if current is None:
-            if canonical is None:
-                canonical = CanonicalArithmeticClause(clause.head, clause.body, ())
             rendered = self.recipes.render(canonical)
             self.representatives[key] = rendered, self.recipes.pack(canonical) if self.pack else canonical, self._source(clause)
         elif len(clause.body) > current[2][0]:
             return
-        elif canonical is None or all(system.linear for system in canonical.systems):
+        elif all(system.linear for system in canonical.systems):
             if len(clause.body) < current[2][0]:
                 self.representatives[key] = current[0], current[1], self._source(clause)
         else:
@@ -93,9 +94,23 @@ class ClauseCanonicalizer:
             ):
                 self.representatives[key] = rendered, self.recipes.pack(canonical) if self.pack else canonical, self._source(clause)
 
+    def _add_plain(self, clause: ReifiedClause) -> None:
+        # Without builtins the literals are the canonical clause: its key is the
+        # literal keys and only the cheapest source of each key is retained.
+        head, body = clause.head, clause.body
+        key = (tuple(map(_literal_key, head)), tuple(map(_literal_key, body)), ())
+        current = self.representatives.get(key)
+        if current is None:
+            canonical = CanonicalArithmeticClause(head, body, ())
+            self.representatives[key] = (self.recipes.render(canonical),
+                                         self.recipes.pack(canonical) if self.pack else canonical,
+                                         self._source(clause))
+        elif len(body) < current[2][0]:
+            self.representatives[key] = current[0], current[1], self._source(clause)
+
     def _source(self, clause):
         return len(clause.body), self.metadata.for_modes(
-            tuple(literal.mode_id for literal in clause.head), tuple(literal.mode_id for literal in clause.body),
+            tuple(map(_mode_id, clause.head)), tuple(map(_mode_id, clause.body)),
         )
 
     def finish(self) -> Iterator[Clause]:

@@ -97,7 +97,6 @@ def function_bucket(filename: str, name: str) -> str:
     if (
         source.endswith("/clingo/ast.py") and name in {"__str__", "__repr__"}
         or "_clingo.clingo_ast_to_string" in name
-        or "gentians.clauses._records.render_rules" in name
     ):
         return "ast_text"
     if method in {"__hash__", "__eq__"} or name == "<built-in method builtins.hash>" or (

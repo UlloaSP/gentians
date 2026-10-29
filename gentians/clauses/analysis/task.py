@@ -141,7 +141,8 @@ def _validate_invented_predicates(
         raise ValueError(
             f"invented predicates require generated head and positive body modes: {sorted(missing)}"
         )
-    observed = invented & _observed_predicates(nodes)
+    # Only invented predicates can be observed illegally; skip the AST walk without them.
+    observed = invented & _observed_predicates(nodes) if invented else set()
     if observed:
         raise ValueError(
             f"invented predicates must not be observed: {sorted(observed)}"

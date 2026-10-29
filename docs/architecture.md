@@ -51,9 +51,11 @@ de ellos redefine el language bias de una tarea inductiva.
   de constantes, compartida por cabezas, condicionales y agregados. Los modes
   se decodifican desde los nodos parseados, también al expandir pools, sin volver
   a parsear átomos ni argumentos. `clauses/canonicalization/` ensambla
-  `ast.Rule` y conserva el nodo hasta evaluación; Clingo es dueño del formato
-  textual. No añadas renderers ASP manuales ni conversiones de la cláusula
-  completa de texto a AST en esta frontera.
+  recetas que construyen `ast.Rule` cuando se pide el nodo; Clingo es dueño del
+  formato de cada elemento. El texto de una regla solo une elementos escritos
+  por Clingo con su marco de regla (`native_syntax.rule_text`), comprobado contra
+  su impresora. No añadas otros renderers ASP manuales ni conversiones de la
+  cláusula completa de texto a AST en esta frontera.
   `HeadTemplate` conserva una forma nativa de Clingo y elementos completos:
   signos y condiciones pertenecen a cada literal, sin listas paralelas ni otra
   representación de límites u operadores. Las declaraciones comparten la
@@ -258,9 +260,8 @@ de ellos redefine el language bias de una tarea inductiva.
   locales a su propietario y conserva sistemas aritméticos exactos; `Clause`
   mantiene vivo ese propietario hasta construir los AST que necesita.
   Las recetas poseen cachés
-  locales de literales y direcciones nativas, con owners durante cada llamada.
-  El renderer opcional construye, formatea y libera reglas con la API de Clingo,
-  sin wrapper Python por regla ni renderer textual manual. Las particiones
+  locales de nodos y de los textos que Clingo escribe para cada elemento; el
+  texto de una regla une esos textos con el marco de regla de Clingo. Las particiones
   optativas usan Controls de un hilo y serialización estructural iterativa;
   el proceso padre reconcilia la preferencia canónica global. No se comparten
   punteros de AST o Model entre procesos. El motor directo requiere una prueba

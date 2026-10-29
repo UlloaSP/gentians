@@ -570,7 +570,10 @@ class _ClauseGenerator:
         )
 
 def generate_clause_space(task: InductiveTask, arguments: Arguments) -> ClauseSpace:
-    with generation_gc(arguments.clause_generation.get("gc", "normal")):
+    # One allocation burst whose objects all survive: incremental collection
+    # would rescan the growing space. Batches keep `normal`, since a deferred
+    # batch ends with a full collection of the search heap.
+    with generation_gc(arguments.clause_generation.get("gc", "defer")):
         with phase("clause_generation"):
             generator = _ClauseGenerator(task, arguments)
         return generator.clause_space()

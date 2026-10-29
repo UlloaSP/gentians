@@ -219,12 +219,9 @@ def test_pool_shares_syntax_across_source_slots_without_changing_tuple_order():
     assert str(recipes.statement(first)) == str(recipes.statement(second)) == "#false :- p(V0)."
 
 
-def test_compact_direct_fallback_preserves_native_syntax_without_renderer(monkeypatch):
-    from gentians.clauses import native_syntax
-
+def test_compact_direct_storage_preserves_native_syntax():
     task = parse_text(task_text(4))
     expected = generate_clause_space(task, options(engine="direct", storage="recipes"))
-    monkeypatch.setattr(native_syntax, "_records", None)
     actual = generate_clause_space(task, options(engine="direct", storage="packed"))
     assert actual.entries == expected.entries
     assert all(isinstance(entry.syntax, PackedRecipe) for entry in actual.entries)

@@ -1,6 +1,5 @@
 """Regressions for the second measured generation optimization round."""
 
-import gc
 from dataclasses import replace
 
 import pytest
@@ -88,19 +87,15 @@ def test_property_binding_domains_preserve_sign_types_labels_scopes_and_full_ent
     "1 {p(X):q(X); r(X)} 2 :- s(X), #count{Y:t(X,Y)} > 1.",
     "#false :- q(X), X = (Y/2), Y!=0.",
     'p("' + "á🙂" * 3000 + '").',
-], ids=["unicode", "disjunction", "aggregate", "division", "large-unicode"])
-def test_fused_native_build_and_format_keeps_entire_clingo_syntax(source):
-    from clingo._internal import _ffi
-    from gentians.clauses.native_syntax import RuleBuilder
+    ":- q(X), not not r(X), |X| > 2.",
+    "p(X) :- q(X): r(X); -s(X).",
+], ids=["unicode", "disjunction", "aggregate", "division", "large-unicode", "constraint", "condition"])
+def test_rule_frame_around_clingo_elements_is_clingo_rule_syntax(source):
+    from gentians.clauses.native_syntax import RuleBuilder, rule_text
     node = parse_rule(source)
     builder = RuleBuilder()
-    if builder.renderer is None:
-        pytest.skip("optional native extension not built")
-    parts = int(_ffi.cast("uintptr_t", node.head._rep)), tuple(int(_ffi.cast("uintptr_t", item._rep)) for item in node.body)
-    assert builder.render_parts((parts, parts)) == (str(node), str(node))
-    del builder
-    gc.collect()
-    assert str(node) == str(parse_rule(source))
+    composed = rule_text(builder.render(node.head), [builder.render(item) for item in node.body])
+    assert composed == str(node) == builder.render(node)
 
 
 def test_portable_rule_builder_passes_location_by_pointer(monkeypatch):
@@ -122,8 +117,7 @@ def test_portable_rule_builder_passes_location_by_pointer(monkeypatch):
     assert str(builder.rule(node.head, node.body)) == str(node)
 
 
-def test_prepared_native_addresses_keep_owners_after_cache_eviction_and_portable_fallback(monkeypatch):
-    from gentians.clauses import native_syntax
+def test_rendering_a_rule_longer_than_the_element_cache_keeps_clingo_syntax():
     modes = {m.id: m for m in _clause_modes(parse_text("#modeb(*,p(var(x,output))). #maxbl(9000)."))}
     mode_id = next(iter(modes))
     recipe = CanonicalArithmeticClause((), tuple(ReifiedLiteral("body", slot, mode_id, (slot,))
@@ -131,11 +125,8 @@ def test_prepared_native_addresses_keep_owners_after_cache_eviction_and_portable
     expected = recipe.render(modes)
     actual = RuleRecipes(modes)
     assert actual.render(recipe) == expected
-    assert actual.literal_pair.cache_info().currsize <= 8192
-    monkeypatch.setattr(native_syntax, "_records", None)
-    portable = RuleRecipes(modes)
-    assert portable.render(recipe) == expected
-    assert str(portable.statement(recipe)) == expected
+    assert actual.literal_text.cache_info().currsize <= 8192
+    assert str(actual.statement(recipe)) == expected
 
 
 def test_native_decode_rejects_incomplete_unknown_modes_and_missing_bindings():

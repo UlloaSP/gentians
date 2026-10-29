@@ -351,91 +351,6 @@ error:
     Py_XDECREF(head); Py_XDECREF(body); Py_XDECREF(result); PyBuffer_Release(&block); return NULL;
 }
 
-/* Clingo 5.x public location ABI. Function pointers come from the loaded
-   Clingo instance; no linking to a second runtime, and no text reparsing. */
-typedef struct {
-    const char *begin_file, *end_file;
-    size_t begin_line, end_line, begin_column, end_column;
-} location;
-typedef bool (*ast_build_fn)(int, void **, ...);
-typedef bool (*ast_string_fn)(const void *, char *, size_t);
-typedef bool (*ast_size_fn)(const void *, size_t *);
-typedef void (*ast_release_fn)(void *);
-typedef struct {
-    ast_build_fn build; ast_string_fn string; ast_size_fn size; ast_release_fn release;
-    int rule_type; location loc; size_t body_capacity, text_capacity;
-    void **body; char *text;
-} renderer;
-static void destroy_renderer(PyObject *capsule) {
-    renderer *r = PyCapsule_GetPointer(capsule, "gentians.renderer");
-    if (r) { free(r->body); free(r->text); free(r); }
-}
-static PyObject *prepare_renderer(PyObject *self, PyObject *args) {
-    unsigned long long build, string, size, release; int rule_type;
-    if (!PyArg_ParseTuple(args, "KKKKi", &build, &string, &size, &release, &rule_type)) return NULL;
-    if (!build || !string || !size || !release) { PyErr_SetString(PyExc_ValueError, "missing Clingo function"); return NULL; }
-    renderer *r = calloc(1, sizeof(renderer));
-    if (!r) return PyErr_NoMemory();
-    r->build = (ast_build_fn)(uintptr_t)build; r->string = (ast_string_fn)(uintptr_t)string;
-    r->size = (ast_size_fn)(uintptr_t)size; r->release = (ast_release_fn)(uintptr_t)release;
-    r->rule_type = rule_type; r->loc = (location){"<gentians>", "<gentians>", 1, 1, 1, 1};
-    r->body_capacity = 16; r->text_capacity = 1024;
-    r->body = malloc(r->body_capacity * sizeof(void *)); r->text = malloc(r->text_capacity);
-    if (!r->body || !r->text) { free(r->body); free(r->text); free(r); return PyErr_NoMemory(); }
-    PyObject *capsule = PyCapsule_New(r, "gentians.renderer", destroy_renderer);
-    if (!capsule) { free(r->body); free(r->text); free(r); }
-    return capsule;
-}
-static PyObject *render_one(renderer *r, PyObject *parts) {
-    unsigned long long head; PyObject *body;
-    if (!PyArg_ParseTuple(parts, "KO", &head, &body)) return NULL;
-    if (!head || !PyTuple_Check(body)) { PyErr_SetString(PyExc_ValueError, "invalid native rule parts"); return NULL; }
-    Py_ssize_t count = PyTuple_GET_SIZE(body);
-    if ((size_t)count > r->body_capacity) {
-        size_t capacity = (size_t)count > r->body_capacity * 2 ? (size_t)count : r->body_capacity * 2;
-        void **replacement = realloc(r->body, capacity * sizeof(void *));
-        if (!replacement) return PyErr_NoMemory();
-        r->body = replacement; r->body_capacity = capacity;
-    }
-    for (Py_ssize_t i = 0; i < count; ++i) {
-        r->body[i] = (void *)(uintptr_t)PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(body, i));
-        if (PyErr_Occurred()) return NULL;
-        if (!r->body[i]) { PyErr_SetString(PyExc_ValueError, "missing native body literal"); return NULL; }
-    }
-    void *rule = NULL;
-    if (!r->build(r->rule_type, &rule, &r->loc, (void *)(uintptr_t)head, r->body, (size_t)count)) {
-        PyErr_SetString(PyExc_RuntimeError, "Clingo could not build native clause"); return NULL;
-    }
-    if (!r->string(rule, r->text, r->text_capacity)) {
-        size_t needed;
-        if (!r->size(rule, &needed) || needed <= r->text_capacity) goto clingo_error;
-        size_t capacity = needed > r->text_capacity * 2 ? needed : r->text_capacity * 2;
-        char *replacement = realloc(r->text, capacity);
-        if (!replacement) { r->release(rule); return PyErr_NoMemory(); }
-        r->text = replacement; r->text_capacity = capacity;
-        if (!r->string(rule, r->text, capacity)) goto clingo_error;
-    }
-    PyObject *text = PyUnicode_DecodeUTF8(r->text, (Py_ssize_t)strlen(r->text), "strict");
-    r->release(rule); return text;
-clingo_error:
-    r->release(rule); PyErr_SetString(PyExc_RuntimeError, "Clingo could not format native clause"); return NULL;
-}
-static PyObject *render_rules(PyObject *self, PyObject *args) {
-    PyObject *capsule, *parts;
-    if (!PyArg_ParseTuple(args, "OO", &capsule, &parts)) return NULL;
-    if (!PyTuple_Check(parts)) { PyErr_SetString(PyExc_ValueError, "native rules must be a tuple"); return NULL; }
-    renderer *r = PyCapsule_GetPointer(capsule, "gentians.renderer");
-    if (!r) return NULL;
-    Py_ssize_t count = PyTuple_GET_SIZE(parts); PyObject *result = PyTuple_New(count);
-    if (!result) return NULL;
-    for (Py_ssize_t i = 0; i < count; ++i) {
-        PyObject *text = render_one(r, PyTuple_GET_ITEM(parts, i));
-        if (!text) { Py_DECREF(result); return NULL; }
-        PyTuple_SET_ITEM(result, i, text);
-    }
-    return result;
-}
-
 static PyMethodDef methods[] = {
     {"create", create, METH_VARARGS, "Prepare a Control-owned numeric lookup."},
     {"push", push, METH_VARARGS, "Copy one live model; return a block when full."},
@@ -443,8 +358,6 @@ static PyMethodDef methods[] = {
     {"solve", solve_records, METH_VARARGS, "Capture native model events and deliver owned blocks."},
     {"prepare_decode", prepare_decode, METH_VARARGS, "Compile owned block decoding layouts."},
     {"decode_block", decode_block, METH_VARARGS, "Materialize immutable values from an owned block."},
-    {"prepare_renderer", prepare_renderer, METH_VARARGS, "Bind the loaded Clingo AST API."},
-    {"render_rules", render_rules, METH_VARARGS, "Build, format and release native rules."},
     {NULL, NULL, 0, NULL}
 };
 static struct PyModuleDef module = {PyModuleDef_HEAD_INIT, "_records", NULL, -1, methods};

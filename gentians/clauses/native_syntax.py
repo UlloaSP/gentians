@@ -9,10 +9,15 @@ from collections.abc import Sequence
 from clingo import ast
 from clingo._internal import _ffi, _handle_error, _lib
 
-try:
-    from . import _records
-except ImportError:
-    _records = None
+
+def rule_text(head: str, body: Sequence[str]) -> str:
+    """Clingo's rule frame around elements that Clingo itself rendered.
+
+    Clingo prints a rule as its head, then ` :- ` and the body elements joined
+    by `; `, then a period; a bodyless rule omits the separator. Element syntax,
+    including conditions, aggregates and escaping, stays Clingo's output.
+    """
+    return f"{head} :- {'; '.join(body)}." if body else f"{head}."
 
 
 class RuleBuilder:
@@ -27,19 +32,6 @@ class RuleBuilder:
         self.text_capacity = 1024
         self.text = _ffi.new("char[]", self.text_capacity)
         self.text_size = _ffi.new("size_t*")
-        self.native = _records
-        self.renderer = None
-        if _records is not None:
-            functions = [int(_ffi.cast("uintptr_t", _ffi.addressof(_lib, name))) for name in (
-                "clingo_ast_build", "clingo_ast_to_string", "clingo_ast_to_string_size", "clingo_ast_release",
-            )]
-            self.renderer = _records.prepare_renderer(functions[0], functions[1], functions[2], functions[3],
-                                                       _lib.clingo_ast_type_rule)
-
-    def render_parts(self, parts: tuple[tuple[int, tuple[int, ...]], ...]) -> tuple[str, ...]:
-        if self.renderer is None or self.native is None:
-            raise RuntimeError("native rule rendering is unavailable")
-        return self.native.render_rules(self.renderer, parts)
 
     def rule(self, head: ast.AST, body: Sequence[ast.AST]) -> ast.AST:
         if len(body) > self.body_capacity:

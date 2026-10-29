@@ -19,6 +19,7 @@ from .clause import Clause
 from .clause_mode import ClauseMode
 from .clause_space import ClauseSpace
 from .mode_metadata import ModeMetadata
+from .native_syntax import rule_text
 from .recipes import RuleRecipes
 from .reified_literal import ReifiedLiteral
 from .packed_recipe import PackedRecipe
@@ -113,29 +114,22 @@ class SubsetClauses:
         if engine == "direct":
             add("clause_generation.grounding", 0.0)
             add("clause_generation.solving", 0.0)
-            native_packed = pack and self.recipes.builder.renderer is not None
+            # Every body literal binds V0, so one rendered element per mode
+            # serves all subsets; only the rule frame is built per clause.
+            texts = {mode: self.recipes.literal_text(mode, (0,)) for mode in self.ids}
             codes = {mode: array("I", [self.recipes.pool_index(self.literals[0, mode])]).tobytes()
-                     for mode in self.ids} if native_packed and self.limit else {}
+                     for mode in self.ids} if pack else {}
             for choices in batched(self.combinations(), 128):
                 for head in self.forms:
-                    if native_packed:
-                        head_pair = self.recipes.head_pair(head)
-                        # Keep every owner alive across the batched native call,
-                        # including cache evictions in exceptionally long bodies.
-                        bodies = tuple(tuple(self.recipes.literal_pair(mode, (0,)) for mode in ids)
-                                       for ids in choices)
-                        texts = self.recipes.builder.render_parts(tuple(
-                            (head_pair[1], tuple(pair[1] for pair in body)) for body in bodies))
-                        head_codes = array("I", [self.recipes.pool_index(literal) for literal in head]).tobytes()
-                        recipes = (PackedRecipe(head_codes + b"".join(codes[mode] for mode in ids), len(head), ())
-                                   for ids in choices)
-                    else:
-                        recipes = tuple(self.recipe(ids, head) for ids in choices)
-                        texts = self.recipes.render_many(recipes)
+                    head_text = self.recipes.head_text(head)
+                    head_codes = array("I", [self.recipes.pool_index(literal) for literal in head]).tobytes()
                     head_mask = self.metadata.heads[head[0].mode_id][0] if head else 0
-                    for ids, recipe, text in zip(choices, recipes, texts, strict=True):
+                    for ids in choices:
+                        text = rule_text(head_text, [texts[mode] for mode in ids])
+                        recipe = (PackedRecipe(head_codes + b"".join(codes[mode] for mode in ids), len(head), ())
+                                  if pack else self.recipe(ids, head))
                         metadata = self.metadata.from_masks(head_mask, sum(self.masks[mode] for mode in ids), len(ids))
-                        index[text] = Clause(text, self.recipes.pack(recipe) if pack else recipe, metadata, self.recipes)
+                        index[text] = Clause(text, recipe, metadata, self.recipes)
         elif self.limit:
             ctl = clingo.Control(arguments)
             cast(Configuration, ctl.configuration.solve).models = "0"

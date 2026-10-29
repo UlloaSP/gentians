@@ -191,6 +191,25 @@ def test_gc_policy_restores_disabled_and_enabled_states_after_errors():
         (gc.enable if original else gc.disable)()
 
 
+def test_complete_generation_defers_collection_while_batches_keep_it(monkeypatch):
+    from gentians.clauses import generator
+    seen = []
+    original = generator.generation_gc
+
+    def recording(policy):
+        seen.append(policy)
+        return original(policy)
+
+    monkeypatch.setattr(generator, "generation_gc", recording)
+    task = parse_text("#maxv(0). #maxbl(2). #modeh(1,p). #modeb(1,q). #modeb(1,r).")
+    assert generate_clause_space(task, Arguments()).entries
+    assert seen == ["defer"]
+    seen.clear()
+    with incremental_clause_batches(task, Arguments(), 1, random.Random(0)) as batches:
+        assert list(batches)
+    assert seen and set(seen) == {"normal"}
+
+
 @pytest.mark.parametrize("reverse", [False, True])
 def test_text_collision_between_legal_arithmetic_keys_keeps_cheapest_source(reverse):
     from gentians.clauses.clause_space import ClauseSpace

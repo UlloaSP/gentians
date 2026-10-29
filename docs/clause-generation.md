@@ -248,13 +248,13 @@ remapping constructs a new system with an independent structural key.
 
 Arithmetic representation modules own keys, variable masks and sets, remapping and
 rendering through Clingo's AST. Reified modes and normalized systems construct
-native nodes; canonicalization assembles `ast.Rule` for Clingo formatting and
-retains its reconstructible recipe. The formatter and Rule builder reuse growing
-buffers. The optional extension builds, formats and releases temporary rules
-without a Python AST wrapper; it calls the loaded Clingo instance and retains
-all literal/head owners until the call finishes. Recipe-local caches prepare
-native nodes and their addresses together, and direct generation renders
-bounded blocks of 128 rules. A semantic key alone never permits reuse of nonlinear text: exact
+native nodes; canonicalization retains a reconstructible recipe. Clingo formats
+each head, body literal and arithmetic system once; recipe-local caches keep
+those texts, and `native_syntax.rule_text` joins them with Clingo's rule frame
+(`head :- e1; e2.`, or `head.` without a body). Tests compare the composed text
+with Clingo's own rule printer, including Unicode, conditions, aggregates and
+`#false` heads. The formatter and Rule builder reuse growing buffers; `ast.Rule`
+is built only when a statement is requested. A semantic key alone never permits reuse of nonlinear text: exact
 relations must also preserve orientation, expression trees and output safety.
 `Clause` stores text, canonical recipe and signed provider/dependency masks.
 `storage=packed` retains numeric indexes into its `RuleRecipes` literal pool,
@@ -334,7 +334,7 @@ overrides. Task files and their limits are unchanged.
 | `workers` | `1` | Complete ASP generation: positive CPU-bounded count. Controls use one solver thread each, static first-body-mode shards and deterministic global representative reconciliation. Empty bodies belong to one shard. Incremental rejects multiple workers. |
 | `strata` | `assumptions` | Incremental `ground` compiles smaller Controls for exact total body cost, including attached conditions. Its union preserves the complete space; batches still count raw models and retain no cross-batch canonical history. |
 | `configuration` | absent | Clingo exhaustive presets `auto`, `frumpy`, `jumpy`, `tweety`, `handy`, `crafty`, `trendy`. Explicit Clingo arguments take precedence. Every Control forces unlimited models. |
-| `gc` | `normal` | `defer` temporarily disables cyclic collection during complete generation or a batch, collects inside measured generation and restores the original state in `finally`. This policy is global to the interpreter. |
+| `gc` | `defer` complete, `normal` batches | `defer` temporarily disables cyclic collection during complete generation or a batch, collects the young generation inside measured generation and restores the original state in `finally`. Complete generation defers by default: its clauses all survive, and incremental collection would rescan the growing space. Batches default to `normal`, because a deferred batch ends with a full collection of the search heap. This policy is global to the interpreter. |
 | `infer_maps` | `true` | `false` is an experimental control that disables early filtering of incompatible property maps. Property bridges and context proofs always remain. |
 
 Native records are an optional setuptools extension, built into platform wheels

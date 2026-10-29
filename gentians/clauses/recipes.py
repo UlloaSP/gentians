@@ -1,13 +1,11 @@
-"""Native rule recipes, with a bounded cache only for requested ASTs."""
+"""Native rule recipes, with bounded caches only for requested syntax."""
 
 from functools import lru_cache
 from array import array
 
-from clingo._internal import _ffi
-
 from .canonicalization.canonical_clause import CanonicalArithmeticClause
 from .clause_mode import ClauseMode
-from .native_syntax import RuleBuilder
+from .native_syntax import RuleBuilder, rule_text
 from .reified_clause import instantiate_literal, instantiate_head
 from .packed_recipe import PackedRecipe
 
@@ -20,46 +18,39 @@ class RuleRecipes:
         self.pool_ids = {}
 
         @lru_cache(maxsize=8192)
-        def literal_pair(mode_id, variables):
-            node = instantiate_literal(modes[mode_id].literal, variables)
-            return node, int(_ffi.cast("uintptr_t", node._rep))
+        def literal(mode_id, variables):
+            return instantiate_literal(modes[mode_id].literal, variables)
+
+        # Clingo renders every element once. A rule repeats elements far more
+        # often than it introduces new ones, so only the rule frame is per clause.
+        @lru_cache(maxsize=8192)
+        def literal_text(mode_id, variables):
+            return self.builder.render(literal(mode_id, variables))
 
         @lru_cache(maxsize=8192)
-        def head_pair(head):
-            node = instantiate_head(head, modes)
-            return node, int(_ffi.cast("uintptr_t", node._rep))
+        def head_text(head):
+            return self.builder.render(instantiate_head(head, modes))
 
         @lru_cache(maxsize=8192)
-        def system_pairs(system):
-            return tuple((node, int(_ffi.cast("uintptr_t", node._rep))) for node in system.instantiate())
+        def system_texts(system):
+            return tuple(self.builder.render(node) for node in system.instantiate())
 
-        self.literal_pair = literal_pair
-        self.head_pair = head_pair
-        self.system_pairs = system_pairs
+        self.literal = literal
+        self.literal_text = literal_text
+        self.head_text = head_text
+        self.system_texts = system_texts
         self.instantiate = lru_cache(maxsize=8192)(
             lambda recipe: recipe.instantiate(self.modes, builder=self.builder, literals=self.literal)
         )
 
-    def literal(self, mode_id, variables):
-        return self.literal_pair(mode_id, variables)[0]
-
-    def parts(self, recipe):
-        head = self.head_pair(recipe.head)
-        body = [self.literal_pair(literal.mode_id, literal.variables) for literal in recipe.body]
+    def render(self, recipe: CanonicalArithmeticClause) -> str:
+        literal_text = self.literal_text
+        body = [literal_text(literal.mode_id, literal.variables) for literal in recipe.body]
         for system in recipe.systems:
-            body.extend(self.system_pairs(system))
-        # Owners accompany every borrowed address, even when a long rule evicts
-        # an earlier literal from the bounded cache while preparing this rule.
-        return (head[1], tuple(pair[1] for pair in body)), (head[0], *(pair[0] for pair in body))
-
-    def render_many(self, recipes):
-        if self.builder.renderer is None:
-            return tuple(self.builder.render(self.instantiate(recipe)) for recipe in recipes)
-        rows = tuple(self.parts(recipe) for recipe in recipes)
-        return self.builder.render_parts(tuple(row[0] for row in rows))
-
-    def render(self, recipe):
-        return self.render_many((recipe,))[0]
+            body.extend(self.system_texts(system))
+        if not recipe.head and not body:
+            raise ValueError("a learned clause cannot have an empty head and body")
+        return rule_text(self.head_text(recipe.head), body)
 
     def statement(self, recipe: CanonicalArithmeticClause | PackedRecipe):
         if isinstance(recipe, PackedRecipe):

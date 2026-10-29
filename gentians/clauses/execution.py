@@ -17,11 +17,13 @@ def generation_gc(policy: object):
     finally:
         if policy == "defer" and enabled:
             # Include collection in the generation measurement, including errors.
+            # Nothing is promoted while collection is off, so every cycle created
+            # here is young; a full collection would rescan the whole process heap.
             try:
                 if current_phase() == "clause_generation":
-                    gc.collect()
+                    gc.collect(0)
                 else:
                     with phase("clause_generation"):
-                        gc.collect()
+                        gc.collect(0)
             finally:
                 gc.enable()

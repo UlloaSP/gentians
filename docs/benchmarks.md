@@ -217,8 +217,8 @@ call counts and cumulative time. Self times form a disjoint partition;
 cumulative times overlap and must not be added. Implicit tuple hashing and dict
 assignments cannot be isolated by cProfile and remain in the enclosing
 function's bucket. These are function buckets, not exact stage timers.
-The native `render_rules` self time includes temporary AST construction,
-formatting and release in its format bucket; cProfile cannot split its C body.
+Rule text joins cached element texts in Python; only the first rendering of
+each element reaches `clingo_ast_to_string`.
 The native `_records.solve` self time mixes Clingo solving and record capture.
 It has its own bucket and stays outside the Python denominator; normal phase
 timers measure capture/delivery separately when instrumented. Missed Python

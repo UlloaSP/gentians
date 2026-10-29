@@ -85,9 +85,11 @@ reciben los nodos mediante `ProgramBuilder`, sin volver a parsear el ASP retenid
 Las plantillas de modes son el IR del aprendizaje: conservan bindings tipados,
 direcciones, labels, recalls y grupos de condiciones. Al instanciarlas se
 construyen términos y literales nativos de Clingo. Las cabezas y los sistemas
-aritméticos canonicalizados también producen nodos; la cláusula se ensambla
-como `ast.Rule` sin construir y volver a parsear su texto. `str(AST)` determina
-el formato de salida, incluidas las constraints con cabeza `#false`.
+aritméticos canonicalizados también producen nodos. Clingo escribe cada cabeza,
+literal y sistema; el texto de la regla une esos elementos con el marco de
+regla de Clingo (`cabeza :- e1; e2.`), comprobado contra su impresora, incluidas
+las constraints con cabeza `#false`. El `ast.Rule` se construye solo cuando se
+pide el statement, sin volver a parsear texto.
 
 `generate_clause_space()` ejecuta este pipeline:
 

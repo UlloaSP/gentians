@@ -1,8 +1,5 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel",
-]
+requires = ["setuptools>=74.1", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -11,31 +8,30 @@ version = "1.0.1"
 description = "GENTIANS: GENeTic algorithm for Inductive learning of ANswer Set programs."
 readme = "README.md"
 requires-python = ">=3.14"
-authors = [
-    { name = "Damiano Azzolini", email = "damiano.azzolini@unife.it" },
-]
+authors = [{ name = "Damiano Azzolini", email = "damiano.azzolini@unife.it" }]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU GPLv3 License",
     "Operating System :: OS Independent",
 ]
-dependencies = [
-    "clingo>=5.8.2,<6",
-]
+dependencies = ["clingo>=5.8.2,<6"]
 
 [project.urls]
 Homepage = "https://github.com/damianoazzolini/gentians"
 "Bug Tracker" = "https://github.com/damianoazzolini/gentians/issues"
 
 [dependency-groups]
-dev = [
-    "pytest",
-    "ruff",
-    "ty",
-]
+dev = ["pytest", "ruff", "ty"]
 
 [tool.setuptools.packages.find]
 include = ["gentians*"]
+
+# Wheels can include the small decoder accelerator. Source installations without
+# a C compiler retain the exact Python decoder and the same clause language.
+[[tool.setuptools.ext-modules]]
+name = "gentians.clauses._records"
+sources = ["gentians/clauses/_records.c"]
+optional = true
 
 [tool.setuptools.package-data]
 "gentians.evaluation" = ["rules/*.lp"]

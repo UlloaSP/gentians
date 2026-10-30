@@ -12,8 +12,7 @@ from gentians.search import budget as search_budget
 from gentians.arguments import Arguments
 from gentians.clauses import generate_clause_space, incremental_clause_batches
 from gentians.language import parse_text
-from tests.task_helpers import example, inductive_task, make_clause_space
-from benchmarks.synthetic_million import task_text
+from tests.task_helpers import example, feature_task_text, inductive_task, make_clause_space
 from gentians import timing
 from gentians.clauses import generator as generation
 
@@ -42,7 +41,7 @@ def test_incremental_close_excludes_consumer_time_and_cancels_solver(monkeypatch
         try:
             with timing.phase("total_execution"):
                 with incremental_clause_batches(
-                    parse_text(task_text(6)), Arguments(), 2, random.Random(7)
+                    parse_text(feature_task_text(6)), Arguments(), 2, random.Random(7)
                 ) as batches:
                     assert len(next(batches)) == 2
                     assert timing.current_phase() == "total_execution"
@@ -105,7 +104,7 @@ def test_incremental_batches_preserve_nonmonotonic_clause_forms(head):
     assert any("not blocked" in clause for clause in visited)
 
 
-@pytest.mark.parametrize("source", [task_text(6), """
+@pytest.mark.parametrize("source", [feature_task_text(6), """
     {base;blocked;q}.
     #maxv(0). #maxbl(3). #maxhl(1).
     #modeh(1,p:base).

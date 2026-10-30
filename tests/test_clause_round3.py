@@ -13,7 +13,7 @@ from gentians.clauses.mode_compiler import _clause_modes
 from gentians.clauses.packed_recipe import PackedRecipe
 from gentians.clauses.records import ModelRecords, _records
 from gentians.language import parse_text
-from benchmarks.synthetic_million import task_text
+from tests.task_helpers import feature_task_text
 
 
 def options(**settings):
@@ -77,7 +77,7 @@ def test_projected_strict_components_preserve_source_cost_and_exact_syntax(body_
 @pytest.mark.skipif(_records is None, reason="optional native extension")
 @pytest.mark.parametrize("parallel", ["1", "4,split"])
 def test_native_delivery_propagates_exception_closes_handle_and_resets_rows(parallel):
-    task = parse_text(task_text(8))
+    task = parse_text(feature_task_text(8))
     generator = _ClauseGenerator(task, options(clingo_arguments=[f"--parallel-mode={parallel}"]))
     ctl, decoder, *_ = generator._prepare(None)
     records = ModelRecords(decoder)
@@ -146,14 +146,14 @@ def test_native_signal_cancellation_closes_handle_and_allows_reuse(parallel):
     script = '''
 import signal
 import threading
-from benchmarks.synthetic_million import task_text
+from tests.task_helpers import feature_task_text
 from gentians import Arguments
 from gentians.language import parse_text
 from gentians.clauses.generator import _ClauseGenerator
 from gentians.clauses.records import ModelRecords
 args = Arguments()
 args.clause_generation["clingo_arguments"] = ["--parallel-mode=@PARALLEL@"]
-ctl, decoder, *_ = _ClauseGenerator(parse_text(task_text(32)), args)._prepare(None)
+ctl, decoder, *_ = _ClauseGenerator(parse_text(feature_task_text(32)), args)._prepare(None)
 records = ModelRecords(decoder)
 timer = threading.Timer(.05, signal.raise_signal, args=(signal.SIGINT,))
 timer.start()
@@ -182,7 +182,7 @@ print("cancelled and reused")
 def test_native_parallel_profile_captures_every_materialized_model(tmp_path):
     from benchmarks.clause_python_profile import profile_clause_python
 
-    task = parse_text(task_text(8))
+    task = parse_text(feature_task_text(8))
     args = options(engine="asp", clingo_arguments=["--parallel-mode=4,split"])
     ctl, *_ = _ClauseGenerator(task, args)._prepare(None)
     ctl.solve()
@@ -220,7 +220,7 @@ def test_pool_shares_syntax_across_source_slots_without_changing_tuple_order():
 
 
 def test_compact_direct_storage_preserves_native_syntax():
-    task = parse_text(task_text(4))
+    task = parse_text(feature_task_text(4))
     expected = generate_clause_space(task, options(engine="direct", storage="recipes"))
     actual = generate_clause_space(task, options(engine="direct", storage="packed"))
     assert actual.entries == expected.entries
@@ -233,7 +233,7 @@ def test_auto_storage_tracks_the_proved_engine_and_preserves_incremental_recipes
     from gentians.clauses import incremental_clause_batches
     from gentians.clauses.clause_space import ClauseSpace
 
-    task = parse_text(task_text(4))
+    task = parse_text(feature_task_text(4))
     expected = generate_clause_space(task, options(storage="recipes"))
     for engine in ("direct", "asp", "subsets"):
         actual = generate_clause_space(task, options(engine=engine))

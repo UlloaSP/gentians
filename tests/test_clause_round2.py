@@ -13,7 +13,7 @@ from gentians.clauses.recipes import RuleRecipes
 from gentians.clauses.reified_literal import ReifiedLiteral
 from gentians.language import parse_text
 from gentians.language.asp import parse_rule
-from benchmarks.synthetic_million import task_text
+from tests.task_helpers import feature_task_text
 
 
 def options(**settings):
@@ -27,7 +27,7 @@ def options(**settings):
 @pytest.mark.parametrize("head_limit", [0, 1])
 @pytest.mark.parametrize("engine", ["direct", "subsets"])
 def test_extended_unary_family_keeps_complete_native_space(maxv, heads, head_limit, engine):
-    task = parse_text(task_text(4).replace("#maxv(1).", f"#maxv({maxv}).")
+    task = parse_text(feature_task_text(4).replace("#maxv(1).", f"#maxv({maxv}).")
                       .replace("#maxhl(0).", f"#maxhl({head_limit}).").replace("#maxbl(6).", "#maxbl(3).") + heads)
     if heads and not head_limit:
         for policy in ("asp", engine):

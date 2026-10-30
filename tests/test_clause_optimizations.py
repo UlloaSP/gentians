@@ -17,7 +17,7 @@ from gentians.language.asp import parse_rule
 from gentians.language.ast_nodes import LOCATION
 from gentians import Arguments
 from gentians.clauses import generate_clause_space, incremental_clause_batches
-from benchmarks.synthetic_million import task_text
+from tests.task_helpers import feature_task_text
 import random
 from gentians.clauses.mode_facts import theta_facts
 from gentians.clauses.binding_facts import nominal_binding_facts
@@ -53,7 +53,7 @@ def test_partition_error_reaps_writers_before_removing_temporary_directory(monke
     from gentians.clauses import partitions
     monkeypatch.setattr(partitions, "_worker", _error_during_partition_write)
     with pytest.raises(RuntimeError, match="partition failed during another output write"):
-        generate_clause_space(parse_text(task_text(3)), configured(workers=2))
+        generate_clause_space(parse_text(feature_task_text(3)), configured(workers=2))
 
 
 def test_native_records_keep_full_block_and_final_tail_in_model_order():
@@ -62,7 +62,7 @@ def test_native_records_keep_full_block_and_final_tail_in_model_order():
     from gentians.clauses.decoder import _clause_from_model
     if _records is None:
         pytest.skip("optional native extension not built")
-    generator = _ClauseGenerator(parse_text(task_text(8)), configured(
+    generator = _ClauseGenerator(parse_text(feature_task_text(8)), configured(
         engine="asp", clingo_arguments=["--parallel-mode=1"]))
     ctl, decoder, *_ = generator._prepare(None)
     records = ModelRecords(decoder)
@@ -91,7 +91,7 @@ def test_native_records_keep_full_block_and_final_tail_in_model_order():
 
 @pytest.mark.parametrize("engine", ["asp", "subsets"])
 def test_exhaustive_configuration_preserves_space_and_ignores_finite_model_limit(engine):
-    task = parse_text(task_text(4))
+    task = parse_text(feature_task_text(4))
     expected = generate_clause_space(task, configured(engine="asp"))
     actual = generate_clause_space(task, configured(engine=engine, configuration="frumpy",
                                                    clingo_arguments=["--models=1", "--parallel-mode=1"]))
@@ -100,7 +100,7 @@ def test_exhaustive_configuration_preserves_space_and_ignores_finite_model_limit
 
 @pytest.mark.parametrize("engine", ["auto", "direct", "subsets"])
 def test_independent_subset_engine_preserves_every_entry_and_lazy_native_statement(engine):
-    task = parse_text(task_text(6))
+    task = parse_text(feature_task_text(6))
     expected = generate_clause_space(task, configured(engine="asp", transport="python"))
     actual = generate_clause_space(task, configured(engine=engine))
     assert actual.entries == expected.entries
@@ -121,7 +121,7 @@ def test_direct_engine_rejects_unproved_families_and_auto_keeps_full_asp(source)
     assert generate_clause_space(task, configured()).entries == generate_clause_space(task, configured(engine="asp")).entries
 
 
-@pytest.mark.parametrize("source", [task_text(5),
+@pytest.mark.parametrize("source", [feature_task_text(5),
     "#modeh(1,h(var(x,input))). #modeb(2,p(var(x,output),var(y,output))). #maxv(3). #maxbl(2).",
     "#modeh(1,h(var(numeric,input))). #modeb(1,p(var(numeric,output))). #modeb(1,var(numeric,input)*var(numeric,input)=var(numeric,output)). #maxv(3). #maxbl(2).",
 ])
@@ -308,7 +308,7 @@ def test_comparison_components_preserve_full_heads_guards_pools_and_nested_terms
     assert all(str(entry.statement) == entry.text for entry in actual.entries)
 
 
-@pytest.mark.parametrize("source", [task_text(5),
+@pytest.mark.parametrize("source", [feature_task_text(5),
     "{p(1);p(2);q(1);q(2)}. #modeh(1,h(var(x,input))). #modeb(2,p(var(x,output))). #modeb(1,q(var(x,input))). #maxv(2). #maxbl(2).",
     "{p(1);p(2)}. #modeh(1,h(var(numeric,input))). #modeb(1,p(var(numeric,output))). #modeb(1,var(numeric,input)*var(numeric,input)=var(numeric,output)). #maxv(3). #maxbl(2).",
 ])
@@ -349,7 +349,7 @@ def test_generation_options_are_validated_before_engine_dispatch(key, value, wor
     args = configured(workers=workers)
     args.clause_generation[key] = value
     with pytest.raises(ValueError):
-        generate_clause_space(parse_text(task_text(3)), args)
+        generate_clause_space(parse_text(feature_task_text(3)), args)
 
 
 def test_explicit_native_transport_cannot_silently_fall_back(monkeypatch):
@@ -357,13 +357,13 @@ def test_explicit_native_transport_cannot_silently_fall_back(monkeypatch):
     monkeypatch.setattr(generator, "_records", None)
     for workers in (1, 2):
         with pytest.raises(RuntimeError, match="unavailable"):
-            generate_clause_space(parse_text(task_text(3)), configured(workers=workers, transport="native"))
+            generate_clause_space(parse_text(feature_task_text(3)), configured(workers=workers, transport="native"))
 
 
 def test_explicit_solver_arguments_override_the_enumeration_preset():
     from gentians.clauses.generator import _ClauseGenerator
     args = configured(configuration="frumpy", clingo_arguments=["--configuration=jumpy"])
-    generator = _ClauseGenerator(parse_text(task_text(3)), args)
+    generator = _ClauseGenerator(parse_text(feature_task_text(3)), args)
     assert generator.solver_arguments() == ["--configuration=jumpy"]
     assert generate_clause_space(generator.task, configured(**{
         **args.clause_generation, "engine": "subsets",
@@ -375,7 +375,7 @@ def test_native_incremental_budget_and_same_seed_prefix_match_python_decoder(bud
     from gentians.clauses.records import _records
     if _records is None:
         pytest.skip("optional native extension not built")
-    task = parse_text(task_text(10))
+    task = parse_text(feature_task_text(10))
     results = []
     for transport in ("python", "native"):
         with incremental_clause_batches(task, configured(transport=transport), budget, random.Random(5)) as batches:

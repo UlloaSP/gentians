@@ -133,7 +133,9 @@ checks membership of the selected predicates before comparing bindings.
 Sharing a mapping for `p/q` and `r/s` therefore never relates `p/s`.
 The helper is a deterministic projection, not another choice or pruning rule;
 it retains the original equal-arity and different-slot conditions. The
-mismatch check still requires the target argument position to exist.
+mismatch check still requires the target argument position to exist, and a
+position that a mode fixes to a constant counts as a mismatch on either side:
+it has no `var_at` atom, so it cannot prove two positions equal.
 These changes affect the encoding used by both exhaustive and incremental
 generation, without changing the task language or its pruning conditions.
 

@@ -38,6 +38,18 @@ tuple_mutex_pair(Slot0, Slot1, Projection) :-
     Slot0 != Slot1,
     tuple_mutex_pred(Pred0, Pred1, Projection).
 
+% DEFINITION, local helper. tuple_mutex_fixed_arg(Slot, Arg): the mode of the
+% positive atom at Slot fixes argument Arg, so it has no var_at/4 atom.
+%   Slot  body slot of a positive plain atom.
+%   Arg   source argument position that is not a variable placeholder.
+% Static for each mode: a task without constants grounds no instance. Used
+% only by tuple_mutex_vars_differ below. Named unused variables keep Gringo from
+% adding projection rules for atoms this rule never needs.
+tuple_mutex_fixed_arg(Slot, Arg) :-
+    positive_body_literal(Slot, Mode, Pred, Arity),
+    Arg = 0..Arity-1,
+    not mode_variable_arg(Mode, Arg).
+
 % DEFINITION, local helper. tuple_mutex_vars_differ(Slot0, Slot1, Projection):
 % two body atoms are not aligned the way a tuple-mutex mapping requires.
 %   Slot0       body slot of the atom playing the left predicate.
@@ -45,7 +57,9 @@ tuple_mutex_pair(Slot0, Slot1, Projection) :-
 %   Projection  id of a tuple-mutex mapping. Each tuple_mutex_arg(Projection,
 %               TargetArg, SourceArg) pairs argument SourceArg of the left
 %               atom with argument TargetArg of the right atom.
-% It holds when some paired positions carry different variable ids. It is
+% It holds when some paired positions carry different variable ids, or when
+% either of them is a constant: only one shared variable proves two positions
+% equal, so an equal constant on both sides merely keeps a clause. It is
 % derived only for the pairs the constraint below inspects: two positive
 % atoms whose predicates the mapping relates. Used only, negated, by that
 % constraint.
@@ -55,6 +69,14 @@ tuple_mutex_vars_differ(Slot0, Slot1, Projection) :-
     var_at(body, Slot0, SourceArg, Var),
     arg(body, Slot1, TargetArg),
     not var_at(body, Slot1, TargetArg, Var).
+tuple_mutex_vars_differ(Slot0, Slot1, Projection) :-
+    tuple_mutex_pair(Slot0, Slot1, Projection),
+    tuple_mutex_arg(Projection, TargetArg, SourceArg),
+    tuple_mutex_fixed_arg(Slot0, SourceArg).
+tuple_mutex_vars_differ(Slot0, Slot1, Projection) :-
+    tuple_mutex_pair(Slot0, Slot1, Projection),
+    tuple_mutex_arg(Projection, TargetArg, SourceArg),
+    tuple_mutex_fixed_arg(Slot1, TargetArg).
 
 % CONSTRAINT. Two positive body atoms may not be aligned by a mapping under
 % which their predicates exclude each other: the body could never hold.
@@ -65,5 +87,7 @@ tuple_mutex_vars_differ(Slot0, Slot1, Projection) :-
 % tuple_mutex_arg(m,0,1), tuple_mutex_arg(m,1,0)):
 %   pruned: :- lt(V0,V1), lt(V1,V0).
 %   kept:   :- lt(V0,V1), lt(V1,V2).
+% With colours disjoint from nodes, link/3 excludes its permutations:
+%   kept:   :- link(red,V0,V1), link(red,V1,V2).   a constant aligns nothing
 :- tuple_mutex_pair(Slot0, Slot1, Projection),
     not tuple_mutex_vars_differ(Slot0, Slot1, Projection).

@@ -61,13 +61,12 @@ CASES: dict[str, Arguments] = {
     "alzheimer_amine": task("alzheimer_amine"),
     "alzheimer_mem": task("alzheimer_mem"),
     "alzheimer_toxic": task("alzheimer_toxic"),
-    "synthetic_million": task("synthetic_million"),
     "euclid": task("euclid"),
 }
 
 
 # Profiling runs every case by default except these opt-in heavy ones.
-HEAVY_DATASETS = {"synthetic_million", "euclid"}
+HEAVY_DATASETS = {"euclid"}
 DEFAULT_DATASETS = [name for name in CASES if name not in HEAVY_DATASETS]
 
 

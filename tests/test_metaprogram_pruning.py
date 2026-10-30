@@ -249,6 +249,7 @@ def test_tuple_mutex_projections_keep_predicate_pairs_and_complete_bindings(
         facts.append(f"positive_body_literal({slot},{pred},{pred},2).")
         for argument, variable in enumerate(variables):
             facts.extend((f"arg(body,{slot},{argument}).", f"var_at(body,{slot},{argument},{variable})."))
+            facts.append(f"mode_variable_arg({pred},{argument}).")
     control = clingo.Control(["--warn=none"])
     root = Path(generator.__file__).with_name("metaprogram")
     control.load(str(root / "pruning/properties/disjoint.lp"))
@@ -256,6 +257,41 @@ def test_tuple_mutex_projections_keep_predicate_pairs_and_complete_bindings(
     control.ground([("base", [])])
 
     assert control.solve().satisfiable == satisfiable
+
+
+@pytest.mark.parametrize("fixed_slot", [0, 1], ids=["source-constant", "target-constant"])
+def test_tuple_mutex_does_not_align_constant_positions(fixed_slot):
+    # A constant has no var_at atom, so it can never prove two positions equal.
+    properties = replace(ClosedWorldProperties.none(), tuple_mutex=frozenset({(("p", 2), ("q", 2), (0, 1))}))
+    identifiers = {("p", 2): 0, ("q", 2): 1}
+    facts = property_facts.compile_property_facts(properties, identifiers)
+    for slot, pred in enumerate((0, 1)):
+        facts.append(f"positive_body_literal({slot},{pred},{pred},2).")
+        for argument in range(2):
+            if slot == fixed_slot and argument == 0:
+                continue
+            facts.extend((f"arg(body,{slot},{argument}).", f"var_at(body,{slot},{argument},{argument})."))
+            facts.append(f"mode_variable_arg({pred},{argument}).")
+    control = clingo.Control(["--warn=none"])
+    root = Path(generator.__file__).with_name("metaprogram")
+    control.load(str(root / "pruning/properties/disjoint.lp"))
+    control.add("base", [], "\n".join(facts))
+    control.ground([("base", [])])
+
+    assert control.solve().satisfiable
+
+
+def test_tuple_mutex_keeps_paths_of_a_constant_mode():
+    # Colours and nodes are disjoint, so link/3 excludes its own permutations.
+    # That says nothing about two link(red,_,_) atoms joined on a node.
+    clauses = _clauses(
+        "link(red,a,b). link(red,b,c). link(green,a,c). link(green,c,b).\n"
+        "#constant(colour,red).\n#constant(colour,green).\n#maxv(3).\n#maxbl(2).\n#maxhl(1).\n"
+        "#modeh(1,target(var(node,input),var(node,input))).\n"
+        "#modeb(2,link(const(colour),var(node,input),var(node,output)))."
+    )
+
+    assert "target(V0,V2) :- link(red,V0,V1); link(red,V1,V2)." in clauses
 
 
 @pytest.mark.parametrize(("property_name", "edges", "extra", "satisfiable"), [

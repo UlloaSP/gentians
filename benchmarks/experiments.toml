@@ -33,7 +33,6 @@ datasets = [
     "subset_sum_triple",
     "subset_sum_unbalanced",
     "subset_sum_unbalanced_ops",
-    "synthetic_million",
 ]
 runs = 100
 seed_base = 42

@@ -226,6 +226,26 @@
 #defined add_mode/1.
 #defined mul_mode/1.
 
+% Twin symmetries of symmetry/twins.lp, compiled from recalls and modes:
+% twin_position(Position, Section, Slot, Arg): Position numbers a possible
+% variable placeholder, in the order of first occurrence.
+% twin_symmetry(Symmetry): one way of rewriting a clause into a renamed twin.
+% twin_move(Symmetry, Source, Target): the literal at body slot Source moves to
+% Target. A slot without a fact stays.
+% twin_swap(Symmetry, Slot): the literal moved to Slot swaps its two operands.
+% twin_cell(Symmetry, Cell, Left, Right, Source, Target): the Cell-th position
+% pair the symmetry changes. In the twin, Left and Right hold what Source and
+% Target hold in the clause.
+% twin_fixed_mode(Mode): no symmetry moves this mode and it is not compared.
+% twin_orientable_mode(Mode): a variable-id rule keeps one operand order.
+#defined twin_position/4.
+#defined twin_symmetry/1.
+#defined twin_move/3.
+#defined twin_swap/2.
+#defined twin_cell/6.
+#defined twin_fixed_mode/1.
+#defined twin_orientable_mode/1.
+
 % interchangeable_operands(Mode): the two operands of an arithmetic template or
 % a simple binary comparison, or the two arguments of a binary atom of plain
 % variables, have equal type, direction and label, so swapping them yields

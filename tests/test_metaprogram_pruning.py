@@ -622,8 +622,9 @@ def test_transitive_shortcut_is_pruned_wherever_slot_order_puts_it():
 def test_transitive_shortcut_must_be_a_third_atom():
     clauses = _clauses(TRANSITIVE_TASK)
 
-    # p(V0,V1),p(V1,V1) is a path whose "shortcut" is its own first atom.
-    assert 'h(V0) :- p(V0,V1); p(V1,V1).' in clauses
+    # p(V0,V1),p(V1,V1) is a path whose "shortcut" is its own first atom. Its
+    # smallest twin writes the loop first.
+    assert 'h(V1) :- p(V0,V0); p(V1,V0).' in clauses
     assert 'h(V1) :- p(V0,V0); p(V0,V1); p(V1,V2).' in clauses
 
 

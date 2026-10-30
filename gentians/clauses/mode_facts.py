@@ -1,7 +1,7 @@
 from collections import Counter
 from collections.abc import Callable
 from functools import lru_cache
-from itertools import combinations, product
+from itertools import combinations, permutations, product
 
 from clingo import ast
 
@@ -231,6 +231,103 @@ def _plain_disjunctive_head(mode: ClauseMode) -> bool:
 # Enumerated theta substitutions ground roughly combinations x slots^2 x vars^2
 # rules. Beyond this many offset combinations the saturation encoding is used.
 THETA_OFFSET_LIMIT = 1024
+TWIN_CELL_LIMIT = 100_000
+
+
+def _run_permutations(slots: int, largest: int) -> list[tuple[int, ...]]:
+    """Slot permutations confined to contiguous runs of at most `largest` slots."""
+    found: set[tuple[int, ...]] = set()
+
+    def extend(start: int, prefix: tuple[int, ...]) -> None:
+        if start == slots:
+            found.add(prefix)
+            return
+        for length in range(1, min(largest, slots - start) + 1):
+            for run in permutations(range(start, start + length)):
+                extend(start + length, prefix + run)
+
+    extend(0, ())
+    return sorted(found)
+
+
+def _orientable(mode: ClauseMode, symmetric: frozenset[Predicate]) -> bool:
+    """Whether a variable-id rule keeps only one of the two operand orders of a mode."""
+    literal = mode.literal
+    if isinstance(literal, ComparisonLiteral):
+        return (not literal.default_negated and len(literal.terms) == 2
+                and set(literal.operators) <= {"=", "!="} and _terms_are_interchangeable(*literal.terms))
+    if isinstance(literal, ArithmeticLiteral):
+        return literal.operator in {"+", "*", "abs"} and _operands_are_interchangeable(literal)
+    return (isinstance(literal, AtomLiteral) and literal.atom.signature in symmetric
+            and _atom_arguments_are_interchangeable(literal.atom))
+
+
+def twin_facts(
+    modes: list[ClauseMode], symmetric: frozenset[Predicate], max_head_literals: int, max_body_literals: int,
+) -> list[str]:
+    """Describe the symmetries of a clause for symmetry/twins.lp.
+
+    Equal modes occupy contiguous slots and a run cannot exceed a recall, which
+    bounds the permutations that a task can realize. Each symmetry lists the
+    position pairs it changes, in the order of first occurrence. Every subset
+    of symmetries is sound: a dropped one only keeps some twins, so a task over
+    TWIN_CELL_LIMIT gives up operand swaps first, then the longest runs.
+    """
+    body = [mode for mode in modes if mode.section == "body"]
+    if any(_orientable(mode, symmetric) for mode in modes if mode.section == "head"):
+        return []
+    capacity = {mode.id: min(_effective_recall(mode, max_head_literals, max_body_literals), max_body_literals)
+                for mode in body}
+    movable = [mode for mode in body if not isinstance(mode.literal, ConditionalLiteral)]
+    orientable = [mode for mode in movable if _orientable(mode, symmetric)]
+    largest = max((capacity[mode.id] for mode in movable), default=0)
+    swaps = min(sum(capacity[mode.id] for mode in orientable), max_body_literals)
+    arguments = sorted({position for mode in movable for position in mode.binding_positions})
+    positions = [("body", slot, argument) for slot in range(max_body_literals) for argument in arguments]
+    positions += [("head", slot, argument) for slot, argument in sorted(
+        {(mode.head_position, position) for mode in modes if mode.section == "head"
+         for position in mode.binding_positions}
+    )]
+    pairs = len(positions) * (len(positions) - 1) // 2
+    orders = _run_permutations(max_body_literals, largest)
+    subsets = list(combinations(range(max_body_literals), 0))
+    for size in range(1, swaps + 1):
+        subsets += combinations(range(max_body_literals), size)
+    while len(subsets) > 1 and len(orders) * len(subsets) * pairs > TWIN_CELL_LIMIT:
+        subsets = [subset for subset in subsets if len(subset) < len(subsets[-1])]
+    while largest > 2 and len(orders) * len(subsets) * pairs > TWIN_CELL_LIMIT:
+        largest -= 1
+        orders = _run_permutations(max_body_literals, largest)
+    if len(orders) * len(subsets) <= 1 or len(orders) * len(subsets) * pairs > TWIN_CELL_LIMIT:
+        return []
+    identifiers = {position: index for index, position in enumerate(positions)}
+    parts = [f"twin_position({index},{section},{slot},{argument})."
+             for (section, slot, argument), index in identifiers.items()]
+    parts.extend(f"twin_fixed_mode({mode.id})." for mode in body if mode not in movable)
+    parts.extend(f"twin_orientable_mode({mode.id})." for mode in orientable)
+    identity = tuple(range(max_body_literals))
+    symmetries = (element for element in product(orders, subsets) if element != (identity, ()))
+    for symmetry, (order, swapped) in enumerate(symmetries):
+        def source(position: tuple[str, int, int]) -> int:
+            section, slot, argument = position
+            if section == "head":
+                return identifiers[position]
+            if slot in swapped and argument < 2:
+                argument = 1 - argument
+            return identifiers[section, order[slot], argument]
+
+        parts.append(f"twin_symmetry({symmetry}).")
+        parts.extend(f"twin_move({symmetry},{origin},{target})."
+                     for target, origin in enumerate(order) if origin != target)
+        parts.extend(f"twin_swap({symmetry},{slot})." for slot in swapped)
+        cell = 0
+        for right, position in enumerate(positions):
+            for left in range(right):
+                sources = sorted((source(positions[left]), source(position)))
+                if sources != [left, right]:
+                    parts.append(f"twin_cell({symmetry},{cell},{left},{right},{sources[0]},{sources[1]}).")
+                    cell += 1
+    return parts
 
 
 def theta_facts(

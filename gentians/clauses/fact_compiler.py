@@ -3,7 +3,7 @@ from ..language.ir.atom_literal import AtomLiteral
 from ..language.ir.inductive_task import InductiveTask
 from .analysis.properties import ClosedWorldProperties
 from .clause_mode import ClauseMode
-from .mode_facts import compile_mode_facts, predicate_ids, theta_facts
+from .mode_facts import compile_mode_facts, predicate_ids, theta_facts, twin_facts
 from .property_facts import compile_property_facts
 from .property_consumers import PropertyMaps
 
@@ -62,4 +62,5 @@ def _facts(
         )
     )
     parts.extend(theta_facts(modes, max_head_literals, max_body_literals))
+    parts.extend(twin_facts(modes, properties.symmetric, max_head_literals, max_body_literals))
     return "\n".join(parts)

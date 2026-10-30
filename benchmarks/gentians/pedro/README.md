@@ -21,6 +21,6 @@ The debug snapshot is `.debug/clauses/pedro.json`. Print its generated rules:
 (Get-Content -Raw .debug/clauses/pedro.json | ConvertFrom-Json).entries.text
 ```
 
-The current generator produces five clauses: two with one body atom and three
-with two. They represent four logical equivalence classes; the two directed-path
-forms remain equivalent under variable renaming and body permutation.
+The generator produces four clauses, one per connected core: two with one body
+atom (`p(V0,V0)` and `p(V0,V1)`) and two with two (the 2-cycle and the directed
+path). `tests/test_constraint_cores.py` checks this against a brute-force oracle.

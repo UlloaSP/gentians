@@ -182,6 +182,10 @@ Rule-variable substitutions return unchanged AST nodes by identity and rebuild
 only paths containing a renamed variable. Optional-constraint head inspection
 also uses an explicit stack and still rejects unknown theory heads.
 
+Clingo removes renamed twins before returning a model: `symmetry/twins.lp` keeps
+the smallest form over orders of equal body modes, operand swaps and variable
+renamings. `mode_facts.twin_facts` compiles only the symmetries that recalls can
+realize, so they cost no search and an incremental budget counts no twin.
 Clingo applies theta reduction with the other redundancy checks before returning
 a model. `mode_facts.theta_facts` chooses its encoding: enumerated offsets keep
 the program normal. Feasible contiguous repetition patterns respect shared

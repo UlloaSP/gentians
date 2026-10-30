@@ -228,6 +228,7 @@ nearby fragment can still be rejected by another independent restriction.
 | `legality/flow/` | Every required input has a derivation from flow seeds. | Unseeded input cycle / a chain beginning at a head input or zero-input producer. |
 | `symmetry/{slots,variables,conditions}.lp` | Select an ordered encoding among permutations of slots, ids or same-variant conditions. | Descending interchangeable tuple / ascending tuple. |
 | `symmetry/{arithmetic,comparisons}.lp` | Order eligible interchangeable operands. Arithmetic eligibility comes from the compiler. | Reversed addition operands / ordered operands; directed non-interchangeable templates retain their own encoding. |
+| `symmetry/twins.lp` | Keep the smallest of the renamed twins, over orders of equal modes and operand swaps. Normal rules over compiled position pairs, bounded by recalls and `TWIN_CELL_LIMIT`. Only canonicalization can equate arithmetic across two modes. |
 | `symmetry/aggregates.lp` | Order count tuples; permute full-local conditions only, keeping sum weights fixed. | The swapped condition in `examples/aggregate.lp` / its ordered form. |
 | `pruning/contradictions/comparisons.lp` | Selected strict order cannot be reflexive or opposed by its reverse. | `X<Y, Y<=X` / `X<Y`. |
 | `pruning/contradictions/numeric.lp` | Arithmetic and numeric-domain evidence imply an incompatible order. | `X+Y=Z, Z<X` with positive `Y` / the addition without that comparison. |

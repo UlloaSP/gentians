@@ -91,6 +91,7 @@ CLAUSE_METAPROGRAM_MODULES = (
     "symmetry/comparisons.lp",
     "symmetry/conditions.lp",
     "symmetry/slots.lp",
+    "symmetry/twins.lp",
     "symmetry/variables.lp",
     "pruning/contradictions/comparisons.lp",
     "pruning/contradictions/numeric.lp",

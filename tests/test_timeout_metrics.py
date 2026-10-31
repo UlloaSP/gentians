@@ -62,7 +62,7 @@ def run_worker(tmp_path: Path, code: str, timeout: int):
         *[tmp_path / f"d_run_1{suffix}" for suffix in (
             "_timings.json", "_ga_metrics.json", "_operator_metrics.jsonl",
             "_candidate_metrics.jsonl", "_quality_metrics.jsonl", "_clingo_metrics.jsonl",
-        )], "d", 1, 43,
+        )], "d", 1,
     )
 
 
@@ -82,7 +82,7 @@ task = inductive_task(
     max_program_clauses=3,
 )
 space = make_clause_space([f'p(a) :- q{{i}}(a).' for i in range(50)])
-args = Arguments(algorithm={algorithm!r}, random_seed=43)
+args = Arguments(algorithm={algorithm!r})
 os.environ['GENTIANS_ARGUMENTS_JSON'] = json.dumps(args.__dict__)
 profile.gentians_main = lambda arguments: solve(task, arguments, space)
 profile.run_profile_worker()
@@ -100,7 +100,7 @@ profile.run_profile_worker()
     assert profile.read_ga_metrics(tmp_path / "d_run_1_ga_metrics.json", "d", 1)
     for kind in ("operator", "candidate", "quality", "clingo"):
         rows = profile.read_jsonl_rows(
-            tmp_path / f"d_run_1_{kind}_metrics.jsonl", "d", 1, 43, "d_seed_43",
+            tmp_path / f"d_run_1_{kind}_metrics.jsonl", "d", 1, "d_run_1",
         )
         assert rows, kind
         if kind == "operator":
@@ -111,7 +111,7 @@ profile.run_profile_worker()
     for path in list(tmp_path.glob("d_run_1*")):
         path.rename(runs / path.name)
     result = profile.RunResult(
-        "d", 1, 43, "d_seed_43", "timeout", 124, 2.0, [],
+        "d", 1, "d_run_1", "timeout", 124, 2.0, [],
         json.dumps({"algorithm": algorithm}), str(runs / "d_run_1.log"),
     )
     profile.compress_run_artifacts(tmp_path, "d", 1)
@@ -147,7 +147,7 @@ with timing.phase('total_execution'):
     assert "hung operation" in (tmp_path / "d_run_1.log").read_text()
     assert profile.read_ga_metrics(tmp_path / "d_run_1_ga_metrics.json", "d", 1)
     assert profile.read_jsonl_rows(
-        tmp_path / "d_run_1_operator_metrics.jsonl", "d", 1, 43, "d_seed_43",
+        tmp_path / "d_run_1_operator_metrics.jsonl", "d", 1, "d_run_1",
     )
     timings = profile.read_timings(tmp_path / "d_run_1_timings.json", "d", 1)
     assert next(row.seconds for row in timings if row.metric == "total_execution") > 0
@@ -210,6 +210,7 @@ def test_slow_parent_logging_does_not_turn_success_into_timeout(tmp_path, monkey
     assert run_worker(tmp_path, "print('done', flush=True)", 1) == (0, False)
 
 
+@pytest.mark.rng(43)
 @pytest.mark.parametrize("algorithm", ["steady_state", "incremental"])
 def test_timeout_during_initialization_returns_completed_evaluation(monkeypatch, algorithm):
     from gentians.algorithms import incremental_clause_genetic_search, steady_state_genetic_search
@@ -231,7 +232,7 @@ def test_timeout_during_initialization_returns_completed_evaluation(monkeypatch,
     monkeypatch.setattr(CandidateEvaluator, "__call__", finish_evaluation_at_deadline)
     searches = {"steady_state": steady_state_genetic_search, "incremental": incremental_clause_genetic_search}
     task = inductive_task([], [example(("p", ""), True)], [], [], [])
-    result = searches[algorithm](Arguments(random_seed=43), task, make_clause_space(["p.", "q."]))
+    result = searches[algorithm](Arguments(), task, make_clause_space(["p.", "q."]))
     assert evaluated == [(result.hypothesis, result.score)]
 
 

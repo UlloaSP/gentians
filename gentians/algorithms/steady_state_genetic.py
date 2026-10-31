@@ -31,7 +31,7 @@ def steady_state_genetic_search(
     supplied_space: ClauseSpace | None = None,
 ) -> SearchResult:
     """Replace one population member per generation until a solution or the limit."""
-    rng = random.Random(args.random_seed)
+    rng = random.Random()
     initializer = create_population(args.population)
     selection = create_selection(args.selection)
     crossover = create_crossover(args.crossover)

@@ -87,7 +87,7 @@ def test_local_score_experiments_change_only_population_and_positive_weight():
     for experiment in experiments:
         assert experiment["method"] == "gentians-steady_state"
         assert experiment["runs"] == 5 and experiment["timeout_seconds"] == 300
-        assert experiment["seed_base"] == 42 and experiment["instrumentation"] == "full"
+        assert experiment["instrumentation"] == "full"
         overrides = dict(experiment["overrides"])
         observed.add((overrides.pop("population.size"), overrides.pop("evaluation.positive_weight")))
         assert overrides["evaluation.negative_weight"] == 1

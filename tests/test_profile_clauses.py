@@ -226,7 +226,7 @@ def test_default_output_is_only_a_table_and_creates_no_files(monkeypatch, tmp_pa
         "Benchmark", "Clauses", "Time", "(s)", "Clauses/s", "us/clause", "Peak", "RSS", "(MiB)",
     ]
     assert len(lines) == 4
-    assert lines[2].split()[:2] == ["grandparent", "326"]
+    assert lines[2].split()[:2] == ["grandparent", "319"]
     assert lines[3].split()[:2] == ["subset_sum", "8"]
     for line in lines[2:]:
         clauses, seconds, throughput, per_clause, peak = (

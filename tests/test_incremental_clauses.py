@@ -60,12 +60,13 @@ def test_incremental_close_excludes_consumer_time_and_cancels_solver(monkeypatch
         timing.reset()
 
 
+@pytest.mark.rng(7)
 def test_incremental_search_stops_when_enumeration_and_hypotheses_are_exhausted(monkeypatch):
     task = parse_text("#maxv(0). #maxbl(0). #modeh(1,p). #pos({q},{}).")
     generations = []
     monkeypatch.setattr(progress, "record_ga_generation", lambda generation, *a, **kw:
                         generations.append(generation))
-    args = Arguments(iterations_genetic=4, random_seed=7,
+    args = Arguments(iterations_genetic=4, 
                      incremental={ "batch_size": 2,
                                   "epoch_generations": 1, "elite_count": 1})
     result = search.incremental_clause_genetic_search(args, task)
@@ -74,6 +75,7 @@ def test_incremental_search_stops_when_enumeration_and_hypotheses_are_exhausted(
     assert generations == [0, 1, 2]
 
 
+@pytest.mark.rng(7)
 def test_incremental_search_skips_pruned_batches_until_a_valid_hypothesis(monkeypatch):
     @contextmanager
     def batches(*args, **kwargs):
@@ -81,7 +83,7 @@ def test_incremental_search_skips_pruned_batches_until_a_valid_hypothesis(monkey
 
     monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
     task = parse_text("#maxv(0). #maxbl(0). #modeh(1,p). #pos({p},{}).")
-    args = Arguments(iterations_genetic=1, random_seed=7,
+    args = Arguments(iterations_genetic=1, 
                      incremental={ "batch_size": 2,
                                   "epoch_generations": 1, "elite_count": 1})
     assert search.incremental_clause_genetic_search(args, task).is_solution
@@ -138,6 +140,7 @@ def test_body_size_order_preserves_space_counts_conditions_and_grounds_once(monk
     assert sum(row["operation_category"] == "solving" for row in rows) > 1
 
 
+@pytest.mark.rng(4)
 def test_bounded_epochs_drop_old_spaces_and_never_enumerate_all(monkeypatch):
     references = []
     batches = []
@@ -190,7 +193,7 @@ def test_bounded_epochs_drop_old_spaces_and_never_enumerate_all(monkeypatch):
     monkeypatch.setattr(search, "create_population", population_factory)
     task = inductive_task([], [example(("target(z)", ""), True)], [], [], [],
                           max_program_clauses=2)
-    args = Arguments(iterations_genetic=4, random_seed=4,
+    args = Arguments(iterations_genetic=4, 
                      evaluation={"scoring": "cov_program", "constraint_inheritance": False},
                      population={"name": "random", "size": 3},
                      incremental={ "batch_size": 2, "archive_size": 2,
@@ -202,6 +205,7 @@ def test_bounded_epochs_drop_old_spaces_and_never_enumerate_all(monkeypatch):
     assert all(reference() is None for reference in references)
 
 
+@pytest.mark.rng(1)
 def test_time_budget_counts_generation_and_rejects_late_evaluations(monkeypatch):
     source = "incremental"
     from gentians.evaluation.result import EvaluationResult
@@ -232,7 +236,7 @@ def test_time_budget_counts_generation_and_rejects_late_evaluations(monkeypatch)
     monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
     monkeypatch.setattr(search, "create_evaluator", lambda *a: evaluate)
     monkeypatch.setattr(search, "create_population", lambda *a: lambda ctx: [1, 2])
-    args = Arguments(iterations_genetic=0, random_seed=1)
+    args = Arguments(iterations_genetic=0)
     args.incremental.update(time_limit_seconds=30)
     result = search.incremental_clause_genetic_search(args, parse_text("#maxpl(1)."))
     assert len(calls) == 2
@@ -241,6 +245,7 @@ def test_time_budget_counts_generation_and_rejects_late_evaluations(monkeypatch)
     assert closed == ([True] if source == "incremental" else [])
 
 
+@pytest.mark.rng(7)
 def test_incremental_retains_unclosed_clauses_until_provider_arrives(monkeypatch):
     @contextmanager
     def batches(*args):
@@ -249,13 +254,14 @@ def test_incremental_retains_unclosed_clauses_until_provider_arrives(monkeypatch
 
     monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
     task = parse_text("#maxpl(2). #pos({p},{}).")
-    args = Arguments(iterations_genetic=100, random_seed=7)
+    args = Arguments(iterations_genetic=100)
     args.evaluation["constraint_inheritance"] = False
     result = search.incremental_clause_genetic_search(args, task)
     assert result.is_solution
     assert set(result.hypothesis) == {"p :- helper.", "helper."}
 
 
+@pytest.mark.rng(1)
 def test_initial_exhaustion_with_overflow_does_not_restart_forever(monkeypatch):
     calls = []
 
@@ -267,12 +273,13 @@ def test_initial_exhaustion_with_overflow_does_not_restart_forever(monkeypatch):
                     make_clause_space(["q :- absent."])])
 
     monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
-    args = Arguments(iterations_genetic=1, random_seed=1)
+    args = Arguments(iterations_genetic=1)
     args.incremental["archive_size"] = 1
     with pytest.raises(ValueError, match="exhausted"):
         search.incremental_clause_genetic_search(args, parse_text("#pos({p},{})."))
 
 
+@pytest.mark.rng(1)
 def test_overflow_revisits_finite_stream_after_initialization(monkeypatch):
     passes = []
 
@@ -282,7 +289,7 @@ def test_overflow_revisits_finite_stream_after_initialization(monkeypatch):
         yield iter([make_clause_space(["p."]), make_clause_space(["q."])])
 
     monkeypatch.setattr(clause_pool, "incremental_clause_batches", batches)
-    args = Arguments(iterations_genetic=5, random_seed=1)
+    args = Arguments(iterations_genetic=5)
     args.incremental.update(archive_size=1, epoch_generations=1)
     result = search.incremental_clause_genetic_search(args, parse_text("#pos({absent},{})."))
     assert not result.is_solution

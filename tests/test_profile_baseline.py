@@ -21,7 +21,6 @@ from benchmarks.profile_baseline import (
     build_dashboard,
     compress_run_artifacts,
     reset_run_outputs,
-    run_profile_worker,
     run_streamed,
     thin_progress,
     write_csv,
@@ -48,7 +47,7 @@ def test_suite_stops_configuration_after_timeout_and_keeps_results(tmp_path, mon
     args = SimpleNamespace(list_datasets=False, out_dir=tmp_path,
                            datasets=["5queens", "grandparent"], runs=3,
                            arguments_json=None, set=[], python=sys.executable,
-                           cprofile=False, seed_base=1, timeout_seconds=1,
+                           cprofile=False, timeout_seconds=1,
                            instrumentation="light", stop_on_timeout=stop)
     profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
     assert len(calls) == expected
@@ -74,7 +73,7 @@ def test_suite_stops_on_crash_and_keeps_diagnostics(tmp_path, monkeypatch):
     args = SimpleNamespace(list_datasets=False, out_dir=tmp_path,
                            datasets=["coin", "grandparent"], runs=30,
                            arguments_json=None, set=[], python=sys.executable,
-                           cprofile=False, seed_base=42, timeout_seconds=3600,
+                           cprofile=False, timeout_seconds=3600,
                            instrumentation="full", stop_on_timeout=False)
     with pytest.raises(SystemExit) as error:
         profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
@@ -87,50 +86,31 @@ def test_suite_stops_on_crash_and_keeps_diagnostics(tmp_path, monkeypatch):
     assert (tmp_path / "dashboard_data.json").is_file()
 
 
-def test_run_i_of_every_dataset_uses_seed_base_plus_i(tmp_path, monkeypatch):
-    seeds = []
+def test_runs_are_numbered_per_dataset(tmp_path, monkeypatch):
+    runs = []
 
     def finished(cmd, arguments_json, log_path, timeout, *paths_and_run, **_kwargs):
         log_path.write_text("", encoding="utf-8")
-        dataset, run, seed = paths_and_run[-4:-1]
-        seeds.append((dataset, run, seed))
+        runs.append(tuple(paths_and_run[-3:-1]))
         return 0, False
 
     monkeypatch.setattr(profile, "run_streamed", finished)
     args = SimpleNamespace(list_datasets=False, out_dir=tmp_path,
                            datasets=["5queens", "grandparent"], runs=2,
                            arguments_json=None, set=[], python=sys.executable,
-                           cprofile=False, seed_base=42, timeout_seconds=0,
+                           cprofile=False, timeout_seconds=0,
                            instrumentation="light", stop_on_timeout=False)
 
     profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
 
-    assert seeds == [
-        ("5queens", 1, 43), ("5queens", 2, 44),
-        ("grandparent", 1, 43), ("grandparent", 2, 44),
-    ]
-
-
-def test_profile_worker_applies_seed_to_arguments(monkeypatch, tmp_path):
-    captured = {}
-    monkeypatch.setenv("GENTIANS_ARGUMENTS_JSON", json.dumps(Arguments().__dict__))
-    monkeypatch.setenv("GENTIANS_RANDOM_SEED", "17")
-    monkeypatch.setenv("GENTIANS_TIMINGS_PATH", str(tmp_path / "run_timings.json"))
-    monkeypatch.setattr(
-        "benchmarks.profile_baseline.gentians_main",
-        lambda arguments: captured.setdefault("arguments", arguments),
-    )
-
-    run_profile_worker()
-
-    assert captured["arguments"].random_seed == 17
+    assert runs == [("5queens", 1), ("5queens", 2), ("grandparent", 1), ("grandparent", 2)]
 
 
 @pytest.mark.parametrize("algorithm", ["steady_state", "incremental"])
 def test_profile_saves_and_validates_the_winner_for_both_algorithms(tmp_path, algorithm):
     args = SimpleNamespace(list_datasets=False, out_dir=tmp_path, datasets=["coin"], runs=1,
                            arguments_json=None, set=[f'algorithm="{algorithm}"'], python=sys.executable,
-                           cprofile=False, seed_base=42, timeout_seconds=10, instrumentation="full",
+                           cprofile=False, timeout_seconds=10, instrumentation="full",
                            stop_on_timeout=False, validation_timeout_seconds=10)
     profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
     import csv
@@ -191,7 +171,7 @@ def test_truncated_final_log_preserves_complete_checkpoint(tmp_path, monkeypatch
     monkeypatch.setattr(profile, "validate_run", lambda *args, **kwargs: {"valid": False})
     args = SimpleNamespace(list_datasets=False, out_dir=tmp_path, datasets=["coin"], runs=1,
                            arguments_json=None, set=[], python=sys.executable, cprofile=False,
-                           seed_base=42, timeout_seconds=1, instrumentation="light", stop_on_timeout=False)
+                           timeout_seconds=1, instrumentation="light", stop_on_timeout=False)
     profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
     with gzip.open(profile.run_file(tmp_path, "coin", 1, "_hypothesis.lp.gz"), "rt") as file:
         assert file.read() == "p.\nq.\n"
@@ -209,7 +189,7 @@ def test_final_log_does_not_overwrite_best_evaluated_checkpoint(tmp_path, monkey
     monkeypatch.setattr(profile, "validate_run", lambda *args, **kwargs: {"valid": False})
     args = SimpleNamespace(list_datasets=False, out_dir=tmp_path, datasets=["coin"], runs=1,
                            arguments_json=None, set=[], python=sys.executable, cprofile=False,
-                           seed_base=42, timeout_seconds=1, instrumentation="light", stop_on_timeout=False)
+                           timeout_seconds=1, instrumentation="light", stop_on_timeout=False)
     profile.run_benchmark_suite(args, profile.PROFILE_BASELINE_PATH)
     with gzip.open(profile.run_file(tmp_path, "coin", 1, "_hypothesis.lp.gz"), "rt") as file:
         assert file.read() == "better.\n"
@@ -240,7 +220,7 @@ def test_initialization_interruption_keeps_evaluated_hypothesis(tmp_path, monkey
     monkeypatch.setattr(CandidateEvaluator, "__call__", interrupt_after_first)
     from benchmarks.catalog import arguments_for
     from gentians.gentians import task_from_arguments
-    arguments = arguments_for("5queens", [f'algorithm="{algorithm}"', 'random_seed=43'])
+    arguments = arguments_for("5queens", [f'algorithm="{algorithm}"'])
     with pytest.raises(RuntimeError, match="interrupted initialization"):
         solve(task_from_arguments(arguments), arguments)
     assert checkpoint.read_text().strip()
@@ -697,7 +677,7 @@ def test_population_coverage_keeps_program_diversity_and_size_of_older_records()
 
 def _result(run, success):
     return RunResult(
-        dataset="d", run=run, seed=run, experiment_id="x", status="ok", returncode=0,
+        dataset="d", run=run, experiment_id="x", status="ok", returncode=0,
         elapsed_seconds=0.0, command=[], arguments_json="{}", log_path="", success=success,
     )
 
@@ -778,7 +758,7 @@ def test_example_labels_follow_task_order(tmp_path):
         encoding="utf-8",
     )
     result = RunResult(
-        dataset="d", run=1, seed=1, experiment_id="x", status="ok", returncode=0,
+        dataset="d", run=1, experiment_id="x", status="ok", returncode=0,
         elapsed_seconds=0.0, command=[], arguments_json=json.dumps({"filename": str(task)}),
         log_path="", success=True,
     )
@@ -1109,7 +1089,6 @@ def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
             RunResult(
                 "d",
                 1,
-                1,
                 "run",
                 "ok",
                 0,
@@ -1120,7 +1099,6 @@ def test_dashboard_aggregates_clingo_by_category_and_mean_ground_size(tmp_path):
             ),
             RunResult(
                 "d",
-                2,
                 2,
                 "run2",
                 "ok",
@@ -1194,8 +1172,8 @@ def test_dashboard_counts_best_found_runs(tmp_path):
     write_dashboard_data(
         tmp_path,
         [
-            RunResult("d", 1, 1, "run", "ok", 0, 1.0, [], "{}", ""),
-            RunResult("d", 2, 2, "run", "ok", 0, 1.0, [], "{}", "", success=True),
+            RunResult("d", 1, "run", "ok", 0, 1.0, [], "{}", ""),
+            RunResult("d", 2, "run", "ok", 0, 1.0, [], "{}", "", success=True),
         ],
         [],
         [],
@@ -1238,8 +1216,8 @@ def test_finished_run_keeps_only_compressed_artifacts_that_still_read(tmp_path):
         "d_run_1.log.gz", "d_run_1.prof",
         "d_run_1_operator_metrics.jsonl.gz", "d_run_1_timings.json.gz",
     ]
-    assert profile.read_jsonl_rows(source, "d", 1, 7, "d_seed_7") == [
-        {"dataset": "d", "run": 1, "seed": 7, "experiment_id": "d_seed_7", "operator": "mutation"}
+    assert profile.read_jsonl_rows(source, "d", 1, "d_run_1") == [
+        {"dataset": "d", "run": 1, "experiment_id": "d_run_1", "operator": "mutation"}
     ]
     assert profile.read_timings(timings, "d", 1) == [TimingMetric("d", 1, "total_execution", 2.0, 1)]
 
@@ -1266,7 +1244,6 @@ def test_run_streamed_sets_dataset_and_run_env(tmp_path, timeout):
         tmp_path / "clingo.jsonl",
         "coin",
         3,
-        99,
     )
 
     assert (returncode, timed_out) == (0, False)
@@ -1281,7 +1258,7 @@ def test_light_instrumentation_removes_inherited_detailed_logging(tmp_path, monk
         [sys.executable, "-c", code], "{}", log, 10,
         *[tmp_path / name for name in ("timings.json", "x_ga_metrics.json", "operator.jsonl",
                                       "candidate.jsonl", "quality.jsonl", "clingo.jsonl")],
-        "coin", 1, 1, instrumentation_level="light",
+        "coin", 1, instrumentation_level="light",
     )
     assert result == (0, False)
     assert json.loads(log.read_text()) == [
@@ -1304,7 +1281,7 @@ def test_part_index_leaves_the_experiment_summary_to_the_caller(tmp_path, level)
     from benchmarks.profile_baseline import write_outputs
 
     part = tmp_path / ".parts" / "d.csv"
-    write_outputs(tmp_path, [RunResult("d", 1, 43, "d_seed_43", "ok", 0, 1.0, [], "{}", "")],
+    write_outputs(tmp_path, [RunResult("d", 1, "d_run_1", "ok", 0, 1.0, [], "{}", "")],
                   level, part_index=part)
     assert part.read_text().splitlines()[1].startswith("{}")
     assert not any((tmp_path / name).exists()
@@ -1313,8 +1290,8 @@ def test_part_index_leaves_the_experiment_summary_to_the_caller(tmp_path, level)
 
 def test_dashboard_uses_run_means_for_profile_counters(tmp_path):
     results = [
-        RunResult("d", 1, 1, "run1", "ok", 0, 1.0, [], "{}", ""),
-        RunResult("d", 2, 2, "run2", "ok", 0, 1.0, [], "{}", ""),
+        RunResult("d", 1, "run1", "ok", 0, 1.0, [], "{}", ""),
+        RunResult("d", 2, "run2", "ok", 0, 1.0, [], "{}", ""),
     ]
     write_dashboard_data(
         tmp_path,
@@ -1391,7 +1368,6 @@ def test_dashboard_uses_real_ga_diversity(tmp_path):
             RunResult(
                 "d",
                 1,
-                1,
                 "run",
                 "ok",
                 0,
@@ -1424,8 +1400,8 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
     write_dashboard_data(
         tmp_path,
         [
-            RunResult("d", 1, 1, "run", "ok", 0, 4.0, [], "{}", ""),
-            RunResult("d", 2, 2, "run", "timeout", None, 10.0, [], "{}", ""),
+            RunResult("d", 1, "run", "ok", 0, 4.0, [], "{}", ""),
+            RunResult("d", 2, "run", "timeout", None, 10.0, [], "{}", ""),
         ],
         [TimingMetric("d", 1, "total_execution", 3.0, 1)],
         [],
@@ -1449,7 +1425,7 @@ def test_dashboard_reports_instrumentation_coverage(tmp_path):
 def test_ga_progress_exposes_round_time_and_evaluations(tmp_path):
     write_dashboard_data(
         tmp_path,
-        [RunResult("d", 1, 1, "run", "ok", 0, 1.0, [], "{}", "")],
+        [RunResult("d", 1, "run", "ok", 0, 1.0, [], "{}", "")],
         [],
         [
             GAMetric(
@@ -1482,7 +1458,7 @@ def test_dashboard_reports_largest_clause_space_per_run(tmp_path):
     ]
     write_dashboard_data(
         tmp_path,
-        [RunResult("d", run, run, "run", "ok", 0, 1.0, [], "{}", "") for run in (1, 2)],
+        [RunResult("d", run, "run", "ok", 0, 1.0, [], "{}", "") for run in (1, 2)],
         [],
         [],
         [],
@@ -1499,7 +1475,7 @@ def test_dashboard_summarizes_restarts_epochs_and_algorithm(tmp_path):
     arguments = json.dumps({"algorithm": "incremental"})
     write_dashboard_data(
         tmp_path,
-        [RunResult("d", run, run, "run", "ok", 0, 1.0, [], arguments, "") for run in (1, 2)],
+        [RunResult("d", run, "run", "ok", 0, 1.0, [], arguments, "") for run in (1, 2)],
         [],
         [
             GAMetric("d", 1, 0, 1.0, 1.0, 1.0),
@@ -1542,7 +1518,7 @@ def test_dashboard_summarizes_restarts_epochs_and_algorithm(tmp_path):
 def test_steady_state_dashboard_has_no_epochs(tmp_path):
     write_dashboard_data(
         tmp_path,
-        [RunResult("d", 1, 1, "run", "ok", 0, 1.0, [], "{}", "")],
+        [RunResult("d", 1, "run", "ok", 0, 1.0, [], "{}", "")],
         [],
         [],
         [],
@@ -1578,7 +1554,6 @@ def test_dashboard_serializes_non_finite_fitness_as_null(tmp_path):
         [
             RunResult(
                 "even_odd",
-                1,
                 1,
                 "run",
                 "ok",
@@ -1695,7 +1670,7 @@ def test_progress_mean_uses_a_bounded_grid(monkeypatch):
 def test_dashboard_total_std_is_the_sample_deviation_of_measured_runs(tmp_path):
     write_dashboard_data(
         tmp_path,
-        [RunResult("d", run, run, "run", "ok", 0, 1.0, [], "{}", "") for run in (1, 2, 3)],
+        [RunResult("d", run, "run", "ok", 0, 1.0, [], "{}", "") for run in (1, 2, 3)],
         [TimingMetric("d", run, "total_execution", seconds, 1)
          for run, seconds in ((1, 2.0), (2, 4.0), (3, 6.0))],
         [],
@@ -1732,8 +1707,8 @@ def test_build_dashboard_reads_saved_run_artifacts(tmp_path):
     write_csv(tmp_path / "runs.csv", [{
         "arguments_json": json.dumps({"algorithm": "incremental"}), "command": "[]",
         "cprofile_path": "", "dataset": "d", "elapsed_seconds": 1.5,
-        "experiment_id": "d_seed_1", "log_path": "x.log", "returncode": 0, "run": 1,
-        "seed": 1, "status": "ok", "success": True,
+        "experiment_id": "d_run_1", "log_path": "x.log", "returncode": 0, "run": 1,
+        "status": "ok", "success": True,
     }])
     (runs / "d_run_1_timings.json").write_text(
         json.dumps([{"metric": "total_execution", "seconds": 1.25, "calls": 1}])

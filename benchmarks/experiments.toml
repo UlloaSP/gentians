@@ -1,4 +1,4 @@
-# Score weights, selection and replacement compared with matched seeds.
+# Score weights, selection and replacement compared over independent random runs.
 [suite]
 output_root = ".benchmarks/experiments"
 methods = ["gentians-steady_state"]
@@ -35,7 +35,6 @@ datasets = [
     "subset_sum_unbalanced_ops",
 ]
 runs = 100
-seed_base = 42
 timeout_seconds = 30
 validation_timeout_seconds = 60
 instrumentation = "full"
@@ -112,7 +111,6 @@ datasets = ["5queens"]
 runs = 100
 timeout_seconds = 60
 label = "Prueba1"
-seed_base = 879
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 25
@@ -128,7 +126,6 @@ datasets = ["5queens"]
 runs = 100
 timeout_seconds = 60
 label = "Prueba2"
-seed_base = 213
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 25
@@ -144,7 +141,6 @@ datasets = ["5queens"]
 runs = 100
 timeout_seconds = 60
 label = "Prueba3"
-seed_base = 456
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 10
@@ -160,7 +156,6 @@ datasets = ["5queens"]
 runs = 100
 timeout_seconds = 60
 label = "Prueba4"
-seed_base = 789
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 10
@@ -177,7 +172,6 @@ datasets = ["grandparent"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba1 · Grandparent"
-seed_base = 879
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 25
@@ -193,7 +187,6 @@ datasets = ["grandparent"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba2 · Grandparent"
-seed_base = 213
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 25
@@ -209,7 +202,6 @@ datasets = ["grandparent"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba3 · Grandparent"
-seed_base = 456
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 10
@@ -225,7 +217,6 @@ datasets = ["grandparent"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba4 · Grandparent"
-seed_base = 789
 description = "Steady state, population 25, lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, per-clause mutation with probability 0.15 per rule."
 [experiment.overrides]
 "population.size" = 10
@@ -241,7 +232,6 @@ datasets = ["grandparent"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba5 · Grandparent"
-seed_base = 321
 description = "Steady state, population 100, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 100
@@ -257,7 +247,6 @@ datasets = ["grandparent"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba6 · Grandparent"
-seed_base = 654
 description = "Steady state, population 100, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 100
@@ -273,7 +262,6 @@ datasets = ["subset_sum"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba3 · Subset sum"
-seed_base = 456
 description = "Steady state, population 10, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 10
@@ -289,7 +277,6 @@ datasets = ["subset_sum"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba4 · Subset sum"
-seed_base = 789
 description = "Steady state, population 10, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 10
@@ -305,7 +292,6 @@ datasets = ["subset_sum"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba1 · Subset sum"
-seed_base = 879
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 25
@@ -321,7 +307,6 @@ datasets = ["subset_sum"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba2 · Subset sum"
-seed_base = 213
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 25
@@ -337,7 +322,6 @@ datasets = ["subset_sum"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba5 · Subset sum"
-seed_base = 321
 description = "Steady state, population 100, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 100
@@ -353,7 +337,6 @@ datasets = ["subset_sum"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba6 · Subset sum"
-seed_base = 654
 description = "Steady state, population 100, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 100
@@ -369,7 +352,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba3 · Set partition sum and cardinality"
-seed_base = 456
 description = "Steady state, population 10, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 10
@@ -385,7 +367,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba4 · Set partition sum and cardinality"
-seed_base = 789
 description = "Steady state, population 10, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 10
@@ -401,7 +382,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba1 · Set partition sum and cardinality"
-seed_base = 879
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 25
@@ -417,7 +397,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba2 · Set partition sum and cardinality"
-seed_base = 213
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 25
@@ -433,7 +412,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba5 · Set partition sum and cardinality"
-seed_base = 321
 description = "Steady state, population 100, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 100
@@ -449,7 +427,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba6 · Set partition sum and cardinality"
-seed_base = 654
 description = "Steady state, population 100, complementary lexicase selection, positive:negative score weights 100:1, dominated-or-worst replacement, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 100
@@ -464,7 +441,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba3 GC · Set partition sum and cardinality"
-seed_base = 456
 description = "Steady state, population 10, complementary lexicase selection, positive:negative score weights 100:1, genotypic crowding replacement with crowding factor 3, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 10
@@ -481,7 +457,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba4 GC · Set partition sum and cardinality"
-seed_base = 789
 description = "Steady state, population 10, complementary lexicase selection, positive:negative score weights 100:1, genotypic crowding replacement with crowding factor 3, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 10
@@ -498,7 +473,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba1 GC · Set partition sum and cardinality"
-seed_base = 879
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, genotypic crowding replacement with crowding factor 3, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 25
@@ -515,7 +489,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba2 GC · Set partition sum and cardinality"
-seed_base = 213
 description = "Steady state, population 25, complementary lexicase selection, positive:negative score weights 100:1, genotypic crowding replacement with crowding factor 3, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 25
@@ -532,7 +505,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba5 GC · Set partition sum and cardinality"
-seed_base = 321
 description = "Steady state, population 100, complementary lexicase selection, positive:negative score weights 100:1, genotypic crowding replacement with crowding factor 3, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 100
@@ -549,7 +521,6 @@ datasets = ["set_partition_sum_and_cardinality"]
 runs = 100
 timeout_seconds = 180
 label = "Prueba6 GC · Set partition sum and cardinality"
-seed_base = 654
 description = "Steady state, population 100, complementary lexicase selection, positive:negative score weights 100:1, genotypic crowding replacement with crowding factor 3, random-group mutation with probability 0.9 per offspring."
 [experiment.overrides]
 "population.size" = 100

@@ -1,5 +1,6 @@
 import random
 
+import pytest
 
 from gentians.evolution.individual import Individual
 from gentians.evolution.operator_types import MutationProposal
@@ -23,6 +24,7 @@ def test_lexicase_draws_each_parent_without_replacement():
     assert LexicaseSelection()([poor, safe], 2, rng) == [safe, poor]
 
 
+@pytest.mark.rng(3)
 def test_duplicate_crossover_base_is_mutated_without_reselection(monkeypatch):
     selection_calls = []
     crossover_calls = []
@@ -31,7 +33,6 @@ def test_duplicate_crossover_base_is_mutated_without_reselection(monkeypatch):
     other = ("other.",)
     mutated = ("mutated.",)
     args = Arguments(
-        random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 2},
         crossover={"name": "set_mix", "probability": 1.0},
@@ -88,6 +89,7 @@ def test_duplicate_crossover_base_is_mutated_without_reselection(monkeypatch):
     assert len(mutation_calls) == 1
 
 
+@pytest.mark.rng(2)
 def test_search_stops_initialization_at_first_perfect_candidate(monkeypatch):
     monkeypatch.setattr(
         search,
@@ -104,7 +106,7 @@ def test_search_stops_initialization_at_first_perfect_candidate(monkeypatch):
 
     monkeypatch.setattr(search, "create_evaluator", lambda task, config, *, space: evaluate)
     result = search.steady_state_genetic_search(
-        Arguments(random_seed=2, iterations_genetic=1),
+        Arguments(iterations_genetic=1),
         inductive_task([], [], [], [], [], max_program_clauses=1),
         make_clause_space(["win.", "unused."]),
     )

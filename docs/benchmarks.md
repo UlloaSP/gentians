@@ -25,16 +25,16 @@ uv run python benchmarks/run_experiments.py --summary
 
 The active local suite compares positive:negative score weights **1:1 and 10:1**
 with steady state and populations **10 and 100**. Each configuration has five
-matched seeds and a **300-second timeout per run**, on three synthetic coloring
+independent random runs and a **300-second timeout per run**, on three synthetic coloring
 tasks plus unchanged `coloring` and `set_partition_sum` controls. See the
 [protocol, known solutions, and calibration](score-experiments.md).
 The previous SDK, Alzheimer, and ILASP matrices have been removed from the active
 TOML; their saved results remain on disk. Historical comparison documents record
 the earlier protocols rather than current experiment IDs.
 
-Run *i* of every dataset uses seed `seed_base + i`, with runs numbered from 1 and
-`seed_base = 42`. Run 1 of any dataset or experiment therefore uses seed 43, so
-datasets and experiments are matched run by run.
+Every run draws fresh randomness: there is no seed to set, so run *i* of two
+experiments is not a matched pair. Compare the distributions over all runs and
+increase the runs until the comparison stabilizes.
 
 ### Parallel execution
 

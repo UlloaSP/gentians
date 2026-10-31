@@ -742,10 +742,10 @@ def test_evolution_strategies_choose_operations_and_delegate_validity():
     ]
 
 
+@pytest.mark.rng(3)
 def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
     generations = []
     args = Arguments(
-        random_seed=3,
         iterations_genetic=0,
         population={"name": "random", "size": 2},
     )
@@ -789,6 +789,7 @@ def test_single_engine_accepts_supplied_clause_generation(monkeypatch):
     assert generations == [(0, 1.0, [1.0])]
 
 
+@pytest.mark.rng(7)
 def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
     orders = []
     monkeypatch.setattr(
@@ -821,7 +822,7 @@ def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
             [individual.birth_order for individual in population]
         ),
     )
-    args = Arguments(random_seed=7, population={"name": "random", "size": 2})
+    args = Arguments(population={"name": "random", "size": 2})
     task = inductive_task([], [], [], [], [], max_program_clauses=1)
     space = make_clause_space(["first.", "second."])
 
@@ -831,10 +832,10 @@ def test_search_assigns_reproducible_logical_birth_order(monkeypatch):
     assert orders == [[1, 2], [1, 2]]
 
 
+@pytest.mark.rng(3)
 def test_default_unlimited_generations_run_until_winner(monkeypatch):
     generations = []
     args = Arguments(
-        random_seed=3,
         population={"name": "random", "size": 2},
         crossover={"name": "set_mix", "probability": 1.0},
         mutation={"name": "random_group", "probability": 0.0},
@@ -888,11 +889,11 @@ def test_default_unlimited_generations_run_until_winner(monkeypatch):
     assert generations == [(0, 0.0, [0.0, 0.0]), (1, 1.0, [1.0, 0.0])]
 
 
+@pytest.mark.rng(3)
 def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     mutation_calls = []
     generations = []
     args = Arguments(
-        random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 1},
         selection={
@@ -943,12 +944,12 @@ def test_skipped_crossover_does_not_mutate_parents(monkeypatch):
     assert generations == [0, 1]
 
 
+@pytest.mark.rng(3)
 def test_crossover_child_is_mutated_before_single_evaluation(monkeypatch):
     mutation_calls = []
     evaluated_programs = []
     generations = []
     args = Arguments(
-        random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 2},
     )
@@ -1018,13 +1019,13 @@ def test_crossover_child_is_mutated_before_single_evaluation(monkeypatch):
     assert generations == [(0, 0.0, [0.0, 0.0]), (1, 1.0, [1.0, 0.0])]
 
 
+@pytest.mark.rng(3)
 def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch):
     rows = []
     evaluated_programs = []
     mutation_calls = []
     monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")
     args = Arguments(
-        random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 2},
         crossover={"name": "set_mix", "probability": 1.0},
@@ -1080,11 +1081,11 @@ def test_duplicate_crossover_base_can_produce_new_mutation(monkeypatch):
     assert evaluated_programs == [("start.",), ("other.",), ("mutated.",)]
 
 
+@pytest.mark.rng(3)
 def test_steady_state_restarts_stagnant_headed_population_and_finds_solution(monkeypatch):
     calls = 0
     evaluated_programs = []
     args = Arguments(
-        random_seed=3,
         iterations_genetic=101,
         population={"name": "random", "size": 3},
     )
@@ -1136,10 +1137,10 @@ def test_steady_state_restarts_stagnant_headed_population_and_finds_solution(mon
     ]
 
 
+@pytest.mark.rng(3)
 def test_steady_state_does_not_restart_constraint_only_population(monkeypatch):
     calls = 0
     args = Arguments(
-        random_seed=3,
         iterations_genetic=101,
         population={"name": "random", "size": 2},
     )
@@ -1174,10 +1175,10 @@ def test_steady_state_does_not_restart_constraint_only_population(monkeypatch):
     assert calls == 1
 
 
+@pytest.mark.rng(3)
 def test_steady_state_restart_keeps_population_when_refill_has_no_novelty(monkeypatch):
     calls = 0
     args = Arguments(
-        random_seed=3,
         iterations_genetic=101,
         population={"name": "random", "size": 2},
     )
@@ -1214,6 +1215,7 @@ def test_steady_state_restart_keeps_population_when_refill_has_no_novelty(monkey
     assert not result.is_solution
 
 
+@pytest.mark.rng(3)
 @pytest.mark.parametrize("mutation_name", ["random_group"])
 def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     monkeypatch, mutation_name
@@ -1221,7 +1223,6 @@ def test_probability_skipped_mutation_is_not_recorded_as_duplicate(
     rows = []
     monkeypatch.setenv("GENTIANS_OPERATOR_METRICS_PATH", "metrics.jsonl")
     args = Arguments(
-        random_seed=3,
         iterations_genetic=1,
         population={"name": "random", "size": 1},
         selection={
@@ -1486,6 +1487,7 @@ def test_crowding_keeps_size_order_best_score_and_rejects_invalid_candidates(kin
         )
 
 
+@pytest.mark.rng(3)
 @pytest.mark.parametrize(
     "replacement", ["dominated_or_worst", "genotypic_crowding", "phenotypic_crowding"],
 )
@@ -1495,7 +1497,7 @@ def test_replacement_runs_in_both_algorithms(algorithm, replacement):
 
     module = importlib.import_module(f"gentians.algorithms.{algorithm}")
     args = Arguments(
-        random_seed=3, iterations_genetic=200,
+        iterations_genetic=200,
         population={"name": "random", "size": 3},
         replacement={"name": replacement, "crowding_factor": 2},
         incremental={"batch_size": 3, "epoch_generations": 5, "elite_count": 1},

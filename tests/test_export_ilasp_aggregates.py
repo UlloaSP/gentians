@@ -182,7 +182,6 @@ def test_comparison_matrix_matches_datasets_and_timeout(experiment_id, runs, tim
     for experiment in gentians:
         assert experiment["datasets"] == paired["datasets"]
         assert experiment["runs"] == runs and experiment["timeout_seconds"] == timeout
-        assert experiment["seed_base"] == 42
         assert not experiment.get("stop_on_timeout", False)
         assert experiment["instrumentation"] == "full"
     for dataset in paired["datasets"]:

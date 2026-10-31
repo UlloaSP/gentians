@@ -20,7 +20,10 @@ from gentians.evaluation.evaluator import CandidateEvaluator
 from gentians.evaluation.result import EvaluationResult
 from tests.task_helpers import example, inductive_task, make_clause_space
 
+pytestmark = pytest.mark.rng(17)
 
+
+@pytest.mark.rng(1)
 @pytest.mark.parametrize("algorithm", ["steady_state_genetic", "incremental_clause_genetic"])
 def test_unlimited_search_stops_after_all_subsets_are_evaluated(monkeypatch, algorithm):
     search = importlib.import_module(f"gentians.algorithms.{algorithm}")
@@ -31,7 +34,7 @@ def test_unlimited_search_stops_after_all_subsets_are_evaluated(monkeypatch, alg
 
     monkeypatch.setattr(search, "count", bounded_count)
     args = Arguments(
-        iterations_genetic=0, random_seed=1,
+        iterations_genetic=0, 
         population={"name": "random", "size": 2},
         incremental={"batch_size": 2, "epoch_generations": 1, "elite_count": 1},
     )
@@ -109,7 +112,6 @@ def _incremental_arguments(**overrides):
     return Arguments(
         evaluation={"scoring": "cov_program", "constraint_inheritance": False},
         iterations_genetic=8,
-        random_seed=17,
         population={"name": "random", "size": 4},
         incremental={
             "batch_size": 4,

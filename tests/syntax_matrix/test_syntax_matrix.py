@@ -75,10 +75,11 @@ def _params(cases: list[Case]):
         for case in cases
     ]
 
+pytestmark = pytest.mark.rng(0)
+
 
 def _arguments(algorithm: str = "steady_state") -> Arguments:
     return Arguments(
-        random_seed=0,
         iterations_genetic=SEARCH_ITERATIONS,
         algorithm=algorithm,
     )

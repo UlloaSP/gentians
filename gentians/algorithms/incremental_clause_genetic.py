@@ -43,9 +43,7 @@ def incremental_clause_genetic_search(
     if elite_count > population_size:
         raise ValueError("incremental.elite_count cannot exceed population.size")
 
-    rng = random.Random(args.random_seed)
-    batch_seed = None if args.random_seed is None else args.random_seed ^ 0x5EED_600D
-    batch_rng = random.Random(batch_seed)
+    rng = random.Random()
     initializer = create_population(args.population)
     selection = create_selection(args.selection)
     crossover = create_crossover(args.crossover)
@@ -57,7 +55,7 @@ def incremental_clause_genetic_search(
 
     try:
         with IncrementalClausePool(
-            task, args, batch_size, archive_size, batch_rng, budget, supplied_space,
+            task, args, batch_size, archive_size, rng, budget, supplied_space,
         ) as pool:
             hypotheses = pool.draw()
             if hypotheses is None:

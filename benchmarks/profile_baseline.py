@@ -45,7 +45,6 @@ from benchmarks.check_hypothesis import validate_run  # noqa: E402
 class RunResult:
     dataset: str
     run: int
-    seed: int
     experiment_id: str
     status: str
     returncode: int | None
@@ -130,10 +129,6 @@ def parse_profile_args(
         help="Full Arguments JSON object. Used for every listed dataset unless --set overrides it.",
     )
     parser.add_argument("--list-datasets", action="store_true")
-    parser.add_argument(
-        "--seed-base", type=int, default=42,
-        help="Run i of every dataset uses seed seed_base + i, so dataset runs stay matched.",
-    )
     parser.add_argument("--instrumentation", choices=("full", "light"), default="full")
     parser.add_argument("--validation-timeout-seconds", type=int, default=60)
     parser.add_argument(
@@ -224,10 +219,7 @@ def run_benchmark_suite(
                     str(cprofile_path.resolve()),
                     *cmd[1:],
                 ]
-            # Seeds depend only on the run number: run i of every dataset and every
-            # experiment uses the same seed.
-            seed = args.seed_base + run
-            experiment_id = f"{dataset}_seed_{seed}"
+            experiment_id = f"{dataset}_run_{run}"
 
             print(
                 f"[{completed}/{total}] {dataset} run {run}/{args.runs} timeout={args.timeout_seconds}s",
@@ -247,7 +239,6 @@ def run_benchmark_suite(
                 clingo_metrics_path,
                 dataset,
                 run,
-                seed,
                 run_env(dataset, dataset_arguments) if run_env is not None else None,
                 instrumentation_level=getattr(args, "instrumentation", "full"),
             )
@@ -263,7 +254,6 @@ def run_benchmark_suite(
             run_result = RunResult(
                 dataset=dataset,
                 run=run,
-                seed=seed,
                 experiment_id=experiment_id,
                 status=status,
                 returncode=returncode,
@@ -365,7 +355,7 @@ def read_run_artifacts(out_dir: Path, result: RunResult) -> RunArtifacts:
 
     def rows(suffix: str) -> list[dict[str, object]]:
         return read_jsonl_rows(
-            run_file(out_dir, dataset, run, suffix), dataset, run, result.seed,
+            run_file(out_dir, dataset, run, suffix), dataset, run,
             result.experiment_id,
         )
 
@@ -392,7 +382,6 @@ def build_dashboard(out_dir: Path) -> None:
             RunResult(
                 dataset=row["dataset"],
                 run=int(row["run"]),
-                seed=int(row["seed"]),
                 experiment_id=row["experiment_id"],
                 status=row["status"],
                 returncode=int(row["returncode"]) if row["returncode"] else None,
@@ -456,9 +445,6 @@ def build_command(
 def run_profile_worker() -> None:
     payload = os.environ["GENTIANS_ARGUMENTS_JSON"]
     arguments = Arguments(**json.loads(payload))
-    seed = os.environ.get("GENTIANS_RANDOM_SEED")
-    if seed is not None:
-        arguments.random_seed = int(seed)
     from benchmarks.process_resources import record_process_resources
     from gentians.search.budget import SearchBudget
 
@@ -488,7 +474,6 @@ def run_streamed(
     clingo_metrics_path: Path,
     dataset: str,
     run: int,
-    seed: int,
     extra_env: dict[str, str] | None = None,
     instrumentation_level: str = "full",
 ) -> tuple[int | None, bool]:
@@ -496,7 +481,6 @@ def run_streamed(
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
     env["GENTIANS_PROFILE_WORKER"] = "1"
     env["GENTIANS_ARGUMENTS_JSON"] = arguments_json
-    env["GENTIANS_RANDOM_SEED"] = str(seed)
     env["GENTIANS_BENCHMARK_NAME"] = dataset
     env["GENTIANS_RUN_NUMBER"] = str(run)
     env["GENTIANS_TIMINGS_PATH"] = str(timings_path.resolve())
@@ -697,7 +681,7 @@ def read_json_rows(path: Path) -> list[dict[str, object]]:
 
 
 def read_jsonl_rows(
-    path: Path, dataset: str, run: int, seed: int, experiment_id: str
+    path: Path, dataset: str, run: int, experiment_id: str
 ) -> list[dict[str, object]]:
     """Read a run's JSONL metrics, plain while running or gzip once finished."""
     text = read_artifact_text(path)
@@ -715,7 +699,7 @@ def read_jsonl_rows(
             except json.JSONDecodeError:
                 continue
     return [
-        {"dataset": dataset, "run": run, "seed": seed, "experiment_id": experiment_id, **row}
+        {"dataset": dataset, "run": run, "experiment_id": experiment_id, **row}
         for row in parsed
     ]
 

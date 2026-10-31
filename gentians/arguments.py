@@ -12,9 +12,6 @@ class Arguments:
     # Path to a task file or a directory containing bk.lp, exs.lp, and bias.lp.
     filename: str | None = None
 
-    # Seed used by evolutionary operators.
-    random_seed: int | None = None
-
     # Number of genetic generations. 0 means unlimited.
     iterations_genetic: int = 0
 
